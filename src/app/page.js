@@ -307,6 +307,7 @@ export default function LimbuAILanding() {
       showToast("Something went wrong. Please try again.", "error");
     }
   };
+  
 
   const subscriptionPlans = [
     {

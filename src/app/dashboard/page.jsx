@@ -32,8 +32,12 @@ import {
   Rocket,
   Download,
   Activity,
+  Facebook,
+  Instagram,
+  MessageCircle,
+  LogOut,
 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FirstPostModal from "../../components/FirstPostModal";
 
 import Link from "next/link";
@@ -52,6 +56,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import MetaConnectCard from "../../components/MetaConnectCard";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -835,6 +840,7 @@ function ConnectModal({ isOpen, onClose }) {
 export default function DashboardPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { data: session, status } = useSession();
 
@@ -851,9 +857,11 @@ export default function DashboardPage() {
   const [noAccountsFound, setNoAccountsFound] = useState(false);
   const [searchKeywordsData, setSearchKeywordsData] = useState(null);
   const [searchKeywordsLoading, setSearchKeywordsLoading] = useState(false);
+  const [facebookPages, setFacebookPages] = useState([]);
   const [cacheStatus, setCacheStatus] = useState(""); // For showing cache info
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);  
   const [showFirstPostModal, setShowFirstPostModal] = useState(false);
+  const [FbPageData,setFbPageData] = useState([])
 
 
   const userId = localStorage.getItem("userId");
@@ -1141,6 +1149,33 @@ const NavLinks = ({ isAuthenticated }) => {
     fetchInProgress.current = false;
   }, [session?.accessToken, session?.user?.email, loadFromCache, saveToCache]);
 
+  // --- Fetch Facebook Pages ---
+  const fetchFacebookPages = useCallback(async () => {
+    try {
+      const res = await fetch("/api/facebook/pages");
+      const data = await res.json();
+      console.log("datadata",data);
+      
+      if (data.success) {
+        console.log("data",data);
+        
+        setFacebookPages(data.pages);
+        // setFbPageData(data.pages)
+      }
+    } catch (error) {
+      console.error("Error fetching Facebook pages:", error);
+      toast.error("Failed to fetch Facebook pages");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFacebookPages();
+    if (searchParams?.get("fb") === "connected") {
+      toast.success("Facebook Page connected successfully!");
+      router.replace("/dashboard");
+    }
+  }, [fetchFacebookPages, searchParams, router]);
+
 
 
   useEffect(()=>{
@@ -1389,100 +1424,165 @@ const NavLinks = ({ isAuthenticated }) => {
 // Unauthenticated state
 // Unauthenticated state
   if (status === "unauthenticated") {
-
     return (
       <>
-      <ConnectModal isOpen={isConnectModalOpen} onClose={() => setIsConnectModalOpen(false)} />
-    <div className="relative w-full flex flex-col items-center justify-center p-0 mx-auto bg-transparent">
+        <ConnectModal isOpen={isConnectModalOpen} onClose={() => setIsConnectModalOpen(false)} />
+        <div className="relative w-full flex flex-col items-center justify-center p-0 mx-auto bg-transparent">
+          {/* ---------- TOP ICON NAV BAR (Optimized Paytm Style) ---------- */}
+          <div className="w-full max-w-3xl bg-white/80 shadow-md px-6 py-6 rounded-2xl mb-8">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(95px,1fr))] gap-6 place-items-center">
+              {navItems.map((item, i) => {
+                // --- UNAUTHENTICATED CLICK LOGIC ---
+                const handleClick = () => {
+                  if (item.href === "/post-management") return router.push("/post-management");
+                  if (item.href === "/wallet") return router.push("/wallet");
+                  return signIn("google", { callbackUrl: item.href });
+                };
+                return (
+                  <button key={i} onClick={handleClick} className="flex flex-col items-center text-[13px] text-gray-800">
+                    <div className="p-4 rounded-2xl bg-blue-100 text-blue-700 shadow-sm">
+                      {item.icon}
+                    </div>
+                    <span className="mt-2 text-center leading-tight font-semibold">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* ---------- TOP ICON NAV BAR (Optimized Paytm Style) ---------- */}
-      <div className="w-full max-w-3xl bg-white/80 shadow-md px-6 py-6 rounded-2xl mb-8">
+          {/* ---------- MAIN CONTENT ---------- */}
+          <div className="w-full max-w-2xl text-center pt-2 pb-12">
+            <h1
+              className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 leading-snug cursor-pointer"
+              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            >
+              <span className="text-blue-600 cursor-pointer">Connect Your Business</span>
+            </h1>
 
-        <div
-          className="
-            grid
-            grid-cols-[repeat(auto-fit,minmax(95px,1fr))]
-            gap-6
-            place-items-center
-          "
-        >
+            <p className="text-gray-700 text-[17px] font-medium max-w-lg mx-auto mb-6 leading-relaxed">
+              Connect your business platforms to automate management and boost your online presence.
+            </p>
 
-          {navItems.map((item, i) => {
-            // --- UNAUTHENTICATED CLICK LOGIC ---
-            const handleClick = () => {
-              if (item.href === "/post-management") {
-                return router.push("/post-management");        // allowed
-              }
-              if (item.href === "/wallet") {
-                return router.push("/wallet");                // allowed
-              }
-              // review + magic = force login
-              return signIn("google", { callbackUrl: item.href });
-            };
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto px-4">
 
-            return (
-              <button
-                key={i}
-                onClick={handleClick}
-                className="flex flex-col items-center text-[13px] text-gray-800"
-              >
-                <div className="p-4 rounded-2xl bg-blue-100 text-blue-700 shadow-sm">
-                  {item.icon}
-                </div>
-
-                <span className="mt-2 text-center leading-tight font-semibold">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-
-        </div>
-      </div>
-
-{/* ---------- MAIN CONTENT ---------- */}
-<div className="w-full max-w-2xl text-center pt-2 pb-12">
-  <h1
-    className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 leading-snug cursor-pointer"
-    onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-  >
-    <span className="text-blue-600 cursor-pointer">Connect Your Business</span>
-  </h1>
-
-  <p className="text-gray-700 text-[17px] font-medium max-w-lg mx-auto mb-8 leading-relaxed">
-    Connect your business and ensure your Google Business Profile is properly linked and managed using this email.
-  </p>
-
+  {/* Google Business */}
   <button
     onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-    className="
-      bg-gradient-to-r from-blue-600 to-purple-600
-      text-white font-semibold
-      px-10 py-4 rounded-xl
-      hover:opacity-90 transition
-      flex items-center justify-center gap-3 mx-auto 
-      text-lg shadow-lg
-    "
+    className="bg-white border border-blue-100 p-3 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center gap-2 group"
   >
-    <svg
-      className="w-6 h-6"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 488 512"
-      fill="currentColor"
-    >
-      <path d="M488 261.8C488 403.3 391.1 504 248 504C110.8 504 0 393.2 0 256S110.8 8 248 8c66.9 0 122.4 24.5 165.2 64.9l-66.8 64.9C318.6 109.9 285.1 96 248 96C150.6 96 72 174.6 72 272s78.6 176 176 176c90.1 0 148.4-51.8 160.3-124.6H248v-99.6h240C487.3 232.8 488 247.5 488 261.8z" />
-    </svg>
-    Connect Your Business
+    <div className="bg-blue-50 p-2 rounded-full group-hover:bg-blue-100 transition-colors">
+      <Building2 className="w-6 h-6 text-blue-600" />
+    </div>
+    <span className="text-sm font-bold text-gray-800 leading-tight">
+      Google Business
+    </span>
+    <span className="text-[10px] text-gray-500">Connect</span>
   </button>
 
-  {/* <p className="text-gray-600 text-sm mt-4 font-medium">
-    Fast • Secure • Full Control of Your Google Business Profile
-  </p> */}
+  {/* Facebook */}
+ {/* Facebook */}
+{facebookPages.length === 0 ? (
+  /* 👉 CONNECT FACEBOOK (DEFAULT) */
+  <button
+    onClick={() => (window.location.href = "/api/facebook/login")}
+    className="bg-white border border-blue-100 p-3 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center gap-2 group"
+  >
+    <div className="bg-blue-50 p-2 rounded-full group-hover:bg-blue-100 transition-colors">
+      <Facebook className="w-6 h-6 text-[#1877F2]" />
+    </div>
+    <span className="text-sm font-bold text-gray-800 leading-tight">
+      Facebook Page
+    </span>
+    <span className="text-[10px] text-gray-500">Connect</span>
+  </button>
+) : (
+  /* 👉 FACEBOOK CONNECTED → SHOW PAGENAME IN SAME SLOT */
+  <div className="relative bg-white border border-blue-200 p-3 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2 group">
+    
+    {/* Logout Icon */}
+    <button
+        onClick={() => {
+            setFacebookPages([]);
+            toast.success("Disconnected Facebook Page");
+        }}
+        className="absolute top-1.5 right-1.5 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+        title="Disconnect"
+    >
+        <LogOut className="w-3.5 h-3.5" />
+    </button>
+
+    <div className="bg-blue-50 p-2 rounded-full">
+      <Facebook className="w-6 h-6 text-[#1877F2]" />
+    </div>
+
+    <span className="text-sm font-bold text-gray-900 text-center truncate w-full px-1">
+      {facebookPages[0].pageName}
+    </span>
+
+    <div className="flex gap-2 w-full mt-1">
+        <button
+  onClick={() =>
+    router.push(
+      `/post-management?pageId=${facebookPages[0].pageId}`
+    )
+  }
+  className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 transition"
+>
+  Manage
+</button>
+
+        <button
+        onClick={() => (window.location.href = "/api/facebook/login")}
+        className="flex-1 text-[10px] bg-gray-50 text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition font-medium whitespace-nowrap"
+        >
+        Add Page
+        </button>
+    </div>
+  </div>
+)}
+
+
+  {/* Instagram */}
+  <button
+    onClick={() => (window.location.href = "/api/meta/login")}
+    className="bg-white border border-pink-100 p-3 rounded-xl shadow-sm hover:shadow-md hover:border-pink-300 transition-all flex flex-col items-center gap-2 group"
+  >
+    <div className="bg-pink-50 p-2 rounded-full group-hover:bg-pink-100 transition-colors">
+      <Instagram className="w-6 h-6 text-[#E4405F]" />
+    </div>
+    <span className="text-sm font-bold text-gray-800 leading-tight">
+      Instagram Biz
+    </span>
+    <span className="text-[10px] text-gray-500">Connect</span>
+  </button>
+
+  {/* WhatsApp */}
+  <button
+    onClick={() => toast("WhatsApp integration coming soon!")}
+    className="bg-white border border-green-100 p-3 rounded-xl shadow-sm hover:shadow-md hover:border-green-300 transition-all flex flex-col items-center gap-2 group"
+  >
+    <div className="bg-green-50 p-2 rounded-full group-hover:bg-green-100 transition-colors">
+      <MessageCircle className="w-6 h-6 text-[#25D366]" />
+    </div>
+    <span className="text-sm font-bold text-gray-800 leading-tight">
+      WhatsApp Biz
+    </span>
+    <span className="text-[10px] text-gray-500">Coming Soon</span>
+  </button>
+
 </div>
-      </div>
+
+          </div>
+        </div>
       </>
     );
-}
+  }
+
+
+  console.log("facebookPagesfacebookPagesfacebookPages",facebookPages);
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -1655,6 +1755,34 @@ const NavLinks = ({ isAuthenticated }) => {
           </div>
         )}
 
+        {/* Facebook Pages Section */}
+        {/* {facebookPages.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Connected Facebook Pages</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {facebookPages.map((page) => (
+                <div
+                  key={page.pageId}
+                  className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="bg-blue-50 p-2 rounded-full">
+                      <Facebook className="w-6 h-6 text-[#1877F2]" />
+                    </div>
+                    <p className="font-semibold text-lg text-gray-900 truncate">{page.pageName}</p>
+                  </div>
+                  <button
+                    className="w-full mt-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                    onClick={() => toast.success(`Selected ${page.pageName}`)}
+                  >
+                    Manage Page
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )} */}
+
         {/* No Accounts Found Message */}
         {noAccountsFound && initialFetchDone && accounts.length === 0 && !loading && (
           <div className="bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-8 text-center mb-6">
@@ -1676,6 +1804,12 @@ const NavLinks = ({ isAuthenticated }) => {
             </button>
           </div>
         )}
+
+        {/* Connected Platforms Section */}
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"> */}
+          {/* <MetaConnectCard /> */}
+          {/* Add more integration cards here in future */}
+        {/* </div> */}
 
         {/* Listings or Empty State */}
         {accounts.length === 0 && !loading && !noAccountsFound && initialFetchDone && (

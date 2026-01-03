@@ -45,3 +45,50 @@ export async function POST(req) {
 
   return NextResponse.json({ success: true });
 }
+export async function GET(req) {
+  try {
+    await dbConnect();
+
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    const accountId = searchParams.get("accountId"); // optional but recommended
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "userId is required" },
+        { status: 400 }
+      );
+    }
+
+    let query = { userId };
+
+    // If accountId is provided, fetch specific business
+    if (accountId) {
+      query["locations.accountId"] = accountId;
+    }
+
+    const autoReplyData = await AutoReply.findOne(query).lean();
+
+    if (!autoReplyData) {
+      return NextResponse.json({
+        success: true,
+        autoReply: false,
+        locations: [],
+        message: "No auto-reply settings found",
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      autoReply: autoReplyData.autoReply,
+      locations: autoReplyData.locations,
+      updatedAt: autoReplyData.updatedAt,
+    });
+  } catch (error) {
+    console.error("GET AutoReply Error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

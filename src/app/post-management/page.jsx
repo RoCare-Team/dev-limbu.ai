@@ -35,9 +35,10 @@ import {
   ChevronDown,
   MapPin,
   Pencil,
+  Facebook,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Toast from "../../components/Toast";
 import LocationSelectionModal from "../../components/LocationSelectionModal";
@@ -474,7 +475,7 @@ const PreviewSection = ({
 
 // Main Component
 // Post Card Component (Moved here from PostCard.jsx to be local as per user's request)
-const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject, handleDownload, handleShare, handlePost, onEditDescription, handleDeleteFromGMB, onToggleCheckmark }) => {
+const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject, handleDownload, handleShare, handlePost, onEditDescription, handleDeleteFromGMB, onToggleCheckmark, handleFacebookPost }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showFull, setShowFull] = useState(false);
   const [editedDescription, setEditedDescription] = useState(post?.description || "");
@@ -672,6 +673,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   Post Now
 </button>
 
+              <button
+                onClick={() => handleFacebookPost(post)}
+                className="w-full flex items-center justify-center gap-2 bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+              >
+                <Facebook className="w-4 h-4" />
+                Post to Facebook
+              </button>
+
               
               <button
                 onClick={() => onUpdateStatus(post)}
@@ -803,6 +812,20 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       Repost
     </button>
 
+    {/* Facebook Post */}
+    <button
+      onClick={() => handleFacebookPost(post)}
+      className="
+        flex items-center justify-center gap-2
+        bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20
+        px-4 py-2.5 rounded-xl text-sm font-semibold
+        transition-all
+      "
+    >
+      <Facebook className="w-4 h-4" />
+      FB Post
+    </button>
+
     {/* Schedule */}
     <button
       onClick={() => onUpdateStatus(post)}
@@ -830,6 +853,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 export default function PostManagementPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiResponse, setAiResponse] = useState(null);
+  const searchParams = useSearchParams();
+  const pageId = searchParams.get("pageId");
   const [countdown, setCountdown] = useState(0);
   const [showInsufficientBalance, setShowInsufficientBalance] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -1530,6 +1555,44 @@ export default function PostManagementPage() {
       await updatePostStatusAction({ id, userId: localStorage.getItem("userId"), checkmark: newVal });
     } catch (e) {
       showToast("Failed to update selection", "error");
+    }
+  };
+
+  const handleFacebookPost = async (post) => {
+    if (!pageId) {
+      showToast("No Facebook Page connected. Please connect from Dashboard.", "error");
+      return;
+    }
+
+    const message = post.description;
+    if (!message || !message.trim()) {
+      showToast("Post description is empty.", "error");
+      return;
+    }
+
+    try {
+      showToast("Publishing to Facebook...", "success");
+
+      const res = await fetch("/api/facebook/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageId,
+          published: true,
+          is_published: true,
+          message,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Post published on Facebook 🎉", "success");
+      } else {
+        showToast(data.error || "Failed to post to Facebook", "error");
+      }
+    } catch (err) {
+      showToast("Something went wrong posting to Facebook", "error");
     }
   };
 
@@ -2239,6 +2302,7 @@ useEffect(() => {
                 onEditDescription={handleEditDescription}
                 handleDeleteFromGMB={handleDeleteFromGMB}
                 onToggleCheckmark={handleToggleCheckmark}
+                handleFacebookPost={handleFacebookPost}
               />
             ))}
           </div>

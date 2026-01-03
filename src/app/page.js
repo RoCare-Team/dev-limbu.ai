@@ -313,7 +313,7 @@ export default function LimbuAILanding() {
       title: "Basic Plan",
       basePrice: 999,
       basePosts: 5,
-      baseCitations: 3,
+      baseCitations: 2,
       staticFeatures: ["Review Reply Management","Magic Qr Code Generation","Insights Dashboard"],
       description: "Ideal for small businesses needing basic online presence",
       color: "bg-blue-600",
@@ -324,7 +324,7 @@ export default function LimbuAILanding() {
       title: "Professional Plan",
       basePrice: 2500,
       basePosts: 15,
-      baseCitations: 5,
+      baseCitations: 3,
       staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization"],
       description: "Best for growing businesses looking for better visibility",
       popular: true,
@@ -336,8 +336,8 @@ export default function LimbuAILanding() {
       title: "Premium Plan",
       basePrice: 5000,
       basePosts: 30,
-      baseCitations: 15,
-      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Add Professional Service"],
+      baseCitations: 12,
+      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
       description: "Perfect for brands focused on automation and maximum reach",
       color: "bg-pink-600",
       textColor: "text-pink-600",
@@ -1008,46 +1008,69 @@ export default function LimbuAILanding() {
         </div>
       </section>
 
-       <section id="how-it-works" className="relative py-16 sm:py-20 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4 px-4">
+      <section id="how-it-works" className="relative py-16 sm:py-20 md:py-24 overflow-hidden bg-gradient-to-b from-white to-blue-50/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
               Get Started in <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">3 Simple Steps</span>
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-slate-600 px-4">From signup to automation in under 5 minutes</p>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              From signup to automation in under 5 minutes. No credit card required.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 sm:gap-8 relative">
+          <div className="grid md:grid-cols-3 gap-6 relative mb-12">
             {/* Connector Line (Desktop) */}
-            <div className="hidden md:block absolute top-12 left-0 w-full h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 -z-10" />
+            <div className="hidden md:block absolute top-12 left-[10%] right-[10%] h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-blue-200 -z-10 rounded-full opacity-50" />
 
             {steps.map((step, idx) => (
-              <div key={idx} className="relative bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 shadow-lg border border-slate-200 hover:shadow-2xl transition-all">
-                {/* Step Number */}
-                <div className="absolute -top-3 sm:-top-4 -left-3 sm:-left-4 w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg">
+              <div 
+                key={idx} 
+                className="group relative bg-white rounded-2xl p-6 shadow-xl border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col h-full"
+              >
+                {/* Step Number Badge */}
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg ring-4 ring-white z-10">
                   {idx + 1}
                 </div>
 
                 {/* Icon */}
-                <div className="w-14 sm:w-16 h-14 sm:h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg sm:rounded-xl flex items-center justify-center text-blue-600 mb-3 sm:mb-4 mt-4 sm:mt-6">
+                <div className="w-20 h-20 mx-auto bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-inner border border-blue-100 mt-4">
                   {step.icon}
                 </div>
 
                 {/* Content */}
-                <h3 className="text-xl sm:text-2xl font-bold mb-2 text-slate-800">{step.title}</h3>
-                <p className="text-sm sm:text-base text-slate-600 mb-3 sm:mb-4">{step.description}</p>
+                <div className="text-center mb-6 flex-grow">
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">{step.title}</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed px-2">{step.description}</p>
+                </div>
 
-                {/* Details */}
-                <ul className="space-y-2">
+                {/* Details List */}
+                <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 mt-auto group-hover:bg-blue-50/50 transition-colors">
+                  <ul className="space-y-3">
                   {step.details.map((detail, dIdx) => (
-                    <li key={dIdx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-600">
-                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>{detail}</span>
+                    <li key={dIdx} className="flex items-center gap-3 text-sm text-slate-700">
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span className="text-sm font-medium text-left">{detail}</span>
                     </li>
                   ))}
-                </ul>
+                  </ul>
+                </div>
               </div>
             ))}
+          </div>
+
+          {/* CTA Button */}
+          <div className="text-center">
+            <button 
+              onClick={() => handleNavigation(isLoggedIn ? '/dashboard' : '/login')}
+              className="group px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all inline-flex items-center gap-2"
+            >
+              Start Automating Now
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <p className="mt-4 text-sm text-slate-500 font-medium">
+              🚀 Join 1000+ businesses growing with Limbu.ai
+            </p>
           </div>
         </div>
       </section>

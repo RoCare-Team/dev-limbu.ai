@@ -142,7 +142,11 @@ const PostCard = ({
 
         <p className="text-xs text-gray-500 flex items-center gap-1 pt-2 border-t border-gray-100">
           <Calendar className="w-3 h-3" />
-          {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ""}
+          {post.status === "posted"
+            ? `Posted: ${new Date(post.locations?.[0]?.postedAt || post.updatedAt).toLocaleDateString()}`
+            : post.createdAt
+            ? new Date(post.createdAt).toLocaleDateString()
+            : ""}
         </p>
 
         <div className="flex flex-col gap-3 pt-2">

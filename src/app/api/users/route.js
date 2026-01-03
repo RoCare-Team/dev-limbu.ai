@@ -44,6 +44,8 @@ export async function GET(req) {
     const searchQuery = searchParams.get("search") || "";
     const filterStatus = searchParams.get("status");
     const filterDate = searchParams.get("date");
+    const customStartDate = searchParams.get("startDate");
+    const customEndDate = searchParams.get("endDate");
     const limit = 70; // fixed limit = 70 users per request
 
     const skip = (page - 1) * limit;
@@ -64,6 +66,7 @@ export async function GET(req) {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       let startDate;
+      let endDate;
 
       switch (filterDate) {
         case "Today":
@@ -80,8 +83,18 @@ export async function GET(req) {
         case "This Month":
           startDate = new Date(now.getFullYear(), now.getMonth(), 1);
           break;
+        case "Custom":
+          if (customStartDate && customEndDate) {
+            startDate = new Date(customStartDate);
+            const end = new Date(customEndDate);
+            end.setDate(end.getDate() + 1); // Move to next day to include the full end date
+            endDate = end;
+          }
+          break;
       }
-      if (startDate) {
+      if (startDate && endDate) {
+        query.createdAt = { $gte: startDate, $lt: endDate };
+      } else if (startDate) {
         query.createdAt = { $gte: startDate };
       }
     }

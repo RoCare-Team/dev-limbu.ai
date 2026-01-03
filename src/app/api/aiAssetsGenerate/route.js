@@ -22,6 +22,8 @@ export async function POST(req) {
       if (typeof str === "string" && str.startsWith("data:image")) {
         return str.split(",")[1];
       }
+      console.log("cleanBase64cleanBase64cleanBase64",str);
+      
       return str;
     };
 
@@ -38,6 +40,9 @@ export async function POST(req) {
       backgroundImage: cleanBase64(backgroundImage),
       logoImage: cleanBase64(logoImage),
     };
+
+    console.log("newPayloadnewPayloadnewPayload",newPayload);
+    
 
     const n8nResponse = await fetch(
       "https://n8n.limbutech.in/webhook/6678555b-a0a2-4cbf-b157-7d0f831bd51c",

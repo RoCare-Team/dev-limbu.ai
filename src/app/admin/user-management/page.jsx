@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, BarChart2, TrendingUp, CalendarDays, FileText, Users, MessageCircle } from "lucide-react";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -25,6 +25,16 @@ export default function UserManagement() {
   const [userPostsData, setUserPostsData] = useState({});
   const [mergedUsers, setMergedUsers] = useState([]);
   const [impersonatingUser, setImpersonatingUser] = useState(null);
+
+  // Analytics State
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [analyticsModalType, setAnalyticsModalType] = useState(null); // 'newUsers', 'activePosters', 'totalPosts'
+  const [analyticsData, setAnalyticsData] = useState({ activePosters: [], totalPostsCount: 0, postsList: [] });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyticsModalUsers, setAnalyticsModalUsers] = useState([]);
+  const [loadingAnalyticsModal, setLoadingAnalyticsModal] = useState(false);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -58,18 +68,43 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     setLoading(true);
+    const dateParam = (filterDate === 'Custom' && customStartDate && customEndDate) 
+      ? 'Custom' 
+      : (filterDate === 'Custom' ? 'All' : filterDate);
+
     const params = new URLSearchParams({
       page: currentPage,
       limit: 70,
       search: searchQuery,
       status: filterStatus,
-      date: filterDate,
+      date: dateParam,
     });
+    if (filterDate === 'Custom' && customStartDate && customEndDate) {
+      params.append('startDate', customStartDate);
+      params.append('endDate', customEndDate);
+    }
     try {
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
-      if (data.success) { setUsers(data.users); setPagination(data.pagination); }
-      return data.success ? data.users : [];
+
+      let usersList = data.success ? data.users : [];
+      const dummyUser = {
+        _id: "dummy_7827715657",
+        userId: "dummy_user_7827715657",
+        fullName: "Parvesh",
+        email: "parvesh423@gmail.com",
+        phone: "7827715657",
+        source: "bulk-upload",
+        createdAt: new Date().toISOString(),
+        wallet: 0,
+        subscription: { plan: "Free" }
+      };
+      if (!usersList.some(u => u.phone?.includes("7827715657"))) {
+        usersList = [dummyUser, ...usersList];
+      }
+
+      if (data.success) { setUsers(usersList); setPagination(data.pagination); }
+      return usersList;
     } catch (err) {
       console.error("Error fetching users:", err);
       return [];
@@ -78,12 +113,38 @@ export default function UserManagement() {
     }
   };
 
+  const fetchFullUserList = async () => {
+    const dateParam = (filterDate === 'Custom' && customStartDate && customEndDate) 
+      ? 'Custom' 
+      : (filterDate === 'Custom' ? 'All' : filterDate);
+
+    const params = new URLSearchParams({
+      page: 1,
+      limit: 10000, // Fetch all matching users
+      search: searchQuery,
+      status: filterStatus,
+      date: dateParam,
+    });
+    if (filterDate === 'Custom' && customStartDate && customEndDate) {
+      params.append('startDate', customStartDate);
+      params.append('endDate', customEndDate);
+    }
+    try {
+      const res = await fetch(`/api/users?${params.toString()}`);
+      const data = await res.json();
+      return data.success ? data.users : [];
+    } catch (err) {
+      console.error("Error fetching full user list:", err);
+      return [];
+    }
+  };
+
   useEffect(() => {
     const handler = setTimeout(() => {
       fetchUsers();
     }, 500); // Debounce search/filter requests
     return () => clearTimeout(handler);
-  }, [currentPage, searchQuery, filterStatus, filterDate]);
+  }, [currentPage, searchQuery, filterStatus, filterDate, customStartDate, customEndDate]);
   const mergeAllData = useCallback(async () => {
     setLoading(true);
     const initialUsers = await fetchUsers();
@@ -119,7 +180,72 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchAllUserPostsCounts();
-  }, [users]); // Trigger when users (current page) change
+    analyzePostActivity();
+  }, [users, filterDate, customStartDate, customEndDate]); // Trigger when users or filters change
+
+  const analyzePostActivity = async () => {
+    if (users.length === 0) {
+      setAnalyticsData({ activePosters: [], totalPostsCount: 0, postsList: [] });
+      return;
+    }
+    setIsAnalyzing(true);
+    try {
+      // Fetch posts for the current users to calculate analytics
+      const promises = users.map(u => fetch(`/api/post-status?userId=${u.userId}`).then(r => r.json()));
+      const results = await Promise.all(promises);
+
+      let active = [];
+      let allPosts = [];
+      let count = 0;
+
+      results.forEach((res, index) => {
+        if (res.success && res.data) {
+          const user = users[index];
+          // Filter posts by the current date filter
+          const userPostsFiltered = res.data.filter(p => isDateInRange(p.createdAt));
+
+          if (userPostsFiltered.length > 0) {
+            active.push({ ...user, postCount: userPostsFiltered.length, posts: userPostsFiltered });
+            allPosts.push(...userPostsFiltered.map(p => ({ ...p, userName: user.fullName, userId: user.userId })));
+            count += userPostsFiltered.length;
+          }
+        }
+      });
+
+      setAnalyticsData({ activePosters: active, totalPostsCount: count, postsList: allPosts });
+    } catch (err) {
+      console.error("Error analyzing posts:", err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const isDateInRange = (dateStr) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const now = new Date();
+
+    if (filterDate === 'Today') return date.toDateString() === now.toDateString();
+    if (filterDate === 'Last 7 Days') {
+      const d = new Date();
+      d.setDate(now.getDate() - 7);
+      d.setHours(0, 0, 0, 0);
+      return date >= d;
+    }
+    if (filterDate === 'This Month') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    if (filterDate === 'Custom') {
+      if (!customStartDate || !customEndDate) return true;
+
+      const [sYear, sMonth, sDay] = customStartDate.split('-').map(Number);
+      const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+
+      const [eYear, eMonth, eDay] = customEndDate.split('-').map(Number);
+      const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
+      return date >= start && date <= end;
+    }
+    return true;
+  };
 
   const fetchConnectedBusinessUsers = async () => {
     try {
@@ -271,6 +397,44 @@ export default function UserManagement() {
   };
 
 
+  const handleSendWhatsapp = async (user) => {
+    if (!user.phone) {
+      showToast("User has no phone number", "error");
+      return;
+    }
+
+    // Basic formatting for India (91)
+    let phone = user.phone.replace(/\D/g, '');
+    if (phone.length === 10) {
+      phone = "91" + phone;
+    }
+
+    const payload = {
+      "destination": phone,
+      "templateParams": [
+        user.fullName || "User",
+        "https://limbu.ai"
+      ]
+    };
+
+    try {
+      const res = await fetch("/api/whatsapp-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("WhatsApp message sent successfully", "success");
+      } else {
+        showToast(data.message || "Failed to send WhatsApp message", "error");
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp message:", error);
+      showToast("Error sending WhatsApp message", "error");
+    }
+  };
+
   const handleViewPosts = async (user) => {
     setViewingUserPosts(user);
     setLoadingPosts(true);
@@ -405,7 +569,14 @@ export default function UserManagement() {
     setFilteredUsers(users);
   }, [users]);
 
-  
+  const handleQuickFilter = (filter) => {
+    setFilterDate(filter);
+    if (filter !== 'Custom') {
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  };
+
 
 
   if (loading) {
@@ -428,8 +599,8 @@ export default function UserManagement() {
         <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
           <div
             className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === "success"
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
               }`}
           >
             {toast.type === "success" ? (
@@ -494,6 +665,111 @@ export default function UserManagement() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          {/* Analytics Dashboard Section */}
+          <div className="col-span-1 md:col-span-5 bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-4">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="text-indigo-600" size={24} />
+                <h2 className="text-xl font-bold text-gray-800">Analytics Overview</h2>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {['Today', 'Last 7 Days', 'This Month'].map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => handleQuickFilter(filter)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterDate === filter
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+                <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => { setCustomStartDate(e.target.value); setFilterDate('Custom'); }}
+                    className="bg-transparent text-sm border-none focus:ring-0 text-gray-600"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => { setCustomEndDate(e.target.value); setFilterDate('Custom'); }}
+                    className="bg-transparent text-sm border-none focus:ring-0 text-gray-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* New Users Card */}
+              <div
+                onClick={async () => { 
+                  setAnalyticsModalType('newUsers'); 
+                  setShowAnalyticsModal(true);
+                  setLoadingAnalyticsModal(true);
+                  const fullUsers = await fetchFullUserList();
+                  setAnalyticsModalUsers(fullUsers);
+                  setLoadingAnalyticsModal(false);
+                }}
+                className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100 cursor-pointer hover:shadow-md transition-all group"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-blue-600 font-medium text-sm mb-1">New Users</p>
+                    <h3 className="text-3xl font-bold text-gray-800">{pagination?.totalUsers || 0}</h3>
+                    <p className="text-xs text-gray-500 mt-2">Registered in selected period</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                    <Users className="text-blue-600" size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Posters Card */}
+              <div
+                onClick={() => { setAnalyticsModalType('activePosters'); setShowAnalyticsModal(true); }}
+                className="bg-gradient-to-br from-emerald-50 to-green-50 p-5 rounded-xl border border-emerald-100 cursor-pointer hover:shadow-md transition-all group"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-emerald-600 font-medium text-sm mb-1">Active Posters</p>
+                    <h3 className="text-3xl font-bold text-gray-800">
+                      {isAnalyzing ? "..." : analyticsData.activePosters.length}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-2">Users who posted in period</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                    <TrendingUp className="text-emerald-600" size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Posts Card */}
+              <div
+                onClick={() => { setAnalyticsModalType('totalPosts'); setShowAnalyticsModal(true); }}
+                className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-purple-600 font-medium text-sm mb-1">Total Posts</p>
+                    <h3 className="text-3xl font-bold text-gray-800">
+                      {isAnalyzing ? "..." : analyticsData.totalPostsCount}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-2">Created in selected period</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                    <FileText className="text-purple-600" size={24} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Existing Stats Cards (Optional: Keep or Remove based on preference, keeping for now as Lifetime stats) */}
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
@@ -580,30 +856,6 @@ export default function UserManagement() {
               </select>
             </div>
 
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <select
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="pl-11 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[180px]"
-              >
-                <option value="All">All Time</option>
-                <option value="Today">Today</option>
-                <option value="Last 7 Days">Last 7 Days</option>
-                <option value="Last 30 Days">Last 30 Days</option>
-                <option value="This Month">This Month</option>
-              </select>
-            </div>
-
-            {(searchQuery || filterStatus !== "All" || filterDate !== "All") && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <X size={18} />
-                Clear
-              </button>
-            )}
           </div>
 
         </div>
@@ -616,6 +868,7 @@ export default function UserManagement() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">WhatsApp</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Posts</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Status</th>
@@ -624,10 +877,10 @@ export default function UserManagement() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Login Button</th>
                 </tr>
               </thead>
-              </table>
-              </div>
-              <div className="overflow-y-auto flex-grow">
-              <table className="min-w-full">
+            </table>
+          </div>
+          <div className="overflow-y-auto flex-grow">
+            <table className="min-w-full">
               <tbody className="divide-y divide-gray-100">
                 {filteredUsers.map((user) => {
                   const postData = userPostsData[user.userId] || { total: 0, posted: 0, rejected: 0 };
@@ -668,6 +921,11 @@ export default function UserManagement() {
                               {user.fullName}
                             </div>
                           )}
+                          {(user.source === "bulk-upload" || user.phone?.includes("7827715657")) && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                              Meta Leads
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -680,9 +938,36 @@ export default function UserManagement() {
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Phone size={14} className="text-gray-400" />
                               {user.phone}
+                              {/* {(user.source === "bulk-upload" || user.phone?.includes("7827715657")) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSendWhatsapp(user);
+                                  }}
+                                  className="p-1.5 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors ml-2"
+                                  title="Send WhatsApp Message"
+                                >
+                                  <MessageCircle size={14} />
+                                </button>
+                              )} */}
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {/* {(user.source === "bulk-upload" || user.phone?.includes("7827715657")) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendWhatsapp(user);
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors border border-green-200 shadow-sm"
+                            title="Send WhatsApp Message"
+                          >
+                            <MessageCircle size={16} />
+                            <span className="text-xs font-medium">Send</span>
+                          </button>
+                        )} */}
                       </td>
 
                       <td className="px-6 py-4">
@@ -727,8 +1012,8 @@ export default function UserManagement() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isUserConnected(user.email)
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-600"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-600"
                             }`}
                         >
                           <div className={`w-2 h-2 rounded-full ${isUserConnected(user.email) ? "bg-blue-500 animate-pulse" : "bg-gray-400"
@@ -860,529 +1145,631 @@ export default function UserManagement() {
                 )}
               </tbody>
             </table>
-            </div>
           </div>
-          {/* Pagination Controls */}
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 bg-white rounded-b-2xl border-t border-gray-200">
-              <span className="text-sm text-gray-600">
-                Page <span className="font-semibold">{pagination.currentPage}</span> of <span className="font-semibold">{pagination.totalPages}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <ChevronLeft size={16} />
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  Next
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-              <span className="text-sm text-gray-600">
-                Total Users: <span className="font-semibold">{pagination.totalUsers}</span>
-              </span>
-            </div>
-          )}
         </div>
-
-        {/* Wallet Update Modal */}
-        {walletModalUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
-                    <Wallet className="text-white" size={20} />
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-800">Update Wallet</h2>
-                </div>
-                <button
-                  onClick={() => setWalletModalUser(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-0.5">User</p>
-                <p className="font-semibold text-sm text-gray-800">{walletModalUser.email}</p>
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-xs text-gray-600">Current Balance</p>
-                  <p className="text-xl font-bold text-emerald-600">{walletModalUser.wallet || 0} coins</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Transaction Type</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "credit"
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 hover:border-gray-300"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="type"
-                        value="credit"
-                        checked={walletUpdate.type === "credit"}
-                        onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <Plus className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`} size={18} />
-                        <span className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}>
-                          Add
-                        </span>
-                      </div>
-                    </label>
-                    <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "debit"
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-200 hover:border-gray-300"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="type"
-                        value="debit"
-                        checked={walletUpdate.type === "debit"}
-                        onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <X className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`} size={18} />
-                        <span className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}>
-                          Deduct
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (Coins)</label>
-                  <input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={walletUpdate.amount}
-                    onChange={(e) => setWalletUpdate({ ...walletUpdate, amount: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Reason</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., admin add by bonus"
-                    value={walletUpdate.reason}
-                    onChange={(e) => setWalletUpdate({ ...walletUpdate, reason: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                  />
-                </div>
-
-                {walletUpdate.amount && (
-                  <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-0.5">New Balance Preview</p>
-                    <p className="text-lg font-bold text-indigo-600">
-                      {walletUpdate.type === "credit"
-                        ? (parseFloat(walletModalUser.wallet || 0) + parseFloat(walletUpdate.amount || 0)).toFixed(2)
-                        : (parseFloat(walletModalUser.wallet || 0) - parseFloat(walletUpdate.amount || 0)).toFixed(2)}{" "}
-                      coins
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setWalletModalUser(null)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateWallet}
-                  disabled={updatingWallet}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {updatingWallet ? "Updating..." : "Update Wallet"}
-                </button>
-              </div>
+        {/* Pagination Controls */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 bg-white rounded-b-2xl border-t border-gray-200">
+            <span className="text-sm text-gray-600">
+              Page <span className="font-semibold">{pagination.currentPage}</span> of <span className="font-semibold">{pagination.totalPages}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === pagination.totalPages}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
             </div>
+            <span className="text-sm text-gray-600">
+              Total Users: <span className="font-semibold">{pagination.totalUsers}</span>
+            </span>
           </div>
         )}
+      </div>
 
-        {selectedUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
+      {/* Wallet Update Modal */}
+      {walletModalUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
+                  <Wallet className="text-white" size={20} />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">Update Wallet</h2>
               </div>
+              <button
+                onClick={() => setWalletModalUser(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">User</p>
-                <p className="font-semibold text-gray-800">{selectedUser.email}</p>
+            <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
+              <p className="text-xs text-gray-600 mb-0.5">User</p>
+              <p className="font-semibold text-sm text-gray-800">{walletModalUser.email}</p>
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-600">Current Balance</p>
+                <p className="text-xl font-bold text-emerald-600">{walletModalUser.wallet || 0} coins</p>
               </div>
+            </div>
 
-              <div className="space-y-3 mb-6">
-                {["Basic", "Standard", "Premium"].map((plan) => (
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Transaction Type</label>
+                <div className="grid grid-cols-2 gap-2">
                   <label
-                    key={plan}
-                    className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === plan
-                        ? "border-indigo-500 bg-indigo-50"
-                        : "border-gray-200 hover:border-gray-300"
+                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "credit"
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:border-gray-300"
                       }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="plan"
-                        value={plan}
-                        checked={selectedPlan === plan}
-                        onChange={(e) => setSelectedPlan(e.target.value)}
-                        className="w-4 h-4 text-indigo-600"
-                      />
-                      <div className="flex items-center gap-2">
-                        {plan === "Premium" && <Crown size={18} className="text-purple-600" />}
-                        {plan === "Standard" && <Zap size={18} className="text-blue-600" />}
-                        {plan === "Basic" && <Shield size={18} className="text-gray-600" />}
-                        <span className="font-semibold text-gray-800">{plan}</span>
-                      </div>
+                    <input
+                      type="radio"
+                      name="type"
+                      value="credit"
+                      checked={walletUpdate.type === "credit"}
+                      onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <Plus className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`} size={18} />
+                      <span className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}>
+                        Add
+                      </span>
                     </div>
                   </label>
-                ))}
+                  <label
+                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "debit"
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200 hover:border-gray-300"
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="type"
+                      value="debit"
+                      checked={walletUpdate.type === "debit"}
+                      onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <X className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`} size={18} />
+                      <span className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}>
+                        Deduct
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmPlanChange}
-                  disabled={updating === selectedUser.userId}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
-                >
-                  {updating === selectedUser.userId ? "Updating..." : "Confirm"}
-                </button>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (Coins)</label>
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={walletUpdate.amount}
+                  onChange={(e) => setWalletUpdate({ ...walletUpdate, amount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                  min="0"
+                  step="0.01"
+                />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Reason</label>
+                <input
+                  type="text"
+                  placeholder="e.g., admin add by bonus"
+                  value={walletUpdate.reason}
+                  onChange={(e) => setWalletUpdate({ ...walletUpdate, reason: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              {walletUpdate.amount && (
+                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-0.5">New Balance Preview</p>
+                  <p className="text-lg font-bold text-indigo-600">
+                    {walletUpdate.type === "credit"
+                      ? (parseFloat(walletModalUser.wallet || 0) + parseFloat(walletUpdate.amount || 0)).toFixed(2)
+                      : (parseFloat(walletModalUser.wallet || 0) - parseFloat(walletUpdate.amount || 0)).toFixed(2)}{" "}
+                    coins
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setWalletModalUser(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateWallet}
+                disabled={updatingWallet}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {updatingWallet ? "Updating..." : "Update Wallet"}
+              </button>
             </div>
           </div>
-        )}
-        {addingUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+        </div>
+      )}
 
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                  Add New User
-                </h2>
-                <button
-                  onClick={() => setAddingUser(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+              <p className="text-sm text-gray-600 mb-1">User</p>
+              <p className="font-semibold text-gray-800">{selectedUser.email}</p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {["Basic", "Standard", "Premium"].map((plan) => (
+                <label
+                  key={plan}
+                  className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === plan
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-gray-200 hover:border-gray-300"
+                    }`}
                 >
-                  <X size={20} className="text-gray-700 dark:text-gray-300" />
-                </button>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="plan"
+                      value={plan}
+                      checked={selectedPlan === plan}
+                      onChange={(e) => setSelectedPlan(e.target.value)}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex items-center gap-2">
+                      {plan === "Premium" && <Crown size={18} className="text-purple-600" />}
+                      {plan === "Standard" && <Zap size={18} className="text-blue-600" />}
+                      {plan === "Basic" && <Shield size={18} className="text-gray-600" />}
+                      <span className="font-semibold text-gray-800">{plan}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPlanChange}
+                disabled={updating === selectedUser.userId}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
+              >
+                {updating === selectedUser.userId ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {addingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                Add New User
+              </h2>
+              <button
+                onClick={() => setAddingUser(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+              >
+                <X size={20} className="text-gray-700 dark:text-gray-300" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-4 mb-6">
+
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter full name"
+                  value={newUser.fullName}
+                  onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                />
               </div>
 
-              {/* Form */}
-              <div className="space-y-4 mb-6">
-
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter full name"
-                    value={newUser.fullName}
-                    onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
                        focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+91 9876543210"
-                    value={newUser.phone}
-                    onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Plan */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Plan
-                  </label>
-                  <select
-                    value={newUser.plan}
-                    onChange={(e) => setNewUser({ ...newUser, plan: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                  >
-                    <option value="Free">Free</option>
-                    <option value="Basic">Basic</option>
-                    <option value="Standard">Standard</option>
-                    <option value="Premium">Premium</option>
-                  </select>
-                </div>
+                />
               </div>
 
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setAddingUser(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+91 9876543210"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                />
+              </div>
+
+              {/* Plan */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Plan
+                </label>
+                <select
+                  value={newUser.plan}
+                  onChange={(e) => setNewUser({ ...newUser, plan: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                >
+                  <option value="Free">Free</option>
+                  <option value="Basic">Basic</option>
+                  <option value="Standard">Standard</option>
+                  <option value="Premium">Premium</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAddingUser(false)}
+                className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
                      text-gray-700 dark:text-gray-200 rounded-xl 
                      hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
-                >
-                  Cancel
-                </button>
+              >
+                Cancel
+              </button>
 
-                <button
-                  onClick={handleAddUser}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
+              <button
+                onClick={handleAddUser}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
                      transition-all font-medium"
-                >
-                  Add User
-                </button>
-              </div>
-
+              >
+                Add User
+              </button>
             </div>
-          </div>
-        )}
-        {viewingUserPosts && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">User Posts</h2>
-                  <p className="text-gray-600 text-sm mt-1">{viewingUserPosts.email}</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setViewingUserPosts(null);
-                    setUserPosts([]);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
-                    <p className="text-2xl font-bold text-indigo-600">
-                      {viewingUserPosts.wallet || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Posts</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {loadingPosts ? "..." : userPosts.length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Posted</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {loadingPosts ? "..." : userPosts.filter(p => p.status === "posted").length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Rejected</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {loadingPosts ? "..." : userPosts.filter(p => p.status === "rejected").length}
-                    </p>
-                  </div>
-                  {/* <div>
+          </div>
+        </div>
+      )}
+      {viewingUserPosts && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">User Posts</h2>
+                <p className="text-gray-600 text-sm mt-1">{viewingUserPosts.email}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setViewingUserPosts(null);
+                  setUserPosts([]);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
+                  <p className="text-2xl font-bold text-indigo-600">
+                    {viewingUserPosts.wallet || 0}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total Posts</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {loadingPosts ? "..." : userPosts.length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Posted</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {loadingPosts ? "..." : userPosts.filter(p => p.status === "posted").length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Rejected</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {loadingPosts ? "..." : userPosts.filter(p => p.status === "rejected").length}
+                  </p>
+                </div>
+                {/* <div>
                     <p className="text-sm text-gray-600 mb-1">Plan</p>
                     <p className="text-2xl font-bold text-pink-600">
                       {viewingUserPosts.subscription?.plan || "Basic"}
                     </p>
                   </div> */}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loadingPosts ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
                 </div>
-              </div>
+              ) : userPosts.length === 0 ? (
+                <div className="text-center py-12">
+                  <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-500 font-medium">No posts yet</p>
+                  <p className="text-gray-400 text-sm">This user hasn't created any posts</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {userPosts.map((post, index) => (
+                    <div
+                      key={post._id || index}
+                      className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
+                    >
+                      <div className="aspect-square relative">
+                        <img
+                          src={post.aiOutput}
+                          alt={`Post ${index + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setFullViewImage(post.aiOutput)}
+                          onError={(e) => {
+                            e.target.src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
 
-              <div className="flex-1 overflow-y-auto">
-                {loadingPosts ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
-                  </div>
-                ) : userPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No posts yet</p>
-                    <p className="text-gray-400 text-sm">This user hasn't created any posts</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {userPosts.map((post, index) => (
-                      <div
-                        key={post._id || index}
-                        className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
-                      >
-                        <div className="aspect-square relative">
-                          <img
-                            src={post.aiOutput}
-                            alt={`Post ${index + 1}`}
-                            className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => setFullViewImage(post.aiOutput)}
-                            onError={(e) => {
-                              e.target.src =
-                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
-                            }}
-                          />
-
-                          <div className="absolute top-2 right-2">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
-                                  ? "bg-green-100 text-green-700 border border-green-300"
-                                  : post.status === "rejected"
-                                    ? "bg-red-100 text-red-700 border border-red-300"
-                                    : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                                }`}
-                            >
-                              <div
-                                className={`w-2 h-2 rounded-full ${post.status === "posted"
-                                    ? "bg-green-500"
-                                    : post.status === "rejected"
-                                      ? "bg-red-500"
-                                      : "bg-yellow-500"
-                                  }`}
-                              ></div>
-                              {post.status === "posted" ? "Posted" : post.status === "rejected" ? "Rejected" : "Pending"}
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => setFullViewImage(post.aiOutput)}
-                            className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
+                              ? "bg-green-100 text-green-700 border border-green-300"
+                              : post.status === "rejected"
+                                ? "bg-red-100 text-red-700 border border-red-300"
+                                : "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                              }`}
                           >
-                            <ZoomIn size={16} className="text-gray-700" />
-                          </button>
+                            <div
+                              className={`w-2 h-2 rounded-full ${post.status === "posted"
+                                ? "bg-green-500"
+                                : post.status === "rejected"
+                                  ? "bg-red-500"
+                                  : "bg-yellow-500"
+                                }`}
+                            ></div>
+                            {post.status === "posted" ? "Posted" : post.status === "rejected" ? "Rejected" : "Pending"}
+                          </span>
                         </div>
 
-                        <div className="p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">Post #{index + 1}</span>
-                            <span className="text-xs text-gray-400">
-                              {new Date(post.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          {post.promat && (
-                            <p className="text-sm text-gray-700 line-clamp-2">
-                              <span className="font-bold">Prompt:</span> {post.promat}
-                            </p>
-                          )}
-                          {post.status === "rejected" && post.rejectReason && (
-                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                              <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
-                              <p className="text-xs text-red-600">{post.rejectReason}</p>
-                            </div>
-                          )}
-
-                        </div>
+                        <button
+                          onClick={() => setFullViewImage(post.aiOutput)}
+                          className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <ZoomIn size={16} className="text-gray-700" />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setViewingUserPosts(null);
-                    setUserPosts([]);
-                  }}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
-                >
-                  Close
-                </button>
-              </div>
+                      <div className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">Post #{index + 1}</span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(post.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        {post.promat && (
+                          <p className="text-sm text-gray-700 line-clamp-2">
+                            <span className="font-bold">Prompt:</span> {post.promat}
+                          </p>
+                        )}
+                        {post.status === "rejected" && post.rejectReason && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
+                            <p className="text-xs text-red-600">{post.rejectReason}</p>
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
 
-        {fullViewImage && (
-          <div
-            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-            onClick={() => setFullViewImage(null)}
-          >
-            <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+            <div className="mt-6 pt-4 border-t border-gray-200">
               <button
-                onClick={() => setFullViewImage(null)}
-                className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
+                onClick={() => {
+                  setViewingUserPosts(null);
+                  setUserPosts([]);
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
               >
-                <X size={24} />
+                Close
               </button>
-              <img
-                src={fullViewImage}
-                alt="Full view"
-                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {fullViewImage && (
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          onClick={() => setFullViewImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setFullViewImage(null)}
+              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={fullViewImage}
+              alt="Full view"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Modal */}
+      {showAnalyticsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {analyticsModalType === 'newUsers' && `New Users (${pagination?.totalUsers || 0})`}
+                {analyticsModalType === 'activePosters' && `Active Posters (${analyticsData.activePosters.length})`}
+                {analyticsModalType === 'totalPosts' && `Total Posts (${analyticsData.totalPostsCount})`}
+              </h2>
+              <button onClick={() => setShowAnalyticsModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loadingAnalyticsModal ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+                </div>
+              ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    {analyticsModalType === 'totalPosts' ? (
+                      <>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {analyticsModalType === 'activePosters' ? 'Posts Created' : 'Joined Date'}
+                        </th>
+                        {analyticsModalType === 'activePosters' && (
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        )}
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {analyticsModalType === 'newUsers' && analyticsModalUsers.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.fullName || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+
+                  {analyticsModalType === 'activePosters' && analyticsData.activePosters.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.fullName || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">{user.postCount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => { setShowAnalyticsModal(false); handleViewPosts(user); }}
+                          className="text-indigo-600 hover:text-indigo-900 font-medium"
+                        >
+                          View Posts
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {analyticsModalType === 'totalPosts' && analyticsData.postsList.map((post, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="font-medium">{post.userName}</div>
+                        <div className="text-xs text-gray-500">{post.userId}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${post.status === 'posted' ? 'bg-green-100 text-green-800' :
+                            post.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                          {post.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(post.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <img src={post.aiOutput} alt="Post" className="h-10 w-10 rounded object-cover" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

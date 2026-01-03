@@ -29,6 +29,12 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
+     source: {
+      type: String,
+      enum: ["signup", "bulk-upload", "csv-import", "excel-import"],
+      default: "signup",
+    },
+
     connectedBusinessEmail: { type: String, default: null },
   isBusinessConnected: { type: Boolean, default: false },
 

@@ -673,13 +673,13 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   Post Now
 </button>
 
-              <button
+              {/* <button
                 onClick={() => handleFacebookPost(post)}
                 className="w-full flex items-center justify-center gap-2 bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Facebook className="w-4 h-4" />
                 Post to Facebook
-              </button>
+              </button> */}
 
               
               <button
@@ -813,7 +813,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     </button>
 
     {/* Facebook Post */}
-    <button
+    {/* <button
       onClick={() => handleFacebookPost(post)}
       className="
         flex items-center justify-center gap-2
@@ -824,7 +824,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     >
       <Facebook className="w-4 h-4" />
       FB Post
-    </button>
+    </button> */}
 
     {/* Schedule */}
     <button

@@ -232,7 +232,7 @@ export default function GBPAuditCard({ audit }) {
             <div className="flex flex-wrap gap-2">
                 {services.slice(0, 5).map((service, i) => (
                     <span key={i} className="px-3 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200">
-                        {typeof service === 'string' ? service : service.displayName || service}
+                        {typeof service === 'string' ? service : service?.displayName || service}
                     </span>
                 ))}
                 {services.length > 5 && (

@@ -82,8 +82,8 @@ export default function BusinessLocationSearch() {
         <>
           {/* LOCATION DETAILS */}
           <div className="mt-6 bg-green-50 p-4 rounded-xl">
-            <h3 className="font-semibold">{result.displayName?.text}</h3>
-            <p className="text-sm">{result.formattedAddress}</p>
+            <h3 className="font-semibold">{result?.displayName?.text}</h3>
+            <p className="text-sm">{result?.formattedAddress}</p>
             <p className="text-sm mt-2">
               {getComponent("locality")}, {getComponent("administrative_area_level_1")} – {getComponent("postal_code")}
             </p>

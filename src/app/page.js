@@ -1506,7 +1506,7 @@ export default function LimbuAILanding() {
               <X className="w-6 h-6" />
             </button>
             
-            {!bookingSuccess ? (
+            {bookingSuccess ? (
               <div className="text-center py-10 px-6 rounded-2xl bg-gradient-to-br from-green-50 via-white to-emerald-50 shadow-lg">
   <CheckCircle className="w-18 h-18 text-green-500 mx-auto mb-5 animate-bounce" />
 

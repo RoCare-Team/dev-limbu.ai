@@ -1506,12 +1506,27 @@ export default function LimbuAILanding() {
               <X className="w-6 h-6" />
             </button>
             
-            {bookingSuccess ? (
-              <div className="text-center py-8">
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse" />
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">Booked Service!</h2>
-                <p className="text-slate-600">Our team will connect with you shortly.</p>
-              </div>
+            {!bookingSuccess ? (
+              <div className="text-center py-10 px-6 rounded-2xl bg-gradient-to-br from-green-50 via-white to-emerald-50 shadow-lg">
+  <CheckCircle className="w-18 h-18 text-green-500 mx-auto mb-5 animate-bounce" />
+
+  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">
+    Thank You for Your Booking! 🎉
+  </h2>
+
+  <p className="text-slate-600 text-base mb-4">
+    Your service has been <span className="font-semibold text-green-600">successfully booked</span>.
+  </p>
+
+  <p className="text-slate-500 text-sm">
+    Our team will contact you shortly to confirm the details and assist you further.
+  </p>
+
+  <div className="mt-6 inline-block bg-green-100 text-green-700 text-xs font-semibold px-4 py-2 rounded-full">
+    Booking Confirmed
+  </div>
+</div>
+
             ) : (
             <>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Book {selectedPlan.title}</h2>

@@ -61,6 +61,8 @@ export async function fetchGMBAccounts(accessToken) {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
+    if (res.status === 401) throw new Error("UNAUTHORIZED");
+
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`Failed to fetch accounts: ${errText}`);
@@ -90,6 +92,8 @@ export async function fetchAllLocationsByAccount(accessToken, accountId) {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
+      if (res.status === 401) throw new Error("UNAUTHORIZED");
+
       if (!res.ok) throw new Error(`Failed to fetch locations for account ${accountId}`);
 
       const data = await res.json();
@@ -115,6 +119,8 @@ export async function checkVoiceOfMerchant(accessToken, locationName) {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
+    if (res.status === 401) throw new Error("UNAUTHORIZED");
+
     if (!res.ok) {
       return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
     }
@@ -122,6 +128,7 @@ export async function checkVoiceOfMerchant(accessToken, locationName) {
     const data = await res.json();
     return data;
   } catch (err) {
+    if (err.message === "UNAUTHORIZED") throw err;
     return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
   }
 }
@@ -164,6 +171,8 @@ export async function fetchLocationInsights(accessToken, locationId, startDate, 
       headers: { Authorization: `Bearer ${accessToken}` }
     });
 
+    if (res.status === 401) throw new Error("UNAUTHORIZED");
+
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`Failed to fetch insights: ${errText}`);
@@ -185,6 +194,8 @@ export async function fetchSearchKeywords(accessToken, locationId, startMonth, e
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
+
+    if (res.status === 401) throw new Error("UNAUTHORIZED");
 
     if (!res.ok) {
       const errText = await res.text();
@@ -841,6 +852,7 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState({ total: 0, verified: 0, unverified: 0, pending: 0 });
+  const [fetchError, setFetchError] = useState(null);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [showInsightsModal, setShowInsightsModal] = useState(false);
@@ -1051,7 +1063,10 @@ const NavLinks = ({ isAuthenticated }) => {
     }
 
     fetchInProgress.current = true;
-    if (!isBackground) setLoading(true);
+    if (!isBackground) {
+      setLoading(true);
+      setFetchError(null);
+    }
     setNoAccountsFound(false);
     if (!isBackground) setCacheStatus("Fetching fresh data from Google...");
     
@@ -1131,8 +1146,15 @@ const NavLinks = ({ isAuthenticated }) => {
       }
     } catch (error) {
       console.error("❌ Error fetching data:", error);
-      toast.error("Failed to load listings. Please try again.");
-      if (!isBackground) setNoAccountsFound(true);
+      if (!isBackground) {
+        setFetchError("Failed to load listings. Please check your connection or try again.");
+        if (error.message === "UNAUTHORIZED") {
+          setFetchError("Session expired. Please sign in again to continue.");
+        } else {
+          setFetchError("Failed to load listings. Please check your connection or try again.");
+        }
+        setNoAccountsFound(false);
+      }
       setCacheStatus("Error fetching data");
     }
 
@@ -1655,8 +1677,61 @@ const NavLinks = ({ isAuthenticated }) => {
           </div>
         )}
 
+        {/* Error Message */}
+        {fetchError && !loading && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-8 text-center mb-6">
+            <div className="bg-red-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Connection Error</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+              {fetchError.includes("Session expired") ? "Session Expired" : "Connection Error"}
+            </h3>
+            <p className="text-gray-700 mb-4 max-w-md mx-auto text-sm sm:text-base">
+              {fetchError}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleManualRefresh}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
+              >
+                Retry Connection
+              </button>
+              <button
+                onClick={() => signOut({ callbackUrl: "/dashboard" })}
+                className="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-50 transition font-semibold shadow-lg"
+              >
+                Switch Account
+              </button>
+              {fetchError.includes("Session expired") ? (
+                <button
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
+                >
+                  Sign In Again
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleManualRefresh}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
+                  >
+                    Retry Connection
+                  </button>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/dashboard" })}
+                    className="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-50 transition font-semibold shadow-lg"
+                  >
+                    Switch Account
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* No Accounts Found Message */}
-        {noAccountsFound && initialFetchDone && accounts.length === 0 && !loading && (
+        {noAccountsFound && !fetchError && initialFetchDone && accounts.length === 0 && !loading && (
           <div className="bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-8 text-center mb-6">
             <div className="bg-red-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
               <XCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
@@ -1668,17 +1743,25 @@ const NavLinks = ({ isAuthenticated }) => {
             <p className="text-gray-600 mb-6 text-sm">
               Please try logging in with a different Google account that has a Business Profile.
             </p>
-            <button
-              onClick={() => signOut({ callbackUrl: "/dashboard" })}
-              className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
-            >
-              Switch Account
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => signOut({ callbackUrl: "/dashboard" })}
+                className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
+              >
+                Switch Account
+              </button>
+              <button
+                onClick={handleManualRefresh}
+                className="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-50 transition font-semibold shadow-lg"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
 
         {/* Listings or Empty State */}
-        {accounts.length === 0 && !loading && !noAccountsFound && initialFetchDone && (
+        {accounts.length === 0 && !loading && !noAccountsFound && !fetchError && initialFetchDone && (
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-12 text-center">
             <div className="bg-gradient-to-br from-blue-50 to-purple-50 w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
               <Building2 className="w-8 h-8 sm:w-12 sm:h-12 text-blue-600" />

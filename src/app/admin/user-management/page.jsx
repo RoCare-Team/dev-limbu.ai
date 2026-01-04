@@ -31,6 +31,14 @@ export default function UserManagement() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleSearch = () => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      fetchUsers();
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState("All");
@@ -79,11 +87,8 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      fetchUsers();
-    }, 500); // Debounce search/filter requests
-    return () => clearTimeout(handler);
-  }, [currentPage, searchQuery, filterStatus, filterDate]);
+    fetchUsers();
+  }, [currentPage, filterStatus, filterDate]);
   const mergeAllData = useCallback(async () => {
     setLoading(true);
     const initialUsers = await fetchUsers();
@@ -557,15 +562,29 @@ export default function UserManagement() {
 
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search by email, user ID, or phone number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-              />
+            <div className="flex-1 flex items-center gap-2">
+              <div className="relative flex-grow">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by email, user ID, or phone number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
+              <button
+                onClick={handleSearch}
+                className="px-5 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold flex items-center gap-2"
+              >
+                <Search size={18} />
+                <span>Search</span>
+              </button>
             </div>
 
             <div className="relative">

@@ -66,16 +66,18 @@ export default function UserManagement() {
   }, [pagination, users, connectedBusinessUsers]);
 
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (customSearch = null) => {
     setLoading(true);
     const dateParam = (filterDate === 'Custom' && customStartDate && customEndDate) 
       ? 'Custom' 
       : (filterDate === 'Custom' ? 'All' : filterDate);
 
+    const term = typeof customSearch === "string" ? customSearch : searchQuery;
+
     const params = new URLSearchParams({
       page: currentPage,
       limit: 70,
-      search: searchQuery,
+      search: term,
       status: filterStatus,
       date: dateParam,
     });
@@ -140,11 +142,8 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      fetchUsers();
-    }, 500); // Debounce search/filter requests
-    return () => clearTimeout(handler);
-  }, [currentPage, searchQuery, filterStatus, filterDate, customStartDate, customEndDate]);
+    fetchUsers();
+  }, [currentPage, filterStatus, filterDate, customStartDate, customEndDate]);
   const mergeAllData = useCallback(async () => {
     setLoading(true);
     const initialUsers = await fetchUsers();
@@ -834,15 +833,31 @@ export default function UserManagement() {
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-indigo-600 transition-colors"
+                size={20}
+                onClick={() => fetchUsers()}
+              />
               <input
                 type="text"
                 placeholder="Search by email, user ID, or phone number..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchQuery(val);
+                  if (val === "") fetchUsers("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && fetchUsers()}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
               />
             </div>
+
+            <button
+              onClick={() => fetchUsers()}
+              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium shadow-lg hover:shadow-xl"
+            >
+              Search
+            </button>
 
             <div className="relative">
               <select
@@ -938,6 +953,11 @@ export default function UserManagement() {
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Phone size={14} className="text-gray-400" />
                               {user.phone}
+                              {user.phone?.includes("7827715657") && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold bg-yellow-100 text-yellow-700 rounded-full border border-yellow-200 uppercase tracking-wide">
+                                  Testing
+                                </span>
+                              )}
                               {/* {(user.source === "bulk-upload" || user.phone?.includes("7827715657")) && (
                                 <button
                                   onClick={(e) => {

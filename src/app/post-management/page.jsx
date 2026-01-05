@@ -38,7 +38,7 @@ import {
   Facebook,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Toast from "../../components/Toast";
 import LocationSelectionModal from "../../components/LocationSelectionModal";
@@ -861,7 +861,8 @@ export default function PostManagementPage() {
   const [userWallet, setUserWallet] = useState(0);
   const [requiredCoins, setRequiredCoins] = useState(0);
   const { slug } = useParams();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
 
   const [posts, setPosts] = useState([]);
@@ -1637,6 +1638,12 @@ export default function PostManagementPage() {
   const handleLocationConfirm = async (selectedLocationIds, checkmark) => {
     setShowLocationModal(false);
 
+    if (!session?.accessToken) {
+      showToast("Session expired. Please sign in again.", "error");
+      router.push('/dashboard');
+      return;
+    }
+
     if (selectedLocationIds.length === 0) {
       showToast("Please select at least one location", "error");
       return;
@@ -1868,6 +1875,12 @@ export default function PostManagementPage() {
   
 
   const handlePost = async (post) => {
+    if (!session?.accessToken) {
+      showToast("Session expired. Please sign in again.", "error");
+      router.push('/dashboard');
+      return;
+    }
+
     // First check if user has approved the post
     if (post.status !== "approved" && post.status !== "scheduled" && post.status !== "posted" && post.status !== "failed") {
       showToast("Please approve the post first!", "error");

@@ -17,6 +17,13 @@ const UserSchema = new mongoose.Schema({
     date: Date,
     status: String,
   },
+  remarksHistory: [
+    {
+      text: String,
+      createdAt: Date,
+    }
+  ],
+  Remarks: String,
   createdAt: Date,
 });
 
@@ -42,6 +49,13 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page")) || 1; // default page = 1
     const searchQuery = searchParams.get("search") || "";
+    const userId = searchParams.get("userId");
+
+    if (userId) {
+      const user = await User.findOne({ userId });
+      return NextResponse.json({ success: true, user });
+    }
+
     const filterStatus = searchParams.get("status");
     const filterDate = searchParams.get("date");
     const customStartDate = searchParams.get("startDate");
@@ -213,24 +227,42 @@ export async function PUT(req) {
   try {
     await connectDB();
 
-    const { userId, newPlan } = await req.json();
-    if (!userId || !newPlan)
+    const { userId, newPlan, remark } = await req.json();
+    if (!userId)
       return NextResponse.json(
-        { success: false, error: "Missing userId or newPlan" },
+        { success: false, error: "Missing userId" },
         { status: 400 }
       );
 
-    const updatedUser = await User.findOneAndUpdate(
-      { userId },
-      {
-        $set: {
-          "subscription.plan": newPlan,
-          "subscription.status": "active",
-          "subscription.date": new Date(),
+    let updatedUser;
+
+    if (remark) {
+      updatedUser = await User.findOneAndUpdate(
+        { userId },
+        {
+          $set: { Remarks: remark },
+          $push: { remarksHistory: { text: remark, createdAt: new Date() } }
         },
-      },
-      { new: true }
-    );
+        { new: true }
+      );
+    } else if (newPlan) {
+      updatedUser = await User.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            "subscription.plan": newPlan,
+            "subscription.status": "active",
+            "subscription.date": new Date(),
+          },
+        },
+        { new: true }
+      );
+    } else {
+      return NextResponse.json(
+        { success: false, error: "Nothing to update" },
+        { status: 400 }
+      );
+    }
 
     if (!updatedUser)
       return NextResponse.json(
@@ -240,7 +272,7 @@ export async function PUT(req) {
 
     return NextResponse.json({
       success: true,
-      message: `Plan updated to ${newPlan}`,
+      message: "User updated successfully",
       user: updatedUser,
     });
   } catch (error) {

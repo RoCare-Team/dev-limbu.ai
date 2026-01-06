@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare } from "lucide-react";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -25,6 +25,20 @@ export default function UserManagement() {
   const [userPostsData, setUserPostsData] = useState({});
   const [mergedUsers, setMergedUsers] = useState([]);
   const [impersonatingUser, setImpersonatingUser] = useState(null);
+  const [remarksModalUser, setRemarksModalUser] = useState(null);
+  const [remarksInput, setRemarksInput] = useState("");
+  const [remarksHistory, setRemarksHistory] = useState([]);
+  const [loadingRemarks, setLoadingRemarks] = useState(false);
+  const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
+
+  const remarkColors = [
+    "bg-blue-50 border-blue-200",
+    "bg-purple-50 border-purple-200",
+    "bg-green-50 border-green-200",
+    "bg-amber-50 border-amber-200",
+    "bg-rose-50 border-rose-200",
+    "bg-cyan-50 border-cyan-200",
+  ];
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -36,6 +50,25 @@ export default function UserManagement() {
       setCurrentPage(1);
     } else {
       fetchUsers();
+    }
+  };
+
+  const handleRefreshMetaLeads = async () => {
+    setIsRefreshingMetaLeads(true);
+    try {
+      const res = await fetch("/api/meta-leads-import?formId=1393275835835157");
+      const data = await res.json();
+      if (data.success) {
+        showToast("Meta Leads refreshed successfully!", "success");
+        fetchUsers();
+      } else {
+        showToast(data.error || "Failed to refresh Meta Leads", "error");
+      }
+    } catch (error) {
+      console.error("Error refreshing Meta Leads:", error);
+      showToast("Error refreshing Meta Leads", "error");
+    } finally {
+      setIsRefreshingMetaLeads(false);
     }
   };
 
@@ -393,6 +426,78 @@ export default function UserManagement() {
     }
   };
 
+  const handleOpenRemarksModal = async (user) => {
+    setRemarksModalUser(user);
+    setRemarksInput("");
+    setLoadingRemarks(true);
+    try {
+      const res = await fetch(`/api/users?userId=${user.userId}`);
+      const data = await res.json();
+      if (data.success && data.user) {
+        setRemarksHistory(data.user.remarksHistory || []);
+      } else {
+        setRemarksHistory([]);
+      }
+    } catch (error) {
+      console.error("Error fetching remarks:", error);
+    } finally {
+      setLoadingRemarks(false);
+    }
+  };
+
+  const handleAddRemark = async () => {
+    if (!remarksModalUser || !remarksInput.trim()) return;
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: remarksModalUser.userId,
+          remark: remarksInput
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRemarksHistory(data.user.remarksHistory || []);
+        setRemarksInput("");
+        showToast("Remark added successfully", "success");
+        fetchUsers();
+      } else {
+        showToast(data.error || "Failed to add remark", "error");
+      }
+    } catch (error) {
+      console.error("Error adding remark:", error);
+      showToast("Error adding remark", "error");
+    }
+  };
+
+  const handleUpdateRemarks = async () => {
+    if (!remarksModalUser) return;
+
+    try {
+      const res = await fetch(`/api/users`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: remarksModalUser.userId,
+          remarks: remarksInput,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Remarks updated successfully", "success");
+        setRemarksModalUser(null);
+        fetchUsers();
+      } else {
+        showToast(data.error || "Failed to update remarks", "error");
+      }
+    } catch (err) {
+      console.error("Error updating remarks:", err);
+      showToast("Error updating remarks", "error");
+    }
+  };
+
   const clearFilters = () => {
     setSearchQuery("");
     setFilterStatus("All");
@@ -480,9 +585,25 @@ export default function UserManagement() {
             </h1>
             <p className="text-gray-600 mt-1">Manage subscriptions and user accounts</p>
           </div>
-          <button
-            onClick={() => setAddingUser(true)}
-            className="
+          <div className="flex gap-3">
+            <button
+              onClick={handleRefreshMetaLeads}
+              disabled={isRefreshingMetaLeads}
+              className="
+                flex items-center gap-2 px-6 py-3 
+                bg-white text-indigo-600 
+                border border-indigo-200
+                hover:bg-indigo-50 
+                rounded-xl shadow-sm hover:shadow-md 
+                transition-all font-medium
+              "
+            >
+              <RefreshCw size={20} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
+              {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
+            </button>
+            <button
+              onClick={() => setAddingUser(true)}
+              className="
     flex items-center gap-2 px-6 py-3 
     bg-gradient-to-r from-indigo-600 to-purple-600 
     hover:from-indigo-700 hover:to-purple-700 
@@ -491,10 +612,11 @@ export default function UserManagement() {
     hover:shadow-xl 
     transition-all
   "
-          >
-            <Plus size={20} className="text-white dark:text-white" />
-            Add User
-          </button>
+            >
+              <Plus size={20} className="text-white dark:text-white" />
+              Add User
+            </button>
+          </div>
 
         </div>
 
@@ -634,11 +756,13 @@ export default function UserManagement() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Posts</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Status</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">GST Number</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Source</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Login Button</th>
                 </tr>
@@ -687,8 +811,40 @@ export default function UserManagement() {
                               {user.fullName}
                             </div>
                           )}
+                          {(user.source === "bulk-upload" || user.source === "Meta Leads") && (
+                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
+                              Meta Leads
+                            </span>
+                          )}
                         </div>
                       </td>
+                      
+                      <td className="px-6 py-4">
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenRemarksModal(user);
+                          }}
+                          className="group cursor-pointer flex flex-col items-start gap-1.5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
+                              <MessageSquare size={14} className="mr-1.5" />
+                              <span className="font-bold text-xs">{user.remarksHistory?.length || 0}</span>
+                            </div>
+                          </div>
+                          
+                          {user.Remarks ? (
+                            <div className="text-[11px] leading-tight text-white-600 bg-green-500 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-white group-hover:shadow-sm transition-all">
+                              <span className="font-semibold text-gray-800 mr-1">Latest:</span>
+                              {user.Remarks}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 italic pl-1">Tap to add...</span>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="px-6 py-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -786,6 +942,12 @@ export default function UserManagement() {
                       </td>
 
                       <td className="px-6 py-4">
+                        <span className="text-sm text-gray-700 font-medium">
+                          {user.source === "bulk-upload" ? "Meta Leads" : user.source || "N/A"}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-gray-400" />
                           <div className="text-sm text-gray-700">
@@ -868,7 +1030,7 @@ export default function UserManagement() {
                 })}
                 {filteredUsers.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="text-center py-12">
+                    <td colSpan="10" className="text-center py-12">
                       <div className="text-gray-400">
                         <Search size={48} className="mx-auto mb-3 opacity-50" />
                         <p className="text-lg font-medium">No users found</p>
@@ -1110,6 +1272,118 @@ export default function UserManagement() {
             </div>
           </div>
         )}
+
+        {/* Remarks Modal */}
+     {remarksModalUser && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-gray-800">
+          Remarks History
+        </h2>
+        <button
+          onClick={() => setRemarksModalUser(null)}
+          className="p-1.5 hover:bg-gray-100 rounded-full transition"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Remarks List */}
+      <div className="mb-3 max-h-64 overflow-y-auto space-y-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
+
+        {loadingRemarks ? (
+          <div className="text-center py-6 text-gray-500 text-xs">
+            Loading history...
+          </div>
+        ) : (!remarksHistory || remarksHistory.length === 0) ? (
+          <div className="text-center py-6 text-gray-400 text-xs flex flex-col items-center">
+            <MessageSquare size={20} className="mb-1 opacity-20" />
+            No remarks found
+          </div>
+        ) : (
+          remarksHistory
+            .slice()
+            .reverse()
+            .map((r, idx) => {
+              const isLatest = idx === 0;
+
+              return (
+                <div
+                  key={idx}
+                  className={`p-2 rounded-lg border transition-all
+                    ${isLatest
+                      ? "bg-green-50 border-green-300"
+                      : "bg-white border-gray-200"
+                    }`}
+                >
+                  {/* Top Row */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold text-gray-600">
+                      Remark
+                    </span>
+
+                    {isLatest && (
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">
+                        Latest
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Remark Text */}
+                  <p className="text-[12px] text-gray-800 leading-snug">
+                    {r.text}
+                  </p>
+
+                  {/* Timestamp */}
+                  <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                    <Calendar size={9} />
+                    {new Date(r.createdAt).toLocaleString([], {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                </div>
+              );
+            })
+        )}
+      </div>
+
+      {/* Add Remark */}
+      <div className="mb-3">
+        <label className="block text-xs font-medium text-gray-700 mb-1">
+          Add New Remark
+        </label>
+        <textarea
+          value={remarksInput}
+          onChange={(e) => setRemarksInput(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none min-h-[80px]"
+          placeholder="Type a new remark..."
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => setRemarksModalUser(null)}
+          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAddRemark}
+          className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+        >
+          Add Remark
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
         {addingUser && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">

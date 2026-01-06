@@ -10,7 +10,14 @@ const userSchema = new mongoose.Schema(
     wallet: { type: Number, default: 0 },
     freeUsedCount: { type: Number },
     GstNumber: { type: String },
+    Remarks: { type: String },
 
+    remarksHistory: [
+      {
+        text: String,
+        createdAt: { type: Date, default: Date.now },
+      }
+    ],
     
     subscription: {
       plan: { type: String },

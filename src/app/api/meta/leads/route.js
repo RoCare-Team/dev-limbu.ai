@@ -9,7 +9,7 @@ export async function GET(req) {
     const formId = searchParams.get("formId"); // 👈 DYNAMIC
     const before = searchParams.get("before");
     const after = searchParams.get("after");
-    const limit = searchParams.get("limit") || 1140;
+    const limit = searchParams.get("limit") || 3000;
 
     if (!formId) {
       return NextResponse.json(

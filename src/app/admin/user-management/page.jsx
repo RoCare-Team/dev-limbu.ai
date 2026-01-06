@@ -1340,7 +1340,7 @@ export default function UserManagement() {
       </div>
 
       {/* Remarks List */}
-      <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
+      <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
 
         {loadingRemarks ? (
           <div className="text-center py-6 text-gray-500 text-xs">

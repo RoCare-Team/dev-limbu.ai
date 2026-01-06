@@ -11,7 +11,8 @@ import {
   Trash2,
   Edit2,
   UploadCloud,
-  Building2
+  Building2,
+  Palette
 } from "lucide-react";
 
 const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
@@ -63,13 +64,13 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
     { label: "1:1", value: "1:1" },
     { label: "2:3", value: "2:3" },
     { label: "3:2", value: "3:2" },
-    { label: "3:4", value: "3:4" },
+    { label: "3:4 Instagram fb Linkedin", value: "3:4" },
     { label: "4:3", value: "4:3" },
     { label: "4:5", value: "4:5" },
     { label: "5:4", value: "5:4" },
-    { label: "9:16", value: "9:16" },
-    { label: "16:9", value: "16:9" },
-    { label: "21:9", value: "21:9" },
+    { label: "9:16 Reels Size", value: "9:16" },
+    { label: "16:9 GMB Profile", value: "16:9" },
+    { label: "21:9 Banner Size", value: "21:9" },
   ];
 
   const colorPalettes = [
@@ -661,20 +662,70 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
                             activeDropdown === "Color" ? null : "Color"
                           )
                         }
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-[11px] text-left flex items-center justify-between bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-left flex items-center justify-between bg-white hover:bg-gray-50 transition-all shadow-sm group"
                       >
-                        <span
-                          className="text-gray-700"
-                        >
-                          {(asset.url && asset.url !== "")
-                            ? (colorPalettes.find((p) => p.value === asset.url)?.label || asset.url)
-                            : "None"}
-                        </span>
-                        <ChevronDown className="w-3 h-3 text-gray-400" />
+                        <div className="flex items-center gap-2 overflow-hidden">
+                           {(asset.url && asset.url.startsWith('#')) && (
+                              <div className="w-4 h-4 rounded-full border border-gray-200 shadow-sm flex-shrink-0" style={{ backgroundColor: asset.url }}></div>
+                           )}
+                           {colorPalettes.find(p => p.value === asset.url)?.colors && (
+                              <div className="flex -space-x-1 flex-shrink-0">
+                                {colorPalettes.find(p => p.value === asset.url).colors.slice(0,3).map((c, i) => (
+                                  <div key={i} className="w-3 h-3 rounded-full border border-white" style={{ backgroundColor: c }}></div>
+                                ))}
+                              </div>
+                           )}
+                           {!asset.url && (
+                              <Palette className="w-3.5 h-3.5 text-gray-400" />
+                           )}
+                           
+                          <span className="text-gray-700 font-medium truncate">
+                            {(asset.url && asset.url !== "" && asset.url !== "none")
+                              ? (colorPalettes.find((p) => p.value === asset.url)?.label || asset.url)
+                              : "Select Theme"}
+                          </span>
+                        </div>
+                        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${activeDropdown === "Color" ? "rotate-180" : ""}`} />
                       </button>
 
                       {activeDropdown === "Color" && (
-                        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 min-w-[240px]">
+                          
+                          {/* Custom Input Section */}
+                          <div className="p-3 bg-gray-50 border-b border-gray-100 space-y-2">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Custom Theme</label>
+                            <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="e.g. Red & Black Press Enter"
+                              className="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAssetChange(asset, e.target.value);
+                                  setActiveDropdown(null);
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="relative w-8 h-8 flex-shrink-0 group/picker cursor-pointer" title="Pick a color">
+                                <input 
+                                    type="color" 
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    onChange={(e) => {
+                                        handleAssetChange(asset, e.target.value);
+                                    }}
+                                />
+                                <div className="w-full h-full rounded-lg border border-gray-300 bg-white flex items-center justify-center shadow-sm group-hover/picker:border-blue-400 transition-colors">
+                                    <div className="w-5 h-5 rounded-full border border-gray-200" style={{ background: 'conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #00FF00 120deg, #0000FF 240deg, #FF0000 360deg)' }}></div>
+                                </div>
+                            </div>
+                            </div>
+                          </div>
+
+                          {/* Presets List */}
+                          <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-2 py-1 block">Presets</label>
                           {colorPalettes.map((palette) => (
                             <div
                               key={palette.value}
@@ -682,22 +733,25 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
                                 handleAssetChange(asset, palette.value);
                                 setActiveDropdown(null);
                               }}
-                              className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer flex flex-col gap-1 border-b border-gray-50 last:border-0"
+                              className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all ${asset.url === palette.value ? "bg-blue-50 border border-blue-100" : "hover:bg-gray-50 border border-transparent"}`}
                             >
-                              <span className="text-[11px] font-medium text-gray-700">
+                              <span className={`text-xs font-medium ${asset.url === palette.value ? "text-blue-700" : "text-gray-700"}`}>
                                 {palette.label}
                               </span>
-                              <div className="flex gap-1">
+                              {palette.colors && (
+                              <div className="flex -space-x-1.5">
                                 {palette.colors?.map((color, i) => (
                                   <div
                                     key={i}
-                                    className="w-3 h-3 rounded-full border border-gray-100"
+                                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm ring-1 ring-black/5"
                                     style={{ backgroundColor: color }}
                                   />
                                 ))}
                               </div>
+                              )}
                             </div>
                           ))}
+                          </div>
                         </div>
                       )}
                     </div>

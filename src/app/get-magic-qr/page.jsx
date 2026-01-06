@@ -92,13 +92,13 @@ export default function BusinessQR() {
     const firstLocation = locations[0];
     setSelectedLocationId(firstLocation.locationId);
 
-    const title = firstLocation.title || "";
-    setBusiness(title);
+    const displayName = getDisplayName(firstLocation);
+    setBusiness(displayName);
 
-    if (!title) return;
+    if (!firstLocation.title) return;
 
     // Fetch Google Review URL
-    getGoogleReviewURL(title);
+    getGoogleReviewURL(firstLocation.title);
 
     // Create review URL with encoded data
     const finalReviewURL = createReviewUrl(firstLocation);
@@ -132,6 +132,8 @@ export default function BusinessQR() {
     const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(finalReviewURL)}`;
     setQrImage(qr);
   };
+
+  const selectedLocation = allLocations.find(loc => loc.locationId === selectedLocationId);
 
   // Download QR with branding
   const downloadQR = async () => {
@@ -285,12 +287,17 @@ export default function BusinessQR() {
             <span>Smart Review System</span>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-800 mb-4">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-800 mb-2">
             {business}
           </h1>
+          {/* {selectedLocation && selectedLocation.address && (
+            <p className="text-gray-500 text-sm max-w-2xl mx-auto">
+              {selectedLocation.address}
+            </p>
+          )} */}
 
           {allLocations.length > 1 && (
-            <div className="max-w-md mx-auto mb-4">
+            <div className="max-w-md mx-auto mt-4 mb-4">
               <select
                 value={selectedLocationId}
                 onChange={(e) => handleLocationChange(e.target.value)}
@@ -301,14 +308,14 @@ export default function BusinessQR() {
               >
                 {allLocations.map((loc) => (
                   <option key={loc.locationId} value={loc.locationId}>
-                    {loc.title} - {loc.locality}
+                    {getDisplayName(loc)} {loc.address ? `- ${loc.address}` : ""}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          <p className="text-gray-600 text-lg max-w-xl mx-auto">
+          <p className="text-gray-600 text-lg max-w-xl mx-auto mt-4">
             Collect feedback, grow your reputation, and guide customers effortlessly.
           </p>
         </div>
@@ -386,19 +393,16 @@ export default function BusinessQR() {
       </p>
 
       {/* Footer */}
-      <p className="mt-4 flex items-center justify-center gap-1 text-xs text-gray-600">
-  Powered by
-  <span className="flex items-center gap-1 font-bold text-indigo-600">
-    <Image
-      src={PowerRedLogo}
-      alt="LimbuAI"
-      width={25}
-      height={25}
-      className="inline-block"
-    />
-    LimbuAI
-  </span>
-</p>
+      <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-center gap-1.5">
+        <p className="text-[10px] text-gray-500">Powered by</p>
+        <Image
+          src={PowerRedLogo}
+          alt="LimbuAI Logo"
+          width={18}
+          height={18}
+        />
+        <p className="text-xs font-bold text-indigo-700">LimbuAI</p>
+      </div>
 
     </div>
   </div>

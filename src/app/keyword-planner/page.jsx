@@ -1,12 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Search, Plus, Tag, TrendingUp, X, BarChart3 } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Search, Plus, Tag, TrendingUp, X, BarChart3, Check, Loader2 } from "lucide-react";
 
 export default function KeywordPage() {
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [saved, setSaved] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSaving, setIsSaving] = useState(null); // To show loader on add button
 
   /* ---------- Fetch Google keywords ---------- */
   const searchKeywords = async (value) => {
@@ -33,15 +34,15 @@ export default function KeywordPage() {
 
   /* ---------- Add keyword ---------- */
   const addKeyword = async (keyword) => {
+    setIsSaving(keyword);
     const userId = localStorage.getItem("userId");
     await fetch("/api/keyword-research", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, keyword }),
     });
-    fetchSavedKeywords();
-    setSuggestions([]);
-    setInput("");
+    await fetchSavedKeywords();
+    setIsSaving(null);
   };
 
   /* ---------- Remove keyword ---------- */
@@ -64,11 +65,13 @@ export default function KeywordPage() {
     fetchSavedKeywords();
   }, []);
 
+  const savedKeywordsSet = useMemo(() => new Set(saved.map(s => s.keyword)), [saved]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-screen-xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
             <TrendingUp className="w-8 h-8 text-white" />
           </div>
@@ -76,128 +79,130 @@ export default function KeywordPage() {
           <p className="text-gray-600 text-sm sm:text-base">Discover and save the best keywords for your content</p>
         </div>
 
-        {/* Search Box */}
-        <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-6 mb-6 backdrop-blur-sm bg-opacity-90">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                searchKeywords(e.target.value);
-              }}
-              placeholder="Type keyword (e.g. mahindra office near me)"
-              className="w-full pl-12 pr-4 py-3 sm:py-4 text-base sm:text-lg border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:outline-none transition-all duration-300"
-            />
-            {isSearching && (
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <div className="w-5 h-5 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* Google Suggestions */}
-          {suggestions.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide px-2">Suggested Keywords</p>
-              {suggestions.map((k, idx) => (
-                <div
-                  key={idx}
-                  className="group flex justify-between items-center p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-200"
-                  onClick={() => addKeyword(k.keyword)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-gray-700 font-medium text-sm sm:text-base">{k.keyword}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {k.volume && (
-                      <div className="flex items-center gap-1.5 text-sm text-gray-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                        <BarChart3 className="w-4 h-4 text-purple-500" />
-                        <span>{k.volume.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addKeyword(k.keyword);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span className="text-sm font-medium">Add</span>
-                    </button>
-                  </div>
+          {/* Left Panel: Search & Saved Keywords */}
+          <div className="lg:col-span-5 space-y-8 sticky top-8">
+            {/* Search Box */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Search className="w-5 h-5 text-blue-600" />
+                Find Keywords
+              </h2>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    searchKeywords(e.target.value);
+                  }}
+                  placeholder="Type keyword (e.g. best ro service)"
+                  className="w-full pl-12 pr-4 py-3 text-base border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Saved Keywords */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-purple-600" />
+                  My Keywords
+                </h2>
+                <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{saved.length}</span>
+              </div>
+
+              {saved.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p>Your saved keywords will appear here.</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Saved Keywords */}
-        <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-6 backdrop-blur-sm bg-opacity-90">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-              <Tag className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-800">My Keywords</h3>
-              <p className="text-sm text-gray-500">{saved.length} keywords saved</p>
-            </div>
-          </div>
-
-          {saved.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Tag className="w-10 h-10 text-gray-400" />
-              </div>
-              <p className="text-gray-500 text-base sm:text-lg">No keywords saved yet</p>
-              <p className="text-gray-400 text-sm mt-2">Start by searching for keywords above</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {saved.map((k) => (
-                <div
-                  key={k._id}
-                  className="group relative p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-                        <span className="font-semibold text-gray-800 text-sm sm:text-base">{k.keyword}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(k.createdAt).toLocaleDateString()}
-                      </span>
+              ) : (
+                <div className="flex flex-wrap gap-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
+                  {saved.slice().reverse().map((k) => (
+                    <div key={k._id} className="bg-purple-50 text-purple-800 rounded-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium border border-purple-200 animate-in fade-in-50">
+                      <span>{k.keyword}</span>
+                      <button onClick={() => deleteKeyword(k._id)} className="p-0.5 rounded-full hover:bg-purple-200 transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => deleteKeyword(k._id)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-1.5 hover:bg-red-100 rounded-lg"
-                    >
-                      <X className="w-4 h-4 text-red-600" />
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Stats Footer */}
-        <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="bg-white rounded-2xl p-3 sm:p-4 text-center shadow-lg">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">{saved.length}</div>
-            <div className="text-xs sm:text-sm text-gray-600">Saved</div>
+          {/* Right Panel: Suggestions */}
+          <div className="lg:col-span-7">
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 min-h-[60vh]">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Suggestions</h2>
+
+              <div className="space-y-2">
+                {isSearching && (
+                  <div className="flex justify-center items-center py-20">
+                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                  </div>
+                )}
+
+                {!isSearching && suggestions.length === 0 && (
+                  <div className="text-center py-20 text-gray-400">
+                    <p className="font-medium">{input ? "No suggestions found." : "Start typing to see keyword suggestions."}</p>
+                  </div>
+                )}
+
+                {!isSearching && suggestions.map((k, idx) => {
+                  const isAdded = savedKeywordsSet.has(k.keyword);
+                  return (
+                    <div
+                      key={idx}
+                      className={`
+                        flex justify-between items-center p-4 rounded-xl border-2 transition-all duration-200
+                        ${isAdded
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-white hover:bg-blue-50 hover:border-blue-200 border-gray-100'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`font-medium text-sm ${isAdded ? 'text-green-800' : 'text-gray-800'}`}>{k.keyword}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {k.volume && (
+                          <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                            <BarChart3 className="w-4 h-4 text-purple-400" />
+                            <span>{k.volume.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {isAdded ? (
+                          <button
+                            disabled
+                            className="flex items-center gap-1.5 px-4 py-2 bg-green-200 text-green-800 rounded-lg text-sm font-semibold cursor-default"
+                          >
+                            <Check className="w-4 h-4" />
+                            Added
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => addKeyword(k.keyword)}
+                            disabled={isSaving === k.keyword}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait"
+                          >
+                            {isSaving === k.keyword ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4" />
+                            )}
+                            Add
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl p-3 sm:p-4 text-center shadow-lg">
-            <div className="text-xl sm:text-2xl font-bold text-purple-600">{suggestions.length}</div>
-            <div className="text-xs sm:text-sm text-gray-600">Suggestions</div>
-          </div>
-          <div className="bg-white rounded-2xl p-3 sm:p-4 text-center shadow-lg">
-            <div className="text-xl sm:text-2xl font-bold text-pink-600">{input.length}</div>
-            <div className="text-xs sm:text-sm text-gray-600">Characters</div>
-          </div>
+
         </div>
       </div>
     </div>

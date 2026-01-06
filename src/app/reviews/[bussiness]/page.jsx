@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Star, ExternalLink, CheckCircle, Sparkles } from "lucide-react";
 
 export default function CustomerReviewPage({slug}) {
@@ -145,107 +146,106 @@ export default function CustomerReviewPage({slug}) {
     setFeedback("");
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading review page...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-        <div className="absolute bottom-20 right-10 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="text-center">
+          {loading ? (
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="h-8 bg-gray-200 rounded w-48 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-32"></div>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-3xl font-extrabold text-gray-900 capitalize">
+                {business || "Business Name"}
+              </h2>
+              {locality && (
+                <p className="mt-2 text-sm text-gray-600">
+                  {locality}
+                </p>
+              )}
+            </>
+          )}
+          <p className="mt-2 text-sm text-gray-500">
+            We value your feedback. Please rate your experience.
+          </p>
+        </div>
       </div>
 
-      <div className="container mx-auto px-4 py-12 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-5 py-2 rounded-full text-sm font-semibold mb-4">
-            <Sparkles size={16} />
-            <span>Customer Feedback</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-3 capitalize">
-            {business}
-          </h1>
-          {locality && (
-            <p className="text-gray-500 text-lg font-medium mb-2">{locality}</p>
-          )}
-          <p className="text-gray-600 text-lg">Share your experience with us</p>
-        </div>
-
-        {/* Error Message */}
-        {errorMsg && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 text-center max-w-xl mx-auto">
-            {errorMsg}
-          </div>
-        )}
-
-        {/* Customer Name Input */}
-        {!errorMsg && (
-          <>
-            <div className="max-w-md mx-auto mb-8">
-              <input
-                type="text"
-                placeholder="Enter your name (optional)"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-center text-gray-700 bg-white shadow-sm transition-colors"
-              />
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {errorMsg ? (
+            <div className="text-center text-red-600 bg-red-50 p-4 rounded-lg">
+              <p>{errorMsg}</p>
             </div>
-
-            {/* Rating Section */}
-            <div className="bg-white p-8 md:p-10 rounded-3xl shadow-xl max-w-2xl mx-auto border border-gray-100">
-              <h2 className="text-3xl font-bold mb-2 text-center text-gray-800">
-                Rate Your Experience
-              </h2>
-              <p className="text-center text-gray-600 mb-8">Tap a star to share your rating</p>
-
-              {/* Star Rating */}
-              <div className="flex gap-3 justify-center mb-8">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleRating(star)}
-                    disabled={redirecting}
-                    className="transform transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Star
-                      size={56}
-                      className={`transition-all duration-300 ${
-                        rating >= star ? "text-yellow-400 drop-shadow-lg" : "text-gray-300"
-                      }`}
-                      fill={rating >= star ? "currentColor" : "none"}
-                      strokeWidth={1.5}
-                    />
-                  </button>
-                ))}
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="customerName" className="block text-sm font-medium text-gray-700">
+                  Your Name <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="customerName"
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="John Doe"
+                  />
+                </div>
               </div>
 
-              {/* Success Message */}
-              {showSuccess && !redirecting && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="p-3 bg-green-100 rounded-full">
-                      <CheckCircle className="text-green-600" size={40} />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-green-800 mb-1">Thank You!</p>
-                      <p className="text-sm text-green-600">Your feedback has been submitted successfully</p>
-                    </div>
+              <div className="flex flex-col items-center">
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  Tap a star to rate
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => handleRating(star)}
+                      disabled={redirecting}
+                      className="transition-transform hover:scale-110 focus:outline-none"
+                    >
+                      <Star
+                        size={42}
+                        className={`${rating >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-200 fill-gray-200"
+                          }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showSuccess && !redirecting && (
+            <div className="mt-6 bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <CheckCircle className="h-5 w-5 text-green-400" aria-hidden="true" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">Thank you!</h3>
+                  <div className="mt-2 text-sm text-green-700">
+                    <p>Your feedback has been submitted successfully.</p>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
+      </div>
+
+      {/* Powered by LimbuAI Footer */}
+      <div className="mt-12 text-center">
+        <a href="https://limbu.ai" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-indigo-600 transition-colors group">
+          Powered by
+          <Image src="/images/bg-logo.png" alt="LimbuAI Logo" width={22} height={22} className="transition-transform group-hover:scale-110" />
+          <span className="font-semibold text-gray-700 group-hover:text-indigo-600">LimbuAI</span>
+        </a>
       </div>
 
       {/* Redirecting Loader */}
@@ -335,7 +335,7 @@ export default function CustomerReviewPage({slug}) {
               >
                 Submit Feedback
               </button>
-            </div>
+                    </div>
           </div>
         </div>
       )}

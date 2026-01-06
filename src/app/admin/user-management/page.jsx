@@ -31,6 +31,21 @@ export default function UserManagement() {
   const [loadingRemarks, setLoadingRemarks] = useState(false);
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
 
+  const defaultRemarks = [
+    "Call Not Picked",
+    "Not Interested",
+    "Interested",
+    "Call Back Later",
+    "Wrong Number",
+    "Switch Off",
+    "Meeting Scheduled"
+  ];
+
+  const handleDefaultRemarkClick = (remark) => {
+    const adminName = localStorage.getItem("adminName") || "Admin";
+    setRemarksInput(`${remark} - ${adminName}`);
+  };
+
   const remarkColors = [
     "bg-blue-50 border-blue-200",
     "bg-purple-50 border-purple-200",
@@ -1291,15 +1306,48 @@ export default function UserManagement() {
         </button>
       </div>
 
+
+      {/* Add Remark Section (Input + Button in one line) */}
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          type="text"
+          value={remarksInput}
+          onChange={(e) => setRemarksInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddRemark()}
+          className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+          placeholder="Type a new remark..."
+        />
+        <button
+          onClick={handleAddRemark}
+          disabled={!remarksInput.trim()}
+          className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium text-sm whitespace-nowrap"
+        >
+          Submit
+        </button>
+      </div>
+      
+      {/* Default Remarks */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {defaultRemarks.map((remark, idx) => (
+          <button
+            key={idx}
+            onClick={() => handleDefaultRemarkClick(remark)}
+            className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-indigo-100 hover:text-indigo-700 transition-colors border border-gray-200"
+          >
+            {remark}
+          </button>
+        ))}
+      </div>
+
       {/* Remarks List */}
-      <div className="mb-3 max-h-64 overflow-y-auto space-y-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
+      <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
 
         {loadingRemarks ? (
           <div className="text-center py-6 text-gray-500 text-xs">
             Loading history...
           </div>
         ) : (!remarksHistory || remarksHistory.length === 0) ? (
-          <div className="text-center py-6 text-gray-400 text-xs flex flex-col items-center">
+          <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
             <MessageSquare size={20} className="mb-1 opacity-20" />
             No remarks found
           </div>
@@ -1313,7 +1361,7 @@ export default function UserManagement() {
               return (
                 <div
                   key={idx}
-                  className={`p-2 rounded-lg border transition-all
+                  className={`p-3 rounded-xl border transition-all shadow-sm
                     ${isLatest
                       ? "bg-green-50 border-green-300"
                       : "bg-white border-gray-200"
@@ -1333,7 +1381,7 @@ export default function UserManagement() {
                   </div>
 
                   {/* Remark Text */}
-                  <p className="text-[12px] text-gray-800 leading-snug">
+                  <p className="text-sm text-gray-800 leading-relaxed">
                     {r.text}
                   </p>
 
@@ -1351,34 +1399,6 @@ export default function UserManagement() {
         )}
       </div>
 
-      {/* Add Remark */}
-      <div className="mb-3">
-        <label className="block text-xs font-medium text-gray-700 mb-1">
-          Add New Remark
-        </label>
-        <textarea
-          value={remarksInput}
-          onChange={(e) => setRemarksInput(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none min-h-[80px]"
-          placeholder="Type a new remark..."
-        />
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={() => setRemarksModalUser(null)}
-          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleAddRemark}
-          className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-        >
-          Add Remark
-        </button>
-      </div>
     </div>
   </div>
 )}

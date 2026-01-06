@@ -8,14 +8,16 @@ export default function ContactUs() {
     name: "",
     email: "",
     phone: "",
-    message: ""
+    message: "",
+    consent: false
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleSubmit = async () => {
@@ -39,7 +41,8 @@ export default function ContactUs() {
           name: "",
           email: "",
           phone: "",
-          message: ""
+          message: "",
+          consent: false
         });
         
         setTimeout(() => {
@@ -159,9 +162,23 @@ export default function ContactUs() {
                 ></textarea>
               </div>
 
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  name="consent"
+                  id="consent"
+                  checked={formData.consent}
+                  onChange={handleChange}
+                  className="mt-0.5 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 flex-shrink-0"
+                />
+                <label htmlFor="consent" className="text-xs text-gray-600 leading-snug">
+                  By continuing, you agree to Limbu Ai and authorize our representatives to contact you via Call, Email, SMS, RCS, or WhatsApp regarding your service requests and related updates.
+                </label>
+              </div>
+
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !formData.consent}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 sm:py-4 text-sm sm:text-base rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isSubmitting ? (

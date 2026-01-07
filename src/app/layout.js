@@ -38,8 +38,10 @@ export const metadata = {
   },
   other: {
     "google-site-verification":
-      "U-FQQqXrb89Al4Gqx8KsuzMRa2kxeW8uxB4etX5-sqU",
+      "ZpTJfnJZybgMWCFj2DtV-HeQ7-zCoh36WNzLTEAfWoI",
   },
+
+  
 };
 
 export default function RootLayout({ children }) {

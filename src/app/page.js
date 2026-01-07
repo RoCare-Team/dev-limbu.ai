@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, MessageSquare, Calendar, Send, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video } from 'lucide-react';
+import { Sparkles, MessageSquare, Calendar, Send, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin } from 'lucide-react';
 import LogoImage from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import Toast from '../components/Toast';
@@ -506,6 +506,11 @@ export default function LimbuAILanding() {
     "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144310/WhatsApp_Video_2025-12-19_at_5.03.11_PM_n15vft.mp4",
     "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144310/WhatsApp_Video_2025-12-19_at_5.02.42_PM_jcrka8.mp4",
     "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144309/WhatsApp_Video_2025-12-19_at_5.03.45_PM_ryvxhc.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4"
+    // https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4
     // "https://res.cloudinary.com/dmjnssvi4/video/upload/v1765257394/replicate-prediction-mptsge8p1nrma0ctxstbv7gw3w_hpexdq.mp4",
     // "https://res.cloudinary.com/dmjnssvi4/video/upload/v1765257375/ayb6dhfrd1rme0ctzqqamzb3r8_mfrlhi.mp4",
     // "https://res.cloudinary.com/dmjnssvi4/video/upload/v1765257405/qb8jp2kssnrme0ctzjw97e1csr_oyza6u.mp4",
@@ -1421,6 +1426,20 @@ export default function LimbuAILanding() {
                 <span className="font-bold text-base sm:text-lg">limbu.ai</span>
               </div>
               <p className="text-slate-400 text-xs sm:text-sm">Automate your Google My Business with AI</p>
+              <div className="flex gap-4 mt-4">
+                <a href="https://www.facebook.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+                  <Facebook className="w-5 h-5" />
+                </a>
+                <a href="https://www.instagram.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+                  <Instagram className="w-5 h-5" />
+                </a>
+                <a href="https://www.youtube.com/@limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+                  <Youtube className="w-5 h-5" />
+                </a>
+                <a href="https://www.linkedin.com/company/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+                  <Linkedin className="w-5 h-5" />
+                </a>
+              </div>
             </div>
 
             {/* Links Columns */}

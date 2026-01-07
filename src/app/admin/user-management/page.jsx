@@ -68,22 +68,26 @@ export default function UserManagement() {
     }
   };
 
-  const handleRefreshMetaLeads = async () => {
-    setIsRefreshingMetaLeads(true);
+  const handleRefreshMetaLeads = async (manual = false) => {
+    if (manual) setIsRefreshingMetaLeads(true);
     try {
       const res = await fetch("/api/meta-leads-import?formId=1393275835835157");
       const data = await res.json();
       if (data.success) {
-        showToast("Meta Leads refreshed successfully!", "success");
-        fetchUsers();
+        if (manual) {
+          showToast("Meta Leads refreshed successfully!", "success");
+          fetchUsers();
+        } else if (data.stats?.inserted > 0) {
+          fetchUsers(true);
+        }
       } else {
-        showToast(data.error || "Failed to refresh Meta Leads", "error");
+        if (manual) showToast(data.error || "Failed to refresh Meta Leads", "error");
       }
     } catch (error) {
       console.error("Error refreshing Meta Leads:", error);
-      showToast("Error refreshing Meta Leads", "error");
+      if (manual) showToast("Error refreshing Meta Leads", "error");
     } finally {
-      setIsRefreshingMetaLeads(false);
+      if (manual) setIsRefreshingMetaLeads(false);
     }
   };
 
@@ -112,8 +116,8 @@ export default function UserManagement() {
   }, [pagination, users, connectedBusinessUsers]);
 
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (silent = false) => {
+    if (!silent) setLoading(true);
     const params = new URLSearchParams({
       page: currentPage,
       limit: 70,
@@ -130,7 +134,7 @@ export default function UserManagement() {
       console.error("Error fetching users:", err);
       return [];
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -173,6 +177,17 @@ export default function UserManagement() {
   useEffect(() => {
     fetchAllUserPostsCounts();
   }, [users]); // Trigger when users (current page) change
+
+  useEffect(() => {
+    handleRefreshMetaLeads(false);
+
+    const interval = setInterval(() => {
+      handleRefreshMetaLeads(false);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
 
   const fetchConnectedBusinessUsers = async () => {
     try {
@@ -602,7 +617,7 @@ export default function UserManagement() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={handleRefreshMetaLeads}
+              onClick={() => handleRefreshMetaLeads(true)}
               disabled={isRefreshingMetaLeads}
               className="
                 flex items-center gap-2 px-6 py-3 
@@ -850,7 +865,7 @@ export default function UserManagement() {
                           </div>
                           
                           {user.Remarks ? (
-                            <div className="text-[11px] leading-tight text-white-600 bg-green-500 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-white group-hover:shadow-sm transition-all">
+                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all">
                               <span className="font-semibold text-gray-800 mr-1">Latest:</span>
                               {user.Remarks}
                             </div>

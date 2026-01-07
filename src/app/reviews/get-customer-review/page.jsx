@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Star } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Star, MessageSquare, User, Calendar, Store, Quote } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function ReviewsPage() {
@@ -35,7 +35,7 @@ export default function ReviewsPage() {
       setError("");
 
       const business = getBusinessName();
-      const res = await fetch(`/api/customer-review?business=${business}`);
+      const res = await fetch(`/api/customer-review?business=${encodeURIComponent(business)}`);
       const data = await res.json();
 
       if (!data.success) {
@@ -52,103 +52,155 @@ export default function ReviewsPage() {
     }
   };
 
+  const stats = useMemo(() => {
+    const total = reviews.length;
+    const avg = total > 0 ? (reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / total).toFixed(1) : 0;
+    return { total, avg };
+  }, [reviews]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4 flex items-center justify-center w-full">
+    <div className="min-h-screen bg-gray-50 p-6 lg:p-10 w-full">
       
       {/* ---------------- IF BUSINESS NOT SELECTED ---------------- */}
       {!getBusinessName() && (
-        <div className="w-full max-w-md bg-white shadow-2xl rounded-3xl p-8 border border-indigo-200 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Business Not Selected
-          </h2>
-
-          <p className="text-gray-600 mb-6">
-            Please confirm your business first to view customer reviews.
-          </p>
-
-          <button
-            onClick={() => router.push("/get-magic-qr")}
-            className="px-6 py-3 rounded-full bg-indigo-600 hover:bg-indigo-700 
-                       text-white font-semibold shadow-md transition transform hover:scale-105"
-          >
-            Go to Get Magic QR
-          </button>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 border border-gray-100 text-center">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Store className="w-8 h-8 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              Business Not Selected
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Please confirm your business first to view customer reviews.
+            </p>
+            <button
+              onClick={() => router.push("/get-magic-qr")}
+              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-200 transition-all transform hover:scale-105"
+            >
+              Select Business
+            </button>
+          </div>
         </div>
       )}
 
       {/* ---------------- IF BUSINESS SELECTED → SHOW REVIEWS ---------------- */}
       {getBusinessName() && (
-        <div className="w-full max-w-3xl mx-auto">
+        <div className="max-w-7xl mx-auto space-y-8">
+          
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Customer Reviews</h1>
+              <p className="text-gray-500 mt-1 flex items-center gap-2">
+                <Store className="w-4 h-4" />
+                {getBusinessName()}
+              </p>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="flex gap-4">
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 min-w-[160px]">
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Total Reviews</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 min-w-[160px]">
+                <div className="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center text-yellow-600">
+                  <Star className="w-6 h-6 fill-current" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Avg. Rating</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.avg}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {loading && (
-            <p className="text-center text-lg font-semibold text-gray-600">
-              Loading reviews...
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white h-64 rounded-2xl shadow-sm animate-pulse"></div>
+              ))}
+            </div>
           )}
 
           {error && (
-            <p className="text-center text-red-600 font-medium">{error}</p>
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-center font-medium border border-red-100">
+              {error}
+            </div>
           )}
 
           {/* ---------------- REVIEW LIST ---------------- */}
-          <div className="mt-4 space-y-4 pb-10">
-            {reviews.length === 0 && !loading && (
-              <p className="text-center text-gray-500 p-6">
-                No reviews found.
-              </p>
-            )}
+          {!loading && !error && (
+            <>
+            {reviews.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="w-8 h-8 text-gray-300" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">No reviews yet</h3>
+                <p className="text-gray-500">Share your Magic QR code to get more reviews!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
+                {reviews.map((r) => (
+                  <div
+                    key={r._id}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 flex flex-col h-full group"
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+                          {r.name ? r.name.charAt(0).toUpperCase() : <User className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-sm line-clamp-1">
+                            {r.name || "Anonymous User"}
+                          </h3>
+                          <div className="flex items-center gap-1 text-xs text-gray-400">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(r.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            size={12}
+                            className={`${i < r.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-200"}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
 
-            {reviews.map((r) => (
-              <div
-                key={r._id}
-                className="bg-white p-5 rounded-xl shadow border hover:shadow-lg transition
-                           max-w-sm w-full mx-auto"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Feedback Content */}
+                    <div className="flex-grow relative">
+                      <Quote className="absolute -top-2 -left-2 w-8 h-8 text-gray-100 -z-0 transform -scale-x-100" />
+                      <p className="text-gray-600 text-sm leading-relaxed relative z-10 pl-2">
+                        {r.feedback || <span className="italic text-gray-400">No written feedback provided.</span>}
+                      </p>
+                    </div>
 
-                  <div>
-                    <p className="text-gray-500 font-semibold text-sm">Name</p>
-                    <p className="text-gray-900 font-medium">
-                      {r.name || "Anonymous User"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-gray-500 font-semibold text-sm">Business</p>
-                    <p className="text-indigo-600 font-medium">
-                      {r.business || "Not Provided"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-gray-500 font-semibold text-sm">Rating</p>
-                    <div className="flex">
-                      {Array.from({ length: r.rating }).map((_, i) => (
-                        <Star
-                          key={i}
-                          size={20}
-                          className="text-yellow-500"
-                          fill="currentColor"
-                        />
-                      ))}
+                    {/* Footer / Business Tag */}
+                    <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between text-xs">
+                      <span className="text-gray-400 font-medium">Business</span>
+                      <span className="text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded-md">
+                        {r.business || "Unknown"}
+                      </span>
                     </div>
                   </div>
-
-                  <div>
-                    <p className="text-gray-500 font-semibold text-sm">Date</p>
-                    <p className="text-gray-700">
-                      {new Date(r.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <p className="text-gray-500 font-semibold text-sm">Feedback</p>
-                  <p className="text-gray-700">{r.feedback || "No feedback given"}</p>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+            </>
+          )}
         </div>
       )}
     </div>

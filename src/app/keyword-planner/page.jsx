@@ -33,13 +33,13 @@ export default function KeywordPage() {
   };
 
   /* ---------- Add keyword ---------- */
-  const addKeyword = async (keyword) => {
-    setIsSaving(keyword);
+  const addKeyword = async (keywordData) => {
+    setIsSaving(keywordData.keyword);
     const userId = localStorage.getItem("userId");
     await fetch("/api/keyword-research", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, keyword }),
+      body: JSON.stringify({ userId, keyword: keywordData.keyword, volume: keywordData.volume }),
     });
     await fetchSavedKeywords();
     setIsSaving(null);
@@ -81,8 +81,8 @@ export default function KeywordPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* Left Panel: Search & Saved Keywords */}
-          <div className="lg:col-span-5 space-y-8 sticky top-8">
+          {/* Left Panel: Search & Suggestions */}
+          <div className="lg:col-span-8 space-y-6">
             {/* Search Box */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -102,38 +102,6 @@ export default function KeywordPage() {
                 />
               </div>
             </div>
-
-            {/* Saved Keywords */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-purple-600" />
-                  My Keywords
-                </h2>
-                <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{saved.length}</span>
-              </div>
-
-              {saved.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <p>Your saved keywords will appear here.</p>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
-                  {saved.slice().reverse().map((k) => (
-                    <div key={k._id} className="bg-purple-50 text-purple-800 rounded-full flex items-center gap-2 px-3 py-1.5 text-sm font-medium border border-purple-200 animate-in fade-in-50">
-                      <span>{k.keyword}</span>
-                      <button onClick={() => deleteKeyword(k._id)} className="p-0.5 rounded-full hover:bg-purple-200 transition-colors">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Panel: Suggestions */}
-          <div className="lg:col-span-7">
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 min-h-[60vh]">
               <h2 className="text-xl font-bold text-gray-800 mb-4">Suggestions</h2>
 
@@ -183,7 +151,7 @@ export default function KeywordPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => addKeyword(k.keyword)}
+                            onClick={() => addKeyword(k)}
                             disabled={isSaving === k.keyword}
                             className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait"
                           >
@@ -200,6 +168,44 @@ export default function KeywordPage() {
                   );
                 })}
               </div>
+            </div>
+          </div>
+
+          {/* Right Panel: Saved Keywords */}
+          <div className="lg:col-span-4 space-y-8 sticky top-8">
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-purple-600" />
+                  My Keywords
+                </h2>
+                <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{saved.length}</span>
+              </div>
+
+              {saved.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p>Your saved keywords will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+                  {saved.slice().sort((a, b) => String(b._id).localeCompare(String(a._id))).map((k) => (
+                    <div key={k._id} className="flex justify-between items-center p-3 bg-gray-50 hover:bg-white border border-gray-100 hover:border-blue-200 rounded-xl transition-all duration-200 shadow-sm hover:shadow group">
+                      <span className="font-medium text-gray-700 truncate mr-2">{k.keyword}</span>
+                      <div className="flex items-center gap-2">
+                        {(k.volume !== undefined && k.volume !== null) && (
+                          <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded-md flex items-center gap-1 shadow-sm whitespace-nowrap">
+                            <BarChart3 className="w-3 h-3 text-blue-500" /> 
+                            {k.volume.toLocaleString()}
+                          </span>
+                        )}
+                        <button onClick={() => deleteKeyword(k._id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

@@ -1168,6 +1168,8 @@ const NavLinks = ({ isAuthenticated }) => {
         setAccounts([]);
         setNoAccountsFound(false);
         saveToCache(userEmail, [], false);
+        setNoAccountsFound(true);
+        saveToCache(userEmail, [], true);
         setCacheStatus("No listings found");
       }
     } catch (error) {
@@ -1544,78 +1546,6 @@ const NavLinks = ({ isAuthenticated }) => {
     );
   }
 
-// Unauthenticated state
-// Unauthenticated state
-  if (status === "unauthenticated") {
-    return (
-      <>
-        {/* <ConnectModal isOpen={isConnectModalOpen} onClose={() => setIsConnectModalOpen(false)} /> */}
-        <div className="relative w-full flex flex-col items-center justify-center p-0 mx-auto bg-transparent">
-          {/* ---------- TOP ICON NAV BAR (Optimized Paytm Style) ---------- */}
-          <div className="w-full max-w-3xl bg-white/80 shadow-md px-6 py-6 rounded-2xl mb-8">
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(95px,1fr))] gap-6 place-items-center">
-              {navItems.map((item, i) => {
-                // --- UNAUTHENTICATED CLICK LOGIC ---
-                const handleClick = () => {
-                  if (item.href === "/post-management") return router.push("/post-management");
-                  if (item.href === "/wallet") return router.push("/wallet");
-                  return signIn("google", { callbackUrl: item.href });
-                };
-                return (
-                  <button key={i} onClick={handleClick} className="flex flex-col items-center text-[13px] text-gray-800">
-                    <div className="p-4 rounded-2xl bg-blue-100 text-blue-700 shadow-sm">
-                      {item.icon}
-                    </div>
-                    <span className="mt-2 text-center leading-tight font-semibold">
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ---------- MAIN CONTENT ---------- */}
-          <div className="w-full max-w-2xl text-center pt-2 pb-12">
-            <h1
-              className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 leading-snug cursor-pointer"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            >
-              <span className="text-blue-600 cursor-pointer">Connect Your Business</span>
-            </h1>
-
-            <p className="text-gray-700 text-[17px] font-medium max-w-lg mx-auto mb-6 leading-relaxed">
-              Seamlessly connect your social media and business platforms to automate management, publish content, and scale your brand.
-            </p>
-
-            {/* Render the unified social grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl mx-auto px-4 mb-8">
-              <SocialConnectCard
-                platform="google"
-                isConnected={false}
-                onConnect={() => signIn("google", { callbackUrl: "/dashboard" })}
-              />
-              <SocialConnectCard
-                platform="facebook"
-                isConnected={facebookPages.length > 0}
-                identity={facebookPages.length > 0 ? `${facebookPages.length} Page(s) Connected` : null}
-                onConnect={() => signIn("google", { callbackUrl: "/dashboard" })}
-                onDisconnect={handleDisconnectAllFacebook}
-              />
-              <SocialConnectCard
-                platform="instagram"
-                isConnected={instagramPages.length > 0}
-                identity={instagramPages.length > 0 ? `${instagramPages.length} Account(s) Connected` : null}
-                onConnect={() => signIn("google", { callbackUrl: "/dashboard" })}
-                onDisconnect={handleDisconnectAllInstagram}
-              />
-            </div>
-
-          </div>
-        </div>
-      </>
-    );
-  }
 
 
   console.log("facebookPagesfacebookPagesfacebookPages",facebookPages);
@@ -1675,36 +1605,6 @@ const NavLinks = ({ isAuthenticated }) => {
                   <span className="hidden sm:inline">Refresh</span>
                 </button>
               )}
-
-              {session && (
-                <button
-                  onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                  className="bg-gradient-to-r from-white-600 to-white-600 text-black font-semibold px-3 sm:px-5 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap"
-                >
-                  Logout
-                </button>
-              )}
-
-              {accounts.length < maxAccounts && (
-                <button
-                  onClick={handleAddProject}
-                  disabled={loading}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-2 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm sm:text-base whitespace-nowrap"
-                >
-                  {loading ? (
-                    <CircularProgress size={20} sx={{ color: "white" }} />
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="hidden xs:inline">Add Project</span>
-                      <span className="xs:hidden">Add</span>
-                      <span className="text-xs bg-white/20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
-                        {accounts.length}/{maxAccounts}
-                      </span>
-                    </>
-                  )}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -1722,7 +1622,25 @@ const NavLinks = ({ isAuthenticated }) => {
                 <Building2 className="w-5 h-5 text-blue-600" />
                 <h2 className="font-bold text-gray-800">Google Business</h2>
               </div>
-              <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
+                {accounts.length > 0 && accounts.length < maxAccounts && (
+                  <button
+                    onClick={handleAddProject}
+                    className="text-gray-400 hover:text-blue-600 transition-colors p-1"
+                    title="Add Account"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
             {/* Summary / Filter Pills */}
@@ -1794,10 +1712,33 @@ const NavLinks = ({ isAuthenticated }) => {
               </div>
             ))}
             {!loading && accounts.length === 0 && (
-              <div className="text-center py-10 text-gray-400">
-                <Building2 className="w-10 h-10 mx-auto mb-2" />
-                <p className="text-sm font-medium">No GMB listings found.</p>
-              </div>
+              <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                  <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
+                    <Building2 className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-gray-900 font-bold text-base mb-1">No GMB Listings Found</h3>
+                  <p className="text-xs text-gray-500 max-w-[240px] mb-6 leading-relaxed">
+                    We couldn't find any Google Business profiles linked to <strong>{session?.user?.email}</strong>.
+                  </p>
+                  
+                  <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
+                    <button
+                      onClick={handleAddProject}
+                      className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add / Switch Account
+                    </button>
+                    
+                    <button
+                      onClick={() => signOut({ callbackUrl: "/login" })}
+                      className="w-full bg-white border border-gray-200 text-gray-700 text-xs font-bold py-2.5 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
+                </div>
             )}
           </div>
         </div>

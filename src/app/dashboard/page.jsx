@@ -1604,7 +1604,15 @@ const NavLinks = ({ isAuthenticated }) => {
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline">Refresh</span>
                 </button>
+                
               )}
+              <button
+                onClick={() => signOut({ callbackUrl: "/dashboard" })}
+                className="bg-gradient-to-r from-blue-500 to-blue-500 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1634,7 +1642,7 @@ const NavLinks = ({ isAuthenticated }) => {
                   </button>
                 )}
                 <button
-                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  onClick={() => signOut({ callbackUrl: "/dashboard" })}
                   className="text-gray-400 hover:text-red-500 transition-colors p-1"
                   title="Logout"
                 >
@@ -1716,27 +1724,27 @@ const NavLinks = ({ isAuthenticated }) => {
                   <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
                     <Building2 className="w-8 h-8 text-blue-500" />
                   </div>
-                  <h3 className="text-gray-900 font-bold text-base mb-1">No GMB Listings Found</h3>
-                  <p className="text-xs text-gray-500 max-w-[240px] mb-6 leading-relaxed">
+                  {/* <h3 className="text-gray-900 font-bold text-base mb-1">Connect Your Business</h3> */}
+                  {/* <p className="text-xs text-gray-500 max-w-[240px] mb-6 leading-relaxed">
                     We couldn't find any Google Business profiles linked to <strong>{session?.user?.email}</strong>.
                   </p>
-                  
+                   */}
                   <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
                     <button
                       onClick={handleAddProject}
                       className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
                     >
                       <Plus className="w-4 h-4" />
-                      Add / Switch Account
+                      Connect Business
                     </button>
                     
-                    <button
+                    {/* <button
                       onClick={() => signOut({ callbackUrl: "/login" })}
                       className="w-full bg-white border border-gray-200 text-gray-700 text-xs font-bold py-2.5 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2"
                     >
                       <LogOut className="w-4 h-4" />
                       Logout
-                    </button>
+                    </button> */}
                   </div>
                 </div>
             )}
@@ -1786,12 +1794,10 @@ const NavLinks = ({ isAuthenticated }) => {
             ) : (
               <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
                 <Facebook className="w-10 h-10 mx-auto mb-3" />
-                <p className="text-sm font-medium mb-3">No pages connected.</p>
-                <button onClick={() => {
-                  const userId = localStorage.getItem("userId");
-                  if (!userId) return toast.error("Login first");
-                  window.location.href = `/api/facebook/login?userId=${userId}`;
-                }} className="w-full bg-[#1877F2] text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">Connect Facebook</button>
+                <p className="text-sm font-medium mb-3">Facebook Integration</p>
+                <button disabled className="w-full bg-gray-100 text-gray-400 py-2 rounded-lg font-semibold cursor-not-allowed border border-gray-200">
+                  Coming Soon
+                </button>
               </div>
             )}
           </div>
@@ -1840,12 +1846,10 @@ const NavLinks = ({ isAuthenticated }) => {
             ) : (
               <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
                 <Instagram className="w-10 h-10 mx-auto mb-3" />
-                <p className="text-sm font-medium mb-3">No accounts connected.</p>
-                <button onClick={() => {
-                  const userId = localStorage.getItem("userId");
-                  if (!userId) return toast.error("Login first");
-                  window.location.href = `/api/instagram/login?userId=${userId}`;
-                }} className="w-full bg-gradient-to-r from-pink-500 to-orange-500 text-white py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Connect Instagram</button>
+                <p className="text-sm font-medium mb-3">Instagram Integration</p>
+                <button disabled className="w-full bg-gray-100 text-gray-400 py-2 rounded-lg font-semibold cursor-not-allowed border border-gray-200">
+                  Coming Soon
+                </button>
               </div>
             )}
           </div>

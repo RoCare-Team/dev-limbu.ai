@@ -6,11 +6,11 @@ export async function GET(req) {
 
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
-    redirect_uri: `${process.env.BASE_URL}/api/facebook/callback`,
+    redirect_uri: `${process.env.BASE_URL}/api/instagram/callback`,
     scope:
-      "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata",
+      "pages_show_list,instagram_basic,instagram_content_publish,pages_read_engagement",
     response_type: "code",
-    state: userId, // 🔥 MOST IMPORTANT
+    state: userId,
   });
 
   return NextResponse.redirect(

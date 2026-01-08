@@ -1,41 +1,33 @@
-import axios from "axios";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import FacebookPage from "@/models/FacebookPage";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
-export async function POST(req) {
+export async function GET(req) {
   try {
     await dbConnect();
 
-    const session = await getServerSession(authOptions);
-    const userId = session.user.id;
+    // 🔹 query param se userId nikalo
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
 
-    const { pageId, message } = await req.json();
-
-    const page = await FacebookPage.findOne({ userId, pageId });
-    if (!page) {
+    if (!userId) {
       return NextResponse.json(
-        { success: false, error: "Page not found" },
-        { status: 403 }
+        { success: false, message: "userId is required" },
+        { status: 400 }
       );
     }
 
-    await axios.post(
-      `https://graph.facebook.com/v24.0/${pageId}/feed`,
-      {
-        message,
-        published: true, // 🔥 REQUIRED FOR PUBLIC POST
-        access_token: page.pageAccessToken,
-      }
-    );
+    // 🔹 userId ke basis par fetch
+    const pages = await FacebookPage.find({
+      userId: userId,
+      platform: "facebook", // optional (remove if not needed)
+    }).sort({ createdAt: -1 });
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error(err.response?.data || err.message);
+    return NextResponse.json({ success: true, pages });
+  } catch (error) {
+    console.error("GET pages error:", error);
     return NextResponse.json(
-      { success: false, error: "Post failed" },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }

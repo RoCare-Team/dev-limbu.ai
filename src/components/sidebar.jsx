@@ -419,7 +419,7 @@ export default function Sidebar({ children, user }) {
     },
  
         { text: 'GMB Health', icon: <Activity />, path: '/gmb-health' },
-        { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
+        // { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
 
 
 

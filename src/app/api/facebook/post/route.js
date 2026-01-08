@@ -6,36 +6,90 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function POST(req) {
+  console.log("📌 Facebook Post API called");
+
   try {
+    // 1️⃣ CONNECT DB
     await dbConnect();
 
+    // 2️⃣ CHECK SESSION
     const session = await getServerSession(authOptions);
-    const userId = session.user.id;
+    console.log("session",session);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
+    const userId = session.user.id;
+    console.log("userId",userId);
+    
+
+
+    // 3️⃣ READ REQUEST BODY
     const { pageId, message } = await req.json();
 
-    const page = await FacebookPage.findOne({ userId, pageId });
-    if (!page) {
+    if (!pageId || !message) {
       return NextResponse.json(
-        { success: false, error: "Page not found" },
+        { success: false, error: "pageId or message missing" },
+        { status: 400 }
+      );
+    }
+
+    // 4️⃣ FETCH PAGE (USER-SPECIFIC)
+    const page = await FacebookPage.findOne({
+      userId,
+      pageId,
+      platform: "facebook",
+    });
+
+    console.log("pagepagepagepagepagepagepage",page);
+    
+
+    if (!page || !page.pageAccessToken) {
+      return NextResponse.json(
+        { success: false, error: "Facebook page not connected" },
         { status: 403 }
       );
     }
 
-    await axios.post(
+    // 5️⃣ POST TO FACEBOOK PAGE
+    const fbResponse = await axios.post(
       `https://graph.facebook.com/v24.0/${pageId}/feed`,
       {
         message,
-        published: true, // 🔥 REQUIRED FOR PUBLIC POST
-        access_token: page.pageAccessToken,
+        published: true,
+        access_token: page.pageAccessToken, // ✅ CORRECT TOKEN
       }
     );
 
-    return NextResponse.json({ success: true });
+    console.log("fbResponsefbResponse",fbResponse);
+    
+
+    console.log("✅ Facebook Post Success:", fbResponse.data);
+
+    return NextResponse.json({
+      success: true,
+      postId: fbResponse.data.id,
+    });
+
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error("🔥 Facebook Post Error");
+
+    if (err.response) {
+      console.error("FB STATUS:", err.response.status);
+      console.error("FB DATA:", err.response.data);
+    } else {
+      console.error("ERROR:", err.message);
+    }
+
     return NextResponse.json(
-      { success: false, error: "Post failed" },
+      {
+        success: false,
+        error: err.response?.data || err.message,
+      },
       { status: 500 }
     );
   }

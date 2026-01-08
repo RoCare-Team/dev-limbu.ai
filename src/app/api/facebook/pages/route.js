@@ -2,12 +2,33 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import FacebookPage from "@/models/FacebookPage";
 
-export async function GET() {
-  await dbConnect();
+export async function GET(req) {
+  try {
+    await dbConnect();
 
-  const pages = await FacebookPage.find({ platform: "facebook" }).sort({
-    createdAt: -1,
-  });
+    // 🔹 query param se userId nikalo
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
 
-  return NextResponse.json({ success: true, pages });
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: "userId is required" },
+        { status: 400 }
+      );
+    }
+
+    // 🔹 userId ke basis par fetch
+    const pages = await FacebookPage.find({
+      userId: userId,
+      platform: "facebook", // optional (remove if not needed)
+    }).sort({ createdAt: -1 });
+
+    return NextResponse.json({ success: true, pages });
+  } catch (error) {
+    console.error("GET pages error:", error);
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
+    );
+  }
 }

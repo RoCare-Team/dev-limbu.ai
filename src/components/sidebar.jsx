@@ -85,9 +85,9 @@ const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== 'open',
 })(({ theme, open }) => ({
   zIndex: theme.zIndex.drawer + 1,
-  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
-  color: '#fff',
+  background: '#ffffff',
+  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  color: '#333',
   transition: theme.transitions.create(['width', 'margin'], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
@@ -419,7 +419,7 @@ export default function Sidebar({ children, user }) {
     },
  
         { text: 'GMB Health', icon: <Activity />, path: '/gmb-health' },
-        // { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
+        { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
 
 
 
@@ -624,25 +624,25 @@ export default function Sidebar({ children, user }) {
                   onClick={handleDrawerToggle}
                   edge="start"
                   sx={{
-                    background: 'rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(0, 0, 0, 0.05)',
                     '&:hover': {
-                      background: 'rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(0, 0, 0, 0.1)',
                     },
                   }}
                 >
                   <MenuIcon />
                 </IconButton>
               )}
-             <Link href="/">
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  display: { xs: "none", sm: "flex" },
-                  alignItems: "center",     // <== keeps logo + text on same line
-                  gap: 1,                   // <== spacing between logo & text
-                }}
-              >
+              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                    display: { xs: "none", sm: "flex" },
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
                 <Image
                   src={logoDash}
                   width={40}       // <== increase/decrease size
@@ -718,18 +718,18 @@ export default function Sidebar({ children, user }) {
                   borderRadius: '8px',
                   transition: 'all 0.2s',
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
                   },
                 }}
               >
                 <Badge
-                  color="success"
                   variant="dot"
                   overlap="circular"
                   anchorOrigin={{
                     vertical: 'bottom',
                     horizontal: 'right',
                   }}
+                  color="success"
                 >
                   <Avatar
                     alt={userName || 'User'}
@@ -1090,7 +1090,7 @@ export default function Sidebar({ children, user }) {
         )}
 
         {/* Main Content */}
-        <Box component="main" sx={{ flexGrow: 1, bgcolor: '#f5f6fa', minHeight: '100vh', p: { xs: 2, sm: 3 } }}>
+        <Box component="main" sx={{ flexGrow: 1, bgcolor: '#FFFFFF', minHeight: '100vh', p: { xs: 2, sm: 3 } }}>
           <DrawerHeader />
           {children}
         </Box>

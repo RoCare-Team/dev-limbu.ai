@@ -32,8 +32,12 @@ import {
   Rocket,
   Download,
   Activity,
+  LogOut,
+  Facebook,
+  Instagram,
+  MessageCircle,
 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FirstPostModal from "../../components/FirstPostModal";
 
 import Link from "next/link";
@@ -52,6 +56,8 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import MetaConnectCard from "../../components/MetaConnectCard";
+import SocialConnectCard from "../../components/SocialConnectCard";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -60,8 +66,6 @@ export async function fetchGMBAccounts(accessToken) {
       "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-
-    if (res.status === 401) throw new Error("UNAUTHORIZED");
 
     if (!res.ok) {
       const errText = await res.text();
@@ -92,8 +96,6 @@ export async function fetchAllLocationsByAccount(accessToken, accountId) {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
-      if (res.status === 401) throw new Error("UNAUTHORIZED");
-
       if (!res.ok) throw new Error(`Failed to fetch locations for account ${accountId}`);
 
       const data = await res.json();
@@ -119,8 +121,6 @@ export async function checkVoiceOfMerchant(accessToken, locationName) {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
-    if (res.status === 401) throw new Error("UNAUTHORIZED");
-
     if (!res.ok) {
       return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
     }
@@ -128,8 +128,36 @@ export async function checkVoiceOfMerchant(accessToken, locationName) {
     const data = await res.json();
     return data;
   } catch (err) {
-    if (err.message === "UNAUTHORIZED") throw err;
     return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
+  }
+}
+
+export async function fetchLocationLogo(accessToken, locationName) {
+  try {
+    const res = await fetch(
+      `https://mybusiness.googleapis.com/v4/${locationName}/media`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (!res.ok) {
+      console.log("Media fetch failed:", res.status, res.statusText);
+      return null;
+    }
+
+    const data = await res.json();
+    // console.log(`[DEBUG] Media items for ${locationName}:`, data);
+
+    if (data.mediaItems && data.mediaItems.length > 0) {
+       const item = data.mediaItems.find(i => i.locationAssociation?.category === 'LOGO') 
+                 || data.mediaItems.find(i => i.locationAssociation?.category === 'PROFILE')
+                 || data.mediaItems[0];
+       
+      //  console.log(`[DEBUG] Selected media item for ${locationName}:`, item);
+       return item?.thumbnailUrl || item?.googleUrl || null;
+    }
+    return null;
+  } catch (err) {
+    return null;
   }
 }
 
@@ -171,8 +199,6 @@ export async function fetchLocationInsights(accessToken, locationId, startDate, 
       headers: { Authorization: `Bearer ${accessToken}` }
     });
 
-    if (res.status === 401) throw new Error("UNAUTHORIZED");
-
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`Failed to fetch insights: ${errText}`);
@@ -194,8 +220,6 @@ export async function fetchSearchKeywords(accessToken, locationId, startMonth, e
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-
-    if (res.status === 401) throw new Error("UNAUTHORIZED");
 
     if (!res.ok) {
       const errText = await res.text();
@@ -846,13 +870,13 @@ function ConnectModal({ isOpen, onClose }) {
 export default function DashboardPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { data: session, status } = useSession();
 
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState({ total: 0, verified: 0, unverified: 0, pending: 0 });
-  const [fetchError, setFetchError] = useState(null);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [showInsightsModal, setShowInsightsModal] = useState(false);
@@ -863,9 +887,12 @@ export default function DashboardPage() {
   const [noAccountsFound, setNoAccountsFound] = useState(false);
   const [searchKeywordsData, setSearchKeywordsData] = useState(null);
   const [searchKeywordsLoading, setSearchKeywordsLoading] = useState(false);
+  const [facebookPages, setFacebookPages] = useState([]);
+  const [instagramPages, setInstagramPages] = useState([]);
   const [cacheStatus, setCacheStatus] = useState(""); // For showing cache info
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);  
   const [showFirstPostModal, setShowFirstPostModal] = useState(false);
+  const [FbPageData,setFbPageData] = useState([])
 
 
   const userId = localStorage.getItem("userId");
@@ -938,7 +965,7 @@ const NavLinks = ({ isAuthenticated }) => {
             <div
               className={`
                 flex flex-col items-center justify-center 
-                space-y-1 p-1.5 sm:p-3 rounded-xl
+                space-y-1 p-1 sm:p-2 rounded-lg
                 cursor-pointer transition-all
                 ${pathname === item.href && isAuthenticated ? "scale-105" : ""}
               `}
@@ -950,7 +977,7 @@ const NavLinks = ({ isAuthenticated }) => {
             >
               <div
                 className={`
-                  p-2.5 sm:p-4 rounded-2xl transition
+                  p-2 sm:p-3 rounded-xl transition
                   ${
                     pathname === item.href && isAuthenticated
                       ? "bg-blue-600 text-white"
@@ -958,10 +985,10 @@ const NavLinks = ({ isAuthenticated }) => {
                   }
                 `}
               >
-                {item.icon}
+                {React.cloneElement(item.icon, { className: "h-5 w-5" })}
               </div>
 
-              <span className="text-[10px] sm:text-sm font-semibold text-gray-800 text-center leading-tight">
+              <span className="text-[9px] sm:text-xs font-semibold text-gray-800 text-center leading-tight">
                 {item.label}
               </span>
             </div>
@@ -1063,10 +1090,7 @@ const NavLinks = ({ isAuthenticated }) => {
     }
 
     fetchInProgress.current = true;
-    if (!isBackground) {
-      setLoading(true);
-      setFetchError(null);
-    }
+    if (!isBackground) setLoading(true);
     setNoAccountsFound(false);
     if (!isBackground) setCacheStatus("Fetching fresh data from Google...");
     
@@ -1106,12 +1130,14 @@ const NavLinks = ({ isAuthenticated }) => {
             const locationsWithVoM = await Promise.all(
               locations.map(async (loc) => {
                 const vomStatus = await checkVoiceOfMerchant(token, loc.name);
+                const logoUrl = await fetchLocationLogo(token, `accounts/${accountId}/${loc.name}`);
                 return {
                   ...loc,
                   accountId,
                   accountName: accountName || account.name,
                   hasVoiceOfMerchant: vomStatus.hasVoiceOfMerchant,
                   hasBusinessAuthority: vomStatus.hasBusinessAuthority,
+                  logoUrl,
                 };
               })
             );
@@ -1146,15 +1172,8 @@ const NavLinks = ({ isAuthenticated }) => {
       }
     } catch (error) {
       console.error("❌ Error fetching data:", error);
-      if (!isBackground) {
-        setFetchError("Failed to load listings. Please check your connection or try again.");
-        if (error.message === "UNAUTHORIZED") {
-          setFetchError("Session expired. Please sign in again to continue.");
-        } else {
-          setFetchError("Failed to load listings. Please check your connection or try again.");
-        }
-        setNoAccountsFound(false);
-      }
+      toast.error("Failed to load listings. Please try again.");
+      if (!isBackground) setNoAccountsFound(true);
       setCacheStatus("Error fetching data");
     }
 
@@ -1163,6 +1182,123 @@ const NavLinks = ({ isAuthenticated }) => {
     fetchInProgress.current = false;
   }, [session?.accessToken, session?.user?.email, loadFromCache, saveToCache]);
 
+  // --- Fetch Facebook Pages ---
+  const fetchFacebookPages = useCallback(async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      if (!userId) return;
+
+      const res = await fetch(`/api/facebook/pages?userId=${userId}`);
+      const data = await res.json();
+      console.log("datadata",data);
+      
+      if (data.success) {
+        console.log("data",data);
+        
+        setFacebookPages(data.pages);
+        // setFbPageData(data.pages)
+      }
+    } catch (error) {
+      console.error("Error fetching Facebook pages:", error);
+      toast.error("Failed to fetch Facebook pages");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFacebookPages();
+    if (searchParams?.get("fb") === "connected") {
+      toast.success("Facebook Page connected successfully!");
+      router.replace("/dashboard");
+    }
+  }, [fetchFacebookPages, searchParams, router]);
+
+  // --- Fetch Instagram Pages ---
+  const fetchInstagramPages = useCallback(async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      if (!userId) return;
+
+      const res = await fetch(`/api/instagram/pages?userId=${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        setInstagramPages(data.pages);
+      }
+    } catch (error) {
+      console.error("Error fetching Instagram pages:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInstagramPages();
+    if (searchParams?.get("ig") === "connected") {
+      toast.success("Instagram Account connected successfully!");
+      router.replace("/dashboard");
+    }
+  }, [fetchInstagramPages, searchParams, router]);
+
+  // --- Disconnect Handlers ---
+  const handleDisconnectFacebook = async (pageId) => {
+    if (!confirm("Are you sure you want to disconnect this page?")) return;
+    
+    // Optimistic update
+    setFacebookPages((prev) => prev.filter((p) => p.pageId !== pageId));
+    toast.success("Facebook page disconnected");
+
+    try {
+      const userId = localStorage.getItem("userId");
+      await fetch(`/api/facebook/disconnect?userId=${userId}&pageId=${pageId}`, { method: "POST" });
+    } catch (error) {
+      console.error("Error disconnecting Facebook page:", error);
+    }
+  };
+
+  const handleDisconnectInstagram = async (igId) => {
+    if (!confirm("Are you sure you want to disconnect this account?")) return;
+
+    setInstagramPages((prev) => prev.filter((p) => p.igId !== igId));
+    toast.success("Instagram account disconnected");
+
+    try {
+      const userId = localStorage.getItem("userId");
+      await fetch(`/api/instagram/disconnect?userId=${userId}&igId=${igId}`, { method: "POST" });
+    } catch (error) {
+      console.error("Error disconnecting Instagram account:", error);
+    }
+  };
+
+  const handleDisconnectAllFacebook = async () => {
+    if (!confirm("Are you sure you want to disconnect all Facebook pages?")) return;
+    
+    const pages = [...facebookPages];
+    setFacebookPages([]);
+    toast.success("Facebook disconnected");
+
+    try {
+      const userId = localStorage.getItem("userId");
+      await Promise.all(pages.map(p => 
+        fetch(`/api/facebook/disconnect?userId=${userId}&pageId=${p.pageId}`, { method: "POST" })
+      ));
+    } catch (error) {
+      console.error("Error disconnecting Facebook pages:", error);
+    }
+  };
+
+  const handleDisconnectAllInstagram = async () => {
+    if (!confirm("Are you sure you want to disconnect all Instagram accounts?")) return;
+
+    const pages = [...instagramPages];
+    setInstagramPages([]);
+    toast.success("Instagram disconnected");
+
+    try {
+      const userId = localStorage.getItem("userId");
+      await Promise.all(pages.map(p => 
+        fetch(`/api/instagram/disconnect?userId=${userId}&igId=${p.igId}`, { method: "POST" })
+      ));
+    } catch (error) {
+      console.error("Error disconnecting Instagram accounts:", error);
+    }
+  };
 
 
   useEffect(()=>{
@@ -1411,103 +1547,82 @@ const NavLinks = ({ isAuthenticated }) => {
 // Unauthenticated state
 // Unauthenticated state
   if (status === "unauthenticated") {
-
     return (
       <>
-      <ConnectModal isOpen={isConnectModalOpen} onClose={() => setIsConnectModalOpen(false)} />
-    <div className="relative w-full flex flex-col items-center justify-center p-0 mx-auto bg-transparent">
+        {/* <ConnectModal isOpen={isConnectModalOpen} onClose={() => setIsConnectModalOpen(false)} /> */}
+        <div className="relative w-full flex flex-col items-center justify-center p-0 mx-auto bg-transparent">
+          {/* ---------- TOP ICON NAV BAR (Optimized Paytm Style) ---------- */}
+          <div className="w-full max-w-3xl bg-white/80 shadow-md px-6 py-6 rounded-2xl mb-8">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(95px,1fr))] gap-6 place-items-center">
+              {navItems.map((item, i) => {
+                // --- UNAUTHENTICATED CLICK LOGIC ---
+                const handleClick = () => {
+                  if (item.href === "/post-management") return router.push("/post-management");
+                  if (item.href === "/wallet") return router.push("/wallet");
+                  return signIn("google", { callbackUrl: item.href });
+                };
+                return (
+                  <button key={i} onClick={handleClick} className="flex flex-col items-center text-[13px] text-gray-800">
+                    <div className="p-4 rounded-2xl bg-blue-100 text-blue-700 shadow-sm">
+                      {item.icon}
+                    </div>
+                    <span className="mt-2 text-center leading-tight font-semibold">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* ---------- TOP ICON NAV BAR (Optimized Paytm Style) ---------- */}
-      <div className="w-full max-w-3xl bg-white/80 shadow-md px-6 py-6 rounded-2xl mb-8">
+          {/* ---------- MAIN CONTENT ---------- */}
+          <div className="w-full max-w-2xl text-center pt-2 pb-12">
+            <h1
+              className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 leading-snug cursor-pointer"
+              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            >
+              <span className="text-blue-600 cursor-pointer">Connect Your Business</span>
+            </h1>
 
-        <div
-          className="
-            grid
-            grid-cols-[repeat(auto-fit,minmax(95px,1fr))]
-            gap-6
-            place-items-center
-          "
-        >
+            <p className="text-gray-700 text-[17px] font-medium max-w-lg mx-auto mb-6 leading-relaxed">
+              Seamlessly connect your social media and business platforms to automate management, publish content, and scale your brand.
+            </p>
 
-          {navItems.map((item, i) => {
-            // --- UNAUTHENTICATED CLICK LOGIC ---
-            const handleClick = () => {
-              if (item.href === "/post-management") {
-                return router.push("/post-management");        // allowed
-              }
-              if (item.href === "/wallet") {
-                return router.push("/wallet");                // allowed
-              }
-              // review + magic = force login
-              return signIn("google", { callbackUrl: item.href });
-            };
+            {/* Render the unified social grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl mx-auto px-4 mb-8">
+              <SocialConnectCard
+                platform="google"
+                isConnected={false}
+                onConnect={() => signIn("google", { callbackUrl: "/dashboard" })}
+              />
+              <SocialConnectCard
+                platform="facebook"
+                isConnected={facebookPages.length > 0}
+                identity={facebookPages.length > 0 ? `${facebookPages.length} Page(s) Connected` : null}
+                onConnect={() => signIn("google", { callbackUrl: "/dashboard" })}
+                onDisconnect={handleDisconnectAllFacebook}
+              />
+              <SocialConnectCard
+                platform="instagram"
+                isConnected={instagramPages.length > 0}
+                identity={instagramPages.length > 0 ? `${instagramPages.length} Account(s) Connected` : null}
+                onConnect={() => signIn("google", { callbackUrl: "/dashboard" })}
+                onDisconnect={handleDisconnectAllInstagram}
+              />
+            </div>
 
-            return (
-              <button
-                key={i}
-                onClick={handleClick}
-                className="flex flex-col items-center text-[13px] text-gray-800"
-              >
-                <div className="p-4 rounded-2xl bg-blue-100 text-blue-700 shadow-sm">
-                  {item.icon}
-                </div>
-
-                <span className="mt-2 text-center leading-tight font-semibold">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-
+          </div>
         </div>
-      </div>
-
-{/* ---------- MAIN CONTENT ---------- */}
-<div className="w-full max-w-2xl text-center pt-2 pb-12">
-  <h1
-    className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 leading-snug cursor-pointer"
-    onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-  >
-    <span className="text-blue-600 cursor-pointer">Connect Your Business</span>
-  </h1>
-
-  <p className="text-gray-700 text-[17px] font-medium max-w-lg mx-auto mb-8 leading-relaxed">
-    Connect your business and ensure your Google Business Profile is properly linked and managed using this email.
-  </p>
-
-  <button
-    onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-    className="
-      bg-gradient-to-r from-blue-600 to-purple-600
-      text-white font-semibold
-      px-10 py-4 rounded-xl
-      hover:opacity-90 transition
-      flex items-center justify-center gap-3 mx-auto 
-      text-lg shadow-lg
-    "
-  >
-    <svg
-      className="w-6 h-6"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 488 512"
-      fill="currentColor"
-    >
-      <path d="M488 261.8C488 403.3 391.1 504 248 504C110.8 504 0 393.2 0 256S110.8 8 248 8c66.9 0 122.4 24.5 165.2 64.9l-66.8 64.9C318.6 109.9 285.1 96 248 96C150.6 96 72 174.6 72 272s78.6 176 176 176c90.1 0 148.4-51.8 160.3-124.6H248v-99.6h240C487.3 232.8 488 247.5 488 261.8z" />
-    </svg>
-    Connect Your Business
-  </button>
-
-  {/* <p className="text-gray-600 text-sm mt-4 font-medium">
-    Fast • Secure • Full Control of Your Google Business Profile
-  </p> */}
-</div>
-      </div>
       </>
     );
-}
+  }
+
+
+  console.log("facebookPagesfacebookPagesfacebookPages",facebookPages);
+  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen md:h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 md:overflow-hidden">
       <InsightsModal
         isOpen={showInsightsModal}
         onClose={() => setShowInsightsModal(false)}
@@ -1538,29 +1653,22 @@ const NavLinks = ({ isAuthenticated }) => {
             <NavLinks isAuthenticated={true} />
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
-            {/* Left side: Title and Welcome Message */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
-                AI GMB Auto Management
-              </h1>
-              <p className="text-gray-600 mt-1 text-sm truncate">Welcome back, {session?.user?.name || "User"} 👋</p>
-              {cacheStatus && (
-                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  {cacheStatus}
-                </p>
-              )}
+          <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-3 sm:gap-4">
+            {/* Left side: Social Icons & Welcome */}
+            <div className="flex-1 min-w-0 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <p className="text-gray-600 text-sm truncate font-medium">
+                Welcome, <span className="text-gray-900 font-bold">{session?.user?.name || "User"}</span> 👋
+              </p>
             </div>
 
             {/* Right side: Action Buttons */}
-            <div className="flex items-center gap-2 sm:gap-4 justify-end sm:justify-start flex-wrap self-start sm:self-center">
+            <div className="hidden lg:flex items-center gap-2 sm:gap-4 justify-end sm:justify-start flex-wrap self-start sm:self-center">
               {/* Refresh Button */}
               {accounts.length > 0 && (
                 <button
                   onClick={handleManualRefresh}
                   disabled={loading}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-green-700 hover:to-emerald-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   title="Refresh data from Google"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1571,7 +1679,7 @@ const NavLinks = ({ isAuthenticated }) => {
               {session && (
                 <button
                   onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                  className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-semibold px-3 sm:px-5 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-red-700 hover:to-pink-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap"
+                  className="bg-gradient-to-r from-white-600 to-white-600 text-black font-semibold px-3 sm:px-5 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap"
                 >
                   Logout
                 </button>
@@ -1603,286 +1711,205 @@ const NavLinks = ({ isAuthenticated }) => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pb-6">
+      <main className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 min-h-0">
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <CircularProgress size={60} thickness={4} sx={{ color: "#3b82f6" }} />
-              <p className="text-gray-700 font-semibold mt-6">Loading your listings...</p>
-              <p className="text-gray-500 text-sm mt-2">Fetching data from Google Business Profile</p>
-            </div>
-          </div>
-        )}
-
-        {/* Summary Cards */}
-        {accounts.length > 0 && !loading && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-            <div 
-              onClick={() => setFilterStatus("all")}
-              className={`bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 border-l-4 border-blue-500 cursor-pointer transition-all hover:shadow-lg ${
-                filterStatus === "all" ? "ring-2 ring-blue-500" : ""
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Total Listings</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{summary.total}</p>
-                </div>
-                <Building2 className="w-6 h-6 sm:w-10 sm:h-10 text-blue-500 opacity-80 hidden sm:block" />
+        {/* --- Google Business Column --- */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-100 flex flex-col gap-3 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                <h2 className="font-bold text-gray-800">Google Business</h2>
               </div>
+              <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
             </div>
-
-            <div 
-              onClick={() => setFilterStatus("verified")}
-              className={`bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 border-l-4 border-green-500 cursor-pointer transition-all hover:shadow-lg ${
-                filterStatus === "verified" ? "ring-2 ring-green-500" : ""
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Verified</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{summary.verified}</p>
-                </div>
-                <CheckCircle className="w-6 h-6 sm:w-10 sm:h-10 text-green-500 opacity-80 hidden sm:block" />
-              </div>
-            </div>
-
-            <div 
-              onClick={() => setFilterStatus("unverified")}
-              className={`bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 border-l-4 border-red-500 cursor-pointer transition-all hover:shadow-lg ${
-                filterStatus === "unverified" ? "ring-2 ring-red-500" : ""
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Unverified</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{summary.unverified}</p>
-                </div>
-                <XCircle className="w-6 h-6 sm:w-10 sm:h-10 text-red-500 opacity-80 hidden sm:block" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-6 border-l-4 border-yellow-500">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Pending</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{summary.pending}</p>
-                </div>
-                <AlertCircle className="w-6 h-6 sm:w-10 sm:h-10 text-yellow-500 opacity-80 hidden sm:block" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {fetchError && !loading && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-8 text-center mb-6">
-            <div className="bg-red-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Connection Error</h3>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-              {fetchError.includes("Session expired") ? "Session Expired" : "Connection Error"}
-            </h3>
-            <p className="text-gray-700 mb-4 max-w-md mx-auto text-sm sm:text-base">
-              {fetchError}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={handleManualRefresh}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
-              >
-                Retry Connection
-              </button>
-              <button
-                onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                className="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-50 transition font-semibold shadow-lg"
-              >
-                Switch Account
-              </button>
-              {fetchError.includes("Session expired") ? (
-                <button
-                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
-                >
-                  Sign In Again
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={handleManualRefresh}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
-                  >
-                    Retry Connection
-                  </button>
-                  <button
-                    onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-50 transition font-semibold shadow-lg"
-                  >
-                    Switch Account
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* No Accounts Found Message */}
-        {noAccountsFound && !fetchError && initialFetchDone && accounts.length === 0 && !loading && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-8 text-center mb-6">
-            <div className="bg-red-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <XCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">No Account Found</h3>
-            <p className="text-gray-700 mb-4 max-w-md mx-auto text-sm sm:text-base">
-              No Google Business Profile found associated with <strong>{session?.user?.email}</strong>
-            </p>
-            <p className="text-gray-600 mb-6 text-sm">
-              Please try logging in with a different Google account that has a Business Profile.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:opacity-90 transition font-semibold shadow-lg"
-              >
-                Switch Account
-              </button>
-              <button
-                onClick={handleManualRefresh}
-                className="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-50 transition font-semibold shadow-lg"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Listings or Empty State */}
-        {accounts.length === 0 && !loading && !noAccountsFound && !fetchError && initialFetchDone && (
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-6 sm:p-12 text-center">
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-              <Building2 className="w-8 h-8 sm:w-12 sm:h-12 text-blue-600" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">No Listings Found</h3>
-            <p className="text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base px-4">
-              No Google Business Profiles found. Add your project from Google Business Profile Manager.
-            </p>
-            <button
-              onClick={handleAddProject}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl hover:opacity-90 transition font-semibold shadow-lg text-sm sm:text-base"
-            >
-              Connect Your Business
-            </button>
-          </div>
-        )}
-
-        {/* Listings Grid */}
-        {accounts.length > 0 && !loading && (
-          accounts.map((acc, idx) => {
-            const filteredListings = getFilteredListings(acc.listings);
             
-            return (
-              <div key={idx} className="mb-6 sm:mb-8">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-xl sm:rounded-t-2xl px-4 sm:px-6 py-3 sm:py-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 shadow-lg">
-                  <h2 className="text-base sm:text-xl font-bold truncate">{acc.email}</h2>
-                  <span className="text-xs sm:text-sm bg-white/20 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-semibold backdrop-blur-sm whitespace-nowrap self-start sm:self-auto">
-                    {filteredListings.length} {filteredListings.length === 1 ? "listing" : "listings"}
-                    {filterStatus !== "all" && ` (${filterStatus})`}
-                  </span>
+            {/* Summary / Filter Pills */}
+            <div className="flex gap-2 text-xs">
+              <button onClick={() => setFilterStatus('verified')} className={`flex-1 py-1.5 px-2 rounded-lg border text-center transition-colors ${filterStatus === 'verified' ? 'bg-green-50 border-green-200 text-green-700 font-bold' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                Verified ({summary.verified})
+              </button>
+              <button onClick={() => setFilterStatus('unverified')} className={`flex-1 py-1.5 px-2 rounded-lg border text-center transition-colors ${filterStatus === 'unverified' ? 'bg-red-50 border-red-200 text-red-700 font-bold' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                Unverified ({summary.unverified})
+              </button>
+              {filterStatus !== 'all' && <button onClick={() => setFilterStatus('all')} className="px-2 py-1.5 text-gray-500 hover:text-gray-700"><X className="w-3 h-3" /></button>}
+            </div>
+          </div>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {loading && (
+              <div className="text-center py-10 text-gray-500">
+                <CircularProgress size={30} />
+                <p className="mt-2 text-sm">Loading Listings...</p>
+              </div>
+            )}
+            {!loading && accounts.length > 0 && getFilteredListings(accounts[0].listings).map((listing, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 transition-all hover:shadow-md">
+                {/* Header: Logo + Title + Badge */}
+                <div className="flex items-start gap-3">
+                  {/* Logo */}
+                  <div className="flex-shrink-0">
+                    {listing.logoUrl ? (
+                        <img src={listing.logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
+                    ) : (
+                        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100 text-blue-500">
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                        <h3 className="font-bold text-sm text-gray-900 truncate" title={listing.title}>{listing.title}</h3>
+                        <div className="flex-shrink-0 scale-90 origin-top-right">
+                          {getVerificationBadge(listing)}
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">{listing.categories?.primaryCategory?.displayName || "Business"}</p>
+                  </div>
                 </div>
 
-                {filteredListings.length === 0 ? (
-                  <div className="bg-white rounded-b-xl sm:rounded-b-2xl shadow-lg p-8 sm:p-12 text-center">
-                    <XCircle className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">No {filterStatus} listings found</h3>
-                    <p className="text-gray-600 text-sm sm:text-base">Try selecting a different filter above.</p>
+                {/* Details: Phone, Website, Address */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                      <span className="truncate">{listing.phoneNumbers?.primaryPhone || "No phone"}</span>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6 mt-3 sm:mt-6">
-                    {filteredListings.map((listing, i) => (
-                      <div key={i} className="bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden border border-gray-200">
-                        <div className="p-4 sm:p-6">
-                          <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-base sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 truncate">
-                                {listing.title || listing.name || "Unnamed Listing"}
-                              </h3>
-                              <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1.5 sm:gap-2 truncate">
-                                <Building2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span className="truncate">{listing.categories?.primaryCategory?.displayName || "Uncategorized"}</span>
-                              </p>
-                            </div>
-                            <div className="flex-shrink-0">
-                              {getVerificationBadge(listing)}
-                            </div>
-                          </div>
-
-                          <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
-                            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-2.5 sm:p-3 rounded-lg border border-blue-200">
-                              <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
-                                <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
-                                <span className="text-xs font-semibold text-gray-700">Phone</span>
-                              </div>
-                              <p className="text-xs sm:text-sm text-gray-900 font-medium truncate">{listing.phoneNumbers?.primaryPhone || "N/A"}</p>
-                            </div>
-
-                            <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-2.5 sm:p-3 rounded-lg border border-purple-200">
-                              <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
-                                <Globe className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
-                                <span className="text-xs font-semibold text-gray-700">Website</span>
-                              </div>
-                              <Link
-                                href={listing.websiteUri || "#"}
-                                className="text-xs sm:text-sm text-gray-900 font-medium truncate block hover:underline"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {listing.websiteUri || "N/A"}
-                              </Link>
-                            </div>
-
-                            <div className="bg-gradient-to-br from-green-50 to-green-100/50 p-2.5 sm:p-3 rounded-lg border border-green-200">
-                              <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
-                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
-                                <span className="text-xs font-semibold text-gray-700">Address</span>
-                              </div>
-                              <p className="text-xs sm:text-sm text-gray-900 font-medium line-clamp-2">
-                                {listing.storefrontAddress?.addressLines?.join(", ") || "N/A"}
-                                {listing.storefrontAddress?.locality && `, ${listing.storefrontAddress.locality}`}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                            <button
-                              onClick={() => handleListingData(listing)}
-                              className="flex-1 min-w-[140px] px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg sm:rounded-xl hover:opacity-90 transition text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl flex items-center justify-center gap-1.5 sm:gap-2"
-                            >
-                              <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              Manage Listing
-                            </button>
-
-                            <button
-                              onClick={() => handleViewInsights(listing)}
-                              className="flex-1 min-w-[140px] px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl hover:opacity-90 transition text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl flex items-center justify-center gap-1.5 sm:gap-2"
-                            >
-                              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              View Insights
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <Globe className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+                      {listing.websiteUri ? <a href={listing.websiteUri} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-600 hover:underline">{listing.websiteUri}</a> : <span className="text-gray-400">No website</span>}
                   </div>
-                )}
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                      <MapPin className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{listing.storefrontAddress?.addressLines?.join(", ") || "No address"}{listing.storefrontAddress?.locality && `, ${listing.storefrontAddress.locality}`}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
+                  <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
+                  <button onClick={() => handleViewInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
+                </div>
               </div>
-            );
-          })
-        )}
+            ))}
+            {!loading && accounts.length === 0 && (
+              <div className="text-center py-10 text-gray-400">
+                <Building2 className="w-10 h-10 mx-auto mb-2" />
+                <p className="text-sm font-medium">No GMB listings found.</p>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* --- Facebook Column --- */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Facebook className="w-5 h-5 text-[#1877F2]" />
+              <h2 className="font-bold text-gray-800">Facebook</h2>
+            </div>
+            {facebookPages.length > 0 && <span className="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">{facebookPages.length}</span>}
+          </div>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {facebookPages.length > 0 ? (
+              <>
+                {facebookPages.map(page => (
+                  <div key={page.pageId} className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <p className="font-semibold text-sm text-gray-800">{page.pageName}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-600 font-bold">Connected</span>
+                        <button onClick={() => handleDisconnectFacebook(page.pageId)} className="text-gray-400 hover:text-red-500 transition-colors" title="Disconnect"><LogOut className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">ID: {page.pageId}</p>
+                    <div className="pt-2 border-t border-gray-100">
+                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-blue-100 text-blue-700 py-1.5 rounded-md hover:bg-blue-200 font-semibold">Manage Page</button>
+                    </div>
+                  </div>
+                ))}
+                <button 
+                  onClick={() => {
+                    const userId = localStorage.getItem("userId");
+                    if (!userId) return toast.error("Login first");
+                    window.location.href = `/api/facebook/login?userId=${userId}`;
+                  }}
+                  className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 text-gray-600 py-2 rounded-lg font-semibold hover:border-blue-500 hover:text-blue-600 transition-all text-xs"
+                >
+                  <Plus className="w-4 h-4" /> Connect Another Page
+                </button>
+              </>
+            ) : (
+              <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
+                <Facebook className="w-10 h-10 mx-auto mb-3" />
+                <p className="text-sm font-medium mb-3">No pages connected.</p>
+                <button onClick={() => {
+                  const userId = localStorage.getItem("userId");
+                  if (!userId) return toast.error("Login first");
+                  window.location.href = `/api/facebook/login?userId=${userId}`;
+                }} className="w-full bg-[#1877F2] text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">Connect Facebook</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* --- Instagram Column --- */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Instagram className="w-5 h-5 text-[#E1306C]" />
+              <h2 className="font-bold text-gray-800">Instagram</h2>
+            </div>
+            {instagramPages.length > 0 && <span className="text-xs bg-pink-100 text-pink-700 font-semibold px-2 py-0.5 rounded-full">{instagramPages.length}</span>}
+          </div>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {instagramPages.length > 0 ? (
+              <>
+                {instagramPages.map(page => (
+                  <div key={page.igId} className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <p className="font-semibold text-sm text-gray-800">@{page.igUsername}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-600 font-bold">Connected</span>
+                        <button onClick={() => handleDisconnectInstagram(page.igId)} className="text-gray-400 hover:text-red-500 transition-colors" title="Disconnect"><LogOut className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">ID: {page.igId}</p>
+                    <div className="pt-2 border-t border-gray-100">
+                      <button onClick={() => router.push(`/post-management?pageId=${page.igId}`)} className="w-full text-xs bg-pink-100 text-pink-700 py-1.5 rounded-md hover:bg-pink-200 font-semibold">Manage Account</button>
+                    </div>
+                  </div>
+                ))}
+                <button 
+                  onClick={() => {
+                    const userId = localStorage.getItem("userId");
+                    if (!userId) return toast.error("Login first");
+                    window.location.href = `/api/instagram/login?userId=${userId}`;
+                  }}
+                  className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 text-gray-600 py-2 rounded-lg font-semibold hover:border-pink-500 hover:text-pink-600 transition-all text-xs"
+                >
+                  <Plus className="w-4 h-4" /> Connect Another Account
+                </button>
+              </>
+            ) : (
+              <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
+                <Instagram className="w-10 h-10 mx-auto mb-3" />
+                <p className="text-sm font-medium mb-3">No accounts connected.</p>
+                <button onClick={() => {
+                  const userId = localStorage.getItem("userId");
+                  if (!userId) return toast.error("Login first");
+                  window.location.href = `/api/instagram/login?userId=${userId}`;
+                }} className="w-full bg-gradient-to-r from-pink-500 to-orange-500 text-white py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Connect Instagram</button>
+              </div>
+            )}
+          </div>
+        </div>
+
       </main>
     </div>
   

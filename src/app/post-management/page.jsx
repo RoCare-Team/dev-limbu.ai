@@ -36,9 +36,12 @@ import {
   MapPin,
   Pencil,
   Facebook,
+  Instagram,
+  ThumbsUp,
+  MessageCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Toast from "../../components/Toast";
 import LocationSelectionModal from "../../components/LocationSelectionModal";
@@ -169,6 +172,208 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
             Confirm & Schedule
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Facebook Share Modal Component
+const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }) => {
+  const [caption, setCaption] = useState("");
+  const [selectedPageId, setSelectedPageId] = useState("");
+
+  useEffect(() => {
+    if (post) {
+      setCaption(post.description || "");
+    }
+  }, [post]);
+
+  useEffect(() => {
+    if (pages && pages.length > 0 && !selectedPageId) {
+      setSelectedPageId(pages[0].pageId);
+    }
+  }, [pages, selectedPageId]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    const page = pages.find(p => p.pageId === selectedPageId);
+    if (page) {
+      onConfirm(post, page, caption);
+    } else if (pages.length > 0) {
+      onConfirm(post, pages[0], caption);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Facebook className="w-6 h-6 text-[#1877F2]" />
+            Share to Facebook
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-3">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="text-sm text-gray-500">Loading Facebook Pages...</p>
+          </div>
+        ) : pages.length === 0 ? (
+           <div className="text-center py-6">
+             <p className="text-gray-600 mb-4">No Facebook Pages connected.</p>
+             <button onClick={onClose} className="text-blue-600 hover:underline">Close</button>
+           </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Select Page</label>
+              <select
+                value={selectedPageId}
+                onChange={(e) => setSelectedPageId(e.target.value)}
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              >
+                {pages.map(page => (
+                  <option key={page.pageId} value={page.pageId}>
+                    {page.pageName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={4}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={onClose}
+                className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 bg-[#1877F2] text-white py-2.5 rounded-lg font-semibold hover:bg-[#166fe5] transition flex items-center justify-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Post Now
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Instagram Share Modal Component
+const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loading }) => {
+  const [caption, setCaption] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+
+  useEffect(() => {
+    if (post) {
+      setCaption(post.description || "");
+    }
+  }, [post]);
+
+  useEffect(() => {
+    if (accounts && accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].igId);
+    }
+  }, [accounts, selectedAccountId]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    const account = accounts.find(p => p.igId === selectedAccountId);
+    if (account) {
+      onConfirm(post, account, caption);
+    } else if (accounts.length > 0) {
+      onConfirm(post, accounts[0], caption);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Instagram className="w-6 h-6 text-[#E1306C]" />
+            Share to Instagram
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-3">
+            <Loader2 className="w-8 h-8 animate-spin text-pink-600" />
+            <p className="text-sm text-gray-500">Loading Instagram Accounts...</p>
+          </div>
+        ) : accounts.length === 0 ? (
+           <div className="text-center py-6">
+             <p className="text-gray-600 mb-4">No Instagram Accounts connected.</p>
+             <Link href="/dashboard" className="bg-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
+                Connect Instagram
+             </Link>
+           </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Select Account</label>
+              <select
+                value={selectedAccountId}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white"
+              >
+                {accounts.map(acc => (
+                  <option key={acc.igId} value={acc.igId}>
+                    {acc.igUsername}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={4}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={onClose}
+                className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition flex items-center justify-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Post Now
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -475,10 +680,11 @@ const PreviewSection = ({
 
 // Main Component
 // Post Card Component (Moved here from PostCard.jsx to be local as per user's request)
-const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject, handleDownload, handleShare, handlePost, onEditDescription, handleDeleteFromGMB, onToggleCheckmark, handleFacebookPost }) => {
+const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject, handleDownload, handleShare, handlePost, onEditDescription, handleDeleteFromGMB, onToggleCheckmark, handleFacebookPost, handleInstagramPost }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showFull, setShowFull] = useState(false);
   const [editedDescription, setEditedDescription] = useState(post?.description || "");
+  const [fbStats, setFbStats] = useState(null);
 
   const handleSave = () => {
     onEditDescription(post._id, editedDescription);
@@ -489,6 +695,30 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     setEditedDescription(post?.description || "");
     setIsEditing(false);
   };
+
+  useEffect(() => {
+    const fetchFbStats = async () => {
+      if (post.status === 'posted' && post.facebookPostId && post.facebookPageAccessToken) {
+        try {
+          // Fetch Likes
+          const likesRes = await fetch(`https://graph.facebook.com/v19.0/${post.facebookPostId}/likes?summary=true&limit=0&access_token=${post.facebookPageAccessToken}`);
+          const likesData = await likesRes.json();
+
+          // Fetch Comments
+          const commentsRes = await fetch(`https://graph.facebook.com/v19.0/${post.facebookPostId}/comments?summary=true&limit=0&access_token=${post.facebookPageAccessToken}`);
+          const commentsData = await commentsRes.json();
+
+          setFbStats({
+            likes: likesData.summary?.total_count || 0,
+            comments: commentsData.summary?.total_count || 0
+          });
+        } catch (error) {
+          console.error("Failed to fetch FB stats", error);
+        }
+      }
+    };
+    fetchFbStats();
+  }, [post]);
 
   return (
     <div className="group bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
@@ -612,6 +842,20 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             : "Date unknown"}
         </div>
 
+        {/* Facebook Stats */}
+        {/* {fbStats && (
+          <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-1.5 text-gray-600 text-xs font-medium">
+              <ThumbsUp className="w-3.5 h-3.5 text-blue-600" />
+              <span>{fbStats.likes} Likes</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 text-xs font-medium">
+              <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+              <span>{fbStats.comments} Comments</span>
+            </div>
+          </div>
+        )} */}
+
         {/* Action Buttons Area */}
         <div className="pt-1">
           {post.status === "pending" && (
@@ -673,15 +917,28 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   Post Now
 </button>
 
-              {/* <button
+              <button
+                onClick={() => handleInstagramPost(post)}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+              >
+                <Instagram className="w-4 h-4" />
+                Post to Instagram
+              </button>
+
+              <button
                 onClick={() => handleFacebookPost(post)}
                 className="w-full flex items-center justify-center gap-2 bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Facebook className="w-4 h-4" />
                 Post to Facebook
-              </button> */}
+              </button>
 
-              
+{/* <span className="text-xs text-gray-500">
+  Post will be published only after you click Publish
+</span> */}
+
+{/* <p>like: 0, comment: 0</p> */}
+
               <button
                 onClick={() => onUpdateStatus(post)}
                 className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
@@ -812,8 +1069,22 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       Repost
     </button>
 
+    {/* Instagram Post */}
+    <button
+      onClick={() => handleInstagramPost(post)}
+      className="
+        flex items-center justify-center gap-2
+        bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white
+        px-4 py-2.5 rounded-xl text-sm font-semibold
+        transition-all
+      "
+    >
+      <Instagram className="w-4 h-4" />
+      IG Post
+    </button>
+
     {/* Facebook Post */}
-    {/* <button
+    <button
       onClick={() => handleFacebookPost(post)}
       className="
         flex items-center justify-center gap-2
@@ -824,7 +1095,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     >
       <Facebook className="w-4 h-4" />
       FB Post
-    </button> */}
+    </button>
 
     {/* Schedule */}
     <button
@@ -841,6 +1112,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       <Calendar className="w-4 h-4" />
       Schedule
     </button>
+    {/* <p>like: 0, comment: 0</p> */}
+
   </div>
 )}
 
@@ -861,8 +1134,7 @@ export default function PostManagementPage() {
   const [userWallet, setUserWallet] = useState(0);
   const [requiredCoins, setRequiredCoins] = useState(0);
   const { slug } = useParams();
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session } = useSession();
 
 
   const [posts, setPosts] = useState([]);
@@ -887,6 +1159,16 @@ export default function PostManagementPage() {
   const [scheduledDateForLocations, setScheduledDateForLocations] = useState(null); // New state for selected date
   const [previewData, setPreviewData] = useState(null);
   const [lastUsedAssetsFlow, setLastUsedAssetsFlow] = useState(false);
+
+  const [showFacebookModal, setShowFacebookModal] = useState(false);
+  const [facebookPages, setFacebookPages] = useState([]);
+  const [loadingFbPages, setLoadingFbPages] = useState(false);
+  const [postToFacebook, setPostToFacebook] = useState(null);
+
+  const [showInstagramModal, setShowInstagramModal] = useState(false);
+  const [instagramAccounts, setInstagramAccounts] = useState([]);
+  const [loadingIgAccounts, setLoadingIgAccounts] = useState(false);
+  const [postToInstagram, setPostToInstagram] = useState(null);
 
   const [assetId, setAssetId] = useState(null);
   const [selectedAssets, setSelectedAssets] = useState([]);
@@ -1559,41 +1841,162 @@ export default function PostManagementPage() {
     }
   };
 
-  const handleFacebookPost = async (post) => {
-    if (!pageId) {
-      showToast("No Facebook Page connected. Please connect from Dashboard.", "error");
-      return;
+  const fetchFacebookPages = async () => {
+    if (facebookPages.length > 0) return;
+    setLoadingFbPages(true);
+    const userId = localStorage.getItem("userId");
+    try {
+      const res = await fetch(`/api/facebook/pages?userId=${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        setFacebookPages(data.pages);
+      } else {
+        showToast("Failed to fetch Facebook pages", "error");
+      }
+    } catch (err) {
+      console.error("Error fetching FB pages:", err);
+      showToast("Error fetching Facebook pages", "error");
+    } finally {
+      setLoadingFbPages(false);
     }
+  };
 
-    const message = post.description;
-    if (!message || !message.trim()) {
-      showToast("Post description is empty.", "error");
+  const handleFacebookPost = (post) => {
+    setPostToFacebook(post);
+    setShowFacebookModal(true);
+    fetchFacebookPages();
+  };
+
+  const submitFacebookPost = async (post, pageData, caption) => {
+    setShowFacebookModal(false);
+    
+    if (!caption && !post.aiOutput) {
+      showToast("Post content is empty.", "error");
       return;
     }
 
     try {
       showToast("Publishing to Facebook...", "success");
+      
+      const imageUrl = post.aiOutput;
+      const pageId = pageData.pageId;
+      const accessToken = pageData.pageAccessToken;
 
-      const res = await fetch("/api/facebook/post", {
+      let graphUrl = "";
+      let payload = {};
+
+      if (imageUrl) {
+        // Direct call to Facebook Graph API for Photos
+        graphUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
+        payload = {
+          url: imageUrl,
+          caption: caption || "",
+          access_token: accessToken,
+        };
+      } else {
+        // Direct call to Facebook Graph API for Feed
+        graphUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
+        payload = {
+          message: caption || "",
+          access_token: accessToken,
+        };
+      }
+
+      const res = await fetch(graphUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageId,
-          published: true,
-          is_published: true,
-          message,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.id || data.post_id) {
         showToast("Post published on Facebook 🎉", "success");
+        const facebookPostId = data.post_id || data.id;
+        await updatePostStatusAction({
+          id: post._id,
+          userId: localStorage.getItem("userId"),
+          facebookPostId: facebookPostId,
+          facebookPageAccessToken: accessToken,
+          status: "posted",
+        });
+        await fetchPosts(); // Refresh posts to get the updated data
       } else {
-        showToast(data.error || "Failed to post to Facebook", "error");
+        console.error("Facebook API Error:", data);
+        showToast(data.error?.message || "Failed to post to Facebook", "error");
+      }
+
+    } catch (err) {
+      console.error("Facebook post error:", err);
+      showToast("Something went wrong posting to Facebook", "error");
+    }
+  };
+
+  const fetchInstagramAccounts = async () => {
+    if (instagramAccounts.length > 0) return;
+    setLoadingIgAccounts(true);
+    try {
+      const res = await fetch("/api/instagram/pages");
+      const data = await res.json();
+      if (data.success) {
+        setInstagramAccounts(data.pages);
+      } else {
+        showToast("Failed to fetch Instagram accounts", "error");
       }
     } catch (err) {
-      showToast("Something went wrong posting to Facebook", "error");
+      console.error("Error fetching IG accounts:", err);
+      showToast("Error fetching Instagram accounts", "error");
+    } finally {
+      setLoadingIgAccounts(false);
+    }
+  };
+
+  const handleInstagramPost = (post) => {
+    setPostToInstagram(post);
+    setShowInstagramModal(true);
+    fetchInstagramAccounts();
+  };
+
+  const submitInstagramPost = async (post, accountData, caption) => {
+    setShowInstagramModal(false);
+    
+    if (!post.aiOutput) {
+      showToast("Post has no image to share.", "error");
+      return;
+    }
+
+    try {
+      showToast("Publishing to Instagram...", "success");
+      
+      const imageUrl = post.aiOutput;
+      const igUserId = accountData.igId;
+      const accessToken = accountData.pageAccessToken;
+
+      // Step 1: Create Media Container
+      const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
+      const mediaContainerPayload = { image_url: imageUrl, caption: caption || "", access_token: accessToken };
+      const mediaRes = await fetch(mediaContainerUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mediaContainerPayload) });
+      const mediaData = await mediaRes.json();
+
+      if (!mediaData.id) {
+        console.error("Instagram API Error (Media Container):", mediaData);
+        throw new Error(mediaData.error?.message || "Failed to create Instagram media container.");
+      }
+
+      // Step 2: Publish Media Container
+      await new Promise(resolve => setTimeout(resolve, 4000)); // Delay for processing
+
+      const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
+      const publishPayload = { creation_id: mediaData.id, access_token: accessToken };
+      const publishRes = await fetch(publishUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(publishPayload) });
+      const publishData = await publishRes.json();
+
+      if (publishData.id) showToast("Post published on Instagram 🎉", "success");
+      else throw new Error(publishData.error?.message || "Failed to publish to Instagram.");
+
+    } catch (err) {
+      console.error("Instagram post error:", err);
+      showToast(err.message, "error");
     }
   };
 
@@ -1637,12 +2040,6 @@ export default function PostManagementPage() {
 
   const handleLocationConfirm = async (selectedLocationIds, checkmark) => {
     setShowLocationModal(false);
-
-    if (!session?.accessToken) {
-      showToast("Session expired. Please sign in again.", "error");
-      router.push('/dashboard');
-      return;
-    }
 
     if (selectedLocationIds.length === 0) {
       showToast("Please select at least one location", "error");
@@ -1875,12 +2272,6 @@ export default function PostManagementPage() {
   
 
   const handlePost = async (post) => {
-    if (!session?.accessToken) {
-      showToast("Session expired. Please sign in again.", "error");
-      router.push('/dashboard');
-      return;
-    }
-
     // First check if user has approved the post
     if (post.status !== "approved" && post.status !== "scheduled" && post.status !== "posted" && post.status !== "failed") {
       showToast("Please approve the post first!", "error");
@@ -2167,6 +2558,26 @@ useEffect(() => {
             setReason={setRejectReason}
           />
         )}
+        {showFacebookModal && (
+          <FacebookShareModal
+            isOpen={showFacebookModal}
+            onClose={() => setShowFacebookModal(false)}
+            onConfirm={submitFacebookPost}
+            post={postToFacebook}
+            pages={facebookPages}
+            loading={loadingFbPages}
+          />
+        )}
+        {showInstagramModal && (
+          <InstagramShareModal
+            isOpen={showInstagramModal}
+            onClose={() => setShowInstagramModal(false)}
+            onConfirm={submitInstagramPost}
+            post={postToInstagram}
+            accounts={instagramAccounts}
+            loading={loadingIgAccounts}
+          />
+        )}
         {showFirstPostModal && (
           <FirstPostModal onClose={() => setShowFirstPostModal(false)} />
         )}
@@ -2316,6 +2727,7 @@ useEffect(() => {
                 handleDeleteFromGMB={handleDeleteFromGMB}
                 onToggleCheckmark={handleToggleCheckmark}
                 handleFacebookPost={handleFacebookPost}
+                handleInstagramPost={handleInstagramPost}
               />
             ))}
           </div>
@@ -2333,4 +2745,4 @@ useEffect(() => {
       </div>
     </div>
   );
-}
+}  

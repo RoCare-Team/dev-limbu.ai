@@ -504,124 +504,7 @@ export default function FranchisePage() {
         </div>
       </section>
 
-      {/* =================== PROFIT CALCULATOR =================== */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Your <span className="text-blue-600">Earning Potential</span>
-            </h2>
-            <p className="text-xl text-gray-600">
-              Calculate your potential monthly and yearly income as a franchise partner
-            </p>
-          </div>
-
-          {/* Plan Selector */}
-          <div className="flex flex-wrap justify-center gap-4 mb-12">
-            {["starter", "standard", "premium"].map((plan) => (
-              <button
-                key={plan}
-                onClick={() => setSelectedPlan(plan)}
-                className={`px-8 py-3 rounded-full font-bold transition-all ${
-                  selectedPlan === plan
-                    ? "bg-blue-600 text-white shadow-lg scale-105"
-                    : "bg-white text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                {plan.charAt(0).toUpperCase() + plan.slice(1)} Plan
-              </button>
-            ))}
-          </div>
-
-          {/* Profit Breakdown */}
-          <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-blue-100">
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Left: Investment & Revenue */}
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Investment & Revenue</h3>
-                
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl">
-                  <div className="text-sm text-gray-600 mb-1">Initial Investment</div>
-                  <div className="text-3xl font-bold text-blue-600">
-                    ₹{profitCalculations[selectedPlan].investment.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">One-time franchise fee</div>
-                </div>
-
-                {/* <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-2xl">
-                  <div className="text-sm text-gray-600 mb-1">Target Clients</div>
-                  <div className="text-3xl font-bold text-green-600">
-                    {profitCalculations[selectedPlan].clients} Businesses
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">Average in 6-12 months</div>
-                </div> */}
-
-                {/* <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-2xl">
-                  <div className="text-sm text-gray-600 mb-1">Monthly Revenue</div>
-                  <div className="text-3xl font-bold text-purple-600">
-                    ₹{profitCalculations[selectedPlan].revenue.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">@ ₹1,500 per client/month</div>
-                </div> */}
-              </div>
-
-              {/* Right: Profit Calculation */}
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Profit Sharing</h3>
-                
-                <div className="bg-yellow-50 border-2 border-yellow-200 p-6 rounded-2xl">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-gray-700 text-lg">Franchise</span>
-                    <span className="text-3xl font-bold text-blue-600">{profitCalculations[selectedPlan].profitPercent}%</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-gray-700">Limbu Ai</span>
-                    <span className="font-semibold">{profitCalculations[selectedPlan].revenue.toLocaleString()}%</span>
-                  </div>
-                  
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* Real Examples */}
-          {/* <div className="grid md:grid-cols-3 gap-6 mt-12">
-            <div className="bg-white p-6 rounded-2xl shadow-lg border">
-              <div className="text-lg font-bold text-gray-800 mb-2">Beginner Level</div>
-              <div className="text-sm text-gray-600 mb-4">First 3-6 months</div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>15-20 clients</span>
-                  <span className="font-semibold">₹18K-27K/mo</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-blue-600 text-white p-6 rounded-2xl shadow-xl border-2 border-blue-400 scale-105">
-              <div className="text-lg font-bold mb-2">Growth Level</div>
-              <div className="text-sm opacity-90 mb-4">6-12 months</div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>50-80 clients</span>
-                  <span className="font-semibold">₹45K-72K/mo</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-2xl shadow-lg border">
-              <div className="text-lg font-bold text-gray-800 mb-2">Expert Level</div>
-              <div className="text-sm text-gray-600 mb-4">12+ months</div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>100+ clients</span>
-                  <span className="font-semibold">₹90K-1.5L/mo</span>
-                </div>
-              </div>
-            </div>
-          </div> */}
-        </div>
-      </section>
+   
 
       {/* =================== WHY FRANCHISE WITH US =================== */}
       <section className="py-20 px-6 bg-white">
@@ -1034,26 +917,7 @@ export default function FranchisePage() {
                 potential: "₹25K-1L/month",
                 best: "New entrepreneurs"
               },
-              {
-                name: "Business Growth Plan",
-                investment: "₹1,00,000",
-                originalPrice: "₹2,00,000",
-                commission: "40% on revenue + 10% Business Champion",
-                features: [
-                  "Multi-city franchise rights",
-                  "Priority training & support",
-                  "Premium marketing materials",
-                  "Lead generation support",
-                  "Advanced dashboard features",
-                  "Quarterly business reviews",
-                  "White-label options",
-                  "Team building guidance"
-                ],
-                // target: "50/-80 clients",
-                potential: "₹50K-2L/month",
-                best: "Growth-focused partners",
-                popular: true
-              },
+           
               {
                 name: "Business Excellence Plan",
                 investment: "₹2,00,000",
@@ -1072,8 +936,29 @@ export default function FranchisePage() {
                 ],
                 // target: "100+ clients",
                 potential: "₹50k-3L/month",
-                best: "Established entrepreneurs"
-              }
+                best: "Established entrepreneurs",
+                                popular: true
+
+              },
+                 {
+                name: "Business Growth Plan",
+                investment: "₹1,00,000",
+                originalPrice: "₹2,00,000",
+                commission: "40% on revenue + 10% Business Champion",
+                features: [
+                  "Multi-city franchise rights",
+                  "Priority training & support",
+                  "Premium marketing materials",
+                  "Lead generation support",
+                  "Advanced dashboard features",
+                  "Quarterly business reviews",
+                  "White-label options",
+                  "Team building guidance"
+                ],
+                // target: "50/-80 clients",
+                potential: "₹50K-2L/month",
+                best: "Growth-focused partners",
+              },
             ].map((plan, i) => (
               <div key={i} className={`relative bg-white rounded-3xl shadow-2xl border-2 p-8 ${plan.popular ? 'border-blue-500 scale-105' : 'border-gray-200'}`}>
                 {plan.popular && (

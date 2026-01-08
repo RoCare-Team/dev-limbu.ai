@@ -325,10 +325,9 @@ export default function LimbuAILanding() {
       title: "Professional Plan",
       basePrice: 2500,
       basePosts: 15,
-      baseCitations: 3,
+      baseCitations: 5,
       staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization"],
       description: "Best for growing businesses looking for better visibility",
-      popular: true,
       color: "bg-purple-600",
       textColor: "text-purple-600",
       borderColor: "border-purple-200"
@@ -340,6 +339,7 @@ export default function LimbuAILanding() {
       baseCitations: 12,
       staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
       description: "Perfect for brands focused on automation and maximum reach",
+      popular: true,
       color: "bg-pink-600",
       textColor: "text-pink-600",
       borderColor: "border-pink-200"

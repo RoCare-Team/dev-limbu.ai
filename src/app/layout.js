@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "AI-Powered GMB Auto Management System | Smart Business Growth",
+  title: "AI Marketing Automation for Google, Facebook & Instagram | Limbu.ai",
   description:
-    "Automate and optimize your Google My Business profile with our AI-powered dashboard. Manage reviews, posts, and insights from one easy-to-use platform.",
+    "Automate Google Business, Facebook, and Instagram with Limbu.ai. Manage reviews, posts, messages & insights — all in one AI-powered dashboard.",
   keywords: [
     "Google My Business automation",
     "GMB management tool",

@@ -6,8 +6,8 @@ import MetaSync from "@/models/MetaSync";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 1000;
-const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
+const LIMIT = 2000;
+const META_ACCESS_TOKEN = "EAAWOiqBorGUBQQD5h0FAtsmhyrdTCG0JiO6YqenXR1IInaUh6Wa7WqfvGc6D6bcqSHUcyRLcUa22JZAs4oKcAxJHqSfwXAqsMVSptToi8oIRmzZAXMAIWDQWuaR3rReSifeGDGLaiorT28OMiF2t54CbEqBdwpBSjJfcCVBZBIJ9qyq7Ht8d3sZCXVw0";
 const MONGODB_URI = process.env.MONGODB_URI;
 
 /* ================= DB ================= */
@@ -47,7 +47,7 @@ export async function GET(req) {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
-    const formId = searchParams.get("formId");
+    const formId = process.env.META_FORM_ID || searchParams.get("formId");
 
     if (!formId) {
       return NextResponse.json({ success: false, error: "formId required" }, { status: 400 });
@@ -64,10 +64,12 @@ export async function GET(req) {
 
     do {
       let url = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${LIMIT}&access_token=${META_ACCESS_TOKEN}`;
-      if (after) url += `&after=${after}`;
+      // if (after) url += `&after=${after}`;
 
       const res = await fetch(url);
+      
       const json = await res.json();
+      
       if (!res.ok) break;
 
       const leads = json.data || [];

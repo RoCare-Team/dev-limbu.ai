@@ -1932,24 +1932,29 @@ export default function PostManagementPage() {
     }
   };
 
-  const fetchInstagramAccounts = async () => {
-    if (instagramAccounts.length > 0) return;
-    setLoadingIgAccounts(true);
-    try {
-      const res = await fetch("/api/instagram/pages");
-      const data = await res.json();
-      if (data.success) {
-        setInstagramAccounts(data.pages);
-      } else {
-        showToast("Failed to fetch Instagram accounts", "error");
-      }
-    } catch (err) {
-      console.error("Error fetching IG accounts:", err);
-      showToast("Error fetching Instagram accounts", "error");
-    } finally {
-      setLoadingIgAccounts(false);
+ const fetchInstagramAccounts = async () => {
+  if (instagramAccounts.length > 0) return;
+
+  setLoadingIgAccounts(true);
+
+  const userId = localStorage.getItem("userId");
+
+  try {
+    const res = await fetch(`/api/instagram/pages?userId=${userId}`);
+    const data = await res.json();
+
+    if (data.success) {
+      setInstagramAccounts(data.pages);
+    } else {
+      showToast("Failed to fetch Instagram accounts", "error");
     }
-  };
+  } catch (err) {
+    console.error("Error fetching IG accounts:", err);
+    showToast("Error fetching Instagram accounts", "error");
+  } finally {
+    setLoadingIgAccounts(false);
+  }
+};
 
   const handleInstagramPost = (post) => {
     setPostToInstagram(post);

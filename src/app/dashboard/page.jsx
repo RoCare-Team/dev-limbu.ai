@@ -1681,22 +1681,25 @@ const fetchInstagramPages = useCallback(async () => {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
-                {/* {accounts.length > 0 && accounts.length < maxAccounts && (
-                  <button
-                    onClick={handleAddProject}
-                    className="text-gray-400 hover:text-blue-600 transition-colors p-1"
-                    title="Add Account"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button> */}
+                {accounts.length > 0 && (
+  <button
+    onClick={() => signOut({ callbackUrl: "/dashboard" })}
+    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+    title="Logout"
+  >
+    <LogOut className="w-4 h-4" />
+  </button>
+)}
+
+<button
+  onClick={handleAddProject}
+  className="text-gray-400 hover:text-blue-600 transition-colors p-1"
+  title="Add Account"
+>
+  <Plus className="w-4 h-4" />
+</button>
+
+                
               </div>
             </div>
             
@@ -1899,7 +1902,7 @@ const fetchInstagramPages = useCallback(async () => {
                     </div>
                     <p className="text-xs text-gray-500">ID: {page.igId}</p>
                     <div className="pt-2 border-t border-gray-100">
-                      <button onClick={() => router.push(`/post-management?pageId=${page.igId}`)} className="w-full text-xs bg-pink-100 text-pink-700 py-1.5 rounded-md hover:bg-pink-200 font-semibold">Manage Account</button>
+                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-pink-100 text-pink-700 py-1.5 rounded-md hover:bg-pink-200 font-semibold">Manage Account</button>
                     </div>
                   </div>
                 ))}

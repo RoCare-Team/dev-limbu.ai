@@ -15,7 +15,8 @@ const HomeDataSchema = new mongoose.Schema(
         'subscriptionPlans',
         'features',
         'stats',
-        'steps'
+        'steps',
+        'banner'
       ],
     },
     data: {

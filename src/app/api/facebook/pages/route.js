@@ -6,7 +6,6 @@ export async function GET(req) {
   try {
     await dbConnect();
 
-    // 🔹 query param se userId nikalo
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
@@ -17,11 +16,7 @@ export async function GET(req) {
       );
     }
 
-    // 🔹 userId ke basis par fetch
-    const pages = await FacebookPage.find({
-      userId: userId,
-      platform: "facebook", // optional (remove if not needed)
-    }).sort({ createdAt: -1 });
+    const pages = await FacebookPage.find({ userId }).sort({ createdAt: -1 });
 
     return NextResponse.json({ success: true, pages });
   } catch (error) {

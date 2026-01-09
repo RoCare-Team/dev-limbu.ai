@@ -1856,16 +1856,17 @@ const NavLinks = ({ isAuthenticated }) => {
               <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
                 <Facebook className="w-10 h-10 mx-auto mb-3" />
                 <p className="text-sm font-medium mb-3">Connect Facebook Page</p>
-                <button 
-                  onClick={() => {
-                    const userId = localStorage.getItem("userId");
-                    if (!userId) return toast.error("Login first");
-                    window.location.href = `/api/facebook/login?userId=${userId}`;
-                  }}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all text-xs flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Connect Now
-                </button>
+                <button
+  onClick={() => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return toast.error("Login first");
+    window.location.href = `/api/facebook/login?userId=${userId}`;
+  }}
+  className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold"
+>
+  Connect Facebook Page
+</button>
+
               </div>
             )}
           </div>

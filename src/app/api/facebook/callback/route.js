@@ -11,9 +11,9 @@ export async function GET(req) {
     const code = url.searchParams.get("code");
     const userId = url.searchParams.get("state");
 
-    if (!code || !userId) throw new Error("Missing data");
+    if (!code || !userId) throw new Error("Missing code or userId");
 
-    // Step 1: Code → User Token
+    // 1️⃣ Exchange Code → Short Token
     const tokenRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
@@ -26,7 +26,7 @@ export async function GET(req) {
       }
     );
 
-    // Step 2: Long-lived token
+    // 2️⃣ Short Token → Long Token
     const longRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
@@ -41,7 +41,7 @@ export async function GET(req) {
 
     const userToken = longRes.data.access_token;
 
-    // Step 3: Get Pages
+    // 3️⃣ Get Pages
     const pagesRes = await axios.get(
       "https://graph.facebook.com/v24.0/me/accounts",
       {
@@ -49,16 +49,17 @@ export async function GET(req) {
       }
     );
 
-    // Step 4: Clear old pages
+    // 4️⃣ Remove old pages
     await FacebookPage.deleteMany({ userId });
 
-    // Step 5: Save Pages
+    // 5️⃣ Save new pages
     for (const page of pagesRes.data.data) {
       await FacebookPage.create({
         userId,
         pageId: page.id,
         pageName: page.name,
         pageAccessToken: page.access_token,
+        platform: "facebook",
       });
     }
 
@@ -66,7 +67,7 @@ export async function GET(req) {
       `${process.env.BASE_URL}/dashboard?fb=connected`
     );
   } catch (err) {
-    console.error(err.message);
+    console.error("FB CALLBACK ERROR:", err.message);
     return NextResponse.redirect(
       `${process.env.BASE_URL}/dashboard?fb=error`
     );

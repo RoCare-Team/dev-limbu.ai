@@ -2,11 +2,11 @@ import mongoose from "mongoose";
 
 const FacebookPageSchema = new mongoose.Schema(
   {
+    userId: { type: String, required: true },   // 🔥 Important
     pageId: String,
-    UserId: String,
     pageName: String,
     pageAccessToken: String,
-    platform: String, // facebook
+    platform: { type: String, default: "facebook" },
   },
   { timestamps: true }
 );

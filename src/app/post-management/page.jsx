@@ -917,13 +917,13 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   Post Now
 </button>
 
-              <button
+              {/* <button
                 onClick={() => handleInstagramPost(post)}
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Instagram className="w-4 h-4" />
                 Post to Instagram
-              </button>
+              </button> */}
 
               <button
                 onClick={() => handleFacebookPost(post)}
@@ -1070,7 +1070,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     </button>
 
     {/* Instagram Post */}
-    <button
+    {/* <button
       onClick={() => handleInstagramPost(post)}
       className="
         flex items-center justify-center gap-2
@@ -1081,7 +1081,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     >
       <Instagram className="w-4 h-4" />
       IG Post
-    </button>
+    </button> */}
 
     {/* Facebook Post */}
     <button

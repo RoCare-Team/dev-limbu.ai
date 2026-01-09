@@ -1878,62 +1878,25 @@ const fetchInstagramPages = useCallback(async () => {
         </div>
 
         {/* --- Instagram Column --- */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden relative">
           {/* Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <Instagram className="w-5 h-5 text-[#E1306C]" />
               <h2 className="font-bold text-gray-800">Instagram</h2>
             </div>
-            {instagramPages.length > 0 && <span className="text-xs bg-pink-100 text-pink-700 font-semibold px-2 py-0.5 rounded-full">{instagramPages.length}</span>}
+            <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">Soon</span>
           </div>
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {instagramPages.length > 0 ? (
-              <>
-                {instagramPages.map(page => (
-                  <div key={page.igId} className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <p className="font-semibold text-sm text-gray-800">@{page.igUsername}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-green-600 font-bold">Connected</span>
-                        <button onClick={() => handleDisconnectInstagram(page.igId)} className="text-gray-400 hover:text-red-500 transition-colors" title="Disconnect"><LogOut className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">ID: {page.igId}</p>
-                    <div className="pt-2 border-t border-gray-100">
-                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-pink-100 text-pink-700 py-1.5 rounded-md hover:bg-pink-200 font-semibold">Manage Account</button>
-                    </div>
-                  </div>
-                ))}
-                <button 
-                  onClick={() => {
-                    const userId = localStorage.getItem("userId");
-                    if (!userId) return toast.error("Login first");
-                    window.location.href = `/api/instagram/login?userId=${userId}`;
-                  }}
-                  className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 text-gray-600 py-2 rounded-lg font-semibold hover:border-pink-500 hover:text-pink-600 transition-all text-xs"
-                >
-                  <Plus className="w-4 h-4" /> Connect Another Account
-                </button>
-              </>
-            ) : (
-              <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
-                <Instagram className="w-10 h-10 mx-auto mb-3" />
-                <p className="text-sm font-medium mb-3">Connect Instagram Account</p>
-                <button
-  onClick={() => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) return toast.error("Login first");
-    window.location.href = `/api/instagram/login?userId=${userId}`;
-  }}
-  className="w-full bg-pink-600 text-white py-2 rounded-lg font-semibold"
->
-  Connect Instagram
-</button>
 
-              </div>
-            )}
+          {/* Coming Soon Content */}
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="bg-gradient-to-br from-pink-50 to-purple-50 p-6 rounded-full mb-4 animate-pulse">
+              <Instagram className="w-12 h-12 text-pink-400" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Coming Soon</h3>
+            <p className="text-sm text-gray-500 max-w-[200px]">
+              We are working hard to bring Instagram integration to your dashboard. Stay tuned!
+            </p>
           </div>
         </div>
 

@@ -46,7 +46,7 @@ export default function GBPAuditCard({ audit }) {
   }, [totalScore]);
 
   const getStatusColor = (score) => {
-    if (score >= 80) return { bg: "#dcfce7", text: "#16a34a", label: "Good Performance" };
+    if (score >= 90) return { bg: "#dcfce7", text: "#16a34a", label: "Good Performance" };
     if (score >= 60) return { bg: "#ffedd5", text: "#ea580c", label: "Average Performance" };
     return { bg: "#fee2e2", text: "#dc2626", label: "Poor Performance" };
   };
@@ -494,7 +494,7 @@ const ScoreItem = ({ factor, score, outOf, details, dataSnapshot }) => {
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
   
   const getStrokeColor = (percentage) => {
-    if (percentage >= 80) return "#22c55e"; // green
+    if (percentage >= 90) return "#22c55e"; // green
     if (percentage >= 60) return "#fb923c"; // orange
     return "#ef4444"; // red
   };

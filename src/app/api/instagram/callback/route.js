@@ -13,7 +13,7 @@ export async function GET(req) {
 
     if (!code || !userId) throw new Error("Missing data");
 
-    // 1️⃣ Code → User Token
+    // 1️⃣ Code → Short Token
     const tokenRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
@@ -26,7 +26,7 @@ export async function GET(req) {
       }
     );
 
-    // 2️⃣ Long-lived token
+    // 2️⃣ Short → Long Token
     const longRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
@@ -55,7 +55,7 @@ export async function GET(req) {
         `https://graph.facebook.com/v24.0/${page.id}`,
         {
           params: {
-            fields: "instagram_business_account{name,username,id}",
+            fields: "instagram_business_account{id,username,name}",
             access_token: page.access_token,
           },
         }
@@ -72,7 +72,7 @@ export async function GET(req) {
 
     if (!igAccount) throw new Error("No Instagram Business account found");
 
-    // 5️⃣ Save Instagram Account
+    // 5️⃣ Save to DB
     await InstagramPage.deleteMany({ userId });
 
     await InstagramPage.create({
@@ -88,6 +88,7 @@ export async function GET(req) {
     );
   } catch (err) {
     console.error("IG CALLBACK ERROR:", err.message);
+
     return NextResponse.redirect(
       `${process.env.BASE_URL}/dashboard?ig=error`
     );

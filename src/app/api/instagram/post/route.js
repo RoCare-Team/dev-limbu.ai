@@ -9,7 +9,6 @@ export async function POST(req) {
 
     const { userId, igId, imageUrl, caption } = await req.json();
 
-    // ✅ Validation
     if (!userId || !igId || !imageUrl) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
@@ -17,17 +16,16 @@ export async function POST(req) {
       );
     }
 
-    // ✅ Find Instagram connection
     const ig = await InstagramPage.findOne({ userId, igId });
 
     if (!ig) {
       return NextResponse.json(
-        { success: false, error: "Instagram not connected for this user" },
+        { success: false, error: "Instagram not connected" },
         { status: 404 }
       );
     }
 
-    // 1️⃣ Create media container
+    // 1️⃣ Create media
     const mediaRes = await axios.post(
       `https://graph.facebook.com/v24.0/${igId}/media`,
       {
@@ -47,15 +45,11 @@ export async function POST(req) {
     );
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
-    console.error("❌ Instagram Post Error:", error.response?.data || error.message);
+    console.error("Instagram Post Error:", error.response?.data || error.message);
 
     return NextResponse.json(
-      {
-        success: false,
-        error: error.response?.data || error.message,
-      },
+      { success: false, error: error.response?.data || error.message },
       { status: 500 }
     );
   }

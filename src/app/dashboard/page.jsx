@@ -1246,20 +1246,22 @@ const NavLinks = ({ isAuthenticated }) => {
   }, [fetchFacebookPages, searchParams, router]);
 
   // --- Fetch Instagram Pages ---
-  const fetchInstagramPages = useCallback(async () => {
-    try {
-      const userId = localStorage.getItem("userId");
-      if (!userId) return;
+const fetchInstagramPages = useCallback(async () => {
+  try {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
 
-      const res = await fetch(`/api/instagram/pages?userId=${userId}`);
-      const data = await res.json();
-      if (data.success) {
-        setInstagramPages(data.pages);
-      }
-    } catch (error) {
-      console.error("Error fetching Instagram pages:", error);
+    const res = await fetch(`/api/instagram/pages?userId=${userId}`);
+    const data = await res.json();
+
+    if (data.success) {
+      setInstagramPages(data.pages);
     }
-  }, []);
+  } catch (error) {
+    console.error("Error fetching Instagram pages:", error);
+  }
+}, []);
+
 
   useEffect(() => {
     fetchInstagramPages();
@@ -1916,16 +1918,17 @@ const NavLinks = ({ isAuthenticated }) => {
               <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
                 <Instagram className="w-10 h-10 mx-auto mb-3" />
                 <p className="text-sm font-medium mb-3">Connect Instagram Account</p>
-                <button 
-                  onClick={() => {
-                    const userId = localStorage.getItem("userId");
-                    if (!userId) return toast.error("Login first");
-                    window.location.href = `/api/instagram/login?userId=${userId}`;
-                  }}
-                  className="w-full bg-pink-600 text-white py-2 rounded-lg font-semibold hover:bg-pink-700 transition-all text-xs flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Connect Now
-                </button>
+                <button
+  onClick={() => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return toast.error("Login first");
+    window.location.href = `/api/instagram/login?userId=${userId}`;
+  }}
+  className="w-full bg-pink-600 text-white py-2 rounded-lg font-semibold"
+>
+  Connect Instagram
+</button>
+
               </div>
             )}
           </div>

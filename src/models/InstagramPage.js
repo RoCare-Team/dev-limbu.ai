@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 
-const InstagramSchema = new mongoose.Schema(
+const InstagramPageSchema = new mongoose.Schema(
   {
-    userId: String,
-    igId: String,
+    userId: { type: String, required: true },
+    igId: { type: String, required: true },
     igUsername: String,
     pageAccessToken: String,
     platform: { type: String, default: "instagram" },
@@ -12,4 +12,4 @@ const InstagramSchema = new mongoose.Schema(
 );
 
 export default mongoose.models.InstagramPage ||
-  mongoose.model("InstagramPage", InstagramSchema);
+  mongoose.model("InstagramPage", InstagramPageSchema);

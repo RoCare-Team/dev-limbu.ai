@@ -69,7 +69,7 @@ export async function fetchGMBAccounts(accessToken) {
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Failed to fetch accounts: ${errText}`);
+      throw new Error(`Failed to fetch accounts: ${res.status} ${errText}`);
     }
 
     const data = await res.json();
@@ -96,7 +96,7 @@ export async function fetchAllLocationsByAccount(accessToken, accountId) {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
-      if (!res.ok) throw new Error(`Failed to fetch locations for account ${accountId}`);
+      if (!res.ok) throw new Error(`Failed to fetch locations for account ${accountId}: ${res.status}`);
 
       const data = await res.json();
       
@@ -866,6 +866,28 @@ function ConnectModal({ isOpen, onClose }) {
   );
 }
 
+// --- Session Expired Modal ---
+function SessionExpiredModal({ isOpen, onLogin }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center relative animate-scaleUp">
+        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+          <LogOut className="h-8 w-8 text-red-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Session Expired</h2>
+        <p className="text-gray-600 mb-6">Please sign in again to continue managing your business.</p>
+        <button
+          onClick={onLogin}
+          className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition shadow-lg"
+        >
+          Sign In Again
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- Main Dashboard Component ---
 export default function DashboardPage() {
   const router = useRouter();
@@ -893,6 +915,7 @@ export default function DashboardPage() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);  
   const [showFirstPostModal, setShowFirstPostModal] = useState(false);
   const [FbPageData,setFbPageData] = useState([])
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
 
 
   const userId = localStorage.getItem("userId");
@@ -1067,6 +1090,10 @@ const NavLinks = ({ isAuthenticated }) => {
   const fetchInitialData = useCallback(async (forceRefresh = false, isBackground = false) => {
     if (!session?.accessToken || !session?.user?.email) {
       console.log("⚠️ No session or access token available");
+      if (status === "authenticated") {
+        // If next-auth thinks we are authenticated but we have no token, session is invalid
+        setIsSessionExpired(true);
+      }
       return;
     }
     
@@ -1174,6 +1201,10 @@ const NavLinks = ({ isAuthenticated }) => {
       }
     } catch (error) {
       console.error("❌ Error fetching data:", error);
+      if (error.message.includes("401") || error.message.includes("UNAUTHENTICATED") || error.message.includes("403")) {
+        setIsSessionExpired(true);
+        toast.error("Session expired. Please sign in again.");
+      }
       toast.error("Failed to load listings. Please try again.");
       if (!isBackground) setNoAccountsFound(true);
       setCacheStatus("Error fetching data");
@@ -1182,7 +1213,7 @@ const NavLinks = ({ isAuthenticated }) => {
     setInitialFetchDone(true);
     if (!isBackground) setLoading(false);
     fetchInProgress.current = false;
-  }, [session?.accessToken, session?.user?.email, loadFromCache, saveToCache]);
+  }, [session?.accessToken, session?.user?.email, status, loadFromCache, saveToCache]);
 
   // --- Fetch Facebook Pages ---
   const fetchFacebookPages = useCallback(async () => {
@@ -1565,6 +1596,17 @@ const NavLinks = ({ isAuthenticated }) => {
         searchKeywords={searchKeywordsData}
         searchKeywordsLoading={searchKeywordsLoading}
       />
+      
+      <SessionExpiredModal 
+        isOpen={isSessionExpired} 
+        onLogin={() => signIn("google", { callbackUrl: "/dashboard" })} 
+      />
+      
+      <ConnectModal 
+        isOpen={isConnectModalOpen} 
+        onClose={() => setIsConnectModalOpen(false)} 
+      />
+
       <Toaster position="top-right" />
 
 
@@ -1595,6 +1637,7 @@ const NavLinks = ({ isAuthenticated }) => {
             <div className="hidden lg:flex items-center gap-2 sm:gap-4 justify-end sm:justify-start flex-wrap self-start sm:self-center">
               {/* Refresh Button */}
               {accounts.length > 0 && (
+                <>
                 <button
                   onClick={handleManualRefresh}
                   disabled={loading}
@@ -1604,15 +1647,19 @@ const NavLinks = ({ isAuthenticated }) => {
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline">Refresh</span>
                 </button>
-                
-              )}
-              <button
+
+<button
                 onClick={() => signOut({ callbackUrl: "/dashboard" })}
                 className="bg-gradient-to-r from-blue-500 to-blue-500 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Logout</span>
               </button>
+                </>
+                
+                
+              )}
+              
             </div>
           </div>
         </div>
@@ -1632,7 +1679,7 @@ const NavLinks = ({ isAuthenticated }) => {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
-                {accounts.length > 0 && accounts.length < maxAccounts && (
+                {/* {accounts.length > 0 && accounts.length < maxAccounts && (
                   <button
                     onClick={handleAddProject}
                     className="text-gray-400 hover:text-blue-600 transition-colors p-1"
@@ -1647,7 +1694,7 @@ const NavLinks = ({ isAuthenticated }) => {
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
-                </button>
+                </button> */}
               </div>
             </div>
             
@@ -1724,28 +1771,42 @@ const NavLinks = ({ isAuthenticated }) => {
                   <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
                     <Building2 className="w-8 h-8 text-blue-500" />
                   </div>
-                  {/* <h3 className="text-gray-900 font-bold text-base mb-1">Connect Your Business</h3> */}
-                  {/* <p className="text-xs text-gray-500 max-w-[240px] mb-6 leading-relaxed">
-                    We couldn't find any Google Business profiles linked to <strong>{session?.user?.email}</strong>.
-                  </p>
-                   */}
-                  <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
-                    <button
-                      onClick={handleAddProject}
-                      className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Connect Business
-                    </button>
-                    
-                    {/* <button
-                      onClick={() => signOut({ callbackUrl: "/login" })}
-                      className="w-full bg-white border border-gray-200 text-gray-700 text-xs font-bold py-2.5 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button> */}
-                  </div>
+                  
+                  {session?.user?.email ? (
+                    <>
+                      <h3 className="text-gray-900 font-bold text-base mb-1">No Listings Found</h3>
+                      <p className="text-xs text-gray-500 max-w-[240px] mb-6 leading-relaxed">
+                        We couldn't find any Google Business profiles linked to <strong>{session.user.email}</strong>.
+                      </p>
+                      
+                      <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
+                        <button
+                          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                          className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Switch Account
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-gray-900 font-bold text-base mb-1">Connect Your Business</h3>
+                      <p className="text-xs text-gray-500 max-w-[240px] mb-6 leading-relaxed">
+                        Connect your Google Business Profile to start managing your listings.
+                      </p>
+                      
+                      <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
+                        <button
+                          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                          className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Connect Now
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
             )}
           </div>

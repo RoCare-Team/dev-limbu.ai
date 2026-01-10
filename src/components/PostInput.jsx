@@ -15,7 +15,7 @@ import {
   Palette
 } from "lucide-react";
 
-const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
+const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
   
 
   const removeImage = () => setLogo(null);
@@ -30,6 +30,8 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
   const [activeTab, setActiveTab] = useState("ai");
   const [manualImage, setManualImage] = useState(null);
   const [manualDescription, setManualDescription] = useState("");
+  const [showKeywordModal, setShowKeywordModal] = useState(false);
+  const [modalSearch, setModalSearch] = useState("");
 
   
   useEffect(() => {
@@ -325,6 +327,10 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
     }
   };
 
+  const filteredKeywords = savedKeywords
+    .filter((k) => k.keyword.toLowerCase().includes(keywordInput.toLowerCase()))
+    .filter((k) => !selectedKeywords.includes(k.keyword));
+
   
   return (
     <div className="max-w-2xl mx-auto">
@@ -422,7 +428,16 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
               )}
             </div>
             <div className="space-y-1 relative">
-              <label className="text-xs font-semibold text-gray-700">Keywords</label>
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-gray-700">Keywords</label>
+                <button
+                  onClick={() => setShowKeywordModal(true)}
+                  className="text-[10px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-md transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Select from list
+                </button>
+              </div>
               
               <div className="relative">
                 <input
@@ -443,19 +458,22 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
                   }}
                   onFocus={() => setShowKeywordDropdown(true)}
                   onBlur={() => setTimeout(() => setShowKeywordDropdown(false), 200)}
-                  className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                  className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none`}
                   placeholder={selectedKeywords.length > 0 ? "Add more keywords..." : "Enter keywords"}
                 />
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
-              {showKeywordDropdown && savedKeywords.length > 0 && (
+              {keywordError && selectedKeywords.length === 0 && (
+                <p className="text-red-500 text-xs mt-1 ml-1">{keywordError}</p>
+              )}
+              {showKeywordDropdown && filteredKeywords.length > 0 && (
                 <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-[160px] overflow-y-auto">
-                  {savedKeywords
-                    .filter((k) => k.keyword.toLowerCase().includes(keywordInput.toLowerCase()))
+                  {filteredKeywords
                     .map((k, i) => (
                       <div
                         key={i}
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           if (!selectedKeywords.includes(k.keyword)) {
                             setSelectedKeywords([...selectedKeywords, k.keyword]);
                           }
@@ -839,6 +857,72 @@ const PostInput = ({ prompt, setPrompt, onGenerate, loading, assets, logo, setLo
           </div>
         )}
       </div>
+
+      {/* Keyword Selection Modal */}
+      {showKeywordModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800 text-sm">Select Keywords</h3>
+              <button onClick={() => setShowKeywordModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-3 border-b border-gray-100">
+              <div className="relative">
+                <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search keywords..." 
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={modalSearch}
+                  onChange={e => setModalSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+               {savedKeywords.length === 0 && (
+                 <p className="text-center text-gray-500 text-xs py-4">No saved keywords found.</p>
+               )}
+               {savedKeywords
+                 .filter(k => k.keyword.toLowerCase().includes(modalSearch.toLowerCase()))
+                 .map((k, i) => {
+                   const isSelected = selectedKeywords.includes(k.keyword);
+                   return (
+                     <div 
+                       key={i} 
+                       onClick={() => {
+                         if (isSelected) {
+                           setSelectedKeywords(prev => prev.filter(kw => kw !== k.keyword));
+                         } else {
+                           setSelectedKeywords(prev => [...prev, k.keyword]);
+                         }
+                       }}
+                       className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all ${isSelected ? 'bg-blue-50 border border-blue-100' : 'hover:bg-gray-50 border border-transparent'}`}
+                     >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                        <span className={`text-sm ${isSelected ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>{k.keyword}</span>
+                     </div>
+                   );
+                 })}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+              <span className="text-xs text-gray-500">{selectedKeywords.length} selected</span>
+              <button 
+                onClick={() => setShowKeywordModal(false)} 
+                className="px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-all shadow-sm"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, MessageSquare, Calendar, Send, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin } from 'lucide-react';
+import { Sparkles, MessageSquare, Calendar, Send, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin, Phone, AlertCircle } from 'lucide-react';
 import LogoImage from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import Toast from '../components/Toast';
@@ -52,6 +52,9 @@ export default function LimbuAILanding() {
   const [serviceForm, setServiceForm] = useState({ name: '', phone: '', email: '', gstNumber: '' });
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [billingCycle, setBillingCycle] = useState("monthly");
+  const [showSupportPopup, setShowSupportPopup] = useState(false);
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [issueText, setIssueText] = useState("");
 
   const now = new Date();
   const isAfter4PM = now.getHours() >= 16; // 4 PM
@@ -94,7 +97,15 @@ export default function LimbuAILanding() {
     const sliderInterval = setInterval(() => {
       setSlidingTextIndex(prevIndex => (prevIndex + 1) % 5); // 5 is the number of slides
     }, 3000); // Change text every 3 seconds
-    return () => clearInterval(sliderInterval);
+    
+    const popupTimer = setTimeout(() => {
+      setShowSupportPopup(true);
+    }, 4000);
+
+    return () => {
+      clearInterval(sliderInterval);
+      clearTimeout(popupTimer);
+    };
   }, []);
 
   const handleVideoEnd = () => {
@@ -118,6 +129,21 @@ export default function LimbuAILanding() {
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleIssueSubmit = async (e) => {
+    e.preventDefault();
+    if (!issueText.trim()) return;
+    
+    showToast("Submitting issue...", "info");
+    
+    // Simulate API call
+    setTimeout(() => {
+        showToast("Issue reported! We'll contact you shortly.", "success");
+        setShowIssueModal(false);
+        setIssueText("");
+        setShowSupportPopup(false);
+    }, 1500);
   };
 
  const handleBookDemoSubmit = useCallback(async (e) => {
@@ -495,11 +521,17 @@ export default function LimbuAILanding() {
 
   const postImages = [
     "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764404571/tmpx28dvfi__qxwt1c.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1768026391/LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767776297/output_yd9alt.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1768033881/Post_banana_Main_Ek_ka_ladiss_ka_makeup_Karta_Hai_HD_picture_send_karo_vp6d6s.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767973055/Nutritionvalue_21_on_google_m2etix.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767694542/output_n1ahcx.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767961910/output_ryar6j.jpg",
     "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764238151/tmp9x2d_a52_hvhpw8.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1763974160/tmpvnt2q3jh_bpq5vr.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1763959750/tmph8ajqrjv_hpteeq.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764303591/tmpaqv882lt_tre9wm.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764306448/tmpklqlkafr_b3ebuf.jpg"
+    // "https://res.cloudinary.com/dsnuzit6o/image/upload/v1763974160/tmpvnt2q3jh_bpq5vr.jpg",
+    // "https://res.cloudinary.com/dsnuzit6o/image/upload/v1763959750/tmph8ajqrjv_hpteeq.jpg",
+    // "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764303591/tmpaqv882lt_tre9wm.jpg",
+    // "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764306448/tmpklqlkafr_b3ebuf.jpg"
   ];
 
   const videoExamples = [
@@ -1628,6 +1660,97 @@ export default function LimbuAILanding() {
         </div>
       )}
 
+      {/* Support Popup */}
+      {showSupportPopup && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-[90vw] sm:max-w-sm w-full animate-slide-in-right">
+          <div className="bg-white/95 backdrop-blur-md border border-blue-100 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-600"></div>
+            <button 
+              onClick={() => setShowSupportPopup(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex gap-4 items-start">
+              <div className="bg-blue-50 p-3 rounded-full flex-shrink-0 animate-pulse">
+                <MessageSquare className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Need Help?</h3>
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  Facing any issues? Let us know and we'll fix it for you.
+                </p>
+                <div className="flex gap-2 mt-3">
+                    <button 
+                        onClick={() => setShowIssueModal(true)}
+                        className="flex-1 inline-flex items-center justify-center gap-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap"
+                    >
+                    Report Issue
+                    </button>
+                    <a href="tel:9289344726" className="flex-1 inline-flex items-center justify-center gap-2 text-blue-700 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all whitespace-nowrap">
+                        <Phone className="w-3 h-3" /> 9289344726
+                    </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Issue Reporting Modal */}
+      {showIssueModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-scaleUp">
+            <button 
+              onClick={() => setShowIssueModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-6">
+                <div className="bg-red-50 p-3 rounded-full">
+                    <AlertCircle className="w-6 h-6 text-red-500" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">Report an Issue</h2>
+                    <p className="text-sm text-gray-500">We'll help you resolve it quickly.</p>
+                </div>
+            </div>
+
+            <form onSubmit={handleIssueSubmit}>
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Describe the issue</label>
+                    <textarea
+                        value={issueText}
+                        onChange={(e) => setIssueText(e.target.value)}
+                        placeholder="e.g., I cannot connect my GMB account..."
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[120px] text-sm resize-none"
+                        required
+                    />
+                </div>
+                
+                <div className="flex gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setShowIssueModal(false)}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors text-sm"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
+                    >
+                        <Send className="w-4 h-4" />
+                        Submit Ticket
+                    </button>
+                </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Floating WhatsApp Button */}
 <a
   href="https://wa.me/919289344726"
@@ -1680,6 +1803,27 @@ export default function LimbuAILanding() {
         }
         .animate-pulse-border {
           animation: pulse-border 2s ease-in-out infinite;
+        }
+        @keyframes slideInLeft {
+          from { transform: translateX(-100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-left {
+          animation: slideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+          animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes scaleUp {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .animate-scaleUp {
+          animation: scaleUp 0.3s ease-out forwards;
         }
       `}</style>
     </div>

@@ -39,6 +39,9 @@ import {
   Instagram,
   ThumbsUp,
   MessageCircle,
+  MessageSquare,
+  Phone,
+  AlertCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -728,7 +731,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           <img
             src={post?.aiOutput || "https://via.placeholder.com/400"}
             alt="Post content"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
           />
         </a>
 
@@ -1174,6 +1177,11 @@ export default function PostManagementPage() {
   const [selectedAssets, setSelectedAssets] = useState([]);
   const previewRef = useRef(null);
   const [bussinessTitle,setBussinessTitle] = useState("")
+  const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb"]);
+  const [keywordError, setKeywordError] = useState("");
+  const [showSupportPopup, setShowSupportPopup] = useState(false);
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [issueText, setIssueText] = useState("");
 
   // Helper to strip base64 prefix
   const stripBase64 = (str) => {
@@ -1273,6 +1281,35 @@ export default function PostManagementPage() {
 
   useEffect(() => { fetchUserAssets(); }, [fetchUserAssets]);
 
+  useEffect(() => {
+    const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : ["gmb"];
+    let size = "16:9";
+
+    if (platforms.includes("gmb") && platforms.includes("fb")) {
+      size = "3:4";
+    }
+
+    setUserAssets((prev) => {
+      // Prevent update if size hasn't changed to avoid resetting selection
+      const currentSizeAsset = prev.find((a) => a.name === "Size");
+      if (currentSizeAsset && currentSizeAsset.url === size) {
+        return prev;
+      }
+
+      const newAssets = prev.map((a) =>
+        a.name === "Size" ? { ...a, url: size } : a
+      );
+
+      // Preserve the user's selection by mapping previous selection to new asset objects
+      setSelectedAssets((currentSelected) => {
+        const selectedNames = new Set(currentSelected.map((s) => s.name));
+        return newAssets.filter((a) => selectedNames.has(a.name));
+      });
+
+      return newAssets;
+    });
+  }, [selectedPlatforms]);
+
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -1343,6 +1380,27 @@ export default function PostManagementPage() {
       previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
+    // Validate keywords
+    let processedKeywords = "";
+    let hasKeywords = false;
+
+    if (Array.isArray(keywords)) {
+      if (keywords.length > 0) hasKeywords = true;
+      processedKeywords = keywords.join(", ");
+    } else if (typeof keywords === "string") {
+      if (keywords.trim()) hasKeywords = true;
+      processedKeywords = keywords;
+    } else if (keywords) {
+      hasKeywords = true;
+      processedKeywords = String(keywords);
+    }
+
+    if (!hasKeywords) {
+      setKeywordError("Please fill at least one keyword");
+      return;
+    }
+    setKeywordError("");
+
     if (useAssetsFlow === "manual") {
       await handleManualPost(selectedAssets);
       return;
@@ -1350,7 +1408,7 @@ export default function PostManagementPage() {
 
     setLastUsedAssetsFlow(useAssetsFlow);
     if (useAssetsFlow) {
-      await handleImageGenerateWithAssets(selectedAssets, businessName, keywords);
+      await handleImageGenerateWithAssets(selectedAssets, businessName, processedKeywords);
     } else {
       await handleAiAgent(selectedAssets);
     }
@@ -1598,7 +1656,7 @@ export default function PostManagementPage() {
         productImage: stripBase64(selectedAssets.find(a => a.name.startsWith('Product'))?.url || ""),
         backgroundImage: stripBase64(selectedAssets.find(a => a.name === 'Background')?.url || ""),
         logoImage: stripBase64(selectedAssets.find(a => a.name === 'Logo')?.url || logoBase64 || ""),
-        platform: "gmb"
+        platform: selectedPlatforms.length > 0 ? selectedPlatforms.join(',') : "gmb"
       });
 
       clearInterval(timer);
@@ -2477,6 +2535,28 @@ useEffect(() => {
   }
 }, []);
 
+  // Show support popup after delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSupportPopup(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleIssueSubmit = async (e) => {
+    e.preventDefault();
+    if (!issueText.trim()) return;
+    
+    showToast("Submitting issue...", "info");
+    
+    // Simulate API call
+    setTimeout(() => {
+        showToast("Issue reported! We'll contact you shortly.", "success");
+        setShowIssueModal(false);
+        setIssueText("");
+        setShowSupportPopup(false);
+    }, 1500);
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -2609,7 +2689,7 @@ useEffect(() => {
 
 <div
   className="
-    flex items-center justify-between
+    grid grid-cols-2 sm:flex sm:flex-row items-center
     gap-3
   "
 >
@@ -2634,6 +2714,48 @@ useEffect(() => {
     </span>
   </div>
 
+  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-center sm:ml-4">
+    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Platform</span>
+    <button
+      onClick={() => setSelectedPlatforms(prev => prev.includes('gmb') ? prev.filter(p => p !== 'gmb') : [...prev, 'gmb'])}
+      className={`
+        relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border
+        ${selectedPlatforms.includes('gmb') 
+          ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-110 ring-2 ring-blue-100' 
+          : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600'}
+      `}
+      title="GMB"
+    >
+      <MapPin className="w-4 h-4" />
+      {selectedPlatforms.includes('gmb') && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>}
+    </button>
+
+    <button
+      onClick={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
+      className={`
+        relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border
+        ${selectedPlatforms.includes('fb') 
+          ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-110 ring-2 ring-blue-100' 
+          : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600'}
+      `}
+      title="Facebook"
+    >
+      <Facebook className="w-4 h-4" />
+      {selectedPlatforms.includes('fb') && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>}
+    </button>
+
+    <button
+      disabled
+      className="
+        w-9 h-9 rounded-full flex items-center justify-center transition-all border
+        bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed
+      "
+      title="Instagram (Coming Soon)"
+    >
+      <Instagram className="w-5 h-5" />
+    </button>
+  </div>
+
   {/* 5000 > 2 video 2500  > 1 */}
 
   {/* Preview Button */}
@@ -2648,7 +2770,9 @@ useEffect(() => {
       shadow-md
       transition-all duration-200
       text-sm sm:text-base
+      justify-self-end
       whitespace-nowrap
+      sm:ml-auto
     "
   >
     <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -2665,43 +2789,49 @@ useEffect(() => {
 </div>
 
         {/* Main Content Area - Two Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-          {/* Left Column: Input Form */}
-          <div className="lg:col-span-7">
-            <PostInput
-              prompt={prompt}
-              setPrompt={setPrompt}
-              onGenerate={handleGenerateClick}
-              loading={isGenerating}
-              logo={logo}
-              setLogo={setLogo}
-              assets={userAssets}
-              setUserAssets={setUserAssets}
-              fetchUserAssets={fetchUserAssets}
-              assetId={assetId}
-              showToast={showToast}
-              selectedAssets={selectedAssets}
-              setSelectedAssets={setSelectedAssets}
-              bussinessTitle={bussinessTitle}
-              availableLocations={availableLocations}
-            />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start">
+  {/* Left Column: Input Form */}
+  <div className="lg:col-span-7">
+    <PostInput
+      prompt={prompt}
+      setPrompt={setPrompt}
+      onGenerate={handleGenerateClick}
+      loading={isGenerating}
+      logo={logo}
+      setLogo={setLogo}
+      assets={userAssets}
+      setUserAssets={setUserAssets}
+      fetchUserAssets={fetchUserAssets}
+      assetId={assetId}
+      showToast={showToast}
+      selectedAssets={selectedAssets}
+      setSelectedAssets={setSelectedAssets}
+      bussinessTitle={bussinessTitle}
+      availableLocations={availableLocations}
+      keywordError={keywordError}
+    />
+   
+  </div>
 
-          {/* Right Column: Live Preview */}
-          <div className="lg:col-span-5 sticky top-24 z-10" ref={previewRef}>
-            <PreviewSection 
-              isGenerating={isGenerating}
-              previewData={previewData}
-              onDownload={handleDownload}
-              countdown={countdown}
-              onUpdateStatus={handleUpdateStatus}
-              onReject={handleReject}
-              handlePost={handlePost}
-              onToggleCheckmark={handleToggleCheckmark}
-              onEditDescription={handleEditDescription}
-            />
-          </div>
-        </div>
+  {/* Right Column: Live Preview */}
+  <div
+    className="lg:col-span-5 sticky top-16 z-10 max-h-[75vh] overflow-y-auto"
+    ref={previewRef}
+  >
+    <PreviewSection
+      isGenerating={isGenerating}
+      previewData={previewData}
+      onDownload={handleDownload}
+      countdown={countdown}
+      onUpdateStatus={handleUpdateStatus}
+      onReject={handleReject}
+      handlePost={handlePost}
+      onToggleCheckmark={handleToggleCheckmark}
+      onEditDescription={handleEditDescription}
+    />
+  </div>
+</div>
+
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {tabs.map((tab) => (
@@ -2748,6 +2878,97 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      {/* Support Popup */}
+      {showSupportPopup && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-[90vw] sm:max-w-sm w-full animate-in slide-in-from-right fade-in duration-500">
+          <div className="bg-white/95 backdrop-blur-md border border-blue-100 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-600"></div>
+            <button 
+              onClick={() => setShowSupportPopup(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex gap-4 items-start">
+              <div className="bg-blue-50 p-3 rounded-full flex-shrink-0 animate-pulse">
+                <MessageSquare className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Need Help?</h3>
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  Facing any issues? Let us know and we'll fix it for you.
+                </p>
+                <div className="flex gap-2 mt-3">
+                    <button 
+                        onClick={() => setShowIssueModal(true)}
+                        className="flex-1 inline-flex items-center justify-center gap-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap"
+                    >
+                    Report Issue
+                    </button>
+                    <a href="tel:9289344726" className="flex-1 inline-flex items-center justify-center gap-2 text-blue-700 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all whitespace-nowrap">
+                        <Phone className="w-3 h-3" /> 9289344726
+                    </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Issue Reporting Modal */}
+      {showIssueModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-in zoom-in-95 fade-in duration-300">
+            <button 
+              onClick={() => setShowIssueModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-6">
+                <div className="bg-red-50 p-3 rounded-full">
+                    <AlertCircle className="w-6 h-6 text-red-500" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">Report an Issue</h2>
+                    <p className="text-sm text-gray-500">We'll help you resolve it quickly.</p>
+                </div>
+            </div>
+
+            <form onSubmit={handleIssueSubmit}>
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Describe the issue</label>
+                    <textarea
+                        value={issueText}
+                        onChange={(e) => setIssueText(e.target.value)}
+                        placeholder="e.g., I cannot connect my GMB account..."
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[120px] text-sm resize-none"
+                        required
+                    />
+                </div>
+                
+                <div className="flex gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setShowIssueModal(false)}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors text-sm"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
+                    >
+                        <Send className="w-4 h-4" />
+                        Submit Ticket
+                    </button>
+                </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }  

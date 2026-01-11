@@ -2,7 +2,7 @@
 
 import { CheckCircle, XCircle, MapPin, Calendar, Download, FileText, Phone, Globe, Share2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { toPng } from "html-to-image";
+import { toPng, toBlob } from "html-to-image";
 import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -55,7 +55,7 @@ export default function GBPAuditCard({ audit }) {
 
   const date = new Date().toLocaleString();
 
-  const generatePDF = async () => {
+const handleDownloadPDF = async () => {
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const options = { quality: 0.98, backgroundColor: "#ffffff", pixelRatio: 2.5 };
@@ -109,24 +109,21 @@ export default function GBPAuditCard({ audit }) {
     await addPageFromElement("pdf-page-3", pdf);
     addFooter(pdf, 3, 3);
 
-    return pdf;
-  };
-
-  const handleDownloadPDF = async () => {
-    const pdf = await generatePDF();
+    // --- Save PDF ---
     pdf.save(`GBP-Audit-${dataSnapshot.businessName.replace(/\s+/g, "-")}.pdf`);
-  };
+};
 
-  const handleShare = async () => {
+const handleShare = async () => {
     if (!navigator.share) {
         alert("Web Share API is not supported in your browser.");
         return;
     }
+    const element = document.getElementById("audit-card-content");
+    if (!element) return;
 
     try {
-        const pdf = await generatePDF();
-        const pdfBlob = pdf.output('blob');
-        const file = new File([pdfBlob], `GBP-Audit-${dataSnapshot.businessName}.pdf`, { type: 'application/pdf' });
+        const blob = await toBlob(element, { quality: 0.95, backgroundColor: "#ffffff", pixelRatio: 1.5 });
+        const file = new File([blob], `GBP-Audit-${dataSnapshot.businessName}.png`, { type: blob.type });
 
         await navigator.share({
             title: `Google Business Profile Audit for ${dataSnapshot.businessName}`,
@@ -139,7 +136,7 @@ export default function GBPAuditCard({ audit }) {
             alert("Oops! Something went wrong while trying to share the report.");
         }
     }
-  };
+};
 
   // Process Recommendation Signals for "Action Required"
   const actionItems = [];

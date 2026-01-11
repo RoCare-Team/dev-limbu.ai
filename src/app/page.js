@@ -108,6 +108,16 @@ export default function LimbuAILanding() {
     };
   }, []);
 
+  // Auto hide support popup after 5 seconds
+  useEffect(() => {
+    if (showSupportPopup) {
+      const timer = setTimeout(() => {
+        setShowSupportPopup(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSupportPopup]);
+
   const handleVideoEnd = () => {
     setCurrentVideoIndex((prevIndex) => (prevIndex + 1) % videoExamples.length);
   };
@@ -1658,6 +1668,20 @@ export default function LimbuAILanding() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Reopen Support Popup Button */}
+      {!showSupportPopup && (
+        <button
+          onClick={() => setShowSupportPopup(true)}
+          className="fixed bottom-4 right-4 z-50 bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:shadow-xl transition-all hover:scale-110 group animate-in fade-in zoom-in duration-300 mb-20"
+        >
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+          </span>
+          <MessageSquare className="w-6 h-6 text-blue-600" />
+        </button>
       )}
 
       {/* Support Popup */}

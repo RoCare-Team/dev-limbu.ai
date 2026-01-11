@@ -37,6 +37,7 @@ export default function BulkScheduledPage() {
   const [time, setTime] = useState("10:00");
   const [specificDates, setSpecificDates] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
 
   const handleDateClick = (day) => {
     const year = currentMonth.getFullYear();

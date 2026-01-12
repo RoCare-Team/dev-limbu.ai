@@ -77,18 +77,18 @@ export async function POST(req) {
      * CASE 1️⃣ : USER EXISTS → RETURN DB TOKEN
      * ===============================
      */
-    if (user?.projects?.length > 0) {
-      const project = user.projects[0];
+if (user?.projects?.length > 0) {
+  const project = user.projects[user.projects.length - 1]; // 👈 LAST PROJECT
 
-      if (project?.refreshToken) {
-        return NextResponse.json({
-          success: true,
-          email: user.email,
-          refreshToken: project.refreshToken,
-          source: "db",
-        });
-      }
-    }
+  if (project?.refreshToken) {
+    return NextResponse.json({
+      success: true,
+      email: user.email,
+      refreshToken: project.refreshToken,
+      source: "db",
+    });
+  }
+}
 
     /**
      * ===============================

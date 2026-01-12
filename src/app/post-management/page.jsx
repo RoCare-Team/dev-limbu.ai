@@ -187,7 +187,7 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
 
   useEffect(() => {
     if (post) {
-      setCaption(post.description || "");
+      setCaption(post.fbDescription || post.description || "");
     }
   }, [post]);
 
@@ -207,6 +207,9 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
       onConfirm(post, pages[0], caption);
     }
   };
+
+  console.log("captioncaption",caption);
+  
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -287,7 +290,7 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
 
   useEffect(() => {
     if (post) {
-      setCaption(post.description || "");
+      setCaption(post.igDescription || post.description || "");
     }
   }, [post]);
 
@@ -372,6 +375,7 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
                 className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
+                Post Now
                 Post Now
               </button>
             </div>
@@ -578,7 +582,7 @@ const PreviewSection = ({
         transition-all duration-200 shadow-sm"
     >
       <Send className="w-4 h-4" />
-      Post Now
+      Post to GMB
     </button>
 
     <button
@@ -621,7 +625,7 @@ const PreviewSection = ({
                 className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Send className="w-4 h-4" />
-                Post Now
+                Post to GMB
               </button>
             </div>
         )}
@@ -645,7 +649,7 @@ const PreviewSection = ({
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-100 to-indigo-100 hover:from-blue-200 hover:to-indigo-200 text-blue-700 border border-blue-200 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <RefreshCw className="w-4 h-4" />
-                Retry Post Now
+                Retry Post to GMB
               </button>
 
               <button
@@ -917,7 +921,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   "
 >
   <Send className="w-4 h-4" />
-  Post Now
+  Post to GMB
 </button>
 
               {/* <button
@@ -980,7 +984,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
         {post.locations?.length > 0 && (
           <p className="text-xs text-blue-700 mt-1.5 font-medium flex items-center gap-1 bg-blue-100/50 px-2 py-0.5 rounded-md w-fit">
-            <MapPin className="w-3 h-3" />
+            <svg viewBox="0 0 24 24" className="w-3 h-3">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+            </svg>
             {post.locations.length === 1
               ? `${post.locations[0].name || post.locations[0].title || "1 Location"} ${
                   post.locations[0].locality
@@ -1042,7 +1051,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-100 to-indigo-100 hover:from-blue-200 hover:to-indigo-200 text-blue-700 border border-blue-200 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <RefreshCw className="w-4 h-4" />
-                Retry Post Now
+                Retry Post to GMB
               </button>
 
               <button
@@ -1285,7 +1294,7 @@ export default function PostManagementPage() {
     const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : ["gmb"];
     let size = "16:9";
 
-    if (platforms.includes("gmb") && platforms.includes("fb")) {
+    if (platforms.includes("fb") || platforms.includes("ig")) {
       size = "3:4";
     }
 
@@ -1541,7 +1550,15 @@ export default function PostManagementPage() {
       }
 
       const data = apiResponse.data || {};
+      console.log("datadatadata",data);
       
+
+      console.log("datadata",data);
+      
+      
+      const gmbDesc = data.gmb_des;
+      const fbDesc = data.fb_des;
+      const igDesc = data.ig_des;
 
 
       // Deduct 80 coins for AI generation
@@ -1563,11 +1580,19 @@ export default function PostManagementPage() {
         setUserWallet((prev) => Math.max(0, prev - 80));
       }
 
+      let finalDescription = data.description;
+      if (!finalDescription) {
+        finalDescription = gmbDesc || fbDesc || igDesc || "Generated Content";
+      }
+
       // Save Post Immediately
       const savedPostResponse = await savePostAction({
         userId,
         aiOutput: data.output,
-        description: data.description,
+        description: finalDescription,
+        gmbDescription: gmbDesc,
+        fbDescription: fbDesc,
+        igDescription: igDesc,
         logoUrl: data.logoUrl,
         status: "pending",
         promat: data.user_input || prompt,
@@ -1671,6 +1696,9 @@ export default function PostManagementPage() {
 
       const data = apiResponse.success ? apiResponse.data : apiResponse;
 
+      const gmbDesc = data.gmb_des;
+      const fbDesc = data.fb_des;
+      const igDesc = data.ig_des;
 
       // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
@@ -1691,11 +1719,22 @@ export default function PostManagementPage() {
         setUserWallet((prev) => Math.max(0, prev - 80));
       }
 
+      let finalDescription = data.description;
+      if (!finalDescription) {
+        if (selectedPlatforms.includes('gmb') && gmbDesc) finalDescription = gmbDesc;
+        else if (selectedPlatforms.includes('fb') && fbDesc) finalDescription = fbDesc;
+        else if (selectedPlatforms.includes('ig') && igDesc) finalDescription = igDesc;
+        else finalDescription = gmbDesc || fbDesc || igDesc || "Generated Content";
+      }
+
       // Save Post Immediately
       const savedPostResponse = await savePostAction({
         userId,
         aiOutput: data.image || data.output,
-        description: data.description || "Generated Content",
+        description: finalDescription,
+        gmbDescription: gmbDesc,
+        fbDescription: fbDesc,
+        igDescription: igDesc,
         logoUrl: data.logoUrl,
         status: "pending",
         promat: data.user_input || prompt,
@@ -2724,46 +2763,70 @@ useEffect(() => {
     </span>
   </div>
 
-  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-center sm:ml-4">
-    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Platform</span>
-    <button
-      onClick={() => setSelectedPlatforms(prev => prev.includes('gmb') ? prev.filter(p => p !== 'gmb') : [...prev, 'gmb'])}
-      className={`
-        relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border
-        ${selectedPlatforms.includes('gmb') 
-          ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-110 ring-2 ring-blue-100' 
-          : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600'}
-      `}
-      title="GMB"
-    >
-      <MapPin className="w-4 h-4" />
-      {selectedPlatforms.includes('gmb') && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>}
-    </button>
+  <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-4 bg-white px-3 py-2 sm:px-5 sm:py-1 rounded-2xl shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-start sm:justify-center sm:ml-4">
+    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span>
+    
+    
+    {/* All */}
+    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+        <input 
+            type="checkbox" 
+            checked={['gmb', 'fb', 'ig'].every(p => selectedPlatforms.includes(p))}
+            onChange={(e) => {
+                if (e.target.checked) {
+                    setSelectedPlatforms(['gmb', 'fb', 'ig']);
+                } else {
+                    setSelectedPlatforms([]);
+                }
+            }}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+        />
+        <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-800">All</span>
+    </label>
 
-    <button
-      onClick={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
-      className={`
-        relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border
-        ${selectedPlatforms.includes('fb') 
-          ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-110 ring-2 ring-blue-100' 
-          : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600'}
-      `}
-      title="Facebook"
-    >
-      <Facebook className="w-4 h-4" />
-      {selectedPlatforms.includes('fb') && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>}
-    </button>
+    {/* GMB */}
+    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+        <input 
+            type="checkbox" 
+            checked={selectedPlatforms.includes('gmb')}
+            onChange={() => setSelectedPlatforms(prev => prev.includes('gmb') ? prev.filter(p => p !== 'gmb') : [...prev, 'gmb'])}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+        />
+        <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('gmb') ? 'bg-white border-blue-200 shadow-md scale-105' : 'bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100'}`}>
+            <img 
+  src="/icons8-my-business.svg" 
+  alt="Google My Business"
+  className="w-5 h-5"
+/>
 
-    <button
-      disabled
-      className="
-        w-9 h-9 rounded-full flex items-center justify-center transition-all border
-        bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed
-      "
-      title="Instagram (Coming Soon)"
-    >
-      <Instagram className="w-5 h-5" />
-    </button>
+        </div>
+    </label>
+
+    {/* Facebook */}
+    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+        <input 
+            type="checkbox" 
+            checked={selectedPlatforms.includes('fb')}
+            onChange={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+        />
+        <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('fb') ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
+             <Facebook className="w-5 h-5 fill-current" />
+        </div>
+    </label>
+
+    {/* Instagram */}
+    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+        <input 
+            type="checkbox" 
+            checked={selectedPlatforms.includes('ig')}
+            onChange={() => setSelectedPlatforms(prev => prev.includes('ig') ? prev.filter(p => p !== 'ig') : [...prev, 'ig'])}
+            className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500 transition-all"
+        />
+        <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('ig') ? 'bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
+             <Instagram className="w-5 h-5" />
+        </div>
+    </label>
   </div>
 
   {/* 5000 > 2 video 2500  > 1 */}

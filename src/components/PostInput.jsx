@@ -12,7 +12,8 @@ import {
   Edit2,
   UploadCloud,
   Building2,
-  Palette
+  Palette,
+  Plus
 } from "lucide-react";
 
 const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
@@ -32,6 +33,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const [manualDescription, setManualDescription] = useState("");
   const [showKeywordModal, setShowKeywordModal] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
+  const [isSavingKeyword, setIsSavingKeyword] = useState(false);
 
   
   useEffect(() => {
@@ -44,21 +46,56 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
     return [...new Set(availableLocations.map(loc => loc.name || loc.title).filter(Boolean))];
   }, [availableLocations]);
 
+  const fetchSavedKeywords = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+    try {
+      const res = await fetch(`/api/keyword-research?userId=${userId}`);
+      const data = await res.json();
+      if (data.success) setSavedKeywords(data.data);
+    } catch (error) {
+      console.error("Error fetching saved keywords:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchSavedKeywords = async () => {
-      const userId = localStorage.getItem("userId");
-      if (!userId) return;
-      try {
-        const res = await fetch(`/api/keyword-research?userId=${userId}`);
-        const data = await res.json();
-        if (data.success) setSavedKeywords(data.data);
-      } catch (error) {
-        console.error("Error fetching saved keywords:", error);
-      }
-    };
     fetchSavedKeywords();
   }, []);
 
+  const handleAddKeyword = async (keyword) => {
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword || isSavingKeyword) return;
+
+    if (!selectedKeywords.includes(trimmedKeyword)) {
+      setSelectedKeywords((prev) => [...prev, trimmedKeyword]);
+    }
+
+    const isAlreadySaved = savedKeywords.some(
+      (sk) => sk.keyword.toLowerCase() === trimmedKeyword.toLowerCase()
+    );
+
+    if (isAlreadySaved) {
+      setKeywordInput("");
+      return;
+    }
+
+    setIsSavingKeyword(true);
+    const userId = localStorage.getItem("userId");
+    try {
+      await fetch("/api/keyword-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, keyword: trimmedKeyword, volume: 0 }),
+      });
+      await fetchSavedKeywords();
+      showToast(`Keyword "${trimmedKeyword}" saved!`, "success");
+      setKeywordInput("");
+    } catch (error) {
+      showToast("Failed to save keyword.", "error");
+    } finally {
+      setIsSavingKeyword(false);
+    }
+  };
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [updatingAsset, setUpdatingAsset] = useState(null);
@@ -439,29 +476,36 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 </button>
               </div>
               
-              <div className="relative">
-                <input
-                  type="text"
-                  value={keywordInput}
-                  onChange={(e) => {
-                    setKeywordInput(e.target.value);
-                    setShowKeywordDropdown(true);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && keywordInput.trim()) {
-                      e.preventDefault();
-                      if (!selectedKeywords.includes(keywordInput.trim())) {
-                        setSelectedKeywords([...selectedKeywords, keywordInput.trim()]);
+              <div className="relative flex items-center gap-2">
+                <div className="relative flex-grow">
+                  <input
+                    type="text"
+                    value={keywordInput}
+                    onChange={(e) => {
+                      setKeywordInput(e.target.value);
+                      setShowKeywordDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && keywordInput.trim()) {
+                        e.preventDefault();
+                        handleAddKeyword(keywordInput.trim());
                       }
-                      setKeywordInput("");
-                    }
-                  }}
-                  onFocus={() => setShowKeywordDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowKeywordDropdown(false), 200)}
-                  className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none`}
-                  placeholder={selectedKeywords.length > 0 ? "Add more keywords..." : "Enter keywords"}
-                />
-                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    }}
+                    onFocus={() => setShowKeywordDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowKeywordDropdown(false), 200)}
+                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none`}
+                    placeholder={selectedKeywords.length > 0 ? "Add more keywords..." : "Enter & save keywords"}
+                  />
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+                <button
+                  onClick={() => handleAddKeyword(keywordInput.trim())}
+                  disabled={!keywordInput.trim() || isSavingKeyword}
+                  className="px-4 h-full bg-blue-500 text-white font-semibold rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  {isSavingKeyword ? <Loader2 className="w-4 h-4 animate-spin" /> : ""}
+                  Add
+                </button>
               </div>
               {keywordError && selectedKeywords.length === 0 && (
                 <p className="text-red-500 text-xs mt-1 ml-1">{keywordError}</p>

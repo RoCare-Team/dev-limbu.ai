@@ -9,6 +9,7 @@ export async function POST(req) {
       size,
       bussiness_name,
       keywords,
+      platform,
       characterImage,   // base64
       uniformImage,     // base64
       productImage,     // base64
@@ -34,6 +35,7 @@ export async function POST(req) {
       size,
       bussiness_name,
       keywords,
+      platform,
       characterImage: cleanBase64(characterImage),
       uniformImage: cleanBase64(uniformImage),
       productImage: cleanBase64(productImage),

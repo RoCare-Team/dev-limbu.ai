@@ -960,12 +960,12 @@ export default function LimbuAILanding() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-4 ml-[10px]">
-            <span className="text-white">Google Business Profile</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight mb-4 ml-[10px]">
+            <span className="text-white">The All-in-One AI Marketing Automation Platform for Google</span>
             <br />
-            <span className="text-white">Management </span>
+            <span className="text-white">Facebook & InstagramStop </span>
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              On Autopilot
+               juggling tabs
             </span>
           </h1>
 
@@ -999,6 +999,9 @@ export default function LimbuAILanding() {
 
       
 
+
+      
+
       {/* Examples Section - Moved Up */}
       <section id="examples" className="relative bg-white py-16 sm:py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -1028,6 +1031,10 @@ export default function LimbuAILanding() {
         </div>
       </section>
 
+
+
+      
+
       {/* Video Examples Section */}
       <section id="video-examples" className="relative bg-slate-50 py-16 sm:py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -1055,76 +1062,7 @@ export default function LimbuAILanding() {
           </div>
         </div>
       </section>
-
-      <section id="how-it-works" className="relative py-16 sm:py-20 md:py-24 overflow-hidden bg-gradient-to-b from-white to-blue-50/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Get Started in <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">3 Simple Steps</span>
-            </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              From signup to automation in under 5 minutes. No credit card required.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 relative mb-12">
-            {/* Connector Line (Desktop) */}
-            <div className="hidden md:block absolute top-12 left-[10%] right-[10%] h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-blue-200 -z-10 rounded-full opacity-50" />
-
-            {steps.map((step, idx) => (
-              <div 
-                key={idx} 
-                className="group relative bg-white rounded-2xl p-6 shadow-xl border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col h-full"
-              >
-                {/* Step Number Badge */}
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg ring-4 ring-white z-10">
-                  {idx + 1}
-                </div>
-
-                {/* Icon */}
-                <div className="w-20 h-20 mx-auto bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-inner border border-blue-100 mt-4">
-                  {step.icon}
-                </div>
-
-                {/* Content */}
-                <div className="text-center mb-6 flex-grow">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">{step.title}</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed px-2">{step.description}</p>
-                </div>
-
-                {/* Details List */}
-                <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 mt-auto group-hover:bg-blue-50/50 transition-colors">
-                  <ul className="space-y-3">
-                  {step.details.map((detail, dIdx) => (
-                    <li key={dIdx} className="flex items-center gap-3 text-sm text-slate-700">
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                      <span className="text-sm font-medium text-left">{detail}</span>
-                    </li>
-                  ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA Button */}
-          <div className="text-center">
-            <button 
-              onClick={() => handleNavigation(isLoggedIn ? '/dashboard' : '/login')}
-              className="group px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all inline-flex items-center gap-2"
-            >
-              Start Automating Now
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
-            <p className="mt-4 text-sm text-slate-500 font-medium">
-              🚀 Join 1000+ businesses growing with Limbu.ai
-            </p>
-          </div>
-        </div>
-      </section>
-
-
-      {/* Features Section */}
+          {/* Features Section */}
       <section id="features" className="relative bg-white py-12 sm:py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16">
@@ -1155,7 +1093,7 @@ export default function LimbuAILanding() {
         </div>
       </section>
 
-      {/* Services Section */}
+          {/* Services Section */}
       <section id="services" className="relative bg-slate-50 py-16 sm:py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16">
@@ -1227,7 +1165,8 @@ export default function LimbuAILanding() {
         </div>
       </section>
 
-      {/* Subscription Plans Section */}
+
+          {/* Subscription Plans Section */}
       <section id="subscription-plans" className="relative bg-white py-16 sm:py-20 md:py-24 border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
@@ -1317,6 +1256,235 @@ export default function LimbuAILanding() {
         </div>
       </section>
 
+      
+  
+
+         <section id="comparison" className="py-24 bg-white relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-64 w-96 h-96 bg-blue-50 rounded-full blur-3xl opacity-40"></div>
+          <div className="absolute bottom-1/4 -right-64 w-96 h-96 bg-purple-50 rounded-full blur-3xl opacity-40"></div>
+        </div>
+
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6">
+              🤖 Why Smart Businesses <br className="hidden md:block" /> Switch to Limbu.ai
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              It’s not just automation; it’s reputation management. See the difference.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            {/* Feature 1 */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100 hover:shadow-2xl transition-all duration-300 group">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform duration-300">
+                  <MessageSquare className="w-7 h-7" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Review Replies</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex gap-4 p-4 rounded-2xl bg-red-50/50 border border-red-100">
+                  <div className="mt-1"><X className="w-5 h-5 text-red-500" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-red-500 uppercase tracking-wide mb-1">The Old Way</div>
+                    <p className="text-slate-600 text-sm leading-relaxed">Manually typing replies days later, often missing important customer feedback.</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 p-4 rounded-2xl bg-green-50/50 border border-green-100 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+                  <div className="mt-1"><CheckCircle className="w-5 h-5 text-green-600" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-green-600 uppercase tracking-wide mb-1">The Limbu.ai Way</div>
+                    <p className="text-slate-800 font-semibold text-sm leading-relaxed">Instant AI responses that boost SEO and customer satisfaction immediately.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100 hover:shadow-2xl transition-all duration-300 group">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform duration-300">
+                  <Calendar className="w-7 h-7" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Content Planning</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex gap-4 p-4 rounded-2xl bg-red-50/50 border border-red-100">
+                  <div className="mt-1"><X className="w-5 h-5 text-red-500" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-red-500 uppercase tracking-wide mb-1">The Old Way</div>
+                    <p className="text-slate-600 text-sm leading-relaxed">Switching between 3 different apps and spreadsheets to manage posts.</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 p-4 rounded-2xl bg-green-50/50 border border-green-100 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+                  <div className="mt-1"><CheckCircle className="w-5 h-5 text-green-600" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-green-600 uppercase tracking-wide mb-1">The Limbu.ai Way</div>
+                    <p className="text-slate-800 font-semibold text-sm leading-relaxed">One Unified Calendar for Google, Facebook, & Instagram automation.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100 hover:shadow-2xl transition-all duration-300 group">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform duration-300">
+                  <TrendingUp className="w-7 h-7" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Scalability</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex gap-4 p-4 rounded-2xl bg-red-50/50 border border-red-100">
+                  <div className="mt-1"><X className="w-5 h-5 text-red-500" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-red-500 uppercase tracking-wide mb-1">The Old Way</div>
+                    <p className="text-slate-600 text-sm leading-relaxed">Struggling to manage just one location effectively without chaos.</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 p-4 rounded-2xl bg-green-50/50 border border-green-100 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+                  <div className="mt-1"><CheckCircle className="w-5 h-5 text-green-600" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-green-600 uppercase tracking-wide mb-1">The Limbu.ai Way</div>
+                    <p className="text-slate-800 font-semibold text-sm leading-relaxed">Managing unlimited locations effortlessly from a single dashboard.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100 hover:shadow-2xl transition-all duration-300 group">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform duration-300">
+                  <Shield className="w-7 h-7" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Security</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex gap-4 p-4 rounded-2xl bg-red-50/50 border border-red-100">
+                  <div className="mt-1"><X className="w-5 h-5 text-red-500" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-red-500 uppercase tracking-wide mb-1">The Old Way</div>
+                    <p className="text-slate-600 text-sm leading-relaxed">Sharing passwords insecurely via email or chat.</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 p-4 rounded-2xl bg-green-50/50 border border-green-100 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+                  <div className="mt-1"><CheckCircle className="w-5 h-5 text-green-600" /></div>
+                  <div>
+                    <div className="text-xs font-bold text-green-600 uppercase tracking-wide mb-1">The Limbu.ai Way</div>
+                    <p className="text-slate-800 font-semibold text-sm leading-relaxed">Official API Integration. 100% Secure & Encrypted.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+
+         <section id="features" className="relative bg-white py-12 sm:py-12 md:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 px-4">
+              ⚙️ Your Growth Engine <br />
+              <span className="text-blue-600">3 Platforms, 1 Intelligent Dashboard</span>
+            </h2>
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 px-4">Manage everything from a single view. No more switching apps.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 px-4">
+            {/* Google Feature */}
+            <div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
+              <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">📍</div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Google Business Profile</h3>
+              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Rank higher in the "Local Pack"</p>
+              <p className="text-slate-600 mb-6 leading-relaxed">Your Google profile is your new homepage. Limbu.ai ensures it never sleeps.</p>
+              <ul className="space-y-3 text-slate-700">
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Auto-Post Scheduler:</strong> Keep your profile active with AI updates.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>AI Review Management:</strong> Draft personalized replies instantly.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Local SEO Insights:</strong> Track calls and visibility.</span></li>
+              </ul>
+            </div>
+
+            {/* Facebook Feature */}
+            <div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">💬</div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Facebook Growth Autopilot</h3>
+              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Turn followers into customers</p>
+              <p className="text-slate-600 mb-6 leading-relaxed">Plan months of content in minutes. AI analyzes your audience to post when engagement is highest.</p>
+              <ul className="space-y-3 text-slate-700">
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Smart Scheduling:</strong> Optimize post timings automatically.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Inbox Zero:</strong> Consolidate Messenger and comments.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>AI FAQs:</strong> Let AI handle questions.</span></li>
+              </ul>
+            </div>
+
+            {/* Instagram Feature */}
+            <div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
+              <div className="w-14 h-14 bg-pink-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">📸</div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Instagram Visibility</h3>
+              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Expand your reach visually</p>
+              <p className="text-slate-600 mb-6 leading-relaxed">Publish content seamlessly without mobile-only restrictions.</p>
+              <ul className="space-y-3 text-slate-700">
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Reels & Post Automation:</strong> Full desktop publishing support.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Engagement Optimization:</strong> AI-suggested hashtags.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Hashtag Analytics:</strong> Trigger the algorithm.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+        <section className="py-24 bg-slate-50">
+        <div className="container mx-auto px-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-slate-900 mb-16">🧩 Built for Your Business Model</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
+              <div className="text-5xl mb-6">🏪</div>
+              <h3 className="text-2xl font-bold mb-3 text-slate-900">Local Heroes</h3>
+              <p className="text-slate-600 leading-relaxed">Restaurants, Salons, Clinics, and Retailers looking for foot traffic.</p>
+            </div>
+            <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
+              <div className="text-5xl mb-6">🏢</div>
+              <h3 className="text-2xl font-bold mb-3 text-slate-900">Agencies</h3>
+              <p className="text-slate-600 leading-relaxed">Manage 100+ client locations from a single master login.</p>
+            </div>
+            <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
+              <div className="text-5xl mb-6">🌎</div>
+              <h3 className="text-2xl font-bold mb-3 text-slate-900">Multi-Location Brands</h3>
+              <p className="text-slate-600 leading-relaxed">Ensure brand consistency across every franchise outlet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      
+
+      
+
+
+
+  
+
+  
+
       {/* How It Works */}
      
       {/* Testimonials Section */}
@@ -1359,6 +1527,58 @@ export default function LimbuAILanding() {
             >
               <ChevronRight className="w-6 h-6" />
             </button>
+          </div>
+        </div>
+      </section>
+
+
+         <section id="faq" className="py-24 bg-slate-50">
+        <div className="container mx-auto px-6 max-w-3xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">❓ Frequently Asked Questions</h2>
+            <p className="text-slate-500">Optimized for Voice Search & "People Also Ask"</p>
+          </div>
+          
+          <div className="space-y-4">
+            <details className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 group transition-all duration-300 open:shadow-md">
+              <summary className="text-lg font-bold text-slate-900 cursor-pointer list-none flex justify-between items-center">
+                What is Limbu.ai and how does it help Local SEO?
+                <span className="text-blue-500 transition-transform duration-300 group-open:rotate-180">▼</span>
+              </summary>
+              <div className="mt-4 text-slate-600 leading-relaxed">
+                Limbu.ai is an AI marketing platform that automates Google Business Profile activity. By consistently posting updates and replying to reviews instantly (two major Google ranking factors), it helps improve your visibility in local "near me" search results.
+              </div>
+            </details>
+
+            <details className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 group transition-all duration-300 open:shadow-md">
+              <summary className="text-lg font-bold text-slate-900 cursor-pointer list-none flex justify-between items-center">
+                Is it safe to connect my Google and Facebook accounts?
+                <span className="text-blue-500 transition-transform duration-300 group-open:rotate-180">▼</span>
+              </summary>
+              <div className="mt-4 text-slate-600 leading-relaxed">
+                Yes. Limbu.ai uses official, secure OAuth interactions directly approved by Google and Meta. We never store your passwords, and our connection is encrypted with enterprise-grade security.
+              </div>
+            </details>
+
+            <details className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 group transition-all duration-300 open:shadow-md">
+              <summary className="text-lg font-bold text-slate-900 cursor-pointer list-none flex justify-between items-center">
+                Can I manage multiple locations for different clients?
+                <span className="text-blue-500 transition-transform duration-300 group-open:rotate-180">▼</span>
+              </summary>
+              <div className="mt-4 text-slate-600 leading-relaxed">
+                Absolutely. Limbu.ai is designed for scale. You can toggle between different brands or locations within the same dashboard, making it the perfect tool for digital agencies.
+              </div>
+            </details>
+
+            <details className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 group transition-all duration-300 open:shadow-md">
+              <summary className="text-lg font-bold text-slate-900 cursor-pointer list-none flex justify-between items-center">
+                Does Limbu.ai actually write the content for me?
+                <span className="text-blue-500 transition-transform duration-300 group-open:rotate-180">▼</span>
+              </summary>
+              <div className="mt-4 text-slate-600 leading-relaxed">
+                Yes. Our generative AI helps create captions, suggest hashtags, and draft review replies. You always have full control to edit or approve content before it goes live.
+              </div>
+            </details>
           </div>
         </div>
       </section>

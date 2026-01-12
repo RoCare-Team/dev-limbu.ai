@@ -6,6 +6,10 @@ const PostSchema = new mongoose.Schema(
     aiOutput: { type: String }, // AI image URL
     description:{type: String},
     promat:{type:String},
+    gmbDescription:{type:String},
+    fbDescription:{type:String},
+    igDescription:{type:String},
+    
 
     status: {
       type: String,

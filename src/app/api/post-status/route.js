@@ -77,7 +77,7 @@ export async function POST(req) {
     }
 
     // Original logic to create a new post
-    const { userId, status, aiOutput, description, promat } = body;
+    const { userId, status, aiOutput, description, promat,gmbDescription,fbDescription,igDescription } = body;
     if (!userId || !aiOutput || !description) {
       return json(
         { success: false, error: "userId, aiOutput, and description are required" },
@@ -88,6 +88,9 @@ export async function POST(req) {
       userId,
       aiOutput,
       description,
+      gmbDescription,
+      fbDescription,
+      igDescription,
       promat,
       status: status || "pending",
     });

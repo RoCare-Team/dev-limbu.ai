@@ -960,20 +960,29 @@ export default function LimbuAILanding() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight mb-4 ml-[10px]">
-            <span className="text-white">The All-in-One AI Marketing Automation Platform for Google</span>
-            <br />
-            <span className="text-white">Facebook & InstagramStop </span>
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-               juggling tabs
-            </span>
-          </h1>
+<h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight mb-4 ml-[10px]">
+  <span className="text-white">
+    The All-in-One AI Marketing Platform for Google,
+  </span>
+  <br />
+  <span className="text-white">
+    Facebook & Instagram. 
+  </span>
+  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+    Stop juggling tabs.
+  </span>
+</h1>
+
+
+
 
           {/* Subheadline */}
-          <p className="text-sm sm:text-lg md:text-xl text-slate-200 mb-6 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
-            Create AI-powered posts, schedule automatically, and manage reviews. 
-            <strong> Save 10+ hours every week</strong> with smart automation.
-          </p>
+        <p className="text-sm sm:text-lg md:text-xl text-slate-200 mb-6 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
+  Grow your revenue with Limbu.ai — the AI command center for Google Business Profile and social media automation.
+</p>
+
+
+
 
           {/* CTA Button */}
           <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
@@ -1412,13 +1421,13 @@ export default function LimbuAILanding() {
             {/* Google Feature */}
             <div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
               <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">📍</div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">Google Business Profile</h3>
-              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Rank higher in the "Local Pack"</p>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Google Business Profile (GBP) Automation</h3>
+              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Rank higher in the "Local Pack" and Maps</p>
               <p className="text-slate-600 mb-6 leading-relaxed">Your Google profile is your new homepage. Limbu.ai ensures it never sleeps.</p>
               <ul className="space-y-3 text-slate-700">
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Auto-Post Scheduler:</strong> Keep your profile active with AI updates.</span></li>
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>AI Review Management:</strong> Draft personalized replies instantly.</span></li>
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Local SEO Insights:</strong> Track calls and visibility.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Auto-Post Scheduler:</strong> Keep your profile active with AI-generated updates, offers, and events to send positive ranking signals to Google.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>AI Review Management:</strong> Never leave a review hanging. Our AI drafts personalized, keyword-rich replies to 5-star praise and critical feedback instantly.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Local SEO Insights:</strong> Track calls, direction requests, and search visibility from a single clear view.</span></li>
               </ul>
             </div>
 
@@ -1426,46 +1435,90 @@ export default function LimbuAILanding() {
             <div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
               <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">💬</div>
               <h3 className="text-2xl font-bold text-slate-900 mb-3">Facebook Growth Autopilot</h3>
-              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Turn followers into customers</p>
-              <p className="text-slate-600 mb-6 leading-relaxed">Plan months of content in minutes. AI analyzes your audience to post when engagement is highest.</p>
+              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Turn followers into loyal customers</p>
+              <p className="text-slate-600 mb-6 leading-relaxed">Plan months of content in minutes. Our AI analyzes your audience to post when engagement is highest.</p>
               <ul className="space-y-3 text-slate-700">
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Smart Scheduling:</strong> Optimize post timings automatically.</span></li>
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Inbox Zero:</strong> Consolidate Messenger and comments.</span></li>
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>AI FAQs:</strong> Let AI handle questions.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Smart Scheduling:</strong> Plan months of content in minutes.</span></li>
+                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Inbox Zero:</strong> Consolidate Messenger, comments, and recommendations. Let AI handle the FAQs so you can handle the sales.</span></li>
               </ul>
             </div>
 
-            {/* Instagram Feature */}
-            <div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
-              <div className="w-14 h-14 bg-pink-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">📸</div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">Instagram Visibility</h3>
-              <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">Expand your reach visually</p>
-              <p className="text-slate-600 mb-6 leading-relaxed">Publish content seamlessly without mobile-only restrictions.</p>
-              <ul className="space-y-3 text-slate-700">
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Reels & Post Automation:</strong> Full desktop publishing support.</span></li>
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Engagement Optimization:</strong> AI-suggested hashtags.</span></li>
-                <li className="flex items-start"><span className="mr-3 text-green-500 font-bold">✔</span> <span><strong>Hashtag Analytics:</strong> Trigger the algorithm.</span></li>
-              </ul>
-            </div>
+         {/* Instagram Feature */}
+<div className="group p-8 rounded-3xl border border-slate-100 bg-white shadow-lg hover:shadow-2xl hover:border-blue-100 transition duration-300">
+  <div className="w-14 h-14 bg-pink-50 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">
+    📸
+  </div>
+
+  <h3 className="text-2xl font-bold text-slate-900 mb-3">
+    Instagram Visibility Booster
+  </h3>
+
+  <p className="text-blue-600 font-semibold mb-4 text-sm uppercase tracking-wide">
+    Expand your reach with visual content
+  </p>
+
+  <p className="text-slate-600 mb-6 leading-relaxed">
+    Manage and publish Instagram content easily from one powerful dashboard.
+  </p>
+
+  <ul className="space-y-3 text-slate-700">
+    <li className="flex items-start">
+      <span className="mr-3 text-green-500 font-bold">✔</span>
+      <span>
+        <strong>Reels & Post Automation:</strong> Schedule and publish posts without mobile limitations.
+      </span>
+    </li>
+
+    <li className="flex items-start">
+      <span className="mr-3 text-green-500 font-bold">✔</span>
+      <span>
+        <strong>Smart Engagement:</strong> AI-powered hashtags and captions to boost reach and visibility.
+      </span>
+    </li>
+  </ul>
+</div>
+
           </div>
         </div>
       </section>
 
+      {/* Data-Driven Decisions Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+            📊 Data-Driven Decisions <br/>
+            <span className="text-base font-normal text-slate-600">(No Spreadsheet Skills Required)</span>
+          </h2>
+          <p className="text-lg text-slate-600 mb-12 max-w-3xl mx-auto">
+            Don't guess what works—know it. Limbu.ai aggregates data across platforms to show you the "North Star" metrics.
+          </p>
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+             <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <h3 className="text-xl font-bold text-slate-900 mb-3">Sentiment Analysis</h3>
+                <p className="text-slate-600">Understand how customers feel about your brand based on review language.</p>
+             </div>
+             <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <h3 className="text-xl font-bold text-slate-900 mb-3">Conversion Tracking</h3>
+                <p className="text-slate-600">See exactly which posts drove calls or website clicks.</p>
+             </div>
+          </div>
+        </div>
+      </section>
 
         <section className="py-24 bg-slate-50">
         <div className="container mx-auto px-6">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-slate-900 mb-16">🧩 Built for Your Business Model</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
               <div className="text-5xl mb-6">🏪</div>
               <h3 className="text-2xl font-bold mb-3 text-slate-900">Local Heroes</h3>
               <p className="text-slate-600 leading-relaxed">Restaurants, Salons, Clinics, and Retailers looking for foot traffic.</p>
             </div>
-            <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
+            {/* <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
               <div className="text-5xl mb-6">🏢</div>
               <h3 className="text-2xl font-bold mb-3 text-slate-900">Agencies</h3>
               <p className="text-slate-600 leading-relaxed">Manage 100+ client locations from a single master login.</p>
-            </div>
+            </div> */}
             <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-lg transition border border-gray-100 text-center">
               <div className="text-5xl mb-6">🌎</div>
               <h3 className="text-2xl font-bold mb-3 text-slate-900">Multi-Location Brands</h3>
@@ -1617,26 +1670,27 @@ export default function LimbuAILanding() {
       {/* Trust Section */}
       <section className="relative py-12 sm:py-16 bg-gradient-to-r from-blue-500 to-purple-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-8 sm:gap-12 text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8">🔒 Trusted Architecture & Security</h2>
+          <div className="flex flex-col md:flex-row flex-wrap items-start justify-center gap-8 sm:gap-12 text-white">
             <div className="flex items-center gap-3">
               <Shield className="w-6 sm:w-8 h-6 sm:h-8" />
               <div>
-                <div className="font-bold text-base sm:text-lg">Enterprise Security</div>
-                <div className="text-blue-100 text-xs sm:text-sm">Bank-level encryption</div>
+                <div className="font-bold text-base sm:text-lg">Trust is our currency</div>
+                <div className="text-blue-100 text-xs sm:text-sm">Limbu.ai is built by digital marketing veterans with 15+ years of SEO experience. We strictly adhere to Google’s API Terms of Service and Meta’s Platform Policies.</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <CheckCircle className="w-6 sm:w-8 h-6 sm:h-8" />
               <div>
-                <div className="font-bold text-base sm:text-lg">99.9% Uptime</div>
-                <div className="text-blue-100 text-xs sm:text-sm">Always available</div>
+                <div className="font-bold text-base sm:text-lg">Zero Data Sharing</div>
+                <div className="text-blue-100 text-xs sm:text-sm">Your customer data is encrypted and never sold.</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Star className="w-6 sm:w-8 h-6 sm:h-8 fill-white" />
               <div>
-                <div className="font-bold text-base sm:text-lg">5-Star Rated</div>
-                <div className="text-blue-100 text-xs sm:text-sm">Loved by customers</div>
+                <div className="font-bold text-base sm:text-lg">Real-Time Compliance</div>
+                <div className="text-blue-100 text-xs sm:text-sm">We update our AI as platform algorithms change, keeping your accounts safe and compliant.</div>
               </div>
             </div>
           </div>
@@ -1647,17 +1701,17 @@ export default function LimbuAILanding() {
       <section className="relative py-16 sm:py-20 md:py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6 px-4">
-            Ready to Transform Your Business?
+            Ready to Automate Your Growth?
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-8 sm:mb-10 px-4">
-            Join 1000+ businesses automating their Google My Business today
+            Stop wasting hours on manual posting. Start building a reputation that ranks.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button 
               onClick={() => handleNavigation(isLoggedIn ? '/dashboard' : '/login')}
               className="w-full sm:w-auto px-8 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg sm:rounded-xl font-bold text-base sm:text-lg hover:shadow-2xl transition-all hover:scale-105 inline-flex items-center gap-2"
             >
-              {isLoggedIn ? "Go to Dashboard" : "Start Your Free Trial"}
+              {isLoggedIn ? "Go to Dashboard" : "Start Your Free 14-Day Trial"}
               <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5" />
             </button>
             <button 
@@ -1667,7 +1721,7 @@ export default function LimbuAILanding() {
               Book a Demo
             </button>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-3 sm:mt-4 px-4">No credit card required • Cancel anytime</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-3 sm:mt-4 px-4">No credit card required. Full feature access. Cancel anytime.</p>
         </div>
       </section>
 
@@ -1687,7 +1741,7 @@ export default function LimbuAILanding() {
                 </div>
                 <span className="font-bold text-base sm:text-lg">limbu.ai</span>
               </div>
-              <p className="text-slate-400 text-xs sm:text-sm">Automate your Google My Business with AI</p>
+              <p className="text-slate-400 text-xs sm:text-sm">Limbu.ai is an AI marketing platform that automates Google Business Profile & Social Media activity</p>
               <div className="flex gap-4 mt-4">
                 <a href="https://www.facebook.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
                   <Facebook className="w-5 h-5" />
@@ -2011,6 +2065,66 @@ export default function LimbuAILanding() {
     <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
   </svg>
 </a>
+
+<script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Limbu.ai",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "4.8",
+              "ratingCount": "1250"
+            },
+            "mainEntity": {
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "What is Limbu.ai and how does it help Local SEO?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Limbu.ai is an AI marketing platform that automates Google Business Profile activity. By consistently posting updates and replying to reviews instantly (two major Google ranking factors), it helps improve your visibility in local \"near me\" search results."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is it safe to connect my Google and Facebook accounts?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. Limbu.ai uses official, secure OAuth interactions directly approved by Google and Meta. We never store your passwords, and our connection is encrypted with enterprise-grade security."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I manage multiple locations for different clients?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Absolutely. Limbu.ai is designed for scale. You can toggle between different brands or locations within the same dashboard, making it the perfect tool for digital agencies."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Does Limbu.ai actually write the content for me?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. Our generative AI helps create captions, suggest hashtags, and draft review replies. You always have full control to edit or approve content before it goes live."
+                  }
+                }
+              ]
+            }
+          })
+        }}
+      />
 
 
 

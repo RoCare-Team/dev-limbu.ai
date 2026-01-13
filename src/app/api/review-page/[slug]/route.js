@@ -7,7 +7,7 @@ export async function GET(req, { params }) {
   try {
     // More robust way to get the slug, especially with special characters
     const urlParts = req.url.split('/');
-    const slug = decodeURIComponent(urlParts[urlParts.length - 1]);
+    const slug = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]);
 
 
     if (!slug) {
@@ -43,14 +43,15 @@ export async function GET(req, { params }) {
         // Get title and locality from storefrontAddress
         const title = (listing.title || "").trim();
         const locality = (listing.storefrontAddress?.locality || "").trim();
+        const address = (listing.storefrontAddress?.addressLines?.[0] || "").trim();
 
         if (!title) {
           console.log("⚠️ Skipping listing with no title");
           continue;
         }
 
-        // Create slug from title + locality
-        const listingSlug = `${title}${locality ? `-${locality}` : ""}`
+        // Create slug from title + locality + address
+        const listingSlug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
           .toLowerCase()
           .replace(/\s+/g, "-")           // Replace spaces with hyphens
           .replace(/[^a-z0-9-]/g, "")     // Remove special characters

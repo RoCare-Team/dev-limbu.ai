@@ -67,9 +67,10 @@ export default function BusinessQR() {
     const title = location.title || "";
     // Get locality from storefrontAddress (matching MongoDB structure)
     const locality = location.storefrontAddress?.locality || location.locality || "";
+    const address = location.address || "";
     
     // Create slug for SEO-friendly URL with locality
-    const slug = `${title}${locality ? `-${locality}` : ""}`
+    const slug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
       .toLowerCase()
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "")
@@ -82,6 +83,8 @@ export default function BusinessQR() {
 
   // Create display name with locality
   const getDisplayName = (location) => {
+    console.log("locationlocation",location);
+    
     const title = location.title || "";
     const locality = location.storefrontAddress?.locality || location.locality || "";
     return locality ? `${title} - ${locality}` : title;
@@ -90,20 +93,29 @@ export default function BusinessQR() {
   // Init Load
   useEffect(() => {
     const locations = getAllLocations();
+    console.log("locationslocationslocations",locations);
+    
     setAllLocations(locations);
 
     if (locations.length === 0) return;
 
     const firstLocation = locations[0];
+    console.log("firstLocationfirstLocation",firstLocation);
+    
     setSelectedLocationId(firstLocation.locationId);
 
     const displayName = getDisplayName(firstLocation);
     setBusiness(displayName);
 
     if (!firstLocation.title) return;
-
-    // Fetch Google Review URL
-    getGoogleReviewURL(firstLocation.title);
+    
+    // Use stored reviewUri if available
+    if (firstLocation.reviewUri) {
+      setReviewUri(firstLocation.reviewUri);
+    } else {
+      // Fetch Google Review URL
+      getGoogleReviewURL(firstLocation.title);
+    }
 
     // Create review URL with encoded data
     const finalReviewURL = createReviewUrl(firstLocation);
@@ -159,8 +171,13 @@ export default function BusinessQR() {
 
     if (!selected.title) return;
 
-    // Fetch Google Review URL for this specific location
-    getGoogleReviewURL(selected.title);
+    // Use stored reviewUri if available
+    if (selected.reviewUri) {
+      setReviewUri(selected.reviewUri);
+    } else {
+      // Fetch Google Review URL for this specific location
+      getGoogleReviewURL(selected.title);
+    }
 
     // Create review URL with encoded data
     const finalReviewURL = createReviewUrl(selected);

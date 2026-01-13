@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useParams } from "next/navigation";
 import { Star, ExternalLink, CheckCircle, Sparkles } from "lucide-react";
 
-export default function CustomerReviewPage({slug}) {
-  console.log("slugslug",slug);
-  
+export default function CustomerReviewPage() {
+  const params = useParams();
   const [business, setBusiness] = useState("");
   const [locality, setLocality] = useState("");
+  const [address, setAddress] = useState("");
   const [locationId, setLocationId] = useState("");
   const [rating, setRating] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -21,9 +22,8 @@ export default function CustomerReviewPage({slug}) {
 
   // Decode location data from URL slug
   useEffect(() => {
-    // Get slug from pathname
-    const pathname = window.location.pathname;
-    const slug = pathname.split("/").pop();
+    // Get slug from params (folder is [bussiness])
+    const slug = params?.bussiness;
     
     if (!slug) {
       setErrorMsg("❌ Invalid review link. Please scan the QR code again.");
@@ -33,7 +33,7 @@ export default function CustomerReviewPage({slug}) {
 
     // Fetch business data from API using slug
     fetchBusinessDataBySlug(slug);
-  }, []);
+  }, [params]);
 
   // Fetch business data using slug
   const fetchBusinessDataBySlug = async (slug) => {
@@ -57,6 +57,7 @@ export default function CustomerReviewPage({slug}) {
       // Set business data
       setBusiness(data.title || "");
       setLocality(data.locality || "");
+      setAddress(data.storefrontAddress?.addressLines?.join(", ") || "");
       setLocationId(data.locationId || "");
       setReviewUri(data.newReviewUri || "");
       
@@ -163,6 +164,11 @@ export default function CustomerReviewPage({slug}) {
               {locality && (
                 <p className="mt-2 text-sm text-gray-600">
                   {locality}
+                </p>
+              )}
+              {address && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {address}
                 </p>
               )}
             </>

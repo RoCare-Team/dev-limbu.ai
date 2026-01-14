@@ -1082,7 +1082,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     </button>
 
     {/* Instagram Post */}
-    {/* <button
+    <button
       onClick={() => handleInstagramPost(post)}
       className="
         flex items-center justify-center gap-2
@@ -1093,7 +1093,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     >
       <Instagram className="w-4 h-4" />
       IG Post
-    </button> */}
+    </button>
 
     {/* Facebook Post */}
     <button

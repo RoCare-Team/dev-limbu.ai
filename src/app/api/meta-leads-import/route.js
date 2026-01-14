@@ -6,8 +6,9 @@ import MetaSync from "@/models/MetaSync";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 2000;
-const META_ACCESS_TOKEN = "EAAWOiqBorGUBQQD5h0FAtsmhyrdTCG0JiO6YqenXR1IInaUh6Wa7WqfvGc6D6bcqSHUcyRLcUa22JZAs4oKcAxJHqSfwXAqsMVSptToi8oIRmzZAXMAIWDQWuaR3rReSifeGDGLaiorT28OMiF2t54CbEqBdwpBSjJfcCVBZBIJ9qyq7Ht8d3sZCXVw0";
+const LIMIT = 3000;
+const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
+const TATA_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMyMTIxOSwiaXNzIjoiaHR0cHM6XC9cL2Nsb3VkcGhvbmUudGF0YXRlbGVzZXJ2aWNlcy5jb21cL3Rva2VuXC9nZW5lcmF0ZSIsImlhdCI6MTY3NDA0MjI4MSwiZXhwIjoxOTc0MDQyMjgxLCJuYmYiOjE2NzQwNDIyODEsImp0aSI6IkZ3Z2l4b003TE9jRjh6TTIifQ.ZJmlobL9nuBMHYYgGji-cmKIFU0cDsqIKhkMIc4a4Uc";
 const MONGODB_URI = process.env.MONGODB_URI;
 
 /* ================= DB ================= */
@@ -28,6 +29,7 @@ function cleanPhone(phone) {
   return phone.length === 10 ? phone : "";
 }
 
+/* ================= WHATSAPP ================= */
 async function sendWhatsApp(phone, fullName) {
   try {
     await fetch("https://limbu.ai/api/whatsapp-message", {
@@ -38,7 +40,35 @@ async function sendWhatsApp(phone, fullName) {
         templateParams: [fullName, "https://limbu.ai"],
       }),
     });
-  } catch {}
+  } catch (err) {
+    console.error("WhatsApp Error:", err.message);
+  }
+}
+
+/* ================= TATA AUTODIAL ================= */
+async function sendToTataDialer(phone, fullName) {
+  try {
+    const res = await fetch(
+      "https://api-smartflo.tatateleservices.com/v1/broadcast/lead/827981",
+      {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${TATA_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          field_0: phone,
+          field_1: fullName,
+        }),
+      }
+    );
+
+    const data = await res.json();
+    console.log("Tata Dialer Response:", data);
+  } catch (err) {
+    console.error("Tata Dialer Error:", err.message);
+  }
 }
 
 /* ================= API ================= */
@@ -50,10 +80,12 @@ export async function GET(req) {
     const formId = process.env.META_FORM_ID || searchParams.get("formId");
 
     if (!formId) {
-      return NextResponse.json({ success: false, error: "formId required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "formId required" },
+        { status: 400 }
+      );
     }
 
-    // 🔐 GET LAST SYNC
     let sync = await MetaSync.findOne({ formId });
     let after = sync?.lastAfterCursor || null;
 
@@ -64,12 +96,10 @@ export async function GET(req) {
 
     do {
       let url = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${LIMIT}&access_token=${META_ACCESS_TOKEN}`;
-      // if (after) url += `&after=${after}`;
 
       const res = await fetch(url);
-      
       const json = await res.json();
-      
+
       if (!res.ok) break;
 
       const leads = json.data || [];
@@ -101,17 +131,21 @@ export async function GET(req) {
           phone,
           city,
           wallet: 500,
-           freeUsedCount: 2,
-           subscription: {
-      status: "inactive",
-      plan: "Free",
-    },
-          source: "bulk-upload",
+          freeUsedCount: 2,
+          subscription: {
+            status: "inactive",
+            plan: "Free",
+          },
+          source: "meta-lead",
           whatsappSent: true,
+          tataCallSent: true,
         });
 
         inserted++;
+
+        // 🔥 AUTOMATION
         await sendWhatsApp(phone, fullName);
+        await sendToTataDialer(phone, fullName);
       }
 
       after = json.paging?.cursors?.after;
@@ -121,7 +155,6 @@ export async function GET(req) {
 
     } while (after);
 
-    // 🔐 SAVE LAST CURSOR
     await MetaSync.updateOne(
       { formId },
       { lastAfterCursor: lastCursor, lastSyncedAt: new Date() },
@@ -130,11 +163,14 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
-      message: "Only NEW leads processed",
+      message: "Leads synced, WhatsApp + Tata AutoDial done",
       stats: { totalFetched, inserted, skipped },
     });
 
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 }
+    );
   }
 }

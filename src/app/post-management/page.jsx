@@ -1979,53 +1979,89 @@ export default function PostManagementPage() {
       const pageId = pageData.pageId;
       const accessToken = pageData.pageAccessToken;
 
-      let graphUrl = "";
-      let payload = {};
+      let facebookPostId;
 
       if (imageUrl) {
-        // Direct call to Facebook Graph API for Photos
-        graphUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
-        payload = {
+        // 1. Upload photo without publishing (published=false)
+        const photoUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
+        const photoPayload = {
           url: imageUrl,
-          caption: caption || "",
+          published: false,
           access_token: accessToken,
         };
+
+        const photoRes = await fetch(photoUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(photoPayload),
+        });
+
+        const photoData = await photoRes.json();
+
+        if (!photoData.id) {
+          throw new Error(photoData.error?.message || "Failed to upload photo to Facebook");
+        }
+
+        const photoId = photoData.id;
+
+        // 2. Publish to Feed with attached photo
+        const feedUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
+        const feedPayload = {
+          message: caption || "",
+          attached_media: [{ media_fbid: photoId }],
+          access_token: accessToken,
+        };
+
+        const feedRes = await fetch(feedUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(feedPayload),
+        });
+
+        const feedData = await feedRes.json();
+
+        if (!feedData.id) {
+          throw new Error(feedData.error?.message || "Failed to publish post to Facebook Feed");
+        }
+
+        facebookPostId = feedData.id;
+
       } else {
         // Direct call to Facebook Graph API for Feed
-        graphUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
-        payload = {
+        const graphUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
+        const payload = {
           message: caption || "",
           access_token: accessToken,
         };
-      }
 
-      const res = await fetch(graphUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (data.id || data.post_id) {
-        showToast("Post published on Facebook 🎉", "success");
-        const facebookPostId = data.post_id || data.id;
-        await updatePostStatusAction({
-          id: post._id,
-          userId: localStorage.getItem("userId"),
-          facebookPostId: facebookPostId,
-          facebookPageAccessToken: accessToken,
-          status: "posted",
+        const res = await fetch(graphUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
-        await fetchPosts(); // Refresh posts to get the updated data
-      } else {
-        console.error("Facebook API Error:", data);
-        showToast(data.error?.message || "Failed to post to Facebook", "error");
+
+        const data = await res.json();
+
+        if (!data.id) {
+          throw new Error(data.error?.message || "Failed to post to Facebook");
+        }
+        facebookPostId = data.id;
       }
+
+      showToast("Post published on Facebook 🎉", "success");
+      
+      await updatePostStatusAction({
+        id: post._id,
+        userId: localStorage.getItem("userId"),
+        facebookPostId: facebookPostId,
+        facebookPageAccessToken: accessToken,
+        status: "posted",
+      });
+      await fetchPosts(); // Refresh posts to get the updated data
 
     } catch (err) {
       console.error("Facebook post error:", err);
-      showToast("Something went wrong posting to Facebook", "error");
+      showToast(err.message || "Something went wrong posting to Facebook", "error");
     }
   };
 

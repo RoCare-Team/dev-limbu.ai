@@ -136,7 +136,7 @@ export async function GET(req) {
             status: "inactive",
             plan: "Free",
           },
-          source: "meta-lead",
+          source: "bulk-upload",
           whatsappSent: true,
           tataCallSent: true,
         });

@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function FranchisePage() {
-  const [selectedPlan, setSelectedPlan] = useState("standard");
+  const [selectedPlan, setSelectedPlan] = useState("premium");
   const [showForm, setShowForm] = useState(false);
   const [serviceForm, setServiceForm] = useState({
     name: "",
@@ -306,8 +306,6 @@ export default function FranchisePage() {
                       onChange={(e) => setSelectedPlan(e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                     >
-                      <option value="starter">Business Champion - ₹50,000 + GST</option>
-                      <option value="standard">Business Growth Plan - ₹1,00,000 + GST</option>
                       <option value="premium">Business Excellence Plan - ₹2,00,000 + GST</option>
                     </select>
                   </div>
@@ -897,26 +895,25 @@ export default function FranchisePage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="flex flex-wrap justify-center gap-8">
             {[
-              {
-                name: "Business Champion",
-                investment: "₹50,000",
-                originalPrice: "₹1,00,000",
-                commission: "30%",
-                features: [
-                  "City-level franchise rights",
-                  "Complete training program",
-                  "Marketing material kit",
-                  "Dedicated support",
-                  "Franchise dashboard access",
-                  "Sales scripts & templates",
-                  "Monthly strategy calls"
-                ],
-                // target: "20-30 clients",
-                potential: "₹25K-1L/month",
-                best: "New entrepreneurs"
-              },
+              // {
+              //   name: "Business Champion",
+              //   investment: "₹50,000",
+              //   originalPrice: "₹1,00,000",
+              //   commission: "30%",
+              //   features: [
+              //     "City-level franchise rights",
+              //     "Complete training program",
+              //     "Marketing material kit",
+              //     "Dedicated support",
+              //     "Franchise dashboard access",
+              //     "Sales scripts & templates",
+              //     "Monthly strategy calls"
+              //   ],
+              //   potential: "₹25K-1L/month",
+              //   best: "New entrepreneurs"
+              // },
            
               {
                 name: "Business Excellence Plan",
@@ -940,27 +937,27 @@ export default function FranchisePage() {
                                 popular: true
 
               },
-                 {
-                name: "Business Growth Plan",
-                investment: "₹1,00,000",
-                originalPrice: "₹2,00,000",
-                commission: "40% on revenue + 10% Business Champion",
-                features: [
-                  "Multi-city franchise rights",
-                  "Priority training & support",
-                  "Premium marketing materials",
-                  "Lead generation support",
-                  "Advanced dashboard features",
-                  "Quarterly business reviews",
-                  "White-label options",
-                  "Team building guidance"
-                ],
-                // target: "50/-80 clients",
-                potential: "₹50K-2L/month",
-                best: "Growth-focused partners",
-              },
+              //    {
+              //   name: "Business Growth Plan",
+              //   investment: "₹1,00,000",
+              //   originalPrice: "₹2,00,000",
+              //   commission: "40% on revenue + 10% Business Champion",
+              //   features: [
+              //     "Multi-city franchise rights",
+              //     "Priority training & support",
+              //     "Premium marketing materials",
+              //     "Lead generation support",
+              //     "Advanced dashboard features",
+              //     "Quarterly business reviews",
+              //     "White-label options",
+              //     "Team building guidance"
+              //   ],
+              //   // target: "50/-80 clients",
+              //   potential: "₹50K-2L/month",
+              //   best: "Growth-focused partners",
+              // },
             ].map((plan, i) => (
-              <div key={i} className={`relative bg-white rounded-3xl shadow-2xl border-2 p-8 ${plan.popular ? 'border-blue-500 scale-105' : 'border-gray-200'}`}>
+              <div key={i} className={`relative bg-white rounded-3xl shadow-2xl border-2 p-8 w-full md:max-w-md ${plan.popular ? 'border-blue-500 scale-105' : 'border-gray-200'}`}>
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold">
                     Most Popular
@@ -1016,7 +1013,7 @@ export default function FranchisePage() {
                 </div>
 
                 <button 
-                  onClick={() => handleOpenForm(["starter", "standard", "premium"][i])}
+                  onClick={() => handleOpenForm("premium")}
                   className={`w-full py-4 rounded-full font-bold transition-all ${plan.popular ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                 >
                   Choose {plan.name}

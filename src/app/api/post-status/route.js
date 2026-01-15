@@ -16,39 +16,45 @@ const json = (body, status = 200) =>
 export async function GET(req) {
   try {
     await dbConnect();
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const status = searchParams.get("status");
-    const userId = searchParams.get("userId"); // ✅ now passed in query
+    const userId = searchParams.get("userId");
 
     if (!userId) return json({ success: false, error: "userId required" }, 400);
 
-    // ✅ Single post fetch
+    // Single post
     if (id) {
       const post = await Post.findOne({ _id: id, userId }).lean();
       if (!post) return json({ success: false, error: "Post not found" }, 404);
       return json({ success: true, data: post });
     }
 
-    // ✅ Multiple posts fetch
+    // Multiple posts
     const query = { userId };
     if (status) query.status = status;
 
     const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
     return json({ success: true, data: posts });
+
   } catch (err) {
     return json({ success: false, error: err.message }, 500);
   }
 }
 
+/**
+ * POST -> Create post OR bulk counts
+ */
 export async function POST(req) {
   try {
     await dbConnect();
     const body = await req.json();
 
-    // Check if it's a request for bulk post counts
+    // Bulk counts
     if (Array.isArray(body.userIds)) {
       const { userIds } = body;
+
       if (userIds.length === 0) {
         return json({ success: true, data: {} });
       }
@@ -76,14 +82,26 @@ export async function POST(req) {
       return json({ success: true, data: countsMap });
     }
 
-    // Original logic to create a new post
-    const { userId, status, aiOutput, description, promat,gmbDescription,fbDescription,igDescription } = body;
+    // Create new post
+    const {
+      userId,
+      status,
+      aiOutput,
+      description,
+      promat,
+      gmbDescription,
+      fbDescription,
+      igDescription,
+      whenPosted,   // 👈 OPTIONAL
+    } = body;
+
     if (!userId || !aiOutput || !description) {
       return json(
         { success: false, error: "userId, aiOutput, and description are required" },
         400
       );
     }
+
     const newPost = await Post.create({
       userId,
       aiOutput,
@@ -92,9 +110,12 @@ export async function POST(req) {
       fbDescription,
       igDescription,
       promat,
+      whenPosted: whenPosted || null, // 👈 OPTIONAL
       status: status || "pending",
     });
+
     return json({ success: true, data: newPost }, 201);
+
   } catch (err) {
     console.error("Error saving post:", err);
     return json({ success: false, error: err.message }, 500);
@@ -102,8 +123,7 @@ export async function POST(req) {
 }
 
 /**
- * PUT -> Update post (status, scheduledDate)
- * Body: { id, userId: "MB-02", status, scheduledDate? }
+ * PUT -> Update post (status, scheduledDate, whenPosted)
  */
 export async function PUT(req) {
   try {
@@ -119,9 +139,17 @@ export async function PUT(req) {
       locations,
       checkmark,
       refreshToken,
+      whenPosted,
     } = await req.json();
- 
-    console.log("📦 PUT /api/post-status Payload:", { id, status, locationsCount: locations?.length, checkmark, hasRefreshToken: !!refreshToken });
+
+    console.log("📦 PUT Payload:", {
+      id,
+      status,
+      locationsCount: locations?.length,
+      checkmark,
+      hasRefreshToken: !!refreshToken,
+      whenPosted
+    });
 
     if (!id || !status || !userId) {
       return json(
@@ -132,11 +160,11 @@ export async function PUT(req) {
 
     const updateData = { status };
 
-    /* -------------------- SCHEDULED -------------------- */
+    /* ---------- SCHEDULED ---------- */
     if (status === "scheduled") {
       if (!scheduledDate) {
         return json(
-          { success: false, error: "scheduledDate required when scheduling" },
+          { success: false, error: "scheduledDate required" },
           400
         );
       }
@@ -151,16 +179,11 @@ export async function PUT(req) {
 
       updateData.scheduledDate = parsedDate;
 
-      // ✅ Save refreshToken if provided (critical for auto-posting)
       if (refreshToken) {
         updateData.refreshToken = refreshToken;
-        console.log(`🔄 RefreshToken saved for scheduled post ${id}`);
       }
 
-      // ✅ Save locations only if provided
       if (Array.isArray(locations) && locations.length > 0) {
-        console.log(`📍 Saving ${locations.length} locations for scheduled post ${id}`);
-        // Explicitly map to schema fields to avoid strict mode issues with extra fields
         updateData.locations = locations.map(loc => ({
           locationId: loc.locationId,
           accountId: loc.accountId,
@@ -169,15 +192,13 @@ export async function PUT(req) {
           city: loc.city || "",
           locality: loc.locality || "",
           websiteUrl: loc.websiteUrl || "",
-          isPosted: false, // Reset posted status for new schedule
+          isPosted: false,
           error: ""
         }));
-      } else {
-        console.warn(`⚠ No locations provided for scheduled post ${id}`);
       }
     }
 
-    /* -------------------- REJECTED -------------------- */
+    /* ---------- REJECTED ---------- */
     if (status === "rejected") {
       if (!reason || reason.trim() === "") {
         return json(
@@ -188,7 +209,7 @@ export async function PUT(req) {
       updateData.rejectReason = reason;
     }
 
-    /* -------------------- OPTIONAL FIELDS -------------------- */
+    /* ---------- OPTIONAL FIELDS ---------- */
     if (typeof description === "string") {
       updateData.description = description;
     }
@@ -197,9 +218,19 @@ export async function PUT(req) {
       updateData.checkmark = checkmark;
     }
 
-    console.log("🛠 Updating Post with:", JSON.stringify(updateData, null, 2));
+    if (whenPosted !== undefined && whenPosted !== null) {
+      // Handle partial updates for whenPosted object (e.g. { facebook: "..." })
+      if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {
+        for (const key in whenPosted) {
+          updateData[`whenPosted.${key}`] = whenPosted[key];
+        }
+      } else {
+        updateData.whenPosted = whenPosted;
+      }
+    }
 
-    /* -------------------- UPDATE -------------------- */
+    console.log("🛠 Updating Post:", updateData);
+
     const updated = await Post.findOneAndUpdate(
       { _id: id, userId },
       { $set: updateData },
@@ -225,8 +256,7 @@ export async function PUT(req) {
 }
 
 /**
- * DELETE -> Delete post by ID
- * Query: ?id=POST_ID&userId=MB-02
+ * DELETE -> Soft reject post
  */
 export async function DELETE(req) {
   try {
@@ -240,7 +270,6 @@ export async function DELETE(req) {
       return json({ success: false, error: "id & userId required" }, 400);
     }
 
-    // ✅ Set status to rejected instead of deleting
     const updatedPost = await Post.findOneAndUpdate(
       { _id: id, userId },
       { status: "rejected" },
@@ -251,10 +280,10 @@ export async function DELETE(req) {
       return json({ success: false, error: "Post not found" }, 404);
     }
 
-    return json({ 
-      success: true, 
+    return json({
+      success: true,
       message: "Post rejected successfully",
-      post: updatedPost 
+      post: updatedPost
     });
 
   } catch (err) {

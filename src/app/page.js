@@ -379,6 +379,18 @@ export default function LimbuAILanding() {
       textColor: "text-blue-600",
       borderColor: "border-blue-200"
     },
+       {
+      title: "Premium Plan",
+      basePrice: 5000,
+      basePosts: 30,
+      baseCitations: 12,
+      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
+      description: "Perfect for brands focused on automation and maximum reach",
+      popular: true,
+      color: "bg-pink-600",
+      textColor: "text-pink-600",
+      borderColor: "border-pink-200"
+    },
     {
       title: "Professional Plan",
       basePrice: 2500,
@@ -390,18 +402,7 @@ export default function LimbuAILanding() {
       textColor: "text-purple-600",
       borderColor: "border-purple-200"
     },
-    {
-      title: "Premium Plan",
-      basePrice: 5000,
-      basePosts: 30,
-      baseCitations: 12,
-      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
-      description: "Perfect for brands focused on automation and maximum reach",
-      popular: true,
-      color: "bg-pink-600",
-      textColor: "text-pink-600",
-      borderColor: "border-pink-200"
-    }
+ 
   ];
 
   const getMultiplier = () => {

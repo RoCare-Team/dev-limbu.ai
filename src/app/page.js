@@ -10,6 +10,9 @@ import BanjaraSalonLogo from "../../public/images/clients/banjara_salon.png";
 import MazzLogo from "../../public/images/clients/mazz.png";
 import LuckyDryLogo from "../../public/images/clients/lucky_dry.jpg";
 import GudiyaCollectionLogo from "../../public/images/clients/gudiya_collection.png";
+import MannubhaiLogo from "../../public/images/clients/mannubhai.webp";
+import RoCareIndiaLogo from "../../public/images/clients/ro-care-india.webp";
+import DoctorFresh from "../../public/images/clients/doctor-fresh.webp";
 
 
 export default function LimbuAILanding() {
@@ -65,6 +68,8 @@ export default function LimbuAILanding() {
   const clientLogos = [
     // NOTE: Add your client logos in public/images/clients/
     { name: "Client 1", src: AnupGuptaLogo },
+    { name: "Mannubhai", src: MannubhaiLogo },
+    { name: "Ro-Care India", src: RoCareIndiaLogo },
     { name: "Client 2", src: DynamicDrapryLogo },
     { name: "Client 3", src: BanjaraSalonLogo },
     { name: "Client 4", src: MazzLogo },

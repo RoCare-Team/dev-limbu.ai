@@ -4,6 +4,12 @@ import { Sparkles, MessageSquare, Calendar, Send, ArrowRight, Star, TrendingUp, 
 import LogoImage from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import Toast from '../components/Toast';
+import AnupGuptaLogo from "../../public/images/clients/anup_gupta.png";
+import DynamicDrapryLogo from "../../public/images/clients/dynamic_drapry.png";
+import BanjaraSalonLogo from "../../public/images/clients/banjara_salon.png";
+import MazzLogo from "../../public/images/clients/mazz.png";
+import LuckyDryLogo from "../../public/images/clients/lucky_dry.jpg";
+import GudiyaCollectionLogo from "../../public/images/clients/gudiya_collection.png";
 
 
 export default function LimbuAILanding() {
@@ -55,6 +61,17 @@ export default function LimbuAILanding() {
   const [showSupportPopup, setShowSupportPopup] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueText, setIssueText] = useState("");
+
+  const clientLogos = [
+    // NOTE: Add your client logos in public/images/clients/
+    { name: "Client 1", src: AnupGuptaLogo },
+    { name: "Client 2", src: DynamicDrapryLogo },
+    { name: "Client 3", src: BanjaraSalonLogo },
+    { name: "Client 4", src: MazzLogo },
+    { name: "Client 5", src: LuckyDryLogo },
+    { name: "Client 6", src: GudiyaCollectionLogo },
+  ];
+
 
   const now = new Date();
   const isAfter4PM = now.getHours() >= 16; // 4 PM
@@ -1001,6 +1018,32 @@ export default function LimbuAILanding() {
             </button>
           </div>
           
+        </div>
+      </section>
+
+      {/* Client Logos Section */}
+      <section className="bg-white py-8 border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">
+            Trusted by 1,000+ Growing Businesses
+          </p>
+          <div className="relative w-full overflow-hidden group">
+            <div className="flex gap-16 animate-scroll-logos whitespace-nowrap items-center w-max group-hover:[animation-play-state:paused]">
+              {[...clientLogos, ...clientLogos].map((logo, idx) => (
+                <div key={idx} className="relative h-16 w-40 flex items-center justify-center transition-all duration-300">
+                  <Image
+                    src={logo.src}
+                    alt={logo.name}
+                    width={160}
+                    height={64}
+                    className="max-h-full w-auto object-contain transition-all duration-300 hover:scale-110"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-0 left-0 w-20 h-full bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-20 h-full bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+          </div>
         </div>
       </section>
 
@@ -2134,6 +2177,13 @@ export default function LimbuAILanding() {
         }
         .animate-scroll {
           animation: scroll 20s linear infinite;
+        }
+        @keyframes scroll-logos {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-scroll-logos {
+          animation: scroll-logos 40s linear infinite;
         }
         @keyframes scroll-videos {
           0% { transform: translateX(0); }

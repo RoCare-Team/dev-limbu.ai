@@ -8,6 +8,7 @@ import {
   MapPin, Clock, DollarSign, Search, X, Upload
 } from "lucide-react";
 
+
 export default function WorkWithUsPage() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);

@@ -998,8 +998,9 @@ export default function LimbuAILanding() {
   <span className="text-white">
     Facebook & Instagram. 
   </span>
+  <br/>
   <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-    Stop juggling tabs.
+     Stop juggling tabs.
   </span>
 </h1>
 

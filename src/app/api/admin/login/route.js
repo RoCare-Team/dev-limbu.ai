@@ -13,25 +13,31 @@ export async function POST(req) {
 
     // 🔍 Find admin by email
     const admin = await Admin.findOne({ email });
-    if (!admin)
+    if (!admin) {
       return NextResponse.json(
         { message: "Invalid credentials" },
         { status: 401 }
       );
+    }
 
     // 🔑 Verify password
     const valid = await bcrypt.compare(password, admin.password);
-    if (!valid)
+    if (!valid) {
       return NextResponse.json(
         { message: "Invalid credentials" },
         { status: 401 }
       );
+    }
+
+    // 🧩 Role handling (admin / franchiseAdmin)
+    const role = admin.role === "franchiseAdmin" ? "franchiseAdmin" : "admin";
 
     // 🧩 Create JWT payload
     const payload = {
       id: admin._id,
       email: admin.email,
-      role: admin.role || "admin", // default to admin if role not set
+      role: role,
+      franchiseId: admin.franchiseId || null, // only for franchise admin
     };
 
     // 🔐 Sign JWT token
@@ -41,7 +47,8 @@ export async function POST(req) {
     const res = NextResponse.json({
       message: "Login success",
       token,
-      role: admin.role || "admin",
+      role: role,
+      franchiseId: admin.franchiseId || null,
     });
 
     res.cookies.set("admin_token", token, {

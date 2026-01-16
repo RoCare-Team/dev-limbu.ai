@@ -22,7 +22,7 @@ const AdminSchema = new mongoose.Schema(
     // MAIN ROLE
     role: {
       type: String,
-      enum: ["admin", "subadmin"],
+      enum: ["admin", "subadmin","franchiseAdmin"],
       default: "admin",
     },
 

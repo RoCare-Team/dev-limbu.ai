@@ -310,7 +310,7 @@ export default function LimbuAILanding() {
 
       // 2. Open Razorpay
       const options = {
-        key: process.env.RAZORPAY_KEY_ID || "rzp_live_RwX1nRfZbVyVwT",
+        key: process.env.RAZORPAY_KEY_ID || "rzp_live_RwW59lDH6d9dB8",
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: "Limbu.ai",
@@ -327,6 +327,7 @@ export default function LimbuAILanding() {
                 ...serviceForm,
                 planTitle: selectedPlan.title,
                 planType: selectedPlan.planType,
+                planDuration: selectedPlan.planDuration,
                 planPrice: selectedPlan.price,
                 totalAmount: selectedPlan.totalPrice,
                 paymentId: response.razorpay_payment_id,
@@ -371,6 +372,7 @@ export default function LimbuAILanding() {
     {
       title: "Basic Plan",
       basePrice: 999,
+      totalAmount: 1179,
       basePosts: 5,
       baseCitations: 2,
       staticFeatures: ["Review Reply Management","Magic Qr Code Generation","Insights Dashboard"],
@@ -382,6 +384,7 @@ export default function LimbuAILanding() {
        {
       title: "Premium Plan",
       basePrice: 5000,
+      totalAmount: 5900,
       basePosts: 30,
       baseCitations: 12,
       staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
@@ -394,6 +397,7 @@ export default function LimbuAILanding() {
     {
       title: "Professional Plan",
       basePrice: 2500,
+      totalAmount: 2950,
       basePosts: 15,
       baseCitations: 5,
       staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization"],
@@ -437,6 +441,7 @@ export default function LimbuAILanding() {
     handleServiceBookClick({
         title: plan.title,
         planType: "our-package",
+        planDuration: billingCycle,
         price: `₹${price.toLocaleString()}`,
         period: billingCycle === 'monthly' ? '/ month' : 
                  billingCycle === 'quarterly' ? '/ quarter' :
@@ -454,6 +459,7 @@ export default function LimbuAILanding() {
        {
       title: "Physical Magic QR Code",
       planType: "our-service",
+      planDuration: "one-time",
       price: "₹200",
       period: "+ 18% GST",
       totalPrice: "₹236",
@@ -473,6 +479,7 @@ export default function LimbuAILanding() {
     {
       title: "GMB Assistance & Update Plan",
       planType: "our-service",
+      planDuration: "1 Month",
       price: "₹999",
       period: "+ 18% GST",
       totalPrice: "₹1,179",
@@ -493,6 +500,7 @@ export default function LimbuAILanding() {
     {
       title: "GMB Creation & Management Plan (From Scratch)",
       planType: "our-service",
+      planDuration: "1 Month",
       price: "₹2,500",
       period: "+ 18% GST",
       totalPrice: "₹2,950",
@@ -1284,6 +1292,7 @@ export default function LimbuAILanding() {
                          billingCycle === 'half-yearly' ? '/ 6 months' : '/ year'}
                       </span>
                     </div>
+                    <div className="text-xs text-slate-500 font-medium mt-1">+ 18% GST</div>
                     {billingCycle !== 'monthly' && (
                        <div className="text-xs text-green-600 font-semibold mt-1">
                          Save ₹{((plan.basePrice * (billingCycle === 'quarterly' ? 3 : billingCycle === 'half-yearly' ? 6 : 12)) - price).toLocaleString()}

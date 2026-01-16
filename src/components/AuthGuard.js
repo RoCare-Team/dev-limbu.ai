@@ -11,10 +11,9 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const userId = localStorage.getItem("userId"); // For normal user
-    const role = localStorage.getItem("role"); // For admin
+    const userId = localStorage.getItem("userId");  
+    const role = localStorage.getItem("role");  // admin | franchiseAdmin
 
-    // ✅ Public routes that don’t need login
     const publicRoutes = [
       "/",
       "/login",
@@ -29,19 +28,19 @@ export default function AuthGuard({ children }) {
     ];
 
     const isPublicRoute = publicRoutes.includes(pathname);
-    const isAdminRoute = pathname.startsWith("/admin");
-
-    // ⭐ NEW: Allow all /reviews/* URLs
+    const isAdminRoute = pathname.startsWith("/admin") && 
+                         !pathname.startsWith("/admin/franchise");
+    const isFranchiseRoute = pathname.startsWith("/admin/franchise");
     const isReviewRoute = pathname.startsWith("/reviews");
 
     setTimeout(() => {
-      // 👉 Allow all reviews pages without auth
+      // Reviews are public
       if (isReviewRoute) {
         setIsChecking(false);
         return;
       }
 
-      // 👉 Admin routes protection
+      // Admin protection
       if (isAdminRoute) {
         if (role !== "admin") {
           router.replace("/adminLogin");
@@ -52,28 +51,45 @@ export default function AuthGuard({ children }) {
         return;
       }
 
-      // 👉 Private user routes
-      if (!userId && !isPublicRoute && role !== "admin") {
+      // Franchise Admin protection
+      if (isFranchiseRoute) {
+        if (role !== "franchiseAdmin") {
+          router.replace("/adminLogin");
+          setIsChecking(false);
+          return;
+        }
+        setIsChecking(false);
+        return;
+      }
+
+      // Normal user protection
+      if (!userId && !isPublicRoute && role !== "admin" && role !== "franchiseAdmin") {
         router.replace("/");
         setIsChecking(false);
         return;
       }
 
-      // 👉 If user logged in and tries to open /login → redirect to dashboard
+      // User logged in but opens /login
       if (userId && pathname === "/login") {
         router.replace("/dashboard");
         setIsChecking(false);
         return;
       }
 
-      // 👉 Admin logged in but tries to open /adminLogin → redirect
+      // Admin opens adminLogin
       if (role === "admin" && pathname === "/adminLogin") {
         router.replace("/admin/dashboard");
         setIsChecking(false);
         return;
       }
 
-      // Default allow
+      // Franchise Admin opens adminLogin
+      if (role === "franchiseAdmin" && pathname === "/adminLogin") {
+        router.replace("/admin/franchise/dashboard");
+        setIsChecking(false);
+        return;
+      }
+
       setIsChecking(false);
     }, 100);
   }, [pathname, router]);

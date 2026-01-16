@@ -2800,9 +2800,7 @@ useEffect(() => {
   </div>
 
   <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-4 bg-white px-3 py-2 sm:px-5 sm:py-1 rounded-2xl shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-start sm:justify-center sm:ml-4">
-    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span>
-    
-    
+    {/* <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span> */}
     {/* All */}
     <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
         <input 

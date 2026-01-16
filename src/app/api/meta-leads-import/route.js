@@ -47,29 +47,41 @@ async function sendWhatsApp(phone, fullName) {
 
 /* ================= TATA AUTODIAL ================= */
 async function sendToTataDialer(phone, fullName) {
-  try {
-    const res = await fetch(
-      "https://api-smartflo.tatateleservices.com/v1/broadcast/lead/827981",
-      {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Bearer ${TATA_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          field_0: phone,
-          field_1: fullName,
-        }),
-      }
-    );
+  // Har din chalega
+  const ids = ["827981"];
 
-    const data = await res.json();
-    console.log("Tata Dialer Response:", data);
-  } catch (err) {
-    console.error("Tata Dialer Error:", err.message);
+  // Friday ko extra ID bhi chalegi
+  if (new Date().getDay() === 5) {
+    ids.push("830002");
+  }
+
+  for (const id of ids) {
+    try {
+      const res = await fetch(
+        `https://api-smartflo.tatateleservices.com/v1/broadcast/lead/${id}`,
+        {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Authorization": `Bearer ${TATA_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            field_0: phone,
+            field_1: fullName,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      console.log(`Tata Dialer Response (${id}):`, data);
+
+    } catch (err) {
+      console.error(`Tata Dialer Error (${id}):`, err.message);
+    }
   }
 }
+
 
 /* ================= API ================= */
 export async function GET(req) {

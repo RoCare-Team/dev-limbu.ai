@@ -243,7 +243,7 @@ const VideoInput = ({
         </div>
 
         {/* Generate Button */}
-        <button
+        {/* <button
           onClick={onGenerate}
           disabled={
             loading || !prompt.trim() || !productName.trim() || !productImage
@@ -252,7 +252,7 @@ const VideoInput = ({
         >
           <Video className="w-6 h-6 inline-block mr-2" />
           {loading ? "Generating Video..." : "Generate Video with AI"}
-        </button>
+        </button> */}
 
         {loading && (
           <p className="text-center text-sm text-gray-600">

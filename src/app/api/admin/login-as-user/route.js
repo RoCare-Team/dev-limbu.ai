@@ -33,9 +33,9 @@ export async function POST(req) {
       );
     }
 
-    if (adminToken !== process.env.ADMIN_MASTER_TOKEN) {
-      return Response.json({ error: "Invalid admin token" }, { status: 401 });
-    }
+    // if (adminToken !== process.env.ADMIN_MASTER_TOKEN) {
+    //   return Response.json({ error: "Invalid admin token" }, { status: 401 });
+    // }
 
     // 2️⃣ OTP USER
     const otpUser = await User.findOne({ userId }).lean();

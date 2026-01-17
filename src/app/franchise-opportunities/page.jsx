@@ -919,7 +919,7 @@ export default function FranchisePage() {
                 name: "Business Excellence Plan",
                 investment: "₹2,00,000",
                 originalPrice: "₹5,00,000",
-                commission: "50% on revenue + 10% Business Growth Plan + 20% Business Champion",
+                commission: "50% on revenue",
                 features: [
                   "Regional franchise rights",
                   "VIP training & mentorship",

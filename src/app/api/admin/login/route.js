@@ -41,7 +41,7 @@ export async function POST(req) {
     };
 
     // 🔐 Sign JWT token
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 
     // 🍪 Set token in secure cookie
     const res = NextResponse.json({

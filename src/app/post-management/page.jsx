@@ -39,9 +39,6 @@ import {
   Instagram,
   ThumbsUp,
   MessageCircle,
-  MessageSquare,
-  Phone,
-  AlertCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -51,6 +48,7 @@ import LocationSelectionModal from "../../components/LocationSelectionModal";
 import InsufficientBalanceModal from "../../components/InsufficientBalanceModal";
 import LoadingOverlay from "../../components/LoadingOverlay";
 import SuccessOverlay from "../../components/SuccessOverlay"; // Corrected import path
+import SupportModal from "@/components/SupportModal";
 import FirstPostModal from "../../components/FirstPostModal";
 import PostInput from "@/components/PostInput";
 import TabButton from "@/components/TabButton";
@@ -91,7 +89,7 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
       const h = hour % 12 || 12;
       return `${h}:00 ${ampm}`;
     };
-    
+
     const label = `${formatTime(i)} - ${formatTime((i + 1) % 24)}`;
     return { value: i, label };
   });
@@ -117,7 +115,7 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
           </button>
         </div>
         <p className="text-gray-600 mb-4">Select a date and time slot.</p>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -129,7 +127,7 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
               className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Time Slot</label>
             <div className="relative">
@@ -142,25 +140,26 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
                 </span>
                 <ChevronDown className="w-5 h-5 text-gray-400" />
               </button>
-              
+
               {showTimeDropdown && (
                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                   {timeSlots.map((s) => {
                     const disabled = isSlotDisabled(s.value);
                     return (
-                    <div
-                      key={s.value}
-                      onClick={() => {
-                        if (!disabled) {
-                          setSlot(s.value);
-                          setShowTimeDropdown(false);
-                        }
-                      }}
-                      className={`p-3 text-sm ${parseInt(slot) === s.value ? 'bg-blue-50 text-blue-700 font-medium' : disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 cursor-pointer'}`}
-                    >
-                      {s.label}
-                    </div>
-                  )})}
+                      <div
+                        key={s.value}
+                        onClick={() => {
+                          if (!disabled) {
+                            setSlot(s.value);
+                            setShowTimeDropdown(false);
+                          }
+                        }}
+                        className={`p-3 text-sm ${parseInt(slot) === s.value ? 'bg-blue-50 text-blue-700 font-medium' : disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 cursor-pointer'}`}
+                      >
+                        {s.label}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -208,8 +207,8 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
     }
   };
 
-  console.log("captioncaption",caption);
-  
+  console.log("captioncaption", caption);
+
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -230,10 +229,10 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
             <p className="text-sm text-gray-500">Loading Facebook Pages...</p>
           </div>
         ) : pages.length === 0 ? (
-           <div className="text-center py-6">
-             <p className="text-gray-600 mb-4">No Facebook Pages connected.</p>
-             <button onClick={onClose} className="text-blue-600 hover:underline">Close</button>
-           </div>
+          <div className="text-center py-6">
+            <p className="text-gray-600 mb-4">No Facebook Pages connected.</p>
+            <button onClick={onClose} className="text-blue-600 hover:underline">Close</button>
+          </div>
         ) : (
           <div className="space-y-4">
             <div>
@@ -330,12 +329,12 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
             <p className="text-sm text-gray-500">Loading Instagram Accounts...</p>
           </div>
         ) : accounts.length === 0 ? (
-           <div className="text-center py-6">
-             <p className="text-gray-600 mb-4">No Instagram Accounts connected.</p>
-             <Link href="/dashboard" className="bg-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
-                Connect Instagram
-             </Link>
-           </div>
+          <div className="text-center py-6">
+            <p className="text-gray-600 mb-4">No Instagram Accounts connected.</p>
+            <Link href="/dashboard" className="bg-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
+              Connect Instagram
+            </Link>
+          </div>
         ) : (
           <div className="space-y-4">
             <div>
@@ -376,7 +375,6 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
               >
                 <Send className="w-4 h-4" />
                 Post Now
-                Post Now
               </button>
             </div>
           </div>
@@ -387,9 +385,9 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
 };
 
 // Preview Section Component
-const PreviewSection = ({ 
-  isGenerating, 
-  previewData, 
+const PreviewSection = ({
+  isGenerating,
+  previewData,
   onDownload,
   countdown,
   onUpdateStatus,
@@ -411,20 +409,20 @@ const PreviewSection = ({
     return (
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 w-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center space-y-6">
         <div className="relative">
-         <Lottie
-        animationData={animationData}
-        loop
-        autoplay
-        className="w-24 h-24"
-      />
+          <Lottie
+            animationData={animationData}
+            loop
+            autoplay
+            className="w-24 h-24"
+          />
         </div>
         <div>
           <h3 className="text-xl font-bold text-gray-800">Generating Magic...</h3>
           <p className="text-gray-500 mt-2">Creating your stunning post</p>
           {countdown > 0 && (
-             <p className="text-sm font-mono text-blue-600 mt-4 bg-blue-50 px-3 py-1 rounded-full inline-block">
-               {countdown}s remaining
-             </p>
+            <p className="text-sm font-mono text-blue-600 mt-4 bg-blue-50 px-3 py-1 rounded-full inline-block">
+              {countdown}s remaining
+            </p>
           )}
         </div>
       </div>
@@ -455,211 +453,210 @@ const PreviewSection = ({
         <h3 className="font-bold text-gray-800 flex items-center gap-2">
           <Eye className="w-5 h-5 text-blue-600" /> Live Preview
         </h3>
-        <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1 uppercase tracking-wider ${
-            status === "approved" ? "bg-green-100/90 text-green-700 border-green-200" :
+        <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1 uppercase tracking-wider ${status === "approved" ? "bg-green-100/90 text-green-700 border-green-200" :
             status === "pending" ? "bg-yellow-100/90 text-yellow-700 border-yellow-200" :
-            status === "posted" ? "bg-purple-100/90 text-purple-700 border-purple-200" :
-            status === "scheduled" ? "bg-blue-100/90 text-blue-700 border-blue-200" :
-            status === "failed" ? "bg-red-100/90 text-red-700 border-red-200" :
-            "bg-blue-100/90 text-blue-700 border-blue-200"
+              status === "posted" ? "bg-purple-100/90 text-purple-700 border-purple-200" :
+                status === "scheduled" ? "bg-blue-100/90 text-blue-700 border-blue-200" :
+                  status === "failed" ? "bg-red-100/90 text-red-700 border-red-200" :
+                    "bg-blue-100/90 text-blue-700 border-blue-200"
           }`}>
           {status}
         </span>
       </div>
 
-      
-<div className="w-full bg-white rounded-lg overflow-hidden border border-gray-200">
 
-  {/* IMAGE PREVIEW */}
-  <a href={previewData.aiOutput} target="_blank" rel="noopener noreferrer">
-    <div className="relative h-36 sm:h-44 lg:h-48 w-full bg-gray-100 group overflow-hidden cursor-pointer">
-      
-      {/* Blurred BG */}
-      <div
-        className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110"
-        style={{ backgroundImage: `url(${previewData.aiOutput})` }}
-      />
+      <div className="w-full bg-white rounded-lg overflow-hidden border border-gray-200">
 
-      {/* Image */}
-      <img
-        src={previewData.aiOutput}
-        alt="Preview"
-        className="relative w-full h-full object-contain z-10 transition-transform duration-300 group-hover:scale-[1.015]"
-      />
+        {/* IMAGE PREVIEW */}
+        <a href={previewData.aiOutput} target="_blank" rel="noopener noreferrer">
+          <div className="relative h-36 sm:h-44 lg:h-48 w-full bg-gray-100 group overflow-hidden cursor-pointer">
 
-      {/* Download */}
-      <div className="absolute top-1.5 right-1.5 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onDownload(previewData);
-          }}
-          className="p-1.5 bg-white/90 rounded-full shadow hover:scale-105 transition"
-        >
-          <Download className="w-3.5 h-3.5 text-gray-700" />
-        </button>
-      </div>
-    </div>
-  </a>
+            {/* Blurred BG */}
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110"
+              style={{ backgroundImage: `url(${previewData.aiOutput})` }}
+            />
 
-  {/* DESCRIPTION */}
-  <div className="px-2.5 py-2 border-t border-gray-200 relative group/desc">
-    {isEditing ? (
-      <div className="space-y-1.5">
-        <textarea
-          value={editedDesc}
-          onChange={(e) => setEditedDesc(e.target.value)}
-          rows={2}
-          className="w-full p-1.5 text-[11px] border border-gray-300 rounded-md bg-gray-50 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
-        />
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => {
-              setIsEditing(false);
-              setEditedDesc(previewData.description);
-            }}
-            className="text-[11px] px-2 py-0.5 bg-gray-100 rounded"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveDescription}
-            className="text-[11px] px-2 py-0.5 bg-blue-600 text-white rounded"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    ) : (
-      <>
-        <div className="max-h-[56px] sm:max-h-[72px] overflow-y-auto text-[11px] text-gray-700 leading-snug whitespace-pre-line pr-5">
-          {previewData.description}
-        </div>
+            {/* Image */}
+            <img
+              src={previewData.aiOutput}
+              alt="Preview"
+              className="relative w-full h-full object-contain z-10 transition-transform duration-300 group-hover:scale-[1.015]"
+            />
 
-        <button
-          onClick={() => setIsEditing(true)}
-          className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover/desc:opacity-100 hover:bg-blue-50 transition"
-        >
-          <Edit3 className="w-3 h-3 text-gray-400" />
-        </button>
-      </>
-    )}
-  </div>
-  
-</div>
-      <div className="p-4 space-y-3 flex-1 flex flex-col bg-white">
-    
-        {status === "pending" && (
-            <div className="grid grid-cols-2 gap-3">
+            {/* Download */}
+            <div className="absolute top-1.5 right-1.5 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                onClick={() => onUpdateStatus(previewData._id, "approved")}
-                className="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onDownload(previewData);
+                }}
+                className="p-1.5 bg-white/90 rounded-full shadow hover:scale-105 transition"
               >
-                <CheckCircle className="w-4 h-4" />
-                Approve
-              </button>
-              <button
-                onClick={() => onReject(previewData._id)}
-                className="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <XCircle className="w-4 h-4" />
-                Reject
+                <Download className="w-3.5 h-3.5 text-gray-700" />
               </button>
             </div>
+          </div>
+        </a>
+
+        {/* DESCRIPTION */}
+        <div className="px-2.5 py-2 border-t border-gray-200 relative group/desc">
+          {isEditing ? (
+            <div className="space-y-1.5">
+              <textarea
+                value={editedDesc}
+                onChange={(e) => setEditedDesc(e.target.value)}
+                rows={2}
+                className="w-full p-1.5 text-[11px] border border-gray-300 rounded-md bg-gray-50 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+              />
+              <div className="flex justify-end gap-1.5">
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditedDesc(previewData.description);
+                  }}
+                  className="text-[11px] px-2 py-0.5 bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveDescription}
+                  className="text-[11px] px-2 py-0.5 bg-blue-600 text-white rounded"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="max-h-[56px] sm:max-h-[72px] overflow-y-auto text-[11px] text-gray-700 leading-snug whitespace-pre-line pr-5">
+                {previewData.description}
+              </div>
+
+              <button
+                onClick={() => setIsEditing(true)}
+                className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover/desc:opacity-100 hover:bg-blue-50 transition"
+              >
+                <Edit3 className="w-3 h-3 text-gray-400" />
+              </button>
+            </>
+          )}
+        </div>
+
+      </div>
+      <div className="p-4 space-y-3 flex-1 flex flex-col bg-white">
+
+        {status === "pending" && (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => onUpdateStatus(previewData._id, "approved")}
+              className="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Approve
+            </button>
+            <button
+              onClick={() => onReject(previewData._id)}
+              className="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+            >
+              <XCircle className="w-4 h-4" />
+              Reject
+            </button>
+          </div>
         )}
 
-       {status === "approved" && (
-  <div className="flex gap-2">
-    
-    <button
-      onClick={() => handlePost(previewData)}
-      className="flex-1 flex items-center justify-center gap-1.5
+        {status === "approved" && (
+          <div className="flex gap-2">
+
+            <button
+              onClick={() => handlePost(previewData)}
+              className="flex-1 flex items-center justify-center gap-1.5
         bg-gradient-to-r from-blue-100 to-indigo-100
         hover:from-blue-200 hover:to-indigo-200
         text-blue-700 border border-blue-200
         px-3 py-2.5 rounded-lg
         text-sm font-semibold
         transition-all duration-200 shadow-sm"
-    >
-      <Send className="w-4 h-4" />
-      Post to GMB
-    </button>
+            >
+              <Send className="w-4 h-4" />
+              Post to GMB
+            </button>
 
-    <button
-      onClick={() => onUpdateStatus(previewData)}
-      className="flex-1 flex items-center justify-center gap-1.5
+            <button
+              onClick={() => onUpdateStatus(previewData)}
+              className="flex-1 flex items-center justify-center gap-1.5
         bg-white text-gray-700 border border-gray-200
         hover:bg-gray-50 hover:border-gray-300
         px-3 py-2.5 rounded-lg
         text-sm font-semibold
         transition-all duration-200 shadow-sm"
-    >
-      <Calendar className="w-4 h-4" />
-      Schedule
-    </button>
+            >
+              <Calendar className="w-4 h-4" />
+              Schedule
+            </button>
 
-  </div>
-)}
+          </div>
+        )}
         {status === "scheduled" && (
-            <div className="space-y-3">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Scheduled For</p>
-                  <p className="text-sm font-bold text-gray-800">
-                    {previewData.scheduledDate
-                      ? new Date(previewData.scheduledDate).toLocaleString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Date not set"}
-                  </p>
-                </div>
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-600" />
               </div>
-              <button
-                onClick={() => handlePost(previewData)}
-                className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <Send className="w-4 h-4" />
-                Post to GMB
-              </button>
+              <div>
+                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Scheduled For</p>
+                <p className="text-sm font-bold text-gray-800">
+                  {previewData.scheduledDate
+                    ? new Date(previewData.scheduledDate).toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                    : "Date not set"}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => handlePost(previewData)}
+              className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+            >
+              <Send className="w-4 h-4" />
+              Post to GMB
+            </button>
+          </div>
         )}
 
         {status === "failed" && (
-            <div className="space-y-3">
+          <div className="space-y-3">
             <div className="bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
-  <p className="text-[10px] text-red-600 font-semibold uppercase flex items-center gap-1 leading-tight">
-    <XCircle className="w-2.5 h-2.5" />
-    Posting Failed
-  </p>
+              <p className="text-[10px] text-red-600 font-semibold uppercase flex items-center gap-1 leading-tight">
+                <XCircle className="w-2.5 h-2.5" />
+                Posting Failed
+              </p>
 
-  <p className="text-xs text-red-700 mt-0.5 leading-snug">
-    {previewData.error || "Network Error"}
-  </p>
-</div>
-
-
-              <button
-                onClick={() => handlePost(previewData)}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-100 to-indigo-100 hover:from-blue-200 hover:to-indigo-200 text-blue-700 border border-blue-200 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Retry Post to GMB
-              </button>
-
-              <button
-                onClick={() => onUpdateStatus(previewData)}
-                className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <Calendar className="w-4 h-4" />
-                Schedule
-              </button>
+              <p className="text-xs text-red-700 mt-0.5 leading-snug">
+                {previewData.error || "Network Error"}
+              </p>
             </div>
+
+
+            <button
+              onClick={() => handlePost(previewData)}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-100 to-indigo-100 hover:from-blue-200 hover:to-indigo-200 text-blue-700 border border-blue-200 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry Post to GMB
+            </button>
+
+            <button
+              onClick={() => onUpdateStatus(previewData)}
+              className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+            >
+              <Calendar className="w-4 h-4" />
+              Schedule
+            </button>
+          </div>
         )}
 
         {status === "posted" && (
@@ -741,18 +738,17 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
         {/* Status Badge */}
         <div className="absolute top-3 left-3 z-10">
-           <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
-              post.status === "pending"
-                ? "bg-yellow-100/90 text-yellow-700 border border-yellow-200"
-                : post.status === "approved"
+          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${post.status === "pending"
+              ? "bg-yellow-100/90 text-yellow-700 border border-yellow-200"
+              : post.status === "approved"
                 ? "bg-green-100/90 text-green-700 border border-green-200"
                 : post.status === "posted"
-                ? "bg-purple-100/90 text-purple-700 border border-purple-200"
-                : post.status === "failed"
-                ? "bg-red-100/90 text-red-700 border border-red-200"
-                : post.status === "failed"
-                ? "bg-red-100/90 text-red-700 border border-red-200"
-                : "bg-blue-100/90 text-blue-700 border border-blue-200"
+                  ? "bg-purple-100/90 text-purple-700 border border-purple-200"
+                  : post.status === "failed"
+                    ? "bg-red-100/90 text-red-700 border border-red-200"
+                    : post.status === "failed"
+                      ? "bg-red-100/90 text-red-700 border border-red-200"
+                      : "bg-blue-100/90 text-blue-700 border border-blue-200"
             }`}
           >
             {post.status}
@@ -780,7 +776,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
       {/* Content Section */}
       <div className="p-5 flex flex-col flex-grow space-y-4">
-        
+
         {/* Description Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
@@ -845,8 +841,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           {post.status === "posted"
             ? `Posted: ${new Date(post.locations?.[0]?.postedAt || post.updatedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}`
             : post.createdAt
-            ? new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })
-            : "Date unknown"}
+              ? new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })
+              : "Date unknown"}
         </div>
 
         {/* Facebook Stats */}
@@ -886,8 +882,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
           {post.status === "approved" && (
             <div className="space-y-3">
-               <div className="flex items-center justify-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                  {/* <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
+              <div className="flex items-center justify-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                {/* <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
                     <input
                       type="checkbox"
                       checked={post.checkmark === "both" || post.checkmark === "post" || !post.checkmark}
@@ -908,8 +904,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               </div>
 
               <button
-  onClick={() => handlePost(post)}
-  className="
+                onClick={() => handlePost(post)}
+                className="
     w-full flex items-center justify-center gap-2
     bg-gradient-to-r from-blue-100 to-indigo-100
     hover:from-blue-200 hover:to-indigo-200
@@ -919,10 +915,10 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     text-sm font-semibold
     transition-all duration-200
   "
->
-  <Send className="w-4 h-4" />
-  Post to GMB
-</button>
+              >
+                <Send className="w-4 h-4" />
+                Post to GMB
+              </button>
 
               <button
                 onClick={() => handleInstagramPost(post)}
@@ -940,11 +936,11 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 Post to Facebook
               </button>
 
-{/* <span className="text-xs text-gray-500">
+              {/* <span className="text-xs text-gray-500">
   Post will be published only after you click Publish
 </span> */}
 
-{/* <p>like: 0, comment: 0</p> */}
+              {/* <p>like: 0, comment: 0</p> */}
 
               <button
                 onClick={() => onUpdateStatus(post)}
@@ -956,70 +952,69 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             </div>
           )}
 
-         {post.status === "scheduled" && (
-  <div className="space-y-3">
-    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-3 transition-all">
-      
-      {/* Calendar Icon */}
-      <div className="bg-blue-100 p-2 rounded-lg">
-        <Calendar className="w-5 h-5 text-blue-600" />
-      </div>
+          {post.status === "scheduled" && (
+            <div className="space-y-3">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-3 transition-all">
 
-      {/* Content */}
-      <div className="flex-1">
-        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-          Scheduled For
-        </p>
+                {/* Calendar Icon */}
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
 
-        <p className="text-sm font-bold text-gray-800">
-          {post.scheduledDate
-            ? new Date(post.scheduledDate).toLocaleString("en-IN", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "Date not set"}
-        </p>
+                {/* Content */}
+                <div className="flex-1">
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                    Scheduled For
+                  </p>
 
-        {post.locations?.length > 0 && (
-          <p className="text-xs text-blue-700 mt-1.5 font-medium flex items-center gap-1 bg-blue-100/50 px-2 py-0.5 rounded-md w-fit">
-            <svg viewBox="0 0 24 24" className="w-3 h-3">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            {post.locations.length === 1
-              ? `${post.locations[0].name || post.locations[0].title || "1 Location"} ${
-                  post.locations[0].locality
-                    ? `(${post.locations[0].locality})`
-                    : ""
-                }`
-              : `${post.locations.length} Locations`}
-          </p>
-        )}
-      </div>
+                  <p className="text-sm font-bold text-gray-800">
+                    {post.scheduledDate
+                      ? new Date(post.scheduledDate).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                      : "Date not set"}
+                  </p>
 
-      {/* ✏️ Edit Schedule Button */}
-      <button
-        onClick={() => onUpdateStatus(post)}
-        title="Edit Schedule"
-        className="
+                  {post.locations?.length > 0 && (
+                    <p className="text-xs text-blue-700 mt-1.5 font-medium flex items-center gap-1 bg-blue-100/50 px-2 py-0.5 rounded-md w-fit">
+                      <svg viewBox="0 0 24 24" className="w-3 h-3">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                      </svg>
+                      {post.locations.length === 1
+                        ? `${post.locations[0].name || post.locations[0].title || "1 Location"} ${post.locations[0].locality
+                          ? `(${post.locations[0].locality})`
+                          : ""
+                        }`
+                        : `${post.locations.length} Locations`}
+                    </p>
+                  )}
+                </div>
+
+                {/* ✏️ Edit Schedule Button */}
+                <button
+                  onClick={() => onUpdateStatus(post)}
+                  title="Edit Schedule"
+                  className="
           p-2 rounded-lg
           bg-blue-100 text-blue-600
           hover:bg-blue-200
           transition-colors
         "
-      >
-        <Pencil className="w-4 h-4" />
-      </button>
-    </div>
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
 
-    {/* Post Now Button */}
-    <button
-      onClick={() => handlePost(post)}
-      className="
+              {/* Post Now Button */}
+              <button
+                onClick={() => handlePost(post)}
+                className="
         w-full flex items-center justify-center gap-2
         bg-blue-50 text-blue-600
         border border-blue-100
@@ -1028,12 +1023,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
         text-sm font-semibold
         transition-all duration-200
       "
-    >
-      <Send className="w-4 h-4" />
-      Post Now
-    </button>
-  </div>
-)}
+              >
+                <Send className="w-4 h-4" />
+                Post Now
+              </button>
+            </div>
+          )}
 
           {post.status === "failed" && (
             <div className="space-y-3">
@@ -1063,12 +1058,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               </button>
             </div>
           )}
-{post.status === "posted" && (
-  <div className="grid grid-cols-2 gap-3">
-    {/* Repost */}
-    <button
-      onClick={() => handlePost(post)}
-      className="
+          {post.status === "posted" && (
+            <div className="grid grid-cols-2 gap-3">
+              {/* Repost */}
+              <button
+                onClick={() => handlePost(post)}
+                className="
         flex items-center justify-center gap-2
         bg-blue-50 text-blue-600
         border border-blue-200
@@ -1076,43 +1071,43 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
         px-4 py-2.5 rounded-xl text-sm font-semibold
         transition-all
       "
-    >
-      <Send className="w-4 h-4" />
-      Repost
-    </button>
+              >
+                <Send className="w-4 h-4" />
+                Repost
+              </button>
 
-    {/* Instagram Post */}
-    <button
-      onClick={() => handleInstagramPost(post)}
-      className="
+              {/* Instagram Post */}
+              <button
+                onClick={() => handleInstagramPost(post)}
+                className="
         flex items-center justify-center gap-2
         bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white
         px-4 py-2.5 rounded-xl text-sm font-semibold
         transition-all
       "
-    >
-      <Instagram className="w-4 h-4" />
-      IG Post
-    </button>
+              >
+                <Instagram className="w-4 h-4" />
+                IG Post
+              </button>
 
-    {/* Facebook Post */}
-    <button
-      onClick={() => handleFacebookPost(post)}
-      className="
+              {/* Facebook Post */}
+              <button
+                onClick={() => handleFacebookPost(post)}
+                className="
         flex items-center justify-center gap-2
         bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20
         px-4 py-2.5 rounded-xl text-sm font-semibold
         transition-all
       "
-    >
-      <Facebook className="w-4 h-4" />
-      FB Post
-    </button>
+              >
+                <Facebook className="w-4 h-4" />
+                FB Post
+              </button>
 
-    {/* Schedule */}
-    <button
-      onClick={() => onUpdateStatus(post)}
-      className="
+              {/* Schedule */}
+              <button
+                onClick={() => onUpdateStatus(post)}
+                className="
         flex items-center justify-center gap-2
         bg-purple-50 text-purple-600
         border border-purple-200
@@ -1120,14 +1115,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
         px-4 py-2.5 rounded-xl text-sm font-semibold
         transition-all
       "
-    >
-      <Calendar className="w-4 h-4" />
-      Schedule
-    </button>
-    {/* <p>like: 0, comment: 0</p> */}
+              >
+                <Calendar className="w-4 h-4" />
+                Schedule
+              </button>
+              {/* <p>like: 0, comment: 0</p> */}
 
-  </div>
-)}
+            </div>
+          )}
 
         </div>
       </div>
@@ -1185,12 +1180,9 @@ export default function PostManagementPage() {
   const [assetId, setAssetId] = useState(null);
   const [selectedAssets, setSelectedAssets] = useState([]);
   const previewRef = useRef(null);
-  const [bussinessTitle,setBussinessTitle] = useState("")
+  const [bussinessTitle, setBussinessTitle] = useState("")
   const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb"]);
   const [keywordError, setKeywordError] = useState("");
-  const [showSupportPopup, setShowSupportPopup] = useState(false);
-  const [showIssueModal, setShowIssueModal] = useState(false);
-  const [issueText, setIssueText] = useState("");
 
   // Helper to strip base64 prefix
   const stripBase64 = (str) => {
@@ -1348,7 +1340,7 @@ export default function PostManagementPage() {
       const userId = localStorage.getItem("userId");
       const allPostsData = await fetchAllPostsAction(userId);
 
-      
+
 
       if (allPostsData.success) {
         const allPosts = allPostsData.data;
@@ -1461,7 +1453,7 @@ export default function PostManagementPage() {
         const data = await res.json();
         imageUrl = data.secure_url;
       }
-      
+
       // Save Post
       const savedPostResponse = await savePostAction({
         userId,
@@ -1550,12 +1542,12 @@ export default function PostManagementPage() {
       }
 
       const data = apiResponse.data || {};
-      console.log("datadatadata",data);
-      
+      console.log("datadatadata", data);
 
-      console.log("datadata",data);
-      
-      
+
+      console.log("datadata", data);
+
+
       const gmbDesc = data.gmb_des;
       const fbDesc = data.fb_des;
       const igDesc = data.ig_des;
@@ -1629,7 +1621,7 @@ export default function PostManagementPage() {
       return;
     }
 
-    
+
 
     const userId = localStorage.getItem("userId");
 
@@ -1686,7 +1678,7 @@ export default function PostManagementPage() {
 
       clearInterval(timer);
 
-      
+
 
 
       // The direct response from n8n is now the data we need
@@ -1763,7 +1755,7 @@ export default function PostManagementPage() {
 
   // const handleConfirmPost = async () => {
   //   if (!previewData) return;
-    
+
   //   const userId = localStorage.getItem("userId");
   //   try {
   //     const postData = await savePostAction({
@@ -1809,95 +1801,95 @@ export default function PostManagementPage() {
   };
 
 
- const handleUpdateStatus = async (
-  postOrId,
-  newStatus,
-  scheduleDate = null,
-  locations = [],
-  checkmark = false,
-) => {
-  console.log("📍 Locations:", locations);
-  console.log("✅ Checkmark:", checkmark);
+  const handleUpdateStatus = async (
+    postOrId,
+    newStatus,
+    scheduleDate = null,
+    locations = [],
+    checkmark = false,
+  ) => {
+    console.log("📍 Locations:", locations);
+    console.log("✅ Checkmark:", checkmark);
 
-  const postId = typeof postOrId === "string" ? postOrId : postOrId._id;
+    const postId = typeof postOrId === "string" ? postOrId : postOrId._id;
 
-  // 🔹 Open schedule modal
-  if (typeof postOrId === "object" && !newStatus) {
-    setPostToSchedule(postOrId);
-    setIsScheduleModalOpen(true);
-    return;
-  }  
-
-  const userId = localStorage.getItem("userId");
-
-  // When scheduling, we must have a refresh token to pass to the backend.
-  if (newStatus === "scheduled" && !session?.refreshToken) {
-    showToast("Please connect first Bussiness Account or  log in again to schedule posts.", "error");
-    return;
-  }
-
-
-  try {
-    // Deduplicate locations based on locationId to ensure unique targets
-    const uniqueLocations = Array.isArray(locations) 
-      ? Array.from(new Map(locations.map(item => [item.locationId, item])).values()) 
-      : [];
-
-    // 🔹 NORMALIZED PAYLOAD
-    let payload = {
-      id: postId,
-      userId,
-      status: newStatus,
-      scheduledDate: scheduleDate || null,
-      checkmark: checkmark,
-      refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
-      locations: uniqueLocations,
-    };
-
-    if (newStatus === "scheduled") {
-      const locationData = uniqueLocations.map((loc) => ({
-        city: loc.locationId,
-        cityName: loc.locality,
-        bookUrl: loc.websiteUrl || "",
-      }));
-
-      payload.locationData = locationData;
-      payload.account = uniqueLocations.length > 0 ? uniqueLocations[0].accountId : "";
-    }
-
-
-    const res = await updatePostStatusAction(payload);
-    console.log("resresres",res);
-    
-
-    if (!res?.success) {
-      showToast(res?.error || "Failed to update post", "error");
+    // 🔹 Open schedule modal
+    if (typeof postOrId === "object" && !newStatus) {
+      setPostToSchedule(postOrId);
+      setIsScheduleModalOpen(true);
       return;
     }
 
-    showToast("Post Updated Successfully! ✅");
+    const userId = localStorage.getItem("userId");
 
-    // 🔹 Update local state correctly
-    setPosts((prev) =>
-      prev.map((p) =>
-        p._id === postId
-          ? {
+    // When scheduling, we must have a refresh token to pass to the backend.
+    if (newStatus === "scheduled" && !session?.refreshToken) {
+      showToast("Please connect first Bussiness Account or  log in again to schedule posts.", "error");
+      return;
+    }
+
+
+    try {
+      // Deduplicate locations based on locationId to ensure unique targets
+      const uniqueLocations = Array.isArray(locations)
+        ? Array.from(new Map(locations.map(item => [item.locationId, item])).values())
+        : [];
+
+      // 🔹 NORMALIZED PAYLOAD
+      let payload = {
+        id: postId,
+        userId,
+        status: newStatus,
+        scheduledDate: scheduleDate || null,
+        checkmark: checkmark,
+        refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
+        locations: uniqueLocations,
+      };
+
+      if (newStatus === "scheduled") {
+        const locationData = uniqueLocations.map((loc) => ({
+          city: loc.locationId,
+          cityName: loc.locality,
+          bookUrl: loc.websiteUrl || "",
+        }));
+
+        payload.locationData = locationData;
+        payload.account = uniqueLocations.length > 0 ? uniqueLocations[0].accountId : "";
+      }
+
+
+      const res = await updatePostStatusAction(payload);
+      console.log("resresres", res);
+
+
+      if (!res?.success) {
+        showToast(res?.error || "Failed to update post", "error");
+        return;
+      }
+
+      showToast("Post Updated Successfully! ✅");
+
+      // 🔹 Update local state correctly
+      setPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId
+            ? {
               ...p,
               status: newStatus,
               scheduledDate: res.data?.scheduledDate || scheduleDate,
               locations: res.data?.locations || locations,
               checkmark: res.data?.checkmark ?? checkmark,
             }
-          : p
-      )
-    );
+            : p
+        )
+      );
 
-    await fetchPosts(activeTab);
-  } catch (error) {
-    console.error("❌ Update Error:", error);
-    showToast("Error updating post", "error");
-  }
-};
+      await fetchPosts(activeTab);
+    } catch (error) {
+      console.error("❌ Update Error:", error);
+      showToast("Error updating post", "error");
+    }
+  };
 
   const handleToggleCheckmark = async (id, type) => {
     const post = posts.find((p) => p._id === id);
@@ -1966,7 +1958,7 @@ export default function PostManagementPage() {
 
   const submitFacebookPost = async (post, pageData, caption) => {
     setShowFacebookModal(false);
-    
+
     if (!caption && !post.aiOutput) {
       showToast("Post content is empty.", "error");
       return;
@@ -1974,7 +1966,7 @@ export default function PostManagementPage() {
 
     try {
       showToast("Publishing to Facebook...", "success");
-      
+
       const imageUrl = post.aiOutput;
       const pageId = pageData.pageId;
       const accessToken = pageData.pageAccessToken;
@@ -2049,7 +2041,7 @@ export default function PostManagementPage() {
       }
 
       showToast("Post published on Facebook 🎉", "success");
-      
+
       await updatePostStatusAction({
         id: post._id,
         userId: localStorage.getItem("userId"),
@@ -2065,29 +2057,29 @@ export default function PostManagementPage() {
     }
   };
 
- const fetchInstagramAccounts = async () => {
-  if (instagramAccounts.length > 0) return;
+  const fetchInstagramAccounts = async () => {
+    if (instagramAccounts.length > 0) return;
 
-  setLoadingIgAccounts(true);
+    setLoadingIgAccounts(true);
 
-  const userId = localStorage.getItem("userId");
+    const userId = localStorage.getItem("userId");
 
-  try {
-    const res = await fetch(`/api/instagram/pages?userId=${userId}`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`/api/instagram/pages?userId=${userId}`);
+      const data = await res.json();
 
-    if (data.success) {
-      setInstagramAccounts(data.pages);
-    } else {
-      showToast("Failed to fetch Instagram accounts", "error");
+      if (data.success) {
+        setInstagramAccounts(data.pages);
+      } else {
+        showToast("Failed to fetch Instagram accounts", "error");
+      }
+    } catch (err) {
+      console.error("Error fetching IG accounts:", err);
+      showToast("Error fetching Instagram accounts", "error");
+    } finally {
+      setLoadingIgAccounts(false);
     }
-  } catch (err) {
-    console.error("Error fetching IG accounts:", err);
-    showToast("Error fetching Instagram accounts", "error");
-  } finally {
-    setLoadingIgAccounts(false);
-  }
-};
+  };
 
   const handleInstagramPost = (post) => {
     setPostToInstagram(post);
@@ -2097,7 +2089,7 @@ export default function PostManagementPage() {
 
   const submitInstagramPost = async (post, accountData, caption) => {
     setShowInstagramModal(false);
-    
+
     if (!post.aiOutput) {
       showToast("Post has no image to share.", "error");
       return;
@@ -2105,7 +2097,7 @@ export default function PostManagementPage() {
 
     try {
       showToast("Publishing to Instagram...", "success");
-      
+
       const imageUrl = post.aiOutput;
       const igUserId = accountData.igId;
       const accessToken = accountData.pageAccessToken;
@@ -2207,7 +2199,7 @@ export default function PostManagementPage() {
 
     // Determine if this is a "Post Now" or "Schedule Post" action
     if (scheduledDateForLocations && postToSchedule) {
-      
+
       // This is a "Schedule Post" action
       // No direct cost deduction here for scheduling, as actual posting cost is handled by cron
 
@@ -2223,7 +2215,7 @@ export default function PostManagementPage() {
       // Reset scheduling specific states
       setScheduledDateForLocations(null);
       setPostToSchedule(null);
-      
+
     } else {
       // This is a "Post Now" action (existing logic)
       // Calculate cost: 20 coins per location for posting
@@ -2257,7 +2249,7 @@ export default function PostManagementPage() {
             logoUsed: !!logo,
           }
         });
-        
+
 
         if (walletRes.message === "Wallet updated") {
           const newBalance = walletBalance - totalPostCost;
@@ -2282,7 +2274,7 @@ export default function PostManagementPage() {
         // Batch processing to prevent timeouts
         const BATCH_SIZE = 5;
         const successfulLocations = [];
-        
+
         for (let i = 0; i < locationData.length; i += BATCH_SIZE) {
           const batch = locationData.slice(i, i + BATCH_SIZE);
           const batchPayload = batch.map(b => ({
@@ -2306,7 +2298,7 @@ export default function PostManagementPage() {
 
               // Update isPosted status incrementally for real-time updates
               const batchIds = batch.map(b => b.originalLoc.locationId);
-              selectedLocations = selectedLocations.map(loc => 
+              selectedLocations = selectedLocations.map(loc =>
                 batchIds.includes(loc.locationId) ? { ...loc, isPosted: true } : loc
               );
 
@@ -2335,11 +2327,11 @@ export default function PostManagementPage() {
               reason: "Refund-Partial-Post-Failed",
               metadata: { originalReason: "Post-on-GMB" }
             });
-            
+
             const userData = await getUserWalletAction(userId);
             setUserWallet(userData.wallet);
             localStorage.setItem("walletBalance", userData.wallet);
-            
+
             showToast(`Posted to ${successfulLocations.length}/${selectedLocations.length} locations. Refunded failed ones.`, "warning");
           } else {
             showToast("Post successfully sent to all locations!", "success");
@@ -2363,7 +2355,7 @@ export default function PostManagementPage() {
 
       } catch (error) {
         console.error("Post error:", error);
-        
+
         // Update post status to failed
         if (postToAction) {
           const errorMsg = error.message || "Post failed";
@@ -2407,7 +2399,7 @@ export default function PostManagementPage() {
     }
     setPostToAction(null); // Clear postToAction after handling
   };
-  
+
 
   const handlePost = async (post) => {
     // First check if user has approved the post
@@ -2432,7 +2424,7 @@ export default function PostManagementPage() {
 
     // Find the full location objects based on the selected IDs.
     // The `LocationSelectionModal` passes back the `id` property of the location objects.
-    const locationsToDelete = postToAction.locations.filter(loc => 
+    const locationsToDelete = postToAction.locations.filter(loc =>
       selectedLocationIds.includes(loc.id)
     );
 
@@ -2464,12 +2456,12 @@ export default function PostManagementPage() {
       );
 
       const newStatus = remainingLocations.length === 0 ? 'approved' : postToAction.status;
-      
-      await updatePostStatusAction({ 
-        id: postToAction._id, 
-        userId, 
-        locations: remainingLocations, 
-        status: newStatus 
+
+      await updatePostStatusAction({
+        id: postToAction._id,
+        userId,
+        locations: remainingLocations,
+        status: newStatus
       });
       await fetchPosts(activeTab);
     }
@@ -2511,7 +2503,7 @@ export default function PostManagementPage() {
               : p
           )
         );
-  
+
         // ✅ Update counts
         setAllCounts((prev) => ({
           ...prev,
@@ -2562,7 +2554,7 @@ export default function PostManagementPage() {
       showToast("Failed to download image", "error");
     }
   };
-  const handleShare   = async (post) => {
+  const handleShare = async (post) => {
     if (navigator.share) {
       try {
         await navigator.share({
@@ -2580,68 +2572,36 @@ export default function PostManagementPage() {
   };
 
 
-useEffect(() => {
-  const locationDetailsData = localStorage.getItem("locationDetails");
-
-  if (!locationDetailsData) return;
-
-  try {
-    const parsedData = JSON.parse(locationDetailsData);
-
-    if (!Array.isArray(parsedData)) return;
-
-    // Get unique business titles
-    const uniqueBusinesses = [];
-    const seenTitles = new Set();
-
-    parsedData.forEach((item) => {
-      if (item?.title && !seenTitles.has(item.title)) {
-        seenTitles.add(item.title);
-        uniqueBusinesses.push(item);
-      }
-    });
-
-    // Use first unique business title
-    if (uniqueBusinesses.length > 0) {
-      setBussinessTitle(uniqueBusinesses[0].title);
-    }
-  } catch (error) {
-    console.error("Failed to parse locationDetails:", error);
-  }
-}, []);
-
-  // Show support popup after delay
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSupportPopup(true);
-    }, 5000);
-    return () => clearTimeout(timer);
+    const locationDetailsData = localStorage.getItem("locationDetails");
+
+    if (!locationDetailsData) return;
+
+    try {
+      const parsedData = JSON.parse(locationDetailsData);
+
+      if (!Array.isArray(parsedData)) return;
+
+      // Get unique business titles
+      const uniqueBusinesses = [];
+      const seenTitles = new Set();
+
+      parsedData.forEach((item) => {
+        if (item?.title && !seenTitles.has(item.title)) {
+          seenTitles.add(item.title);
+          uniqueBusinesses.push(item);
+        }
+      });
+
+      // Use first unique business title
+      if (uniqueBusinesses.length > 0) {
+        setBussinessTitle(uniqueBusinesses[0].title);
+      }
+    } catch (error) {
+      console.error("Failed to parse locationDetails:", error);
+    }
   }, []);
 
-  // Auto hide support popup after 5 seconds
-  useEffect(() => {
-    if (showSupportPopup) {
-      const timer = setTimeout(() => {
-        setShowSupportPopup(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSupportPopup]);
-
-  const handleIssueSubmit = async (e) => {
-    e.preventDefault();
-    if (!issueText.trim()) return;
-    
-    showToast("Submitting issue...", "info");
-    
-    // Simulate API call
-    setTimeout(() => {
-        showToast("Issue reported! We'll contact you shortly.", "success");
-        setShowIssueModal(false);
-        setIssueText("");
-        setShowSupportPopup(false);
-    }, 1500);
-  };
 
   useEffect(() => {
     fetchPosts();
@@ -2718,7 +2678,7 @@ useEffect(() => {
             onClose={() => setIsScheduleModalOpen(false)}
             post={postToSchedule} // Pass the post to the modal
             onConfirm={handleScheduleDateConfirmed} // New handler for date confirmation
-            />
+          />
         )}
         {showRejectModal && (
           <RejectReasonModal
@@ -2772,16 +2732,18 @@ useEffect(() => {
 
         <div>
 
-<div
-  className="
+          <div
+            className="
     grid grid-cols-2 sm:flex sm:flex-row items-center
     gap-3
   "
->
-  
-  {/* Post Management */}
-  <div
-    className="
+          >
+
+
+
+            {/* Post Management */}
+            <div
+              className="
       inline-flex items-center gap-2
       px-3 sm:px-5 py-1
       rounded-xl
@@ -2790,86 +2752,86 @@ useEffect(() => {
       border border-blue-100
       whitespace-nowrap
     "
-  >
-    <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
-      <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-    </div>
-    <span className="text-sm sm:text-xl font-bold text-blue-700">
-      Post Management
-    </span>
-  </div>
+            >
+              <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              </div>
+              <span className="text-sm sm:text-xl font-bold text-blue-700">
+                Post Management
+              </span>
+            </div>
 
-  <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-4 bg-white px-3 py-2 sm:px-5 sm:py-1 rounded-2xl shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-start sm:justify-center sm:ml-4">
-    {/* <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span> */}
-    
-    
-    {/* All */}
-    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-        <input 
-            type="checkbox" 
-            checked={['gmb', 'fb', 'ig'].every(p => selectedPlatforms.includes(p))}
-            onChange={(e) => {
-                if (e.target.checked) {
-                    setSelectedPlatforms(['gmb', 'fb', 'ig']);
-                } else {
-                    setSelectedPlatforms([]);
-                }
-            }}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
-        />
-        <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-800">All</span>
-    </label>
+            <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-4 bg-white px-3 py-2 sm:px-5 sm:py-1 rounded-2xl shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-start sm:justify-center sm:ml-4">
+              {/* <span className="text-xs fon t-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span> */}
 
-    {/* GMB */}
-    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-        <input 
-            type="checkbox" 
-            checked={selectedPlatforms.includes('gmb')}
-            onChange={() => setSelectedPlatforms(prev => prev.includes('gmb') ? prev.filter(p => p !== 'gmb') : [...prev, 'gmb'])}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
-        />
-        <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('gmb') ? 'bg-white border-blue-200 shadow-md scale-105' : 'bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100'}`}>
-            <img 
-  src="/icons8-my-business.svg" 
-  alt="Google My Business"
-  className="w-5 h-5"
-/>
 
-        </div>
-    </label>
+              {/* All */}
+              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={['gmb', 'fb', 'ig'].every(p => selectedPlatforms.includes(p))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedPlatforms(['gmb', 'fb', 'ig']);
+                    } else {
+                      setSelectedPlatforms([]);
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+                />
+                <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-800">All</span>
+              </label>
 
-    {/* Facebook */}
-    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-        <input 
-            type="checkbox" 
-            checked={selectedPlatforms.includes('fb')}
-            onChange={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
-        />
-        <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('fb') ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
-             <Facebook className="w-5 h-5 fill-current" />
-        </div>
-    </label>
+              {/* GMB */}
+              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={selectedPlatforms.includes('gmb')}
+                  onChange={() => setSelectedPlatforms(prev => prev.includes('gmb') ? prev.filter(p => p !== 'gmb') : [...prev, 'gmb'])}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+                />
+                <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('gmb') ? 'bg-white border-blue-200 shadow-md scale-105' : 'bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100'}`}>
+                  <img
+                    src="/icons8-my-business.svg"
+                    alt="Google My Business"
+                    className="w-5 h-5"
+                  />
 
-    {/* Instagram */}
-    <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-        <input 
-            type="checkbox" 
-            checked={selectedPlatforms.includes('ig')}
-            onChange={() => setSelectedPlatforms(prev => prev.includes('ig') ? prev.filter(p => p !== 'ig') : [...prev, 'ig'])}
-            className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500 transition-all"
-        />
-        <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('ig') ? 'bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
-             <Instagram className="w-5 h-5" />
-        </div>
-    </label>
-  </div>
+                </div>
+              </label>
 
-  {/* 5000 > 2 video 2500  > 1 */}
+              {/* Facebook */}
+              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={selectedPlatforms.includes('fb')}
+                  onChange={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+                />
+                <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('fb') ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
+                  <Facebook className="w-5 h-5 fill-current" />
+                </div>
+              </label>
 
-  {/* Preview Button */}
-  <a href={previewData?.aiOutput} target="_blank" rel="noopener noreferrer"
-    className="
+              {/* Instagram */}
+              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={selectedPlatforms.includes('ig')}
+                  onChange={() => setSelectedPlatforms(prev => prev.includes('ig') ? prev.filter(p => p !== 'ig') : [...prev, 'ig'])}
+                  className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500 transition-all"
+                />
+                <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('ig') ? 'bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
+                  <Instagram className="w-5 h-5" />
+                </div>
+              </label>
+            </div>
+
+            {/* 5000 > 2 video 2500  > 1 */}
+
+            {/* Preview Button */}
+            <a href={previewData?.aiOutput} target="_blank" rel="noopener noreferrer"
+              className="
       inline-flex items-center gap-1.5
       px-3 sm:px-5 py-2
       rounded-xl
@@ -2883,63 +2845,63 @@ useEffect(() => {
       whitespace-nowrap
       sm:ml-auto
     "
-  >
-    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-    Preview
-  </a>
+            >
+              <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+              Preview
+            </a>
 
-</div>
+          </div>
 
 
-  {/* <p className="text-blue/90 text-sm sm:text-sm font-medium text-center">
+          {/* <p className="text-blue/90 text-sm sm:text-sm font-medium text-center">
     Create stunning GMB posts with AI in seconds ✨
   </p> */}
 
-</div>
+        </div>
 
         {/* Main Content Area - Two Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start">
-  {/* Left Column: Input Form */}
-  <div className="lg:col-span-7">
-    <PostInput
-      prompt={prompt}
-      setPrompt={setPrompt}
-      onGenerate={handleGenerateClick}
-      loading={isGenerating}
-      logo={logo}
-      setLogo={setLogo}
-      assets={userAssets}
-      setUserAssets={setUserAssets}
-      fetchUserAssets={fetchUserAssets}
-      assetId={assetId}
-      showToast={showToast}
-      selectedAssets={selectedAssets}
-      setSelectedAssets={setSelectedAssets}
-      bussinessTitle={bussinessTitle}
-      availableLocations={availableLocations}
-      keywordError={keywordError}
-    />
-   
-  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start">
+          {/* Left Column: Input Form */}
+          <div className="lg:col-span-7">
+            <PostInput
+              prompt={prompt}
+              setPrompt={setPrompt}
+              onGenerate={handleGenerateClick}
+              loading={isGenerating}
+              logo={logo}
+              setLogo={setLogo}
+              assets={userAssets}
+              setUserAssets={setUserAssets}
+              fetchUserAssets={fetchUserAssets}
+              assetId={assetId}
+              showToast={showToast}
+              selectedAssets={selectedAssets}
+              setSelectedAssets={setSelectedAssets}
+              bussinessTitle={bussinessTitle}
+              availableLocations={availableLocations}
+              keywordError={keywordError}
+            />
 
-  {/* Right Column: Live Preview */}
-  <div
-    className="lg:col-span-5 sticky top-16 z-10 max-h-[75vh] overflow-y-auto"
-    ref={previewRef}
-  >
-    <PreviewSection
-      isGenerating={isGenerating}
-      previewData={previewData}
-      onDownload={handleDownload}
-      countdown={countdown}
-      onUpdateStatus={handleUpdateStatus}
-      onReject={handleReject}
-      handlePost={handlePost}
-      onToggleCheckmark={handleToggleCheckmark}
-      onEditDescription={handleEditDescription}
-    />
-  </div>
-</div>
+          </div>
+
+          {/* Right Column: Live Preview */}
+          <div
+            className="lg:col-span-5 sticky top-16 z-10 max-h-[75vh] overflow-y-auto"
+            ref={previewRef}
+          >
+            <PreviewSection
+              isGenerating={isGenerating}
+              previewData={previewData}
+              onDownload={handleDownload}
+              countdown={countdown}
+              onUpdateStatus={handleUpdateStatus}
+              onReject={handleReject}
+              handlePost={handlePost}
+              onToggleCheckmark={handleToggleCheckmark}
+              onEditDescription={handleEditDescription}
+            />
+          </div>
+        </div>
 
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -2988,110 +2950,24 @@ useEffect(() => {
         )}
       </div>
 
-      {/* Reopen Support Popup Button */}
-      {!showSupportPopup && (
-        <button
-          onClick={() => setShowSupportPopup(true)}
-          className="fixed bottom-4 right-4 z-50 bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:shadow-xl transition-all hover:scale-110 group animate-in fade-in zoom-in duration-300"
+      <SupportModal showToast={showToast} />
+
+      {/* Floating WhatsApp Button */}
+      <a
+        href="https://wa.me/919289344726"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
+        aria-label="Chat on WhatsApp"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 32 32"
+          className="w-9 h-9 fill-white"
         >
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-          </span>
-          <MessageSquare className="w-6 h-6 text-blue-600" />
-        </button>
-      )}
-
-      {/* Support Popup */}
-      {showSupportPopup && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-[90vw] sm:max-w-sm w-full animate-in slide-in-from-right fade-in duration-500">
-          <div className="bg-white/95 backdrop-blur-md border border-blue-100 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-600"></div>
-            <button 
-              onClick={() => setShowSupportPopup(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <div className="flex gap-4 items-start">
-              <div className="bg-blue-50 p-3 rounded-full flex-shrink-0 animate-pulse">
-                <MessageSquare className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-sm">Need Help?</h3>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Facing any issues? Let us know and we'll fix it for you.
-                </p>
-                <div className="flex gap-2 mt-3">
-                    <button 
-                        onClick={() => setShowIssueModal(true)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap"
-                    >
-                    Report Issue
-                    </button>
-                    <a href="tel:9289344726" className="flex-1 inline-flex items-center justify-center gap-2 text-blue-700 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all whitespace-nowrap">
-                        <Phone className="w-3 h-3" /> 9289344726
-                    </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Issue Reporting Modal */}
-      {showIssueModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-in zoom-in-95 fade-in duration-300">
-            <button 
-              onClick={() => setShowIssueModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            
-            <div className="flex items-center gap-3 mb-6">
-                <div className="bg-red-50 p-3 rounded-full">
-                    <AlertCircle className="w-6 h-6 text-red-500" />
-                </div>
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900">Report an Issue</h2>
-                    <p className="text-sm text-gray-500">We'll help you resolve it quickly.</p>
-                </div>
-            </div>
-
-            <form onSubmit={handleIssueSubmit}>
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Describe the issue</label>
-                    <textarea
-                        value={issueText}
-                        onChange={(e) => setIssueText(e.target.value)}
-                        placeholder="e.g., I cannot connect my GMB account..."
-                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[120px] text-sm resize-none"
-                        required
-                    />
-                </div>
-                
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={() => setShowIssueModal(false)}
-                        className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors text-sm"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
-                    >
-                        <Send className="w-4 h-4" />
-                        Submit Ticket
-                    </button>
-                </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z" />
+        </svg>
+      </a>
     </div>
   );
 }  

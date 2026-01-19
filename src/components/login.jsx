@@ -467,7 +467,7 @@ export default function LoginPage() {
                 )}
 
                 <div className={`mt-8 pt-6 border-t text-center text-sm ${isDark ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}>
-                  🔒 Secure authentication powered by GMB Management
+                  By continuing, you agree to Limbu Ai and authorize our representatives to contact you via Call, Email, SMS, RCS, or WhatsApp regarding your service requests and related updates.
                 </div>
               </div>
             </div>

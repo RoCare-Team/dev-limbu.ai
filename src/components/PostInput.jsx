@@ -22,7 +22,8 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const removeImage = () => setLogo(null);
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
   const [showAssets, setShowAssets] = useState(true);
-  const [businessName, setBusinessName] = useState(bussinessTitle);
+  const [businessName, setBusinessName] = useState("");
+  const [businessNameError, setBusinessNameError] = useState("");
   const [keywordInput, setKeywordInput] = useState("");
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [savedKeywords, setSavedKeywords] = useState([]);
@@ -35,10 +36,6 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const [modalSearch, setModalSearch] = useState("");
   const [isSavingKeyword, setIsSavingKeyword] = useState(false);
 
-  
-  useEffect(() => {
-    setBusinessName(bussinessTitle);
-  }, [bussinessTitle]);
 
   // Extract unique business names for the dropdown
   const uniqueBusinessNames = React.useMemo(() => {
@@ -319,6 +316,12 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
 
 
   const handleGenerateClick = () => {
+    if (!businessName.trim()) {
+      setBusinessNameError("Business name is required");
+      return;
+    }
+    setBusinessNameError("");
+
     // Prepare assets to send
     let assetsToSend = [...selectedAssets];
 
@@ -432,18 +435,23 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="space-y-1 relative">
               <label className="text-xs font-semibold text-gray-700">Business Name</label>
+              <div className="relative">
               <input
                 type="text"
                 value={businessName || ''}
                 onChange={(e) => {
                   setBusinessName(e.target.value);
                   setShowBusinessDropdown(true);
+                  if (e.target.value) setBusinessNameError("");
                 }}
                 onFocus={() => setShowBusinessDropdown(true)}
                 onBlur={() => setTimeout(() => setShowBusinessDropdown(false), 200)}
-                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                className={`w-full p-2 pr-8 border ${businessNameError ? "border-red-500" : "border-gray-300"} rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none`}
                 placeholder="Enter business name"
               />
+              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+              {businessNameError && <p className="text-xs text-red-500 mt-1">{businessNameError}</p>}
               {showBusinessDropdown && uniqueBusinessNames.length > 0 && (
                 <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-[160px] overflow-y-auto">
                   {uniqueBusinessNames
@@ -454,6 +462,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                         onClick={() => {
                           setBusinessName(name);
                           setShowBusinessDropdown(false);
+                          setBusinessNameError("");
                         }}
                         className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer transition-colors flex items-center gap-2"
                       >

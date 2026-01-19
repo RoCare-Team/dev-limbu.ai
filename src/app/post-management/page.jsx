@@ -1181,7 +1181,7 @@ export default function PostManagementPage() {
   const [selectedAssets, setSelectedAssets] = useState([]);
   const previewRef = useRef(null);
   const [bussinessTitle, setBussinessTitle] = useState("")
-  const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb",'fb', 'ig']);
   const [keywordError, setKeywordError] = useState("");
 
   // Helper to strip base64 prefix
@@ -2784,21 +2784,34 @@ export default function PostManagementPage() {
 
               {/* GMB */}
               <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={selectedPlatforms.includes('gmb')}
-                  onChange={() => setSelectedPlatforms(prev => prev.includes('gmb') ? prev.filter(p => p !== 'gmb') : [...prev, 'gmb'])}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
-                />
-                <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('gmb') ? 'bg-white border-blue-200 shadow-md scale-105' : 'bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100'}`}>
-                  <img
-                    src="/icons8-my-business.svg"
-                    alt="Google My Business"
-                    className="w-5 h-5"
-                  />
+  <input
+    type="checkbox"
+    checked={selectedPlatforms.includes('gmb')}
+    onChange={() =>
+      setSelectedPlatforms(prev =>
+        prev.includes('gmb')
+          ? prev.filter(p => p !== 'gmb')
+          : [...prev, 'gmb']
+      )
+    }
+    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+  />
 
-                </div>
-              </label>
+  <div
+    className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${
+      selectedPlatforms.includes('gmb')
+        ? 'bg-white border-blue-200 shadow-md scale-105'
+        : 'bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100'
+    }`}
+  >
+    <img
+      src="https://www.gstatic.com/images/branding/product/1x/gsa_48dp.png"
+      alt="Google"
+      className="w-5 h-5 object-contain"
+    />
+  </div>
+</label>
+
 
               {/* Facebook */}
               <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">

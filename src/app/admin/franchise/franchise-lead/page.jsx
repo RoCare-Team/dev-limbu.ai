@@ -130,27 +130,8 @@ export default function FranchiseLeadsPage() {
   }, [formId]);
 
   /* ---------------- FILTERS ---------------- */
-  const filteredLeads = useMemo(() => {
+  const dateFilteredLeads = useMemo(() => {
     let result = leads;
-
-    // Search filter
-    if (search) {
-      result = result.filter((lead) => {
-        const text = `
-          ${lead.full_name || ""}
-          ${lead.phone_number || ""}
-          ${lead.email || ""}
-          ${lead.city || ""}
-          ${lead["what_is_your_current_occupation?"] || ""}
-        `.toLowerCase();
-        return text.includes(search.toLowerCase());
-      });
-    }
-
-    // Status filter
-    if (statusFilter !== "All") {
-      result = result.filter(lead => lead.status === statusFilter);
-    }
 
     // Date filter
     if (dateRange !== "all") {
@@ -183,7 +164,32 @@ export default function FranchiseLeadsPage() {
     }
 
     return result;
-  }, [leads, search, statusFilter, dateRange]);
+  }, [leads, dateRange, customStartDate, customEndDate]);
+
+  const filteredLeads = useMemo(() => {
+    let result = dateFilteredLeads;
+
+    // Search filter
+    if (search) {
+      result = result.filter((lead) => {
+        const text = `
+          ${lead.full_name || ""}
+          ${lead.phone_number || ""}
+          ${lead.email || ""}
+          ${lead.city || ""}
+          ${lead["what_is_your_current_occupation?"] || ""}
+        `.toLowerCase();
+        return text.includes(search.toLowerCase());
+      });
+    }
+
+    // Status filter
+    if (statusFilter !== "All") {
+      result = result.filter(lead => lead.status === statusFilter);
+    }
+
+    return result;
+  }, [dateFilteredLeads, search, statusFilter]);
 
   /* ---------------- PAGINATION ---------------- */
   const paginatedLeads = useMemo(() => {
@@ -198,25 +204,27 @@ export default function FranchiseLeadsPage() {
 
   /* ---------------- STATS ---------------- */
   const stats = useMemo(() => {
-    const today = leads.filter((l) => {
+    const sourceData = dateFilteredLeads;
+
+    const today = sourceData.filter((l) => {
       if (!l.created_time) return false;
       return new Date(l.created_time).toDateString() === new Date().toDateString();
     }).length;
 
-    const activeCount = leads.filter(l => l.status === "Active").length;
-    const followUpCount = leads.filter(l => l.status === "Follow Up").length;
-    const onboardCount = leads.filter(l => l.status === "Onboard").length;
-    const inactiveCount = leads.filter(l => l.status === "Inactive").length;
+    const activeCount = sourceData.filter(l => l.status === "Active").length;
+    const followUpCount = sourceData.filter(l => l.status === "Follow Up").length;
+    const onboardCount = sourceData.filter(l => l.status === "Onboard").length;
+    const inactiveCount = sourceData.filter(l => l.status === "Inactive").length;
 
     return [
-      { label: "Total Leads", value: leads.length, icon: Users, color: "text-blue-600" },
+      { label: "Total Leads", value: sourceData.length, icon: Users, color: "text-blue-600" },
       { label: "New Today", value: today, icon: TrendingUp, color: "text-green-600" },
       { label: "Active", value: activeCount, icon: Activity, color: "text-blue-600" },
       { label: "Follow Up", value: followUpCount, icon: Clock, color: "text-yellow-600" },
       { label: "Onboard", value: onboardCount, icon: UserCheck, color: "text-green-600" },
       { label: "Inactive", value: inactiveCount, icon: UserX, color: "text-gray-600" },
     ];
-  }, [leads, totalLeads]);
+  }, [dateFilteredLeads]);
 
   /* ---------------- STATUS CHANGE ---------------- */
   const handleStatusChange = async (id, newStatus) => {

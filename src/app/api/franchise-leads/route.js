@@ -52,6 +52,23 @@ function extractField(fieldData, name) {
   return field?.values?.[0] || "";
 }
 
+function formatLeadForResponse(leadDoc) {
+  return {
+    id: leadDoc.leadId,
+    created_time: leadDoc.createdTime,
+    field_data: [
+      { name: "full_name", values: [leadDoc.fullName] },
+      { name: "email", values: [leadDoc.email] },
+      { name: "phone_number", values: [leadDoc.phone] },
+      { name: "city", values: [leadDoc.city] },
+      { name: "what_is_your_current_occupation?", values: [leadDoc.occupation] },
+      { name: "mention_investment_rang", values: [leadDoc.investment] },
+    ],
+    status: leadDoc.status,
+    remarks: leadDoc.remarks || [],
+  };
+}
+
 // ==================
 // GET: FETCH LEADS OR SINGLE LEAD WITH REMARKS
 // ==================
@@ -62,11 +79,14 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const formId = searchParams.get("formId");
     const leadId = searchParams.get("leadId");
-    const limit = searchParams.get("limit") || "500";
+    
+    let limit = parseInt(searchParams.get("limit") || "500", 10);
+    if (isNaN(limit) || limit < 1) limit = 500;
+    if (limit > 1000) limit = 1000;
 
     // ========== FETCH SINGLE LEAD WITH REMARKS ==========
     if (leadId) {
-      const lead = await Lead.findOne({ leadId });
+      const lead = await Lead.findOne({ leadId }).lean();
       
       if (!lead) {
         return NextResponse.json(
@@ -126,69 +146,59 @@ export async function GET(req) {
       );
     }
 
-    let allLeads = [];
-    let newLeadsCount = 0;
+    const metaLeads = metaData.data;
+    const metaLeadIds = metaLeads.map((l) => l.id);
 
-    // Sync leads from Meta to Database
-    for (const lead of metaData.data) {
-      const normalizedLead = {
-        leadId: lead.id,
-        formId: formId,
-        fullName: extractField(lead.field_data, "full_name"),
-        email: extractField(lead.field_data, "email"),
-        phone: extractField(lead.field_data, "phone_number"),
-        city: extractField(lead.field_data, "city"),
-        occupation: extractField(
-          lead.field_data,
-          "what_is_your_current_occupation?"
-        ),
-        startTime: extractField(
-          lead.field_data,
-          "when_do_you_want_to_start?"
-        ),
-        investment: extractField(
-          lead.field_data,
-          "mention_investment_rang"
-        ),
-        verified:
-          extractField(lead.field_data, "phone_number_verified") === "true",
-        createdTime: new Date(lead.created_time),
-      };
+    // 🚀 OPTIMIZATION: Fetch all existing leads in ONE query
+    const existingLeadsDocs = await Lead.find({
+      leadId: { $in: metaLeadIds },
+    }).lean();
 
-      // Check if lead already exists
-      let existingLead = await Lead.findOne({ leadId: lead.id });
+    const existingLeadsMap = new Map();
+    existingLeadsDocs.forEach((doc) => existingLeadsMap.set(doc.leadId, doc));
 
-      if (!existingLead) {
-        // Create new lead
-        existingLead = await Lead.create(normalizedLead);
-        newLeadsCount++;
+    const newLeadsToInsert = [];
+    const allLeadsResponse = [];
+
+    for (const lead of metaLeads) {
+      if (existingLeadsMap.has(lead.id)) {
+        const existingDoc = existingLeadsMap.get(lead.id);
+        allLeadsResponse.push(formatLeadForResponse(existingDoc));
+      } else {
+        const normalizedLead = {
+          leadId: lead.id,
+          formId: formId,
+          fullName: extractField(lead.field_data, "full_name"),
+          email: extractField(lead.field_data, "email"),
+          phone: extractField(lead.field_data, "phone_number"),
+          city: extractField(lead.field_data, "city"),
+          occupation: extractField(lead.field_data, "what_is_your_current_occupation?"),
+          startTime: extractField(lead.field_data, "when_do_you_want_to_start?"),
+          investment: extractField(lead.field_data, "mention_investment_rang"),
+          verified: extractField(lead.field_data, "phone_number_verified") === "true",
+          createdTime: new Date(lead.created_time),
+          source: "meta",
+          status: "Active",
+          remarks: [],
+        };
+
+        newLeadsToInsert.push(normalizedLead);
+        allLeadsResponse.push(formatLeadForResponse(normalizedLead));
       }
+    }
 
-      // Add to response array with remarks
-      allLeads.push({
-        id: existingLead.leadId,
-        created_time: existingLead.createdTime,
-        field_data: [
-          { name: "full_name", values: [existingLead.fullName] },
-          { name: "email", values: [existingLead.email] },
-          { name: "phone_number", values: [existingLead.phone] },
-          { name: "city", values: [existingLead.city] },
-          { name: "what_is_your_current_occupation?", values: [existingLead.occupation] },
-          { name: "mention_investment_rang", values: [existingLead.investment] },
-        ],
-        status: existingLead.status,
-        remarks: existingLead.remarks || []
-      });
+    if (newLeadsToInsert.length > 0) {
+      await Lead.insertMany(newLeadsToInsert, { ordered: false });
     }
 
     return NextResponse.json({
       success: true,
       message: "Leads synced successfully",
       summary: {
-        total_count: allLeads.length
+        total_count: allLeadsResponse.length
       },
-      leads: allLeads,
-      newLeadsSaved: newLeadsCount,
+      leads: allLeadsResponse,
+      newLeadsSaved: newLeadsToInsert.length,
     });
   } catch (error) {
     console.error("Meta Lead Sync Error:", error);
@@ -216,28 +226,31 @@ export async function POST(req) {
       );
     }
 
-    const lead = await Lead.findOne({ leadId });
+    const updatedLead = await Lead.findOneAndUpdate(
+      { leadId },
+      {
+        $push: {
+          remarks: {
+            text: text.trim(),
+            addedBy: addedBy || "Admin",
+            addedAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    ).lean();
 
-    if (!lead) {
+    if (!updatedLead) {
       return NextResponse.json(
         { success: false, message: "Lead not found" },
         { status: 404 }
       );
     }
 
-    // 🔁 PUSH NEW REMARK (OLD REMARKS SAFE)
-    lead.remarks.push({
-      text: text.trim(),
-      addedBy: addedBy || "Admin",
-      addedAt: new Date(),
-    });
-
-    await lead.save();
-
     return NextResponse.json({
       success: true,
       message: "Remark added successfully",
-      remarks: lead.remarks,
+      remarks: updatedLead.remarks,
     });
   } catch (error) {
     console.error("Add Remark Error:", error);
@@ -273,24 +286,25 @@ export async function PATCH(req) {
       );
     }
 
-    const lead = await Lead.findOne({ leadId });
+    const updatedLead = await Lead.findOneAndUpdate(
+      { leadId },
+      { status },
+      { new: true }
+    ).lean();
 
-    if (!lead) {
+    if (!updatedLead) {
       return NextResponse.json(
         { success: false, message: "Lead not found" },
         { status: 404 }
       );
     }
 
-    lead.status = status;
-    await lead.save();
-
     return NextResponse.json({
       success: true,
       message: "Status updated successfully",
       lead: {
-        id: lead.leadId,
-        status: lead.status
+        id: updatedLead.leadId,
+        status: updatedLead.status
       }
     });
   } catch (error) {

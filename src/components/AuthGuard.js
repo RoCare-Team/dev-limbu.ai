@@ -27,10 +27,9 @@ export default function AuthGuard({ children }) {
       "/refund-policy",
     ];
 
+    const allowedAdminRoles = ["admin", "superAdmin", "franchiseAdmin", "manager", "agent", "subadmin"];
     const isPublicRoute = publicRoutes.includes(pathname);
-    const isAdminRoute = pathname.startsWith("/admin") && 
-                         !pathname.startsWith("/admin/franchise");
-    const isFranchiseRoute = pathname.startsWith("/admin/franchise");
+    const isAdminRoute = pathname.startsWith("/admin");
     const isReviewRoute = pathname.startsWith("/reviews");
 
     setTimeout(() => {
@@ -42,18 +41,7 @@ export default function AuthGuard({ children }) {
 
       // Admin protection
       if (isAdminRoute) {
-        if (role !== "admin") {
-          router.replace("/adminLogin");
-          setIsChecking(false);
-          return;
-        }
-        setIsChecking(false);
-        return;
-      }
-
-      // Franchise Admin protection
-      if (isFranchiseRoute) {
-        if (role !== "franchiseAdmin") {
+        if (!allowedAdminRoles.includes(role)) {
           router.replace("/adminLogin");
           setIsChecking(false);
           return;
@@ -63,7 +51,7 @@ export default function AuthGuard({ children }) {
       }
 
       // Normal user protection
-      if (!userId && !isPublicRoute && role !== "admin" && role !== "franchiseAdmin") {
+      if (!userId && !isPublicRoute && !allowedAdminRoles.includes(role)) {
         router.replace("/");
         setIsChecking(false);
         return;
@@ -76,16 +64,9 @@ export default function AuthGuard({ children }) {
         return;
       }
 
-      // Admin opens adminLogin
-      if (role === "admin" && pathname === "/adminLogin") {
+      // Any Admin role opens adminLogin
+      if (allowedAdminRoles.includes(role) && pathname === "/adminLogin") {
         router.replace("/admin/dashboard");
-        setIsChecking(false);
-        return;
-      }
-
-      // Franchise Admin opens adminLogin
-      if (role === "franchiseAdmin" && pathname === "/adminLogin") {
-        router.replace("/admin/franchise/dashboard");
         setIsChecking(false);
         return;
       }

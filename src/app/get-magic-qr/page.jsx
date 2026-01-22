@@ -3,13 +3,15 @@ import { useEffect, useState, useRef } from "react";
 import { toPng } from "html-to-image";
 import { 
   Star, Download, Copy, Check, Sparkles, QrCode, 
-  MessageSquare, Share2, Printer, ArrowLeft,
-  Phone, AlertCircle, X, Send
+  Share2, Printer, ArrowLeft,
+  Phone, X,
+  MessageSquare
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import PowerRedLogo from "../../../public/images/bg-logo.png"
 import { toast, Toaster } from "react-hot-toast";
+import SupportModal from "@/components/SupportModal";
 
 export default function BusinessQR() {
   const [business, setBusiness] = useState("");
@@ -23,9 +25,6 @@ export default function BusinessQR() {
   const [allLocations, setAllLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const qrCardRef = useRef(null);
-  const [showSupportPopup, setShowSupportPopup] = useState(false);
-  const [showIssueModal, setShowIssueModal] = useState(false);
-  const [issueText, setIssueText] = useState("");
 
   // Get all locations from localStorage
   const getAllLocations = () => {
@@ -126,37 +125,14 @@ export default function BusinessQR() {
     setQrImage(qr);
   }, []);
 
-  // Show support popup after delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSupportPopup(true);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Auto hide support popup after 5 seconds
-  useEffect(() => {
-    if (showSupportPopup) {
-      const timer = setTimeout(() => {
-        setShowSupportPopup(false);
-      }, 5000);
-      return () => clearTimeout(timer);
+  const showToast = (message, type) => {
+    if (type === "error") {
+      toast.error(message);
+    } else if (type === "success") {
+      toast.success(message);
+    } else {
+      toast(message);
     }
-  }, [showSupportPopup]);
-
-  const handleIssueSubmit = async (e) => {
-    e.preventDefault();
-    if (!issueText.trim()) return;
-    
-    const loadingToast = toast.loading("Submitting issue...");
-    
-    // Simulate API call
-    setTimeout(() => {
-        toast.success("Issue reported! We'll contact you shortly.", { id: loadingToast });
-        setShowIssueModal(false);
-        setIssueText("");
-        setShowSupportPopup(false);
-    }, 1500);
   };
 
   // Handle location change
@@ -648,110 +624,24 @@ export default function BusinessQR() {
         </div>
       )}
 
-      {/* Reopen Support Popup Button */}
-      {!showSupportPopup && (
-        <button
-          onClick={() => setShowSupportPopup(true)}
-          className="fixed bottom-4 right-4 z-50 bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:shadow-xl transition-all hover:scale-110 group animate-in fade-in zoom-in duration-300"
-        >
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-          </span>
-          <MessageSquare className="w-6 h-6 text-blue-600" />
-        </button>
-      )}
-
-      {/* Support Popup */}
-      {showSupportPopup && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-[90vw] sm:max-w-sm w-full animate-in slide-in-from-right fade-in duration-500">
-          <div className="bg-white/95 backdrop-blur-md border border-blue-100 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-600"></div>
-            <button 
-              onClick={() => setShowSupportPopup(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <div className="flex gap-4 items-start">
-              <div className="bg-blue-50 p-3 rounded-full flex-shrink-0 animate-pulse">
-                <MessageSquare className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-sm">Need Help?</h3>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Facing any issues? Let us know and we'll fix it for you.
-                </p>
-                <div className="flex gap-2 mt-3">
-                    <button 
-                        onClick={() => setShowIssueModal(true)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap"
-                    >
-                    Report Issue
-                    </button>
-                    <a href="tel:9289344726" className="flex-1 inline-flex items-center justify-center gap-2 text-blue-700 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all whitespace-nowrap">
-                        <Phone className="w-3 h-3" /> 9289344726
-                    </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Issue Reporting Modal */}
-      {showIssueModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-in zoom-in-95 fade-in duration-300">
-            <button 
-              onClick={() => setShowIssueModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            
-            <div className="flex items-center gap-3 mb-6">
-                <div className="bg-red-50 p-3 rounded-full">
-                    <AlertCircle className="w-6 h-6 text-red-500" />
-                </div>
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900">Report an Issue</h2>
-                    <p className="text-sm text-gray-500">We'll help you resolve it quickly.</p>
-                </div>
-            </div>
-
-            <form onSubmit={handleIssueSubmit}>
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Describe the issue</label>
-                    <textarea
-                        value={issueText}
-                        onChange={(e) => setIssueText(e.target.value)}
-                        placeholder="e.g., I cannot connect my GMB account..."
-                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[120px] text-sm resize-none"
-                        required
-                    />
-                </div>
-                
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={() => setShowIssueModal(false)}
-                        className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors text-sm"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
-                    >
-                        <Send className="w-4 h-4" />
-                        Submit Ticket
-                    </button>
-                </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SupportModal showToast={showToast} />
+      
+      {/* Floating WhatsApp Button */}
+<a
+  href="https://wa.me/919289344726"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
+  aria-label="Chat on WhatsApp"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 32 32"
+    className="w-9 h-9 fill-white"
+  >
+    <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
+  </svg>
+</a>
     </div>
   );
 }

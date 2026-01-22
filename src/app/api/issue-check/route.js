@@ -48,7 +48,7 @@ const Issue =
   mongoose.models.Issue || mongoose.model("Issue", IssueSchema);
 
 // ------------------
-// POST API
+// POST API (Create Issue)
 // ------------------
 export async function POST(req) {
   try {
@@ -72,6 +72,38 @@ export async function POST(req) {
       success: true,
       message: "Issue reported successfully",
       data: newIssue,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// ------------------
+// GET API (Fetch Issues by userId ONLY)
+// ------------------
+export async function GET(req) {
+  try {
+    await dbConnect();
+
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: "userId is required" },
+        { status: 400 }
+      );
+    }
+
+    const issues = await Issue.find({ userId }).sort({ createdAt: -1 });
+
+    return NextResponse.json({
+      success: true,
+      data: issues,
     });
   } catch (error) {
     console.error(error);

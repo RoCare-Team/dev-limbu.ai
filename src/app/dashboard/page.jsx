@@ -1114,7 +1114,7 @@ const NavLinks = ({ isAuthenticated }) => {
       const { loaded, needsRefresh } = loadFromCache(userEmail);
       if (loaded) {
         if (needsRefresh) {
-          toast.info("Cache data is old. Refreshing in background...", { duration: 2000 });
+          // toast.info("Cache data is old. Refreshing in background...", { duration: 2000 });
           setTimeout(() => fetchInitialData(true, true), 1000);
         }
         return;

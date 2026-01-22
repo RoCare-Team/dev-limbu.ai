@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import OTP from "@/models/Otp";
+import Admin from "@/models/Admin";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 
@@ -126,6 +127,29 @@ export async function POST(req) {
         );
       }
 
+      // Round-robin Agent Assignment
+     let assignedAgentId = null;
+
+try {
+  const activeAgents = await Admin.find({
+    role: "agent",
+    isActive: true,
+  }).sort({ createdAt: 1 });
+
+  if (activeAgents.length > 0) {
+    // Static index storage (in memory or DB)
+    if (!global.agentIndex) global.agentIndex = 0;
+
+    assignedAgentId =
+      activeAgents[global.agentIndex % activeAgents.length]._id;
+
+    global.agentIndex++;
+  }
+} catch (err) {
+  console.error("Agent assign error:", err);
+}
+
+
       user = await User.create({
         userId: `USR${Date.now()}`,
         fullName: name,
@@ -133,6 +157,7 @@ export async function POST(req) {
         phone,
         wallet: 500,
         freeUsedCount: 2,
+        assignedAgentId,
         subscription: {
           status: "inactive",
           plan: "Free",

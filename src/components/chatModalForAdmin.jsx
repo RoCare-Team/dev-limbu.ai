@@ -5,12 +5,13 @@ export default function ChatModalForAdmin({ userId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatData, setChatData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [msgCount, setMsgCount] = useState(0);
 
   useEffect(() => {
-    if (isOpen && userId) {
+    if (userId) {
       fetchChatData();
     }
-  }, [isOpen, userId]);
+  }, [userId]);
 
   const fetchChatData = async () => {
     setLoading(true);
@@ -20,6 +21,7 @@ export default function ChatModalForAdmin({ userId }) {
 
       if (result.success) {
         setChatData(result.data);
+        setMsgCount(result.data.length);
       } else {
         console.error(result.message);
       }
@@ -36,11 +38,17 @@ export default function ChatModalForAdmin({ userId }) {
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(true);
+          fetchChatData();
         }}
-        className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium border border-blue-200"
+        className="relative flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium border border-blue-200"
       >
         <MessageSquare size={16} />
         Chat
+        {msgCount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm min-w-[18px] text-center">
+            {msgCount}
+          </span>
+        )}
       </button>
 
       {isOpen && (

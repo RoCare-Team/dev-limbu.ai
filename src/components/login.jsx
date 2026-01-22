@@ -483,7 +483,7 @@ export default function LoginPage() {
               <div className="space-y-6">
                 <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${isDark ? "bg-blue-500/20 text-blue-400" : "bg-indigo-100 text-indigo-700"}`}>
                   <Globe className="w-4 h-4" />
-                  GMB Management
+                  GMB & Social Media management
                 </div>
 
                 <h1 className={`text-4xl lg:text-5xl font-bold leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>

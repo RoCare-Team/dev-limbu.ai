@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare } from "lucide-react";
+import ChatModalForAdmin from "@/components/chatModalForAdmin";
+import AddAddUserActivity from "@/components/admin-add-activity";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -30,6 +32,8 @@ export default function UserManagement() {
   const [remarksHistory, setRemarksHistory] = useState([]);
   const [loadingRemarks, setLoadingRemarks] = useState(false);
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
+  const [subscriptionPlans, setSubscriptionPlans] = useState(null);
+  const [selectedCycle, setSelectedCycle] = useState("monthly");
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -141,6 +145,20 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers();
   }, [currentPage, filterStatus, filterDate]);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const res = await fetch('/api/home-data?type=subscriptionPlans');
+        const data = await res.json();
+        setSubscriptionPlans(data);
+      } catch (err) {
+        console.error("Error fetching plans:", err);
+      }
+    };
+    fetchPlans();
+  }, []);
+
   const mergeAllData = useCallback(async () => {
     setLoading(true);
     const initialUsers = await fetchUsers();
@@ -250,7 +268,8 @@ export default function UserManagement() {
 
   const handleUpgradePlan = (user) => {
     setSelectedUser(user);
-    setSelectedPlan(user.subscription?.plan || "Basic");
+    setSelectedPlan(user.paidPackage || "Basic Plan");
+    setSelectedCycle(user.planDuration || "monthly");
   };
 
   const confirmPlanChange = async () => {
@@ -263,7 +282,9 @@ export default function UserManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: selectedUser.userId,
-          newPlan: selectedPlan,
+          isServiceBooked: true,
+          paidPackage: selectedPlan,
+          planDuration: selectedCycle,
         }),
       });
       const data = await res.json();
@@ -784,17 +805,16 @@ export default function UserManagement() {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plan</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Chat</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Posts</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">GST Number</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Source</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Login Button</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               </table>
@@ -810,29 +830,32 @@ export default function UserManagement() {
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleViewPosts(user)}
                     >
-                      <td className="px-6 py-4">
-                        {user.businessListings && user.businessListings.length > 0 ? (
-
-                          <div>
-                            <div className="font-semibold text-gray-800">
-                              {user.businessListings[0].title}  {user.businessListings[0].address.locality}
-                            </div>
-                            {user.businessListings.length > 1 && (
-                              <Link
-                                href={`/admin/user-listings?userId=${user.userId}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-xs text-blue-600 hover:underline mt-1"
-                              >
-                                View More ({user.businessListings.length - 1})
-                              </Link>
+                           <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="text-gray-400" />
+                          <div className="text-sm text-gray-700">
+                            {user.createdAt ? (
+                              <>
+                                <div className="font-medium">
+                                  {new Date(user.createdAt).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric"
+                                  })}
+                                </div>
+                                {new Date(user.createdAt).toDateString() === new Date().toDateString() && (
+                                  <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
+                                    Today
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-gray-400 italic">N/A</span>
                             )}
                           </div>
-                        ) : (
-                          <div className="text-xs text-gray-500 italic">
-                            Waiting......
-                          </div>
-                        )}
+                        </div>
                       </td>
+                      
                       <td className="px-6 py-4">
                         <div className="space-y-1">
                           {user.fullName && (
@@ -841,15 +864,24 @@ export default function UserManagement() {
                               {user.fullName}
                             </div>
                           )}
-                          {(user.source === "bulk-upload" || user.source === "Meta Leads") && (
-                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
-                              Meta Leads
-                            </span>
-                          )}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(user.source === "bulk-upload" || user.source === "Meta Leads") && (
+                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
+                                Meta Leads
+                              </span>
+                            )}
+                            {user.paidPackage && (
+                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
+                                {user.paidPackage}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
+                
                       
-                      <td className="px-6 py-4">
+                 
+   <td className="px-6 py-4">
                         <div 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -889,9 +921,30 @@ export default function UserManagement() {
                           )}
                         </div>
                       </td>
+                    
+
+                    <td className="px-6 py-4">
+  <div onClick={(e) => e.stopPropagation()}>
+    <ChatModalForAdmin userId={user.userId} />
+  </div>
+</td>
+
+                      <td className="px-6 py-4">
+                              <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpgradePlan(user);
+                            }}
+                            className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
+                            title="Change Plan"
+                          >
+                            <Crown size={16} />
+                          </button>
+</td>
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                    
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -930,23 +983,39 @@ export default function UserManagement() {
                       </td>
 
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isUserConnected(user.email)
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-600"
-                            }`}
-                        >
-                          <div className={`w-2 h-2 rounded-full ${isUserConnected(user.email) ? "bg-blue-500 animate-pulse" : "bg-gray-400"
-                            }`}></div>
-                          {isUserConnected(user.email) ? "Connected" : "Not Connected"}
-                        </span>
+  <div onClick={(e) => e.stopPropagation()}>
+    <AddAddUserActivity userId={user.userId} />
+  </div>
+</td>
+
+                   <td className="px-6 py-4">
+                        {user.businessListings && user.businessListings.length > 0 ? (
+
+                          <div>
+                            <div className="font-semibold text-gray-800">
+                              {user.businessListings[0].title}  {user.businessListings[0].address.locality}
+                            </div>
+                            {user.businessListings.length > 1 && (
+                              <Link
+                                href={`/admin/user-listings?userId=${user.userId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-blue-600 hover:underline mt-1"
+                              >
+                                View More ({user.businessListings.length - 1})
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500 italic">
+                            Waiting......
+                          </div>
+                        )}
                       </td>
-                      <td className="px-6 py-4">
+                      {/* <td className="px-6 py-4">
                         <div className="space-y-1">
                           {user.gst ? (
                             <div className="flex items-center gap-2 text-sm text-gray-700">
 
-                              {/* GST Icon */}
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 className="w-4 h-4 text-blue-500"
@@ -962,93 +1031,49 @@ export default function UserManagement() {
                                 />
                               </svg>
 
-                              {/* GST Number */}
                               <span>{user.gst}</span>
                             </div>
                           ) : (
                             <span className="text-xs text-gray-400 italic">No GST added</span>
                           )}
                         </div>
-                      </td>
+                      </td> */}
 
-                      <td className="px-6 py-4">
+                      {/* <td className="px-6 py-4">
                         <span className="text-sm text-gray-700 font-medium">
                           {user.source === "bulk-upload" ? "Meta Leads" : user.source || "N/A"}
                         </span>
-                      </td>
+                      </td> */}
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-gray-400" />
-                          <div className="text-sm text-gray-700">
-                            {user.createdAt ? (
-                              <>
-                                <div className="font-medium">
-                                  {new Date(user.createdAt).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric"
-                                  })}
-                                </div>
-                                {new Date(user.createdAt).toDateString() === new Date().toDateString() && (
-                                  <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
-                                    Today
-                                  </span>
-                                )}
-                              </>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              AdminPanelButton(user.userId);
+                            }}
+                            disabled={impersonatingUser === user.userId}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
+                          >
+                            {impersonatingUser === user.userId ? (
+                              <div className="flex justify-center items-center">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              </div>
                             ) : (
-                              <span className="text-gray-400 italic">N/A</span>
+                              "Login"
                             )}
-                          </div>
-                        </div>
-                      </td>
-
-
-
-
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          {/* <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewPosts(user);
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                          <span className="text-sm font-medium">View Details</span>
-                        </button> */}
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteUser(user.userId);
                             }}
-                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
+                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
                             title="Delete User"
                           >
                             <Trash2 size={16} />
                           </button>
                         </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            AdminPanelButton(user.userId);
-                          }}
-                          disabled={impersonatingUser === user.userId}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium w-32 text-center disabled:bg-blue-400"
-                        >
-                          {impersonatingUser === user.userId ? (
-                            <div className="flex justify-center items-center">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            </div>
-                          ) : (
-                            "Login as User"
-                          )}
-                        </button>
                       </td>
 
 
@@ -1255,33 +1280,59 @@ export default function UserManagement() {
                 <p className="font-semibold text-gray-800">{selectedUser.email}</p>
               </div>
 
-              <div className="space-y-3 mb-6">
-                {["Basic", "Standard", "Premium"].map((plan) => (
+              {subscriptionPlans && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+                  {subscriptionPlans.billingCycles.map((cycle) => (
+                    <button
+                      key={cycle.cycle}
+                      onClick={() => setSelectedCycle(cycle.cycle)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${selectedCycle === cycle.cycle
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                    >
+                      {cycle.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+                {(subscriptionPlans ? subscriptionPlans.billingCycles.find(c => c.cycle === selectedCycle)?.plans : ["Basic Plan", "Professional Plan", "Premium Plan"].map(p => ({ title: p }))).map((plan) => {
+                  const planName = plan.title || plan;
+                  return (
                   <label
-                    key={plan}
-                    className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === plan
+                    key={planName}
+                    className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === planName
                         ? "border-indigo-500 bg-indigo-50"
                         : "border-gray-200 hover:border-gray-300"
                       }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-full">
                       <input
                         type="radio"
                         name="plan"
-                        value={plan}
-                        checked={selectedPlan === plan}
+                        value={planName}
+                        checked={selectedPlan === planName}
                         onChange={(e) => setSelectedPlan(e.target.value)}
-                        className="w-4 h-4 text-indigo-600"
+                        className="w-4 h-4 text-indigo-600 shrink-0"
                       />
-                      <div className="flex items-center gap-2">
-                        {plan === "Premium" && <Crown size={18} className="text-purple-600" />}
-                        {plan === "Standard" && <Zap size={18} className="text-blue-600" />}
-                        {plan === "Basic" && <Shield size={18} className="text-gray-600" />}
-                        <span className="font-semibold text-gray-800">{plan}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {planName.includes("Premium") && <Crown size={18} className="text-purple-600" />}
+                          {planName.includes("Professional") && <Zap size={18} className="text-blue-600" />}
+                          {planName.includes("Basic") && <Shield size={18} className="text-gray-600" />}
+                          <span className="font-semibold text-gray-800">{planName}</span>
+                        </div>
+                        {plan.totalAmount && (
+                          <div className="text-xs text-gray-500 mt-1 ml-7">
+                            ₹{plan.totalAmount} / {plan.duration}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </label>
-                ))}
+                )})}
               </div>
 
               <div className="flex gap-3">

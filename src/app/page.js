@@ -1,9 +1,10 @@
 "use client"
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, MessageSquare, Calendar, Send, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin, Phone, AlertCircle } from 'lucide-react';
+import { Sparkles, MessageSquare, Calendar, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin, Phone } from 'lucide-react';
 import LogoImage from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import Toast from '../components/Toast';
+import SupportModal from '../components/SupportModal';
 import AnupGuptaLogo from "../../public/images/clients/anup_gupta.png";
 import DynamicDrapryLogo from "../../public/images/clients/dynamic_drapry.png";
 import BanjaraSalonLogo from "../../public/images/clients/banjara_salon.png";
@@ -61,9 +62,6 @@ export default function LimbuAILanding() {
   const [serviceForm, setServiceForm] = useState({ name: '', phone: '', email: '', gstNumber: '' });
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [billingCycle, setBillingCycle] = useState("monthly");
-  const [showSupportPopup, setShowSupportPopup] = useState(false);
-  const [showIssueModal, setShowIssueModal] = useState(false);
-  const [issueText, setIssueText] = useState("");
 
   const clientLogos = [
     // NOTE: Add your client logos in public/images/clients/
@@ -76,6 +74,8 @@ export default function LimbuAILanding() {
     { name: "Client 5", src: LuckyDryLogo },
     { name: "Client 6", src: GudiyaCollectionLogo },
   ];
+
+  
 
 
   const now = new Date();
@@ -120,25 +120,10 @@ export default function LimbuAILanding() {
       setSlidingTextIndex(prevIndex => (prevIndex + 1) % 5); // 5 is the number of slides
     }, 3000); // Change text every 3 seconds
     
-    const popupTimer = setTimeout(() => {
-      setShowSupportPopup(true);
-    }, 4000);
-
     return () => {
       clearInterval(sliderInterval);
-      clearTimeout(popupTimer);
     };
   }, []);
-
-  // Auto hide support popup after 5 seconds
-  useEffect(() => {
-    if (showSupportPopup) {
-      const timer = setTimeout(() => {
-        setShowSupportPopup(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSupportPopup]);
 
   const handleVideoEnd = () => {
     setCurrentVideoIndex((prevIndex) => (prevIndex + 1) % videoExamples.length);
@@ -161,21 +146,6 @@ export default function LimbuAILanding() {
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
-  };
-
-  const handleIssueSubmit = async (e) => {
-    e.preventDefault();
-    if (!issueText.trim()) return;
-    
-    showToast("Submitting issue...", "info");
-    
-    // Simulate API call
-    setTimeout(() => {
-        showToast("Issue reported! We'll contact you shortly.", "success");
-        setShowIssueModal(false);
-        setIssueText("");
-        setShowSupportPopup(false);
-    }, 1500);
   };
 
  const handleBookDemoSubmit = useCallback(async (e) => {
@@ -842,8 +812,8 @@ export default function LimbuAILanding() {
               </span>
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">limbu.ai</h2>
-              <p className="text-[10px] sm:text-xs text-slate-500 font-medium">GMB Automation</p>
+              <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">limbu.arrrrrrrrri</h2>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-medium">GMB & Social Media Management</p>
             </div>
           </div>
 
@@ -2002,110 +1972,7 @@ export default function LimbuAILanding() {
         </div>
       )}
 
-      {/* Reopen Support Popup Button */}
-      {!showSupportPopup && (
-        <button
-          onClick={() => setShowSupportPopup(true)}
-          className="fixed bottom-4 right-4 z-50 bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:shadow-xl transition-all hover:scale-110 group animate-in fade-in zoom-in duration-300 mb-20"
-        >
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-          </span>
-          <MessageSquare className="w-6 h-6 text-blue-600" />
-        </button>
-      )}
-
-      {/* Support Popup */}
-      {showSupportPopup && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-[90vw] sm:max-w-sm w-full animate-slide-in-right">
-          <div className="bg-white/95 backdrop-blur-md border border-blue-100 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-600"></div>
-            <button 
-              onClick={() => setShowSupportPopup(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <div className="flex gap-4 items-start">
-              <div className="bg-blue-50 p-3 rounded-full flex-shrink-0 animate-pulse">
-                <MessageSquare className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-sm">Need Help?</h3>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Facing any issues? Let us know and we'll fix it for you.
-                </p>
-                <div className="flex gap-2 mt-3">
-                    <button 
-                        onClick={() => setShowIssueModal(true)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap"
-                    >
-                    Report Issue
-                    </button>
-                    <a href="tel:9289344726" className="flex-1 inline-flex items-center justify-center gap-2 text-blue-700 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all whitespace-nowrap">
-                        <Phone className="w-3 h-3" /> 9289344726
-                    </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Issue Reporting Modal */}
-      {showIssueModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-scaleUp">
-            <button 
-              onClick={() => setShowIssueModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            
-            <div className="flex items-center gap-3 mb-6">
-                <div className="bg-red-50 p-3 rounded-full">
-                    <AlertCircle className="w-6 h-6 text-red-500" />
-                </div>
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900">Report an Issue</h2>
-                    <p className="text-sm text-gray-500">We'll help you resolve it quickly.</p>
-                </div>
-            </div>
-
-            <form onSubmit={handleIssueSubmit}>
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Describe the issue</label>
-                    <textarea
-                        value={issueText}
-                        onChange={(e) => setIssueText(e.target.value)}
-                        placeholder="e.g., I cannot connect my GMB account..."
-                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[120px] text-sm resize-none"
-                        required
-                    />
-                </div>
-                
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={() => setShowIssueModal(false)}
-                        className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors text-sm"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
-                    >
-                        <Send className="w-4 h-4" />
-                        Submit Ticket
-                    </button>
-                </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SupportModal showToast={showToast} />
 
       {/* Floating WhatsApp Button */}
 <a
@@ -2184,10 +2051,8 @@ export default function LimbuAILanding() {
         }}
       />
 
-
-
       <style jsx>{`
-        @keyframes scroll {
+        @eyframes scroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }

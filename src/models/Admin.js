@@ -1,47 +1,98 @@
 import mongoose from "mongoose";
 
+const ROLE_PERMISSIONS = {
+  superAdmin: {
+    manageUsers: true,
+    manageTeam: true,
+    manageLeads: true,
+    manageFranchise: true,
+    seeAnalytics: true,
+  },
+  franchiseAdmin: {
+    manageUsers: false,
+    manageTeam: false,
+    manageLeads: false,
+    manageFranchise: true,
+    seeAnalytics: false,
+  },
+  admin: {
+    manageUsers: true,
+    manageTeam: true,
+    manageLeads: true,
+    manageFranchise: false,
+    seeAnalytics: true,
+  },
+  subadmin: {
+    manageUsers: true,
+    manageTeam: true,
+    manageLeads: true,
+    manageFranchise: false,
+    seeAnalytics: false,
+  },
+  manager: {
+    manageUsers: true,
+    manageTeam: true,
+    manageLeads: true,
+    manageFranchise: false,
+    seeAnalytics: false,
+  },
+  agent: {
+    manageUsers: true,
+    manageTeam: false,
+    manageLeads: true,
+    manageFranchise: false,
+    seeAnalytics: false,
+  },
+  support: {
+    manageUsers: false,
+    manageTeam: false,
+    manageLeads: true,
+    manageFranchise: false,
+    seeAnalytics: false,
+  },
+};
+
 const AdminSchema = new mongoose.Schema(
   {
-    fullName: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    
+    fullName: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
+    password: { type: String, required: true },
 
-    // MAIN ROLE
     role: {
       type: String,
-      enum: ["admin", "subadmin","franchiseAdmin"],
-      default: "admin",
+      enum: [
+        "superAdmin",
+        "franchiseAdmin",
+        "admin",
+        "subadmin",
+        "manager",
+        "agent",
+        "support",
+      ],
+      default: "agent",
     },
 
-    // SUB-ADMIN PERMISSIONS
+    managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+    franchiseId: { type: mongoose.Schema.Types.ObjectId, ref: "Franchise", default: null },
+
     permissions: {
-      manageUsers: { type: Boolean, default: false },
-      manageReviews: { type: Boolean, default: false },
-      managePlans: { type: Boolean, default: false },
-      seeAnalytics: { type: Boolean, default: false },
+      manageUsers: Boolean,
+      manageTeam: Boolean,
+      manageLeads: Boolean,
+      manageFranchise: Boolean,
+      seeAnalytics: Boolean,
     },
 
-    status: {
-      type: String,
-      enum: ["active", "suspended"],
-      default: "active",
-    },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-// Prevent model overwrite in Next.js hot reload
+AdminSchema.pre("save", function (next) {
+  if (this.isNew || this.isModified("role")) {
+    this.permissions = ROLE_PERMISSIONS[this.role] || {};
+  }
+  next();
+});
+
 export default mongoose.models.Admin || mongoose.model("Admin", AdminSchema);

@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema(
     freeUsedCount: { type: Number },
     GstNumber: { type: String },
     Remarks: { type: String },
+    paidService:{type: String},
+    paidPackage: {type: String},
+    planDuration: {type: String},
+    assignedAgentId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
 
     remarksHistory: [
       {

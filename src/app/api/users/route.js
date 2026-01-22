@@ -10,6 +10,9 @@ const UserSchema = new mongoose.Schema({
   fullName: String,
   phone: String,
   passwordHash: String,
+      paidService:{type: String},
+    paidPackage: {type: String},
+    planDuration: {type: String},
   subscription: {
     plan: String,
     paymentId: String,
@@ -31,12 +34,10 @@ const User = mongoose.models.users || mongoose.model("users", UserSchema);
 
 // 🔗 MongoDB Connection
 async function connectDB() {
-  if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+  if (mongoose.connection.readyState === 1) {
+    return;
   }
+  await mongoose.connect(MONGODB_URI);
 }
 
 // ✅ GET: Fetch all users
@@ -227,56 +228,64 @@ export async function PUT(req) {
   try {
     await connectDB();
 
-    const { userId, newPlan, remark } = await req.json();
-    if (!userId)
+    const {
+      userId,
+      paidService,
+      paidPackage,
+      planDuration,
+      isServiceBooked,
+    } = await req.json();
+
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: "Missing userId" },
         { status: 400 }
       );
+    }
 
-    let updatedUser;
+    // ❗ Only allow update if service is booked
+    if (isServiceBooked !== true) {
+      return NextResponse.json(
+        { success: false, error: "Service not booked" },
+        { status: 400 }
+      );
+    }
 
-    if (remark) {
-      updatedUser = await User.findOneAndUpdate(
-        { userId },
-        {
-          $set: { Remarks: remark },
-          $push: { remarksHistory: { text: remark, createdAt: new Date() } }
-        },
-        { new: true }
-      );
-    } else if (newPlan) {
-      updatedUser = await User.findOneAndUpdate(
-        { userId },
-        {
-          $set: {
-            "subscription.plan": newPlan,
-            "subscription.status": "active",
-            "subscription.date": new Date(),
-          },
-        },
-        { new: true }
-      );
-    } else {
+    // ❗ At least one field required
+    if (!paidService && !paidPackage && !planDuration) {
       return NextResponse.json(
         { success: false, error: "Nothing to update" },
         { status: 400 }
       );
     }
 
-    if (!updatedUser)
+    const updatedUser = await User.findOneAndUpdate(
+      { userId },
+      {
+        $set: {
+          ...(paidService && { paidService }),
+          ...(paidPackage && { paidPackage }),
+          ...(planDuration && { planDuration }),
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
       return NextResponse.json(
         { success: false, error: "User not found" },
         { status: 404 }
       );
+    }
 
     return NextResponse.json({
       success: true,
-      message: "User updated successfully",
+      message: "Service details updated successfully",
       user: updatedUser,
     });
+
   } catch (error) {
-    console.error("Error updating user plan:", error);
+    console.error("PUT error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

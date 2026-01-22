@@ -40,22 +40,6 @@ export async function GET(req) {
     const query = searchParams.get("query");
     const userId = searchParams.get("userId");
 
-    /* -------- GOOGLE RELATED KEYWORDS -------- */
-    if (query) {
-      const autoURL = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(
-        query
-      )}`;
-
-      const autoRes = await fetch(autoURL);
-      const autoJson = await autoRes.json();
-      const suggestions = autoJson[1] || [];
-
-      return NextResponse.json({
-        success: true,
-        keywords: [...new Set(suggestions)],
-      });
-    }
-
     /* -------- FETCH USER SAVED KEYWORDS -------- */
     if (userId) {
       const saved = await Keyword.find({ userId }).sort({

@@ -20,7 +20,20 @@ import {
   Chip,
   useMediaQuery,
   Menu,
-  MenuItem
+  MenuItem,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Card,
+  CardContent,
+  Tabs,
+  Tab,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import {
@@ -40,7 +53,7 @@ import {
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
-import { Activity, Home, MenuIcon, Package, Proportions, SquarePlus, Wand, Calendar } from 'lucide-react';
+import { Activity, Home, MenuIcon, Package, Proportions, SquarePlus, Wand, Calendar, CheckCircle, X } from 'lucide-react';
 import logoDash from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
@@ -137,6 +150,16 @@ export default function Sidebar({ children, user }) {
   const [initialLoad, setInitialLoad] = React.useState(true);
   const [locationCheck, setLocationCheck] = React.useState("")
   const [openDropdown, setOpenDropdown] = React.useState(null);
+  const [paidService, setPaidService] = React.useState(null);
+  const [paidPackage, setPaidPackage] = React.useState(null);
+  const [currentPlanDuration, setCurrentPlanDuration] = React.useState(null);
+  const [plansModalOpen, setPlansModalOpen] = React.useState(false);
+  const [subscriptionPlans, setSubscriptionPlans] = React.useState(null);
+  const [servicePlans, setServicePlans] = React.useState([]);
+  // const [subscriptionPlans, setSubscriptionPlans] = React.useState(null);
+  const [plansLoading, setPlansLoading] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState(0);
+  const [selectedCycle, setSelectedCycle] = React.useState('monthly');
 
 
   const [notifications, setNotifications] = React.useState([]);
@@ -207,6 +230,21 @@ export default function Sidebar({ children, user }) {
         } else {
           setUserPlan('Free');
           localStorage.setItem('Plan', 'Free');
+        }
+        
+        if (data.paidService) {
+          setPaidService(data.paidService);
+          localStorage.setItem('paidService', data.paidService);
+        }
+
+        if (data.paidPackage) {
+          setPaidPackage(data.paidPackage);
+          localStorage.setItem('paidPackage', data.paidPackage);
+        }
+
+        if (data.planDuration) {
+          setCurrentPlanDuration(data.planDuration);
+          localStorage.setItem('planDuration', data.planDuration);
         }
 
         // Update wallet balance from subscription data
@@ -283,6 +321,21 @@ export default function Sidebar({ children, user }) {
         if (storedEmail) {
           setUserEmail(storedEmail);
         }
+        
+        const storedPaidService = localStorage.getItem('paidService');
+        if (storedPaidService) {
+          setPaidService(storedPaidService);
+        }
+        
+        const storedPaidPackage = localStorage.getItem('paidPackage');
+        if (storedPaidPackage) {
+          setPaidPackage(storedPaidPackage);
+        }
+
+        const storedPlanDuration = localStorage.getItem('planDuration');
+        if (storedPlanDuration) {
+          setCurrentPlanDuration(storedPlanDuration);
+        }
 
         // Then fetch latest data
         fetchSubscriptionDetails(true);
@@ -293,6 +346,38 @@ export default function Sidebar({ children, user }) {
       }
     }
   }, []);
+
+  const fetchPlansData = async () => {
+    try {
+      const res = await fetch('/api/home-data?type=subscriptionPlans');
+      if (res.ok) {
+        const data = await res.json();
+        setSubscriptionPlans(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch plans", error);
+    }
+  };
+
+  const handleOpenPlansModal = () => {
+    setPlansModalOpen(true);
+    fetchSubscriptionDetails(false);
+    fetchPlansData();
+  };
+
+  const handleClosePlansModal = () => {
+    setPlansModalOpen(false);
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
+  const handleCycleChange = (event, newCycle) => {
+    if (newCycle !== null) {
+      setSelectedCycle(newCycle);
+    }
+  };
 
   // Refresh wallet balance and subscription periodically (only wallet, not plan)
   React.useEffect(() => {
@@ -419,6 +504,7 @@ export default function Sidebar({ children, user }) {
     },
  
         { text: 'GMB Health', icon: <Activity />, path: '/gmb-health' },
+        { text: 'User Activity', icon: <Activity />, path: '/user-activity' },
         // { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
 
 
@@ -595,6 +681,240 @@ export default function Sidebar({ children, user }) {
 
 
       </List>
+
+      <Box sx={{ p: 2 }}>
+        <Box
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+            border: '1px solid rgba(102, 126, 234, 0.1)',
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
+            CURRENT PLAN
+          </Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#333', mb: 1.5 }}>
+            {paidPackage || paidService || 'Free Plan'}
+          </Typography>
+          <Button
+            variant="contained"
+            size="small"
+            fullWidth
+            onClick={handleOpenPlansModal}
+            startIcon={<UpgradeIcon />}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+              }
+            }}
+          >
+            Upgrade
+          </Button>
+        </Box>
+      </Box>
+
+      <Dialog
+        open={plansModalOpen}
+        onClose={handleClosePlansModal}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: '#f8fafc',
+            // minHeight: '80vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h5" fontWeight="bold" sx={{ background: 'linear-gradient(to right, #2563eb, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            My Subscription
+          </Typography>
+          <IconButton onClick={handleClosePlansModal} size="small">
+            <X />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent>
+           {subscriptionLoading ? (
+             <Box display="flex" justifyContent="center" p={5}><CircularProgress /></Box>
+           ) : (
+             <Box>
+               <Card sx={{ mb: 3, borderRadius: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                 <CardContent>
+                   <Grid container spacing={2}>
+                     <Grid item xs={12}>
+                       <Typography variant="subtitle2" color="text.secondary">Current Plan</Typography>
+                       <Typography variant="h5" fontWeight="bold" color="primary.main">
+                         {paidPackage || paidService || 'Free Plan'}
+                       </Typography>
+                     </Grid>
+                     
+                     {subscriptionData?.subscription?.status === 'active' && (
+                       <>
+                         <Grid item xs={6}>
+                           <Typography variant="subtitle2" color="text.secondary">Start Date</Typography>
+                           <Typography variant="body1" fontWeight="500">
+                             {subscriptionData.subscription.date ? new Date(subscriptionData.subscription.date).toLocaleDateString() : 'N/A'}
+                           </Typography>
+                         </Grid>
+                         <Grid item xs={6}>
+                           <Typography variant="subtitle2" color="text.secondary">Expiry Date</Typography>
+                           <Typography variant="body1" fontWeight="500">
+                             {subscriptionData.subscription.expiry ? new Date(subscriptionData.subscription.expiry).toLocaleDateString() : 'N/A'}
+                           </Typography>
+                         </Grid>
+                         <Grid item xs={12}>
+                            <Box display="flex" alignItems="center" gap={1} mt={1}>
+                              <Typography variant="subtitle2" color="text.secondary">Status:</Typography>
+                              <Chip 
+                                label={subscriptionData.subscription.status} 
+                                color="success" 
+                                size="small" 
+                                sx={{ fontWeight: 'bold', textTransform: 'capitalize' }} 
+                              />
+                            </Box>
+                         </Grid>
+                       </>
+                     )}
+
+                     {subscriptionPlans && (paidPackage || paidService) && (() => {
+                        let plan = null;
+
+                        // 1. Try finding by paidPackage + planDuration
+                        if (paidPackage && currentPlanDuration) {
+                          const cycleData = subscriptionPlans.billingCycles.find(c => c.cycle === currentPlanDuration);
+                          if (cycleData) {
+                            plan = cycleData.plans.find(p => p.title === paidPackage);
+                          }
+                        }
+
+                        // 2. Fallback: Try finding by paidService (legacy or simple string match)
+                        if (!plan && paidService) {
+                           plan = subscriptionPlans.billingCycles.flatMap(c => c.plans).find(p => p.title === paidService);
+                        }
+                        
+                        if (plan) {
+                          return (
+                            <Grid item xs={12}>
+                              <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #e2e8f0' }}>
+                                
+                                {plan.description && (
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic', textAlign: 'center' }}>
+                                    {plan.description}
+                                  </Typography>
+                                )}
+
+                                <Grid container spacing={2} sx={{ mb: 2 }}>
+                                  <Grid item xs={6}>
+                                    <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                      <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">POSTS</Typography>
+                                      <Typography variant="h6" color="primary.main" fontWeight="bold">{plan.posts}</Typography>
+                                    </Box>
+                                  </Grid>
+                                  <Grid item xs={6}>
+                                    <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                      <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">CITATIONS</Typography>
+                                      <Typography variant="h6" color="primary.main" fontWeight="bold">{plan.citations}</Typography>
+                                    </Box>
+                                  </Grid>
+                                </Grid>
+
+                                <Box sx={{ mb: 2, p: 2, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
+                                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                                      <Typography variant="body2" color="text.secondary">Base Price</Typography>
+                                      <Typography variant="body2" fontWeight="bold">₹{plan.basePrice}</Typography>
+                                   </Box>
+                                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                                      <Typography variant="body2" color="text.secondary">GST (18%)</Typography>
+                                      <Typography variant="body2" fontWeight="bold">₹{plan.gst}</Typography>
+                                   </Box>
+                                   <Divider sx={{ my: 1, borderColor: '#bbf7d0' }} />
+                                   <Box display="flex" justifyContent="space-between" alignItems="center">
+                                      <Typography variant="subtitle2" fontWeight="bold">Total Value</Typography>
+                                      <Typography variant="subtitle2" fontWeight="bold" color="success.main">₹{plan.totalAmount} / {plan.duration}</Typography>
+                                   </Box>
+                                </Box>
+
+                                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: '#334155' }}>
+                                  Plan Features:
+                                </Typography>
+                                <Grid container spacing={1}>
+                                  {plan.features && plan.features.map((feature, idx) => (
+                                    <Grid item xs={12} key={idx}>
+                                      <Box display="flex" alignItems="start" gap={1.5}>
+                                        <CheckCircle size={16} color="#10b981" style={{ marginTop: 3, flexShrink: 0 }} />
+                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>{feature}</Typography>
+                                      </Box>
+                                    </Grid>
+                                  ))}
+                                </Grid>
+                              </Box>
+                            </Grid>
+                          );
+                        }
+                        return null;
+                     })()}
+                   </Grid>
+                 </CardContent>
+               </Card>
+
+               <Grid container spacing={2}>
+                 <Grid item xs={6}>
+                   <Button 
+                     fullWidth 
+                     variant="outlined" 
+                     size="large"
+                     onClick={() => {
+                       handleClosePlansModal();
+                       router.push('/user-activity');
+                     }}
+                     startIcon={<Activity size={18} />}
+                     sx={{ 
+                       py: 1.5,
+                       fontWeight: 'bold',
+                       borderColor: '#667eea',
+                       color: '#667eea',
+                       '&:hover': {
+                         borderColor: '#764ba2',
+                         color: '#764ba2',
+                         background: 'rgba(102, 126, 234, 0.04)'
+                       }
+                     }}
+                   >
+                     View Activity
+                   </Button>
+                 </Grid>
+                 <Grid item xs={6}>
+                   <Button 
+                     fullWidth 
+                     variant="contained" 
+                     size="large"
+                     onClick={() => {
+                       handleClosePlansModal();
+                       router.push('/subscription');
+                     }}
+                     sx={{ 
+                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                       py: 1.5,
+                       fontWeight: 'bold'
+                     }}
+                   >
+                     Upgrade / Renew
+                   </Button>
+                 </Grid>
+               </Grid>
+             </Box>
+           )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 
@@ -678,6 +998,23 @@ export default function Sidebar({ children, user }) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
               {/* Notifications Icon */}
 
+              {/* Plan Chip */}
+              {(paidPackage || paidService) && (
+                <Chip
+                  label={paidPackage || paidService}
+                  onClick={handleOpenPlansModal}
+                  sx={{
+                    fontWeight: 600,
+                    background: 'linear-gradient(135deg, #0b1253 0%, #8b6cd2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    height: { xs: 28, sm: 32 },
+                  }}
+                />
+              )}
 
               {/* Wallet Chip */}
               <Chip
@@ -686,7 +1023,7 @@ export default function Sidebar({ children, user }) {
                 onClick={handleWalletClick}
                 sx={{
                   fontWeight: 600,
-                  background: 'linear-gradient(135deg, #510de3ff 0%, #101075ff 100%)',
+                  background: 'linear-gradient(135deg, rgb(141, 112, 205) 0%, rgb(128, 128, 213) 100%)',
                   color: 'white',
                   border: 'none',
                   cursor: 'pointer',
@@ -737,7 +1074,7 @@ export default function Sidebar({ children, user }) {
                     sx={{
                       width: { xs: 32, sm: 36 },
                       height: { xs: 32, sm: 36 },
-                      bgcolor: '#667eea',
+                      bgcolor: '#6577c8',
                       fontWeight: 600,
                     }}
                   >

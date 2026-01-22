@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
@@ -9,59 +8,35 @@ const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 export async function POST(req) {
   try {
     await dbConnect();
+
     const { email, password } = await req.json();
-
-    // 🔍 Find admin by email
     const admin = await Admin.findOne({ email });
+
     if (!admin) {
-      return NextResponse.json(
-        { message: "Invalid credentials" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    // 🔑 Verify password
-    const valid = await bcrypt.compare(password, admin.password);
+    const valid = password === admin.password;
     if (!valid) {
-      return NextResponse.json(
-        { message: "Invalid credentials" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    // 🧩 Role handling (admin / franchiseAdmin)
-    const role = admin.role === "franchiseAdmin" ? "franchiseAdmin" : "admin";
+    const token = jwt.sign(
+      {
+        id: admin._id,
+        role: admin.role,
+        permissions: admin.permissions || {},
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-    // 🧩 Create JWT payload
-    const payload = {
-      id: admin._id,
-      email: admin.email,
-      role: role,
-      franchiseId: admin.franchiseId || null, // only for franchise admin
-    };
-
-    // 🔐 Sign JWT token
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-
-    // 🍪 Set token in secure cookie
-    const res = NextResponse.json({
-      message: "Login success",
+    return NextResponse.json({
       token,
-      role: role,
-      franchiseId: admin.franchiseId || null,
+      role: admin.role,
+      permissions: admin.permissions || {},
     });
-
-    res.cookies.set("admin_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 24 * 60 * 60,
-      path: "/",
-    });
-
-    return res;
   } catch (err) {
-    console.error("Admin login error:", err);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

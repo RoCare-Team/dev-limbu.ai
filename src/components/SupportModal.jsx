@@ -71,6 +71,8 @@ const handleIssueSubmit = async () => {
   }
 
   const userId = localStorage.getItem("userId");
+  const fullName = localStorage.getItem("fullName");
+  const mobile = localStorage.getItem("mobileNumber");
 
   // 🔴 If user not logged in → redirect
   if (!userId) {
@@ -87,6 +89,8 @@ const handleIssueSubmit = async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId,
+        fullName,
+        mobile,
         issue: issueText,
       }),
     });

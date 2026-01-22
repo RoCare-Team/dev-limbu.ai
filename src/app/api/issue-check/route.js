@@ -32,6 +32,14 @@ const IssueSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    fullName: {
+      type: String,
+      required: true,
+    },
+    mobile: {
+      type: String,
+      required: true,
+    },
     issue: {
       type: String,
       required: true,
@@ -53,21 +61,61 @@ export async function POST(req) {
   try {
     await dbConnect();
 
-    const { userId, issue } = await req.json();
+    const { userId, fullName, mobile, issue } = await req.json();
 
-    if (!userId || !issue) {
+    if (!userId || !fullName || !mobile || !issue) {
       return NextResponse.json(
-        { success: false, message: "Missing userId or issue" },
+        { success: false, message: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const newIssue = await Issue.create({ userId, issue });
+    const newIssue = await Issue.create({
+      userId,
+      fullName,
+      mobile,
+      issue,
+    });
 
     return NextResponse.json({
       success: true,
       message: "Issue reported successfully",
       data: newIssue,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// ------------------
+// PUT API (Update Status)
+// ------------------
+export async function PUT(req) {
+  try {
+    await dbConnect();
+
+    const { id, status } = await req.json();
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { success: false, message: "Missing id or status" },
+        { status: 400 }
+      );
+    }
+
+    const updatedIssue = await Issue.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: updatedIssue,
     });
   } catch (error) {
     console.error(error);

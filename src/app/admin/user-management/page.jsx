@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle } from "lucide-react";
 import ChatModalForAdmin from "@/components/chatModalForAdmin";
 import AddAddUserActivity from "@/components/admin-add-activity";
 
@@ -34,11 +34,14 @@ export default function UserManagement() {
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
-  const [chatStats, setChatStats] = useState({ total: 0, today: 0, data: [] });
+  const [chatStats, setChatStats] = useState({ total: 0, today: 0, resolved: 0, data: [] });
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
   const [chatModalFilter, setChatModalFilter] = useState("all");
   const [issues, setIssues] = useState([]);
   const [showIssuesModal, setShowIssuesModal] = useState(false);
+  const [role, setRole] = useState("");
+  const [deleteUserModal, setDeleteUserModal] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -110,8 +113,14 @@ export default function UserManagement() {
     basic: 0,
     standard: 0,
     premium: 0,
-    active: 0
+    active: 0,
+    todayMetaLeads: 0,
+    todaySignups: 0
   });
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role"));
+  }, []);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -120,8 +129,10 @@ export default function UserManagement() {
     const standard = users.filter(u => u.subscription?.plan === "Standard").length;
     const premium = users.filter(u => u.subscription?.plan === "Premium").length;
     const active = connectedBusinessUsers.length;
+    const todayMetaLeads = users.filter(u => (u.source === "bulk-upload" || u.source === "Meta Leads") && new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
+    const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
 
-    setStats({ total, basic, standard, premium, active });
+    setStats({ total, basic, standard, premium, active, todayMetaLeads, todaySignups });
   }, [pagination, users, connectedBusinessUsers]);
 
 
@@ -265,13 +276,21 @@ export default function UserManagement() {
 
   const fetchChatStats = async () => {
     try {
-      const res = await fetch('/api/admin/issue-check');
+      const res = await fetch('/api/issue-check');
       const result = await res.json();
       if (result.success) {
         const chats = result.data || [];
         const total = chats.length;
-        const today = chats.filter(c => new Date(c.createdAt).toDateString() === new Date().toDateString()).length;
-        setChatStats({ total, today, data: chats });
+        const todayDate = new Date();
+        const today = chats.filter(c => {
+          if (!c.createdAt) return false;
+          const chatDate = new Date(c.createdAt);
+          return chatDate.getDate() === todayDate.getDate() &&
+                 chatDate.getMonth() === todayDate.getMonth() &&
+                 chatDate.getFullYear() === todayDate.getFullYear();
+        }).length;
+        const resolved = chats.filter(c => c.status === 'resolved').length;
+        setChatStats({ total, today, resolved, data: chats });
       }
     } catch (error) {
       console.error("Error fetching chat stats:", error);
@@ -287,6 +306,23 @@ export default function UserManagement() {
       }
     } catch (error) {
       console.error("Error fetching issues:", error);
+    }
+  };
+
+  const handleResolveIssue = async (id) => {
+    try {
+      const res = await fetch('/api/issue-check', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'resolved' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchChatStats();
+        fetchIssues();
+      }
+    } catch (error) {
+      console.error("Error resolving issue:", error);
     }
   };
 
@@ -338,24 +374,28 @@ export default function UserManagement() {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-
+  const confirmDeleteUser = async () => {
+    if (!deleteUserModal) return;
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/users`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId: deleteUserModal.userId }),
       });
       const data = await res.json();
       if (data.success) {
-        alert("User deleted successfully");
+        showToast("User deleted successfully");
         fetchUsers();
+        setDeleteUserModal(null);
       } else {
-        alert(data.error || "Failed to delete user");
+        showToast(data.error || "Failed to delete user", "error");
       }
     } catch (err) {
       console.error("Error deleting user:", err);
+      showToast("Error deleting user", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -748,9 +788,9 @@ export default function UserManagement() {
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 shadow-lg border border-purple-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-700 text-sm font-medium">New user Today</p>
+                <p className="text-purple-700 text-sm font-medium">Today Signups</p>
                 <p className="text-3xl font-bold text-purple-800 mt-1">
-                  {users.filter(u => u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length}
+                  {stats.todaySignups}
                 </p>
               </div>
               <Calendar className="text-purple-600" size={24} />
@@ -760,12 +800,12 @@ export default function UserManagement() {
           <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl p-6 shadow-lg border border-pink-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-pink-700 text-sm font-medium">Avg. Wallet</p>
+                <p className="text-pink-700 text-sm font-medium">Today Meta Leads</p>
                 <p className="text-3xl font-bold text-pink-800 mt-1">
-                  {users.length > 0 ? Math.round(users.reduce((sum, u) => sum + (u.wallet || 0), 0) / users.length) : 0}
+                  {stats.todayMetaLeads}
                 </p>
               </div>
-              <Zap className="text-pink-600" size={24} />
+              <User2Icon className="text-pink-600" size={24} />
             </div>
           </div>
 
@@ -798,6 +838,22 @@ export default function UserManagement() {
                 <p className="text-3xl font-bold text-teal-800 mt-1">{chatStats.today}</p>
               </div>
               <MessageSquare className="text-teal-600" size={24} />
+            </div>
+          </div>
+
+          <div 
+            className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 shadow-lg border border-green-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => {
+              setChatModalFilter("resolved");
+              setShowChatStatsModal(true);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-700 text-sm font-medium">Total Resolved</p>
+                <p className="text-3xl font-bold text-green-800 mt-1">{chatStats.resolved}</p>
+              </div>
+              <Shield className="text-green-600" size={24} />
             </div>
           </div>
 
@@ -1145,16 +1201,18 @@ export default function UserManagement() {
                               "Login"
                             )}
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteUser(user.userId);
-                            }}
-                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
-                            title="Delete User"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {role === "superAdmin" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteUserModal(user);
+                              }}
+                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
+                              title="Delete User"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -1850,7 +1908,7 @@ export default function UserManagement() {
             <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">
-                  {chatModalFilter === 'today' ? 'Chats Today' : 'All Chats'}
+                  {chatModalFilter === 'today' ? 'Chats Today' : chatModalFilter === 'resolved' ? 'Resolved Chats' : 'All Chats'}
                 </h2>
                 <button
                   onClick={() => setShowChatStatsModal(false)}
@@ -1866,15 +1924,26 @@ export default function UserManagement() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Sender</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Message</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {chatStats.data
                       .filter(chat => {
+                        console.log("chatStatschatStats",chatStats);
+                        
                         if (chatModalFilter === 'today') {
-                          return new Date(chat.createdAt).toDateString() === new Date().toDateString();
+                          if (!chat.createdAt) return false;
+                          const chatDate = new Date(chat.createdAt);
+                          const todayDate = new Date();
+                          return chatDate.getDate() === todayDate.getDate() &&
+                                 chatDate.getMonth() === todayDate.getMonth() &&
+                                 chatDate.getFullYear() === todayDate.getFullYear();
+                        }
+                        if (chatModalFilter === 'resolved') {
+                          return chat.status === 'resolved';
                         }
                         return true;
                       })
@@ -1884,25 +1953,44 @@ export default function UserManagement() {
                           {new Date(chat.createdAt).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                          <div>{chat.user?.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">{chat.user?.email}</div>
+                          <div>{chat.fullName || "Unknown"}</div>
+                          <div className="text-xs text-gray-500">{chat.mobile}</div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                          {chat.senderName || chat.senderId || "Unknown"}
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                          {chat.issue || "-"}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 truncate max-w-xs">
-                          {chat.message || chat.content || "-"}
+                        <td className="px-6 py-4 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            chat.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {chat.status || 'open'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {chat.status !== 'resolved' && (
+                            <button onClick={() => handleResolveIssue(chat._id)} className="text-blue-600 hover:underline text-xs font-semibold">
+                              Mark Resolved
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
                     {chatStats.data.filter(chat => {
                         if (chatModalFilter === 'today') {
-                          return new Date(chat.createdAt).toDateString() === new Date().toDateString();
+                          if (!chat.createdAt) return false;
+                          const chatDate = new Date(chat.createdAt);
+                          const todayDate = new Date();
+                          return chatDate.getDate() === todayDate.getDate() &&
+                                 chatDate.getMonth() === todayDate.getMonth() &&
+                                 chatDate.getFullYear() === todayDate.getFullYear();
+                        }
+                        if (chatModalFilter === 'resolved') {
+                          return chat.status === 'resolved';
                         }
                         return true;
                       }).length === 0 && (
                       <tr>
-                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No chats found</td>
+                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No chats found</td>
                       </tr>
                     )}
                   </tbody>
@@ -1933,6 +2021,7 @@ export default function UserManagement() {
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -1942,8 +2031,8 @@ export default function UserManagement() {
                           {new Date(issue.createdAt).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                          <div>{issue.user?.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">{issue.user?.email}</div>
+                          <div>{issue.fullName || "Unknown"}</div>
+                          <div className="text-xs text-gray-500">{issue.mobile}</div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
                           {issue.issue}
@@ -1955,15 +2044,54 @@ export default function UserManagement() {
                             {issue.status || 'open'}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-sm">
+                          {issue.status !== 'resolved' && (
+                            <button onClick={() => handleResolveIssue(issue._id)} className="text-blue-600 hover:underline text-xs font-semibold">
+                              Mark Resolved
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {issues.length === 0 && (
                       <tr>
-                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No issues found</td>
+                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No issues found</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete User Confirmation Modal */}
+        {deleteUserModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle className="text-red-600" size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Delete User?</h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  Are you sure you want to delete <strong>{deleteUserModal.fullName || deleteUserModal.email}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => setDeleteUserModal(null)}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteUser}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

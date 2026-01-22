@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { Star, ExternalLink, CheckCircle, Sparkles } from "lucide-react";
+import { Star, ExternalLink, CheckCircle, Sparkles, Loader2 } from "lucide-react";
 
 export default function CustomerReviewPage() {
   const params = useParams();
@@ -147,32 +147,34 @@ export default function CustomerReviewPage() {
     setFeedback("");
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col justify-center items-center p-6">
+        <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 flex flex-col items-center max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-25"></div>
+            <div className="relative bg-gradient-to-tr from-indigo-50 to-white p-4 rounded-full shadow-sm border border-indigo-100">
+              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+            </div>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Just a moment</h3>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            We are fetching the business details for you. Please wait while we get everything ready.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          {loading ? (
-            <div className="animate-pulse flex flex-col items-center">
-              <div className="h-8 bg-gray-200 rounded w-48 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-32"></div>
-            </div>
-          ) : (
-            <>
-              <h2 className="text-3xl font-extrabold text-gray-900 capitalize">
-                {business || "Business Name"}
-              </h2>
-              {locality && (
-                <p className="mt-2 text-sm text-gray-600">
-                  {locality}
-                </p>
-              )}
-              {address && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {address}
-                </p>
-              )}
-            </>
-          )}
+          <h2 className="text-3xl font-extrabold text-gray-900 capitalize">
+            {business || "Business Name"}
+          </h2>
+          {locality && <p className="mt-2 text-sm text-gray-600">{locality}</p>}
+          {address && <p className="text-xs text-gray-500 mt-1">{address}</p>}
           <p className="mt-2 text-sm text-gray-500">
             We value your feedback. Please rate your experience.
           </p>

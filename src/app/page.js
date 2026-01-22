@@ -812,7 +812,7 @@ export default function LimbuAILanding() {
               </span>
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">limbu.arrrrrrrrri</h2>
+              <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">limbu.ai</h2>
               <p className="text-[10px] sm:text-xs text-slate-500 font-medium">GMB & Social Media Management</p>
             </div>
           </div>

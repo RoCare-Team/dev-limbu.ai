@@ -53,7 +53,7 @@ import {
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
-import { Activity, Home, MenuIcon, Package, Proportions, SquarePlus, Wand, Calendar, CheckCircle, X } from 'lucide-react';
+import { Activity, Home, MenuIcon, Package, Proportions, SquarePlus, Wand, Calendar, CheckCircle, X, SquareActivity } from 'lucide-react';
 import logoDash from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
@@ -504,7 +504,7 @@ export default function Sidebar({ children, user }) {
     },
  
         { text: 'GMB Health', icon: <Activity />, path: '/gmb-health' },
-        { text: 'User Activity', icon: <Activity />, path: '/user-activity' },
+        { text: 'User Activity', icon: <SquareActivity />, path: '/user-activity' },
         // { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
 
 

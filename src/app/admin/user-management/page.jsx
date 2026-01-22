@@ -34,6 +34,11 @@ export default function UserManagement() {
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
+  const [chatStats, setChatStats] = useState({ total: 0, today: 0, data: [] });
+  const [showChatStatsModal, setShowChatStatsModal] = useState(false);
+  const [chatModalFilter, setChatModalFilter] = useState("all");
+  const [issues, setIssues] = useState([]);
+  const [showIssuesModal, setShowIssuesModal] = useState(false);
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -206,6 +211,11 @@ export default function UserManagement() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    fetchChatStats();
+    fetchIssues();
+  }, []);
+
 
   const fetchConnectedBusinessUsers = async () => {
     try {
@@ -250,6 +260,33 @@ export default function UserManagement() {
       }
     } catch (err) {
       console.error("Error fetching posts counts:", err);
+    }
+  };
+
+  const fetchChatStats = async () => {
+    try {
+      const res = await fetch('/api/admin/issue-check');
+      const result = await res.json();
+      if (result.success) {
+        const chats = result.data || [];
+        const total = chats.length;
+        const today = chats.filter(c => new Date(c.createdAt).toDateString() === new Date().toDateString()).length;
+        setChatStats({ total, today, data: chats });
+      }
+    } catch (error) {
+      console.error("Error fetching chat stats:", error);
+    }
+  };
+
+  const fetchIssues = async () => {
+    try {
+      const res = await fetch('/api/issue-check');
+      const result = await res.json();
+      if (result.success) {
+        setIssues(result.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching issues:", error);
     }
   };
 
@@ -431,7 +468,7 @@ export default function UserManagement() {
     setImpersonatingUser(userId);
 
     try {
-      const adminToken = localStorage.getItem("adminToken");
+      const adminToken = localStorage.getItem("token");
 
       console.log("🔍 Admin Token Sent:", adminToken);
 
@@ -729,6 +766,51 @@ export default function UserManagement() {
                 </p>
               </div>
               <Zap className="text-pink-600" size={24} />
+            </div>
+          </div>
+
+          <div 
+            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 shadow-lg border border-orange-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => {
+              setChatModalFilter("all");
+              setShowChatStatsModal(true);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-700 text-sm font-medium">Total Chats</p>
+                <p className="text-3xl font-bold text-orange-800 mt-1">{chatStats.total}</p>
+              </div>
+              <MessageSquare className="text-orange-600" size={24} />
+            </div>
+          </div>
+
+          <div 
+            className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-2xl p-6 shadow-lg border border-teal-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => {
+              setChatModalFilter("today");
+              setShowChatStatsModal(true);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-teal-700 text-sm font-medium">Chats Today</p>
+                <p className="text-3xl font-bold text-teal-800 mt-1">{chatStats.today}</p>
+              </div>
+              <MessageSquare className="text-teal-600" size={24} />
+            </div>
+          </div>
+
+          <div 
+            className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 shadow-lg border border-red-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => setShowIssuesModal(true)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-red-700 text-sm font-medium">Reported Issues</p>
+                <p className="text-3xl font-bold text-red-800 mt-1">{issues.length}</p>
+              </div>
+              <Shield className="text-red-600" size={24} />
             </div>
           </div>
         </div>
@@ -1759,6 +1841,130 @@ export default function UserManagement() {
                 className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               />
+            </div>
+          </div>
+        )}
+
+        {showChatStatsModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {chatModalFilter === 'today' ? 'Chats Today' : 'All Chats'}
+                </h2>
+                <button
+                  onClick={() => setShowChatStatsModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Sender</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Message</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {chatStats.data
+                      .filter(chat => {
+                        if (chatModalFilter === 'today') {
+                          return new Date(chat.createdAt).toDateString() === new Date().toDateString();
+                        }
+                        return true;
+                      })
+                      .map((chat, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {new Date(chat.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                          <div>{chat.user?.fullName || "Unknown"}</div>
+                          <div className="text-xs text-gray-500">{chat.user?.email}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                          {chat.senderName || chat.senderId || "Unknown"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 truncate max-w-xs">
+                          {chat.message || chat.content || "-"}
+                        </td>
+                      </tr>
+                    ))}
+                    {chatStats.data.filter(chat => {
+                        if (chatModalFilter === 'today') {
+                          return new Date(chat.createdAt).toDateString() === new Date().toDateString();
+                        }
+                        return true;
+                      }).length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No chats found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showIssuesModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Reported Issues</h2>
+                <button
+                  onClick={() => setShowIssuesModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {issues.map((issue, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {new Date(issue.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                          <div>{issue.user?.fullName || "Unknown"}</div>
+                          <div className="text-xs text-gray-500">{issue.user?.email}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
+                          {issue.issue}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            issue.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {issue.status || 'open'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {issues.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No issues found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

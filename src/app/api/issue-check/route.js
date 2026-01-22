@@ -44,8 +44,7 @@ const IssueSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Issue =
-  mongoose.models.Issue || mongoose.model("Issue", IssueSchema);
+const Issue = mongoose.models.Issue || mongoose.model("Issue", IssueSchema);
 
 // ------------------
 // POST API (Create Issue)
@@ -63,10 +62,7 @@ export async function POST(req) {
       );
     }
 
-    const newIssue = await Issue.create({
-      userId,
-      issue,
-    });
+    const newIssue = await Issue.create({ userId, issue });
 
     return NextResponse.json({
       success: true,
@@ -83,7 +79,7 @@ export async function POST(req) {
 }
 
 // ------------------
-// GET API (Fetch Issues by userId ONLY)
+// GET API (By userId OR Get ALL)
 // ------------------
 export async function GET(req) {
   try {
@@ -92,14 +88,15 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "userId is required" },
-        { status: 400 }
-      );
-    }
+    let issues;
 
-    const issues = await Issue.find({ userId }).sort({ createdAt: -1 });
+    if (userId) {
+      // 🔹 Get issues for specific user
+      issues = await Issue.find({ userId }).sort({ createdAt: -1 });
+    } else {
+      // 🔹 Get ALL issues
+      issues = await Issue.find().sort({ createdAt: -1 });
+    }
 
     return NextResponse.json({
       success: true,

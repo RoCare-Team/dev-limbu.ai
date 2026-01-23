@@ -8,12 +8,12 @@ import dbConnect from "@/lib/dbConnect";
 ===================================================== */
 const FacebookPostSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
+     userId: {
+      type: String,        // ✅ CHANGE HERE
       required: true,
       index: true,
     },
-
+    
     pageId: {
       type: String,
       required: true,

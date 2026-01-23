@@ -8,8 +8,8 @@ import dbConnect from "@/lib/dbConnect";
 ===================================================== */
 const InstagramPostSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
+     userId: {
+      type: String,        // ✅ CHANGE HERE
       required: true,
       index: true,
     },

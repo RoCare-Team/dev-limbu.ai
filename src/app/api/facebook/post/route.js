@@ -4,17 +4,33 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 
 /* =====================================================
-   FacebookPost SCHEMA (ONLY POST SAVE)
+   FacebookPost SCHEMA (POST SAVE WITH userId)
 ===================================================== */
 const FacebookPostSchema = new mongoose.Schema(
   {
-    pageId: { type: String, required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
 
-    facebookPostId: { type: String },
+    pageId: {
+      type: String,
+      required: true,
+      index: true,
+    },
 
-    caption: { type: String },
+    facebookPostId: {
+      type: String,
+    },
 
-    imageUrl: { type: String },
+    caption: {
+      type: String,
+    },
+
+    imageUrl: {
+      type: String,
+    },
 
     status: {
       type: String,
@@ -22,7 +38,9 @@ const FacebookPostSchema = new mongoose.Schema(
       default: "posted",
     },
 
-    errorMessage: { type: String },
+    errorMessage: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
@@ -35,6 +53,7 @@ const FacebookPost =
    POST API
 ===================================================== */
 export async function POST(req) {
+  let userId = "";
   let pageId = "";
   let caption = "";
   let imageUrl = "";
@@ -43,15 +62,20 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
+
+    userId = body.userId; // ✅ NEW
     pageId = body.pageId;
     caption = body.caption || "";
     imageUrl = body.imageUrl || "";
-    const pageAccessToken = body.pageAccessToken; // 🔑 DIRECT TOKEN
+    const pageAccessToken = body.pageAccessToken;
 
     // ---------------- Validation ----------------
-    if (!pageId || !pageAccessToken) {
+    if (!userId || !pageId || !pageAccessToken) {
       return NextResponse.json(
-        { success: false, error: "pageId and pageAccessToken are required" },
+        {
+          success: false,
+          error: "userId, pageId and pageAccessToken are required",
+        },
         { status: 400 }
       );
     }
@@ -76,7 +100,6 @@ export async function POST(req) {
        IMAGE POST
     ===================================================== */
     if (imageUrl) {
-      // upload image (unpublished)
       const photoRes = await axios.post(
         `https://graph.facebook.com/v24.0/${pageId}/photos`,
         {
@@ -90,7 +113,6 @@ export async function POST(req) {
         throw new Error("Photo upload failed");
       }
 
-      // publish feed
       const feedRes = await axios.post(
         `https://graph.facebook.com/v24.0/${pageId}/feed`,
         {
@@ -128,6 +150,7 @@ export async function POST(req) {
 
     // ---------------- SAVE POST ----------------
     await FacebookPost.create({
+      userId,
       pageId,
       facebookPostId,
       caption,
@@ -144,13 +167,16 @@ export async function POST(req) {
     console.error("Facebook API Error:", error.response?.data || error.message);
 
     // save failed attempt
-    await FacebookPost.create({
-      pageId,
-      caption,
-      imageUrl,
-      status: "failed",
-      errorMessage: error.message,
-    });
+    if (userId && pageId) {
+      await FacebookPost.create({
+        userId,
+        pageId,
+        caption,
+        imageUrl,
+        status: "failed",
+        errorMessage: error.message,
+      });
+    }
 
     if (error.response?.data?.error?.code === 190) {
       return NextResponse.json(

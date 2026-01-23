@@ -27,6 +27,8 @@ export default function Login() {
     localStorage.setItem("token", data.token);
     localStorage.setItem("role", data.role);
     localStorage.setItem("permissions", JSON.stringify(data.permissions));
+    localStorage.setItem("adminName", data.fullName);
+    localStorage.setItem("email", data.email);
 
     router.push("/admin/dashboard");
   };

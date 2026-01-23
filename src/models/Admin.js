@@ -69,11 +69,21 @@ const AdminSchema = new mongoose.Schema(
         "agent",
         "support",
       ],
-      default: "agent",
+      required: true,
     },
 
-    managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
-    franchiseId: { type: mongoose.Schema.Types.ObjectId, ref: "Franchise", default: null },
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+
+    // 🔥 Franchise always points to franchiseAdmin (_id)
+    franchiseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
 
     permissions: {
       manageUsers: Boolean,
@@ -88,6 +98,7 @@ const AdminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// auto permissions
 AdminSchema.pre("save", function (next) {
   if (this.isNew || this.isModified("role")) {
     this.permissions = ROLE_PERMISSIONS[this.role] || {};
@@ -95,4 +106,5 @@ AdminSchema.pre("save", function (next) {
   next();
 });
 
-export default mongoose.models.Admin || mongoose.model("Admin", AdminSchema);
+export default mongoose.models.Admin ||
+  mongoose.model("Admin", AdminSchema);

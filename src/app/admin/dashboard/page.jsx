@@ -11,7 +11,11 @@ import {
 } from "recharts";
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalRevenue: 0,
+    planCounts: { basic: 0, standard: 0, premium: 0 }
+  });
   const [userGrowth, setUserGrowth] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,24 +23,40 @@ export default function AdminDashboard() {
     fetchStats();
   }, []);
 
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/users", { method: "POST" });
-      const data = await res.json();
+const fetchStats = async () => {
+  setLoading(true);
+    const adminEmail = localStorage.getItem("email");
 
+  try {
+    const params = new URLSearchParams({
+      email: adminEmail, // 🔥 hardcoded for now
+    });
 
+    const res = await fetch(`/api/users?${params.toString()}`);
+    const data = await res.json();
 
-      if (data.success) {
-        setStats(data.stats);
-        setUserGrowth(data.userGrowth || []);
-      }
-    } catch (err) {
-      console.error("Error fetching stats:", err);
-    } finally {
-      setLoading(false);
+    if (data.success) {
+      // basic stats
+      setStats({
+        totalUsers: data.totalUsers,
+        role: data.role,
+      });
+
+      // optional: growth data (frontend-calculated)
+      setUserGrowth(
+        data.users.map((u) => ({
+          date: new Date(u.createdAt).toLocaleDateString(),
+          count: 1,
+        }))
+      );
     }
-  };
+  } catch (err) {
+    console.error("Error fetching stats:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (loading)
     return (

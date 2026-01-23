@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import fs from "fs";
 
 // ------------------
 // MongoDB Connection
@@ -46,6 +45,9 @@ const CallSchema = new mongoose.Schema({
   api_page_name: String,
   digit_pressed: String,
   billing_circle: String,
+  campaign_id: String,
+  campaign_name: String,
+  
 });
 
 // Prevent model overwrite error
@@ -62,9 +64,6 @@ export async function POST(req) {
 
     const data = await req.json();
 
-    // Log webhook data
-    fs.writeFileSync("response1.log", JSON.stringify(data, null, 2));
-
     const {
       call_to_number = "",
       caller_id_number = "",
@@ -74,11 +73,15 @@ export async function POST(req) {
       duration = "",
       recording_url = "",
       customer_number_with_prefix = "",
+      customer_no_with_prefix = "",
       hangup_cause = "",
       direction = "",
       call_id = "",
       digit_pressed = "",
       billing_circle = "",
+      date = "",
+      campaign_id = "",
+      campaign_name = "",
     } = data;
 
     let did_number = "";
@@ -110,15 +113,17 @@ export async function POST(req) {
       caller_id_number,
       duration,
       recording_url,
-      customer_no_with_prefix: customer_number_with_prefix,
+      customer_no_with_prefix: customer_no_with_prefix || customer_number_with_prefix || data["customer_no_with_prefix "],
       hangup_cause,
       direction,
       action_date_time: date_time_12_hrs,
       call_id,
-      call_date: date_main,
+      call_date: date || date_main,
       api_page_name: "incoming_ivr_api",
       digit_pressed,
       billing_circle,
+      campaign_id,
+      campaign_name,
     });
 
     return NextResponse.json({

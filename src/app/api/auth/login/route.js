@@ -128,28 +128,28 @@ export async function POST(req) {
       }
 
       // Round-robin Agent Assignment
-     let assignedAgentId = null;
+      let assignedAgentId = null;
+      try {
+        const activeAgents = await Admin.find({
+          role: "agent",
+          isActive: true,
+        }).sort({ createdAt: 1 });
 
-try {
-  const activeAgents = await Admin.find({
-    role: "agent",
-    isActive: true,
-  }).sort({ createdAt: 1 });
+        console.log("activeAgents",activeAgents);
+        
 
-  if (activeAgents.length > 0) {
-    // Static index storage (in memory or DB)
-    if (!global.agentIndex) global.agentIndex = 0;
+        if (activeAgents.length > 0) {
+          // Static index storage (in memory or DB)
+          if (!global.agentIndex) global.agentIndex = 0;
 
-    assignedAgentId =
-      activeAgents[global.agentIndex % activeAgents.length]._id;
+          assignedAgentId =
+            activeAgents[global.agentIndex % activeAgents.length]._id;
 
-    global.agentIndex++;
-  }
-} catch (err) {
-  console.error("Agent assign error:", err);
-}
-
-
+          global.agentIndex++;
+        }
+      } catch (err) {
+        console.error("Agent assign error:", err);
+      }
       user = await User.create({
         userId: `USR${Date.now()}`,
         fullName: name,
@@ -212,3 +212,6 @@ try {
     );
   }
 }
+
+
+// action button

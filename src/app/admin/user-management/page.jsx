@@ -136,27 +136,42 @@ export default function UserManagement() {
   }, [pagination, users, connectedBusinessUsers]);
 
 
-  const fetchUsers = async (silent = false) => {
-    if (!silent) setLoading(true);
+const fetchUsers = async (silent = false) => {
+  if (!silent) setLoading(true);
+  const adminEmail = localStorage.getItem("email");
+
+
+  try {
     const params = new URLSearchParams({
+      email: adminEmail,   // 🔑 REQUIRED
       page: currentPage,
-      limit: 70,
       search: searchQuery,
-      status: filterStatus,
-      date: filterDate,
     });
-    try {
-      const res = await fetch(`/api/users?${params.toString()}`);
-      const data = await res.json();
-      if (data.success) { setUsers(data.users); setPagination(data.pagination); }
-      return data.success ? data.users : [];
-    } catch (err) {
-      console.error("Error fetching users:", err);
-      return [];
-    } finally {
-      if (!silent) setLoading(false);
+
+    const res = await fetch(`/api/users?${params.toString()}`);
+    const data = await res.json();
+
+    if (data.success) {
+      setUsers(data.users);
+
+      // backend pagination nahi bhej raha, to frontend me derive
+      setPagination({
+        totalUsers: data.totalUsers,
+        currentPage,
+        limit: 70,
+      });
+
+      return data.users;
     }
-  };
+
+    return [];
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    return [];
+  } finally {
+    if (!silent) setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchUsers();
@@ -857,7 +872,7 @@ export default function UserManagement() {
             </div>
           </div>
 
-          <div 
+          {/* <div 
             className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 shadow-lg border border-red-200 cursor-pointer hover:shadow-xl transition-all"
             onClick={() => setShowIssuesModal(true)}
           >
@@ -868,7 +883,7 @@ export default function UserManagement() {
               </div>
               <Shield className="text-red-600" size={24} />
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
@@ -1953,6 +1968,8 @@ export default function UserManagement() {
                           {new Date(chat.createdAt).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                          <div>{chat.user?.fullName || "Unknown"}</div>
+                          <div className="text-xs text-gray-500">{chat?.user?.fullName}</div>
                           <div>{chat.fullName || "Unknown"}</div>
                           <div className="text-xs text-gray-500">{chat.mobile}</div>
                         </td>

@@ -1,6 +1,7 @@
 import dbConnect from "@/lib/dbConnect";
 import Transaction from "@/models/Transaction";
 import User from "@/models/User";
+import Admin from "@/models/Admin";
 import bcrypt from "bcryptjs";
 
 // ✅ SIGNUP (same as before)
@@ -39,12 +40,35 @@ export async function POST(req) {
 
     const formattedUserId = `MB-${String(nextNumber).padStart(2, "0")}`;
 
+    // Round-robin Agent Assignment
+    let assignedAgentId = null;
+    try {
+      const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1 });
+      
+      if (activeAgents.length > 0) {
+        const lastUser = await User.findOne({ assignedAgentId: { $ne: null } }).sort({ createdAt: -1 });
+        let nextIndex = 0;
+        
+        if (lastUser && lastUser.assignedAgentId) {
+          const lastAgentId = lastUser.assignedAgentId.toString();
+          const lastIndex = activeAgents.findIndex(a => a._id.toString() === lastAgentId);
+          if (lastIndex !== -1) {
+            nextIndex = (lastIndex + 1) % activeAgents.length;
+          }
+        }
+        assignedAgentId = activeAgents[nextIndex]._id;
+      }
+    } catch (error) {
+      console.error("Agent assignment error:", error);
+    }
+
     const newUser = new User({
       userId: formattedUserId,
       fullName,
       email,
       passwordHash,
       wallet: 0,
+      assignedAgentId,
     });
 
     await newUser.save();

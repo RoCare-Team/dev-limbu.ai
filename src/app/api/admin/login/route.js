@@ -32,6 +32,8 @@ export async function POST(req) {
     );
 
     return NextResponse.json({
+      email: admin.email,
+      fullName: admin.fullName,
       token,
       role: admin.role,
       permissions: admin.permissions || {},

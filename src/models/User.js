@@ -14,8 +14,10 @@ const userSchema = new mongoose.Schema(
     paidService:{type: String},
     paidPackage: {type: String},
     planDuration: {type: String},
-    assignedAgentId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
-
+  assignedAgentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "admins",
+  },
     remarksHistory: [
       {
         text: String,

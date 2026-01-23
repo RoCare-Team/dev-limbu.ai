@@ -192,7 +192,7 @@ export async function GET(req) {
 
 export async function PUT(req) {
   try {
-    await connectDB();
+    await dbConnect();
 
     const {
       userId,
@@ -278,7 +278,7 @@ export async function PUT(req) {
 /* ------------------ DELETE USER ------------------ */
 export async function DELETE(req) {
   try {
-    await connectDB();
+    await dbConnect();
 
     const { userId } = await req.json();
 

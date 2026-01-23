@@ -1,60 +1,167 @@
 import axios from "axios";
+import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import FacebookPage from "@/models/FacebookPage";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
-async function refreshPageToken(userToken) {
-  const pagesRes = await axios.get(
-    "https://graph.facebook.com/v24.0/me/accounts",
-    { params: { access_token: userToken } }
-  );
-  return pagesRes.data.data;
-}
+/* =====================================================
+   FacebookPage SCHEMA (INLINE)
+===================================================== */
+const FacebookPageSchema = new mongoose.Schema(
+  {
+    pageId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    pageName: {
+      type: String,
+    },
+    pageAccessToken: {
+      type: String,
+      required: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true }
+);
 
+// Prevent model overwrite in Next.js
+const FacebookPage =
+  mongoose.models.FacebookPage ||
+  mongoose.model("FacebookPage", FacebookPageSchema);
+
+/* =====================================================
+   POST API
+===================================================== */
 export async function POST(req) {
   try {
     await dbConnect();
 
-    const session = await getServerSession(authOptions);
+    const { pageId, caption = "", imageUrl = "" } = await req.json();
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    // ---------------- Validation ----------------
+    if (!pageId) {
+      return NextResponse.json(
+        { success: false, error: "pageId is required" },
+        { status: 400 }
+      );
     }
 
-    const userId = session.user.id;
-    const { pageId, message } = await req.json();
+    if (!caption && !imageUrl) {
+      return NextResponse.json(
+        { success: false, error: "Post content is empty" },
+        { status: 400 }
+      );
+    }
 
-    const page = await FacebookPage.findOne({ userId, pageId });
+    if (imageUrl && !imageUrl.startsWith("http")) {
+      return NextResponse.json(
+        { success: false, error: "imageUrl must be a public URL" },
+        { status: 400 }
+      );
+    }
+
+    // ---------------- Get Page ----------------
+    const page = await FacebookPage.findOne({
+      pageId,
+      isActive: true,
+    });
 
     if (!page) {
-      return NextResponse.json({ success: false, error: "Page not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Facebook page not found" },
+        { status: 404 }
+      );
     }
 
-    try {
-      const fbResponse = await axios.post(
-        `https://graph.facebook.com/v24.0/${pageId}/feed`,
+    const accessToken = page.pageAccessToken;
+    let facebookPostId;
+
+    /* =====================================================
+       IMAGE POST FLOW
+    ===================================================== */
+    if (imageUrl) {
+      // 1️⃣ Upload photo (unpublished)
+      const photoRes = await axios.post(
+        `https://graph.facebook.com/v24.0/${pageId}/photos`,
         {
-          message,
-          access_token: page.pageAccessToken,
+          url: imageUrl,
+          published: false,
+          access_token: accessToken,
         }
       );
 
-      return NextResponse.json({ success: true, postId: fbResponse.data.id });
+      if (!photoRes.data?.id) {
+        throw new Error("Photo upload failed");
+      }
 
-    } catch (error) {
-      // 🔁 Token expired → re-auth
-      console.log("Token expired, reauth needed");
+      const photoId = photoRes.data.id;
 
-      return NextResponse.json({
-        success: false,
-        error: "Facebook token expired. Please reconnect account."
-      }, { status: 401 });
+      // 2️⃣ Publish feed with attached image
+      const feedRes = await axios.post(
+        `https://graph.facebook.com/v24.0/${pageId}/feed`,
+        {
+          message: caption,
+          attached_media: [{ media_fbid: photoId }],
+          access_token: accessToken,
+        }
+      );
+
+      if (!feedRes.data?.id) {
+        throw new Error("Feed publish failed");
+      }
+
+      facebookPostId = feedRes.data.id;
     }
 
-  } catch (err) {
-    console.error("Facebook Post Error:", err.response?.data || err.message);
-    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
+    /* =====================================================
+       TEXT ONLY POST
+    ===================================================== */
+    else {
+      const feedRes = await axios.post(
+        `https://graph.facebook.com/v24.0/${pageId}/feed`,
+        {
+          message: caption,
+          access_token: accessToken,
+        }
+      );
+
+      if (!feedRes.data?.id) {
+        throw new Error("Text post failed");
+      }
+
+      facebookPostId = feedRes.data.id;
+    }
+
+    // ---------------- Success ----------------
+    return NextResponse.json({
+      success: true,
+      facebookPostId,
+    });
+
+  } catch (error) {
+    console.error(
+      "Facebook API Error:",
+      error.response?.data || error.message
+    );
+
+    // Token expired
+    if (error.response?.data?.error?.code === 190) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Facebook token expired. Reconnect account.",
+        },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: "Failed to publish Facebook post" },
+      { status: 500 }
+    );
   }
 }

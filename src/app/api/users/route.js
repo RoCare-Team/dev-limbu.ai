@@ -188,3 +188,125 @@ export async function GET(req) {
     );
   }
 }
+
+
+export async function PUT(req) {
+  try {
+    await connectDB();
+
+    const {
+      userId,
+      newPlan,
+      remark,
+      paidService,
+      paidPackage,
+      planDuration,
+      isServiceBooked,
+    } = await req.json();
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Missing userId" },
+        { status: 400 }
+      );
+    }
+
+    let updateData = {};
+
+    /* -------- REMARK UPDATE -------- */
+    if (remark) {
+      updateData.$set = { Remarks: remark };
+      updateData.$push = {
+        remarksHistory: { text: remark, createdAt: new Date() },
+      };
+    }
+
+    /* -------- PLAN UPDATE -------- */
+    if (newPlan) {
+      updateData.$set = {
+        ...updateData.$set,
+        "subscription.plan": newPlan,
+        "subscription.status": "active",
+        "subscription.date": new Date(),
+      };
+    }
+
+    /* -------- SERVICE UPDATE (ONLY IF BOOKED) -------- */
+    if (isServiceBooked === true) {
+      updateData.$set = {
+        ...updateData.$set,
+        ...(paidService && { paidService }),
+        ...(paidPackage && { paidPackage }),
+        ...(planDuration && { planDuration }),
+      };
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Nothing to update" },
+        { status: 400 }
+      );
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { userId },
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "User updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("PUT error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/* ------------------ DELETE USER ------------------ */
+export async function DELETE(req) {
+  try {
+    await connectDB();
+
+    const { userId } = await req.json();
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Missing userId" },
+        { status: 400 }
+      );
+    }
+
+    const deletedUser = await User.findOneAndDelete({ userId });
+
+    if (!deletedUser) {
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `User with ID ${userId} deleted successfully`,
+    });
+  } catch (error) {
+    console.error("DELETE error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}

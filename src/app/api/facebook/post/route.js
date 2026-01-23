@@ -4,55 +4,61 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 
 /* =====================================================
-   FacebookPage SCHEMA (INLINE)
+   FacebookPost SCHEMA (ONLY POST SAVE)
 ===================================================== */
-const FacebookPageSchema = new mongoose.Schema(
+const FacebookPostSchema = new mongoose.Schema(
   {
-    pageId: {
+    pageId: { type: String, required: true },
+
+    facebookPostId: { type: String },
+
+    caption: { type: String },
+
+    imageUrl: { type: String },
+
+    status: {
       type: String,
-      required: true,
-      index: true,
+      enum: ["posted", "failed"],
+      default: "posted",
     },
-    pageName: {
-      type: String,
-    },
-    pageAccessToken: {
-      type: String,
-      required: true,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+
+    errorMessage: { type: String },
   },
   { timestamps: true }
 );
 
-// Prevent model overwrite in Next.js
-const FacebookPage =
-  mongoose.models.FacebookPage ||
-  mongoose.model("FacebookPage", FacebookPageSchema);
+const FacebookPost =
+  mongoose.models.FacebookPost ||
+  mongoose.model("FacebookPost", FacebookPostSchema);
 
 /* =====================================================
    POST API
 ===================================================== */
 export async function POST(req) {
+  let pageId = "";
+  let caption = "";
+  let imageUrl = "";
+
   try {
     await dbConnect();
 
-    const { pageId, caption = "", imageUrl = "" } = await req.json();
+    const body = await req.json();
+    pageId = body.pageId;
+    caption = body.caption || "";
+    imageUrl = body.imageUrl || "";
+    const pageAccessToken = body.pageAccessToken; // 🔑 DIRECT TOKEN
 
     // ---------------- Validation ----------------
-    if (!pageId) {
+    if (!pageId || !pageAccessToken) {
       return NextResponse.json(
-        { success: false, error: "pageId is required" },
+        { success: false, error: "pageId and pageAccessToken are required" },
         { status: 400 }
       );
     }
 
     if (!caption && !imageUrl) {
       return NextResponse.json(
-        { success: false, error: "Post content is empty" },
+        { success: false, error: "caption or imageUrl required" },
         { status: 400 }
       );
     }
@@ -64,33 +70,19 @@ export async function POST(req) {
       );
     }
 
-    // ---------------- Get Page ----------------
-    const page = await FacebookPage.findOne({
-      pageId,
-      isActive: true,
-    });
-
-    if (!page) {
-      return NextResponse.json(
-        { success: false, error: "Facebook page not found" },
-        { status: 404 }
-      );
-    }
-
-    const accessToken = page.pageAccessToken;
     let facebookPostId;
 
     /* =====================================================
-       IMAGE POST FLOW
+       IMAGE POST
     ===================================================== */
     if (imageUrl) {
-      // 1️⃣ Upload photo (unpublished)
+      // upload image (unpublished)
       const photoRes = await axios.post(
         `https://graph.facebook.com/v24.0/${pageId}/photos`,
         {
           url: imageUrl,
           published: false,
-          access_token: accessToken,
+          access_token: pageAccessToken,
         }
       );
 
@@ -98,15 +90,13 @@ export async function POST(req) {
         throw new Error("Photo upload failed");
       }
 
-      const photoId = photoRes.data.id;
-
-      // 2️⃣ Publish feed with attached image
+      // publish feed
       const feedRes = await axios.post(
         `https://graph.facebook.com/v24.0/${pageId}/feed`,
         {
           message: caption,
-          attached_media: [{ media_fbid: photoId }],
-          access_token: accessToken,
+          attached_media: [{ media_fbid: photoRes.data.id }],
+          access_token: pageAccessToken,
         }
       );
 
@@ -118,14 +108,14 @@ export async function POST(req) {
     }
 
     /* =====================================================
-       TEXT ONLY POST
+       TEXT POST
     ===================================================== */
     else {
       const feedRes = await axios.post(
         `https://graph.facebook.com/v24.0/${pageId}/feed`,
         {
           message: caption,
-          access_token: accessToken,
+          access_token: pageAccessToken,
         }
       );
 
@@ -136,25 +126,35 @@ export async function POST(req) {
       facebookPostId = feedRes.data.id;
     }
 
-    // ---------------- Success ----------------
+    // ---------------- SAVE POST ----------------
+    await FacebookPost.create({
+      pageId,
+      facebookPostId,
+      caption,
+      imageUrl,
+      status: "posted",
+    });
+
     return NextResponse.json({
       success: true,
       facebookPostId,
     });
 
   } catch (error) {
-    console.error(
-      "Facebook API Error:",
-      error.response?.data || error.message
-    );
+    console.error("Facebook API Error:", error.response?.data || error.message);
 
-    // Token expired
+    // save failed attempt
+    await FacebookPost.create({
+      pageId,
+      caption,
+      imageUrl,
+      status: "failed",
+      errorMessage: error.message,
+    });
+
     if (error.response?.data?.error?.code === 190) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Facebook token expired. Reconnect account.",
-        },
+        { success: false, error: "Facebook token expired" },
         { status: 401 }
       );
     }

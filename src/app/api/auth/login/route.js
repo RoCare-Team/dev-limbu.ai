@@ -158,6 +158,10 @@ export async function POST(req) {
         wallet: 500,
         freeUsedCount: 2,
         assignedAgentId,
+        igPrice: 0,
+        fbPrice: 0,
+        gmbPrice: 20,
+        imgGeneratePrice: 80,
         subscription: {
           status: "inactive",
           plan: "Free",

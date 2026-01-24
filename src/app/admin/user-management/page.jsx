@@ -135,66 +135,46 @@ export default function UserManagement() {
   }, [pagination, users, connectedBusinessUsers]);
 
 
-  const fetchUsers = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    const adminEmail = localStorage.getItem("email");
+const fetchUsers = async (silent = false) => {
+  if (!silent) setLoading(true);
+  const adminEmail = localStorage.getItem("email");
 
-    try {
-      const params = new URLSearchParams({
-        email: adminEmail,
-        page: currentPage,
-        search: searchQuery.trim(),
+
+  try {
+    const params = new URLSearchParams({
+      email: adminEmail,   // 🔑 REQUIRED
+      page: currentPage,
+      search: searchQuery.trim(),
+    });
+
+    const res = await fetch(`/api/users?${params.toString()}`);
+    const data = await res.json();
+
+    if (data.success) {
+      setUsers(data.users);
+
+      // backend pagination nahi bhej raha, to frontend me derive
+      setPagination({
+        totalUsers: data.totalUsers,
+        currentPage,
+        limit: 70,
       });
 
-      const res = await fetch(`/api/users?${params.toString()}`);
-      const data = await res.json();
-
-      if (data.success) {
-        const initialUsers = data.users;
-
-        // Fetch business data safely
-        const businessPromises = initialUsers.map(async (usr) => {
-          if (!usr.email) return null;
-          try {
-            const bRes = await fetch(`/api/admin/saveBussiness?email=${usr.email}`);
-            if (!bRes.ok) return null;
-            return await bRes.json();
-          } catch (e) {
-            console.warn(`Failed to fetch business for ${usr.email}`, e);
-            return null;
-          }
-        });
-
-        const businessResults = await Promise.all(businessPromises);
-
-        const finalUsers = initialUsers.map((usr, index) => {
-          const businessData = businessResults[index];
-          const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
-          return {
-            ...usr,
-            isBusinessConnected: !!business,
-            businessListings: business?.listings || [],
-          };
-        });
-
-        setUsers(finalUsers);
-        setPagination({
-          totalUsers: data.totalUsers,
-          currentPage,
-          limit: 70,
-          totalPages: Math.ceil(data.totalUsers / 70)
-        });
-      }
-    } catch (err) {
-      console.error("Error fetching users:", err);
-    } finally {
-      if (!silent) setLoading(false);
+      return data.users;
     }
-  }, [currentPage, searchQuery]);
+
+    return [];
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    return [];
+  } finally {
+    if (!silent) setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, [currentPage, filterStatus, filterDate]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -209,9 +189,38 @@ export default function UserManagement() {
     fetchPlans();
   }, []);
 
-  useEffect(() => {
-    fetchConnectedBusinessUsers();
+  const mergeAllData = useCallback(async () => {
+    setLoading(true);
+    const initialUsers = await fetchUsers();
+    if (!initialUsers || initialUsers.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const businessPromises = initialUsers.map(usr =>
+      fetch(`/api/admin/saveBussiness?email=${usr.email}`).then(res => res.json())
+    );
+
+    const businessResults = await Promise.all(businessPromises);
+
+    const finalUsers = initialUsers.map((usr, index) => {
+      const businessData = businessResults[index];
+      const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
+      return {
+        ...usr,
+        isBusinessConnected: !!business,
+        businessListings: business?.listings || [],
+      };
+    });
+
+    setUsers(finalUsers);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    mergeAllData();
+    fetchConnectedBusinessUsers();
+  }, [mergeAllData]);
 
   useEffect(() => {
     fetchAllUserPostsCounts();

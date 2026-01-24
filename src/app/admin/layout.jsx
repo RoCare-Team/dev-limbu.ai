@@ -79,7 +79,7 @@ export default function AdminLayout({ children }) {
 
     { name: "Franchise Lead", icon: <LeaderboardSharp />, href: "/admin/franchise/franchise-lead", key: "manageFranchise" },
 
-    { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },
+    // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },
 
     { name: "Settings", icon: <Settings size={18} />, href: "/admin/settings", key: "seeAnalytics" },
 

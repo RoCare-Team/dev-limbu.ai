@@ -41,6 +41,8 @@ const Admin =
 
 /* ================= USER MODEL ================= */
 
+
+
 const UserSchema = new mongoose.Schema({
   userId: String,
   fullName: String,
@@ -142,7 +144,8 @@ export async function GET(req) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    const email = searchParams.get("email"); // logged in admin email
+    const email = searchParams.get("email");
+    const search = searchParams.get("search");
 
     if (!email) {
       return NextResponse.json(
@@ -151,7 +154,7 @@ export async function GET(req) {
       );
     }
 
-    // 1️⃣ find admin
+    /* 1️⃣ Find logged-in admin */
     const admin = await Admin.findOne({ email });
 
     if (!admin) {
@@ -161,21 +164,34 @@ export async function GET(req) {
       );
     }
 
+    /* 2️⃣ Role-based query */
     let query = {};
 
-    // 2️⃣ agent → only assigned users
     if (admin.role === "agent") {
+      // Agent → only assigned users
       query.assignedAgentId = admin._id;
+    } 
+    // superAdmin / admin → no filter (all users)
+    // else if (admin.role === "superAdmin") { query = {}; }
+
+    if (search) {
+      const searchRegex = { $regex: search, $options: "i" };
+      query.$or = [
+        { fullName: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { userId: searchRegex },
+      ];
     }
 
-    // 3️⃣ fetch users
+    /* 3️⃣ Fetch users */
     const users = await User.find(query)
       .populate("assignedAgentId", "fullName email role")
       .sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,
-      role: admin.role,
+      loggedInRole: admin.role,
       totalUsers: users.length,
       users,
     });
@@ -188,6 +204,7 @@ export async function GET(req) {
     );
   }
 }
+
 
 
 export async function PUT(req) {

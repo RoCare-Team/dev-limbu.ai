@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle } from "lucide-react";
-import ChatModalForAdmin from "@/components/chatModalForAdmin";
 import AddAddUserActivity from "@/components/admin-add-activity";
 
 export default function UserManagement() {
@@ -58,14 +57,14 @@ export default function UserManagement() {
     setRemarksInput(`${remark} - ${adminName}`);
   };
 
-  const remarkColors = [
-    "bg-blue-50 border-blue-200",
-    "bg-purple-50 border-purple-200",
-    "bg-green-50 border-green-200",
-    "bg-amber-50 border-amber-200",
-    "bg-rose-50 border-rose-200",
-    "bg-cyan-50 border-cyan-200",
-  ];
+  // const remarkColors = [
+  //   "bg-blue-50 border-blue-200",
+  //   "bg-purple-50 border-purple-200",
+  //   "bg-green-50 border-green-200",
+  //   "bg-amber-50 border-amber-200",
+  //   "bg-rose-50 border-rose-200",
+  //   "bg-cyan-50 border-cyan-200",
+  // ];
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -136,46 +135,66 @@ export default function UserManagement() {
   }, [pagination, users, connectedBusinessUsers]);
 
 
-const fetchUsers = async (silent = false) => {
-  if (!silent) setLoading(true);
-  const adminEmail = localStorage.getItem("email");
+  const fetchUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    const adminEmail = localStorage.getItem("email");
 
-
-  try {
-    const params = new URLSearchParams({
-      email: adminEmail,   // 🔑 REQUIRED
-      page: currentPage,
-      search: searchQuery,
-    });
-
-    const res = await fetch(`/api/users?${params.toString()}`);
-    const data = await res.json();
-
-    if (data.success) {
-      setUsers(data.users);
-
-      // backend pagination nahi bhej raha, to frontend me derive
-      setPagination({
-        totalUsers: data.totalUsers,
-        currentPage,
-        limit: 70,
+    try {
+      const params = new URLSearchParams({
+        email: adminEmail,
+        page: currentPage,
+        search: searchQuery.trim(),
       });
 
-      return data.users;
-    }
+      const res = await fetch(`/api/users?${params.toString()}`);
+      const data = await res.json();
 
-    return [];
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    return [];
-  } finally {
-    if (!silent) setLoading(false);
-  }
-};
+      if (data.success) {
+        const initialUsers = data.users;
+
+        // Fetch business data safely
+        const businessPromises = initialUsers.map(async (usr) => {
+          if (!usr.email) return null;
+          try {
+            const bRes = await fetch(`/api/admin/saveBussiness?email=${usr.email}`);
+            if (!bRes.ok) return null;
+            return await bRes.json();
+          } catch (e) {
+            console.warn(`Failed to fetch business for ${usr.email}`, e);
+            return null;
+          }
+        });
+
+        const businessResults = await Promise.all(businessPromises);
+
+        const finalUsers = initialUsers.map((usr, index) => {
+          const businessData = businessResults[index];
+          const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
+          return {
+            ...usr,
+            isBusinessConnected: !!business,
+            businessListings: business?.listings || [],
+          };
+        });
+
+        setUsers(finalUsers);
+        setPagination({
+          totalUsers: data.totalUsers,
+          currentPage,
+          limit: 70,
+          totalPages: Math.ceil(data.totalUsers / 70)
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [currentPage, searchQuery]);
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, filterStatus, filterDate]);
+  }, [fetchUsers]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -190,38 +209,9 @@ const fetchUsers = async (silent = false) => {
     fetchPlans();
   }, []);
 
-  const mergeAllData = useCallback(async () => {
-    setLoading(true);
-    const initialUsers = await fetchUsers();
-    if (!initialUsers || initialUsers.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const businessPromises = initialUsers.map(usr =>
-      fetch(`/api/admin/saveBussiness?email=${usr.email}`).then(res => res.json())
-    );
-
-    const businessResults = await Promise.all(businessPromises);
-
-    const finalUsers = initialUsers.map((usr, index) => {
-      const businessData = businessResults[index];
-      const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
-      return {
-        ...usr,
-        isBusinessConnected: !!business,
-        businessListings: business?.listings || [],
-      };
-    });
-
-    setUsers(finalUsers);
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    mergeAllData();
     fetchConnectedBusinessUsers();
-  }, [mergeAllData]);
+  }, []);
 
   useEffect(() => {
     fetchAllUserPostsCounts();
@@ -1075,12 +1065,12 @@ const fetchUsers = async (silent = false) => {
                         </div>
                       </td>
                     
-
+{/* 
                     <td className="px-6 py-4">
   <div onClick={(e) => e.stopPropagation()}>
     <ChatModalForAdmin userId={user.userId} />
   </div>
-</td>
+</td> */}
 
                       <td className="px-6 py-4">
                               <button

@@ -145,6 +145,7 @@ const fetchUsers = async (silent = false) => {
       email: adminEmail,   // 🔑 REQUIRED
       page: currentPage,
       search: searchQuery.trim(),
+      limit: 70,
     });
 
     const res = await fetch(`/api/users?${params.toString()}`);
@@ -153,10 +154,10 @@ const fetchUsers = async (silent = false) => {
     if (data.success) {
       setUsers(data.users);
 
-      // backend pagination nahi bhej raha, to frontend me derive
       setPagination({
         totalUsers: data.totalUsers,
-        currentPage,
+        currentPage: data.currentPage || currentPage,
+        totalPages: data.totalPages || Math.ceil(data.totalUsers / 70),
         limit: 70,
       });
 

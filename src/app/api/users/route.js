@@ -146,6 +146,8 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
     const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page")) || 1;
+    const limit = parseInt(searchParams.get("limit")) || 70;
 
     if (!email) {
       return NextResponse.json(
@@ -176,23 +178,36 @@ export async function GET(req) {
 
     if (search) {
       const searchRegex = { $regex: search, $options: "i" };
-      query.$or = [
+      const searchConditions = [
         { fullName: searchRegex },
         { email: searchRegex },
         { phone: searchRegex },
         { userId: searchRegex },
       ];
+
+      if (Object.keys(query).length > 0) {
+        query = { $and: [query, { $or: searchConditions }] };
+      } else {
+        query = { $or: searchConditions };
+      }
     }
+
+    const totalUsers = await User.countDocuments(query);
+    const skip = (page - 1) * limit;
 
     /* 3️⃣ Fetch users */
     const users = await User.find(query)
       .populate("assignedAgentId", "fullName email role")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     return NextResponse.json({
       success: true,
       loggedInRole: admin.role,
-      totalUsers: users.length,
+      totalUsers,
+      totalPages: Math.ceil(totalUsers / limit),
+      currentPage: page,
       users,
     });
 

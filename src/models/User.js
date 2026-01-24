@@ -8,19 +8,17 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, unique: true }, // removed `required: true`
 
     wallet: { type: Number, default: 0 },
-    imgGeneratePrice: {default: 80, type: Number},
-    igPrice: {type:Number, default: 0},
-    fbPrice: {type: Number, default: 0},
-    gmbPrice: {type: Number, default: 20},
+    // imgGeneratePrice: {default: 80, type: Number},
+    // igPrice: {type:Number, default: 0},
+    // fbPrice: {type: Number, default: 0},
+    // gmbPrice: {type: Number, default: 20},
     freeUsedCount: { type: Number },
     GstNumber: { type: String },
     Remarks: { type: String },
     paidService:{type: String},
     paidPackage: {type: String},
     planDuration: {type: String},
-    
-
-
+  
      assignedAgentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "admins",

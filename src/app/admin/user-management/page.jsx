@@ -719,7 +719,7 @@ const fetchUsers = async (silent = false) => {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto">
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>

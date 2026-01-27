@@ -11,6 +11,12 @@ const FranchiseInquirySchema = new mongoose.Schema(
     investmentCapacity: { type: String, required: true },
 
     about: { type: String, default: "" },
+
+    assignedFranchiseAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
   },
   { timestamps: true }
 );

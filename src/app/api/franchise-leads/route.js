@@ -334,28 +334,37 @@ export async function PATCH(req) {
     await dbConnect();
 
     const body = await req.json();
-    const { leadId, status } = body;
+    const { leadId, status, assignedFranchiseAdminId } = body;
 
-    if (!leadId || !status) {
+    if (!leadId) {
       return NextResponse.json(
-        { success: false, message: "leadId and status are required" },
+        { success: false, message: "leadId is required" },
         { status: 400 }
       );
     }
 
-    const validStatuses = ["Active", "Follow Up", "Inactive", "Onboard"];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid status value" },
-        { status: 400 }
-      );
+    const updateFields = {};
+
+    if (status) {
+      const validStatuses = ["Active", "Follow Up", "Inactive", "Onboard"];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid status value" },
+          { status: 400 }
+        );
+      }
+      updateFields.status = status;
+    }
+
+    if (assignedFranchiseAdminId !== undefined) {
+      updateFields.assignedFranchiseAdminId = assignedFranchiseAdminId;
     }
 
     const updatedLead = await Lead.findOneAndUpdate(
       { leadId },
-      { status },
+      updateFields,
       { new: true }
-    ).lean();
+    ).populate("assignedFranchiseAdminId", "fullName email role").lean();
 
     if (!updatedLead) {
       return NextResponse.json(
@@ -367,10 +376,7 @@ export async function PATCH(req) {
     return NextResponse.json({
       success: true,
       message: "Status updated successfully",
-      lead: {
-        id: updatedLead.leadId,
-        status: updatedLead.status
-      }
+      lead: formatLeadForResponse(updatedLead)
     });
   } catch (error) {
     console.error("Update Status Error:", error);

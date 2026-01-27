@@ -27,6 +27,7 @@ import {
   MessageSquare,
   Send,
   ArrowUpDown,
+  User,
 } from "lucide-react";
 
 /* ---------------- CONFIG ---------------- */
@@ -53,6 +54,7 @@ const normalizeLead = (lead) => {
     created_time: lead.created_time,
     status: lead.status || "Active",
     remarks: lead.remarks || [],
+    assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
   };
 
   if (lead.field_data) {
@@ -73,6 +75,7 @@ export default function FranchiseLeadsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLead, setSelectedLead] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [assigneeFilter, setAssigneeFilter] = useState("All");
   const [dateRange, setDateRange] = useState("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -80,6 +83,8 @@ export default function FranchiseLeadsPage() {
   const [remarkModalLead, setRemarkModalLead] = useState(null);
   const [newRemark, setNewRemark] = useState("");
   const [remarkHistory, setRemarkHistory] = useState({});
+  const [franchiseAdmins, setFranchiseAdmins] = useState([]);
+  const [role, setRole] = useState("");
 
   /* ---------------- FETCH LEADS FROM API ---------------- */
   const fetchLeads = async () => {
@@ -131,6 +136,47 @@ export default function FranchiseLeadsPage() {
   useEffect(() => {
     fetchLeads();
   }, [formId]);
+
+  /* ---------------- FETCH ADMINS & ROLE ---------------- */
+  useEffect(() => {
+    const userRole = localStorage.getItem("role");
+    setRole(userRole);
+
+    if (userRole === "superFranchiseAdmin") {
+      fetch("/api/admin/franchise-admins")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) setFranchiseAdmins(data.data);
+        })
+        .catch((err) => console.error("Error fetching admins:", err));
+    }
+  }, []);
+
+  /* ---------------- HELPER: COLOR GENERATOR ---------------- */
+  const getAvatarColor = (name) => {
+    if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
+    const colors = [
+      "bg-red-50 text-red-700 border-red-200",
+      "bg-orange-50 text-orange-700 border-orange-200",
+      "bg-amber-50 text-amber-700 border-amber-200",
+      "bg-green-50 text-green-700 border-green-200",
+      "bg-emerald-50 text-emerald-700 border-emerald-200",
+      "bg-teal-50 text-teal-700 border-teal-200",
+      "bg-cyan-50 text-cyan-700 border-cyan-200",
+      "bg-blue-50 text-blue-700 border-blue-200",
+      "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "bg-violet-50 text-violet-700 border-violet-200",
+      "bg-purple-50 text-purple-700 border-purple-200",
+      "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+      "bg-pink-50 text-pink-700 border-pink-200",
+      "bg-rose-50 text-rose-700 border-rose-200",
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   /* ---------------- FILTERS ---------------- */
   const dateFilteredLeads = useMemo(() => {
@@ -191,8 +237,28 @@ export default function FranchiseLeadsPage() {
       result = result.filter(lead => lead.status === statusFilter);
     }
 
+    // Assignee Filter
+    if (assigneeFilter !== "All") {
+      if (assigneeFilter === "Unassigned") {
+        result = result.filter(lead => !lead.assignedFranchiseAdmin);
+      } else {
+        result = result.filter(lead => lead.assignedFranchiseAdmin?._id === assigneeFilter);
+      }
+    }
+
     return result;
-  }, [dateFilteredLeads, search, statusFilter]);
+  }, [dateFilteredLeads, search, statusFilter, assigneeFilter]);
+
+  /* ---------------- ADMIN COUNTS ---------------- */
+  const adminCounts = useMemo(() => {
+    const counts = { Unassigned: 0 };
+    franchiseAdmins.forEach(admin => counts[admin._id] = 0); // Initialize
+    leads.forEach(lead => {
+      const adminId = lead.assignedFranchiseAdmin?._id || "Unassigned";
+      counts[adminId] = (counts[adminId] || 0) + 1;
+    });
+    return counts;
+  }, [leads, franchiseAdmins]);
 
   /* ---------------- PAGINATION ---------------- */
   const paginatedLeads = useMemo(() => {
@@ -203,7 +269,7 @@ export default function FranchiseLeadsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, dateRange, customStartDate, customEndDate]);
+  }, [search, statusFilter, dateRange, customStartDate, customEndDate, assigneeFilter]);
 
   /* ---------------- STATS ---------------- */
   const stats = useMemo(() => {
@@ -249,6 +315,33 @@ export default function FranchiseLeadsPage() {
       }
     } catch (error) {
       console.error("Error updating status:", error);
+    }
+  };
+
+  /* ---------------- ASSIGNMENT CHANGE ---------------- */
+  const handleAssignChange = async (leadId, newAdminId) => {
+    try {
+      const res = await fetch("/api/franchise-leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, assignedFranchiseAdminId: newAdminId || null }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setLeads((prevLeads) =>
+          prevLeads.map((lead) =>
+            lead.id === leadId
+              ? { ...lead, assignedFranchiseAdmin: data.lead.assignedFranchiseAdmin }
+              : lead
+          )
+        );
+      } else {
+        alert(data.message || "Failed to assign lead");
+      }
+    } catch (error) {
+      console.error("Assignment error:", error);
+      alert("Something went wrong while assigning.");
     }
   };
 
@@ -381,6 +474,20 @@ export default function FranchiseLeadsPage() {
               ))}
             </select>
 
+            {role === "superFranchiseAdmin" && (
+              <select
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="All">All Assignees</option>
+                <option value="Unassigned">Unassigned</option>
+                {franchiseAdmins.map((admin) => (
+                  <option key={admin._id} value={admin._id}>{admin.fullName}</option>
+                ))}
+              </select>
+            )}
+
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
@@ -416,6 +523,7 @@ export default function FranchiseLeadsPage() {
                 onClick={() => {
                   setSearch("");
                   setStatusFilter("All");
+                  setAssigneeFilter("All");
                   setDateRange("all");
                   setCustomStartDate("");
                   setCustomEndDate("");
@@ -457,6 +565,26 @@ export default function FranchiseLeadsPage() {
           ))}
         </div>
         
+        {/* ADMIN ASSIGNMENT SUMMARY (Only for Super Admin) */}
+        {role === "superFranchiseAdmin" && franchiseAdmins.length > 0 && (
+          <div className="flex flex-wrap gap-3 pb-2">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
+              <User className="w-3 h-3" />
+              <span>Unassigned: {adminCounts["Unassigned"] || 0}</span>
+            </div>
+            {franchiseAdmins.map(admin => {
+              const count = adminCounts[admin._id] || 0;
+              if (count === 0) return null; // Optional: hide admins with 0 leads
+              return (
+                <div key={admin._id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(admin.fullName)}`}>
+                  <User className="w-3 h-3" />
+                  <span>{admin.fullName}: {count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
           {/* SEARCH BAR */}
           <div className="mt-6 mb-2">
             <div className="relative">
@@ -494,6 +622,9 @@ export default function FranchiseLeadsPage() {
                         Status
                         <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
                       </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                      Assign To
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Contact
@@ -562,6 +693,31 @@ export default function FranchiseLeadsPage() {
                               <option key={s.label} value={s.label}>{s.label}</option>
                             ))}
                           </select>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {role === "superFranchiseAdmin" ? (
+                            <div className={`relative inline-block rounded-lg border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}>
+                              <select
+                                className="appearance-none bg-transparent px-3 py-1.5 pr-8 rounded-lg text-xs font-bold focus:outline-none w-full max-w-[160px] cursor-pointer"
+                                value={lead.assignedFranchiseAdmin?._id || ""}
+                                onChange={(e) => handleAssignChange(lead.id, e.target.value)}
+                              >
+                                <option value="" className="text-gray-500 bg-white">-- Unassigned --</option>
+                                {franchiseAdmins.map((admin) => (
+                                  <option key={admin._id} value={admin._id} className="text-gray-900 bg-white">
+                                    {admin.fullName}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current">
+                                <ChevronDown className="h-3 w-3" />
+                              </div>
+                            </div>
+                          ) : (
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}>
+                              {lead.assignedFranchiseAdmin?.fullName || "Unassigned"}
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="space-y-1">

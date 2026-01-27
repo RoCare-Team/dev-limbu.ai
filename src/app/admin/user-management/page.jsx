@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 
 export default function UserManagement() {
@@ -41,6 +41,8 @@ export default function UserManagement() {
   const [role, setRole] = useState("");
   const [deleteUserModal, setDeleteUserModal] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [assigneeFilter, setAssigneeFilter] = useState("All");
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -122,6 +124,17 @@ export default function UserManagement() {
   }, []);
 
   useEffect(() => {
+    if (role === "superAdmin" || role === "admin") {
+      fetch("/api/admin/user-agent")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) setAgents(data.data);
+        })
+        .catch((err) => console.error("Error fetching agents:", err));
+    }
+  }, [role]);
+
+  useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
     // Calculate basic, standard, premium from the currently loaded users
     const basic = users.filter(u => u.subscription?.plan === "Basic").length;
@@ -132,8 +145,20 @@ export default function UserManagement() {
     const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
 
     setStats({ total, basic, standard, premium, active, todayMetaLeads, todaySignups });
-  }, [pagination, users, connectedBusinessUsers]);
+  }, [pagination, users, connectedBusinessUsers, role]);
 
+  const leadCounts = useMemo(() => {
+    const counts = { "Unassigned": 0 };
+    users.forEach((user) => {
+      if (user.assignedAgentId && typeof user.assignedAgentId === 'object' && user.assignedAgentId._id) {
+        const agentId = user.assignedAgentId._id;
+        counts[agentId] = (counts[agentId] || 0) + 1;
+      } else {
+        counts["Unassigned"] = (counts["Unassigned"] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [users]);
 
 const fetchUsers = async (silent = false) => {
   if (!silent) setLoading(true);
@@ -146,6 +171,7 @@ const fetchUsers = async (silent = false) => {
       page: currentPage,
       search: searchQuery.trim(),
       limit: 70,
+      assignedAgentId: assigneeFilter !== "All" ? assigneeFilter : undefined,
     });
 
     const res = await fetch(`/api/users?${params.toString()}`);
@@ -175,7 +201,7 @@ const fetchUsers = async (silent = false) => {
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, filterStatus, filterDate]);
+  }, [currentPage, filterStatus, filterDate, assigneeFilter]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -339,6 +365,58 @@ const fetchUsers = async (silent = false) => {
     } catch (error) {
       console.error("Error resolving issue:", error);
     }
+  };
+
+  const handleAssignChange = async (userId, newAgentId) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, assignedAgentId: newAgentId || null }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Agent assigned successfully", "success");
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.userId === userId
+              ? { ...user, assignedAgentId: data.user.assignedAgentId }
+              : user
+          )
+        );
+      } else {
+        showToast(data.error || "Failed to assign agent", "error");
+      }
+    } catch (error) {
+      console.error("Assignment error:", error);
+      showToast("Something went wrong while assigning.", "error");
+    } 
+  };
+
+  const getAvatarColor = (name) => {
+    if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
+    const colors = [
+      "bg-red-50 text-red-700 border-red-200",
+      "bg-orange-50 text-orange-700 border-orange-200",
+      "bg-amber-50 text-amber-700 border-amber-200",
+      "bg-green-50 text-green-700 border-green-200",
+      "bg-emerald-50 text-emerald-700 border-emerald-200",
+      "bg-teal-50 text-teal-700 border-teal-200",
+      "bg-cyan-50 text-cyan-700 border-cyan-200",
+      "bg-blue-50 text-blue-700 border-blue-200",
+      "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "bg-violet-50 text-violet-700 border-violet-200",
+      "bg-purple-50 text-purple-700 border-purple-200",
+      "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+      "bg-pink-50 text-pink-700 border-pink-200",
+      "bg-rose-50 text-rose-700 border-rose-200",
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
   };
 
   // When filters change, reset to the first page
@@ -645,6 +723,7 @@ const fetchUsers = async (silent = false) => {
     setSearchQuery("");
     setFilterStatus("All");
     setFilterDate("All");
+    setAssigneeFilter("All");
   };
 
   const handlePageChange = (newPage) => {
@@ -886,6 +965,26 @@ const fetchUsers = async (silent = false) => {
           </div> */}
         </div>
 
+        {/* AGENT ASSIGNMENT SUMMARY */}
+        {(role === "superAdmin" || role === "admin") && agents.length > 0 && (
+          <div className="flex flex-wrap gap-3 mb-6">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
+              <User className="w-3 h-3" />
+              <span>Unassigned: {leadCounts["Unassigned"] || 0}</span>
+            </div>
+            {agents.map(agent => {
+              const count = leadCounts[agent._id] || 0;
+              if (count === 0) return null;
+              return (
+                <div key={agent._id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}>
+                  <User className="w-3 h-3" />
+                  <span>{agent.fullName}: {count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 flex items-center gap-2">
@@ -925,6 +1024,22 @@ const fetchUsers = async (silent = false) => {
               </select>
             </div>
 
+            {(role === "superAdmin" || role === "admin") && (
+              <div className="relative">
+                <select
+                  value={assigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
+                >
+                  <option value="All">All Agents</option>
+                  <option value="Unassigned">Unassigned</option>
+                  {agents.map((agent) => (
+                    <option key={agent._id} value={agent._id}>{agent.fullName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="relative">
               <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <select
@@ -940,7 +1055,7 @@ const fetchUsers = async (silent = false) => {
               </select>
             </div>
 
-            {(searchQuery || filterStatus !== "All" || filterDate !== "All") && (
+            {(searchQuery || filterStatus !== "All" || filterDate !== "All" || assigneeFilter !== "All") && (
               <button
                 onClick={clearFilters}
                 className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 whitespace-nowrap"
@@ -961,6 +1076,7 @@ const fetchUsers = async (silent = false) => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plan</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign To</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Chat</th>
@@ -1032,6 +1148,31 @@ const fetchUsers = async (silent = false) => {
                         </div>
                       </td>
                 
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {role === "superAdmin" || role === "admin" ? (
+                          <div className={`relative inline-block rounded-lg border ${getAvatarColor(user.assignedAgentId?.fullName || "Unassigned")}`}>
+                            <select
+                              className="appearance-none bg-transparent px-3 py-1.5 pr-8 rounded-lg text-xs font-bold focus:outline-none w-full max-w-[160px] cursor-pointer"
+                              value={user.assignedAgentId?._id || user.assignedAgentId || ""}
+                              onChange={(e) => handleAssignChange(user.userId, e.target.value)}
+                            >
+                              <option value="" className="text-gray-500 bg-white">-- Unassigned --</option>
+                              {agents.map((agent) => (
+                                <option key={agent._id} value={agent._id} className="text-gray-900 bg-white">
+                                  {agent.fullName}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current">
+                              <ChevronDown className="h-3 w-3" />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(user.assignedAgentId?.fullName || "Unassigned")}`}>
+                            {user.assignedAgentId?.fullName || "Unassigned"}
+                          </span>
+                        )}
+                      </td>
                       
                  
    <td className="px-6 py-4">

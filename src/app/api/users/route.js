@@ -93,6 +93,47 @@ export async function POST(req) {
   }
 }
 
+/* ------------------ PATCH: ASSIGN AGENT ------------------ */
+export async function PATCH(req) {
+  try {
+    await dbConnect();
+    const body = await req.json();
+    const { userId, assignedAgentId } = body;
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Missing userId" },
+        { status: 400 }
+      );
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { userId },
+      { $set: { assignedAgentId: assignedAgentId || null } },
+      { new: true }
+    ).populate("assignedAgentId", "fullName email role");
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Agent assigned successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("PATCH error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 /* ============================================================
    GET → ROLE BASED USERS (ADMIN vs AGENT)
    ============================================================ */
@@ -123,7 +164,6 @@ export async function GET(req) {
         { status: 400 }
       );
     }
-
     /* 1️⃣ Find logged-in admin */
     const admin = await Admin.findOne({ email });
 
@@ -140,9 +180,7 @@ export async function GET(req) {
     if (admin.role === "agent") {
       // Agent → only assigned users
       query.assignedAgentId = admin._id;
-    } 
-    // superAdmin / admin → no filter (all users)
-    // else if (admin.role === "superAdmin") { query = {}; }
+    }
 
     if (search) {
       const searchRegex = { $regex: search, $options: "i" };

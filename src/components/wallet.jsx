@@ -139,6 +139,11 @@ export default function SmartWalletRecharge() {
         description: `Recharge ₹${amount} + GST ₹${gstAmount}`,
         order_id: orderData.id,
         theme: { color: "#2563eb" },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          },
+        },
         handler: async (response) => {
           try {
             const verifyRes = await fetch("/api/subscribe/verify", {

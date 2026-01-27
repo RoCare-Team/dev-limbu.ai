@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
   
      assignedAgentId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "admins",
+    ref: "Admin",
   },
     remarksHistory: [
       {

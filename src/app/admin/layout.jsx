@@ -91,6 +91,7 @@ export default function AdminLayout({ children }) {
   ---------------------------- */
   const navItems = allNavItems.filter((item) => {
     if (role === "superAdmin" || role === "admin") return true;
+    if (role === "franchiseAdmin" && item.name === "Dashboard") return false;
     if (!item.key) return true;
     return permissions[item.key] === true;
   });

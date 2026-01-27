@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import User from "@/models/User";
+import Admin from "@/models/Admin";
 
 /* ================= DB CONNECT ================= */
 
@@ -19,50 +21,6 @@ async function dbConnect() {
   global.mongoose.conn = await global.mongoose.promise;
   return global.mongoose.conn;
 }
-
-/* ================= ADMIN MODEL ================= */
-
-const AdminSchema = new mongoose.Schema({
-  fullName: String,
-  email: String,
-  role: {
-    type: String,
-    enum: ["superAdmin", "admin", "agent"],
-    required: true,
-  },
-  isActive: {
-    type: Boolean,
-    default: true,
-  },
-});
-
-const Admin =
-  mongoose.models.admins || mongoose.model("admins", AdminSchema);
-
-/* ================= USER MODEL ================= */
-
-
-
-const UserSchema = new mongoose.Schema({
-  userId: String,
-  fullName: String,
-  email: String,
-  phone: String,
-
-  assignedAgentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "admins",
-    default: null,
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-const User =
-  mongoose.models.users || mongoose.model("users", UserSchema);
 
 /* ================= SETTING MODEL (ROUND ROBIN) ================= */
 
@@ -144,6 +102,16 @@ export async function GET(req) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    if (userId) {
+      const user = await User.findOne({ userId }).populate("assignedAgentId", "fullName email role");
+      if (!user) {
+        return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, user });
+    }
+
     const email = searchParams.get("email");
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page")) || 1;
@@ -226,15 +194,17 @@ export async function PUT(req) {
   try {
     await dbConnect();
 
+    const body = await req.json();
     const {
       userId,
       newPlan,
-      remark,
       paidService,
       paidPackage,
       planDuration,
       isServiceBooked,
-    } = await req.json();
+    } = body;
+
+    const remark = body.remark || body.remarks;
 
     if (!userId) {
       return NextResponse.json(

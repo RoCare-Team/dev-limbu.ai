@@ -30,7 +30,11 @@ export default function Login() {
     localStorage.setItem("adminName", data.fullName);
     localStorage.setItem("email", data.email);
 
-    router.push("/admin/dashboard");
+    if (["superFranchiseAdmin", "franchiseAdmin"].includes(data.role)) {
+      router.push("/admin/franchise/franchise-lead");
+    } else {
+      router.push("/admin/dashboard");
+    }
   };
 
   return (

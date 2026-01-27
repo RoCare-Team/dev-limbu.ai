@@ -8,6 +8,13 @@ const ROLE_PERMISSIONS = {
     manageFranchise: true,
     seeAnalytics: true,
   },
+  superFranchiseAdmin: {
+    manageUsers: false,
+    manageTeam: false,
+    manageLeads: false,
+    manageFranchise: true,
+    seeAnalytics: true,
+  },
   franchiseAdmin: {
     manageUsers: false,
     manageTeam: false,
@@ -62,6 +69,7 @@ const AdminSchema = new mongoose.Schema(
       type: String,
       enum: [
         "superAdmin",
+        "superFranchiseAdmin",
         "franchiseAdmin",
         "admin",
         "subadmin",
@@ -84,6 +92,12 @@ const AdminSchema = new mongoose.Schema(
       ref: "Admin",
       default: null,
     },
+
+    assignedFranchiseAdminId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Admin",
+  default: null,
+},
 
     permissions: {
       manageUsers: Boolean,

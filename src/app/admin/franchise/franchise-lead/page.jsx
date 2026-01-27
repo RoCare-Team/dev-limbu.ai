@@ -86,9 +86,11 @@ export default function FranchiseLeadsPage() {
     setLoading(true);
     setError(null);
 
+    const userEmail = localStorage.getItem("email");
+
     try {
       const res = await fetch(
-        `/api/franchise-leads?formId=${formId}&limit=1000&summary=true`
+        `/api/franchise-leads?formId=${formId}&limit=1000&summary=true&email=${userEmail || ""}`
       );
       
       if (!res.ok) {

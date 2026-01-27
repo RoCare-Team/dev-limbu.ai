@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
+import Admin from "@/models/Admin";
 
 // ==================
 // SCHEMA
@@ -25,6 +26,12 @@ const LeadSchema = new mongoose.Schema(
       enum: ["Active", "Follow Up", "Inactive", "Onboard"]
     },
 
+    // ⭐ Assigned Admin
+    assignedFranchiseAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
     // ⭐ MULTIPLE REMARKS (HISTORY SAFE)
     remarks: [
       {
@@ -43,6 +50,15 @@ const LeadSchema = new mongoose.Schema(
 const Lead =
   mongoose.models.MetaLeadFranchises || 
   mongoose.model("MetaLeadFranchises", LeadSchema);
+
+// ==================
+// SETTING MODEL (ROUND ROBIN)
+// ==================
+const SettingSchema = new mongoose.Schema({
+  key: String,
+  value: mongoose.Schema.Types.Mixed,
+});
+const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
 // ==================
 // HELPER FUNCTION
@@ -64,8 +80,16 @@ function formatLeadForResponse(leadDoc) {
       { name: "what_is_your_current_occupation?", values: [leadDoc.occupation] },
       { name: "mention_investment_rang", values: [leadDoc.investment] },
     ],
+    // Flat fields for frontend
+    fullName: leadDoc.fullName,
+    email: leadDoc.email,
+    phone: leadDoc.phone,
+    city: leadDoc.city,
+    occupation: leadDoc.occupation,
+    investment: leadDoc.investment,
     status: leadDoc.status,
     remarks: leadDoc.remarks || [],
+    assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
   };
 }
 
@@ -79,6 +103,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const formId = searchParams.get("formId");
     const leadId = searchParams.get("leadId");
+    const email = searchParams.get("email");
     
     let limit = parseInt(searchParams.get("limit") || "500", 10);
     if (isNaN(limit) || limit < 1) limit = 500;
@@ -86,7 +111,7 @@ export async function GET(req) {
 
     // ========== FETCH SINGLE LEAD WITH REMARKS ==========
     if (leadId) {
-      const lead = await Lead.findOne({ leadId }).lean();
+      const lead = await Lead.findOne({ leadId }).populate("assignedFranchiseAdminId", "fullName email role").lean();
       
       if (!lead) {
         return NextResponse.json(
@@ -107,7 +132,8 @@ export async function GET(req) {
           investment: lead.investment,
           status: lead.status,
           createdTime: lead.createdTime,
-          remarks: lead.remarks || []
+          remarks: lead.remarks || [],
+          assignedFranchiseAdmin: lead.assignedFranchiseAdminId,
         },
       });
     }
@@ -127,6 +153,15 @@ export async function GET(req) {
         { success: false, message: "META_ACCESS_TOKEN not configured" },
         { status: 500 }
       );
+    }
+
+    // 🔍 CHECK ADMIN ROLE FOR FILTERING
+    let filterAdminId = null;
+    if (email) {
+      const admin = await Admin.findOne({ email });
+      if (admin && admin.role === "franchiseAdmin") {
+        filterAdminId = admin._id.toString();
+      }
     }
 
     const metaRes = await fetch(
@@ -152,10 +187,15 @@ export async function GET(req) {
     // 🚀 OPTIMIZATION: Fetch all existing leads in ONE query
     const existingLeadsDocs = await Lead.find({
       leadId: { $in: metaLeadIds },
-    }).lean();
+    }).populate("assignedFranchiseAdminId", "fullName email role").lean();
 
     const existingLeadsMap = new Map();
     existingLeadsDocs.forEach((doc) => existingLeadsMap.set(doc.leadId, doc));
+
+    // 🔄 ROUND ROBIN SETUP
+    const franchiseAdmins = await Admin.find({ role: "franchiseAdmin", isActive: true }).sort({ createdAt: 1 });
+    let rr = await Setting.findOne({ key: "franchiseLeadRRIndex" });
+    let rrIndex = rr?.value || 0;
 
     const newLeadsToInsert = [];
     const allLeadsResponse = [];
@@ -163,6 +203,13 @@ export async function GET(req) {
     for (const lead of metaLeads) {
       if (existingLeadsMap.has(lead.id)) {
         const existingDoc = existingLeadsMap.get(lead.id);
+        
+        // 🔍 FILTER: If franchiseAdmin, only show assigned leads
+        if (filterAdminId) {
+          const assigned = existingDoc.assignedFranchiseAdminId;
+          const assignedId = assigned?._id ? assigned._id.toString() : assigned?.toString();
+          if (assignedId !== filterAdminId) continue;
+        }
         allLeadsResponse.push(formatLeadForResponse(existingDoc));
       } else {
         const normalizedLead = {
@@ -182,13 +229,31 @@ export async function GET(req) {
           remarks: [],
         };
 
+        // 🔄 ASSIGN ADMIN
+        let assignedAdminObj = null;
+        if (franchiseAdmins.length > 0) {
+          const assignedAdmin = franchiseAdmins[rrIndex % franchiseAdmins.length];
+          normalizedLead.assignedFranchiseAdminId = assignedAdmin._id;
+          assignedAdminObj = assignedAdmin;
+          rrIndex++;
+        }
+
         newLeadsToInsert.push(normalizedLead);
-        allLeadsResponse.push(formatLeadForResponse(normalizedLead));
+        
+        // Prepare for response (with populated admin)
+        const leadForResponse = { ...normalizedLead, assignedFranchiseAdminId: assignedAdminObj };
+        allLeadsResponse.push(formatLeadForResponse(leadForResponse));
       }
     }
 
     if (newLeadsToInsert.length > 0) {
       await Lead.insertMany(newLeadsToInsert, { ordered: false });
+      // Update Round Robin Index
+      await Setting.findOneAndUpdate(
+        { key: "franchiseLeadRRIndex" },
+        { value: rrIndex },
+        { upsert: true }
+      );
     }
 
     return NextResponse.json({

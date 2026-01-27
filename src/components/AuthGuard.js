@@ -27,7 +27,7 @@ export default function AuthGuard({ children }) {
       "/refund-policy",
     ];
 
-    const allowedAdminRoles = ["admin", "superAdmin", "franchiseAdmin", "manager", "agent", "subadmin"];
+    const allowedAdminRoles = ["admin", "superAdmin","superFranchiseAdmin", "franchiseAdmin", "manager", "agent", "subadmin"];
     const isPublicRoute = publicRoutes.includes(pathname);
     const isAdminRoute = pathname.startsWith("/admin");
     const isReviewRoute = pathname.startsWith("/reviews");
@@ -66,7 +66,11 @@ export default function AuthGuard({ children }) {
 
       // Any Admin role opens adminLogin
       if (allowedAdminRoles.includes(role) && pathname === "/adminLogin") {
-        router.replace("/admin/dashboard");
+        if (["superFranchiseAdmin", "franchiseAdmin"].includes(role)) {
+          router.replace("/admin/franchise/franchise-lead");
+        } else {
+          router.replace("/admin/dashboard");
+        }
         setIsChecking(false);
         return;
       }

@@ -220,6 +220,7 @@ export default function UsersPage() {9
                 className="w-full mt-1 px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="superAdmin">Super Admin</option>
+                <option value="superFranchiseAdmin">Super Franchise Admin</option>
                 <option value="franchiseAdmin">Franchise Admin</option>
                 <option value="admin">Admin</option>
                 <option value="subadmin">Sub Admin</option>

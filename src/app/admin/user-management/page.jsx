@@ -124,7 +124,7 @@ export default function UserManagement() {
   }, []);
 
   useEffect(() => {
-    if (role === "superAdmin" || role === "admin") {
+    if (role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") {
       fetch("/api/admin/user-agent")
         .then((res) => res.json())
         .then((data) => {
@@ -150,8 +150,16 @@ export default function UserManagement() {
   const leadCounts = useMemo(() => {
     const counts = { "Unassigned": 0 };
     users.forEach((user) => {
-      if (user.assignedAgentId && typeof user.assignedAgentId === 'object' && user.assignedAgentId._id) {
-        const agentId = user.assignedAgentId._id;
+      let agentId = null;
+      if (user.assignedAgentId) {
+        if (typeof user.assignedAgentId === 'object' && user.assignedAgentId._id) {
+          agentId = user.assignedAgentId._id;
+        } else if (typeof user.assignedAgentId === 'string') {
+          agentId = user.assignedAgentId;
+        }
+      }
+
+      if (agentId) {
         counts[agentId] = (counts[agentId] || 0) + 1;
       } else {
         counts["Unassigned"] = (counts["Unassigned"] || 0) + 1;
@@ -216,38 +224,38 @@ const fetchUsers = async (silent = false) => {
     fetchPlans();
   }, []);
 
-  const mergeAllData = useCallback(async () => {
-    setLoading(true);
-    const initialUsers = await fetchUsers();
-    if (!initialUsers || initialUsers.length === 0) {
-      setLoading(false);
-      return;
-    }
+  // const mergeAllData = useCallback(async () => {
+  //   setLoading(true);
+  //   const initialUsers = await fetchUsers();
+  //   if (!initialUsers || initialUsers.length === 0) {
+  //     setLoading(false);
+  //     return;
+  //   }
 
-    const businessPromises = initialUsers.map(usr =>
-      fetch(`/api/admin/saveBussiness?email=${usr.email}`).then(res => res.json())
-    );
+  //   const businessPromises = initialUsers.map(usr =>
+  //     fetch(`/api/admin/saveBussiness?email=${usr.email}`).then(res => res.json())
+  //   );
 
-    const businessResults = await Promise.all(businessPromises);
+  //   const businessResults = await Promise.all(businessPromises);
 
-    const finalUsers = initialUsers.map((usr, index) => {
-      const businessData = businessResults[index];
-      const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
-      return {
-        ...usr,
-        isBusinessConnected: !!business,
-        businessListings: business?.listings || [],
-      };
-    });
+  //   const finalUsers = initialUsers.map((usr, index) => {
+  //     const businessData = businessResults[index];
+  //     const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
+  //     return {
+  //       ...usr,
+  //       isBusinessConnected: !!business,
+  //       businessListings: business?.listings || [],
+  //     };
+  //   });
 
-    setUsers(finalUsers);
-    setLoading(false);
-  }, []);
+  //   setUsers(finalUsers);
+  //   setLoading(false);
+  // }, []);
 
-  useEffect(() => {
-    mergeAllData();
-    fetchConnectedBusinessUsers();
-  }, [mergeAllData]);
+  // useEffect(() => {
+  //   mergeAllData();
+  //   fetchConnectedBusinessUsers();
+  // }, [mergeAllData]);
 
   useEffect(() => {
     fetchAllUserPostsCounts();
@@ -263,10 +271,10 @@ const fetchUsers = async (silent = false) => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    fetchChatStats();
-    fetchIssues();
-  }, []);
+  // useEffect(() => {
+  //   fetchChatStats();
+  //   fetchIssues();
+  // }, []);
 
 
   const fetchConnectedBusinessUsers = async () => {
@@ -315,84 +323,94 @@ const fetchUsers = async (silent = false) => {
     }
   };
 
-  const fetchChatStats = async () => {
-    try {
-      const res = await fetch('/api/issue-check');
-      const result = await res.json();
-      if (result.success) {
-        const chats = result.data || [];
-        const total = chats.length;
-        const todayDate = new Date();
-        const today = chats.filter(c => {
-          if (!c.createdAt) return false;
-          const chatDate = new Date(c.createdAt);
-          return chatDate.getDate() === todayDate.getDate() &&
-                 chatDate.getMonth() === todayDate.getMonth() &&
-                 chatDate.getFullYear() === todayDate.getFullYear();
-        }).length;
-        const resolved = chats.filter(c => c.status === 'resolved').length;
-        setChatStats({ total, today, resolved, data: chats });
-      }
-    } catch (error) {
-      console.error("Error fetching chat stats:", error);
+  // const fetchChatStats = async () => {
+  //   try {
+  //     const res = await fetch('/api/issue-check');
+  //     const result = await res.json();
+  //     if (result.success) {
+  //       const chats = result.data || [];
+  //       const total = chats.length;
+  //       const todayDate = new Date();
+  //       const today = chats.filter(c => {
+  //         if (!c.createdAt) return false;
+  //         const chatDate = new Date(c.createdAt);
+  //         return chatDate.getDate() === todayDate.getDate() &&
+  //                chatDate.getMonth() === todayDate.getMonth() &&
+  //                chatDate.getFullYear() === todayDate.getFullYear();
+  //       }).length;
+  //       const resolved = chats.filter(c => c.status === 'resolved').length;
+  //       setChatStats({ total, today, resolved, data: chats });
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching chat stats:", error);
+  //   }
+  // };
+
+  // const fetchIssues = async () => {
+  //   try {
+  //     const res = await fetch('/api/issue-check');
+  //     const result = await res.json();
+  //     if (result.success) {
+  //       setIssues(result.data || []);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching issues:", error);
+  //   }
+  // };
+
+  // const handleResolveIssue = async (id) => {
+  //   try {
+  //     const res = await fetch('/api/issue-check', {
+  //       method: 'PUT',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ id, status: 'resolved' })
+  //     });
+  //     const data = await res.json();
+  //     if (data.success) {
+  //       fetchChatStats();
+  //       fetchIssues();
+  //     }
+  //   } catch (error) {
+  //     console.error("Error resolving issue:", error);
+  //   }
+  // };
+
+const handleAssignChange = async (userId, newAgentId) => {
+  try {
+    const res = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        assignedAgentId: newAgentId || null,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      showToast(data.error || "Failed to assign agent", "error");
+      return;
     }
-  };
 
-  const fetchIssues = async () => {
-    try {
-      const res = await fetch('/api/issue-check');
-      const result = await res.json();
-      if (result.success) {
-        setIssues(result.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching issues:", error);
-    }
-  };
+    showToast("Agent assigned successfully", "success");
 
-  const handleResolveIssue = async (id) => {
-    try {
-      const res = await fetch('/api/issue-check', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'resolved' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchChatStats();
-        fetchIssues();
-      }
-    } catch (error) {
-      console.error("Error resolving issue:", error);
-    }
-  };
+    const updatedAgent = data.user?.assignedAgentId;
 
-  const handleAssignChange = async (userId, newAgentId) => {
-    try {
-      const res = await fetch("/api/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, assignedAgentId: newAgentId || null }),
-      });
-      const data = await res.json();
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.userId === userId
+          ? { ...user, assignedAgentId: updatedAgent }
+          : user
+      )
+    );
+    fetchUsers(true);
+  } catch (error) {
+    console.error("Assignment error:", error);
+    showToast("Something went wrong while assigning.", "error");
+  }
+};
 
-      if (data.success) {
-        showToast("Agent assigned successfully", "success");
-        setUsers((prevUsers) =>
-          prevUsers.map((user) =>
-            user.userId === userId
-              ? { ...user, assignedAgentId: data.user.assignedAgentId }
-              : user
-          )
-        );
-      } else {
-        showToast(data.error || "Failed to assign agent", "error");
-      }
-    } catch (error) {
-      console.error("Assignment error:", error);
-      showToast("Something went wrong while assigning.", "error");
-    } 
-  };
 
   const getAvatarColor = (name) => {
     if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
@@ -737,6 +755,9 @@ const fetchUsers = async (silent = false) => {
     setFilteredUsers(users);
   }, [users]);
 
+
+
+
   
 
 
@@ -966,7 +987,7 @@ const fetchUsers = async (silent = false) => {
         </div>
 
         {/* AGENT ASSIGNMENT SUMMARY */}
-        {(role === "superAdmin" || role === "admin") && agents.length > 0 && (
+        {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-6">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
               <User className="w-3 h-3" />
@@ -1024,7 +1045,7 @@ const fetchUsers = async (silent = false) => {
               </select>
             </div>
 
-            {(role === "superAdmin" || role === "admin") && (
+            {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
               <div className="relative">
                 <select
                   value={assigneeFilter}
@@ -1094,6 +1115,7 @@ const fetchUsers = async (silent = false) => {
                 {filteredUsers.map((user) => {
                   const postData = userPostsData[user.userId] || { total: 0, posted: 0, rejected: 0 };
                   return (
+                    
                     <tr
                       key={user._id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -1147,32 +1169,61 @@ const fetchUsers = async (silent = false) => {
                           </div>
                         </div>
                       </td>
-                
-                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        {role === "superAdmin" || role === "admin" ? (
-                          <div className={`relative inline-block rounded-lg border ${getAvatarColor(user.assignedAgentId?.fullName || "Unassigned")}`}>
-                            <select
-                              className="appearance-none bg-transparent px-3 py-1.5 pr-8 rounded-lg text-xs font-bold focus:outline-none w-full max-w-[160px] cursor-pointer"
-                              value={user.assignedAgentId?._id || user.assignedAgentId || ""}
-                              onChange={(e) => handleAssignChange(user.userId, e.target.value)}
-                            >
-                              <option value="" className="text-gray-500 bg-white">-- Unassigned --</option>
-                              {agents.map((agent) => (
-                                <option key={agent._id} value={agent._id} className="text-gray-900 bg-white">
-                                  {agent.fullName}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current">
-                              <ChevronDown className="h-3 w-3" />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(user.assignedAgentId?.fullName || "Unassigned")}`}>
-                            {user.assignedAgentId?.fullName || "Unassigned"}
-                          </span>
-                        )}
-                      </td>
+                  
+<td
+  className="px-6 py-4 whitespace-nowrap"
+  onClick={(e) => e.stopPropagation()}
+>
+  {role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" ? (
+    <div
+      className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
+        user?.assignedAgentId?.fullName || "Unassigned"
+      )}`}
+    >
+      <select
+        className="
+          appearance-none bg-transparent 
+          px-4 py-1.5 pr-8 
+          text-xs font-bold 
+          focus:outline-none 
+          cursor-pointer
+        "
+        value={
+          typeof user.assignedAgentId === "object"
+            ? user.assignedAgentId?._id
+            : user.assignedAgentId || ""
+        }
+        onChange={(e) =>
+          handleAssignChange(user.userId, e.target.value)
+        }
+      >
+        <option value="">-- Unassigned --</option>
+
+        {agents.map((agent) => (
+          <option key={agent._id} value={agent._id}>
+            {agent.fullName}
+          </option>
+        ))}
+      </select>
+
+      <span className="pointer-events-none absolute right-2 flex items-center">
+        <ChevronDown className="h-3 w-3" />
+      </span>
+    </div>
+  ) : (
+    <span
+      className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
+        user.assignedAgentId?.fullName || "Unassigned"
+      )}`}
+    >
+      {user.assignedAgentId?.fullName || "Unassigned"}
+    </span>
+  )}
+</td>
+
+
+
+
                       
                  
    <td className="px-6 py-4">
@@ -2124,13 +2175,13 @@ const fetchUsers = async (silent = false) => {
                             {chat.status || 'open'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        {/* <td className="px-6 py-4 text-sm">
                           {chat.status !== 'resolved' && (
                             <button onClick={() => handleResolveIssue(chat._id)} className="text-blue-600 hover:underline text-xs font-semibold">
                               Mark Resolved
                             </button>
                           )}
-                        </td>
+                        </td> */}
                       </tr>
                     ))}
                     {chatStats.data.filter(chat => {
@@ -2202,13 +2253,13 @@ const fetchUsers = async (silent = false) => {
                             {issue.status || 'open'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        {/* <td className="px-6 py-4 text-sm">
                           {issue.status !== 'resolved' && (
                             <button onClick={() => handleResolveIssue(issue._id)} className="text-blue-600 hover:underline text-xs font-semibold">
                               Mark Resolved
                             </button>
                           )}
-                        </td>
+                        </td> */}
                       </tr>
                     ))}
                     {issues.length === 0 && (

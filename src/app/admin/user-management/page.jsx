@@ -271,10 +271,10 @@ const fetchUsers = async (silent = false) => {
     return () => clearInterval(interval);
   }, []);
 
-  // useEffect(() => {
-  //   fetchChatStats();
-  //   fetchIssues();
-  // }, []);
+  useEffect(() => {
+    fetchChatStats();
+    fetchIssues();
+  }, []);
 
 
   const fetchConnectedBusinessUsers = async () => {
@@ -323,57 +323,57 @@ const fetchUsers = async (silent = false) => {
     }
   };
 
-  // const fetchChatStats = async () => {
-  //   try {
-  //     const res = await fetch('/api/issue-check');
-  //     const result = await res.json();
-  //     if (result.success) {
-  //       const chats = result.data || [];
-  //       const total = chats.length;
-  //       const todayDate = new Date();
-  //       const today = chats.filter(c => {
-  //         if (!c.createdAt) return false;
-  //         const chatDate = new Date(c.createdAt);
-  //         return chatDate.getDate() === todayDate.getDate() &&
-  //                chatDate.getMonth() === todayDate.getMonth() &&
-  //                chatDate.getFullYear() === todayDate.getFullYear();
-  //       }).length;
-  //       const resolved = chats.filter(c => c.status === 'resolved').length;
-  //       setChatStats({ total, today, resolved, data: chats });
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching chat stats:", error);
-  //   }
-  // };
+  const fetchChatStats = async () => {
+    try {
+      const res = await fetch('/api/issue-check');
+      const result = await res.json();
+      if (result.success) {
+        const chats = result.data || [];
+        const total = chats.length;
+        const todayDate = new Date();
+        const today = chats.filter(c => {
+          if (!c.createdAt) return false;
+          const chatDate = new Date(c.createdAt);
+          return chatDate.getDate() === todayDate.getDate() &&
+                 chatDate.getMonth() === todayDate.getMonth() &&
+                 chatDate.getFullYear() === todayDate.getFullYear();
+        }).length;
+        const resolved = chats.filter(c => c.status === 'resolved').length;
+        setChatStats({ total, today, resolved, data: chats });
+      }
+    } catch (error) {
+      console.error("Error fetching chat stats:", error);
+    }
+  };
 
-  // const fetchIssues = async () => {
-  //   try {
-  //     const res = await fetch('/api/issue-check');
-  //     const result = await res.json();
-  //     if (result.success) {
-  //       setIssues(result.data || []);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching issues:", error);
-  //   }
-  // };
+  const fetchIssues = async () => {
+    try {
+      const res = await fetch('/api/issue-check');
+      const result = await res.json();
+      if (result.success) {
+        setIssues(result.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching issues:", error);
+    }
+  };
 
-  // const handleResolveIssue = async (id) => {
-  //   try {
-  //     const res = await fetch('/api/issue-check', {
-  //       method: 'PUT',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ id, status: 'resolved' })
-  //     });
-  //     const data = await res.json();
-  //     if (data.success) {
-  //       fetchChatStats();
-  //       fetchIssues();
-  //     }
-  //   } catch (error) {
-  //     console.error("Error resolving issue:", error);
-  //   }
-  // };
+  const handleResolveIssue = async (id) => {
+    try {
+      const res = await fetch('/api/issue-check', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'resolved' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchChatStats();
+        fetchIssues();
+      }
+    } catch (error) {
+      console.error("Error resolving issue:", error);
+    }
+  };
 
 const handleAssignChange = async (userId, newAgentId) => {
   try {
@@ -1219,13 +1219,7 @@ const handleAssignChange = async (userId, newAgentId) => {
       {user.assignedAgentId?.fullName || "Unassigned"}
     </span>
   )}
-</td>
-
-
-
-
-                      
-                 
+</td>       
    <td className="px-6 py-4">
                         <div 
                           onClick={(e) => {

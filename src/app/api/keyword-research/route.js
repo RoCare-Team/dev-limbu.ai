@@ -2,37 +2,22 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 
-/* -------------------- SCHEMA (INLINE) -------------------- */
+/* -------------------- SCHEMA -------------------- */
 const KeywordSchema = new mongoose.Schema(
   {
-    userId: {
-      type: String,
-      required: true,
-      index: true,
-    },
-    keyword: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    source: {
-      type: String,
-      default: "google",
-    },
+    userId: { type: String, required: true, index: true },
+    keyword: { type: String, required: true, trim: true },
+    source: { type: String, default: "google" },
   },
   { timestamps: true }
 );
 
-// Prevent duplicate keyword per user
 KeywordSchema.index({ userId: 1, keyword: 1 }, { unique: true });
 
 const Keyword =
   mongoose.models.Keyword || mongoose.model("Keyword", KeywordSchema);
 
-/* -------------------- GET --------------------
-   ?query=RO Care   → Google related keywords
-   ?userId=xxxx     → Fetch user keywords
------------------------------------------------- */
+/* -------------------- GET -------------------- */
 export async function GET(req) {
   try {
     await dbConnect();
@@ -40,15 +25,34 @@ export async function GET(req) {
     const query = searchParams.get("query");
     const userId = searchParams.get("userId");
 
-    /* -------- FETCH USER SAVED KEYWORDS -------- */
+    /* 🔹 USER SAVED KEYWORDS */
     if (userId) {
-      const saved = await Keyword.find({ userId }).sort({
-        createdAt: -1,
-      });
+      const saved = await Keyword.find({ userId }).sort({ createdAt: -1 });
+      return NextResponse.json({ success: true, data: saved });
+    }
+
+    /* 🔹 FIND RELATED KEYWORDS (n8n) */
+    if (query) {
+      const res = await fetch(
+        "https://n8n.limbutech.in/webhook/4dc0fc39-0e04-4d74-a189-1c4f09bd6894",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyword: query }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch keywords from n8n");
+      }
+
+      const data = await res.json();
 
       return NextResponse.json({
         success: true,
-        data: saved,
+        source: "n8n",
+        keyword: query,
+        data,
       });
     }
 
@@ -57,16 +61,11 @@ export async function GET(req) {
       { status: 400 }
     );
   } catch (err) {
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-/* -------------------- POST --------------------
-   Add keyword (user-wise)
------------------------------------------------- */
+/* -------------------- POST -------------------- */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -85,10 +84,7 @@ export async function POST(req) {
       source: "google",
     });
 
-    return NextResponse.json({
-      success: true,
-      data: saved,
-    });
+    return NextResponse.json({ success: true, data: saved });
   } catch (err) {
     if (err.code === 11000) {
       return NextResponse.json(
@@ -96,18 +92,11 @@ export async function POST(req) {
         { status: 409 }
       );
     }
-
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-/* -------------------- DELETE --------------------
-   Delete keyword by _id
-   ?id=KEYWORD_ID
------------------------------------------------- */
+/* -------------------- DELETE -------------------- */
 export async function DELETE(req) {
   try {
     await dbConnect();
@@ -128,9 +117,6 @@ export async function DELETE(req) {
       message: "Keyword deleted successfully",
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -47,7 +47,7 @@ const CallSchema = new mongoose.Schema(
     call_date: String,
     api_page_name: String,
     digit_pressed: String,
-    billing_circle: String,
+    billing_circle: Object,
     campaign_id: String,
     campaign_name: String,
   },

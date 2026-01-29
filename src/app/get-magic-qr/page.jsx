@@ -178,6 +178,9 @@ export default function BusinessQR() {
       link.download = `${business}-qr-review.png`;
       link.href = dataUrl;
       link.click();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (err) {
       console.error(err);
     }

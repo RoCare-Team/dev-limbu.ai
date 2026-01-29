@@ -22,22 +22,30 @@ export async function GET(req) {
     const status = searchParams.get("status");
     const userId = searchParams.get("userId");
 
-    if (!userId) return json({ success: false, error: "userId required" }, 400);
+    // Build the query object dynamically
+    const query = {};
+    if (userId) {
+      query.userId = userId;
+    }
+    if (status) {
+      query.status = status;
+    }
 
     // Single post
     if (id) {
-      const post = await Post.findOne({ _id: id, userId }).lean();
+      // If fetching by id, it's better to keep it scoped by userId if provided
+      const findOneQuery = { _id: id };
+      if (userId) {
+        findOneQuery.userId = userId;
+      }
+      const post = await Post.findOne(findOneQuery).lean();
       if (!post) return json({ success: false, error: "Post not found" }, 404);
       return json({ success: true, data: post });
     }
 
-    // Multiple posts
-    const query = { userId };
-    if (status) query.status = status;
-
+    // Multiple posts (all posts if no userId)
     const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
-    return json({ success: true, data: posts });
-
+    return json({ success: true, data: posts, count: posts.length });
   } catch (err) {
     return json({ success: false, error: err.message }, 500);
   }

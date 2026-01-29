@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 
 export default function UserManagement() {
@@ -43,6 +43,11 @@ export default function UserManagement() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [agents, setAgents] = useState([]);
   const [assigneeFilter, setAssigneeFilter] = useState("All");
+  const [totalPostsCount, setTotalPostsCount] = useState(0);
+  const [agentStats, setAgentStats] = useState({ "Unassigned": 0 });
+  const [detailedStats, setDetailedStats] = useState([]);
+  const [stageModal, setStageModal] = useState(null); // { stage: "Follow Up" }
+  const [stageStats, setStageStats] = useState({});
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -116,7 +121,11 @@ export default function UserManagement() {
     premium: 0,
     active: 0,
     todayMetaLeads: 0,
-    todaySignups: 0
+    todaySignups: 0,
+    leadStageActive: 0,
+    leadStageFollowUp: 0,
+    leadStageInactive: 0,
+    leadStageOnboard: 0
   });
 
   useEffect(() => {
@@ -135,6 +144,21 @@ export default function UserManagement() {
   }, [role]);
 
   useEffect(() => {
+    const fetchTotalPosts = async () => {
+      try {
+        const res = await fetch("/api/post-status");
+        const data = await res.json();
+        if (data.success) {
+          setTotalPostsCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching total posts:", error);
+      }
+    };
+    fetchTotalPosts();
+  }, []);
+
+  useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
     // Calculate basic, standard, premium from the currently loaded users
     const basic = users.filter(u => u.subscription?.plan === "Basic").length;
@@ -143,29 +167,33 @@ export default function UserManagement() {
     const active = connectedBusinessUsers.length;
     const todayMetaLeads = users.filter(u => (u.source === "bulk-upload" || u.source === "Meta Leads") && new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
     const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
+    
+    // const leadStageActive = users.filter(u => (u.leadStage || "Active") === "Active").length;
+    // const leadStageFollowUp = users.filter(u => u.leadStage === "Follow Up").length;
+    // const leadStageInactive = users.filter(u => u.leadStage === "Inactive").length;
+    // const leadStageOnboard = users.filter(u => u.leadStage === "Onboard").length;
 
     setStats({ total, basic, standard, premium, active, todayMetaLeads, todaySignups });
   }, [pagination, users, connectedBusinessUsers, role]);
 
-  const leadCounts = useMemo(() => {
-    const counts = { "Unassigned": 0 };
-    users.forEach((user) => {
-      let agentId = null;
-      if (user.assignedAgentId) {
-        if (typeof user.assignedAgentId === 'object' && user.assignedAgentId._id) {
-          agentId = user.assignedAgentId._id;
-        } else if (typeof user.assignedAgentId === 'string') {
-          agentId = user.assignedAgentId;
-        }
+  const fetchAgentStats = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return;
+    try {
+      const res = await fetch(`/api/users?email=${adminEmail}&getAgentStats=true`);
+      const data = await res.json();
+      if (data.success) {
+        setAgentStats(data.stats);
+        setStageStats(data.stageStats || {});
+        setDetailedStats(data.detailedStats || []);
       }
+    } catch (error) {
+      console.error("Error fetching agent stats:", error);
+    }
+  };
 
-      if (agentId) {
-        counts[agentId] = (counts[agentId] || 0) + 1;
-      } else {
-        counts["Unassigned"] = (counts["Unassigned"] || 0) + 1;
-      }
-    });
-    return counts;
+  useEffect(() => {
+    fetchAgentStats();
   }, [users]);
 
 const fetchUsers = async (silent = false) => {
@@ -179,8 +207,11 @@ const fetchUsers = async (silent = false) => {
       page: currentPage,
       search: searchQuery.trim(),
       limit: 70,
-      assignedAgentId: assigneeFilter !== "All" ? assigneeFilter : undefined,
     });
+
+    if (assigneeFilter !== "All") {
+      params.append("assignedAgentId", assigneeFilter);
+    }
 
     const res = await fetch(`/api/users?${params.toString()}`);
     const data = await res.json();
@@ -308,6 +339,7 @@ const fetchUsers = async (silent = false) => {
           acc[userId] = countsData[userId] || { total: 0, posted: 0, approved: 0, rejected: 0, pending: 0 };
           return acc;
         }, {});
+        
         setUserPostsData(fullPostData);
       } else {
         // Handle error case, maybe set all to 0
@@ -408,6 +440,35 @@ const handleAssignChange = async (userId, newAgentId) => {
   } catch (error) {
     console.error("Assignment error:", error);
     showToast("Something went wrong while assigning.", "error");
+  }
+};
+
+const handleLeadStageChange = async (userId, newStage) => {
+  try {
+    const res = await fetch("/api/users", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        leadStage: newStage,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      showToast("Lead stage updated successfully", "success");
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.userId === userId ? { ...user, leadStage: newStage } : user
+        )
+      );
+    } else {
+      showToast(data.error || "Failed to update lead stage", "error");
+    }
+  } catch (error) {
+    console.error("Update lead stage error:", error);
+    showToast("Something went wrong", "error");
   }
 };
 
@@ -893,7 +954,7 @@ const handleAssignChange = async (userId, newAgentId) => {
               <div>
                 <p className="text-blue-700 text-sm font-medium">Total Posts</p>
                 <p className="text-3xl font-bold text-blue-800 mt-1">
-                  {Object.values(userPostsData).reduce((sum, data) => sum + data.total, 0)}
+                  {totalPostsCount}
                 </p>
               </div>
               <ImageIcon className="text-blue-600" size={24} />
@@ -986,15 +1047,78 @@ const handleAssignChange = async (userId, newAgentId) => {
           </div> */}
         </div>
 
+        {/* Lead Stage Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div 
+            className="bg-green-50 rounded-2xl p-6 shadow-lg border border-green-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => setStageModal("Active")}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-700 text-sm font-medium">Active Leads</p>
+                <p className="text-3xl font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-xl">
+                <CheckCircle className="text-green-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div 
+            className="bg-yellow-50 rounded-2xl p-6 shadow-lg border border-yellow-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => setStageModal("Follow Up")}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-yellow-700 text-sm font-medium">Follow Up</p>
+                <p className="text-3xl font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
+              </div>
+              <div className="bg-yellow-100 p-3 rounded-xl">
+                <Clock className="text-yellow-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div 
+            className="bg-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => setStageModal("Inactive")}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-700 text-sm font-medium">Inactive</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
+              </div>
+              <div className="bg-gray-200 p-3 rounded-xl">
+                <UserX className="text-gray-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div 
+            className="bg-blue-50 rounded-2xl p-6 shadow-lg border border-blue-200 cursor-pointer hover:shadow-xl transition-all"
+            onClick={() => setStageModal("Onboard")}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-700 text-sm font-medium">Onboarded</p>
+                <p className="text-3xl font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-xl">
+                <Rocket className="text-blue-600" size={24} />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* AGENT ASSIGNMENT SUMMARY */}
         {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-6">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
               <User className="w-3 h-3" />
-              <span>Unassigned: {leadCounts["Unassigned"] || 0}</span>
+              <span>Unassigned: {agentStats["Unassigned"] || 0}</span>
             </div>
             {agents.map(agent => {
-              const count = leadCounts[agent._id] || 0;
+              const count = agentStats[agent._id] || 0;
               if (count === 0) return null;
               return (
                 <div key={agent._id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}>
@@ -1099,6 +1223,7 @@ const handleAssignChange = async (userId, newAgentId) => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plan</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign To</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Lead Stage</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Chat</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
@@ -1244,6 +1369,25 @@ const handleAssignChange = async (userId, newAgentId) => {
                             <span className="text-[10px] text-gray-400 italic pl-1">Tap to add...</span>
                           )}
                         </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <select
+                          value={user.leadStage || "Active"}
+                          onChange={(e) => handleLeadStageChange(user.userId, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
+                            user.leadStage === "Active" ? "bg-green-50 text-green-700 border-green-200" :
+                            user.leadStage === "Follow Up" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                            user.leadStage === "Onboard" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                            "bg-gray-50 text-gray-700 border-gray-200"
+                          }`}
+                        >
+                          <option value="Active">Active</option>
+                          <option value="Follow Up">Follow Up</option>
+                          <option value="Inactive">Inactive</option>
+                          <option value="Onboard">Onboard</option>
+                        </select>
                       </td>
 
                       <td className="px-6 py-4">
@@ -2295,6 +2439,58 @@ const handleAssignChange = async (userId, newAgentId) => {
                     {isDeleting ? "Deleting..." : "Delete"}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stage Breakdown Modal */}
+        {stageModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800">{stageModal} Leads Breakdown</h2>
+                <button
+                  onClick={() => setStageModal(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {detailedStats
+                      .filter(item => item.stage === stageModal)
+                      .sort((a, b) => b.count - a.count)
+                      .map((item, idx) => {
+                        const agentName = item.agentId === "Unassigned" 
+                          ? "Unassigned" 
+                          : agents.find(a => a._id === item.agentId)?.fullName || "Unknown Agent";
+                        
+                        return (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                              {agentName}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
+                              {item.count}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {detailedStats.filter(item => item.stage === stageModal).length === 0 && (
+                      <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No leads in this stage</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

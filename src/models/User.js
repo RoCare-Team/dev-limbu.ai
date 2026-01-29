@@ -18,8 +18,14 @@ const userSchema = new mongoose.Schema(
     paidService:{type: String},
     paidPackage: {type: String},
     planDuration: {type: String},
-  
-     assignedAgentId: {
+leadStage: {
+  type: String,
+  enum: ["Active", "Follow Up", "Inactive", "Onboard"],
+  default: "Active",
+},
+
+    refer_code : {type: String},
+    assignedAgentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Admin",
   },
@@ -55,6 +61,7 @@ const userSchema = new mongoose.Schema(
 
     connectedBusinessEmail: { type: String, default: null },
   isBusinessConnected: { type: Boolean, default: false },
+  isServiceBooked: { type: Boolean, default: false },
 
     // Store OTP temporarily for verification
     otp: { type: String },

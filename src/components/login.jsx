@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { sendOtpAction, verifyOtpAction, completeRegistrationAction } from "@/app/actions/authActions";
 import { useRouter } from "next/navigation";
-import { Moon, Sun, Phone, Mail, User, Lock, CheckCircle, AlertCircle, MapPin, Star, TrendingUp, BarChart3, Users, Globe } from "lucide-react";
+import { Moon, Sun, Phone, Mail, User, Lock, CheckCircle, AlertCircle, MapPin, Star, TrendingUp, BarChart3, Users, Globe, Tag } from "lucide-react";
 
 export default function LoginPage() {
   /* ─────────────── 100 % SAME STATE & LOGIC ─────────────── */
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [referCode, setReferCode] = useState("");
   const [step, setStep] = useState("phone");
   const [isExisting, setIsExisting] = useState(false);
   const [message, setMessage] = useState("");
@@ -121,7 +122,7 @@ export default function LoginPage() {
     setIsLoading(true);
     showMessage("Completing registration...", "info");
     try {
-      const { ok, data } = await completeRegistrationAction(phone, otp, name, email);
+      const { ok, data } = await completeRegistrationAction(phone, otp, name, email, referCode);
       if (ok && data.token) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
@@ -400,6 +401,24 @@ export default function LoginPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           onKeyPress={(e) => handleKeyPress(e, completeRegistration)}
+                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
+                            isDark
+                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
+                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white"
+                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-slate-700"}`}>Refer Code (Optional)</label>
+                      <div className="relative">
+                        <Tag className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-slate-400" : "text-slate-400"}`} />
+                        <input
+                          type="text"
+                          placeholder="Enter refer code"
+                          value={referCode}
+                          onChange={(e) => setReferCode(e.target.value)}
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
                             isDark
                               ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"

@@ -41,34 +41,37 @@ export async function POST(req) {
     await dbConnect();
     const body = await req.json();
 
-    // 1️⃣ get active agents
+    // 1️⃣ Fetch active agents
     const agents = await Admin.find({
       role: "agent",
       isActive: true,
     }).sort({ createdAt: 1 });
 
-    if (agents.length === 0) {
+    console.log("Agents:", agents.map(a => a.fullName));
+
+    if (agents.length < 1) {
       return NextResponse.json(
-        { success: false, error: "No active agents available" },
+        { success: false, message: "No active agents found" },
         { status: 400 }
       );
     }
 
-    // 2️⃣ get round robin index
-    let rr = await Setting.findOne({ key: "roundRobinIndex" });
-    let index = rr?.value || 0;
+    // 2️⃣ Round robin key
+    const RR_KEY = "franchiseLeadRRIndex";
 
-    // 3️⃣ select agent
-    const assignedAgent = agents[index % agents.length];
-
-    // 4️⃣ update index
-    await Setting.findOneAndUpdate(
-      { key: "roundRobinIndex" },
-      { value: index + 1 },
-      { upsert: true }
+    // 🔥 Atomic Update to prevent race conditions (Proper 1-1 distribution)
+    const updatedSetting = await Setting.findOneAndUpdate(
+      { key: RR_KEY },
+      { $inc: { value: 1 } },
+      { new: true, upsert: true }
     );
 
-    // 5️⃣ create user
+    const index = (updatedSetting.value || 1) - 1;
+
+    // 3️⃣ Assign agent
+    const assignedAgent = agents[index % agents.length];
+
+    // 5️⃣ Create lead
     const user = await User.create({
       ...body,
       assignedAgentId: assignedAgent._id,
@@ -79,19 +82,19 @@ export async function POST(req) {
       assignedAgent: {
         id: assignedAgent._id,
         name: assignedAgent.fullName,
-        email: assignedAgent.email,
       },
       user,
     });
 
   } catch (error) {
-    console.error("POST USER ERROR:", error);
+    console.error("ROUND ROBIN FAILED:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
   }
 }
+
 
 /* ------------------ PATCH: ASSIGN AGENT ------------------ */
 export async function PATCH(req) {
@@ -155,6 +158,7 @@ export async function GET(req) {
 
     const email = searchParams.get("email");
     const search = searchParams.get("search");
+    const assignedAgentId = searchParams.get("assignedAgentId");
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 70;
 
@@ -174,12 +178,60 @@ export async function GET(req) {
       );
     }
 
+    /* 🔍 Fetch Agent Stats (Total Counts) */
+    if (searchParams.get("getAgentStats") === "true") {
+      const stats = await User.aggregate([
+        {
+          $group: {
+            _id: {
+              agent: "$assignedAgentId",
+              stage: { $ifNull: ["$leadStage", "Active"] }
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      const agentStats = { "Unassigned": 0 };
+      const stageStats = {
+        "Active": 0,
+        "Follow Up": 0,
+        "Inactive": 0,
+        "Onboard": 0
+      };
+      const detailedStats = [];
+
+      stats.forEach((item) => {
+        const agentId = item._id.agent ? item._id.agent.toString() : "Unassigned";
+        const stage = item._id.stage;
+        const count = item.count;
+
+        // Agent Totals
+        agentStats[agentId] = (agentStats[agentId] || 0) + count;
+
+        // Stage Totals
+        stageStats[stage] = (stageStats[stage] || 0) + count;
+
+        // Detailed Breakdown
+        detailedStats.push({ stage, agentId, count });
+      });
+
+      return NextResponse.json({ success: true, stats: agentStats, stageStats, detailedStats });
+    }
+
     /* 2️⃣ Role-based query */
     let query = {};
 
     if (admin.role === "agent") {
       // Agent → only assigned users
       query.assignedAgentId = admin._id;
+    } else if (assignedAgentId) {
+      // Admin filtering by agent
+      if (assignedAgentId === "Unassigned") {
+        query.assignedAgentId = null;
+      } else {
+        query.assignedAgentId = assignedAgentId;
+      }
     }
 
     if (search) {
@@ -240,6 +292,7 @@ export async function PUT(req) {
       paidPackage,
       planDuration,
       isServiceBooked,
+      leadStage, // ✅ shifted from userStatus
     } = body;
 
     const remark = body.remark || body.remarks;
@@ -271,13 +324,21 @@ export async function PUT(req) {
       };
     }
 
-    /* -------- SERVICE UPDATE (ONLY IF BOOKED) -------- */
+    /* -------- SERVICE UPDATE -------- */
     if (isServiceBooked === true) {
       updateData.$set = {
         ...updateData.$set,
         ...(paidService && { paidService }),
         ...(paidPackage && { paidPackage }),
         ...(planDuration && { planDuration }),
+      };
+    }
+
+    /* -------- LEAD STAGE UPDATE (SHIFTED) -------- */
+    if (leadStage) {
+      updateData.$set = {
+        ...updateData.$set,
+        leadStage,
       };
     }
 

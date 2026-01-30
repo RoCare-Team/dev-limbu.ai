@@ -7,7 +7,7 @@
     },
    {
   "path": "/api/publish-scheduled",
-  "schedule": "*/20 * * * *"
+  "schedule": "*/5 * * * *"
 },
    {
   "path": "/api/meta-leads-import?formId=1393275835835157",

@@ -666,7 +666,7 @@ export default function LimbuAILanding() {
             </button>
             <iframe
               className="w-full h-full rounded-2xl"
-              src="https://www.youtube.com/embed/YOuFqxLppJk?si=VxJvSXZrGTMkRS2i"
+              src="https://www.youtube.com/embed/eQUd6u36w3g?si=MldrJE88pub19Y8s"
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

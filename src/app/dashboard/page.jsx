@@ -995,13 +995,7 @@ const navItems = [
 const NavLinks = ({ isAuthenticated }) => {
   return (
     <div className="w-full px-2 py-2 overflow-x-auto">
-      <div
-        className="
-          flex items-center 
-          gap-6          /* 🔹 gap increased (was gap-4) */
-          w-max
-        "
-      >
+      <div className="flex items-center gap-6 w-max">
         {navItems.map((item) => {
           const isPublic =
             item.href === "/post-management" || item.href === "/wallet";
@@ -1010,23 +1004,22 @@ const NavLinks = ({ isAuthenticated }) => {
           const isKeywordPlanner = item.label === "Keyword Planner";
 
           const FeatureIcon = (
-        <div
-  className={`
-    flex flex-col items-center justify-center 
-    space-y-1.5
-    p-2 rounded-lg
-    cursor-pointer transition-all relative
-    min-w-[80px]
-    ${isKeywordPlanner ? "mt-3" : ""}   /* 🔹 keyword planner niche */
-    ${pathname === item.href && isAuthenticated ? "scale-105" : ""}
-  `}
-  onClick={
-    !isEnabled
-      ? () => signIn("google", { callbackUrl: item.href })
-      : undefined
-  }
->
-
+            <div
+              className={`
+                relative
+                flex flex-col items-center
+                p-2
+                min-w-[80px]
+                cursor-pointer
+                transition-all
+                ${pathname === item.href && isAuthenticated ? "scale-105" : ""}
+              `}
+              onClick={
+                !isEnabled
+                  ? () => signIn("google", { callbackUrl: item.href })
+                  : undefined
+              }
+            >
               {/* FREE badge */}
               {item.isFree && (
                 <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
@@ -1034,11 +1027,13 @@ const NavLinks = ({ isAuthenticated }) => {
                 </span>
               )}
 
-          
-
+              {/* Icon */}
               <div
                 className={`
-                  p-2 sm:p-3 rounded-xl transition
+                  relative
+                  p-2 sm:p-3
+                  rounded-xl
+                  transition
                   ${
                     pathname === item.href && isAuthenticated
                       ? "bg-blue-600 text-white"
@@ -1047,9 +1042,37 @@ const NavLinks = ({ isAuthenticated }) => {
                 `}
               >
                 {React.cloneElement(item.icon, { className: "h-5 w-5" })}
+
+                {/* Verified by Google */}
+                {isKeywordPlanner && (
+                  <span
+                    className="
+                      absolute
+                      -bottom-3
+                      left-1/2 -translate-x-1/2
+                      flex items-center gap-1
+                      bg-white border border-gray-200
+                      px-2 py-[2px]
+                      rounded-full
+                      shadow-sm
+                       w-[80px] 
+                      text-[7px]
+                      text-gray-600
+                      whitespace-nowrap
+                    "
+                  >
+                    <span>Verified by</span>
+                    <img
+                      src="https://1000logos.net/wp-content/uploads/2021/05/Google-logo.png"
+                      alt="Google"
+                      className="h-2.5 w-auto"
+                    />
+                  </span>
+                )}
               </div>
 
-              <span className="text-[9px] sm:text-xs font-semibold text-gray-800 text-center leading-tight">
+              {/* Label */}
+              <span className="mt-4 text-[9px] sm:text-xs font-semibold text-gray-800 text-center leading-tight">
                 {item.label}
               </span>
             </div>
@@ -1069,6 +1092,7 @@ const NavLinks = ({ isAuthenticated }) => {
     </div>
   );
 };
+
 
 
 

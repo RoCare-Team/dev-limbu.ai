@@ -11,11 +11,12 @@ const PostSchema = new mongoose.Schema(
     igDescription:{type:String},
 
     
-    scheduledDateSource: {
-      type: String,
+scheduledDateSource: {
+  type: [String],
   enum: ["gmb", "fb", "ig"],
-  default: "gmb",
+  required: true,
 },
+
     
 
     status: {

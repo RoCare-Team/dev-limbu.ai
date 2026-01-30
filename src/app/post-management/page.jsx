@@ -84,12 +84,22 @@ const ScheduleModal = ({
   });
 
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState('gmb'); // 'gmb', 'fb', 'ig'
+  const [activeTab, setActiveTab] = useState('all'); // 'gmb', 'fb', 'ig'
   
   // Selection States
   const [selectedGmb, setSelectedGmb] = useState([]);
   const [selectedFb, setSelectedFb] = useState([]);
   const [selectedIg, setSelectedIg] = useState([]);
+
+  // Default select all on mount or when data changes
+  useEffect(() => {
+    if (isOpen) {
+      const verifiedLocations = availableLocations.filter(loc => loc.isVerified);
+      setSelectedGmb(verifiedLocations.map(loc => loc.id));
+      setSelectedFb(facebookPages.map(p => p.pageId));
+      setSelectedIg(instagramAccounts.map(a => a.igId));
+    }
+  }, [isOpen, availableLocations, facebookPages, instagramAccounts]);
 
   // Fetch data when tab changes
   useEffect(() => {
@@ -188,42 +198,73 @@ const ScheduleModal = ({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Time Slot</label>
-            <div className="relative">
-              <button
-                onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-left flex justify-between items-center text-sm"
-              >
-                <span className="text-gray-700">
-                  {timeSlots.find((s) => s.value === parseInt(slot))?.label || "Select Time"}
-                </span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              </button>
+<div className="space-y-1.5">
+  <label className="block text-sm font-medium text-gray-700">
+    Time Slot
+  </label>
 
-              {showTimeDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                  {timeSlots.map((s) => {
-                    const disabled = isSlotDisabled(s.value);
-                    return (
-                      <div
-                        key={s.value}
-                        onClick={() => {
-                          if (!disabled) {
-                            setSlot(s.value);
-                            setShowTimeDropdown(false);
-                          }
-                        }}
-                        className={`p-3 text-sm ${parseInt(slot) === s.value ? 'bg-blue-50 text-blue-700 font-medium' : disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 cursor-pointer'}`}
-                      >
-                        {s.label}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+  <div className="relative">
+    {/* Trigger Button */}
+    <button
+      onClick={() => setShowTimeDropdown(!showTimeDropdown)}
+      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-left
+      flex justify-between items-center text-sm text-gray-700
+      hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+    >
+      <span className={`${slot ? "text-gray-800" : "text-gray-400"}`}>
+        {timeSlots.find((s) => s.value === parseInt(slot))?.label || "Select Time"}
+      </span>
+
+      <ChevronDown
+        className={`w-5 h-5 text-gray-400 transition-transform ${
+          showTimeDropdown ? "rotate-180" : ""
+        }`}
+      />
+    </button>
+
+    {/* Dropdown (CENTERED) */}
+    {showTimeDropdown && (
+      <div
+        className="
+          absolute z-50 w-full
+          top-1/2 -translate-y-1/2
+          bg-white border border-gray-200
+          rounded-xl shadow-2xl
+          max-h-56 overflow-y-auto
+        "
+      >
+        {timeSlots
+          .filter((s) => !isSlotDisabled(s.value)) // ❌ disabled removed
+          .map((s) => {
+            const isSelected = parseInt(slot) === s.value;
+
+            return (
+              <div
+                key={s.value}
+                onClick={() => {
+                  setSlot(s.value);
+                  setShowTimeDropdown(false);
+                }}
+                className={`flex items-center justify-between px-4 py-3 text-sm transition cursor-pointer
+                  ${
+                    isSelected
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+              >
+                <span>{s.label}</span>
+                {isSelected && (
+                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                )}
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+</div>
+
+
         </div>
           </div>
 
@@ -232,13 +273,24 @@ const ScheduleModal = ({
             {/* Tabs */}
             <div className="flex border-b border-gray-100">
               {[
+                { id: 'all', label: 'All Platforms', icon: CheckCircle, color: 'text-green-600', badge: 'Select All' },
                 { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-blue-600', badge: '20 Coins/Loc' },
                 { id: 'fb', label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]', badge: 'Free' },
                 { id: 'ig', label: 'Instagram', icon: Instagram, color: 'text-[#E1306C]', badge: 'Free' }
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    if (tab.id === 'all') {
+                      // Select all platforms
+                      setSelectedGmb(verifiedLocations.map(loc => loc.id));
+                      setSelectedFb(facebookPages.map(p => p.pageId));
+                      setSelectedIg(instagramAccounts.map(a => a.igId));
+                      setActiveTab('gmb'); // Switch to GMB tab after selection
+                    } else {
+                      setActiveTab(tab.id);
+                    }
+                  }}
                   className={`flex-1 py-3 text-sm font-medium flex flex-col items-center justify-center gap-1 border-b-2 transition-colors ${
                     activeTab === tab.id 
                       ? `border-blue-500 bg-blue-50/50 ${tab.color}` 
@@ -249,7 +301,7 @@ const ScheduleModal = ({
                     <tab.icon className="w-4 h-4" />
                     {tab.label}
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.badge === 'Free' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.id === 'all' ? 'bg-green-100 text-green-700' : tab.badge === 'Free' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                     {tab.badge}
                   </span>
                 </button>
@@ -359,6 +411,93 @@ const ScheduleModal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+// Schedule Confirmation Modal Component
+const ScheduleConfirmationModal = ({ 
+  isOpen, 
+  onClose,
+  scheduledPlatforms
+}) => {
+  if (!isOpen) return null;
+
+  const hasGMB = scheduledPlatforms.gmb && scheduledPlatforms.gmb.length > 0;
+  const hasFB = scheduledPlatforms.fb && scheduledPlatforms.fb.length > 0;
+  const hasIG = scheduledPlatforms.ig && scheduledPlatforms.ig.length > 0;
+
+  return (
+<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl border">
+
+    {/* Header */}
+    <div className="flex flex-col items-center text-center px-5 pt-5 pb-4 border-b">
+      <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center mb-2">
+        <CheckCircle className="w-6 h-6 text-green-600" />
+      </div>
+
+      <h2 className="text-lg font-semibold text-gray-900">
+        Post Scheduled
+      </h2>
+      <p className="text-xs text-gray-500 mt-1">
+        Your content will be published at the selected time
+      </p>
+    </div>
+
+    {/* Platforms */}
+    <div className="px-5 py-4 space-y-2">
+      {hasGMB && (
+        <div className="flex items-center justify-between text-sm border rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-blue-600" />
+            <span className="font-medium text-gray-700">Google Business</span>
+          </div>
+          <span className="text-xs text-gray-500">
+            {scheduledPlatforms.gmb.length} selected
+          </span>
+        </div>
+      )}
+
+      {hasFB && (
+        <div className="flex items-center justify-between text-sm border rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Facebook className="w-4 h-4 text-blue-600" />
+            <span className="font-medium text-gray-700">Facebook</span>
+          </div>
+          <span className="text-xs text-gray-500">
+            {scheduledPlatforms.fb.length} selected
+          </span>
+        </div>
+      )}
+
+      {hasIG && (
+        <div className="flex items-center justify-between text-sm border rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Instagram className="w-4 h-4 text-pink-600" />
+            <span className="font-medium text-gray-700">Instagram</span>
+          </div>
+          <span className="text-xs text-gray-500">
+            {scheduledPlatforms.ig.length} selected
+          </span>
+        </div>
+      )}
+    </div>
+
+    {/* Footer */}
+    <div className="px-5 pb-5">
+      <button
+        onClick={onClose}
+        className="w-full py-2.5 rounded-lg text-sm font-medium
+                   bg-blue-600 text-white hover:bg-blue-700"
+      >
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
   );
 };
 
@@ -1214,6 +1353,54 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 </button>
               </div>
 
+              {/* Platform Checkboxes Section */}
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3">Scheduled On Platforms</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* GMB Checkbox */}
+                  <div className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={post.locations && post.locations.length > 0}
+                      readOnly
+                      className="w-4 h-4 accent-blue-600 cursor-not-allowed"
+                    />
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="text-xs font-medium text-gray-700">GMB</span>
+                    </div>
+                  </div>
+
+                  {/* Facebook Checkbox */}
+                  <div className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#1877F2] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={post.fbPages && post.fbPages.length > 0}
+                      readOnly
+                      className="w-4 h-4 accent-[#1877F2] cursor-not-allowed"
+                    />
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <Facebook className="w-3.5 h-3.5 text-[#1877F2]" />
+                      <span className="text-xs font-medium text-gray-700">FB</span>
+                    </div>
+                  </div>
+
+                  {/* Instagram Checkbox */}
+                  <div className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#E1306C] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={post.igPages && post.igPages.length > 0}
+                      readOnly
+                      className="w-4 h-4 accent-[#E1306C] cursor-not-allowed"
+                    />
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <Instagram className="w-3.5 h-3.5 text-[#E1306C]" />
+                      <span className="text-xs font-medium text-gray-700">Insta</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Post Now Button */}
               <button
                 onClick={() => handlePost(post)}
@@ -1262,68 +1449,142 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             </div>
           )}
           {post.status === "posted" && (
-            <div className="grid grid-cols-2 gap-3">
-              {/* Repost */}
-              <button
-                onClick={() => handlePost(post)}
-                className="
-        flex items-center justify-center gap-2
-        bg-blue-50 text-blue-600
-        border border-blue-200
-        hover:bg-blue-100 hover:border-blue-300
-        px-4 py-2.5 rounded-xl text-sm font-semibold
-        transition-all
-      "
-              >
-                <Send className="w-4 h-4" />
-                Repost
-              </button>
+            <div className="space-y-4">
+              {/* Posted On Platforms Section */}
+              <div className="bg-gradient-to-br from-purple-50 to-purple-50/50 rounded-xl p-4 border-2 border-purple-200">
+                <p className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Posted On Platforms
+                </p>
+                
+                <div className="space-y-2">
+                  {/* GMB Posted */}
+                  {post.locations && post.locations.some(loc => loc.isPosted) && (
+                    <div className="group relative bg-white border-2 border-blue-300 rounded-lg p-3 hover:shadow-md transition-all duration-300 overflow-hidden">
+                      <div className="absolute -right-10 -top-10 w-24 h-24 bg-blue-200 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-300"></div>
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="w-9 h-9 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                            <MapPin className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Google My Business</p>
+                            <p className="text-xs text-blue-600 font-medium">{post.locations.filter(loc => loc.isPosted).length} location{post.locations.filter(loc => loc.isPosted).length > 1 ? 's' : ''} posted</p>
+                          </div>
+                        </div>
+                        <div className="bg-green-100 rounded-full p-1.5">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Instagram Post */}
-              <button
-                onClick={() => handleInstagramPost(post)}
-                className="
-        flex items-center justify-center gap-2
-        bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white
-        px-4 py-2.5 rounded-xl text-sm font-semibold
-        transition-all
-      "
-              >
-                <Instagram className="w-4 h-4" />
-                IG Post
-              </button>
+                  {/* Facebook Posted */}
+                  {post.fbPages && post.fbPages.length > 0 && (
+                    <div className="group relative bg-white border-2 border-[#1877F2]/50 rounded-lg p-3 hover:shadow-md transition-all duration-300 overflow-hidden">
+                      <div className="absolute -right-10 -top-10 w-24 h-24 bg-[#1877F2] rounded-full opacity-10 group-hover:scale-150 transition-transform duration-300"></div>
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="w-9 h-9 bg-gradient-to-br from-[#1877F2] to-[#0d5ddb] rounded-lg flex items-center justify-center shadow-md">
+                            <Facebook className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Facebook</p>
+                            <p className="text-xs text-[#1877F2] font-medium">{post.fbPages.length} page{post.fbPages.length > 1 ? 's' : ''} posted</p>
+                          </div>
+                        </div>
+                        <div className="bg-green-100 rounded-full p-1.5">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Facebook Post */}
-              <button
-                onClick={() => handleFacebookPost(post)}
-                className="
-        flex items-center justify-center gap-2
-        bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20
-        px-4 py-2.5 rounded-xl text-sm font-semibold
-        transition-all
-      "
-              >
-                <Facebook className="w-4 h-4" />
-                FB Post
-              </button>
+                  {/* Instagram Posted */}
+                  {post.igPages && post.igPages.length > 0 && (
+                    <div className="group relative bg-white border-2 border-[#E1306C]/50 rounded-lg p-3 hover:shadow-md transition-all duration-300 overflow-hidden">
+                      <div className="absolute -right-10 -top-10 w-24 h-24 bg-[#E1306C] rounded-full opacity-10 group-hover:scale-150 transition-transform duration-300"></div>
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="w-9 h-9 bg-gradient-to-br from-[#E1306C] to-[#c13584] rounded-lg flex items-center justify-center shadow-md">
+                            <Instagram className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Instagram</p>
+                            <p className="text-xs text-[#E1306C] font-medium">{post.igPages.length} account{post.igPages.length > 1 ? 's' : ''} posted</p>
+                          </div>
+                        </div>
+                        <div className="bg-green-100 rounded-full p-1.5">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-              {/* Schedule */}
-              <button
-                onClick={() => onUpdateStatus(post)}
-                className="
-        flex items-center justify-center gap-2
-        bg-purple-50 text-purple-600
-        border border-purple-200
-        hover:bg-purple-100 hover:border-purple-300
-        px-4 py-2.5 rounded-xl text-sm font-semibold
-        transition-all
-      "
-              >
-                <Calendar className="w-4 h-4" />
-                Schedule
-              </button>
-              {/* <p>like: 0, comment: 0</p> */}
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Repost */}
+                <button
+                  onClick={() => handlePost(post)}
+                  className="
+          flex items-center justify-center gap-2
+          bg-blue-50 text-blue-600
+          border border-blue-200
+          hover:bg-blue-100 hover:border-blue-300
+          px-4 py-2.5 rounded-xl text-sm font-semibold
+          transition-all
+        "
+                >
+                  <Send className="w-4 h-4" />
+                  Repost
+                </button>
 
+                {/* Instagram Post */}
+                <button
+                  onClick={() => handleInstagramPost(post)}
+                  className="
+          flex items-center justify-center gap-2
+          bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white
+          px-4 py-2.5 rounded-xl text-sm font-semibold
+          transition-all
+        "
+                >
+                  <Instagram className="w-4 h-4" />
+                  IG Post
+                </button>
+
+                {/* Facebook Post */}
+                <button
+                  onClick={() => handleFacebookPost(post)}
+                  className="
+          flex items-center justify-center gap-2
+          bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20
+          px-4 py-2.5 rounded-xl text-sm font-semibold
+          transition-all
+        "
+                >
+                  <Facebook className="w-4 h-4" />
+                  FB Post
+                </button>
+
+                {/* Schedule */}
+                <button
+                  onClick={() => onUpdateStatus(post)}
+                  className="
+          flex items-center justify-center gap-2
+          bg-purple-50 text-purple-600
+          border border-purple-200
+          hover:bg-purple-100 hover:border-purple-300
+          px-4 py-2.5 rounded-xl text-sm font-semibold
+          transition-all
+        "
+                >
+                  <Calendar className="w-4 h-4" />
+                  Schedule
+                </button>
+              </div>
             </div>
           )}
 
@@ -1369,6 +1630,8 @@ export default function PostManagementPage() {
   const [scheduledDateForLocations, setScheduledDateForLocations] = useState(null); // New state for selected date
   const [previewData, setPreviewData] = useState(null);
   const [lastUsedAssetsFlow, setLastUsedAssetsFlow] = useState(false);
+  const [showScheduleConfirmation, setShowScheduleConfirmation] = useState(false);
+  const [scheduledPlatforms, setScheduledPlatforms] = useState({ gmb: [], fb: [], ig: [] });
 
   const [showFacebookModal, setShowFacebookModal] = useState(false);
   const [facebookPages, setFacebookPages] = useState([]);
@@ -2046,6 +2309,13 @@ export default function PostManagementPage() {
         : [];
 
     if (sources.length > 0) {
+        // Store platforms for confirmation modal
+        setScheduledPlatforms({
+            gmb: selectedGmbLocations,
+            fb: selectedFbPages,
+            ig: selectedIgPages
+        });
+        
         await handleUpdateStatus(
             postId,
             "scheduled",
@@ -2056,12 +2326,13 @@ export default function PostManagementPage() {
             selectedFbPages,
             selectedIgPages
         );
+        
+        setIsScheduleModalOpen(false);
+        setShowScheduleConfirmation(true);
     } else {
         showToast("Please select at least one platform to schedule.", "error");
         return;
     }
-    
-    setIsScheduleModalOpen(false);
   };
 
 
@@ -2956,6 +3227,13 @@ export default function PostManagementPage() {
             fetchInstagramAccounts={fetchInstagramAccounts}
             loadingFb={loadingFbPages}
             loadingIg={loadingIgAccounts}
+          />
+        )}
+        {showScheduleConfirmation && (
+          <ScheduleConfirmationModal
+            isOpen={showScheduleConfirmation}
+            onClose={() => setShowScheduleConfirmation(false)}
+            scheduledPlatforms={scheduledPlatforms}
           />
         )}
         {showRejectModal && (

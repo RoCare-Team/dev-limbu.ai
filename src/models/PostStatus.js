@@ -9,9 +9,11 @@ const PostSchema = new mongoose.Schema(
     gmbDescription:{type:String},
     fbDescription:{type:String},
     igDescription:{type:String},
+
+    
     scheduledDateSource: {
       type: String,
-  enum: ["gmb", "fb", "insta"],
+  enum: ["gmb", "fb", "ig"],
   default: "gmb",
 },
     

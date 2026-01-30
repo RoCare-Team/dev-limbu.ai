@@ -37,6 +37,8 @@ import {
   Instagram,
   MessageCircle,
   Send,
+  FolderKey,
+  SquareChartGantt,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FirstPostModal from "../../components/FirstPostModal";
@@ -965,6 +967,18 @@ const navItems = [
     href: "/gmb-health",
     icon: <Activity className="h-6 w-6" />,
     label: "GMB Health",
+    isFree: true,
+  },
+  {
+    href: "/keyword-planner",
+    icon: <FolderKey className="h-6 w-6" />,
+    label: "Keyword Planner",
+    isFree: true,
+  },
+  {
+    href: "/gmb-insights",
+    icon: <SquareChartGantt className="h-6 w-6" />,
+    label: "GMB Insigts",
     isFree: true,
   },
 ];

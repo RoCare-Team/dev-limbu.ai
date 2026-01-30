@@ -648,8 +648,12 @@ export default function GmbInsightsPage() {
             {locations.map((location, idx) => (
               <div
                 key={idx}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer"
-                onClick={() => handleViewInsights(location)}
+                className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all ${
+                  location.isVerified
+                    ? 'hover:shadow-lg hover:border-blue-300 cursor-pointer'
+                    : 'opacity-60 cursor-not-allowed'
+                }`}
+                onClick={() => location.isVerified && handleViewInsights(location)}
               >
                 {/* Location Card */}
                 <div className="flex items-start justify-between mb-4">
@@ -667,10 +671,15 @@ export default function GmbInsightsPage() {
                       </p>
                     )}
                   </div>
-                  {location.isVerified && (
+                  {location.isVerified ? (
                     <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold border border-green-200">
                       <Star className="w-3 h-3" />
                       Verified
+                    </span>
+                  ) : (
+                    <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
+                      <AlertCircle className="w-3 h-3" />
+                      Unverified
                     </span>
                   )}
                 </div>
@@ -692,11 +701,16 @@ export default function GmbInsightsPage() {
 
                 {/* View Insights Button */}
                 <button
-                  onClick={() => handleViewInsights(location)}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold px-4 py-3 rounded-lg hover:opacity-95 transition-opacity"
+                  onClick={() => location.isVerified && handleViewInsights(location)}
+                  disabled={!location.isVerified}
+                  className={`w-full flex items-center justify-center gap-2 font-semibold px-4 py-3 rounded-lg transition-opacity ${
+                    location.isVerified
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-95 cursor-pointer'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   <TrendingUp className="w-4 h-4" />
-                  View Insights
+                  {location.isVerified ? 'View Insights' : 'Unverified Location'}
                 </button>
               </div>
             ))}

@@ -84,22 +84,12 @@ const ScheduleModal = ({
   });
 
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState('all'); // 'gmb', 'fb', 'ig'
+  const [activeTab, setActiveTab] = useState('gmb'); // 'gmb', 'fb', 'ig'
   
   // Selection States
   const [selectedGmb, setSelectedGmb] = useState([]);
   const [selectedFb, setSelectedFb] = useState([]);
   const [selectedIg, setSelectedIg] = useState([]);
-
-  // Default select all on mount or when data changes
-  useEffect(() => {
-    if (isOpen) {
-      const verifiedLocations = availableLocations.filter(loc => loc.isVerified);
-      setSelectedGmb(verifiedLocations.map(loc => loc.id));
-      setSelectedFb(facebookPages.map(p => p.pageId));
-      setSelectedIg(instagramAccounts.map(a => a.igId));
-    }
-  }, [isOpen, availableLocations, facebookPages, instagramAccounts]);
 
   // Fetch data when tab changes
   useEffect(() => {
@@ -273,7 +263,7 @@ const ScheduleModal = ({
             {/* Tabs */}
             <div className="flex border-b border-gray-100">
               {[
-                { id: 'all', label: 'All Platforms', icon: CheckCircle, color: 'text-green-600', badge: 'Select All' },
+                // { id: 'all', label: 'All Platforms', icon: CheckCircle, color: 'text-green-600', badge: 'Select All' },
                 { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-blue-600', badge: '20 Coins/Loc' },
                 { id: 'fb', label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]', badge: 'Free' },
                 { id: 'ig', label: 'Instagram', icon: Instagram, color: 'text-[#E1306C]', badge: 'Free' }

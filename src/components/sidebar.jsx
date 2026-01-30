@@ -47,13 +47,11 @@ import {
   Upgrade as UpgradeIcon,
   KeyboardArrowDown as ArrowDownIcon,
   AccountBalanceWallet as WalletIcon,
-  Notifications as NotificationsIcon,
-  Store as StoreIcon,
 } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
-import { Activity, Home, MenuIcon, Package, Proportions, SquarePlus, Wand, Calendar, CheckCircle, X, SquareActivity } from 'lucide-react';
+import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp } from 'lucide-react';
 import logoDash from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
@@ -63,8 +61,8 @@ const drawerWidth = 260;
 
 const openedMixin = (theme) => ({
   width: drawerWidth,
-  background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fc 100%)',
-  borderRight: '1px solid rgba(102, 126, 234, 0.1)',
+  background: '#ffffff',
+  borderRight: '1px solid #f1f5f9',
   transition: theme.transitions.create('width', {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.enteringScreen,
@@ -82,8 +80,8 @@ const closedMixin = (theme) => ({
   [theme.breakpoints.up('sm')]: {
     width: 72,
   },
-  background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fc 100%)',
-  borderRight: '1px solid rgba(102, 126, 234, 0.1)',
+  background: '#ffffff',
+  borderRight: '1px solid #f1f5f9',
 });
 
 const DrawerHeader = styled('div')(({ theme }) => ({
@@ -99,7 +97,7 @@ const AppBar = styled(MuiAppBar, {
 })(({ theme, open }) => ({
   zIndex: theme.zIndex.drawer + 1,
   background: '#ffffff',
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
   color: '#333',
   transition: theme.transitions.create(['width', 'margin'], {
     easing: theme.transitions.easing.sharp,
@@ -136,6 +134,7 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
 export default function Sidebar({ children, user }) {
   const theme = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [open, setOpen] = React.useState(!isMobile);
   const [userPlan, setUserPlan] = React.useState('Free');
@@ -477,38 +476,30 @@ export default function Sidebar({ children, user }) {
   const handleNotifClose = () => setNotifAnchorEl(null);
 
   const menuItems = [
-    { text: 'Home', icon: <Home />, path: '/' },
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Post Management', icon: <AccountIcon />, path: '/post-management' },
-    // { text: 'Video  Management', icon: <CassetteTape/>, path: '/video-management' },
-    { text: 'Review Management', icon: <PostIcon />, path: '/review-management' },
-
-
+    { text: 'Home', icon: <Home size={20} />, path: '/' },
+    { text: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
+    { text: 'Post Management', icon: <FileText size={20} />, path: '/post-management' },
+    { text: 'Review Management', icon: <Star size={20} />, path: '/review-management' },
     {
       text: 'Get Magic QR',
-      icon: <Wand />,
+      icon: <Wand size={20} />,
       children: [
         { text: 'Get Magic QR', path: '/get-magic-qr' },
         { text: 'Get Customer Review', path: '/reviews/get-customer-review' }
       ]
     },
-    { text: 'Assets Management', icon: <WebAssetIcon />, path: '/assets-management' },
-    { text: 'Keyword Management', icon: <SquarePlus />, path: '/keyword-planner' },
+    { text: 'Assets Management', icon: <LucideImage size={20} />, path: '/assets-management' },
+    { text: 'Keyword Management', icon: <KeyRound size={20} />, path: '/keyword-planner' },
     {
       text: 'Services & Packages',
-      icon: <Package />,
+      icon: <Package size={20} />,
       children: [
         { text: 'Our Services', path: '/#services' },
         { text: 'Our Packages', path: '/#subscription-plans' }
       ]
     },
- 
-        { text: 'GMB Health', icon: <Activity />, path: '/gmb-health' },
-        { text: 'User Activity', icon: <SquareActivity />, path: '/user-activity' },
-        // { text: 'Bulk Scheduled', icon: <Calendar />, path: '/bulk-schduled' },
-
-
-
+    { text: 'GMB Health', icon: <Activity size={20} />, path: '/gmb-health' },
+    { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
   ];
 
   // const getPlanConfig = (plan) => {
@@ -589,6 +580,7 @@ export default function Sidebar({ children, user }) {
         {menuItems.map((item, index) => {
           const isDropdown = !!item.children;
           const isOpen = openDropdown === index;
+          const isActive = item.path === pathname || (item.children && item.children.some(c => c.path === pathname));
 
           const navigateTo = (path) => {
             let finalPath = path;
@@ -615,15 +607,19 @@ export default function Sidebar({ children, user }) {
                     }
                   }}
                   sx={{
-                    minHeight: 48,
+                    minHeight: 44,
                     justifyContent: open ? 'initial' : 'center',
                     px: 2,
-                    borderRadius: 2,
-                    transition: 'all 0.3s',
+                    mx: 1.5,
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease-in-out',
+                    color: isActive ? '#6366f1' : '#475569',
+                    bgcolor: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
                     '&:hover': {
                       background:
-                        'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
-                      transform: 'translateX(4px)',
+                        isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(0, 0, 0, 0.04)',
+                      transform: 'translateX(2px)',
+                      color: isActive ? '#6366f1' : '#1e293b',
                     },
                   }}
                 >
@@ -632,7 +628,7 @@ export default function Sidebar({ children, user }) {
                       minWidth: 0,
                       mr: open ? 2 : 'auto',
                       justifyContent: 'center',
-                      color: '#667eea',
+                      color: isActive ? 'inherit' : '#94a3b8',
                     }}
                   >
                     {item.icon}
@@ -642,37 +638,46 @@ export default function Sidebar({ children, user }) {
                     primary={item.text}
                     sx={{
                       opacity: open ? 1 : 0,
-                      '& .MuiTypography-root': { fontWeight: 500, fontSize: '0.95rem' },
+                      '& .MuiTypography-root': { fontWeight: isActive ? 600 : 500, fontSize: '0.9rem' },
                     }}
                   />
 
                   {isDropdown && open && (
-                    <span>{isOpen ? "▲" : "▼"}</span>
+                    <Box sx={{ color: isActive ? 'inherit' : '#94a3b8', display: 'flex' }}>
+                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </Box>
                   )}
                 </ListItemButton>
               </ListItem>
 
               {/* DROPDOWN CHILDREN */}
               {isDropdown && isOpen && open && (
-                <div className="ml-10 mt-1 space-y-1">
-                  {item.children.map((sub, i) => (
+                <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2">
+                  {item.children.map((sub, i) => {
+                    const isSubActive = sub.path === pathname;
+                    return (
                     <ListItemButton
                       key={i}
                       onClick={() => navigateTo(sub.path)}
                       sx={{
                         pl: 2,
-                        py: 1,
-                        borderRadius: 2,
-                        transition: '0.2s',
-                        '&:hover': { background: 'rgba(102,126,234,0.1)' },
+                        py: 0.8,
+                        borderRadius: '8px',
+                        mb: 0.5,
+                        color: isSubActive ? '#6366f1' : '#64748b',
+                        bgcolor: isSubActive ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
+                        '&:hover': { 
+                          background: 'rgba(0,0,0,0.03)',
+                          color: '#1e293b'
+                        },
                       }}
                     >
                       <ListItemText
                         primary={sub.text}
-                        sx={{ '& .MuiTypography-root': { fontSize: '0.85rem' } }}
+                        sx={{ '& .MuiTypography-root': { fontSize: '0.85rem', fontWeight: isSubActive ? 600 : 400 } }}
                       />
                     </ListItemButton>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -682,20 +687,20 @@ export default function Sidebar({ children, user }) {
 
       </List>
 
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 2, mt: 'auto' }}>
         <Box
           sx={{
-            p: 2,
-            borderRadius: 2,
-            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
-            border: '1px solid rgba(102, 126, 234, 0.1)',
+            p: 2.5,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            border: '1px solid #e2e8f0',
             textAlign: 'center',
           }}
         >
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
+          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.5px', display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
             CURRENT PLAN
           </Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#333', mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#1e293b', mb: 2, fontSize: '0.95rem' }}>
             {paidPackage || paidService || 'Free Plan'}
           </Typography>
           <Button
@@ -703,15 +708,18 @@ export default function Sidebar({ children, user }) {
             size="small"
             fullWidth
             onClick={handleOpenPlansModal}
-            startIcon={<UpgradeIcon />}
             sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: '#1e293b',
+              color: 'white',
               textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              borderRadius: '8px',
+              boxShadow: 'none',
+              py: 0.8,
               '&:hover': {
-                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                background: '#334155',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               }
             }}
           >
@@ -950,7 +958,7 @@ export default function Sidebar({ children, user }) {
                     },
                   }}
                 >
-                  <MenuIcon />
+                <MenuIcon size={24} />
                 </IconButton>
               )}
               <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -1414,7 +1422,7 @@ export default function Sidebar({ children, user }) {
               '& .MuiDrawer-paper': {
                 width: drawerWidth,
                 boxSizing: 'border-box',
-                background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fc 100%)',
+                background: '#ffffff',
               },
             }}
           >

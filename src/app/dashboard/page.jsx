@@ -942,33 +942,33 @@ const navItems = [
   //   label: "Check Health",
   // },
   {
-    href: "/post-management",
-    icon: <PlusSquare className="h-6 w-6" />,
-    label: "Create & Publish Post",
-  },
-  {
-    href: "/review-management",
-    icon: <Star className="h-6 w-6" />,
-    label: "Review Reply",
+    href: "/gmb-insights",
+    icon: <SquareChartGantt className="h-6 w-6" />,
+    label: "GMB Insights",
     isFree: true,
   },
-  {
-    href: "/get-magic-qr",
-    icon: <QrCode className="h-6 w-6" />,
-    label: "Magic QR",
-    isFree: true,
-  },
-  {
-    href: "/wallet",
-    icon: <Wallet className="h-6 w-6" />,
-    label: "Wallet Recharge",
-  },
-  {
+   {
     href: "/gmb-health",
     icon: <Activity className="h-6 w-6" />,
     label: "GMB Health",
     isFree: true,
   },
+    {
+    href: "/get-magic-qr",
+    icon: <QrCode className="h-6 w-6" />,
+    label: "Magic QR",
+    isFree: true,
+  },
+
+    {
+    href: "/review-management",
+    icon: <Star className="h-6 w-6" />,
+    label: "Review Reply",
+    isFree: true,
+  },
+
+
+   
   {
     href: "/keyword-planner",
     icon: <FolderKey className="h-6 w-6" />,
@@ -976,25 +976,30 @@ const navItems = [
     isFree: true,
   },
   {
-    href: "/gmb-insights",
-    icon: <SquareChartGantt className="h-6 w-6" />,
-    label: "GMB Insights",
-    isFree: true,
+    href: "/post-management",
+    icon: <PlusSquare className="h-6 w-6" />,
+    label: "Create & Publish Post",
   },
+
+
+  {
+    href: "/wallet",
+    icon: <Wallet className="h-6 w-6" />,
+    label: "Wallet Recharge",
+  },
+
+  
 ];
 
 
 const NavLinks = ({ isAuthenticated }) => {
   return (
-    <div className="w-full max-w-3xl px-1 py-2 bg-transparent">
-
+    <div className="w-full px-2 py-2 overflow-x-auto">
       <div
         className="
-          grid
-          grid-cols-4                      /* mobile always 4 */
-          sm:grid-cols-[repeat(auto-fit,minmax(110px,1fr))] 
-          gap-4 sm:gap-6 
-          place-items-center
+          flex items-center 
+          gap-6          /* 🔹 gap increased (was gap-4) */
+          w-max
         "
       >
         {navItems.map((item) => {
@@ -1002,26 +1007,35 @@ const NavLinks = ({ isAuthenticated }) => {
             item.href === "/post-management" || item.href === "/wallet";
 
           const isEnabled = isAuthenticated || isPublic;
+          const isKeywordPlanner = item.label === "Keyword Planner";
 
           const FeatureIcon = (
-            <div
-              className={`
-                flex flex-col items-center justify-center 
-                space-y-1 p-1 sm:p-2 rounded-lg
-                cursor-pointer transition-all relative
-                ${pathname === item.href && isAuthenticated ? "scale-105" : ""}
-              `}
-              onClick={
-                !isEnabled
-                  ? () => signIn("google", { callbackUrl: item.href })
-                  : undefined
-              }
-            >
+        <div
+  className={`
+    flex flex-col items-center justify-center 
+    space-y-1.5
+    p-2 rounded-lg
+    cursor-pointer transition-all relative
+    min-w-[80px]
+    ${isKeywordPlanner ? "mt-3" : ""}   /* 🔹 keyword planner niche */
+    ${pathname === item.href && isAuthenticated ? "scale-105" : ""}
+  `}
+  onClick={
+    !isEnabled
+      ? () => signIn("google", { callbackUrl: item.href })
+      : undefined
+  }
+>
+
+              {/* FREE badge */}
               {item.isFree && (
                 <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
                   FREE
                 </span>
               )}
+
+          
+
               <div
                 className={`
                   p-2 sm:p-3 rounded-xl transition
@@ -1055,6 +1069,7 @@ const NavLinks = ({ isAuthenticated }) => {
     </div>
   );
 };
+
 
 
 

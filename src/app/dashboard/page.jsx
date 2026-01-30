@@ -974,13 +974,13 @@ const navItems = [
     icon: <FolderKey className="h-6 w-6" />,
     label: "Keyword Planner",
     isFree: true,
-  }
-  // {
-  //   href: "/gmb-insights",
-  //   icon: <SquareChartGantt className="h-6 w-6" />,
-  //   label: "GMB Insights",
-  //   isFree: true,
-  // },
+  },
+  {
+    href: "/gmb-insights",
+    icon: <SquareChartGantt className="h-6 w-6" />,
+    label: "GMB Insights",
+    isFree: true,
+  },
 ];
 
 

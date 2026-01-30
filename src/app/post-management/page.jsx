@@ -2282,7 +2282,7 @@ export default function PostManagementPage() {
     if (selectedTargets.fb?.length > 0) sources.push("fb");
     if (selectedTargets.ig?.length > 0) sources.push("ig");
     
-    const scheduledDateSource = sources.join(",");
+    const scheduledDateSource = sources; // Keep as array, not joined string
 
     const selectedGmbLocations = selectedTargets.gmb?.length > 0 
         ? availableLocations.filter(loc => selectedTargets.gmb.includes(loc.id))

@@ -67,46 +67,24 @@ export async function fetchAllLocations(accessToken, accounts) {
   return allLocations
 }
 
-export async function fetchLocationInsights(accessToken, locationName, startDate, endDate) {
+export async function fetchLocationInsights(accessToken, locationId, startDate, endDate) {
   try {
-    const insightsRes = await fetch(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/${locationName}/insights:reportInsights`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          locationNames: [locationName],
-          basicRequest: {
-            timeRange: {
-              startTime: startDate,
-              endTime: endDate,
-            },
-            metricRequests: [
-              { metric: "QUERIES_DIRECT" },
-              { metric: "QUERIES_INDIRECT" },
-              { metric: "VIEWS_MAPS" },
-              { metric: "VIEWS_SEARCH" },
-              { metric: "ACTIONS_WEBSITE" },
-              { metric: "ACTIONS_PHONE" },
-              { metric: "ACTIONS_DRIVING_DIRECTIONS" },
-            ],
-          },
-        }),
-      },
-    )
+    const url = `https://businessprofileperformance.googleapis.com/v1/locations/${locationId}:fetchMultiDailyMetricsTimeSeries?dailyRange.startDate.year=${startDate.getFullYear()}&dailyRange.startDate.month=${startDate.getMonth() + 1}&dailyRange.startDate.day=${startDate.getDate()}&dailyRange.endDate.year=${endDate.getFullYear()}&dailyRange.endDate.month=${endDate.getMonth() + 1}&dailyRange.endDate.day=${endDate.getDate()}&dailyMetrics=BUSINESS_DIRECTION_REQUESTS&dailyMetrics=CALL_CLICKS&dailyMetrics=WEBSITE_CLICKS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_MAPS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_SEARCH`;
+
+    const insightsRes = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
 
     if (!insightsRes.ok) {
-      throw new Error(`Failed to fetch insights for location ${locationName}`)
+      const errText = await insightsRes.text();
+      throw new Error(`Failed to fetch insights: ${errText}`);
     }
 
-    const insightsData = await insightsRes.json()
-    return insightsData
+    const insightsData = await insightsRes.json();
+    return insightsData;
   } catch (error) {
-    console.error(`Error fetching insights for location ${locationName}:`, error)
-    throw error
+    console.error(`Error fetching insights for location ${locationId}:`, error);
+    throw error;
   }
 }
 

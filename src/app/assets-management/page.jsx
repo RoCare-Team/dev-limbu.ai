@@ -8,7 +8,7 @@ import SupportModal from "@/components/SupportModal";
 export default function AssetsManager() {
   const [assets, setAssets] = useState({
     colourPalette: "",
-    size: "1080x1350",
+    size: "3:4",
     characterImage: "",
     uniformImage: "",
     productImage: [],
@@ -89,7 +89,7 @@ const sizeOptions = [
 
         const loadedAssets = {
           colourPalette: latestAssets.colourPalette || "",
-          size: latestAssets.size || "1080x1350",
+          size: latestAssets.size || "3:4",
           characterImage: latestAssets.characterImage || "",
           uniformImage: latestAssets.uniformImage || "",
           productImage: productImageArray,

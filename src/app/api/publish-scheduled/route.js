@@ -69,6 +69,108 @@ async function fetchWithTimeout(promise, ms = 20000) {
 }
 
 /* -------------------------------------------------- 
+   FACEBOOK POST HELPER
+-------------------------------------------------- */
+async function postToFacebook(page, log) {
+  try {
+    const { pageId, pageAccessToken, caption, imageUrl } = page;
+    if (!pageId || !pageAccessToken) throw new Error("Missing Page ID or Access Token");
+
+    // 1. Upload Photo (if image exists)
+    let mediaId;
+    if (imageUrl) {
+      const photoUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
+      const photoRes = await fetch(photoUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: imageUrl,
+          published: false,
+          access_token: pageAccessToken,
+        }),
+      });
+      const photoData = await photoRes.json();
+      if (!photoData.id) throw new Error(photoData.error?.message || "FB Photo upload failed");
+      mediaId = photoData.id;
+    }
+
+    // 2. Publish Feed
+    const feedUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
+    const payload = {
+      message: caption || "",
+      access_token: pageAccessToken,
+    };
+    if (mediaId) {
+      payload.attached_media = [{ media_fbid: mediaId }];
+    }
+
+    const feedRes = await fetch(feedUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const feedData = await feedRes.json();
+
+    if (!feedData.id) throw new Error(feedData.error?.message || "FB Feed publish failed");
+
+    log(`✅ Posted to FB Page ${pageId}`);
+    return { success: true, id: feedData.id };
+
+  } catch (err) {
+    log(`❌ FB Post Error:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/* -------------------------------------------------- 
+   INSTAGRAM POST HELPER
+-------------------------------------------------- */
+async function postToInstagram(account, log) {
+  try {
+    const { igUserId, accessToken, caption, imageUrl } = account;
+    if (!igUserId || !accessToken || !imageUrl) throw new Error("Missing IG details");
+
+    // 1. Create Media Container
+    const mediaUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
+    const mediaRes = await fetch(mediaUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        caption: caption || "",
+        access_token: accessToken,
+      }),
+    });
+    const mediaData = await mediaRes.json();
+    if (!mediaData.id) throw new Error(mediaData.error?.message || "IG Media creation failed");
+
+    // Wait for processing
+    await new Promise(r => setTimeout(r, 5000));
+
+    // 2. Publish
+    const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
+    const publishRes = await fetch(publishUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        creation_id: mediaData.id,
+        access_token: accessToken,
+      }),
+    });
+    const publishData = await publishRes.json();
+
+    if (!publishData.id) throw new Error(publishData.error?.message || "IG Publish failed");
+
+    log(`✅ Posted to IG Account ${igUserId}`);
+    return { success: true, id: publishData.id };
+
+  } catch (err) {
+    log(`❌ IG Post Error:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/* -------------------------------------------------- 
    MAIN CRON FUNCTION
 -------------------------------------------------- */
 export async function GET() {
@@ -125,10 +227,14 @@ export async function GET() {
       const postId = post._id.toString();
       log(`📝 Processing post ${post._id.toString()}`);
 
-      if (!Array.isArray(post.locations) || !post.locations.length) {
-        log("⚠ Invalid or empty locations");
+      const hasGmb = Array.isArray(post.locations) && post.locations.length > 0;
+      const hasFb = Array.isArray(post.fbPages) && post.fbPages.length > 0;
+      const hasIg = Array.isArray(post.igPages) && post.igPages.length > 0;
+
+      if (!hasGmb && !hasFb && !hasIg) {
+        log("⚠ Invalid or empty targets (No GMB, FB, or IG)");
         post.status = "failed";
-        post.error = "Scheduled post has no locations.";
+        post.error = "Scheduled post has no targets.";
         await post.save();
         stats.failed++;
         continue;
@@ -144,96 +250,149 @@ export async function GET() {
         continue;
       }
 
-      const refreshToken = post.refreshToken;
-
-      if (!refreshToken) {
-        log("❌ No refresh token on post document:", postId);
-        post.status = "failed";
-        post.error = "GMB refresh token not found on post document";
-        await post.save();
-        stats.failed++;
-        continue;
-      }
-
-      log("🔑 Using stored refreshToken from post document to get a fresh access token.");
-      const accessToken = await getFreshAccessToken(refreshToken);
       let failed = false;
-      const processedLocIds = new Set();
 
-      for (let i = 0; i < post.locations.length; i++) {
-        const loc = post.locations[i];
-        // Skip if invalid, already posted, or duplicate in this run
-        if (!loc?.locationId || loc.isPosted || processedLocIds.has(loc.locationId)) continue;
-
-        try {
-          const payload = {
-            account: loc.accountId,
-            locationData: [{
-              city: loc.locationId,
-              cityName: loc.locality || loc.city || "",
-              bookUrl: loc.websiteUrl || "",
-            }],
-            output: post.aiOutput,
-            description: post.description || "",
-            accessToken,
-            checkmark: ["post", "photo", "both"].includes(post.checkmark) ? post.checkmark : "both",
-          };
-
-          log("📦 Payload:", payload);
-
-          // Wrap the GMB call in a timeout to prevent hanging
-          const result = await fetchWithTimeout(postToGmbAction(payload), 20000);
-
-          if (!result?.ok) throw new Error("GMB post failed");
-
-          // ✅ Wallet deduction ONLY after success
-          const walletData = await deductFromWalletAction(user.userId, {
-            amount: 20,
-            type: "deduct",
-            reason: "Post-on-GMB",
-            metadata: {
-              aiPrompt: post.promat || "",
-              logoUsed: !!post.logoUrl,
-              postId: post._id.toString(),
-              locationId: loc.locationId,
-            },
-          });
-
-
-          if (walletData?.message !== "Wallet updated") {
-            throw new Error("Wallet deduction failed");
-          }
-
-          log("🪙 20 coins deducted via wallet action");
-
-          // Mark this location and any duplicates as posted
-          post.locations.forEach(l => {
-            if (l.locationId === loc.locationId) {
-              l.isPosted = true;
-              l.postedAt = new Date();
-              l.apiResponse = result;
-            }
-          });
-
-          // IMMEDIATE SAVE: Persist isPosted status and wallet deduction
-          await post.save();
-
-          processedLocIds.add(loc.locationId);
-
-        } catch (err) {
-          log(`❌ Error posting to location ${loc.locationId}:`, err.message || "Unknown error");
-          post.status = "failed";
-          post.error = err.message;
+      /* -------------------------------------------------- 
+         1. PROCESS GMB
+      -------------------------------------------------- */
+      if (hasGmb) {
+        const refreshToken = post.refreshToken;
+        if (!refreshToken) {
+          log("❌ No refresh token on post document:", postId);
+          // Mark GMB locations as failed? Or fail whole post?
+          // For now, we log error and set failed flag, but continue to other platforms
           failed = true;
-          break;
+        } else {
+          try {
+            log("🔑 Using stored refreshToken from post document to get a fresh access token.");
+            const accessToken = await getFreshAccessToken(refreshToken);
+            const processedLocIds = new Set();
+
+            for (let i = 0; i < post.locations.length; i++) {
+              const loc = post.locations[i];
+              // Skip if invalid, already posted, or duplicate in this run
+              if (!loc?.locationId || loc.isPosted || processedLocIds.has(loc.locationId)) continue;
+
+              try {
+                const payload = {
+                  account: loc.accountId,
+                  locationData: [{
+                    city: loc.locationId,
+                    cityName: loc.locality || loc.city || "",
+                    bookUrl: loc.websiteUrl || "",
+                  }],
+                  output: post.aiOutput,
+                  description: post.description || "",
+                  accessToken,
+                  checkmark: ["post", "photo", "both"].includes(post.checkmark) ? post.checkmark : "both",
+                };
+
+                log("📦 Payload:", payload);
+
+                // Wrap the GMB call in a timeout to prevent hanging
+                const result = await fetchWithTimeout(postToGmbAction(payload), 20000);
+
+                if (!result?.ok) throw new Error("GMB post failed");
+
+                // ✅ Wallet deduction ONLY after success
+                const walletData = await deductFromWalletAction(user.userId, {
+                  amount: 20,
+                  type: "deduct",
+                  reason: "Post-on-GMB",
+                  metadata: {
+                    aiPrompt: post.promat || "",
+                    logoUsed: !!post.logoUrl,
+                    postId: post._id.toString(),
+                    locationId: loc.locationId,
+                  },
+                });
+
+                if (walletData?.message !== "Wallet updated") {
+                  throw new Error("Wallet deduction failed");
+                }
+
+                log("🪙 20 coins deducted via wallet action");
+
+                // Mark this location and any duplicates as posted
+                post.locations.forEach(l => {
+                  if (l.locationId === loc.locationId) {
+                    l.isPosted = true;
+                    l.postedAt = new Date();
+                    l.apiResponse = result;
+                  }
+                });
+
+                processedLocIds.add(loc.locationId);
+
+              } catch (err) {
+                log(`❌ Error posting to location ${loc.locationId}:`, err.message || "Unknown error");
+                failed = true;
+                // We don't break here, try other locations
+              }
+            }
+          } catch (err) {
+            log("❌ GMB Critical Error:", err.message);
+            failed = true;
+          }
         }
       }
 
+      /* -------------------------------------------------- 
+         2. PROCESS FACEBOOK
+      -------------------------------------------------- */
+      if (hasFb) {
+        log(`Processing ${post.fbPages.length} Facebook pages`);
+        for (let i = 0; i < post.fbPages.length; i++) {
+          const page = post.fbPages[i];
+          if (page.isPosted) continue;
+
+          const result = await postToFacebook(page, log);
+          if (result.success) {
+            page.isPosted = true;
+            page.postedAt = new Date();
+            page.postId = result.id;
+            page.error = null;
+          } else {
+            page.error = result.error;
+            failed = true;
+          }
+        }
+        post.markModified('fbPages');
+      }
+
+      /* -------------------------------------------------- 
+         3. PROCESS INSTAGRAM
+      -------------------------------------------------- */
+      if (hasIg) {
+        log(`Processing ${post.igPages.length} Instagram accounts`);
+        for (let i = 0; i < post.igPages.length; i++) {
+          const account = post.igPages[i];
+          if (account.isPosted) continue;
+
+          const result = await postToInstagram(account, log);
+          if (result.success) {
+            account.isPosted = true;
+            account.postedAt = new Date();
+            account.postId = result.id;
+            account.error = null;
+          } else {
+            account.error = result.error;
+            failed = true;
+          }
+        }
+        post.markModified('igPages');
+      }
+
+      // Determine final status
+      // If ANY target failed, we mark as failed (or partially failed).
+      // Current logic: if !failed, then posted.
       if (!failed) {
-        post.status = post.locations.every(l => l.isPosted) ? "posted" : "failed";
+        post.status = "posted";
         post.error = null;
         stats.posted++;
       } else {
+        post.status = "failed";
+        post.error = "One or more targets failed to post.";
         stats.failed++;
       }
 

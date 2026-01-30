@@ -60,7 +60,19 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 
 
 // Scheduling Modal Component
-const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
+const ScheduleModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  post, 
+  availableLocations = [], 
+  facebookPages = [], 
+  instagramAccounts = [],
+  fetchFacebookPages,
+  fetchInstagramAccounts,
+  loadingFb,
+  loadingIg
+}) => {
   const [date, setDate] = useState(() => {
     const now = new Date();
     return now.toISOString().split('T')[0];
@@ -72,13 +84,34 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
   });
 
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [activeTab, setActiveTab] = useState('gmb'); // 'gmb', 'fb', 'ig'
+  
+  // Selection States
+  const [selectedGmb, setSelectedGmb] = useState([]);
+  const [selectedFb, setSelectedFb] = useState([]);
+  const [selectedIg, setSelectedIg] = useState([]);
+
+  // Fetch data when tab changes
+  useEffect(() => {
+    if (activeTab === 'fb' && facebookPages.length === 0 && fetchFacebookPages) {
+      fetchFacebookPages();
+    }
+    if (activeTab === 'ig' && instagramAccounts.length === 0 && fetchInstagramAccounts) {
+      fetchInstagramAccounts();
+    }
+  }, [activeTab]);
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
     const scheduledTime = new Date(date);
     scheduledTime.setHours(parseInt(slot), 0, 0, 0);
-    onConfirm(post._id, "scheduled", scheduledTime.toISOString());
+    
+    onConfirm(post._id, "scheduled", scheduledTime.toISOString(), {
+      gmb: selectedGmb,
+      fb: selectedFb,
+      ig: selectedIg
+    });
     onClose();
   };
 
@@ -105,18 +138,45 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
     return false;
   };
 
+  const toggleSelection = (id, list, setList) => {
+    setList(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const toggleAll = (items, selected, setSelected, idKey = 'id') => {
+    if (selected.length === items.length) {
+      setSelected([]);
+    } else {
+      setSelected(items.map(i => i[idKey]));
+    }
+  };
+
+  // Filter verified locations for GMB
+  const verifiedLocations = availableLocations.filter(loc => loc.isVerified);
+
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Schedule Post</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-6 h-6" />
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-0 overflow-hidden flex flex-col max-h-[70vh]">
+        
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              Schedule Post
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Choose date, time, and platforms.</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-gray-600 mb-4">Select a date and time slot.</p>
 
-        <div className="space-y-4">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          
+          {/* Left Panel: Date & Time */}
+          <div className="w-full md:w-1/3 p-6 border-r border-gray-100 bg-gray-50/30 overflow-y-auto">
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">When</h3>
+            <div className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <input
@@ -124,7 +184,7 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
             />
           </div>
 
@@ -133,7 +193,7 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
             <div className="relative">
               <button
                 onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-left flex justify-between items-center"
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-left flex justify-between items-center text-sm"
               >
                 <span className="text-gray-700">
                   {timeSlots.find((s) => s.value === parseInt(slot))?.label || "Select Time"}
@@ -165,13 +225,136 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
             </div>
           </div>
         </div>
+          </div>
 
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+          {/* Right Panel: Platforms */}
+          <div className="w-full md:w-2/3 flex flex-col bg-white">
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100">
+              {[
+                { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-blue-600', badge: '20 Coins/Loc' },
+                { id: 'fb', label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]', badge: 'Free' },
+                { id: 'ig', label: 'Instagram', icon: Instagram, color: 'text-[#E1306C]', badge: 'Free' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 py-3 text-sm font-medium flex flex-col items-center justify-center gap-1 border-b-2 transition-colors ${
+                    activeTab === tab.id 
+                      ? `border-blue-500 bg-blue-50/50 ${tab.color}` 
+                      : 'border-transparent text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.badge === 'Free' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {tab.badge}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-4">
+              
+              {/* GMB Content */}
+              {activeTab === 'gmb' && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Select Locations</span>
+                    <button onClick={() => toggleAll(verifiedLocations, selectedGmb, setSelectedGmb, 'id')} className="text-xs text-blue-600 hover:underline font-medium">
+                      {selectedGmb.length === verifiedLocations.length && verifiedLocations.length > 0 ? 'Deselect All' : 'Select All Verified'}
+                    </button>
+                  </div>
+                  {availableLocations.map(loc => {
+                    const isVerified = loc.isVerified;
+                    return (
+                    <label key={loc.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${!isVerified ? 'opacity-60 bg-gray-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedGmb.includes(loc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedGmb.includes(loc.id)} 
+                        onChange={() => isVerified && toggleSelection(loc.id, selectedGmb, setSelectedGmb)} 
+                        disabled={!isVerified}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:text-gray-400" 
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center">
+                            <p className={`text-sm font-medium truncate ${!isVerified ? 'text-gray-500' : 'text-gray-900'}`}>{loc.name}</p>
+                            {!isVerified && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">Unverified</span>}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">{loc.address}</p>
+                      </div>
+                    </label>
+                  )})}
+                  {availableLocations.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No GMB locations found.</p>}
+                </div>
+              )}
+
+              {/* Facebook Content */}
+              {activeTab === 'fb' && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Select Pages</span>
+                    <button onClick={() => toggleAll(facebookPages, selectedFb, setSelectedFb, 'pageId')} className="text-xs text-blue-600 hover:underline font-medium">
+                      {selectedFb.length === facebookPages.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  {loadingFb ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
+                  ) : facebookPages.length > 0 ? (
+                    facebookPages.map(page => (
+                      <label key={page.pageId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedFb.includes(page.pageId) ? 'border-[#1877F2] bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
+                        <input type="checkbox" checked={selectedFb.includes(page.pageId)} onChange={() => toggleSelection(page.pageId, selectedFb, setSelectedFb)} className="w-4 h-4 text-[#1877F2] rounded focus:ring-[#1877F2]" />
+                        <span className="text-sm font-medium text-gray-900">{page.pageName}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-400 text-sm py-8">No Facebook pages connected.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Instagram Content */}
+              {activeTab === 'ig' && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Select Accounts</span>
+                    <button onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, 'igId')} className="text-xs text-pink-600 hover:underline font-medium">
+                      {selectedIg.length === instagramAccounts.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  {loadingIg ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-pink-500" /></div>
+                  ) : instagramAccounts.length > 0 ? (
+                    instagramAccounts.map(acc => (
+                      <label key={acc.igId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedIg.includes(acc.igId) ? 'border-[#E1306C] bg-pink-50' : 'border-gray-200 hover:border-pink-300'}`}>
+                        <input type="checkbox" checked={selectedIg.includes(acc.igId)} onChange={() => toggleSelection(acc.igId, selectedIg, setSelectedIg)} className="w-4 h-4 text-[#E1306C] rounded focus:ring-[#E1306C]" />
+                        <span className="text-sm font-medium text-gray-900">{acc.igUsername}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-400 text-sm py-8">No Instagram accounts connected.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm">
             Cancel
           </button>
-          <button onClick={handleConfirm} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700">
-            Confirm & Schedule
+          <button 
+            onClick={handleConfirm} 
+            disabled={selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0}
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+          >
+            <Calendar className="w-4 h-4" />
+            Schedule Post
           </button>
         </div>
       </div>
@@ -687,16 +870,29 @@ const PreviewSection = ({
 const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject, handleDownload, handleShare, handlePost, onEditDescription, handleDeleteFromGMB, onToggleCheckmark, handleFacebookPost, handleInstagramPost }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showFull, setShowFull] = useState(false);
-  const [editedDescription, setEditedDescription] = useState(post?.description || "");
+  const [activeDesc, setActiveDesc] = useState('gmb');
+
+  const descriptionToShow = {
+    gmb: post?.gmbDescription || post?.description || "",
+    fb: post?.fbDescription || post?.description || "",
+    ig: post?.igDescription || post?.description || ""
+  };
+
+  const [editedDescription, setEditedDescription] = useState(descriptionToShow[activeDesc]);
   const [fbStats, setFbStats] = useState(null);
 
+  useEffect(() => {
+    setEditedDescription(descriptionToShow[activeDesc]);
+  }, [activeDesc, post]);
+
   const handleSave = () => {
-    onEditDescription(post._id, editedDescription);
+    const field = activeDesc === 'gmb' ? 'gmbDescription' : activeDesc === 'fb' ? 'fbDescription' : 'igDescription';
+    onEditDescription(post._id, { [field]: editedDescription });
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setEditedDescription(post?.description || "");
+    setEditedDescription(descriptionToShow[activeDesc]);
     setIsEditing(false);
   };
 
@@ -778,11 +974,18 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       <div className="p-5 flex flex-col flex-grow space-y-4">
 
         {/* Description Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-500" />
-            AI Caption
-          </h3>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg">
+            <button onClick={() => setActiveDesc('gmb')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'gmb' ? 'bg-white shadow-sm text-blue-600 font-semibold' : 'text-gray-500'}`}>
+              <MapPin className="w-3 h-3" /> GMB
+            </button>
+            <button onClick={() => setActiveDesc('fb')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'fb' ? 'bg-white shadow-sm text-[#1877F2] font-semibold' : 'text-gray-500'}`}>
+              <Facebook className="w-3 h-3" /> FB
+            </button>
+            <button onClick={() => setActiveDesc('ig')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'ig' ? 'bg-white shadow-sm text-[#E1306C] font-semibold' : 'text-gray-500'}`}>
+              <Instagram className="w-3 h-3" /> Insta
+            </button>
+          </div>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
@@ -821,9 +1024,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           ) : (
             <div className="relative">
               <p className={`text-sm text-gray-600 leading-relaxed ${showFull ? "" : "line-clamp-3"}`}>
-                {post?.description || "No description available"}
+                {descriptionToShow[activeDesc] || "No description available for this platform."}
               </p>
-              {post?.description?.length > 120 && (
+              {descriptionToShow[activeDesc]?.length > 120 && (
                 <button
                   onClick={() => setShowFull(!showFull)}
                   className="mt-1 text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -1664,7 +1867,7 @@ export default function PostManagementPage() {
       // Call the asset generation API
       const apiResponse = await generateWithAssetsAction({
         topic: prompt,
-        bussiness_name: businessName || "",
+        bussines_name: businessName || "",
         keywords: keywords || "",
         colourPalette: userAssets.find(a => a.name === 'Color')?.url || "none",
         size: userAssets.find(a => a.name === 'Size')?.url || "1:1",
@@ -1793,11 +1996,72 @@ export default function PostManagementPage() {
   };
 
   // Handler for when a date is confirmed in the ScheduleModal
-  const handleScheduleDateConfirmed = (postId, status, selectedDate) => {
-    setScheduledDateForLocations(selectedDate); // Store the selected date
-    setPostToAction(posts.find(p => p._id === postId)); // Set the post to be scheduled
-    setShowLocationModal(true); // Open the location selection modal
-    setIsScheduleModalOpen(false); // Close the date picker modal
+  const handleScheduleDateConfirmed = async (postId, status, selectedDate, selectedTargets) => {
+    const post = posts.find(p => p._id === postId);
+    if (!post) {
+      showToast("Post not found for scheduling.", "error");
+      return;
+    }
+
+    // Normalize checkmark payload
+    const checkmarkSource = post?.checkmark;
+    let checkmarkPayload = "both"; // Default
+    if (Array.isArray(checkmarkSource)) {
+      if (checkmarkSource.includes("post") && checkmarkSource.includes("photo")) checkmarkPayload = "both";
+      else if (checkmarkSource.includes("photo")) checkmarkPayload = "photo";
+      else if (checkmarkSource.includes("post")) checkmarkPayload = "post";
+    } else if (typeof checkmarkSource === "string" && checkmarkSource !== "$undefined") {
+      checkmarkPayload = checkmarkSource;
+    }
+
+    const sources = [];
+    if (selectedTargets.gmb?.length > 0) sources.push("gmb");
+    if (selectedTargets.fb?.length > 0) sources.push("fb");
+    if (selectedTargets.ig?.length > 0) sources.push("ig");
+    
+    const scheduledDateSource = sources.join(",");
+
+    const selectedGmbLocations = selectedTargets.gmb?.length > 0 
+        ? availableLocations.filter(loc => selectedTargets.gmb.includes(loc.id))
+        : [];
+
+    const selectedFbPages = selectedTargets.fb?.length > 0
+        ? facebookPages.filter(p => selectedTargets.fb.includes(p.pageId)).map(p => ({
+            userId: post.userId,
+            pageId: p.pageId,
+            pageAccessToken: p.pageAccessToken,
+            caption: post.fbDescription || post.description,
+            imageUrl: post.aiOutput
+        }))
+        : [];
+    
+    const selectedIgPages = selectedTargets.ig?.length > 0
+        ? instagramAccounts.filter(a => selectedTargets.ig.includes(a.igId)).map(a => ({
+            userId: post.userId,
+            igUserId: a.igId,
+            accessToken: a.pageAccessToken,
+            caption: post.igDescription || post.description,
+            imageUrl: post.aiOutput
+        }))
+        : [];
+
+    if (sources.length > 0) {
+        await handleUpdateStatus(
+            postId,
+            "scheduled",
+            selectedDate,
+            selectedGmbLocations,
+            checkmarkPayload,
+            scheduledDateSource,
+            selectedFbPages,
+            selectedIgPages
+        );
+    } else {
+        showToast("Please select at least one platform to schedule.", "error");
+        return;
+    }
+    
+    setIsScheduleModalOpen(false);
   };
 
 
@@ -1806,7 +2070,10 @@ export default function PostManagementPage() {
     newStatus,
     scheduleDate = null,
     locations = [],
-    checkmark = false,
+    checkmark = undefined,
+    scheduledDateSource = null,
+    facebookPages = [],
+    instagramAccounts = []
   ) => {
     console.log("📍 Locations:", locations);
     console.log("✅ Checkmark:", checkmark);
@@ -1844,6 +2111,9 @@ export default function PostManagementPage() {
         checkmark: checkmark,
         refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
         locations: uniqueLocations,
+        scheduledDateSource: scheduledDateSource,
+        fbPages: facebookPages,
+        igPages: instagramAccounts
       };
 
       if (newStatus === "scheduled") {
@@ -1879,6 +2149,7 @@ export default function PostManagementPage() {
               scheduledDate: res.data?.scheduledDate || scheduleDate,
               locations: res.data?.locations || locations,
               checkmark: res.data?.checkmark ?? checkmark,
+              scheduledDateSource: res.data?.scheduledDateSource || scheduledDateSource,
             }
             : p
         )
@@ -2130,27 +2401,27 @@ export default function PostManagementPage() {
     }
   };
 
-  const handleEditDescription = async (id, newDescription) => {
+  const handleEditDescription = async (id, updates) => {
     const userId = localStorage.getItem("userId");
 
-    try {
-      const data = await updatePostStatusAction({
-        id,
-        description: newDescription,
-        status: "pending",
-        userId: userId
-      });
-      if (!data.success) {
-        showToast(data.error || "Failed to update description", "error");
-        return;
-      }
+    let payloadUpdates = {};
+    if (typeof updates === 'string') {
+      payloadUpdates = { description: updates };
+    } else {
+      payloadUpdates = updates;
+    }
 
-      showToast("Description Updated Successfully! ✅");
-      setPosts((prev) =>
-        prev.map((p) => (p._id === id ? { ...p, description: newDescription } : p))
-      );
-    } catch (err) {
-      showToast("Error updating description", "error");
+    const payload = { id, userId, status: "pending", ...payloadUpdates };
+    const data = await updatePostStatusAction(payload);
+
+    if (data.success) {
+      showToast("Description updated!");
+      setPosts(prev => prev.map(p => (p._id === id ? { ...p, ...payloadUpdates, status: 'pending' } : p)));
+      if (previewData?._id === id) {
+        setPreviewData(prev => ({...prev, ...payloadUpdates}));
+      }
+    } else {
+      showToast(data.error || "Failed to update description", "error");
     }
   };
 
@@ -2188,12 +2459,12 @@ export default function PostManagementPage() {
 
     // Normalize checkmark payload
     const checkmarkSource = checkmark || postToAction?.checkmark;
-    let checkmarkPayload = "post"; // Default
+    let checkmarkPayload = "both"; // Default
     if (Array.isArray(checkmarkSource)) {
       if (checkmarkSource.includes("post") && checkmarkSource.includes("photo")) checkmarkPayload = "both";
       else if (checkmarkSource.includes("photo")) checkmarkPayload = "photo";
       else if (checkmarkSource.includes("post")) checkmarkPayload = "post";
-    } else if (typeof checkmarkSource === "string") {
+    } else if (typeof checkmarkSource === "string" && checkmarkSource !== "$undefined") {
       checkmarkPayload = checkmarkSource;
     }
 
@@ -2678,6 +2949,13 @@ export default function PostManagementPage() {
             onClose={() => setIsScheduleModalOpen(false)}
             post={postToSchedule} // Pass the post to the modal
             onConfirm={handleScheduleDateConfirmed} // New handler for date confirmation
+            availableLocations={availableLocations}
+            facebookPages={facebookPages}
+            instagramAccounts={instagramAccounts}
+            fetchFacebookPages={fetchFacebookPages}
+            fetchInstagramAccounts={fetchInstagramAccounts}
+            loadingFb={loadingFbPages}
+            loadingIg={loadingIgAccounts}
           />
         )}
         {showRejectModal && (

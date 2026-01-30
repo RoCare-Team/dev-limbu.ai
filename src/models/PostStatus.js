@@ -9,6 +9,11 @@ const PostSchema = new mongoose.Schema(
     gmbDescription:{type:String},
     fbDescription:{type:String},
     igDescription:{type:String},
+    scheduledDateSource: {
+      type: String,
+  enum: ["gmb", "fb", "insta"],
+  default: "gmb",
+},
     
 
     status: {
@@ -21,7 +26,9 @@ const PostSchema = new mongoose.Schema(
       type: Object,
       default: {}
     },
-    
+
+    fbPages:[],
+    igPages:[],    
     
     scheduledDate: { type: Date },
     rejectReason: { type: String, default: "" },

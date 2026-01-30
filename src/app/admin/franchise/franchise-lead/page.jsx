@@ -29,6 +29,8 @@ import {
   ArrowUpDown,
   User,
 } from "lucide-react";
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json"; // if not using public
 
 /* ---------------- CONFIG ---------------- */
 const PAGE_SIZE = 50;
@@ -618,6 +620,9 @@ export default function FranchiseLeadsPage() {
                       </div>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                      Remarks
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
                         Status
                         <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
@@ -629,12 +634,7 @@ export default function FranchiseLeadsPage() {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Contact
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Actions
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Last Remark
-                    </th>
+            
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
                         City
@@ -657,7 +657,9 @@ export default function FranchiseLeadsPage() {
                   {loading ? (
                     <tr>
                       <td colSpan="8" className="py-16 text-center">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+                        <div className="w-24 h-24 mx-auto">
+                          <Lottie animationData={animationData} loop={true} />
+                        </div>
                         <p className="text-sm text-gray-500 mt-3">Loading leads...</p>
                       </td>
                     </tr>
@@ -679,6 +681,42 @@ export default function FranchiseLeadsPage() {
                           <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <Calendar className="w-3.5 h-3.5 text-gray-400" />
                             {lead.created_time ? new Date(lead.created_time).toLocaleDateString() : "-"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setRemarkModalLead(lead)}
+                                className="relative p-2 hover:bg-purple-100 rounded-lg transition-colors group"
+                                title="Add Remark"
+                              >
+                                <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
+                                {remarkHistory[lead.id]?.length > 0 && (
+                                  <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                                    {remarkHistory[lead.id].length}
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setSelectedLead(lead)}
+                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors group"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                              </button>
+                            </div>
+                            <div 
+  className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
+    remarkHistory[lead.id]?.[0]?.text 
+      ? "bg-blue-50 text-blue-800 border-blue-100" 
+      : "text-gray-400 border-transparent italic"
+  }`}
+  title={remarkHistory[lead.id]?.[0]?.text || ""}
+>
+  {remarkHistory[lead.id]?.[0]?.text || "No remarks"}
+</div>
+
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -730,32 +768,6 @@ export default function FranchiseLeadsPage() {
                               {lead.email || "-"}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setRemarkModalLead(lead)}
-                              className="relative p-2 hover:bg-purple-100 rounded-lg transition-colors group"
-                              title="Add Remark"
-                            >
-                              <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
-                              {remarkHistory[lead.id]?.length > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                  {remarkHistory[lead.id].length}
-                                </span>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setSelectedLead(lead)}
-                              className="p-2 hover:bg-blue-100 rounded-lg transition-colors group"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={remarkHistory[lead.id]?.[0]?.text || ""}>
-                          {remarkHistory[lead.id]?.[0]?.text || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 text-gray-600">

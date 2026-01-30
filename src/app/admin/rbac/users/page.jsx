@@ -37,7 +37,7 @@ export default function UsersPage() {
   }, [router]);
 
   if (loading) {
-    return <p className="p-6">Loading users...</p>;
+    return <p className="p-6">Loading users........</p>;
   }
 
   if (error) {

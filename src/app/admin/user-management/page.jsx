@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json"; // if not using public
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -826,8 +828,10 @@ const handleLeadStageChange = async (userId, newStage) => {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading users...</p>
+          <div className="w-84 h-84 mx-auto">
+            <Lottie animationData={animationData} loop={true} />
+          </div>
+          {/* <p className="text-gray-600 font-medium">Loading users.</p> */}
         </div>
       </div>
     );

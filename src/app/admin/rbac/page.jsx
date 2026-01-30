@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json";
 
 /* ----------------------------
    PERMISSION LABELS
@@ -121,7 +123,11 @@ export default function UsersPage() {9
           </h2>
 
           {loading ? (
-            <p>Loading users...</p>
+            <div className="flex justify-center items-center h-64">
+              <div className="w-24 h-24">
+                <Lottie animationData={animationData} loop={true} />
+              </div>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border text-sm">

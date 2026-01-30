@@ -148,6 +148,9 @@ export async function PUT(req) {
       checkmark,
       refreshToken,
       whenPosted,
+      scheduledDateSource,
+      fbPages,
+      igPages,
     } = await req.json();
 
     console.log("📦 PUT Payload:", {
@@ -156,7 +159,8 @@ export async function PUT(req) {
       locationsCount: locations?.length,
       checkmark,
       hasRefreshToken: !!refreshToken,
-      whenPosted
+      whenPosted,
+      scheduledDateSource
     });
 
     if (!id || !status || !userId) {
@@ -187,6 +191,10 @@ export async function PUT(req) {
 
       updateData.scheduledDate = parsedDate;
 
+      if (scheduledDateSource) {
+        updateData.scheduledDateSource = scheduledDateSource;
+      }
+
       if (refreshToken) {
         updateData.refreshToken = refreshToken;
       }
@@ -203,6 +211,13 @@ export async function PUT(req) {
           isPosted: false,
           error: ""
         }));
+      }
+
+      if (Array.isArray(fbPages)) {
+        updateData.fbPages = fbPages;
+      }
+      if (Array.isArray(igPages)) {
+        updateData.igPages = igPages;
       }
     }
 

@@ -28,6 +28,8 @@ import {
   Send,
   ArrowUpDown,
   User,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -57,6 +59,7 @@ const normalizeLead = (lead) => {
     status: lead.status || "Active",
     remarks: lead.remarks || [],
     assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
+    source: lead.source || "meta",
   };
 
   if (lead.field_data) {
@@ -87,6 +90,10 @@ export default function FranchiseLeadsPage() {
   const [remarkHistory, setRemarkHistory] = useState({});
   const [franchiseAdmins, setFranchiseAdmins] = useState([]);
   const [role, setRole] = useState("");
+  const [selectedLeads, setSelectedLeads] = useState([]);
+  const [bulkAssignee, setBulkAssignee] = useState("");
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [newLead, setNewLead] = useState({});
 
   /* ---------------- FETCH LEADS FROM API ---------------- */
   const fetchLeads = async () => {
@@ -347,6 +354,116 @@ export default function FranchiseLeadsPage() {
     }
   };
 
+  /* ---------------- BULK SELECTION HANDLERS ---------------- */
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const ids = paginatedLeads.map((l) => l.id);
+      setSelectedLeads((prev) => [...new Set([...prev, ...ids])]);
+    } else {
+      const ids = paginatedLeads.map((l) => l.id);
+      setSelectedLeads((prev) => prev.filter((id) => !ids.includes(id)));
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedLeads((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignee || selectedLeads.length === 0) return;
+    if (!confirm(`Assign ${selectedLeads.length} leads to selected admin?`)) return;
+
+    setLoading(true);
+    try {
+      await Promise.all(selectedLeads.map(leadId => 
+        fetch("/api/franchise-leads", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ leadId, assignedFranchiseAdminId: bulkAssignee }),
+        })
+      ));
+      await fetchLeads();
+      setSelectedLeads([]);
+      setBulkAssignee("");
+    } catch (err) {
+      console.error(err);
+      setError("Bulk assignment failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- MANUAL LEAD ADDITION ---------------- */
+  const handleAddLead = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/franchise-leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLead),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowAddLeadModal(false);
+        setNewLead({});
+        fetchLeads();
+      } else {
+        alert(data.message || "Failed to add lead");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error adding lead");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- DELETE LEAD ---------------- */
+  const handleDeleteLead = async (id) => {
+    if (!confirm("Are you sure you want to delete this lead?")) return;
+
+    try {
+      const res = await fetch(`/api/franchise-leads?leadId=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setLeads((prev) => prev.filter((l) => l.id !== id));
+        setSelectedLeads((prev) => prev.filter((i) => i !== id));
+        setTotalLeads((prev) => prev - 1);
+      } else {
+        alert(data.message || "Failed to delete lead");
+      }
+    } catch (error) {
+      console.error("Error deleting lead:", error);
+      alert("Error deleting lead");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLeads.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedLeads.length} leads? This cannot be undone.`)) return;
+
+    setLoading(true);
+    try {
+      await Promise.all(selectedLeads.map(leadId => 
+        fetch(`/api/franchise-leads?leadId=${leadId}`, {
+          method: "DELETE",
+        })
+      ));
+      await fetchLeads();
+      setSelectedLeads([]);
+    } catch (err) {
+      console.error(err);
+      setError("Bulk delete failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ---------------- REMARKS HANDLING ---------------- */
   const quickRemarks = [
     "Call Not Picked",
@@ -445,6 +562,14 @@ export default function FranchiseLeadsPage() {
                 <Download className="w-4 h-4" />
                 Export
               </button> */}
+
+              <button
+                onClick={() => setShowAddLeadModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Add Lead
+              </button>
 
               <button
                 onClick={fetchLeads}
@@ -601,12 +726,63 @@ export default function FranchiseLeadsPage() {
             </div>
           </div>
 
+        {/* BULK ACTIONS */}
+        {role === "superFranchiseAdmin" && selectedLeads.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-blue-800">{selectedLeads.length} leads selected</span>
+              <button 
+                onClick={() => setSelectedLeads([])}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                Clear Selection
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={bulkAssignee}
+                onChange={(e) => setBulkAssignee(e.target.value)}
+                className="px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Select Admin to Assign</option>
+                {franchiseAdmins.map((admin) => (
+                  <option key={admin._id} value={admin._id}>{admin.fullName}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleBulkAssign}
+                disabled={!bulkAssignee || loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Assigning..." : "Assign Leads"}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={loading}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Selected
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* TABLE */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="max-h-[600px] overflow-auto">
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10 shadow-sm">
                   <tr>
+                    {role === "superFranchiseAdmin" && (
+                      <th className="px-6 py-4 text-left">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                          checked={paginatedLeads.length > 0 && paginatedLeads.every(l => selectedLeads.includes(l.id))}
+                          onChange={handleSelectAll}
+                        />
+                      </th>
+                    )}
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
                         Name
@@ -618,6 +794,9 @@ export default function FranchiseLeadsPage() {
                         Date
                         <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
                       </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                      Source
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Remarks
@@ -674,6 +853,16 @@ export default function FranchiseLeadsPage() {
                   ) : (
                     paginatedLeads.map((lead, idx) => (
                       <tr key={lead.id} className="hover:bg-blue-50/50 transition-colors">
+                        {role === "superFranchiseAdmin" && (
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input 
+                              type="checkbox" 
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                              checked={selectedLeads.includes(lead.id)}
+                              onChange={() => handleSelectOne(lead.id)}
+                            />
+                          </td>
+                        )}
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">{lead.full_name || "Unknown"}</div>
                         </td>
@@ -682,6 +871,11 @@ export default function FranchiseLeadsPage() {
                             <Calendar className="w-3.5 h-3.5 text-gray-400" />
                             {lead.created_time ? new Date(lead.created_time).toLocaleDateString() : "-"}
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${lead.source === 'manual' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {lead.source === 'manual' ? 'Manual' : 'Meta'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col gap-2">
@@ -705,6 +899,15 @@ export default function FranchiseLeadsPage() {
                               >
                                 <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                               </button>
+                              {role === "superFranchiseAdmin" && (
+                                <button
+                                  onClick={() => handleDeleteLead(lead.id)}
+                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
+                                </button>
+                              )}
                             </div>
                             <div 
   className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
@@ -1024,6 +1227,93 @@ export default function FranchiseLeadsPage() {
                     <p className="text-sm text-gray-400 mt-1">Add your first remark above</p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD LEAD MODAL */}
+      {showAddLeadModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowAddLeadModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800">Add New Lead</h2>
+              <button onClick={() => setShowAddLeadModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newLead.full_name || ""}
+                    onChange={(e) => setNewLead({ ...newLead, full_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newLead.phone_number || ""}
+                    onChange={(e) => setNewLead({ ...newLead, phone_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newLead.email || ""}
+                    onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newLead.city || ""}
+                    onChange={(e) => setNewLead({ ...newLead, city: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Occupation</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newLead.occupation || ""}
+                    onChange={(e) => setNewLead({ ...newLead, occupation: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Investment Range</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newLead.investment_range || ""}
+                    onChange={(e) => setNewLead({ ...newLead, investment_range: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={() => setShowAddLeadModal(false)}
+                  className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddLead}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? "Adding..." : "Add Lead"}
+                </button>
               </div>
             </div>
           </div>

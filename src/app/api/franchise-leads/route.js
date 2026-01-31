@@ -72,6 +72,7 @@ function formatLeadForResponse(leadDoc) {
   return {
     id: leadDoc.leadId,
     created_time: leadDoc.createdTime,
+    source: leadDoc.source,
     field_data: [
       { name: "full_name", values: [leadDoc.fullName] },
       { name: "email", values: [leadDoc.email] },
@@ -256,13 +257,26 @@ export async function GET(req) {
       );
     }
 
+    // Fetch manual leads
+    const manualQuery = { source: 'manual' };
+    if (filterAdminId) {
+      manualQuery.assignedFranchiseAdminId = filterAdminId;
+    }
+    const manualLeads = await Lead.find(manualQuery)
+      .populate("assignedFranchiseAdminId", "fullName email role")
+      .sort({ createdTime: -1 })
+      .lean();
+
+    const formattedManualLeads = manualLeads.map(formatLeadForResponse);
+    const combinedLeads = [...allLeadsResponse, ...formattedManualLeads].sort((a, b) => new Date(b.created_time) - new Date(a.created_time));
+
     return NextResponse.json({
       success: true,
       message: "Leads synced successfully",
       summary: {
-        total_count: allLeadsResponse.length
+        total_count: combinedLeads.length
       },
-      leads: allLeadsResponse,
+      leads: combinedLeads,
       newLeadsSaved: newLeadsToInsert.length,
     });
   } catch (error) {
@@ -282,43 +296,81 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    const { leadId, text, addedBy } = body;
 
-    if (!leadId || !text) {
-      return NextResponse.json(
-        { success: false, message: "leadId and text are required" },
-        { status: 400 }
-      );
-    }
+    // ---------------------------------------------------------
+    // CASE 1: ADD REMARK (If leadId is present)
+    // ---------------------------------------------------------
+    if (body.leadId) {
+      const { leadId, text, addedBy } = body;
 
-    const updatedLead = await Lead.findOneAndUpdate(
-      { leadId },
-      {
-        $push: {
-          remarks: {
-            text: text.trim(),
-            addedBy: addedBy || "Admin",
-            addedAt: new Date(),
+      if (!text) {
+        return NextResponse.json(
+          { success: false, message: "text is required for remarks" },
+          { status: 400 }
+        );
+      }
+
+      const updatedLead = await Lead.findOneAndUpdate(
+        { leadId },
+        {
+          $push: {
+            remarks: {
+              text: text.trim(),
+              addedBy: addedBy || "Admin",
+              addedAt: new Date(),
+            },
           },
         },
-      },
-      { new: true }
-    ).lean();
+        { new: true }
+      ).lean();
 
-    if (!updatedLead) {
-      return NextResponse.json(
-        { success: false, message: "Lead not found" },
-        { status: 404 }
-      );
+      if (!updatedLead) {
+        return NextResponse.json(
+          { success: false, message: "Lead not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Remark added successfully",
+        remarks: updatedLead.remarks,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Remark added successfully",
-      remarks: updatedLead.remarks,
-    });
+    // ---------------------------------------------------------
+    // CASE 2: CREATE MANUAL LEAD (If leadId is missing)
+    // ---------------------------------------------------------
+    else {
+      // Generate a unique lead ID for manual entry
+      const leadId = `MANUAL_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
+      const newLead = new Lead({
+        leadId,
+        formId: "MANUAL",
+        fullName: body.full_name || "",
+        email: body.email || "",
+        phone: body.phone_number || "",
+        city: body.city || "",
+        occupation: body.occupation || "",
+        investment: body.investment_range || "",
+        source: "manual",
+        createdTime: new Date(),
+        status: "Active",
+        verified: false,
+        remarks: [],
+      });
+
+      await newLead.save();
+
+      return NextResponse.json({
+        success: true,
+        message: "Lead added successfully",
+        lead: formatLeadForResponse(newLead),
+      });
+    }
   } catch (error) {
-    console.error("Add Remark Error:", error);
+    console.error("API Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server error" },
       { status: 500 }
@@ -398,39 +450,57 @@ export async function DELETE(req) {
     const leadId = searchParams.get("leadId");
     const remarkIndex = searchParams.get("remarkIndex");
 
-    if (!leadId || remarkIndex === null) {
+    if (!leadId) {
       return NextResponse.json(
-        { success: false, message: "leadId and remarkIndex are required" },
+        { success: false, message: "leadId is required" },
         { status: 400 }
       );
     }
 
-    const lead = await Lead.findOne({ leadId });
+    // If remarkIndex is provided, delete the remark
+    if (remarkIndex !== null) {
+      const lead = await Lead.findOne({ leadId });
 
-    if (!lead) {
+      if (!lead) {
+        return NextResponse.json(
+          { success: false, message: "Lead not found" },
+          { status: 404 }
+        );
+      }
+
+      if (remarkIndex < 0 || remarkIndex >= lead.remarks.length) {
+        return NextResponse.json(
+          { success: false, message: "Invalid remark index" },
+          { status: 400 }
+        );
+      }
+
+      lead.remarks.splice(remarkIndex, 1);
+      await lead.save();
+
+      return NextResponse.json({
+        success: true,
+        message: "Remark deleted successfully",
+        remarks: lead.remarks,
+      });
+    }
+
+    // If no remarkIndex, delete the lead itself
+    const deletedLead = await Lead.findOneAndDelete({ leadId });
+
+    if (!deletedLead) {
       return NextResponse.json(
         { success: false, message: "Lead not found" },
         { status: 404 }
       );
     }
 
-    if (remarkIndex < 0 || remarkIndex >= lead.remarks.length) {
-      return NextResponse.json(
-        { success: false, message: "Invalid remark index" },
-        { status: 400 }
-      );
-    }
-
-    lead.remarks.splice(remarkIndex, 1);
-    await lead.save();
-
     return NextResponse.json({
       success: true,
-      message: "Remark deleted successfully",
-      remarks: lead.remarks,
+      message: "Lead deleted successfully",
     });
   } catch (error) {
-    console.error("Delete Remark Error:", error);
+    console.error("Delete Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server error" },
       { status: 500 }

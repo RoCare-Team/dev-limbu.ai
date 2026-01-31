@@ -1357,7 +1357,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                     />
                     <div className="flex items-center gap-1.5 flex-1">
                       <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                      <span className="text-xs font-medium text-gray-700">GMB</span>
+                      {/* <span className="text-xs font-medium text-gray-700">GMB</span> */}
                     </div>
                   </div>
 
@@ -1371,7 +1371,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                     />
                     <div className="flex items-center gap-1.5 flex-1">
                       <Facebook className="w-3.5 h-3.5 text-[#1877F2]" />
-                      <span className="text-xs font-medium text-gray-700">FB</span>
+                      {/* <span className="text-xs font-medium text-gray-700">FB</span> */}
                     </div>
                   </div>
 
@@ -1385,7 +1385,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                     />
                     <div className="flex items-center gap-1.5 flex-1">
                       <Instagram className="w-3.5 h-3.5 text-[#E1306C]" />
-                      <span className="text-xs font-medium text-gray-700">Insta</span>
+                      {/* <span className="text-xs font-medium text-gray-700">Insta</span> */}
                     </div>
                   </div>
                 </div>
@@ -1438,145 +1438,54 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               </button>
             </div>
           )}
-          {post.status === "posted" && (
-            <div className="space-y-4">
-              {/* Posted On Platforms Section */}
-              <div className="bg-gradient-to-br from-purple-50 to-purple-50/50 rounded-xl p-4 border-2 border-purple-200">
-                <p className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  Posted On Platforms
-                </p>
-                
-                <div className="space-y-2">
-                  {/* GMB Posted */}
-                  {post.locations && post.locations.some(loc => loc.isPosted) && (
-                    <div className="group relative bg-white border-2 border-blue-300 rounded-lg p-3 hover:shadow-md transition-all duration-300 overflow-hidden">
-                      <div className="absolute -right-10 -top-10 w-24 h-24 bg-blue-200 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-300"></div>
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="w-9 h-9 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
-                            <MapPin className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">Google My Business</p>
-                            <p className="text-xs text-blue-600 font-medium">{post.locations.filter(loc => loc.isPosted).length} location{post.locations.filter(loc => loc.isPosted).length > 1 ? 's' : ''} posted</p>
-                          </div>
-                        </div>
-                        <div className="bg-green-100 rounded-full p-1.5">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+      {post.status === "posted" && (
+  <div className="bg-purple-50/40 border border-purple-100 rounded-lg px-3 py-2">
+    
+    <div className="flex items-center gap-4">
 
-                  {/* Facebook Posted */}
-                  {post.fbPages && post.fbPages.length > 0 && (
-                    <div className="group relative bg-white border-2 border-[#1877F2]/50 rounded-lg p-3 hover:shadow-md transition-all duration-300 overflow-hidden">
-                      <div className="absolute -right-10 -top-10 w-24 h-24 bg-[#1877F2] rounded-full opacity-10 group-hover:scale-150 transition-transform duration-300"></div>
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="w-9 h-9 bg-gradient-to-br from-[#1877F2] to-[#0d5ddb] rounded-lg flex items-center justify-center shadow-md">
-                            <Facebook className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">Facebook</p>
-                            <p className="text-xs text-[#1877F2] font-medium">{post.fbPages.length} page{post.fbPages.length > 1 ? 's' : ''} posted</p>
-                          </div>
-                        </div>
-                        <div className="bg-green-100 rounded-full p-1.5">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+      {/* GMB */}
+      {post.locations?.some(loc => loc.isPosted) && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked
+            readOnly
+            className="w-3.5 h-3.5 accent-gray-400 cursor-default"
+          />
+          <MapPin className="w-4 h-4 text-blue-500/80" />
+        </div>
+      )}
 
-                  {/* Instagram Posted */}
-                  {post.igPages && post.igPages.length > 0 && (
-                    <div className="group relative bg-white border-2 border-[#E1306C]/50 rounded-lg p-3 hover:shadow-md transition-all duration-300 overflow-hidden">
-                      <div className="absolute -right-10 -top-10 w-24 h-24 bg-[#E1306C] rounded-full opacity-10 group-hover:scale-150 transition-transform duration-300"></div>
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="w-9 h-9 bg-gradient-to-br from-[#E1306C] to-[#c13584] rounded-lg flex items-center justify-center shadow-md">
-                            <Instagram className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">Instagram</p>
-                            <p className="text-xs text-[#E1306C] font-medium">{post.igPages.length} account{post.igPages.length > 1 ? 's' : ''} posted</p>
-                          </div>
-                        </div>
-                        <div className="bg-green-100 rounded-full p-1.5">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+      {/* Facebook */}
+      {post.fbPages?.length > 0 && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked
+            readOnly
+            className="w-3.5 h-3.5 accent-gray-400 cursor-default"
+          />
+          <Facebook className="w-4 h-4 text-[#1877F2]/80" />
+        </div>
+      )}
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Repost */}
-                <button
-                  onClick={() => handlePost(post)}
-                  className="
-          flex items-center justify-center gap-2
-          bg-blue-50 text-blue-600
-          border border-blue-200
-          hover:bg-blue-100 hover:border-blue-300
-          px-4 py-2.5 rounded-xl text-sm font-semibold
-          transition-all
-        "
-                >
-                  <Send className="w-4 h-4" />
-                  Repost
-                </button>
+      {/* Instagram */}
+      {post.igPages?.length > 0 && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked
+            readOnly
+            className="w-3.5 h-3.5 accent-gray-400 cursor-default"
+          />
+          <Instagram className="w-4 h-4 text-[#E1306C]/80" />
+        </div>
+      )}
 
-                {/* Instagram Post */}
-                <button
-                  onClick={() => handleInstagramPost(post)}
-                  className="
-          flex items-center justify-center gap-2
-          bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white
-          px-4 py-2.5 rounded-xl text-sm font-semibold
-          transition-all
-        "
-                >
-                  <Instagram className="w-4 h-4" />
-                  IG Post
-                </button>
+    </div>
+  </div>
+)}
 
-                {/* Facebook Post */}
-                <button
-                  onClick={() => handleFacebookPost(post)}
-                  className="
-          flex items-center justify-center gap-2
-          bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20
-          px-4 py-2.5 rounded-xl text-sm font-semibold
-          transition-all
-        "
-                >
-                  <Facebook className="w-4 h-4" />
-                  FB Post
-                </button>
-
-                {/* Schedule */}
-                <button
-                  onClick={() => onUpdateStatus(post)}
-                  className="
-          flex items-center justify-center gap-2
-          bg-purple-50 text-purple-600
-          border border-purple-200
-          hover:bg-purple-100 hover:border-purple-300
-          px-4 py-2.5 rounded-xl text-sm font-semibold
-          transition-all
-        "
-                >
-                  <Calendar className="w-4 h-4" />
-                  Schedule
-                </button>
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

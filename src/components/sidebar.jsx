@@ -664,7 +664,7 @@ export default function Sidebar({ children, user }) {
                         py: 0.8,
                         borderRadius: '8px',
                         mb: 0.5,
-                        color: isSubActive ? '#6366f1' : '#64748b',
+                        color: isSubActive ? '#171adb' : '#64748b',
                         bgcolor: isSubActive ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
                         '&:hover': { 
                           background: 'rgba(0,0,0,0.03)',

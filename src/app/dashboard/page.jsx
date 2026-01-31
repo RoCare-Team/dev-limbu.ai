@@ -1337,11 +1337,8 @@ const fetchInstagramPages = useCallback(async () => {
   // --- Disconnect Handlers ---
   const handleDisconnectFacebook = async (pageId) => {
     if (!confirm("Are you sure you want to disconnect this page?")) return;
-    
-    // Optimistic update
     setFacebookPages((prev) => prev.filter((p) => p.pageId !== pageId));
     toast.success("Facebook page disconnected");
-
     try {
       const userId = localStorage.getItem("userId");
       await fetch(`/api/facebook/disconnect?userId=${userId}&pageId=${pageId}`, { method: "POST" });
@@ -1352,10 +1349,8 @@ const fetchInstagramPages = useCallback(async () => {
 
   const handleDisconnectInstagram = async (igId) => {
     if (!confirm("Are you sure you want to disconnect this account?")) return;
-
     setInstagramPages((prev) => prev.filter((p) => p.igId !== igId));
     toast.success("Instagram account disconnected");
-
     try {
       const userId = localStorage.getItem("userId");
       await fetch(`/api/instagram/disconnect?userId=${userId}&igId=${igId}`, { method: "POST" });
@@ -1364,37 +1359,27 @@ const fetchInstagramPages = useCallback(async () => {
     }
   };
 
-  const handleDisconnectAllFacebook = async () => {
-    if (!confirm("Are you sure you want to disconnect all Facebook pages?")) return;
-    
-    const pages = [...facebookPages];
-    setFacebookPages([]);
-    toast.success("Facebook disconnected");
-
+  // --- Real Logout Handler (Revoke All) ---
+  const handleMetaLogout = async () => {
+    if (!confirm("Are you sure you want to fully logout from Facebook and Instagram? This will revoke all tokens and disconnect all accounts.")) return;
+    const userId = localStorage.getItem("userId");
+    if (!userId) return toast.error("Login first");
     try {
-      const userId = localStorage.getItem("userId");
-      await Promise.all(pages.map(p => 
-        fetch(`/api/facebook/disconnect?userId=${userId}&pageId=${p.pageId}`, { method: "POST" })
-      ));
-    } catch (error) {
-      console.error("Error disconnecting Facebook pages:", error);
-    }
-  };
-
-  const handleDisconnectAllInstagram = async () => {
-    if (!confirm("Are you sure you want to disconnect all Instagram accounts?")) return;
-
-    const pages = [...instagramPages];
-    setInstagramPages([]);
-    toast.success("Instagram disconnected");
-
-    try {
-      const userId = localStorage.getItem("userId");
-      await Promise.all(pages.map(p => 
-        fetch(`/api/instagram/disconnect?userId=${userId}&igId=${p.igId}`, { method: "POST" })
-      ));
-    } catch (error) {
-      console.error("Error disconnecting Instagram accounts:", error);
+      const res = await fetch("/api/meta-logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, facebook: true, instagram: true })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFacebookPages([]);
+        setInstagramPages([]);
+        toast.success("Successfully logged out from Facebook & Instagram");
+      } else {
+        toast.error("Logout failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      toast.error("Logout failed");
     }
   };
 
@@ -1713,28 +1698,31 @@ const fetchInstagramPages = useCallback(async () => {
               {/* Refresh Button */}
               {accounts.length > 0 && (
                 <>
-                <button
-                  onClick={handleManualRefresh}
-                  disabled={loading}
-                  className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  title="Refresh data from Google"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh</span>
-                </button>
-
-<button
-                onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                className="bg-gradient-to-r from-blue-500 to-blue-500 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={loading}
+                    className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title="Refresh data from Google"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </button>
+                  {/* <button
+                    onClick={handleMetaLogout}
+                    className="bg-gradient-to-r from-pink-500 to-blue-500 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-red-600 hover:to-blue-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden sm:inline">Logout FB/IG</span>
+                  </button> */}
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/dashboard" })}
+                    className="bg-gradient-to-r from-blue-500 to-blue-500 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden sm:inline">Logout</span>
+                  </button>
                 </>
-                
-                
               )}
-              
             </div>
           </div>
         </div>
@@ -1919,6 +1907,35 @@ const fetchInstagramPages = useCallback(async () => {
                     </div>
                   </div>
                 ))}
+                {/* FB Logout Button */}
+                {facebookPages.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Are you sure you want to logout from Facebook? This will revoke all Facebook tokens and disconnect all pages.")) return;
+                      const userId = localStorage.getItem("userId");
+                      if (!userId) return toast.error("Login first");
+                      try {
+                        const res = await fetch("/api/meta-logout", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ userId, facebook: true, instagram: false })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setFacebookPages([]);
+                          toast.success("Successfully logged out from Facebook");
+                        } else {
+                          toast.error("Logout failed: " + (data.error || "Unknown error"));
+                        }
+                      } catch (err) {
+                        toast.error("Logout failed");
+                      }
+                    }}
+                    className="w-full mt-2 flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all text-xs"
+                  >
+                    <LogOut className="w-4 h-4" /> Logout Facebook
+                  </button>
+                )}
                 <button 
                   onClick={() => {
                     const userId = localStorage.getItem("userId");
@@ -1979,6 +1996,35 @@ const fetchInstagramPages = useCallback(async () => {
                         </div>
                       </div>
                     ))}
+                    {/* IG Logout Button */}
+                    {instagramPages.length > 0 && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm("Are you sure you want to logout from Instagram? This will revoke all Instagram tokens and disconnect all accounts.")) return;
+                          const userId = localStorage.getItem("userId");
+                          if (!userId) return toast.error("Login first");
+                          try {
+                            const res = await fetch("/api/meta-logout", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ userId, facebook: false, instagram: true })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setInstagramPages([]);
+                              toast.success("Successfully logged out from Instagram");
+                            } else {
+                              toast.error("Logout failed: " + (data.error || "Unknown error"));
+                            }
+                          } catch (err) {
+                            toast.error("Logout failed");
+                          }
+                        }}
+                        className="w-full mt-2 flex items-center justify-center gap-2 bg-pink-600 text-white py-2 rounded-lg font-semibold hover:bg-pink-700 transition-all text-xs"
+                      >
+                        <LogOut className="w-4 h-4" /> Logout Instagram
+                      </button>
+                    )}
                     <button 
                       onClick={() => {
                         const userId = localStorage.getItem("userId");

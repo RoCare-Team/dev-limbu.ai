@@ -14,7 +14,7 @@ const PostSchema = new mongoose.Schema(
 scheduledDateSource: {
   type: [String],
   enum: ["gmb", "fb", "ig"],
-  required: true,
+  // required: true,
 },
 
     

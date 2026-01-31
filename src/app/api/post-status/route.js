@@ -143,6 +143,9 @@ export async function PUT(req) {
       scheduledDate,
       userId,
       description,
+      gmbDescription,
+      fbDescription,
+      igDescription,
       reason,
       locations,
       checkmark,
@@ -235,6 +238,15 @@ export async function PUT(req) {
     /* ---------- OPTIONAL FIELDS ---------- */
     if (typeof description === "string") {
       updateData.description = description;
+    }
+    if (typeof gmbDescription === "string") {
+      updateData.gmbDescription = gmbDescription;
+    }
+    if (typeof fbDescription === "string") {
+      updateData.fbDescription = fbDescription;
+    }
+    if (typeof igDescription === "string") {
+      updateData.igDescription = igDescription;
     }
 
     if (checkmark !== undefined && checkmark !== null) {

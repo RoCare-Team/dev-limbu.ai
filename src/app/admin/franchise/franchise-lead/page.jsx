@@ -408,6 +408,8 @@ export default function FranchiseLeadsPage() {
       if (data.success) {
         setShowAddLeadModal(false);
         setNewLead({});
+        alert("Lead added successfully");
+        window.location.reload();
         fetchLeads();
       } else {
         alert(data.message || "Failed to add lead");
@@ -563,13 +565,15 @@ export default function FranchiseLeadsPage() {
                 Export
               </button> */}
 
-              <button
-                onClick={() => setShowAddLeadModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Add Lead
-              </button>
+              {role === "superFranchiseAdmin" && (
+                <button
+                  onClick={() => setShowAddLeadModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Lead
+                </button>
+              )}
 
               <button
                 onClick={fetchLeads}

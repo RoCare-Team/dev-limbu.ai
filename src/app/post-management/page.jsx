@@ -1001,27 +1001,32 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   const [showFull, setShowFull] = useState(false);
   const [activeDesc, setActiveDesc] = useState('gmb');
 
-  const descriptionToShow = {
-    gmb: post?.gmbDescription || post?.description || "",
-    fb: post?.fbDescription || post?.description || "",
-    ig: post?.igDescription || post?.description || ""
-  };
+  // Helper to get current values from post
+  const getDescriptions = () => ({
+    gmb: post?.gmbDescription ?? post?.description ?? "",
+    fb: post?.fbDescription ?? post?.description ?? "",
+    ig: post?.igDescription ?? post?.description ?? ""
+  });
 
-  const [editedDescription, setEditedDescription] = useState(descriptionToShow[activeDesc]);
+  // State to hold drafts for all platforms
+  const [drafts, setDrafts] = useState(getDescriptions());
   const [fbStats, setFbStats] = useState(null);
 
+  // Sync drafts with post only when NOT editing to avoid overwriting user input
   useEffect(() => {
-    setEditedDescription(descriptionToShow[activeDesc]);
-  }, [activeDesc, post]);
+    if (!isEditing) {
+      setDrafts(getDescriptions());
+    }
+  }, [post, isEditing]);
 
   const handleSave = () => {
     const field = activeDesc === 'gmb' ? 'gmbDescription' : activeDesc === 'fb' ? 'fbDescription' : 'igDescription';
-    onEditDescription(post._id, { [field]: editedDescription });
+    onEditDescription(post._id, { [field]: drafts[activeDesc] });
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setEditedDescription(descriptionToShow[activeDesc]);
+    setDrafts(getDescriptions());
     setIsEditing(false);
   };
 
@@ -1130,8 +1135,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           {isEditing ? (
             <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
               <textarea
-                value={editedDescription}
-                onChange={(e) => setEditedDescription(e.target.value)}
+                value={drafts[activeDesc]}
+                onChange={(e) => setDrafts(prev => ({ ...prev, [activeDesc]: e.target.value }))}
                 className="w-full p-3 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none bg-gray-50"
                 rows={4}
               />
@@ -1153,9 +1158,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           ) : (
             <div className="relative">
               <p className={`text-sm text-gray-600 leading-relaxed ${showFull ? "" : "line-clamp-3"}`}>
-                {descriptionToShow[activeDesc] || "No description available for this platform."}
+                {drafts[activeDesc] || "No description available for this platform."}
               </p>
-              {descriptionToShow[activeDesc]?.length > 120 && (
+              {drafts[activeDesc]?.length > 120 && (
                 <button
                   onClick={() => setShowFull(!showFull)}
                   className="mt-1 text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -1508,6 +1513,7 @@ export default function PostManagementPage() {
 
 
   const [posts, setPosts] = useState([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
   const [prompt, setPrompt] = useState("");
   const [scheduleDates, setScheduleDates] = useState({});
@@ -1700,7 +1706,8 @@ export default function PostManagementPage() {
     { id: "posted", label: "Posted", shortLabel: "Posted", icon: Send, count: allCounts.posted },
   ];
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (isBackground = false) => {
+    if (!isBackground) setIsLoadingPosts(true);
     try {
       const userId = localStorage.getItem("userId");
       const allPostsData = await fetchAllPostsAction(userId);
@@ -1729,6 +1736,8 @@ export default function PostManagementPage() {
       }
     } catch (err) {
       showToast(err.message || "Error fetching posts", "error");
+    } finally {
+      if (!isBackground) setIsLoadingPosts(false);
     }
   };
 
@@ -2490,7 +2499,7 @@ export default function PostManagementPage() {
         facebookPageAccessToken: accessToken,
         status: "posted",
       });
-      await fetchPosts(); // Refresh posts to get the updated data
+      await fetchPosts(true); // Refresh posts to get the updated data
 
     } catch (err) {
       console.error("Facebook post error:", err);
@@ -3384,7 +3393,12 @@ export default function PostManagementPage() {
           ))}
         </div>
 
-        {filteredPosts.length > 0 ? (
+        {isLoadingPosts ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Lottie animationData={animationData} loop={true} className="w-32 h-32" />
+            <p className="text-gray-500 mt-4 font-medium">Loading your creatives...</p>
+          </div>
+        ) : filteredPosts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredPosts.map((post) => (
               <PostCard

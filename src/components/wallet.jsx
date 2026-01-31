@@ -238,23 +238,36 @@ export default function SmartWalletRecharge() {
     if (filterType === "debit") return tx.type === "debit" || tx.type === "subtract";
     return true;
   });
+const formatDate = (dateString) => {
+  if (!dateString) return "";
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata", // ✅ ADD THIS
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+console.log("datedate",date);
+
+
+const formatTime = (dateString) => {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+  return date.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata", // ✅ ADD THIS
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true, // optional but recommended
+  });
+};
+
+console.log("formatTime",formatTime);
+
+
 
   const goBack = () => {
     if (typeof window !== 'undefined') {

@@ -1444,51 +1444,67 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             </div>
           )}
       {post.status === "posted" && (
-  <div className="bg-purple-50/40 border border-purple-100 rounded-lg px-3 py-2">
-    
-    <div className="flex items-center gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handlePost(post)}
+                className="
+                  flex items-center justify-center gap-2
+                  bg-blue-50 text-blue-600
+                  border border-blue-200
+                  hover:bg-blue-100 hover:border-blue-300
+                  px-4 py-2.5 rounded-xl text-sm font-semibold
+                  transition-all
+                "
+              >
+                <Send className="w-4 h-4" />
+                Repost GMB
+              </button>
 
-      {/* GMB */}
-      {post.locations?.some(loc => loc.isPosted) && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked
-            readOnly
-            className="w-3.5 h-3.5 accent-gray-400 cursor-default"
-          />
-          <MapPin className="w-4 h-4 text-blue-500/80" />
-        </div>
-      )}
+              <button
+                onClick={() => handleFacebookPost(post)}
+                className="
+                  flex items-center justify-center gap-2
+                  bg-[#1877F2]/10 text-[#1877F2]
+                  border border-[#1877F2]/20
+                  hover:bg-[#1877F2]/20
+                  px-4 py-2.5 rounded-xl text-sm font-semibold
+                  transition-all
+                "
+              >
+                <Facebook className="w-4 h-4" />
+                Post FB
+              </button>
 
-      {/* Facebook */}
-      {post.fbPages?.length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked
-            readOnly
-            className="w-3.5 h-3.5 accent-gray-400 cursor-default"
-          />
-          <Facebook className="w-4 h-4 text-[#1877F2]/80" />
-        </div>
-      )}
+              <button
+                onClick={() => handleInstagramPost(post)}
+                className="
+                  flex items-center justify-center gap-2
+                  bg-gradient-to-r from-pink-500 to-purple-600 text-white
+                  border border-pink-200
+                  hover:opacity-90
+                  px-4 py-2.5 rounded-xl text-sm font-semibold
+                  transition-all
+                "
+              >
+                <Instagram className="w-4 h-4" />
+                Post Insta
+              </button>
 
-      {/* Instagram */}
-      {post.igPages?.length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked
-            readOnly
-            className="w-3.5 h-3.5 accent-gray-400 cursor-default"
-          />
-          <Instagram className="w-4 h-4 text-[#E1306C]/80" />
-        </div>
-      )}
-
-    </div>
-  </div>
+              <button
+                onClick={() => onUpdateStatus(post)}
+                className="
+                  flex items-center justify-center gap-2
+                  bg-purple-50 text-purple-600
+                  border border-purple-200
+                  hover:bg-purple-100 hover:border-purple-300
+                  px-4 py-2.5 rounded-xl text-sm font-semibold
+                  transition-all
+                "
+              >
+                <Calendar className="w-4 h-4" />
+                Schedule
+              </button>
+            </div>
 )}
 
 

@@ -71,8 +71,8 @@ export default function LimbuAILanding() {
     { name: "Client 2", src: DynamicDrapryLogo },
     { name: "Client 3", src: BanjaraSalonLogo },
     { name: "Client 4", src: MazzLogo },
-    { name: "Client 5", src: LuckyDryLogo },
     { name: "Client 6", src: GudiyaCollectionLogo },
+    { name: "Client 5", src: LuckyDryLogo },
   ];
 
   
@@ -1007,30 +1007,43 @@ export default function LimbuAILanding() {
       </section>
 
       {/* Client Logos Section */}
-      <section className="bg-white py-8 border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">
-            Trusted by 1,000+ Growing Businesses
-          </p>
-          <div className="relative w-full overflow-hidden group">
-            <div className="flex gap-16 animate-scroll-logos whitespace-nowrap items-center w-max group-hover:[animation-play-state:paused]">
-              {[...clientLogos, ...clientLogos].map((logo, idx) => (
-                <div key={idx} className="relative h-16 w-40 flex items-center justify-center transition-all duration-300">
-                  <Image
-                    src={logo.src}
-                    alt={logo.name}
-                    width={160}
-                    height={64}
-                    className="max-h-full w-auto object-contain transition-all duration-300 hover:scale-110"
-                  />
-                </div>
-              ))}
+ <section className="bg-white py-12 sm:py-10 border-b border-slate-100">
+  <div className="max-w-9xl mx-auto px-4 sm:px-6">
+    <div className="text-center mb-12 sm:mb-16">
+      <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
+        Trusted by Industry Leaders
+      </p>
+      <div className="flex items-center justify-center gap-2">
+        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 fill-current" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        <span className="text-sm sm:text-base font-semibold text-slate-600">1,000+ Growing Businesses</span>
+      </div>
+    </div>
+    
+    <div className="relative w-full overflow-hidden py-4">
+      {/* Logo Track */}
+      <div className="flex gap-12 sm:gap-16 md:gap-20 lg:gap-24 animate-scroll-logos items-center w-max hover:[animation-play-state:paused]">
+        {[...clientLogos, ...clientLogos, ...clientLogos].map((logo, idx) => (
+          <div 
+            key={idx} 
+            className="flex-shrink-0 transform hover:scale-110 transition-transform duration-300"
+          >
+            <div className="h-20 w-32 sm:h-24 sm:w-40 md:h-28 md:w-44 flex items-center justify-center">
+              <Image
+                src={logo.src}
+                alt={logo.name}
+                width={176}
+                height={112}
+                className="w-1/2 h-1/2 object-contain filter brightness-90 hover:brightness-100 transition-all duration-300"
+              />
             </div>
-            <div className="absolute top-0 left-0 w-20 h-full bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
-            <div className="absolute top-0 right-0 w-20 h-full bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
           </div>
-        </div>
-      </section>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
 
 
       
@@ -1099,35 +1112,47 @@ export default function LimbuAILanding() {
         </div>
       </section>
           {/* Features Section */}
-      <section id="features" className="relative bg-white py-12 sm:py-12 md:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4 px-4">
-              Everything You Need in <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">One Place</span>
-            </h2>
-            <p className="text-base sm:text-lg md:text-xl text-slate-600 px-4">Powerful features designed for busy business owners</p>
-          </div>
+     <section id="features" className="relative bg-white py-12 sm:py-16 md:py-20">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <div className="text-center mb-10 sm:mb-14">
+      <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4 px-4">
+        Everything You Need in <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">One Place</span>
+      </h2>
+      <p className="text-base sm:text-lg text-slate-600 px-4">Powerful features designed for busy business owners</p>
+    </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {features.map((feature, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleNavigation(feature.link)}
-                className="group bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-5 sm:p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer"
-              >
-                <div className={`w-12 sm:w-14 h-12 sm:h-14 bg-gradient-to-br ${feature.color} rounded-lg sm:rounded-xl flex items-center justify-center text-white mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-lg`}>
-                  {feature.icon}
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold mb-2 text-slate-800">{feature.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed mb-3">{feature.description}</p>
-                <div className="flex items-center gap-2 text-blue-600 font-semibold text-sm">
-                  Try Now <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            ))}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      {features.map((feature, idx) => (
+        <div
+          key={idx}
+          onClick={() => handleNavigation(feature.link)}
+          className="group bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-2xl hover:border-slate-300 transition-all duration-300 cursor-pointer"
+        >
+          {/* Icon */}
+          <div className={`w-14 h-14 bg-gradient-to-br ${feature.color} rounded-xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300 shadow-md`}>
+            {feature.icon}
+          </div>
+          
+          {/* Title */}
+          <h3 className="text-xl font-bold mb-2 text-slate-900 group-hover:text-slate-950 transition-colors">
+            {feature.title}
+          </h3>
+          
+          {/* Description */}
+          <p className="text-slate-600 text-sm leading-relaxed mb-4 min-h-[40px]">
+            {feature.description}
+          </p>
+          
+          {/* CTA */}
+          <div className="flex items-center gap-1 text-blue-600 font-semibold text-sm group-hover:gap-2 transition-all">
+            Try Now 
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
           </div>
         </div>
-      </section>
+      ))}
+    </div>
+  </div>
+</section>
 
           {/* Services Section */}
       <section id="services" className="relative bg-slate-50 py-16 sm:py-20 md:py-24">

@@ -250,9 +250,6 @@ const formatDate = (dateString) => {
   });
 };
 
-console.log("datedate",date);
-
-
 const formatTime = (dateString) => {
   if (!dateString) return "";
 

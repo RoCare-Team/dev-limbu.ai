@@ -1002,8 +1002,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   const [activeDesc, setActiveDesc] = useState('gmb');
 
   const isPostedGmb = post.locations?.some(l => l.isPosted) || post.whenPosted?.gmb;
-  const isPostedFb = !!post.facebookPostId || post.whenPosted?.facebook;
-  const isPostedIg = post.whenPosted?.instagram;
+  const isPostedFb = !!post.facebookPostId || post.whenPosted?.facebook || post.fbPages?.some(p => p.isPosted);
+  const isPostedIg = post.whenPosted?.instagram || post.igPages?.some(p => p.isPosted);
 
   // Helper to get current values from post
   const getDescriptions = () => ({

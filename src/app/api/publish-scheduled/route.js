@@ -343,6 +343,11 @@ export async function GET() {
                   }
                 });
 
+                // Update whenPosted for GMB
+                if (!post.whenPosted) post.whenPosted = {};
+                post.whenPosted.gmb = "posted";
+                post.markModified('whenPosted');
+
                 processedLocIds.add(loc.locationId);
 
               } catch (err) {
@@ -396,6 +401,11 @@ export async function GET() {
             page.postedAt = new Date();
             page.postId = result.id;
             page.error = null;
+
+            // Update whenPosted for Facebook
+            if (!post.whenPosted) post.whenPosted = {};
+            post.whenPosted.facebook = "posted";
+            post.markModified('whenPosted');
           } else {
             page.error = result.error;
             failed = true;
@@ -439,6 +449,11 @@ export async function GET() {
             account.postedAt = new Date();
             account.postId = result.id;
             account.error = null;
+
+            // Update whenPosted for Instagram
+            if (!post.whenPosted) post.whenPosted = {};
+            post.whenPosted.instagram = "posted";
+            post.markModified('whenPosted');
           } else {
             account.error = result.error;
             failed = true;

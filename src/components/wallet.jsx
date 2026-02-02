@@ -265,7 +265,6 @@ const formatTime = (dateString) => {
   });
 };
 
-console.log("formatTime",formatTime);
 
 
 
@@ -551,7 +550,7 @@ console.log("formatTime",formatTime);
                     </p>
                   </div>
                 ) : (
-                  filteredTransactions.map((tx, index) => {
+                  filteredTransactions?.map((tx, index) => {
                     
                     const isCredit = tx.type === "credit" || tx.type === "add";
                     return (
@@ -579,9 +578,9 @@ console.log("formatTime",formatTime);
                               </p>
                               <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                                 <Calendar className="w-3 h-3" />
-                                <span>{formatDate(tx.createdAt || tx.date)}</span>
+                                <span>{formatDate(tx?.createdAt || tx?.date)}</span>
                                 <Clock className="w-3 h-3 ml-1" />
-                                <span>{formatTime(tx.createdAt || tx.date)}</span>
+                                <span>{formatTime(tx?.createdAt || tx?.date)}</span>
                               </div>
                             </div>
                           </div>

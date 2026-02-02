@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { ClipboardCheck, Copy } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { Star, ExternalLink, CheckCircle, Sparkles, Loader2 } from "lucide-react";
@@ -19,6 +20,11 @@ export default function CustomerReviewPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [primaryCategory, setPrimaryCategory] = useState("");
+  const [additionalCategories, setAdditionalCategories] = useState([]);
+  const [aiReviews, setAiReviews] = useState([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState(null);
 
   // Decode location data from URL slug
   useEffect(() => {
@@ -60,11 +66,11 @@ export default function CustomerReviewPage() {
       setAddress(data.storefrontAddress?.addressLines?.join(", ") || "");
       setLocationId(data.locationId || "");
       setReviewUri(data.newReviewUri || "");
-      
+      setPrimaryCategory(data.primaryCategory || "");
+      setAdditionalCategories(data.additionalCategories || []);
       if (!data.newReviewUri) {
         setErrorMsg("⚠ Google Review link not available for this location");
       }
-      
       setLoading(false);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -101,34 +107,71 @@ export default function CustomerReviewPage() {
   };
 
   // When user clicks a star
-  const handleRating = (value) => {
+  const handleRating = async (value) => {
     setRating(value);
-
     if (value <= 3) {
-      // Low rating - show feedback form
       setShowFeedback(true);
     } else {
-      // High rating - redirect to Google
+      // 4 or 5 stars: generate AI reviews
       if (!reviewUri) {
         setErrorMsg("⚠ Google review link is not available yet. Please try again.");
         return;
       }
-
       setRedirecting(true);
-
-      setTimeout(async () => {
-        // Save the rating
-        await saveReviewToDB({
-          name: customerName,
-          rating: value,
+      try {
+        const res = await fetch("/api/reviews/generate-ai-review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            business,
+            primaryCategory,
+            additionalCategories,
+          }),
         });
+        const data = await res.json();
+        if (data.reviews && Array.isArray(data.reviews)) {
+          setAiReviews(data.reviews);
+          setShowReviewModal(true);
+        } else {
+          setErrorMsg("AI review generation failed. Please try again.");
+        }
+      } catch (e) {
+        setErrorMsg("AI review generation failed. Please try again.");
+      }
+      setRedirecting(false);
+    }
+  };
 
-        // Open Google Review in new tab
+  // Handle copy and redirect flow
+  const handleCopyAndRedirect = async (review, index) => {
+    try {
+      // 1. Copy to clipboard
+      await navigator.clipboard.writeText(review);
+      setCopiedIndex(index);
+      
+      // 2. Save to DB
+      await saveReviewToDB({
+        name: customerName,
+        rating,
+        feedback: review,
+      });
+
+      // 3. Redirect after brief delay
+      setTimeout(() => {
+        setCopiedIndex(null);
+        setShowReviewModal(false);
+        if (reviewUri) {
+          window.open(reviewUri, "_blank");
+          setShowSuccess(true);
+        }
+      }, 1000);
+    } catch (e) {
+      console.error("Copy failed", e);
+      setCopiedIndex(null);
+      // Fallback redirect if copy fails
+      if (reviewUri) {
         window.open(reviewUri, "_blank");
-
-        setRedirecting(false);
-        setShowSuccess(true);
-      }, 1200);
+      }
     }
   };
 
@@ -168,6 +211,95 @@ export default function CustomerReviewPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+            {/* AI Review Modal */}
+          {showReviewModal && (
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-3">
+    <div
+      className="
+        bg-white rounded-2xl shadow-2xl
+        w-full max-w-sm md:max-w-md
+        p-4 md:p-6
+        animate-in fade-in zoom-in duration-200
+      "
+    >
+      {/* Header */}
+      <div className="text-center mb-4 md:mb-5">
+        <div className="inline-flex p-2.5 md:p-3 bg-blue-50 rounded-full mb-2 md:mb-3">
+          <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
+        </div>
+
+        <h2 className="text-sm md:text-lg font-bold text-gray-900">
+          Select a Review / समीक्षा चुनें
+        </h2>
+
+        <p className="text-[11px] md:text-xs text-gray-500 mt-1 md:mt-2 leading-relaxed px-1">
+          Choose the best review, copy it, and paste it on Google.
+        </p>
+      </div>
+
+      {/* Reviews */}
+      <ul
+        className="
+          space-y-2 md:space-y-3
+max-h-[38vh] md:max-h-[48vh]
+          overflow-y-auto pr-1 custom-scrollbar
+        "
+      >
+        {aiReviews.map((review, idx) => (
+          <li
+            key={idx}
+            className="
+              border border-gray-100 rounded-xl
+              p-3 md:p-4
+              bg-gray-50 hover:bg-white
+              hover:border-blue-200 transition
+            "
+          >
+            <p className="text-[11px] md:text-xs text-gray-600 leading-relaxed mb-2 md:mb-3">
+              {review}
+            </p>
+
+            <button
+              className={`flex items-center justify-center gap-2 w-full
+                py-2 md:py-2.5
+                rounded-lg text-[11px] md:text-xs font-bold transition
+                ${
+                  copiedIndex === idx
+                    ? "bg-green-500 text-white"
+                    : "bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white"
+                }
+              `}
+              onClick={() => handleCopyAndRedirect(review, idx)}
+              disabled={copiedIndex !== null}
+            >
+              {copiedIndex === idx ? <CheckCircle size={14} /> : <Copy size={14} />}
+              {copiedIndex === idx ? "Copied! Redirecting..." : "Copy & Post"}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {/* Limbu AI Credit */}
+      <p className="text-[10px] md:text-[11px] text-center text-gray-400 mt-3 md:mt-4 italic">
+        Reviews written by <span className="font-semibold text-gray-500">Limbu AI</span>
+      </p>
+
+      {/* Close */}
+      <button
+        className="
+          mt-3 md:mt-5 w-full
+          py-2.5 md:py-3
+          rounded-xl bg-gray-100 hover:bg-gray-200
+          text-gray-700 font-bold text-xs md:text-sm
+        "
+        onClick={() => setShowReviewModal(false)}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 capitalize">

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import User from "@/models/User";
+import FacebookPage from "@/models/FacebookPage";
 import { postToGmbAction } from "@/lib/gmb/postToGmb";
 import { deductFromWalletAction } from "@/app/actions/postActions";
 
@@ -66,6 +67,26 @@ async function fetchWithTimeout(promise, ms = 20000) {
     timer = setTimeout(() => reject(new Error(`Request timed out after ${ms}ms`)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/* -------------------------------------------------- 
+   GET FRESH PAGE TOKEN (FB/INSTA)
+-------------------------------------------------- */
+async function getFreshPageToken(userAccessToken, pageId) {
+  const res = await fetch(
+    `https://graph.facebook.com/v24.0/me/accounts?access_token=${userAccessToken}`
+  );
+  const data = await res.json();
+
+  if (!data.data) throw new Error("Unable to fetch FB pages");
+
+  const page = data.data.find(p => p.id === pageId);
+  
+  if (!page?.access_token) {
+    throw new Error("Page access token not found or permission missing");
+  }
+
+  return page.access_token;
 }
 
 /* -------------------------------------------------- 
@@ -346,7 +367,30 @@ export async function GET() {
           const page = post.fbPages[i];
           if (page.isPosted) continue;
 
-          const result = await postToFacebook(page, log);
+          // Fetch fresh token from DB to ensure we have the latest permissions/validity
+          let tokenToUse = page.pageAccessToken;
+          try {
+            const freshPage = await FacebookPage.findOne({ pageId: page.pageId, userId: post.userId });
+            if (freshPage) {
+              // Option A: Generate a brand new page token using the saved user long-term token
+              if (freshPage.userAccessToken) {
+                tokenToUse = await getFreshPageToken(freshPage.userAccessToken, page.pageId);
+                log(`🔄 Generated fresh FB page token via User Token for ${page.pageId}`);
+              } 
+              // Option B: Fallback to the stored page token
+              else if (freshPage.pageAccessToken) {
+                tokenToUse = freshPage.pageAccessToken;
+                log(`🔄 Using stored fresh FB token for page ${page.pageId}`);
+              }
+            }
+          } catch (e) {
+            log(`⚠️ Failed to fetch fresh FB token: ${e.message}`);
+          }
+
+          const pagePayload = page.toObject ? page.toObject() : { ...page };
+          pagePayload.pageAccessToken = tokenToUse;
+
+          const result = await postToFacebook(pagePayload, log);
           if (result.success) {
             page.isPosted = true;
             page.postedAt = new Date();
@@ -369,7 +413,27 @@ export async function GET() {
           const account = post.igPages[i];
           if (account.isPosted) continue;
 
-          const result = await postToInstagram(account, log);
+          // Attempt to refresh IG token (which is usually a linked FB page token)
+          let tokenToUse = account.accessToken;
+          try {
+            // Assuming account.pageId exists or we can find it via igUserId if you store it. 
+            // If not, we rely on the stored token.
+            // If you store the linked Page ID in your IG account object:
+            if (account.pageId) {
+               const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
+               if (freshPage && freshPage.userAccessToken) {
+                  tokenToUse = await getFreshPageToken(freshPage.userAccessToken, account.pageId);
+                  log(`🔄 Generated fresh IG (Page) token for ${account.pageId}`);
+               }
+            }
+          } catch (e) {
+             log(`⚠️ Failed to refresh IG token: ${e.message}`);
+          }
+
+          const accountPayload = account.toObject ? account.toObject() : { ...account };
+          accountPayload.accessToken = tokenToUse;
+
+          const result = await postToInstagram(accountPayload, log);
           if (result.success) {
             account.isPosted = true;
             account.postedAt = new Date();

@@ -2,6 +2,7 @@ import axios from "axios";
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
+import FacebookPage from "@/models/FacebookPage";
 
 /* =====================================================
    FacebookPost SCHEMA (POST SAVE WITH userId)
@@ -49,6 +50,26 @@ const FacebookPost =
   mongoose.models.FacebookPost ||
   mongoose.model("FacebookPost", FacebookPostSchema);
 
+/* -------------------------------------------------- 
+   GET FRESH PAGE TOKEN (FB/INSTA)
+-------------------------------------------------- */
+async function getFreshPageToken(userAccessToken, pageId) {
+  const res = await fetch(
+    `https://graph.facebook.com/v24.0/me/accounts?access_token=${userAccessToken}`
+  );
+  const data = await res.json();
+
+  if (!data.data) throw new Error("Unable to fetch FB pages");
+
+  const page = data.data.find(p => p.id === pageId);
+  
+  if (!page?.access_token) {
+    throw new Error("Page access token not found or permission missing");
+  }
+
+  return page.access_token;
+}
+
 /* =====================================================
    POST API
 ===================================================== */
@@ -67,7 +88,23 @@ export async function POST(req) {
     pageId = body.pageId;
     caption = body.caption || "";
     imageUrl = body.imageUrl || "";
-    const pageAccessToken = body.pageAccessToken;
+    let pageAccessToken = body.pageAccessToken;
+
+    // 🔄 Try to get a fresh token from DB if available
+    if (userId && pageId) {
+      try {
+        const facebookPage = await FacebookPage.findOne({ userId, pageId });
+        if (facebookPage) {
+          if (facebookPage.userAccessToken) {
+            pageAccessToken = await getFreshPageToken(facebookPage.userAccessToken, pageId);
+          } else if (facebookPage.pageAccessToken) {
+            pageAccessToken = facebookPage.pageAccessToken;
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ Failed to refresh FB token from DB:", e.message);
+      }
+    }
 
     // ---------------- Validation ----------------
     if (!userId || !pageId || !pageAccessToken) {

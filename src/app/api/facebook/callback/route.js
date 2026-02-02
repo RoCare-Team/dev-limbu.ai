@@ -17,8 +17,10 @@ export async function GET(req) {
       );
     }
 
-    // 🔹 Get short token
-    const tokenRes = await axios.get(
+    /* ---------------------------------------------
+       1️⃣ SHORT-LIVED USER TOKEN
+    --------------------------------------------- */
+    const shortTokenRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
         params: {
@@ -30,25 +32,38 @@ export async function GET(req) {
       }
     );
 
-    // 🔹 Convert to long token
-    const longRes = await axios.get(
+    const shortToken = shortTokenRes.data.access_token;
+
+    /* ---------------------------------------------
+       2️⃣ LONG-LIVED USER TOKEN (60 days)
+    --------------------------------------------- */
+    const longTokenRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
         params: {
           grant_type: "fb_exchange_token",
           client_id: process.env.META_APP_ID,
           client_secret: process.env.META_APP_SECRET,
-          fb_exchange_token: tokenRes.data.access_token,
+          fb_exchange_token: shortToken,
         },
       }
     );
 
-    const userToken = longRes.data.access_token;
+    const userAccessToken = longTokenRes.data.access_token;
+    const expiresIn = longTokenRes.data.expires_in; // seconds
 
-    // 🔹 Fetch pages
+    const tokenExpiryDate = new Date(
+      Date.now() + expiresIn * 1000
+    );
+
+    /* ---------------------------------------------
+       3️⃣ FETCH FACEBOOK PAGES
+    --------------------------------------------- */
     const pagesRes = await axios.get(
       "https://graph.facebook.com/v24.0/me/accounts",
-      { params: { access_token: userToken } }
+      {
+        params: { access_token: userAccessToken },
+      }
     );
 
     const pages = pagesRes.data.data;
@@ -59,8 +74,9 @@ export async function GET(req) {
       );
     }
 
-    // ❌ DO NOT delete old data blindly
-    // Instead update / upsert pages
+    /* ---------------------------------------------
+       4️⃣ SAVE LONG TOKEN + PAGE TOKENS
+    --------------------------------------------- */
     for (const page of pages) {
       await FacebookPage.findOneAndUpdate(
         { userId, pageId: page.id },
@@ -68,7 +84,9 @@ export async function GET(req) {
           userId,
           pageId: page.id,
           pageName: page.name,
-          pageAccessToken: page.access_token,
+          pageAccessToken: page.access_token, // page long token
+          userAccessToken,                   // 🔥 USER LONG TOKEN
+          userTokenExpiresAt: tokenExpiryDate,
           platform: "facebook",
         },
         { upsert: true, new: true }
@@ -82,7 +100,6 @@ export async function GET(req) {
   } catch (err) {
     console.error("FB CALLBACK ERROR:", err.response?.data || err.message);
 
-    // 🔁 Token invalid → force reconnect
     return NextResponse.redirect(
       `https://www.facebook.com/v24.0/dialog/oauth?client_id=${process.env.META_APP_ID}&redirect_uri=${process.env.BASE_URL}/api/facebook/callback&scope=pages_show_list,pages_manage_posts,pages_read_engagement&state=RECONNECT`
     );

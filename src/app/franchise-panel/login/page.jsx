@@ -77,13 +77,13 @@ export default function FranchiseLogin() {
           </button>
         </div>
 
-        <input
+        {/* <input
           type="text"
           required
           placeholder="Referral Code (Limbu25)"
           onChange={(e) => setReferCode(e.target.value)}
           className="w-full border p-3 rounded-xl"
-        />
+        /> */}
 
         <button
           disabled={loading}

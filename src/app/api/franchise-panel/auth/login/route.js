@@ -69,7 +69,7 @@ export async function POST(req) {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
-        referCode: user.referCode,
+        // referCode: user.referCode,
         referredBy: referUser.fullName,
       },
     });

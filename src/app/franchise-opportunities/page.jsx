@@ -187,7 +187,7 @@ export default function FranchisePage() {
     premium: {
       clients: 100,
       revenue: 50,
-      investment: 200000,
+      investment: 500000,
       monthly: 90000,
       yearly: 1080000,
       profitPercent: 50,
@@ -306,7 +306,7 @@ export default function FranchisePage() {
                       onChange={(e) => setSelectedPlan(e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                     >
-                      <option value="premium">Business Excellence Plan - ₹2,00,000 + GST</option>
+                      <option value="premium">Business Excellence Plan - ₹5,00,000 + GST</option>
                     </select>
                   </div>
 
@@ -917,8 +917,8 @@ export default function FranchisePage() {
            
               {
                 name: "Business Excellence Plan",
-                investment: "₹2,00,000",
-                originalPrice: "₹5,00,000",
+                investment: "₹5,00,000 + 18% GST",
+                // originalPrice: "₹5,00,000",
                 commission: "50% on revenue",
                 features: [
                   "Regional franchise rights",
@@ -932,7 +932,7 @@ export default function FranchisePage() {
                   "Expansion funding support"
                 ],
                 // target: "100+ clients",
-                potential: "₹50k-3L/month",
+                potential: "₹1L-3L/month",
                 best: "Established entrepreneurs",
                                 popular: true
 
@@ -1135,7 +1135,7 @@ export default function FranchisePage() {
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20">
-              <div className="text-3xl font-bold mb-2">₹50K</div>
+              <div className="text-3xl font-bold mb-2">1lakh+</div>
               <div className="text-sm opacity-90">Starting Investment</div>
             </div>
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20">

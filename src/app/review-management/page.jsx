@@ -141,7 +141,20 @@ export default function DashboardPage() {
           throw new Error(`API request failed with status ${res.status}: ${errorText}`);
         }
 
-        const data = await res.json();
+        let data;
+        try {
+          const responseText = await res.text();
+          if (!responseText || responseText.trim() === "") {
+            console.warn("Empty response received from API, treating as no reviews");
+            data = { reviews: [] };
+          } else {
+            data = JSON.parse(responseText);
+          }
+        } catch (parseError) {
+          console.error("JSON Parse Error:", parseError);
+          console.error("Response was:", await res.text());
+          throw new Error(`Failed to parse API response: ${parseError.message}`);
+        }
         console.log("API Response:", data);
 
         if (data.reviews && Array.isArray(data.reviews)) {

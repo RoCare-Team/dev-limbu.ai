@@ -51,7 +51,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
-import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp, User } from 'lucide-react';
 import logoDash from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
@@ -500,6 +500,7 @@ export default function Sidebar({ children, user }) {
     },
     { text: 'GMB Health', icon: <Activity size={20} />, path: '/gmb-health' },
     { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
+    { text: 'User Profile', icon: <User size={20} />, path: '/profile' },
   ];
 
   // const getPlanConfig = (plan) => {
@@ -687,7 +688,7 @@ export default function Sidebar({ children, user }) {
 
       </List>
 
-      <Box sx={{ p: 2, mt: 'auto' }}>
+      {/* <Box sx={{ p: 2, mt: 'auto' }}>
         <Box
           sx={{
             p: 2.5,
@@ -726,7 +727,7 @@ export default function Sidebar({ children, user }) {
             Upgrade
           </Button>
         </Box>
-      </Box>
+      </Box> */}
 
       <Dialog
         open={plansModalOpen}

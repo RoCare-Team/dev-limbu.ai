@@ -39,6 +39,7 @@ import {
   Instagram,
   ThumbsUp,
   MessageCircle,
+  Wallet,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -71,7 +72,10 @@ const ScheduleModal = ({
   fetchFacebookPages,
   fetchInstagramAccounts,
   loadingFb,
-  loadingIg
+  loadingIg,
+  userWallet,
+  setShowInsufficientBalance,
+  setRequiredCoins
 }) => {
   const [date, setDate] = useState(() => {
     const now = new Date();
@@ -103,7 +107,16 @@ const ScheduleModal = ({
 
   if (!isOpen) return null;
 
+  // Calculate Total Cost
+  const totalCost = selectedGmb.length * 20;
+
   const handleConfirm = () => {
+    if (userWallet < totalCost) {
+      setRequiredCoins(totalCost);
+      setShowInsufficientBalance(true);
+      return;
+    }
+
     const scheduledTime = new Date(date);
     scheduledTime.setHours(parseInt(slot), 0, 0, 0);
     
@@ -386,18 +399,40 @@ const ScheduleModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm">
-            Cancel
-          </button>
-          <button 
-            onClick={handleConfirm} 
-            disabled={selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
-          >
-            <Calendar className="w-4 h-4" />
-            Schedule Post
-          </button>
+        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">Required Coins</span>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-lg font-bold ${userWallet < totalCost ? "text-red-600" : "text-blue-600"}`}>{totalCost}</span>
+              {userWallet < totalCost && (
+                <span className="text-xs text-red-500 font-medium">
+                  (Available: {userWallet})
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm">
+              Cancel
+            </button>
+            {userWallet < totalCost ? (
+              <Link href="/wallet">
+                <button className="px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all shadow-lg flex items-center gap-2 text-sm">
+                  <Wallet className="w-4 h-4" />
+                  Add Coins
+                </button>
+              </Link>
+            ) : (
+              <button 
+                onClick={handleConfirm} 
+                disabled={selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                <Calendar className="w-4 h-4" />
+                Schedule Post
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -3166,6 +3201,22 @@ export default function PostManagementPage() {
   }, []);
 
   useEffect(() => {
+    if (isScheduleModalOpen) {
+      const fetchWallet = async () => {
+        const userId = localStorage.getItem("userId");
+        if (userId) {
+          const data = await getUserWalletAction(userId);
+          if (data.wallet !== undefined) {
+            setUserWallet(data.wallet);
+            localStorage.setItem("walletBalance", data.wallet);
+          }
+        }
+      };
+      fetchWallet();
+    }
+  }, [isScheduleModalOpen]);
+
+  useEffect(() => {
     fetchPosts();
   }, []);
   const filteredPosts = activeTab === "total" ? posts : posts.filter((post) => post.status === activeTab);
@@ -3235,6 +3286,9 @@ export default function PostManagementPage() {
             fetchInstagramAccounts={fetchInstagramAccounts}
             loadingFb={loadingFbPages}
             loadingIg={loadingIgAccounts}
+            userWallet={userWallet}
+            setShowInsufficientBalance={setShowInsufficientBalance}
+            setRequiredCoins={setRequiredCoins}
           />
         )}
         {showScheduleConfirmation && (

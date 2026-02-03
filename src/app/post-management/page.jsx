@@ -128,17 +128,49 @@ const ScheduleModal = ({
     onClose();
   };
 
-  // Generate time slots (00:00 - 01:00, etc.)
+
+  // Recommended slots for GMB (Mon-Fri): 9-11 AM, 1-3 PM
+  // Instagram: 11 AM-1 PM, 6-9 PM
+  // Facebook: 1-3 PM, 6-8 PM
+  const recommendedGmb = [9, 10, 13, 14];
+  const recommendedInsta = [11, 12, 18, 19, 20];
+  const recommendedFb = [13, 14, 18, 19];
+
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
     const formatTime = (hour) => {
       const ampm = hour >= 12 ? 'PM' : 'AM';
       const h = hour % 12 || 12;
       return `${h}:00 ${ampm}`;
     };
-
     const label = `${formatTime(i)} - ${formatTime((i + 1) % 24)}`;
-    return { value: i, label };
+    const isGmb = recommendedGmb.includes(i);
+    const isInsta = recommendedInsta.includes(i);
+    const isFb = recommendedFb.includes(i);
+    return { value: i, label, isGmb, isInsta, isFb };
   });
+
+  // Posting Recommendations
+  const postingTips = [
+    {
+      platform: 'Google Business (GMB)',
+      best: [
+        'Weekdays (Mon–Fri):',
+        '⏰ 9:00 AM – 11:00 AM',
+        '⏰ 1:00 PM – 3:00 PM',
+        '⭐ Best day: Wednesday & Thursday',
+        'Avoid: Late night (after 10 PM), Early morning (before 7 AM)'
+      ]
+    },
+    {
+      platform: 'Instagram',
+      best: [
+        'Weekdays:',
+        '⏰ 11:00 AM – 1:00 PM',
+        '⏰ 6:00 PM – 9:00 PM',
+        '⭐ Best day: Tuesday, Wednesday & Friday'
+      ]
+    }
+  ];
 
   const isSlotDisabled = (slotValue) => {
     const now = new Date();
@@ -189,6 +221,7 @@ const ScheduleModal = ({
           {/* Left Panel: Date & Time */}
           <div className="w-full md:w-1/3 p-6 border-r border-gray-100 bg-gray-50/30 overflow-y-auto">
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">When</h3>
+            {/* ...existing code... */}
             <div className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -237,10 +270,9 @@ const ScheduleModal = ({
         "
       >
         {timeSlots
-          .filter((s) => !isSlotDisabled(s.value)) // ❌ disabled removed
+          .filter((s) => !isSlotDisabled(s.value))
           .map((s) => {
             const isSelected = parseInt(slot) === s.value;
-
             return (
               <div
                 key={s.value}
@@ -252,10 +284,24 @@ const ScheduleModal = ({
                   ${
                     isSelected
                       ? "bg-blue-50 text-blue-700 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
+                      : (s.isGmb || s.isInsta || s.isFb)
+                        ? "bg-yellow-50 text-yellow-700 font-semibold"
+                        : "text-gray-700 hover:bg-gray-100"
                   }`}
               >
-                <span>{s.label}</span>
+                <span className="flex items-center gap-1">
+                  {s.label}
+                  {s.isInsta && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-600 text-[10px] font-bold ml-1 shadow-sm border border-pink-200 animate-fade-in">
+                      Insta
+                    </span>
+                  )}
+                  {s.isFb && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold ml-1 shadow-sm border border-blue-200 animate-fade-in">
+                      FB
+                    </span>
+                  )}
+                </span>
                 {isSelected && (
                   <span className="w-2 h-2 rounded-full bg-blue-600"></span>
                 )}

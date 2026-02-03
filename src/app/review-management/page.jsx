@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const reviewsPerPage = 5;
 
   const { data: session, status } = useSession();
+  
   const router = useRouter();
 
   // Load reviews from localStorage on mount
@@ -84,6 +85,8 @@ export default function DashboardPage() {
       const locationDetails = JSON.parse(locationDetailsStr);
 
       const token = session?.accessToken;
+      console.log("tokentoken",token);
+      
       console.log("Session token exists:", !!token);
 
       if (!locationDetails || !Array.isArray(locationDetails) || locationDetails.length === 0) {
@@ -356,6 +359,7 @@ const handleReplyModeToggle = async () => {
       };
 
       const [, accountId, , locationId] = name?.split('/') || [];
+      const token = session?.accessToken;
 
       console.log("Sending AI Reply Request:", {
         accountId,
@@ -370,7 +374,7 @@ const handleReplyModeToggle = async () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          access_token: session?.accessToken,
+          access_token: token,
           acc_id: accountId,
           locationIds: locationId,
           Reviewer_Name: reviewer?.displayName || "Anonymous",
@@ -454,12 +458,13 @@ const handleReplyModeToggle = async () => {
         };
         
         const [, accountId, , locationId] = name?.split('/') || [];
+        const token = session?.accessToken;
         
         const res = await fetch("https://n8n.srv968758.hstgr.cloud/webhook/45f3a8db-b8d2-46ec-b692-4ec5fe90acc7", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            access_token: session?.accessToken,
+            access_token: token,
             acc_id: accountId,
             locationIds: locationId,
             Reviewer_Name: reviewer?.displayName || "Anonymous",

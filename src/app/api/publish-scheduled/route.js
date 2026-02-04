@@ -274,7 +274,106 @@ export async function GET() {
       let failed = false;
 
       /* -------------------------------------------------- 
-         1. PROCESS GMB
+         1. PROCESS FACEBOOK
+      -------------------------------------------------- */
+      if (hasFb) {
+        log(`Processing ${post.fbPages.length} Facebook pages`);
+        for (let i = 0; i < post.fbPages.length; i++) {
+          const page = post.fbPages[i];
+          if (page.isPosted) continue;
+
+          // Fetch fresh token from DB to ensure we have the latest permissions/validity
+          let tokenToUse = page.pageAccessToken;
+          try {
+            const freshPage = await FacebookPage.findOne({ pageId: page.pageId, userId: post.userId });
+            if (freshPage) {
+              // Option A: Generate a brand new page token using the saved user long-term token
+              if (freshPage.userAccessToken) {
+                tokenToUse = await getFreshPageToken(freshPage.userAccessToken, page.pageId);
+                log(`🔄 Generated fresh FB page token via User Token for ${page.pageId}`);
+              } 
+              // Option B: Fallback to the stored page token
+              else if (freshPage.pageAccessToken) {
+                tokenToUse = freshPage.pageAccessToken;
+                log(`🔄 Using stored fresh FB token for page ${page.pageId}`);
+              }
+            }
+          } catch (e) {
+            log(`⚠️ Failed to fetch fresh FB token: ${e.message}`);
+          }
+
+          const pagePayload = page.toObject ? page.toObject() : { ...page };
+          pagePayload.pageAccessToken = tokenToUse;
+
+          const result = await postToFacebook(pagePayload, log);
+          if (result.success) {
+            page.isPosted = true;
+            page.postedAt = new Date();
+            page.postId = result.id;
+            page.error = null;
+
+            // Update whenPosted for Facebook
+            if (!post.whenPosted) post.whenPosted = {};
+            post.whenPosted.facebook = "posted";
+            post.markModified('whenPosted');
+          } else {
+            page.error = result.error;
+            failed = true;
+          }
+        }
+        post.markModified('fbPages');
+      }
+
+      /* -------------------------------------------------- 
+         2. PROCESS INSTAGRAM
+      -------------------------------------------------- */
+      if (hasIg) {
+        log(`Processing ${post.igPages.length} Instagram accounts`);
+        for (let i = 0; i < post.igPages.length; i++) {
+          const account = post.igPages[i];
+          if (account.isPosted) continue;
+
+          // Attempt to refresh IG token (which is usually a linked FB page token)
+          let tokenToUse = account.accessToken;
+          try {
+            // Assuming account.pageId exists or we can find it via igUserId if you store it. 
+            // If not, we rely on the stored token.
+            // If you store the linked Page ID in your IG account object:
+            if (account.pageId) {
+               const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
+               if (freshPage && freshPage.userAccessToken) {
+                  tokenToUse = await getFreshPageToken(freshPage.userAccessToken, account.pageId);
+                  log(`🔄 Generated fresh IG (Page) token for ${account.pageId}`);
+               }
+            }
+          } catch (e) {
+             log(`⚠️ Failed to refresh IG token: ${e.message}`);
+          }
+
+          const accountPayload = account.toObject ? account.toObject() : { ...account };
+          accountPayload.accessToken = tokenToUse;
+
+          const result = await postToInstagram(accountPayload, log);
+          if (result.success) {
+            account.isPosted = true;
+            account.postedAt = new Date();
+            account.postId = result.id;
+            account.error = null;
+
+            // Update whenPosted for Instagram
+            if (!post.whenPosted) post.whenPosted = {};
+            post.whenPosted.instagram = "posted";
+            post.markModified('whenPosted');
+          } else {
+            account.error = result.error;
+            failed = true;
+          }
+        }
+        post.markModified('igPages');
+      }
+
+      /* -------------------------------------------------- 
+         3. PROCESS GMB
       -------------------------------------------------- */
       if (hasGmb) {
         const refreshToken = post.refreshToken;
@@ -361,105 +460,6 @@ export async function GET() {
             failed = true;
           }
         }
-      }
-
-      /* -------------------------------------------------- 
-         2. PROCESS FACEBOOK
-      -------------------------------------------------- */
-      if (hasFb) {
-        log(`Processing ${post.fbPages.length} Facebook pages`);
-        for (let i = 0; i < post.fbPages.length; i++) {
-          const page = post.fbPages[i];
-          if (page.isPosted) continue;
-
-          // Fetch fresh token from DB to ensure we have the latest permissions/validity
-          let tokenToUse = page.pageAccessToken;
-          try {
-            const freshPage = await FacebookPage.findOne({ pageId: page.pageId, userId: post.userId });
-            if (freshPage) {
-              // Option A: Generate a brand new page token using the saved user long-term token
-              if (freshPage.userAccessToken) {
-                tokenToUse = await getFreshPageToken(freshPage.userAccessToken, page.pageId);
-                log(`🔄 Generated fresh FB page token via User Token for ${page.pageId}`);
-              } 
-              // Option B: Fallback to the stored page token
-              else if (freshPage.pageAccessToken) {
-                tokenToUse = freshPage.pageAccessToken;
-                log(`🔄 Using stored fresh FB token for page ${page.pageId}`);
-              }
-            }
-          } catch (e) {
-            log(`⚠️ Failed to fetch fresh FB token: ${e.message}`);
-          }
-
-          const pagePayload = page.toObject ? page.toObject() : { ...page };
-          pagePayload.pageAccessToken = tokenToUse;
-
-          const result = await postToFacebook(pagePayload, log);
-          if (result.success) {
-            page.isPosted = true;
-            page.postedAt = new Date();
-            page.postId = result.id;
-            page.error = null;
-
-            // Update whenPosted for Facebook
-            if (!post.whenPosted) post.whenPosted = {};
-            post.whenPosted.facebook = "posted";
-            post.markModified('whenPosted');
-          } else {
-            page.error = result.error;
-            failed = true;
-          }
-        }
-        post.markModified('fbPages');
-      }
-
-      /* -------------------------------------------------- 
-         3. PROCESS INSTAGRAM
-      -------------------------------------------------- */
-      if (hasIg) {
-        log(`Processing ${post.igPages.length} Instagram accounts`);
-        for (let i = 0; i < post.igPages.length; i++) {
-          const account = post.igPages[i];
-          if (account.isPosted) continue;
-
-          // Attempt to refresh IG token (which is usually a linked FB page token)
-          let tokenToUse = account.accessToken;
-          try {
-            // Assuming account.pageId exists or we can find it via igUserId if you store it. 
-            // If not, we rely on the stored token.
-            // If you store the linked Page ID in your IG account object:
-            if (account.pageId) {
-               const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
-               if (freshPage && freshPage.userAccessToken) {
-                  tokenToUse = await getFreshPageToken(freshPage.userAccessToken, account.pageId);
-                  log(`🔄 Generated fresh IG (Page) token for ${account.pageId}`);
-               }
-            }
-          } catch (e) {
-             log(`⚠️ Failed to refresh IG token: ${e.message}`);
-          }
-
-          const accountPayload = account.toObject ? account.toObject() : { ...account };
-          accountPayload.accessToken = tokenToUse;
-
-          const result = await postToInstagram(accountPayload, log);
-          if (result.success) {
-            account.isPosted = true;
-            account.postedAt = new Date();
-            account.postId = result.id;
-            account.error = null;
-
-            // Update whenPosted for Instagram
-            if (!post.whenPosted) post.whenPosted = {};
-            post.whenPosted.instagram = "posted";
-            post.markModified('whenPosted');
-          } else {
-            account.error = result.error;
-            failed = true;
-          }
-        }
-        post.markModified('igPages');
       }
 
       // Determine final status

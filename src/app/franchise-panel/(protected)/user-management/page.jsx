@@ -27,7 +27,7 @@ export default function UserManagement() {
           (u) =>
             u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
             u.email?.toLowerCase().includes(search.toLowerCase()) ||
-            u.refer_code?.toLowerCase().includes(search.toLowerCase())
+            u.referCode?.toLowerCase().includes(search.toLowerCase())
         );
       }
 
@@ -102,7 +102,7 @@ export default function UserManagement() {
 
                   <td className="px-6 py-4">
                     <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                      {user.refer_code}
+                      {user.referCode}
                     </span>
                   </td>
 

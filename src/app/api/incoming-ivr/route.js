@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
-/* ------------------ */
-/* MongoDB Connection */
-/* ------------------ */
+/* ================= MONGODB CONNECTION ================= */
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -24,9 +22,7 @@ async function dbConnect() {
   return global.mongoose.conn;
 }
 
-/* ------------------ */
-/* Schema             */
-/* ------------------ */
+/* ================= SCHEMA ================= */
 
 const CallSchema = new mongoose.Schema(
   {
@@ -50,6 +46,7 @@ const CallSchema = new mongoose.Schema(
     billing_circle: Object,
     campaign_id: String,
     campaign_name: String,
+    whatsapp_sent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -58,27 +55,57 @@ const Call =
   mongoose.models.dialer_call_status_tata ||
   mongoose.model("dialer_call_status_tata", CallSchema);
 
-/* ------------------ */
-/* API Handler        */
-/* ------------------ */
+/* ================= AISENSY CONFIG ================= */
+
+const AISENSY_URL =
+  "https://backend.aisensy.com/campaign/t1/api/v2";
+
+const MEDIA = {
+  session4pm:
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
+  session530pm:
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.21+PM.jpeg",
+};
+
+const normalizeNumber = (num) => {
+  if (!num) return null;
+  let n = num.replace(/\D/g, "");
+  if (n.startsWith("0")) n = n.slice(1);
+  if (n.length === 10) n = "91" + n;
+  return n.length === 12 ? n : null;
+};
+
+async function sendWhatsApp(number, campaignName) {
+  const destination = normalizeNumber(number);
+  if (!destination) return false;
+
+  const res = await fetch(AISENSY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzZhOWFjMTNhNjFmMGQ3YjExYmQ1NCIsIm5hbWUiOiJMaW1idUFJIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY2NjhhNWZmYTNhMzhjNTJhMDVmZDYzOCIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NjUxOTAwNjB9.Xps-oRJ5QqgkCs5BaBuPd1KS9Yxnv4D2PCYB-g5zgr4",
+      campaignName,
+      destination,
+      userName: "LimbuAI",
+      templateParams: [],
+      source: "incoming-ivr",
+      media: {
+        url: MEDIA[campaignName],
+        filename: "session",
+      },
+    }),
+  });
+
+  const json = await res.json();
+  return json?.success === "true";
+}
+
+/* ================= POST WEBHOOK ================= */
 
 export async function POST(req) {
   try {
     await dbConnect();
-
     const body = await req.json();
-
-    /* ------------------ */
-    /* Normalize Payload  */
-    /* ------------------ */
-
-    const data = {
-      ...body,
-      customer_no_with_prefix:
-        body.customer_no_with_prefix ||
-        body.customer_number_with_prefix ||
-        body["customer_no_with_prefix "], // handle wrong key
-    };
 
     const {
       uuid = "",
@@ -94,14 +121,9 @@ export async function POST(req) {
       call_id = "",
       digit_pressed = "",
       billing_circle = "",
-      date = "",
       campaign_id = "",
       campaign_name = "",
-    } = data;
-
-    /* ------------------ */
-    /* Direction Logic    */
-    /* ------------------ */
+    } = body;
 
     let did_number = "";
     let customer_number = "";
@@ -117,19 +139,12 @@ export async function POST(req) {
       agent_mobile = answered_agent_number;
     }
 
-    /* ------------------ */
-    /* Date Handling      */
-    /* ------------------ */
-
     const now = new Date();
     const action_date_time = now.toISOString().slice(0, 19).replace("T", " ");
-    const call_date = date || now.toISOString().split("T")[0];
+    const call_date = now.toISOString().split("T")[0];
 
-    /* ------------------ */
-    /* Save to MongoDB    */
-    /* ------------------ */
-
-    await Call.create({
+    // ✅ SAVE DATA
+    const savedCall = await Call.create({
       mobile_no: customer_number,
       agent_mobile,
       answered_agent_number,
@@ -152,19 +167,27 @@ export async function POST(req) {
       campaign_name,
     });
 
+    // ✅ REAL-TIME WHATSAPP TRIGGER
+    if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
+      const sent = await sendWhatsApp(
+        customer_no_with_prefix,
+        "session4pm"
+      );
+
+      if (sent) {
+        savedCall.whatsapp_sent = true;
+        await savedCall.save();
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Call data stored successfully",
-      call_to_number,
+      message: "Call stored & WhatsApp triggered",
     });
   } catch (error) {
     console.error("Webhook Error:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-      },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
@@ -176,20 +199,31 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
 
-    // Filters
+    const search = searchParams.get("search");
     const mobile_no = searchParams.get("mobile_no");
     const digit_pressed = searchParams.get("digit_pressed");
     const campaign_name = searchParams.get("campaign_name");
     const direction = searchParams.get("direction");
-    const date = searchParams.get("date"); // yyyy-mm-dd
+
+    // ✅ DATE RANGE
+    const start_date = searchParams.get("start_date"); // yyyy-mm-dd
+    const end_date = searchParams.get("end_date");     // yyyy-mm-dd
 
     // Pagination
     const page = Number(searchParams.get("page")) || 1;
     const limit = Number(searchParams.get("limit")) || 20;
     const skip = (page - 1) * limit;
 
-    /* ---------------- Build Query ---------------- */
     const query = {};
+
+    /* ================= MAIN SEARCH (searches across multiple fields) ================= */
+    if (search) {
+      query.$or = [
+        { customer_no_with_prefix: { $regex: search, $options: "i" } },
+        { mobile_no: { $regex: search, $options: "i" } },
+        { campaign_name: { $regex: search, $options: "i" } },
+      ];
+    }
 
     if (mobile_no) {
       query.mobile_no = { $regex: mobile_no, $options: "i" };
@@ -210,12 +244,12 @@ export async function GET(req) {
       query.direction = direction;
     }
 
-    // ✅ DATE FILTER (REAL FIX)
-    if (date) {
-      const start = new Date(date);
+    /* ================= DATE RANGE FILTER (FIX) ================= */
+    if (start_date && end_date) {
+      const start = new Date(start_date);
       start.setHours(0, 0, 0, 0);
 
-      const end = new Date(date);
+      const end = new Date(end_date);
       end.setHours(23, 59, 59, 999);
 
       query.createdAt = {
@@ -224,7 +258,6 @@ export async function GET(req) {
       };
     }
 
-    /* ---------------- Data ---------------- */
     const total = await Call.countDocuments(query);
 
     const data = await Call.find(query)
@@ -232,20 +265,12 @@ export async function GET(req) {
       .skip(skip)
       .limit(limit);
 
-    /* ---------------- digit_pressed = 1 ---------------- */
-    const digit_pressed_1_data = await Call.find({
-      digit_pressed: "1",
-    })
-      .sort({ createdAt: -1 })
-      .limit(10);
-
     return NextResponse.json({
       success: true,
       total,
       page,
       limit,
       data,
-      digit_pressed_1_data,
     });
   } catch (error) {
     return NextResponse.json(

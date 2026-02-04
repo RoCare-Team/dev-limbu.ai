@@ -8,7 +8,7 @@ export async function GET() {
 
     // 🔥 Sirf wahi users jinke paas refer_code hai
     const users = await User.find({
-      refer_code: { $exists: true, $ne: "" },
+      referCode: { $exists: true, $ne: "" },
     }).select(
       "fullName email phone refer_code createdAt"
     );

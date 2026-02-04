@@ -15,7 +15,7 @@ const TEST_OTP = 1234;
 export async function POST(req) {
   try {
     await dbConnect();
-    const { phone, otp, name, email, refer_code } = await req.json();
+    const { phone, otp, name, email, referCode } = await req.json();
 
     if (!phone) {
       return NextResponse.json(
@@ -155,7 +155,7 @@ export async function POST(req) {
         fullName: name,
         email,
         phone,
-        refer_code,
+        referCode,
         wallet: 500,
         freeUsedCount: 2,
         assignedAgentId,

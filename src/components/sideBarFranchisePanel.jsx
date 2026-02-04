@@ -9,15 +9,23 @@ import {
   Settings,
   LogOut,
   Users2,
+  CircleAlert,
+  Package,
+  Server,
+  ArrowUpIcon,
 } from "lucide-react";
 
 const menu = [
   { name: "Dashboard", href: "/franchise-panel/dashboard", icon: LayoutDashboard },
   { name: "Leads", href: "/franchise-panel/leads", icon: FileText },
-  { name: "Users", href: "/franchise-panel/user-management", icon: Users },
   { name: "Users Recharge", href: "/franchise-panel/user-management/recharge", icon: Users2 },
   { name: "Team  Management", href: "/franchise-panel/team-management", icon: FileText },
+      { name: "Service Booking", icon: Server, href: "/admin/service-booking" },
+      { name: "Package Booking", icon: Package, href: "/admin/service-booking" },
+
   { name: "Settings", href: "/franchise-panel/settings", icon: Settings },
+      { name: "Visit Website", icon: ArrowUpIcon, href: "/" },
+
 ];
 
 export default function SidebarFranchisePanel() {

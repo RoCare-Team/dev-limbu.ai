@@ -24,7 +24,7 @@ leadStage: {
   default: "Active",
 },
 
-    refer_code : {type: String},
+    referCode : {type: String},
     assignedAgentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Admin",

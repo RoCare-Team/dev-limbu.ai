@@ -1891,10 +1891,38 @@ export default function PostManagementPage() {
       const userId = localStorage.getItem("userId");
       const allPostsData = await fetchAllPostsAction(userId);
 
-
-
       if (allPostsData.success) {
-        const allPosts = allPostsData.data;
+        let allPosts = allPostsData.data;
+
+        // Check for stuck processing posts (scheduled date passed by > 1 hour)
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        
+        const stuckPosts = allPosts.filter(post => 
+          post.status === 'processing' && 
+          post.scheduledDate && 
+          new Date(post.scheduledDate) < oneHourAgo
+        );
+
+        if (stuckPosts.length > 0) {
+             await Promise.all(stuckPosts.map(post => 
+                updatePostStatusAction({
+                    id: post._id,
+                    userId,
+                    status: 'failed',
+                    error: 'Processing timeout: Schedule time passed by 1 hour'
+                })
+             ));
+             
+             // Update local state to reflect changes immediately
+             allPosts = allPosts.map(post => {
+                 if (stuckPosts.find(sp => sp._id === post._id)) {
+                     return { ...post, status: 'failed', error: 'Processing timeout: Schedule time passed by 1 hour' };
+                 }
+                 return post;
+             });
+        }
+
         setPosts(allPosts);
 
         setAllCounts({
@@ -1919,6 +1947,7 @@ export default function PostManagementPage() {
       if (!isBackground) setIsLoadingPosts(false);
     }
   };
+  
 
   const fileToBase64 = (file) =>
     new Promise((resolve, reject) => {

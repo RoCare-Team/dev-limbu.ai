@@ -548,7 +548,10 @@ export default function LimbuAILanding() {
   const videoExamples = [
     // "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144310/WhatsApp_Video_2025-12-19_at_5.03.11_PM_n15vft.mp4",
     // "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144310/WhatsApp_Video_2025-12-19_at_5.02.42_PM_jcrka8.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
     // "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144309/WhatsApp_Video_2025-12-19_at_5.03.45_PM_ryvxhc.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",

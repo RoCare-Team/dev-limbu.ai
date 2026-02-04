@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   X,
   Phone,
+  Info,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -79,34 +80,32 @@ export default function DashboardPage() {
       console.log("Raw locationDetails from localStorage:", locationDetailsStr);
       
       if (!locationDetailsStr) {
-        throw new Error("No location details found in localStorage");
+        throw new Error("LOCATION_NOT_FOUND");
       }
 
       const locationDetails = JSON.parse(locationDetailsStr);
 
+      // Get the access token from session
       const token = session?.accessToken;
-      console.log("tokentoken",token);
-      
       console.log("Session token exists:", !!token);
 
       if (!locationDetails || !Array.isArray(locationDetails) || locationDetails.length === 0) {
-        throw new Error("Location details are empty or invalid");
+        throw new Error("LOCATION_EMPTY");
       }
 
       if (!token) {
-        throw new Error("Authentication token is missing");
+        throw new Error("AUTH_TOKEN_MISSING");
       }
 
       const acc_id = locationDetails[0]?.accountId;
       const locationIds = locationDetails.map((loc) => loc.locationId).filter(Boolean);
 
-
       if (!acc_id) {
-        throw new Error("Account ID is missing from location details");
+        throw new Error("ACCOUNT_ID_MISSING");
       }
 
       if (locationIds.length === 0) {
-        throw new Error("No valid location IDs found");
+        throw new Error("LOCATION_IDS_MISSING");
       }
 
       let allReviews = [];
@@ -125,7 +124,6 @@ export default function DashboardPage() {
           ...(pageToken && { pageToken })
         };
 
-
         const res = await fetch("https://n8n.srv968758.hstgr.cloud/webhook/b3f4dda4-aef1-4e87-a426-b503cee3612b", {
           method: "POST",
           headers: { 
@@ -134,11 +132,10 @@ export default function DashboardPage() {
           body: JSON.stringify(requestBody),
         });
 
-        
         if (!res.ok) {
           const errorText = await res.text();
           console.error("API Error Response:", errorText);
-          throw new Error(`API request failed with status ${res.status}: ${errorText}`);
+          throw new Error(`API_ERROR_${res.status}`);
         }
 
         let data;
@@ -152,8 +149,7 @@ export default function DashboardPage() {
           }
         } catch (parseError) {
           console.error("JSON Parse Error:", parseError);
-          console.error("Response was:", await res.text());
-          throw new Error(`Failed to parse API response: ${parseError.message}`);
+          throw new Error("API_PARSE_ERROR");
         }
         console.log("API Response:", data);
 
@@ -194,9 +190,7 @@ export default function DashboardPage() {
           for (const review of reviewsToAutoReply) {
             await handleAIReply(review, () => {}, () => {}, () => {}, true);
           }
-          // After attempting all auto-replies, refresh the list to show the new replies
           toast.success("Auto-reply process complete. Refreshing review list.", { icon: '🔄' });
-          // A short delay to allow backend processing before refetching
           setTimeout(() => fetchReviews(), 2000);
         }
       }
@@ -225,10 +219,29 @@ export default function DashboardPage() {
       console.error("Error fetching reviews:", err);
       setError(err.message);
       setHasLoadedReviews(true);
-      toast.error(`Error: ${err.message}`, {
-        duration: 5000,
-        position: TOAST_POSITION,
-      });
+      
+      // Don't show error toast in auto mode to avoid spamming
+      if (!isAutoMode) {
+        // User-friendly error messages
+        let userMessage = "Unable to load reviews. Please try again.";
+        
+        if (err.message === "LOCATION_NOT_FOUND" || err.message === "LOCATION_EMPTY") {
+          userMessage = "Please set up your business location first.";
+        } else if (err.message === "AUTH_TOKEN_MISSING") {
+          userMessage = "Session expired. Please log in again.";
+        } else if (err.message === "ACCOUNT_ID_MISSING" || err.message === "LOCATION_IDS_MISSING") {
+          userMessage = "Business information incomplete. Please reconfigure your location.";
+        } else if (err.message.startsWith("API_ERROR")) {
+          userMessage = "Server error. Please try again in a moment.";
+        } else if (err.message === "API_PARSE_ERROR") {
+          userMessage = "Received invalid data from server. Please try again.";
+        }
+        
+        toast.error(userMessage, {
+          duration: 5000,
+          position: TOAST_POSITION,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -247,12 +260,11 @@ export default function DashboardPage() {
     // Setup interval for auto-reply
     let intervalId;
     if (savedMode === "auto" && status === "authenticated") {
-      console.log("Setting up auto-reply interval (5 minutes for testing)");
-      // toast.success("Auto-reply mode is active. Checking for new reviews every 5 minutes for testing.", { icon: '🤖' });
+      console.log("Setting up auto-reply interval (5 minutes)");
       intervalId = setInterval(() => {
         console.log("Auto-reply interval triggered: fetching reviews.");
         fetchReviews(true);
-      }, 5 * 60 * 1000); // 5 minutes for testing
+      }, 5 * 60 * 1000); // 5 minutes
     }
 
     return () => {
@@ -281,56 +293,52 @@ export default function DashboardPage() {
     console.log("User plan detected:", normalizedPlan);
   }, []);
 
-  console.log("sessionsession",session);
-  
+  const handleReplyModeToggle = async () => {  
+    const newMode = replyMode === "manual" ? "auto" : "manual";
+    
+    // Get locations first to validate
+    const locationsStr = localStorage.getItem("locationDetails");
+    const locations = locationsStr ? JSON.parse(locationsStr) : null;
 
-const handleReplyModeToggle = async () => {  
-  const newMode = replyMode === "manual" ? "auto" : "manual";
-  
-  // Get locations first to validate
-  const locationsStr = localStorage.getItem("locationDetails");
-  const locations = locationsStr ? JSON.parse(locationsStr) : null;
-
-  if (!locations || locations.length === 0) {
-    toast.error("No business locations found. Cannot enable Auto Reply.");
-    return;
-  }
-
-  // Check if we have a refresh token to save (crucial for offline auto-reply)
-  const tokenToSave = session?.refreshToken;
-
-  // Optimistic update
-  setReplyMode(newMode);
-  localStorage.setItem("reviewReplyMode", newMode);
-
-  try {
-    const res = await fetch("/api/saveAutoReply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: session?.user?.id || session?.user?.email,
-        refreshToken: tokenToSave,
-        locations: locations,
-        autoReply: newMode === "auto"
-      })
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Failed to save settings");
+    if (!locations || locations.length === 0) {
+      toast.error("No business locations found. Cannot enable Auto Reply.");
+      return;
     }
 
-    toast.success(`Auto Reply is now ${newMode.toUpperCase()}`);
-  } catch (error) {
-    console.error("Auto reply save error:", error);
-    toast.error(error.message);
-    // Revert state on error
-    const revertedMode = newMode === "manual" ? "auto" : "manual";
-    setReplyMode(revertedMode);
-    localStorage.setItem("reviewReplyMode", revertedMode);
-  }
-};
+    // Check if we have a refresh token to save (crucial for offline auto-reply)
+    const tokenToSave = session?.refreshToken;
 
+    // Optimistic update
+    setReplyMode(newMode);
+    localStorage.setItem("reviewReplyMode", newMode);
+
+    try {
+      const res = await fetch("/api/saveAutoReply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: session?.user?.id || session?.user?.email,
+          refreshToken: tokenToSave,
+          locations: locations,
+          autoReply: newMode === "auto"
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save settings");
+      }
+
+      toast.success(`Auto Reply is now ${newMode.toUpperCase()}`);
+    } catch (error) {
+      console.error("Auto reply save error:", error);
+      toast.error(error.message);
+      // Revert state on error
+      const revertedMode = newMode === "manual" ? "auto" : "manual";
+      setReplyMode(revertedMode);
+      localStorage.setItem("reviewReplyMode", revertedMode);
+    }
+  };
 
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
   const startIdx = (currentPage - 1) * reviewsPerPage;
@@ -374,6 +382,10 @@ const handleReplyModeToggle = async () => {
       const [, accountId, , locationId] = name?.split('/') || [];
       const token = session?.accessToken;
 
+      if (!token) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
       console.log("Sending AI Reply Request:", {
         accountId,
         locationId,
@@ -411,20 +423,17 @@ const handleReplyModeToggle = async () => {
           if (setLocalReply) setLocalReply("");
           await fetchReviews();
         }
-        
-        // The refresh is now handled in the fetchReviews function after the loop completes
       } else {
-        toast.error("Failed to generate AI reply. Please try manual reply.", {
+        throw new Error("AI reply generation failed");
+      }
+    } catch (err) {
+      console.error("AI Reply Error:", err);
+      if (!isAuto) {
+        toast.error(err.message || "Error generating AI reply. Please try manual reply.", {
           duration: 3000,
           position: TOAST_POSITION,
         });
       }
-    } catch (err) {
-      console.error("AI Reply Error:", err);
-      toast.error("Error generating AI reply. Please try manual reply.", {
-        duration: 3000,
-        position: TOAST_POSITION,
-      });
     } finally {
       setGeneratingAI(false);
     }
@@ -456,7 +465,10 @@ const handleReplyModeToggle = async () => {
     const locationInfo = getLocationDetails();
 
     const handleManualReply = async () => {
-      if (!localReply.trim()) return;
+      if (!localReply.trim()) {
+        toast.error("Please enter a reply message");
+        return;
+      }
 
       try {
         setReplyingTo(review.reviewId);
@@ -472,6 +484,10 @@ const handleReplyModeToggle = async () => {
         
         const [, accountId, , locationId] = name?.split('/') || [];
         const token = session?.accessToken;
+        
+        if (!token) {
+          throw new Error("Session expired. Please log in again.");
+        }
         
         const res = await fetch("https://n8n.srv968758.hstgr.cloud/webhook/45f3a8db-b8d2-46ec-b692-4ec5fe90acc7", {
           method: "POST",
@@ -500,14 +516,11 @@ const handleReplyModeToggle = async () => {
           setShowReplyInput(false);
           setLocalReply("");
         } else {
-          toast.error("Failed to post reply. Please try again.", {
-            duration: 3000,
-            position: TOAST_POSITION,
-          });
+          throw new Error(data.message || "Failed to post reply");
         }
       } catch (err) {
         console.error(err);
-        toast.error("Error posting reply. Please try again.", {
+        toast.error(err.message || "Error posting reply. Please try again.", {
           duration: 3000,
           position: TOAST_POSITION,
         });
@@ -517,8 +530,8 @@ const handleReplyModeToggle = async () => {
     };
 
     return (
-     <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
-        {/* Location Info Banner - Enhanced Design */}
+      <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+        {/* Location Info Banner */}
         {locationInfo && (
           <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex items-start gap-2 sm:gap-3">
@@ -644,7 +657,10 @@ const handleReplyModeToggle = async () => {
   if (checkingPlan || status === "loading") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -663,7 +679,7 @@ const handleReplyModeToggle = async () => {
         </Link>
       </div>
       <Toaster />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-6 pt-6">
         <div className="mb-6 sm:mb-10">
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 text-center">Customer Reviews</h1>
           <p className="text-gray-600 text-sm sm:text-lg text-center px-2 sm:px-4">
@@ -675,57 +691,85 @@ const handleReplyModeToggle = async () => {
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center max-w-md">
               <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Fetching Your Reviews</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Reviews</h2>
               <p className="text-gray-600">
-                Please wait while we load all your customer reviews...
+                Please wait while we fetch your customer reviews...
               </p>
             </div>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border-2 border-red-200 p-8 rounded-2xl text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-red-900 mb-2">Error Loading Reviews</h3>
-            <p className="text-red-700 mb-6">{error}</p>
-            <div className="space-y-4">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 p-8 rounded-2xl text-center max-w-2xl mx-auto">
+            <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-md">
+              <Info className="w-10 h-10 text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">Unable to Load Reviews</h3>
+            <p className="text-gray-700 mb-6 text-lg">
+              {error === "LOCATION_NOT_FOUND" || error === "LOCATION_EMPTY" 
+                ? "Please set up your business location to view reviews."
+                : error === "AUTH_TOKEN_MISSING"
+                ? "Your session has expired. Please log in again."
+                : error === "ACCOUNT_ID_MISSING" || error === "LOCATION_IDS_MISSING"
+                ? "Business information is incomplete. Please reconfigure your location."
+                : error.startsWith("API_ERROR")
+                ? "We're having trouble connecting to the server. Please try again in a moment."
+                : error === "API_PARSE_ERROR"
+                ? "Received invalid data from the server. Please try again."
+                : "Something went wrong. Please try again."}
+            </p>
+            <div className="space-y-3">
               <button
-                onClick={fetchReviews}
+                onClick={() => fetchReviews()}
                 disabled={loading}
-                className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-all inline-flex items-center gap-2 disabled:opacity-50"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
               >
                 {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Trying Again...
+                  </>
                 ) : (
-                  <RefreshCw className="w-4 h-4" />
+                  <>
+                    <RefreshCw className="w-5 h-5" />
+                    Try Again
+                  </>
                 )}
-                Try Again
               </button>
-              <div className="text-sm text-gray-600 max-w-2xl mx-auto">
-                <p className="font-semibold mb-2">Troubleshooting tips:</p>
-                <ul className="text-left space-y-1">
-                  <li>• Check your browser console (F12) for detailed error logs</li>
-                  <li>• Verify that location details are saved in localStorage</li>
-                  <li>• Ensure you're properly authenticated with Google</li>
-                  <li>• Try logging out and logging back in</li>
-                </ul>
-              </div>
+              {(error === "LOCATION_NOT_FOUND" || error === "LOCATION_EMPTY") && (
+                <div>
+                  <Link href="/dashboard">
+                    <button className="bg-white text-blue-600 px-8 py-3 rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-all font-semibold text-lg">
+                      Go to Dashboard
+                    </button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         ) : reviews.length === 0 ? (
-          <div className="bg-white p-16 rounded-2xl shadow-sm text-center border border-gray-100">
-            <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg mb-2">No reviews found</p>
-            <p className="text-gray-400 text-sm mb-6">Your business doesn't have any reviews yet</p>
+          <div className="bg-white p-12 sm:p-16 rounded-2xl shadow-sm text-center border border-gray-100 max-w-2xl mx-auto">
+            <div className="bg-gradient-to-br from-blue-100 to-purple-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+              <MessageCircle className="w-12 h-12 text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">No Reviews Yet</h3>
+            <p className="text-gray-600 text-lg mb-6">
+              Your business doesn't have any customer reviews at the moment.
+            </p>
             <button
-              onClick={fetchReviews}
+              onClick={() => fetchReviews()}
               disabled={loading}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all inline-flex items-center gap-2 disabled:opacity-50"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
             >
               {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Checking...
+                </>
               ) : (
-                <RefreshCw className="w-4 h-4" />
+                <>
+                  <RefreshCw className="w-5 h-5" />
+                  Check for Reviews
+                </>
               )}
-              Check Again
             </button>
           </div>
         ) : (
@@ -759,7 +803,7 @@ const handleReplyModeToggle = async () => {
 
               {/* Refresh Button */}
               <button
-                onClick={fetchReviews}
+                onClick={() => fetchReviews()}
                 disabled={loading}
                 className="w-full sm:w-auto bg-white text-gray-700 px-5 py-3 rounded-xl border-2 border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 text-base font-semibold shadow-sm"
               >
@@ -771,12 +815,14 @@ const handleReplyModeToggle = async () => {
                 Refresh
               </button>
             </div>
-<p className="text-sm text-gray-700">
-  <span className="font-bold">Note:</span> Auto Reply <span className="font-semibold">ON</span> will auto-fetch reviews and send AI replies.
-  <br />
-  Auto Reply <span className="font-semibold">OFF</span> means you will reply manually.
-</p>
 
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-700">
+                <span className="font-bold">Note:</span> Auto Reply <span className="font-semibold">ON</span> will automatically fetch new reviews and send AI-generated replies.
+                <br />
+                Auto Reply <span className="font-semibold">OFF</span> means you will reply to reviews manually.
+              </p>
+            </div>
 
             <div className="text-right mb-8">
               <p className="text-gray-700 font-medium text-lg">
@@ -818,21 +864,21 @@ const handleReplyModeToggle = async () => {
       <SupportModal showToast={showToast} />
       
       {/* Floating WhatsApp Button */}
-<a
-  href="https://wa.me/919289344726"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
-  aria-label="Chat on WhatsApp"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 32 32"
-    className="w-9 h-9 fill-white"
-  >
-    <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
-  </svg>
-</a>
+      <a
+        href="https://wa.me/919289344726"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
+        aria-label="Chat on WhatsApp"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 32 32"
+          className="w-9 h-9 fill-white"
+        >
+          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
+        </svg>
+      </a>
     </div>
   );
 }

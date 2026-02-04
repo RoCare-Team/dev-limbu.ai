@@ -78,6 +78,7 @@ export default function AdminLayout({ children }) {
     { name: "Demo Leads", icon: <LeaderboardSharp />, href: "/admin/demoBook", key: "manageLeads" },
 
     { name: "Franchise Lead", icon: <LeaderboardSharp />, href: "/admin/franchise/franchise-lead", key: "manageFranchise" },
+    { name: "Tata Dialer Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead" },
 
     // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },
 

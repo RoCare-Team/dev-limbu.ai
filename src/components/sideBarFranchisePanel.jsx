@@ -20,7 +20,7 @@ const menu = [
   { name: "Settings", href: "/franchise-panel/settings", icon: Settings },
 ];
 
-export default function Sidebar() {
+export default function SidebarFranchisePanel() {
   const pathname = usePathname();
   const router = useRouter();
 

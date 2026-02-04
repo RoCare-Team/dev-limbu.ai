@@ -169,3 +169,88 @@ export async function POST(req) {
     );
   }
 }
+
+export async function GET(req) {
+  try {
+    await dbConnect();
+
+    const { searchParams } = new URL(req.url);
+
+    // Filters
+    const mobile_no = searchParams.get("mobile_no");
+    const digit_pressed = searchParams.get("digit_pressed");
+    const campaign_name = searchParams.get("campaign_name");
+    const direction = searchParams.get("direction");
+    const date = searchParams.get("date"); // yyyy-mm-dd
+
+    // Pagination
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 20;
+    const skip = (page - 1) * limit;
+
+    /* ---------------- Build Query ---------------- */
+    const query = {};
+
+    if (mobile_no) {
+      query.mobile_no = { $regex: mobile_no, $options: "i" };
+    }
+
+    if (digit_pressed) {
+      query.digit_pressed = digit_pressed;
+    }
+
+    if (campaign_name) {
+      query.campaign_name = {
+        $regex: campaign_name,
+        $options: "i",
+      };
+    }
+
+    if (direction) {
+      query.direction = direction;
+    }
+
+    // ✅ DATE FILTER (REAL FIX)
+    if (date) {
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+
+      query.createdAt = {
+        $gte: start,
+        $lte: end,
+      };
+    }
+
+    /* ---------------- Data ---------------- */
+    const total = await Call.countDocuments(query);
+
+    const data = await Call.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    /* ---------------- digit_pressed = 1 ---------------- */
+    const digit_pressed_1_data = await Call.find({
+      digit_pressed: "1",
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    return NextResponse.json({
+      success: true,
+      total,
+      page,
+      limit,
+      data,
+      digit_pressed_1_data,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}

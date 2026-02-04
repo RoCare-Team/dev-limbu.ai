@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "./page";
+import SidebarFranchisePanel from "@/components/sideBarFranchisePanel";
 
 export default function FranchiseLayout({ children }) {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function FranchiseLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
+      <SidebarFranchisePanel />
       <main className="flex-1 p-6 overflow-y-auto">
         {children}
       </main>

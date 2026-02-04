@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { sendOtpAction, verifyOtpAction, completeRegistrationAction } from "@/app/actions/authActions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Moon, Sun, Phone, Mail, User, Lock, CheckCircle, AlertCircle, MapPin, Star, TrendingUp, BarChart3, Users, Globe, Tag } from "lucide-react";
 
 export default function LoginPage() {
@@ -18,11 +18,18 @@ export default function LoginPage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const theme = localStorage.getItem("theme");
     setIsDark(theme === "dark");
-  }, []);
+    
+    // Auto-fill refer code from URL parameter
+    const referParam = searchParams.get("refer");
+    if (referParam) {
+      setReferCode(referParam);
+    }
+  }, [searchParams]);
 
   const toggleTheme = () => {
     const newTheme = !isDark;

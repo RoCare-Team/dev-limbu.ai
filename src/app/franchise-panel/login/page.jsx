@@ -19,7 +19,7 @@ export default function FranchiseLogin() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/franchise/login", {
+    const res = await fetch("/api/franchise-panel/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, referCode }),
@@ -39,7 +39,7 @@ export default function FranchiseLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black px-4">
+    <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <form
         onSubmit={handleSubmit}
         className="bg-white w-full max-w-md p-8 rounded-2xl shadow-xl space-y-5"

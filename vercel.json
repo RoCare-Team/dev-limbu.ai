@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/autoreply",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/30 * * * *"
     },
    {
   "path": "/api/publish-scheduled",

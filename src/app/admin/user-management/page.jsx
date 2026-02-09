@@ -310,17 +310,6 @@ const fetchUsers = async (silent = false) => {
   }, []);
 
 
-  const fetchConnectedBusinessUsers = async () => {
-    try {
-      const res = await fetch(`/api/connectedBussiness`);
-      const data = await res.json();
-      if (data.success && data.users) {
-        setConnectedBusinessUsers(data.users);
-      }
-    } catch (err) {
-      console.error("Error fetching connected business users:", err);
-    }
-  };
 
   const fetchAllUserPostsCounts = async () => {
     if (users.length === 0) return;
@@ -747,8 +736,88 @@ const handleLeadStageChange = async (userId, newStage) => {
     }
   };
 
+const sendRemarkWhatsApp = async (user, remarkType) => {
+  // 🔥 UI REMARK → BACKEND REMARK
+  const remarkMap = {
+    "Call Not Picked": "call_not_picked",
+    "Not Interested": "not_interested",
+    "Interested": "interested",
+    "Call Back Later": "call_back",
+    "Wrong Number": "wrong_number",
+    "Switch Off": "switch_off",
+    "Meeting Scheduled": "meeting_scheduled"
+  };
+
+  const remark = remarkMap[remarkType];
+  if (!remark) {
+    console.warn("Invalid remark:", remarkType);
+    return;
+  }
+
+  // 📞 Phone normalize
+  let phone = user.phone || user.mobileNumber;
+  if (phone) {
+    phone = String(phone).replace(/\D/g, "");
+    if (phone.length === 10) phone = "91" + phone;
+  }
+  if (!phone) {
+    console.warn("Phone number missing");
+    return;
+  }
+
+  let executiveMobile = user.assignedAgentId?.mobileNumber;
+
+  if (!executiveMobile && typeof window !== "undefined") {
+    const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
+    const email = (localStorage.getItem("email") || "").toLowerCase();
+
+    if (adminName.includes("aman") || email.includes("aman")) {
+      executiveMobile = "9311587741";
+    } else if (adminName.includes("moni") || email.includes("moni")) {
+      executiveMobile = "7065021272";
+    }
+  }
+
+  try {
+    const res = await fetch("/api/admin/whatsapp-send-remarks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destination: phone,
+        userName: user.fullName || "User",
+        enquiryId: user.userId,
+        executiveName: user.assignedAgentId?.fullName || "Executive",
+        executiveMobile: executiveMobile || "",
+        remark: remark,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      showToast("Success! Remark has been successfully sent to the user via WhatsApp.", "success");
+      return true;
+    } else {
+      showToast(`Failed: ${data.message}`, "error");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error sending WhatsApp:", error);
+    showToast("WhatsApp send failed", "error");
+    return false;
+  }
+};
+
+
   const handleAddRemark = async () => {
     if (!remarksModalUser || !remarksInput.trim()) return;
+
+    let messageSent = false;
+    const remarkType = defaultRemarks.find((r) => remarksInput.startsWith(r));
+
+    if (remarkType) {
+      messageSent = await sendRemarkWhatsApp(remarksModalUser, remarkType);
+    }
 
     try {
       const res = await fetch("/api/users", {
@@ -756,12 +825,14 @@ const handleLeadStageChange = async (userId, newStage) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: remarksModalUser.userId,
-          remark: remarksInput
+          remark: remarksInput,
+          messageSent,
         })
       });
       const data = await res.json();
       if (data.success) {
         setRemarksHistory(data.user.remarksHistory || []);
+
         setRemarksInput("");
         showToast("Remark added successfully", "success");
         fetchUsers();
@@ -1365,9 +1436,12 @@ const handleLeadStageChange = async (userId, newStage) => {
                           </div>
                           
                           {user.Remarks ? (
-                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all">
+                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
                               <span className="font-semibold text-gray-800 mr-1">Latest:</span>
-                              {user.Remarks}
+                              <span className="truncate">{user.Remarks}</span>
+                              {user.remarksHistory && user.remarksHistory.length > 0 && user.remarksHistory[user.remarksHistory.length - 1].messageSent && (
+                                <CheckCircle size={12} className="text-green-600 ml-1 flex-shrink-0" />
+                              )}
                             </div>
                           ) : (
                             <span className="text-[10px] text-gray-400 italic pl-1">Tap to add...</span>
@@ -1939,6 +2013,15 @@ const handleLeadStageChange = async (userId, newStage) => {
                   <p className="text-sm text-gray-800 leading-relaxed">
                     {r.text}
                   </p>
+
+                  {r.messageSent && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <CheckCircle size={12} className="text-green-500" />
+                      <span className="text-[10px] text-green-600 font-medium">
+                        Message Sent
+                      </span>
+                    </div>
+                  )}
 
                   {/* Timestamp */}
                   <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">

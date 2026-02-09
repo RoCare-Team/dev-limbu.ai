@@ -114,12 +114,13 @@ export default function TataDailerLeadPage() {
       return;
     }
 
-    const users = calls
-      .filter((c) => selected.includes(c._id))
-      .map((c) => ({
-        customer_no_with_prefix: c.customer_no_with_prefix,
-        mobile_no: c.mobile_no,
-      }));
+   const users = calls
+  .filter((c) => selected.includes(c._id))
+  .map((c) => ({
+    did_number: c.did_number,   // ✅ YE ADD KARNA HAI
+    mobile_no: c.mobile_no,
+  }));
+
 
     if (!users.length) {
       setResult({
@@ -585,7 +586,7 @@ export default function TataDailerLeadPage() {
                         />
                       </td>
                       <td className="p-4 font-medium text-gray-900">
-                        {c.customer_no_with_prefix}
+                        {c.did_number}
                       </td>
                       <td className="p-4 text-gray-700">{c.mobile_no}</td>
                       <td className="p-4">

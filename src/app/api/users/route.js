@@ -41,7 +41,7 @@ export async function POST(req) {
     await dbConnect();
     const body = await req.json();
 
-    // 1️⃣ Fetch ONLY active agents
+    // 1️⃣ Fetch ONLY active agents (stable order)
     const agents = await Admin.find({
       role: "agent",
       isActive: true,
@@ -56,21 +56,27 @@ export async function POST(req) {
       );
     }
 
-    // 2️⃣ Round robin key (ONE & ONLY)
+    // 2️⃣ ONE round-robin key (atomic + safe)
     const RR_KEY = "agentLeadRR";
 
-    // 🔥 Atomic increment (race-condition safe)
     const rr = await Setting.findOneAndUpdate(
       { key: RR_KEY },
       { $inc: { value: 1 } },
-      { upsert: true, new: true }
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
     );
 
-    // 3️⃣ Proper round robin index
-    const index = (rr.value - 1) % agents.length;
+    // 🛡️ Safety: ensure numeric value
+    const rrValue = Number(rr.value) || 1;
+
+    // 3️⃣ Proper round-robin index
+    const index = (rrValue - 1) % agents.length;
     const assignedAgent = agents[index];
 
-    // 4️⃣ Create lead
+    // 4️⃣ Create lead / user
     const user = await User.create({
       ...body,
       assignedAgentId: assignedAgent._id,
@@ -78,11 +84,12 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
+      message: "Agent assigned via round robin successfully",
       assignedAgent: {
         id: assignedAgent._id,
         name: assignedAgent.fullName,
       },
-      rrIndex: rr.value,
+      rrIndex: rrValue,
       totalAgents: agents.length,
       user,
     });
@@ -90,11 +97,12 @@ export async function POST(req) {
   } catch (error) {
     console.error("ROUND ROBIN FAILED:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error.message || "Server error" },
       { status: 500 }
     );
   }
 }
+
 
 
 
@@ -103,7 +111,7 @@ export async function PATCH(req) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { userId } = body;
+    const { userId, assignedAgentId } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -112,33 +120,9 @@ export async function PATCH(req) {
       );
     }
 
-    // 🔹 Fetch active agents
-    const agents = await User.find({
-      role: "agent",
-      isActive: true,
-    }).sort({ createdAt: 1, _id: 1 });
-
-    if (agents.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "No active agents available" },
-        { status: 400 }
-      );
-    }
-
-    // 🔄 Fetch Round Robin index
-    let rrSetting = await Setting.findOne({ key: "agentLeadRR" });
-    let rrIndex = rrSetting?.value || 0;
-
-    // 🎯 Select agent
-    const assignedAgent = agents[rrIndex % agents.length];
-
-    // 🔁 Update RR index
-    rrIndex++;
-
-    // ✅ Assign agent to user
     const updatedUser = await User.findOneAndUpdate(
       { userId },
-      { $set: { assignedAgentId: assignedAgent._id } },
+      { $set: { assignedAgentId: assignedAgentId || null } },
       { new: true }
     ).populate("assignedAgentId", "fullName email role mobileNumber");
 
@@ -149,32 +133,19 @@ export async function PATCH(req) {
       );
     }
 
-    // 💾 Save RR index
-    await Setting.findOneAndUpdate(
-      { key: "agentRRIndex" },
-      { value: rrIndex },
-      { upsert: true }
-    );
-
     return NextResponse.json({
       success: true,
-      message: "Agent assigned via round robin successfully",
-      assignedAgent: {
-        id: assignedAgent._id,
-        fullName: assignedAgent.fullName,
-        email: assignedAgent.email,
-      },
+      message: "Agent assigned successfully",
       user: updatedUser,
     });
   } catch (error) {
-    console.error("PATCH Round Robin Error:", error);
+    console.error("PATCH error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
   }
 }
-
 
 /* ============================================================
    GET → ROLE BASED USERS (ADMIN vs AGENT)

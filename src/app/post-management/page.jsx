@@ -1963,6 +1963,11 @@ export default function PostManagementPage() {
       previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
+    if (useAssetsFlow === "manual") {
+      await handleManualPost(selectedAssets);
+      return;
+    }
+
     // Validate keywords
     let processedKeywords = "";
     let hasKeywords = false;
@@ -1983,11 +1988,6 @@ export default function PostManagementPage() {
       return;
     }
     setKeywordError("");
-
-    if (useAssetsFlow === "manual") {
-      await handleManualPost(selectedAssets);
-      return;
-    }
 
     setLastUsedAssetsFlow(useAssetsFlow);
     if (useAssetsFlow) {
@@ -2020,7 +2020,7 @@ export default function PostManagementPage() {
         formData.append("folder", sigData.folder);
 
         const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          `https://api.cloudinary.com/v1_1/dsnuzit6o/image/upload`,
           {
             method: "POST",
             body: formData,

@@ -41,37 +41,36 @@ export async function POST(req) {
     await dbConnect();
     const body = await req.json();
 
-    // 1️⃣ Fetch active agents
+    // 1️⃣ Fetch ONLY active agents
     const agents = await Admin.find({
       role: "agent",
       isActive: true,
-    }).sort({ createdAt: 1 });
+    })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean();
 
-    console.log("Agents:", agents.map(a => a.fullName));
-
-    if (agents.length < 1) {
+    if (!agents.length) {
       return NextResponse.json(
         { success: false, message: "No active agents found" },
         { status: 400 }
       );
     }
 
-    // 2️⃣ Round robin key
-    const RR_KEY = "franchiseLeadRRIndex";
+    // 2️⃣ Round robin key (ONE & ONLY)
+    const RR_KEY = "agentLeadRR";
 
-    // 🔥 Atomic Update to prevent race conditions (Proper 1-1 distribution)
-    const updatedSetting = await Setting.findOneAndUpdate(
+    // 🔥 Atomic increment (race-condition safe)
+    const rr = await Setting.findOneAndUpdate(
       { key: RR_KEY },
       { $inc: { value: 1 } },
-      { new: true, upsert: true }
+      { upsert: true, new: true }
     );
 
-    const index = (updatedSetting.value || 1) - 1;
+    // 3️⃣ Proper round robin index
+    const index = (rr.value - 1) % agents.length;
+    const assignedAgent = agents[index];
 
-    // 3️⃣ Assign agent
-    const assignedAgent = agents[index % agents.length];
-
-    // 5️⃣ Create lead
+    // 4️⃣ Create lead
     const user = await User.create({
       ...body,
       assignedAgentId: assignedAgent._id,
@@ -83,6 +82,8 @@ export async function POST(req) {
         id: assignedAgent._id,
         name: assignedAgent.fullName,
       },
+      rrIndex: rr.value,
+      totalAgents: agents.length,
       user,
     });
 
@@ -94,6 +95,7 @@ export async function POST(req) {
     );
   }
 }
+
 
 
 /* ------------------ PATCH: ASSIGN AGENT ------------------ */
@@ -114,7 +116,7 @@ export async function PATCH(req) {
       { userId },
       { $set: { assignedAgentId: assignedAgentId || null } },
       { new: true }
-    ).populate("assignedAgentId", "fullName email role");
+    ).populate("assignedAgentId", "fullName email role mobileNumber");
 
     if (!updatedUser) {
       return NextResponse.json(
@@ -149,7 +151,7 @@ export async function GET(req) {
     const userId = searchParams.get("userId");
 
     if (userId) {
-      const user = await User.findOne({ userId }).populate("assignedAgentId", "fullName email role");
+      const user = await User.findOne({ userId }).populate("assignedAgentId", "fullName email role mobileNumber");
       if (!user) {
         return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
       }
@@ -255,7 +257,7 @@ export async function GET(req) {
 
     /* 3️⃣ Fetch users */
     const users = await User.find(query)
-      .populate("assignedAgentId", "fullName email role")
+      .populate("assignedAgentId", "fullName email role mobileNumber")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -292,6 +294,7 @@ export async function PUT(req) {
       paidPackage,
       planDuration,
       isServiceBooked,
+      planExpiry,
       leadStage, // ✅ shifted from userStatus
     } = body;
 

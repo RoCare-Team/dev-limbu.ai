@@ -31,6 +31,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 
@@ -477,8 +478,94 @@ export default function FranchiseLeadsPage() {
     "Meeting Scheduled"
   ];
 
+  const sendRemarkWhatsApp = async (lead, remarkType) => {
+    // 🔥 UI REMARK → BACKEND REMARK
+    const remarkMap = {
+      "Call Not Picked": "call_not_picked",
+      "Not Interested": "not_interested",
+      "Interested": "interested",
+      "Call Back Later": "call_back",
+      "Wrong Number": "wrong_number",
+      "Switch Off": "switch_off",
+      "Meeting Scheduled": "meeting_scheduled"
+    };
+
+    const remark = remarkMap[remarkType];
+    if (!remark) {
+      return false;
+    }
+
+    // 📞 Phone normalize
+    let phone = lead.phone_number;
+    if (phone) {
+      phone = String(phone).replace(/\D/g, "");
+      if (phone.length === 10) phone = "91" + phone;
+    }
+    if (!phone) {
+      toast.error("Phone number missing");
+      return false;
+    }
+
+  let executiveMobile = lead.assignedFranchiseAdmin?.mobileNumber;
+
+if (!executiveMobile && typeof window !== "undefined") {
+  const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
+  const email = (localStorage.getItem("email") || "").toLowerCase();
+
+  const adminMobileMap = {
+    omprakash: "9355105058",
+    karan: "9311203803",
+    gunjan: "7065178665",
+  };
+
+  const matchedAdmin = Object.keys(adminMobileMap).find(
+    key => adminName.includes(key) || email.includes(key)
+  );
+
+  if (matchedAdmin) {
+    executiveMobile = adminMobileMap[matchedAdmin];
+  }
+}
+
+
+    try {
+      const res = await fetch("/api/admin/whatsapp-send-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destination: phone,
+          userName: lead.full_name || "User",
+          enquiryId: lead.id,
+          executiveName: lead.assignedFranchiseAdmin?.fullName || "Executive",
+          executiveMobile: executiveMobile || "",
+          remark: remark,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Success! Remark has been successfully sent to the user via WhatsApp.");
+        return true;
+      } else {
+        toast.error(`Failed: ${data.message}`);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      toast.error("WhatsApp send failed");
+      return false;
+    }
+  };
+
   const handleRemarkSubmit = async () => {
     if (!newRemark.trim() || !remarkModalLead) return;
+
+    // Check and send WhatsApp message if applicable
+    const remarkType = quickRemarks.find((r) => newRemark.startsWith(r));
+    if (remarkType) {
+      await sendRemarkWhatsApp(remarkModalLead, remarkType);
+    }
 
     try {
       const res = await fetch(`/api/franchise-leads`, {
@@ -540,6 +627,7 @@ export default function FranchiseLeadsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
+      <Toaster position="top-right" />
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* HEADER */}

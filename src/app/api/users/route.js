@@ -103,7 +103,7 @@ export async function PATCH(req) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { userId, assignedAgentId } = body;
+    const { userId } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -112,9 +112,33 @@ export async function PATCH(req) {
       );
     }
 
+    // 🔹 Fetch active agents
+    const agents = await User.find({
+      role: "agent",
+      isActive: true,
+    }).sort({ createdAt: 1, _id: 1 });
+
+    if (agents.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No active agents available" },
+        { status: 400 }
+      );
+    }
+
+    // 🔄 Fetch Round Robin index
+    let rrSetting = await Setting.findOne({ key: "agentLeadRR" });
+    let rrIndex = rrSetting?.value || 0;
+
+    // 🎯 Select agent
+    const assignedAgent = agents[rrIndex % agents.length];
+
+    // 🔁 Update RR index
+    rrIndex++;
+
+    // ✅ Assign agent to user
     const updatedUser = await User.findOneAndUpdate(
       { userId },
-      { $set: { assignedAgentId: assignedAgentId || null } },
+      { $set: { assignedAgentId: assignedAgent._id } },
       { new: true }
     ).populate("assignedAgentId", "fullName email role mobileNumber");
 
@@ -125,19 +149,32 @@ export async function PATCH(req) {
       );
     }
 
+    // 💾 Save RR index
+    await Setting.findOneAndUpdate(
+      { key: "agentRRIndex" },
+      { value: rrIndex },
+      { upsert: true }
+    );
+
     return NextResponse.json({
       success: true,
-      message: "Agent assigned successfully",
+      message: "Agent assigned via round robin successfully",
+      assignedAgent: {
+        id: assignedAgent._id,
+        fullName: assignedAgent.fullName,
+        email: assignedAgent.email,
+      },
       user: updatedUser,
     });
   } catch (error) {
-    console.error("PATCH error:", error);
+    console.error("PATCH Round Robin Error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
   }
 }
+
 
 /* ============================================================
    GET → ROLE BASED USERS (ADMIN vs AGENT)

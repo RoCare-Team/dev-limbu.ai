@@ -1186,24 +1186,36 @@ const sendRemarkWhatsApp = async (user, remarkType) => {
         </div>
 
         {/* AGENT ASSIGNMENT SUMMARY */}
-        {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
-          <div className="flex flex-wrap gap-3 mb-6">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
-              <User className="w-3 h-3" />
-              <span>Unassigned: {agentStats["Unassigned"] || 0}</span>
-            </div>
-            {agents.map(agent => {
-              const count = agentStats[agent._id] || 0;
-              if (count === 0) return null;
-              return (
-                <div key={agent._id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}>
-                  <User className="w-3 h-3" />
-                  <span>{agent.fullName}: {count}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+       {/* AGENT ASSIGNMENT SUMMARY */}
+{(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
+  <div className="flex flex-wrap gap-3 mb-6">
+
+    {/* Unassigned */}
+    <div
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+    >
+      <User className="w-3 h-3" />
+      <span>Unassigned: {agentStats.unassigned || 0}</span>
+    </div>
+
+    {/* Assigned Agents */}
+    {agents.map(agent => {
+      const count = agentStats[agent._id.toString()] || 0;
+      if (count === 0) return null;
+
+      return (
+        <div
+          key={agent._id}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+        >
+          <User className="w-3 h-3" />
+          <span>{agent.fullName}: {count}</span>
+        </div>
+      );
+    })}
+  </div>
+)}
+
 
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">

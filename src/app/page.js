@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, MessageSquare, Calendar, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin, Phone } from 'lucide-react';
+import { Sparkles, MessageSquare, Calendar, ArrowRight, Star, TrendingUp, Shield, CheckCircle, PenTool, Clock, X, LogIn, Link2, LayoutGrid, Menu, ChevronRight, ChevronLeft, Gift, Video, Facebook, Instagram, Youtube, Linkedin, Phone, Download } from 'lucide-react';
 import LogoImage from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import Toast from '../components/Toast';
@@ -15,6 +15,84 @@ import MannubhaiLogo from "../../public/images/clients/mannubhai.webp";
 import RoCareIndiaLogo from "../../public/images/clients/ro-care-india.webp";
 import DoctorFresh from "../../public/images/clients/doctor-fresh.webp";
 
+// const MobileAppBanner = () => (
+// <section className="mt-10 px-4 sm:px-6 mb-4">
+// <div className="max-w-7xl mx-auto rounded-3xl bg-white shadow-xl overflow-hidden border border-slate-200">
+//         <div className="flex flex-col lg:flex-row items-center justify-between px-6 sm:px-10 py-10 gap-10">
+
+//           {/* LEFT CONTENT */}
+//           <div className="max-w-xl text-center lg:text-left">
+
+//             {/* Logo + Brand */}
+//             <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
+//               <Image src={LogoImage} alt="Limbu.ai" className="w-10 h-10" />
+//               <span className="text-lg font-semibold text-slate-700">
+//                 Limbu.ai
+//               </span>
+//             </div>
+
+//             <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 leading-tight">
+//               Manage Your Business the Smart Way
+//             </h2>
+
+//             <p className="mt-3 text-slate-600 text-base">
+//               Ek hi app se manage karein{" "}
+//               <span className="font-semibold text-slate-800">
+//                 Google Business Profile, Instagram aur Facebook
+//               </span>{" "}
+//               — posts, reviews, leads aur customer messages.
+//             </p>
+
+//             {/* FEATURES */}
+//             <div className="mt-5 space-y-2 text-slate-700 text-sm">
+//               <div className="flex items-center gap-2 justify-center lg:justify-start">
+//                 <CheckCircle className="w-4 h-4 text-green-600" />
+//                 Create & schedule social media posts easily
+//               </div>
+//               <div className="flex items-center gap-2 justify-center lg:justify-start">
+//                 <CheckCircle className="w-4 h-4 text-green-600" />
+//                 Manage Google reviews & customer chats
+//               </div>
+//               <div className="flex items-center gap-2 justify-center lg:justify-start">
+//                 <CheckCircle className="w-4 h-4 text-green-600" />
+//                 Simple dashboard – no technical skills required
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* RIGHT OFFER CARD */}
+//           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center max-w-sm w-full">
+//             <p className="text-sm text-slate-500">Limited Time Offer</p>
+
+//             <h3 className="text-3xl font-bold text-slate-800 mt-2">
+//               🎁 500 FREE Coins
+//             </h3>
+
+//             <p className="text-slate-600 text-sm mt-2">
+//               Download the Limbu.ai app and get bonus coins instantly
+//             </p>
+
+//             <a
+//               href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
+//               target="_blank"
+//               rel="noopener noreferrer"
+//               className="mt-5 inline-flex items-center justify-center gap-2 w-full bg-slate-900 text-white py-3 rounded-lg font-semibold hover:bg-slate-800 transition"
+//             >
+//               <Download className="w-5 h-5" />
+//               Download App Now
+//             </a>
+
+//             <img
+//               src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+//               alt="Get it on Google Play"
+//               className="h-12 mx-auto mt-4"
+//             />
+//           </div>
+
+//         </div>
+//       </div>
+//     </section>
+// );
 
 export default function LimbuAILanding() {
   const [scrollY, setScrollY] = useState(0);
@@ -55,7 +133,6 @@ export default function LimbuAILanding() {
   const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
   const [toast, setToast] = useState(null);
   const [demoBooked, setDemoBooked] = useState(false);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -124,10 +201,6 @@ export default function LimbuAILanding() {
       clearInterval(sliderInterval);
     };
   }, []);
-
-  const handleVideoEnd = () => {
-    setCurrentVideoIndex((prevIndex) => (prevIndex + 1) % videoExamples.length);
-  };
 
   const handleNavigation = (path) => {
     if (isLoggedIn) {
@@ -755,7 +828,6 @@ export default function LimbuAILanding() {
     {isSubmittingDemo ? "Submitting..." : "Submit Request"}
   </button>
 </form>
-
               </>
             )}
           </div>
@@ -931,20 +1003,14 @@ export default function LimbuAILanding() {
       )}
 
       {/* Hero Section */}
-      <section className="relative h-[80vh] md:h-screen w-full flex items-end md:items-center justify-center overflow-hidden">
-        <video
-          autoPlay
-          muted
-          playsInline
-          onEnded={handleVideoEnd}
-          key={currentVideoIndex}
-          className="absolute z-0 w-auto min-w-full min-h-full max-w-none transition-opacity duration-1000 ease-in-out"
-          style={{ opacity: 1 }}
-        >
-          <source src={videoExamples[currentVideoIndex]} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-        {/* This second video element is for preloading and smooth transition, but a simple opacity transition on one element is cleaner. */}
+      <section className="relative h-[80vh] md:h-screen w-full flex items-end md:items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
+        {/* Abstract Background Shapes */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-[30%] -left-[10%] w-[70%] h-[70%] rounded-full bg-blue-600/20 blur-[120px]"></div>
+          <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-purple-600/20 blur-[120px]"></div>
+          <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full bg-pink-600/20 blur-[120px]"></div>
+        </div>
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
         <div className="relative z-20 text-center max-w-4xl mx-auto px-4 sm:px-6 pb-20 md:pb-0">
           {/* Sliding Text Badge */}
@@ -1005,6 +1071,8 @@ export default function LimbuAILanding() {
               Watch Demo
             </button>
           </div>
+
+          {/* Mobile App Download */}
           
         </div>
       </section>
@@ -1025,7 +1093,6 @@ export default function LimbuAILanding() {
     </div>
     
     <div className="relative w-full overflow-hidden py-4">
-      {/* Logo Track */}
       <div className="flex gap-12 sm:gap-16 md:gap-20 lg:gap-24 animate-scroll-logos items-center w-max hover:[animation-play-state:paused]">
         {[...clientLogos, ...clientLogos, ...clientLogos].map((logo, idx) => (
           <div 
@@ -1047,6 +1114,9 @@ export default function LimbuAILanding() {
     </div>
   </div>
 </section>
+
+          {/* <MobileAppBanner /> */}
+
 
 
       
@@ -1780,39 +1850,70 @@ export default function LimbuAILanding() {
           <p className="text-xs sm:text-sm text-slate-500 mt-3 sm:mt-4 px-4">No credit card required. Full feature access. Cancel anytime.</p>
         </div>
       </section>
+                {/* <MobileAppBanner /> */}
+
 
       {/* Footer */}
       <footer className="relative bg-slate-900 text-white py-10 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
             {/* Logo Column */}
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4 cursor-pointer" onClick={() => handleNavigation('/dashboard')}>
-                <div className="w-7 sm:w-8 h-7 sm:h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/50 to-transparent"></div>
-                  <span className="text-lg sm:text-xl relative z-10">
-                                                    <Image src={LogoImage} alt="Limbu.ai Logo" className="w-6 h-6 sm:w-8 sm:h-8" />
+           {/* Logo Column */}
+<div className="col-span-2 md:col-span-1">
+  <div
+    className="flex items-center gap-2 mb-3 sm:mb-4 cursor-pointer"
+    onClick={() => handleNavigation('/dashboard')}
+  >
+    <div className="w-7 sm:w-8 h-7 sm:h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/50 to-transparent"></div>
+      <Image
+        src={LogoImage}
+        alt="Limbu.ai Logo"
+        className="w-6 h-6 sm:w-8 sm:h-8 relative z-10"
+      />
+    </div>
+    <span className="font-bold text-base sm:text-lg">limbu.ai</span>
+  </div>
 
-                  </span>
-                </div>
-                <span className="font-bold text-base sm:text-lg">limbu.ai</span>
-              </div>
-              <p className="text-slate-400 text-xs sm:text-sm">Limbu.ai is an AI marketing platform that automates Google Business Profile & Social Media activity</p>
-              <div className="flex gap-4 mt-4">
-                <a href="https://www.facebook.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
-                  <Facebook className="w-5 h-5" />
-                </a>
-                <a href="https://www.instagram.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a href="https://www.youtube.com/@limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
-                  <Youtube className="w-5 h-5" />
-                </a>
-                <a href="https://www.linkedin.com/company/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
-                  <Linkedin className="w-5 h-5" />
-                </a>
-              </div>
-            </div>
+  <p className="text-slate-400 text-xs sm:text-sm">
+    Limbu.ai is an AI marketing platform that automates Google Business Profile &
+    Social Media activity.
+  </p>
+
+  {/* Social Icons */}
+  <div className="flex gap-4 mt-4">
+    <a href="https://www.facebook.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+      <Facebook className="w-5 h-5" />
+    </a>
+    <a href="https://www.instagram.com/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+      <Instagram className="w-5 h-5" />
+    </a>
+    <a href="https://www.youtube.com/@limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+      <Youtube className="w-5 h-5" />
+    </a>
+    <a href="https://www.linkedin.com/company/limbuai" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">
+      <Linkedin className="w-5 h-5" />
+    </a>
+  </div>
+
+  {/* Mobile App Download */}
+  <div className="mt-5">
+    <p className="text-xs text-slate-500 mb-2">Get our Mobile App</p>
+    <a
+      href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-block hover:scale-105 transition-transform"
+    >
+      <img
+        src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+        alt="Get it on Google Play"
+        className="h-10"
+      />
+    </a>
+  </div>
+</div>
+
 
             {/* Links Columns */}
             {/* Links Columns */}

@@ -41,65 +41,59 @@ export async function POST(req) {
     await dbConnect();
     const body = await req.json();
 
+    if (!body || Object.keys(body).length === 0) {
+      return NextResponse.json({ success: false, error: "Missing body" }, { status: 400 });
+    }
+
     // 1️⃣ Fetch ONLY active agents (stable order)
-    const agents = await Admin.find({
-      role: "agent",
-      isActive: true,
-    })
+    const agents = await Admin.find({ role: "agent", isActive: true })
       .sort({ createdAt: 1, _id: 1 })
       .lean();
 
-    if (!agents.length) {
-      return NextResponse.json(
-        { success: false, message: "No active agents found" },
-        { status: 400 }
-      );
+    if (!agents || agents.length === 0) {
+      return NextResponse.json({ success: false, message: "No active agents found" }, { status: 400 });
     }
 
     // 2️⃣ ONE round-robin key (atomic + safe)
     const RR_KEY = "agentLeadRR";
 
+    // Use $setOnInsert to ensure a numeric value exists when upserting
     const rr = await Setting.findOneAndUpdate(
       { key: RR_KEY },
-      { $inc: { value: 1 } },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+      { $inc: { value: 1 }, $setOnInsert: { value: 0 } },
+      { upsert: true, new: true }
+    ).lean();
 
-    // 🛡️ Safety: ensure numeric value
-    const rrValue = Number(rr.value) || 1;
+    // Ensure we have a numeric rr value
+    let rrValue = parseInt(rr?.value, 10);
+    if (!Number.isFinite(rrValue) || rrValue < 1) rrValue = 1;
 
-    // 3️⃣ Proper round-robin index
+    // 3️⃣ Proper round-robin index (0-based)
     const index = (rrValue - 1) % agents.length;
     const assignedAgent = agents[index];
 
-    // 4️⃣ Create lead / user
-    const user = await User.create({
-      ...body,
-      assignedAgentId: assignedAgent._id,
-    });
+    if (!assignedAgent) {
+      console.error("ROUND ROBIN: assignedAgent missing", { rrValue, agentsLength: agents.length });
+      return NextResponse.json({ success: false, error: "Assignment failed" }, { status: 500 });
+    }
 
+    // 4️⃣ Create lead / user (attach agent id)
+    const createPayload = { ...body, assignedAgentId: assignedAgent._id };
+    const user = await User.create(createPayload);
+
+    // 5️⃣ Return concise result (avoid leaking internal details)
     return NextResponse.json({
       success: true,
       message: "Agent assigned via round robin successfully",
-      assignedAgent: {
-        id: assignedAgent._id,
-        name: assignedAgent.fullName,
-      },
+      assignedAgent: { id: assignedAgent._id, name: assignedAgent.fullName || assignedAgent.name },
       rrIndex: rrValue,
       totalAgents: agents.length,
       user,
     });
 
   } catch (error) {
-    console.error("ROUND ROBIN FAILED:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Server error" },
-      { status: 500 }
-    );
+    console.error("ROUND ROBIN FAILED:", error?.message || error);
+    return NextResponse.json({ success: false, error: error.message || "Server error" }, { status: 500 });
   }
 }
 

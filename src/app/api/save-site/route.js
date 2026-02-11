@@ -108,10 +108,18 @@ export async function POST(req) {
       isPublished: true,
     };
 
+    // Handle customDomain: set if present, unset if missing to avoid unique index issues
+    const updateOp = { $set: siteData };
+    if (body.customDomain) {
+      updateOp.$set.customDomain = body.customDomain.toLowerCase();
+    } else {
+      updateOp.$unset = { customDomain: 1 };
+    }
+
     // Save or update site
     const site = await Site.findOneAndUpdate(
       { slug: siteData.slug },
-      siteData,
+      updateOp,
       { upsert: true, new: true, runValidators: true }
     );
 

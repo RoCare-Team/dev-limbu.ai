@@ -45,8 +45,7 @@ export default function BuildWebsitePage() {
       // 1️⃣ Generate slug
       const slug = generateSlug(
         selectedLocation.title,
-        selectedLocation.locality,
-        selectedLocation.address
+        selectedLocation.locality
       );
 
       // 2️⃣ Fetch Business Data

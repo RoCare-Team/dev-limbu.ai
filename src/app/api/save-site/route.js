@@ -4,6 +4,66 @@ import Site from "@/models/Site";
 import { getServerSession } from "next-auth/next";
 
 /**
+ * GET /api/save-site?slug=...
+ * Check if a site with the given slug already exists
+ */
+export async function GET(req) {
+  try {
+    const session = await getServerSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    await dbConnect();
+
+    const { searchParams } = new URL(req.url);
+    const slug = searchParams.get("slug");
+
+    if (!slug) {
+      return NextResponse.json(
+        { error: "Missing slug parameter" },
+        { status: 400 }
+      );
+    }
+
+    const existingSite = await Site.findOne({ slug: slug.toLowerCase() }).lean();
+
+    if (!existingSite) {
+      return NextResponse.json({
+        success: true,
+        exists: false,
+        message: "No site found with this slug",
+      });
+    }
+
+    // Check if user owns this site
+    const isOwner = existingSite.userId === session.user.email;
+
+    return NextResponse.json({
+      success: true,
+      exists: true,
+      isOwner,
+      site: isOwner ? {
+        id: existingSite._id,
+        slug: existingSite.slug,
+        url: `https://${existingSite.slug}.limbu.ai`,
+        createdAt: existingSite.createdAt,
+        updatedAt: existingSite.updatedAt,
+      } : null,
+    });
+  } catch (error) {
+    console.error("Error checking site:", error);
+    return NextResponse.json(
+      { error: "Failed to check site. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * POST /api/save-site
  * Saves a generated website to the database
  * 
@@ -123,6 +183,9 @@ export async function POST(req) {
       { upsert: true, new: true, runValidators: true }
     );
 
+    // Check if this was a new creation or update
+    const isNewSite = !existingSite;
+
     if (!site) {
       return NextResponse.json(
         { error: "Failed to save site" },
@@ -133,6 +196,8 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: true,
+        isNew: isNewSite,
+        message: isNewSite ? "Site created successfully" : "Site updated successfully",
         site: {
           id: site._id,
           slug: site.slug,
@@ -141,7 +206,7 @@ export async function POST(req) {
           updatedAt: site.updatedAt,
         },
       },
-      { status: 201 }
+      { status: isNewSite ? 201 : 200 }
     );
   } catch (error) {
     console.error("Error saving site:", error);

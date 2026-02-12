@@ -42,61 +42,73 @@ export async function POST(req) {
     const body = await req.json();
 
     if (!body || Object.keys(body).length === 0) {
-      return NextResponse.json({ success: false, error: "Missing body" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing body" },
+        { status: 400 }
+      );
     }
 
-    // 1️⃣ Fetch ONLY active agents (stable order)
+    // 1️⃣ Fetch ONLY active agents
     const agents = await Admin.find({ role: "agent", isActive: true })
       .sort({ createdAt: 1, _id: 1 })
       .lean();
 
     if (!agents || agents.length === 0) {
-      return NextResponse.json({ success: false, message: "No active agents found" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "No active agents found" },
+        { status: 400 }
+      );
     }
 
-    // 2️⃣ ONE round-robin key (atomic + safe)
+    // 2️⃣ Round Robin Counter
     const RR_KEY = "agentLeadRR";
 
-    // Initialize counter to -1, so first increment = 0
-    const rr = await Setting.findOneAndUpdate(
-      { key: RR_KEY },
-      { 
-        $setOnInsert: { key: RR_KEY, value: -1 }, 
-        $inc: { value: 1 } 
-      },
-      { upsert: true, new: true }
-    ).lean();
+    let rrDoc = await Setting.findOne({ key: RR_KEY });
 
-    // Get the incremented value (0, 1, 2, 3...)
-    let rrValue = parseInt(rr?.value, 10);
+    if (!rrDoc) {
+      rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
+    } else {
+      rrDoc.value += 1;
+      await rrDoc.save();
+    }
+
+    // ✅ FIXED HERE
+    let rrValue = parseInt(rrDoc.value, 10);
     if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
-    // 3️⃣ Proper round-robin index (0-based)
+    // 3️⃣ Round robin index
     const index = rrValue % agents.length;
     const assignedAgent = agents[index];
 
     if (!assignedAgent) {
-      console.error("ROUND ROBIN: assignedAgent missing", { rrValue, agentsLength: agents.length });
-      return NextResponse.json({ success: false, error: "Assignment failed" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: "Assignment failed" },
+        { status: 500 }
+      );
     }
 
-    // 4️⃣ Create lead / user (attach agent id)
+    // 4️⃣ Create Lead
     const createPayload = { ...body, assignedAgentId: assignedAgent._id };
     const user = await User.create(createPayload);
 
-    // 5️⃣ Return concise result (avoid leaking internal details)
     return NextResponse.json({
       success: true,
       message: "Agent assigned via round robin successfully",
-      assignedAgent: { id: assignedAgent._id, name: assignedAgent.fullName || assignedAgent.name },
+      assignedAgent: {
+        id: assignedAgent._id,
+        name: assignedAgent.fullName || assignedAgent.name,
+      },
       rrIndex: rrValue,
       totalAgents: agents.length,
       user,
     });
 
   } catch (error) {
-    console.error("ROUND ROBIN FAILED:", error?.message || error);
-    return NextResponse.json({ success: false, error: error.message || "Server error" }, { status: 500 });
+    console.error("ROUND ROBIN FAILED:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -108,7 +120,7 @@ export async function PATCH(req) {
   try {
     await dbConnect();
     const body = await req.json();
-    let { userId, assignedAgentId } = body;
+    const { userId, assignedAgentId } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -117,23 +129,9 @@ export async function PATCH(req) {
       );
     }
 
-    // ✅ Properly handle assignedAgentId conversion
-    let updateValue = null;
-    if (assignedAgentId && assignedAgentId !== "") {
-      // Validate it's a valid MongoDB ObjectId
-      if (mongoose.Types.ObjectId.isValid(assignedAgentId)) {
-        updateValue = new mongoose.Types.ObjectId(assignedAgentId);
-      } else {
-        return NextResponse.json(
-          { success: false, error: "Invalid agent ID format" },
-          { status: 400 }
-        );
-      }
-    }
-
     const updatedUser = await User.findOneAndUpdate(
       { userId },
-      { $set: { assignedAgentId: updateValue } },
+      { $set: { assignedAgentId: assignedAgentId || null } },
       { new: true }
     ).populate("assignedAgentId", "fullName email role mobileNumber");
 

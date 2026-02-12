@@ -59,17 +59,7 @@ export async function GET() {
           continue;
         }
 
-        // Try to obtain an access token. We'll try-refresh on demand if n8n returns 401.
-        let accessToken = null;
-        try {
-          accessToken = await getFreshAccessToken(user.refreshToken);
-        } catch (err) {
-          console.error(`[CRON] Could not refresh access token initially for user ${userIdentifier}:`, err?.message || err);
-          // Mark autoReply disabled and continue to next user
-          await AutoReply.updateOne({ _id: user._id }, { autoReply: false, error: 'Initial token refresh failed. Disabled auto-reply.' });
-          console.log(`[CRON] Disabled auto-reply for user ${userIdentifier} due to initial token refresh failure.`);
-          continue;
-        }
+        const newAccessToken = await getFreshAccessToken(user.refreshToken);
 
         // Group locations by accountId to handle multiple accounts per user
         const locationsByAccount = user.locations.reduce((acc, location) => {
@@ -90,40 +80,27 @@ export async function GET() {
             console.log(`[CRON] Processing account ${acc_id} with ${locationIds.length} location(s) for user ${userIdentifier}.`);
             
             // 1) Fetch reviews from n8n for this account
-            let res = await fetch(
+            const res = await fetch(
               "https://n8n.srv968758.hstgr.cloud/webhook/b3f4dda4-aef1-4e87-a426-b503cee3612b",
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ acc_id, locationIds, access_token: accessToken }),
+                body: JSON.stringify({
+                  acc_id,
+                  locationIds,
+                  access_token: newAccessToken,
+                }),
               }
             );
-
-            // If unauthorized/forbidden, try refreshing token once and retry
-            if (res.status === 401 || res.status === 403) {
-              console.warn(`[CRON] Received ${res.status} when fetching reviews for user ${userIdentifier}, account ${acc_id}. Refreshing token and retrying.`);
-              try {
-                accessToken = await getFreshAccessToken(user.refreshToken);
-              } catch (err) {
-                console.error(`[CRON] Token refresh failed while handling auth error for user ${userIdentifier}:`, err?.message || err);
-                await AutoReply.updateOne({ _id: user._id }, { autoReply: false, error: 'Invalid refresh token. Disabled auto-reply.' });
-                console.log(`[CRON] Disabled auto-reply for user ${userIdentifier} due to token refresh failure.`);
-                break; // stop processing accounts for this user
-              }
-
-              res = await fetch(
-                "https://n8n.srv968758.hstgr.cloud/webhook/b3f4dda4-aef1-4e87-a426-b503cee3612b",
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ acc_id, locationIds, access_token: accessToken }),
-                }
-              );
-            }
 
             if (!res.ok) {
               const errorBody = await res.text();
               console.error(`[CRON] Failed to fetch reviews for user ${userIdentifier}, account ${acc_id}`, "status:", res.status, "body:", errorBody);
+              if (res.status === 401 || res.status === 403) {
+                await AutoReply.updateOne({ _id: user._id }, { autoReply: false, error: 'Invalid token for an account. Disabled auto-reply.' });
+                console.log(`[CRON] Disabled auto-reply for user ${userIdentifier} due to auth error on account ${acc_id}.`);
+                break; 
+              }
               continue;
             }
 
@@ -139,95 +116,26 @@ export async function GET() {
 
             // 3) Auto-reply for each pending review
             for (const r of pending) {
-                try {
+              try {
                 const [_, review_acc_id, , locationId] = r.name.split("/");
 
-                // POST reply, retry once on 401 or network error
-                let replyRes;
-                try {
-                  replyRes = await fetch(
-                    "https://n8n.srv968758.hstgr.cloud/webhook/59634515-0550-4cb5-9031-0d82bc0a303d",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        access_token: accessToken,
-                        acc_id: review_acc_id,
-                        locationIds: locationId,
-                        Reviewer_Name: r.reviewer?.displayName || "Customer",
-                        Star_Rating: r.starRating,
-                        Review_Content: r.comment,
-                        Review_ID: r.reviewId,
-                      }),
-                    }
-                  );
-                } catch (networkErr) {
-                  console.warn(`[CRON] Network error when sending reply for review ${r.reviewId}, retrying once`, networkErr?.message || networkErr);
-                  // retry once
-                  try {
-                    replyRes = await fetch(
-                      "https://n8n.srv968758.hstgr.cloud/webhook/59634515-0550-4cb5-9031-0d82bc0a303d",
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          access_token: accessToken,
-                          acc_id: review_acc_id,
-                          locationIds: locationId,
-                          Reviewer_Name: r.reviewer?.displayName || "Customer",
-                          Star_Rating: r.starRating,
-                          Review_Content: r.comment,
-                          Review_ID: r.reviewId,
-                        }),
-                      }
-                    );
-                  } catch (secondErr) {
-                    console.error(`[CRON] Second attempt failed for review ${r.reviewId}`, secondErr);
-                    continue;
+                await fetch(
+                  "https://n8n.srv968758.hstgr.cloud/webhook/59634515-0550-4cb5-9031-0d82bc0a303d",
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      access_token: newAccessToken,
+                      acc_id: review_acc_id,
+                      locationIds: locationId,
+                      Reviewer_Name: r.reviewer?.displayName || "Customer",
+                      Star_Rating: r.starRating,
+                      Review_Content: r.comment,
+                      Review_ID: r.reviewId,
+                    }),
                   }
-                }
-
-                // If unauthorized, try refreshing token and retry once
-                if (replyRes && (replyRes.status === 401 || replyRes.status === 403)) {
-                  console.warn(`[CRON] Reply webhook returned ${replyRes.status} for review ${r.reviewId}. Refreshing token and retrying.`);
-                  try {
-                    accessToken = await getFreshAccessToken(user.refreshToken);
-                  } catch (err) {
-                    console.error(`[CRON] Token refresh failed when replying to review ${r.reviewId} for user ${userIdentifier}:`, err?.message || err);
-                    await AutoReply.updateOne({ _id: user._id }, { autoReply: false, error: 'Invalid refresh token. Disabled auto-reply.' });
-                    console.log(`[CRON] Disabled auto-reply for user ${userIdentifier} due to token refresh failure while replying.`);
-                    break; // stop processing pending reviews for this account
-                  }
-
-                  try {
-                    replyRes = await fetch(
-                      "https://n8n.srv968758.hstgr.cloud/webhook/59634515-0550-4cb5-9031-0d82bc0a303d",
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          access_token: accessToken,
-                          acc_id: review_acc_id,
-                          locationIds: locationId,
-                          Reviewer_Name: r.reviewer?.displayName || "Customer",
-                          Star_Rating: r.starRating,
-                          Review_Content: r.comment,
-                          Review_ID: r.reviewId,
-                        }),
-                      }
-                    );
-                  } catch (finalErr) {
-                    console.error(`[CRON] Final attempt failed for review ${r.reviewId}`, finalErr);
-                    continue;
-                  }
-                }
-
-                if (replyRes && !replyRes.ok) {
-                  const bodyText = await replyRes.text().catch(() => "");
-                  console.error(`[CRON] Reply webhook responded with status ${replyRes.status} for review ${r.reviewId}`, bodyText);
-                } else {
-                  console.log(`[CRON] Sent review ${r.reviewId} for user ${userIdentifier} to auto-reply webhook.`);
-                }
+                );
+                console.log(`[CRON] Sent review ${r.reviewId} for user ${userIdentifier} to auto-reply webhook.`);
               } catch (err) {
                 console.error("[CRON] Error replying to review", r.reviewId, "user", userIdentifier, err);
               }

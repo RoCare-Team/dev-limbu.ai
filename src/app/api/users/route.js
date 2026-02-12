@@ -57,19 +57,22 @@ export async function POST(req) {
     // 2️⃣ ONE round-robin key (atomic + safe)
     const RR_KEY = "agentLeadRR";
 
-    // Use $setOnInsert to ensure a numeric value exists when upserting
+    // Initialize counter to -1, so first increment = 0
     const rr = await Setting.findOneAndUpdate(
       { key: RR_KEY },
-      { $inc: { value: 1 }, $setOnInsert: { value: 0 } },
+      { 
+        $setOnInsert: { key: RR_KEY, value: -1 }, 
+        $inc: { value: 1 } 
+      },
       { upsert: true, new: true }
     ).lean();
 
-    // Ensure we have a numeric rr value
+    // Get the incremented value (0, 1, 2, 3...)
     let rrValue = parseInt(rr?.value, 10);
-    if (!Number.isFinite(rrValue) || rrValue < 1) rrValue = 1;
+    if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
     // 3️⃣ Proper round-robin index (0-based)
-    const index = (rrValue - 1) % agents.length;
+    const index = rrValue % agents.length;
     const assignedAgent = agents[index];
 
     if (!assignedAgent) {
@@ -105,7 +108,7 @@ export async function PATCH(req) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { userId, assignedAgentId } = body;
+    let { userId, assignedAgentId } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -114,9 +117,23 @@ export async function PATCH(req) {
       );
     }
 
+    // ✅ Properly handle assignedAgentId conversion
+    let updateValue = null;
+    if (assignedAgentId && assignedAgentId !== "") {
+      // Validate it's a valid MongoDB ObjectId
+      if (mongoose.Types.ObjectId.isValid(assignedAgentId)) {
+        updateValue = new mongoose.Types.ObjectId(assignedAgentId);
+      } else {
+        return NextResponse.json(
+          { success: false, error: "Invalid agent ID format" },
+          { status: 400 }
+        );
+      }
+    }
+
     const updatedUser = await User.findOneAndUpdate(
       { userId },
-      { $set: { assignedAgentId: assignedAgentId || null } },
+      { $set: { assignedAgentId: updateValue } },
       { new: true }
     ).populate("assignedAgentId", "fullName email role mobileNumber");
 

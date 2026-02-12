@@ -489,6 +489,24 @@ export default function UserManagement() {
     return colors[Math.abs(hash) % colors.length];
   };
 
+  // ✅ Helper to safely get agent name from populated object or string ID
+  const getAgentName = (assignedAgentId) => {
+    if (!assignedAgentId) return "Unassigned";
+    
+    // If it's a populated object with fullName
+    if (typeof assignedAgentId === "object" && assignedAgentId?.fullName) {
+      return assignedAgentId.fullName;
+    }
+    
+    // If it's a string ID, try to find agent name in agents array
+    if (typeof assignedAgentId === "string") {
+      const agent = agents.find(a => a._id === assignedAgentId);
+      return agent?.fullName || "Unassigned";
+    }
+    
+    return "Unassigned";
+  };
+
   // When filters change, reset to the first page
   useEffect(() => {
     setCurrentPage(1);
@@ -866,6 +884,12 @@ export default function UserManagement() {
 
 
 
+  console.log("agentsagents", agents);
+  console.log("agentStatsagentStatsagentStats", agentStats);
+
+
+
+
 
 
 
@@ -1163,6 +1187,7 @@ export default function UserManagement() {
         {/* AGENT ASSIGNMENT SUMMARY */}
         {/* AGENT ASSIGNMENT SUMMARY */}
         {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
+
           <div className="flex flex-wrap gap-3 mb-6">
 
             {/* Unassigned */}
@@ -1364,7 +1389,7 @@ export default function UserManagement() {
                         {role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" ? (
                           <div
                             className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                              user?.assignedAgentId?.fullName || "Unassigned"
+                              getAgentName(user.assignedAgentId)
                             )}`}
                           >
                             <select
@@ -1376,9 +1401,10 @@ export default function UserManagement() {
           cursor-pointer
         "
                               value={
-                                typeof user.assignedAgentId === "object"
-                                  ? user.assignedAgentId?._id
-                                  : user.assignedAgentId || ""
+                                // ✅ Handle populated object, string ID, null, and undefined
+                                user.assignedAgentId?._id || 
+                                (typeof user.assignedAgentId === "string" && user.assignedAgentId) || 
+                                ""
                               }
                               onChange={(e) =>
                                 handleAssignChange(user.userId, e.target.value)
@@ -1400,10 +1426,10 @@ export default function UserManagement() {
                         ) : (
                           <span
                             className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                              user.assignedAgentId?.fullName || "Unassigned"
+                              getAgentName(user.assignedAgentId)
                             )}`}
                           >
-                            {user.assignedAgentId?.fullName || "Unassigned"}
+                            {getAgentName(user.assignedAgentId)}
                           </span>
                         )}
                       </td>
@@ -1442,9 +1468,9 @@ export default function UserManagement() {
                           onChange={(e) => handleLeadStageChange(user.userId, e.target.value)}
                           onClick={(e) => e.stopPropagation()}
                           className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${user.leadStage === "Active" ? "bg-green-50 text-green-700 border-green-200" :
-                              user.leadStage === "Follow Up" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                                user.leadStage === "Onboard" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                  "bg-gray-50 text-gray-700 border-gray-200"
+                            user.leadStage === "Follow Up" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                              user.leadStage === "Onboard" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-gray-50 text-gray-700 border-gray-200"
                             }`}
                         >
                           <option value="Active">Active</option>

@@ -25,6 +25,11 @@ const LeadSchema = new mongoose.Schema(
       default: "Active",
       enum: ["Active", "Follow Up", "Inactive", "Onboard"]
     },
+    lead_quality: {
+      type: String,
+      default: "Cold",
+      enum: ["Hot", "Warm", "Cold"]
+    },
 
     // ⭐ Assigned Admin
     assignedFranchiseAdminId: {
@@ -89,6 +94,7 @@ function formatLeadForResponse(leadDoc) {
     occupation: leadDoc.occupation,
     investment: leadDoc.investment,
     status: leadDoc.status,
+    lead_quality: leadDoc.lead_quality || "Cold",
     remarks: leadDoc.remarks || [],
     assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
   };
@@ -227,6 +233,7 @@ export async function GET(req) {
           createdTime: new Date(lead.created_time),
           source: "meta",
           status: "Active",
+          lead_quality: "Cold",
           remarks: [],
         };
 
@@ -357,6 +364,7 @@ export async function POST(req) {
         source: "manual",
         createdTime: new Date(),
         status: "Active",
+        lead_quality: body.lead_quality || "Cold",
         verified: false,
         remarks: [],
       });
@@ -386,7 +394,7 @@ export async function PATCH(req) {
     await dbConnect();
 
     const body = await req.json();
-    const { leadId, status, assignedFranchiseAdminId } = body;
+    const { leadId, status, assignedFranchiseAdminId, lead_quality } = body;
 
     if (!leadId) {
       return NextResponse.json(
@@ -406,6 +414,17 @@ export async function PATCH(req) {
         );
       }
       updateFields.status = status;
+    }
+
+    if (lead_quality) {
+      const validQualities = ["Hot", "Warm", "Cold"];
+      if (!validQualities.includes(lead_quality)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid lead quality value" },
+          { status: 400 }
+        );
+      }
+      updateFields.lead_quality = lead_quality;
     }
 
     if (assignedFranchiseAdminId !== undefined) {

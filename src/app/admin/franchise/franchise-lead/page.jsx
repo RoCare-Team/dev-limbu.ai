@@ -30,6 +30,10 @@ import {
   User,
   Plus,
   Trash2,
+  MessageCircle,
+  Flame,
+  Sun,
+  Snowflake,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Lottie from "lottie-react";
@@ -52,6 +56,34 @@ const STATUS_STEPS = [
   { label: "Onboard", color: "bg-green-100 text-green-700 border-green-200" },
 ];
 
+const LEAD_QUALITIES = [
+  {
+    label: "Hot🔥",
+    color: "bg-red-100 text-red-700 border-red-200",
+    icon: Flame,
+  },
+  {
+    label: "Warm☀️",
+    color: "bg-orange-100 text-orange-700 border-orange-200",
+    icon: Sun,
+  },
+  {
+    label: "Cold❄️",
+    color: "bg-blue-100 text-blue-700 border-blue-200",
+    icon: Snowflake,
+  },
+];
+
+const QUICK_REMARKS = [
+  "Call Not Picked",
+  "Not Interested",
+  "Interested",
+  "Call Back Later",
+  "Wrong Number",
+  "Switch Off",
+  "Meeting Scheduled"
+];
+
 /* ---------------- NORMALIZE LEAD ---------------- */
 const normalizeLead = (lead) => {
   const obj = {
@@ -59,7 +91,9 @@ const normalizeLead = (lead) => {
     created_time: lead.created_time,
     status: lead.status || "Active",
     remarks: lead.remarks || [],
+    lead_quality: lead.lead_quality || "Cold",
     assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
+    whatsapp_count: lead.whatsapp_count || 0,
     source: lead.source || "meta",
   };
 
@@ -82,6 +116,8 @@ export default function FranchiseLeadsPage() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [assigneeFilter, setAssigneeFilter] = useState("All");
+  const [remarkFilter, setRemarkFilter] = useState("All");
+  const [qualityFilter, setQualityFilter] = useState("All");
   const [dateRange, setDateRange] = useState("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -152,7 +188,7 @@ export default function FranchiseLeadsPage() {
     const userRole = localStorage.getItem("role");
     setRole(userRole);
 
-    if (userRole === "superFranchiseAdmin") {
+    if (userRole === "superFranchiseAdmin" || userRole === "superAdmin") {
       fetch("/api/admin/franchise-admins")
         .then((res) => res.json())
         .then((data) => {
@@ -256,8 +292,24 @@ export default function FranchiseLeadsPage() {
       }
     }
 
+    // Remark Filter
+    if (remarkFilter !== "All") {
+      if (remarkFilter === "Has Remarks") {
+        result = result.filter(lead => lead.remarks && lead.remarks.length > 0);
+      } else if (remarkFilter === "No Remarks") {
+        result = result.filter(lead => !lead.remarks || lead.remarks.length === 0);
+      } else {
+        result = result.filter(lead => lead.remarks?.some(r => r.text === remarkFilter));
+      }
+    }
+
+    // Quality Filter
+    if (qualityFilter !== "All") {
+      result = result.filter(lead => lead.lead_quality === qualityFilter);
+    }
+
     return result;
-  }, [dateFilteredLeads, search, statusFilter, assigneeFilter]);
+  }, [dateFilteredLeads, search, statusFilter, assigneeFilter, remarkFilter, qualityFilter]);
 
   /* ---------------- ADMIN COUNTS ---------------- */
   const adminCounts = useMemo(() => {
@@ -279,7 +331,7 @@ export default function FranchiseLeadsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, dateRange, customStartDate, customEndDate, assigneeFilter]);
+  }, [search, statusFilter, dateRange, customStartDate, customEndDate, assigneeFilter, remarkFilter, qualityFilter]);
 
   /* ---------------- STATS ---------------- */
   const stats = useMemo(() => {
@@ -325,6 +377,27 @@ export default function FranchiseLeadsPage() {
       }
     } catch (error) {
       console.error("Error updating status:", error);
+    }
+  };
+
+  /* ---------------- QUALITY CHANGE ---------------- */
+  const handleQualityChange = async (id, newQuality) => {
+    // Optimistic update
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === id ? { ...lead, lead_quality: newQuality } : lead
+      )
+    );
+
+    try {
+      await fetch(`/api/franchise-leads`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: id, lead_quality: newQuality })
+      });
+    } catch (error) {
+      console.error("Error updating quality:", error);
+      toast.error("Failed to update quality");
     }
   };
 
@@ -468,16 +541,6 @@ export default function FranchiseLeadsPage() {
   };
 
   /* ---------------- REMARKS HANDLING ---------------- */
-  const quickRemarks = [
-    "Call Not Picked",
-    "Not Interested",
-    "Interested",
-    "Call Back Later",
-    "Wrong Number",
-    "Switch Off",
-    "Meeting Scheduled"
-  ];
-
   const sendRemarkWhatsApp = async (lead, remarkType) => {
     // 🔥 UI REMARK → BACKEND REMARK
     const remarkMap = {
@@ -562,7 +625,7 @@ if (!executiveMobile && typeof window !== "undefined") {
     if (!newRemark.trim() || !remarkModalLead) return;
 
     // Check and send WhatsApp message if applicable
-    const remarkType = quickRemarks.find((r) => newRemark.startsWith(r));
+    const remarkType = QUICK_REMARKS.find((r) => newRemark.startsWith(r));
     if (remarkType) {
       await sendRemarkWhatsApp(remarkModalLead, remarkType);
     }
@@ -653,7 +716,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Export
               </button> */}
 
-              {role === "superFranchiseAdmin" && (
+              {(role === "superFranchiseAdmin" || role === "superAdmin") && (
                 <button
                   onClick={() => setShowAddLeadModal(true)}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm"
@@ -693,7 +756,7 @@ if (!executiveMobile && typeof window !== "undefined") {
               ))}
             </select>
 
-            {role === "superFranchiseAdmin" && (
+            {(role === "superFranchiseAdmin" || role === "superAdmin") && (
               <select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
@@ -706,6 +769,30 @@ if (!executiveMobile && typeof window !== "undefined") {
                 ))}
               </select>
             )}
+
+            <select
+              value={remarkFilter}
+              onChange={(e) => setRemarkFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="All">All Remarks</option>
+              <option value="Has Remarks">Has Remarks</option>
+              <option value="No Remarks">No Remarks</option>
+              {QUICK_REMARKS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+
+            <select
+              value={qualityFilter}
+              onChange={(e) => setQualityFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="All">All Qualities</option>
+              {LEAD_QUALITIES.map((q) => (
+                <option key={q.label} value={q.label}>{q.label}</option>
+              ))}
+            </select>
 
             <select
               value={dateRange}
@@ -737,11 +824,13 @@ if (!executiveMobile && typeof window !== "undefined") {
               </div>
             )}
 
-            {(search || statusFilter !== "All" || dateRange !== "all") && (
+            {(search || statusFilter !== "All" || dateRange !== "all" || remarkFilter !== "All" || qualityFilter !== "All") && (
               <button
                 onClick={() => {
                   setSearch("");
                   setStatusFilter("All");
+                  setRemarkFilter("All");
+                  setQualityFilter("All");
                   setAssigneeFilter("All");
                   setDateRange("all");
                   setCustomStartDate("");
@@ -785,7 +874,7 @@ if (!executiveMobile && typeof window !== "undefined") {
         </div>
         
         {/* ADMIN ASSIGNMENT SUMMARY (Only for Super Admin) */}
-        {role === "superFranchiseAdmin" && franchiseAdmins.length > 0 && (
+        {(role === "superFranchiseAdmin" || role === "superAdmin") && franchiseAdmins.length > 0 && (
           <div className="flex flex-wrap gap-3 pb-2">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
               <User className="w-3 h-3" />
@@ -819,7 +908,7 @@ if (!executiveMobile && typeof window !== "undefined") {
           </div>
 
         {/* BULK ACTIONS */}
-        {role === "superFranchiseAdmin" && selectedLeads.length > 0 && (
+        {(role === "superFranchiseAdmin" || role === "superAdmin") && selectedLeads.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
               <span className="font-semibold text-blue-800">{selectedLeads.length} leads selected</span>
@@ -848,6 +937,7 @@ if (!executiveMobile && typeof window !== "undefined") {
               >
                 {loading ? "Assigning..." : "Assign Leads"}
               </button>
+              {role === "superAdmin" && (
               <button
                 onClick={handleBulkDelete}
                 disabled={loading}
@@ -855,6 +945,7 @@ if (!executiveMobile && typeof window !== "undefined") {
               >
                 <Trash2 className="w-4 h-4" /> Delete Selected
               </button>
+              )}
             </div>
           </div>
         )}
@@ -865,7 +956,7 @@ if (!executiveMobile && typeof window !== "undefined") {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10 shadow-sm">
                   <tr>
-                    {role === "superFranchiseAdmin" && (
+                    {(role === "superFranchiseAdmin" || role === "superAdmin") && (
                       <th className="px-6 py-4 text-left">
                         <input 
                           type="checkbox" 
@@ -904,6 +995,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Contact
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                      WhatsApp
                     </th>
             
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
@@ -945,7 +1039,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                   ) : (
                     paginatedLeads.map((lead, idx) => (
                       <tr key={lead.id} className="hover:bg-blue-50/50 transition-colors">
-                        {role === "superFranchiseAdmin" && (
+                        {(role === "superFranchiseAdmin" || role === "superAdmin") && (
                           <td className="px-6 py-4 whitespace-nowrap">
                             <input 
                               type="checkbox" 
@@ -957,11 +1051,25 @@ if (!executiveMobile && typeof window !== "undefined") {
                         )}
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">{lead.full_name || "Unknown"}</div>
+                          <div className="mt-1">
+                            <select
+                              value={lead.lead_quality}
+                              onChange={(e) => handleQualityChange(lead.id, e.target.value)}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded border cursor-pointer focus:outline-none ${
+                                LEAD_QUALITIES.find(q => q.label === lead.lead_quality)?.color || "bg-gray-100 text-gray-600 border-gray-200"
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {LEAD_QUALITIES.map(q => (
+                                <option key={q.label} value={q.label}>{q.label}</option>
+                              ))}
+                            </select>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {lead.created_time ? new Date(lead.created_time).toLocaleDateString() : "-"}
+                            {lead.created_time ? new Date(lead.created_time).toLocaleString() : "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -991,7 +1099,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                               >
                                 <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                               </button>
-                              {role === "superFranchiseAdmin" && (
+                              {role === "superAdmin" && (
                                 <button
                                   onClick={() => handleDeleteLead(lead.id)}
                                   className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
@@ -1028,7 +1136,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                           </select>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {role === "superFranchiseAdmin" ? (
+                          {(role === "superFranchiseAdmin" || role === "superAdmin") ? (
                             <div className={`relative inline-block rounded-lg border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}>
                               <select
                                 className="appearance-none bg-transparent px-3 py-1.5 pr-8 rounded-lg text-xs font-bold focus:outline-none w-full max-w-[160px] cursor-pointer"
@@ -1061,6 +1169,23 @@ if (!executiveMobile && typeof window !== "undefined") {
                             <div className="flex items-center gap-1.5 text-sm text-gray-600">
                               <Mail className="w-3.5 h-3.5 text-gray-400" />
                               {lead.email || "-"}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="relative group cursor-pointer">
+                              <div className={`p-2 rounded-full ${lead.whatsapp_count > 0 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                                <MessageCircle className="w-5 h-5" />
+                              </div>
+                              {lead.whatsapp_count > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">
+                                  {lead.whatsapp_count}
+                                </span>
+                              )}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                {lead.whatsapp_count} Messages Sent
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1262,7 +1387,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 />
 
                 <div className="flex flex-wrap gap-2">
-                  {quickRemarks.map((remark) => (
+                  {QUICK_REMARKS.map((remark) => (
                     <button
                       key={remark}
                       onClick={() => setNewRemark(remark)}

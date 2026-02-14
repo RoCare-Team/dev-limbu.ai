@@ -2,6 +2,8 @@ import Admin from "@/models/Admin";
 import dbConnect from "@/lib/dbConnect";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+
 
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
@@ -97,10 +99,13 @@ export async function POST(req) {
       );
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+
     await Admin.create({
       fullName,
       email,
-      password,
+      password: hashedPassword,
       role,
       permissions: ROLE_PRESETS[role] || {},
       managerId: creator.id,

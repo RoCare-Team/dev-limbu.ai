@@ -152,9 +152,6 @@ export default function LimbuAILanding() {
     { name: "Client 5", src: LuckyDryLogo },
   ];
 
-  
-
-
   const now = new Date();
   const isAfter4PM = now.getHours() >= 16; // 4 PM
   const isSunday = now.getDay() === 0;
@@ -185,7 +182,9 @@ export default function LimbuAILanding() {
       }
     };
     window.addEventListener('keydown', handleEscape);
-    
+
+
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('keydown', handleEscape);
@@ -864,15 +863,6 @@ export default function LimbuAILanding() {
     </div>
   </div>
 )}
-
-
-
-
-
-
-
-
-
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">

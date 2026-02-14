@@ -1,86 +1,88 @@
 import { MongoClient } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
 
-export async function GET(req, { params }) {
+if (!uri) {
+  throw new Error("Please define MONGODB_URI in .env");
+}
+
+let client;
+let clientPromise;
+
+if (process.env.NODE_ENV === "development") {
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(uri);
+    global._mongoClientPromise = client.connect();
+  }
+  clientPromise = global._mongoClientPromise;
+} else {
+  client = new MongoClient(uri);
+  clientPromise = client.connect();
+}
+
+// ✅ Slug generator
+function createSlug(title = "", locality = "", address = "") {
+  return `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export async function GET(req, context) {
   try {
-    // Robust slug extraction
-    const urlParts = req.url.split("/");
-    const slug = decodeURIComponent(
-      urlParts[urlParts.length - 1].split("?")[0]
-    );
+    let slug = context?.params?.slug;
 
     if (!slug) {
-      return new Response(
-        JSON.stringify({ error: "Slug is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      const pathname = req.nextUrl.pathname;
+      slug = pathname.split("/").pop();
     }
 
-    console.log("🔍 Searching for slug:", slug);
+    slug = decodeURIComponent(slug || "").trim();
 
-    await client.connect();
+    if (!slug) {
+      return Response.json({ error: "Slug is required" }, { status: 400 });
+    }
+
+    console.log("🔍 Incoming slug:", slug);
+
+    const client = await clientPromise;
     const db = client.db("test");
     const collection = db.collection("adminbusinesses");
 
-    // Fetch all businesses
     const businesses = await collection.find({}).toArray();
-    console.log("Total businesses found:", businesses.length);
 
     let matchedListing = null;
     let matchedAccountName = "";
 
-    // Loop through businesses
     for (const business of businesses) {
       if (!Array.isArray(business.listings)) continue;
 
-      console.log(
-        `🔎 Checking business account: ${business.accountName || "Unknown"}`
-      );
-
       for (const listing of business.listings) {
-        // ---- CLEANED VALUES ----
-        const title = (listing.title || "").replace(/,+$/, "").trim();
-        const locality = (listing.storefrontAddress?.locality || "")
-          .replace(/,+$/, "")
-          .trim();
-        const address = (listing.storefrontAddress?.addressLines?.[0] || "")
-          .replace(/,+$/, "")
-          .trim();
+        const title = (listing.title || "").trim();
+        const locality =
+          listing.storefrontAddress?.locality?.trim() || "";
+        const address =
+          listing.storefrontAddress?.addressLines?.[0]?.trim() || "";
 
         if (!title) continue;
 
-        // ---- CATEGORIES ----
-        const primaryCategory =
-          listing.categories?.primaryCategory?.displayName || "";
+        const fullSlug = createSlug(title, locality, address);
+        const shortSlug = createSlug(title, locality);
 
-        const additionalCategories =
-          listing.categories?.additionalCategories?.map(
-            (cat) => cat.displayName
-          ) || [];
+        console.log(
+          `Compare → full: ${fullSlug} | short: ${shortSlug}`
+        );
 
-        // ---- SLUG CREATION ----
-        const listingSlug = `${title}${locality ? `-${locality}` : ""}${
-          address ? `-${address}` : ""
-        }`
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^a-z0-9-]/g, "")
-          .replace(/-+/g, "-")
-          .replace(/^-|-$/g, "");
-
-        console.log(`   Comparing: "${listingSlug}" === "${slug}"`);
-
-        // ---- MATCH FOUND ----
-        if (listingSlug === slug) {
-          matchedListing = {
-            ...listing,
-            _computed: {
-              primaryCategory,
-              additionalCategories,
-            },
-          };
+        // ✅ Strong matching logic
+        if (
+          slug === fullSlug ||
+          slug === shortSlug ||
+          fullSlug.startsWith(slug) ||
+          shortSlug.startsWith(slug)
+        ) {
+          matchedListing = listing;
           matchedAccountName = business.accountName || "";
           break;
         }
@@ -89,60 +91,43 @@ export async function GET(req, { params }) {
       if (matchedListing) break;
     }
 
-    // ---- NO MATCH ----
     if (!matchedListing) {
-      console.log("❌ No matching listing found for slug:", slug);
-      return new Response(
-        JSON.stringify({
-          error: "Business location not found",
-          message:
-            "This review link is invalid or the business location does not exist. Please scan the QR code again.",
-          slug,
-        }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
+      return Response.json(
+        { error: "Business location not found", slug },
+        { status: 404 }
       );
     }
 
-    // ---- FINAL RESPONSE ----
-    const responseData = {
+    return Response.json({
       title: matchedListing.title || "",
-      locality: matchedListing.storefrontAddress?.locality || "",
+      locality:
+        matchedListing.storefrontAddress?.locality || "",
       locationId: matchedListing.name || "",
-      placeId: matchedListing.metadata?.placeId || "",
-      newReviewUri: matchedListing.metadata?.newReviewUri || null,
+      placeId:
+        matchedListing.metadata?.placeId || "",
+      newReviewUri:
+        matchedListing.metadata?.newReviewUri || null,
       accountName: matchedAccountName,
-
-      // ADD-ON DATA
-      primaryCategory: matchedListing._computed?.primaryCategory || "",
+      primaryCategory:
+        matchedListing.categories?.primaryCategory
+          ?.displayName || "",
       additionalCategories:
-        matchedListing._computed?.additionalCategories || [],
-
+        matchedListing.categories?.additionalCategories?.map(
+          (cat) => cat.displayName
+        ) || [],
       websiteUri: matchedListing.websiteUri || null,
-      phoneNumbers: matchedListing.phoneNumbers || null,
-      storefrontAddress: matchedListing.storefrontAddress || null,
-    };
-
-    console.log("📤 Sending response:", JSON.stringify(responseData, null, 2));
-
-    return new Response(JSON.stringify(responseData), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+      phoneNumbers:
+        matchedListing.phoneNumbers || null,
+      storefrontAddress:
+        matchedListing.storefrontAddress || null,
     });
+
   } catch (error) {
-    console.error("❌ Review Page API Error:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal Server Error",
-        message:
-          "Something went wrong while fetching business data. Please try again later.",
-        details:
-          process.env.NODE_ENV === "development"
-            ? error.message
-            : undefined,
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+    console.error("❌ Review API Error:", error);
+
+    return Response.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }

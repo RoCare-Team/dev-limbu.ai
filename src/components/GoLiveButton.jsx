@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { generateSlug } from "../../utils/generateSlug";
+import { X } from "lucide-react";
 
 /**
  * GoLiveButton Component
@@ -17,12 +18,14 @@ import { generateSlug } from "../../utils/generateSlug";
  * - aiContent: AI-generated content object
  * - mediaImages: Array of image URLs
  * - onSuccess: Callback after successful publication
+ * - customSlug: Optional slug to override generation
  */
 export default function GoLiveButton({
   business,
   aiContent,
   mediaImages,
   onSuccess,
+  customSlug,
 }) {
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +41,7 @@ export default function GoLiveButton({
     );
   };
 
-  const slug = generateSlugFromBusiness();
+  const slug = customSlug || generateSlugFromBusiness();
   const siteUrl = `https://${slug}.limbu.ai`;
 
   const handleGoLive = async () => {
@@ -93,23 +96,10 @@ export default function GoLiveButton({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Slug Preview */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm font-medium text-gray-700 mb-2">
-          Your website will be published at:
-        </p>
-        <code className="block bg-white p-3 rounded border border-gray-200 text-blue-600 font-mono text-sm break-all">
-          {siteUrl}
-        </code>
-        <p className="text-xs text-gray-600 mt-2">
-          💡 Visit this URL after publishing to view your live website
-        </p>
-      </div>
-
+    <div className="w-full">
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2 flex gap-3">
           <span className="text-red-600 text-xl">⚠️</span>
           <div>
             <p className="font-medium text-red-900">Unable to Publish</p>
@@ -119,17 +109,9 @@ export default function GoLiveButton({
       )}
 
       {/* Success Message */}
-      {!error && !isLoading && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-700">
-            ✅ Your website is ready to be published
-          </p>
-        </div>
-      )}
-
       {/* Loading State */}
       {isLoading && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-2 flex items-center gap-3 justify-center">
           <div className="animate-spin">
             <svg
               className="w-5 h-5 text-blue-600"
@@ -151,21 +133,21 @@ export default function GoLiveButton({
               />
             </svg>
           </div>
-          <p className="text-blue-700 font-medium">
-            Publishing your website... This may take a few moments.
+          <p className="text-blue-700 text-sm font-medium">
+            Publishing...
           </p>
         </div>
       )}
 
       {/* Button Container */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-4">
+      <div className="flex flex-row gap-3 items-center">
         <button
           onClick={handleGoLive}
           disabled={isLoading || !business || !aiContent}
-          className={`flex-1 px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 ${
+          className={`flex-1 px-6 py-3 rounded-xl text-base font-bold shadow-lg transition-all duration-300 ${
             isLoading
               ? "bg-green-600 text-white cursor-wait opacity-80"
-              : "bg-green-600 text-white hover:bg-green-700 active:scale-95 cursor-pointer"
+              : "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-xl hover:scale-[1.02] active:scale-95 cursor-pointer"
           } disabled:opacity-50 disabled:cursor-not-allowed`}
           aria-busy={isLoading}
           aria-disabled={!business || !aiContent}
@@ -202,16 +184,26 @@ export default function GoLiveButton({
         <button
           onClick={() => setShowPreview(!showPreview)}
           disabled={isLoading}
-          className="px-6 py-4 border-2 border-gray-300 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition disabled:opacity-50"
+          className="px-4 py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 text-sm"
         >
-          {showPreview ? "✕ Close" : "👁️ Preview"}
+          {showPreview ? "Close" : "Details"}
         </button>
+      </div>
+
+      {/* Compact URL Preview */}
+      <div className="text-center mt-2">
+        <p className="text-xs text-gray-500">
+          Publishing to: <span className="font-mono font-medium text-blue-600">{slug}.limbu.ai</span>
+        </p>
       </div>
 
       {/* Slug Preview Details */}
       {showPreview && (
-        <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 space-y-4">
-          <h3 className="font-bold text-lg">Website Details</h3>
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white shadow-2xl border border-gray-200 rounded-2xl p-5 z-50 animate-in slide-in-from-bottom-5">
+          <div className="flex justify-between items-center mb-4 border-b pb-2">
+             <h3 className="font-bold text-lg text-gray-800">Publish Details</h3>
+             <button onClick={() => setShowPreview(false)} className="p-1 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
@@ -255,15 +247,12 @@ export default function GoLiveButton({
             ℹ️ Your website will be live immediately after publishing. You can
             update it anytime.
           </p>
+          
+          <p className="text-xs text-gray-400 mt-3">
+            By clicking "Go Live", you agree to publish this website publicly.
+          </p>
         </div>
       )}
-
-      {/* Terms & Conditions */}
-      <p className="text-xs text-gray-500">
-        By clicking "Go Live", you agree to publish this website to{" "}
-        <span className="font-semibold">{slug}.limbu.ai</span>. Your website
-        will be publicly accessible on the internet.
-      </p>
     </div>
   );
 }

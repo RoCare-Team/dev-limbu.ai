@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+
 /**
  * Middleware for handling dynamic subdomain routing
  * - Detects *.limbu.ai subdomains

@@ -1195,7 +1195,7 @@ export default function BuildWebsitePage() {
             business={business}
             aiContent={aiContent}
             mediaImages={mediaImages}
-            customSlug={currentSlug}
+              customSlug={currentSlug} // ✅ Ensures the slug generated here is used
             onSuccess={(site) => {
               console.log("Website published:", site);
               setIsEditing(false);

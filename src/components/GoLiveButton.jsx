@@ -41,8 +41,7 @@ export default function GoLiveButton({
     );
   };
 
-  const slug = customSlug || generateSlugFromBusiness();
-  const siteUrl = `https://${slug}.limbu.ai`;
+  const displaySlug = customSlug || generateSlugFromBusiness();
 
   const handleGoLive = async () => {
     if (!session) {
@@ -54,13 +53,15 @@ export default function GoLiveButton({
       setIsLoading(true);
       setError(null);
 
+      const slugToSend = customSlug || generateSlugFromBusiness();
+
       const response = await fetch("/api/save-site", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          slug,
+          slug: slugToSend,
           business,
           aiContent,
           mediaImages,
@@ -80,9 +81,13 @@ export default function GoLiveButton({
         onSuccess(data.site);
       }
 
+      // Use the slug from the server response to ensure we redirect to the actual saved URL
+      const finalSlug = data.site?.slug || slugToSend;
+      const finalSiteUrl = `https://${finalSlug}.limbu.ai`;
+
       // Show success message and redirect
       setTimeout(() => {
-        window.location.href = siteUrl;
+        window.location.href = finalSiteUrl;
       }, 1000);
 
     } catch (err) {
@@ -193,7 +198,7 @@ export default function GoLiveButton({
       {/* Compact URL Preview */}
       <div className="text-center mt-2">
         <p className="text-xs text-gray-500">
-          Publishing to: <span className="font-mono font-medium text-blue-600">{slug}.limbu.ai</span>
+          Publishing to: <span className="font-mono font-medium text-blue-600">{displaySlug}.limbu.ai</span>
         </p>
       </div>
 
@@ -219,7 +224,7 @@ export default function GoLiveButton({
             <div>
               <p className="text-sm text-gray-600 font-medium">Website URL</p>
               <code className="text-sm bg-white p-2 rounded border border-gray-200 text-blue-600 font-mono block break-all">
-                {slug}.limbu.ai
+                {displaySlug}.limbu.ai
               </code>
             </div>
 

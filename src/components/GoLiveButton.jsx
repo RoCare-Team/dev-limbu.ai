@@ -83,7 +83,16 @@ export default function GoLiveButton({
 
       // Use the slug from the server response to ensure we redirect to the actual saved URL
       const finalSlug = data.site?.slug || slugToSend;
-      const finalSiteUrl = `https://${finalSlug}.limbu.ai`;
+      
+      // Construct URL dynamically to support dev/prod environments
+      const protocol = window.location.protocol;
+      const host = window.location.host;
+      
+      const rootDomain = host.includes("localhost") 
+        ? "localhost:3000" 
+        : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai");
+        
+      const finalSiteUrl = `${protocol}//${finalSlug}.${rootDomain}`;
 
       // Show success message and redirect
       setTimeout(() => {

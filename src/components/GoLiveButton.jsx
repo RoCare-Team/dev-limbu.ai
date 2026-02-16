@@ -88,7 +88,10 @@ export default function GoLiveButton({
       const protocol = window.location.protocol;
       const host = window.location.host;
       
-      const rootDomain = host.includes("localhost") ? "localhost:3000" : "limbu.ai";
+      const rootDomain = host.includes("localhost") 
+        ? "localhost:3000" 
+        : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai");
+        
       const finalSiteUrl = `${protocol}//${finalSlug}.${rootDomain}`;
 
       // Show success message and redirect

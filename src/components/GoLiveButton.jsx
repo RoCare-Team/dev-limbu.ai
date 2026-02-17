@@ -84,6 +84,7 @@ export default function GoLiveButton({
       // Use the slug from the server response to ensure we redirect to the actual saved URL
       const finalSlug = data.site?.slug || slugToSend;
       
+      
       // Construct URL dynamically to support dev/prod environments
       const protocol = window.location.protocol;
       const host = window.location.host;

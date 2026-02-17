@@ -380,7 +380,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
           <button
             onClick={() => setActiveTab("ai")}
             className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
-              activeTab === "ai" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"
+              activeTab === "ai" ? "bg-white shadow text-dark" : "text-gray-500 hover:text-gray-700"
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -391,7 +391,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
           <button
             onClick={() => setActiveTab("manual")}
             className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
-              activeTab === "manual" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"
+              activeTab === "manual" ? "bg-white shadow text-blue-600" : "text-dark hover:text-gray-700"
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -405,15 +405,15 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
         <div className="space-y-2">
           {/* Prompt Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-700 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-500" />
+            <label className="text-xs font-semibold text-dark flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-dark" />
               What would you like to create?
             </label>
             <textarea
               placeholder="Describe your post idea..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all min-h-[40px] resize-none placeholder:text-gray-400"
+              className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all min-h-[40px] resize-none placeholder:text-gray-400"
               disabled={loading}
             />
             {suggestedKeywords.length > 0 && (
@@ -422,7 +422,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                   <button
                     key={index}
                     onClick={() => setPrompt(prev => `${prev} ${keyword}`.trim())}
-                    className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full hover:bg-blue-100 transition-colors"
+                    className="px-2.5 py-1 bg-blue-50 text-neutral-600 text-xs font-medium rounded-full hover:bg-blue-100 transition-colors"
                   >
                     {keyword}
                   </button>
@@ -434,7 +434,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
           {/* Business Name & Keywords */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="space-y-1 relative">
-              <label className="text-xs font-semibold text-gray-700">Business Name</label>
+              <label className="text-xs font-semibold text-dark">Business Name</label>
               <div className="relative">
               <input
                 type="text"
@@ -446,7 +446,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 }}
                 onFocus={() => setShowBusinessDropdown(true)}
                 onBlur={() => setTimeout(() => setShowBusinessDropdown(false), 200)}
-                className={`w-full p-2 pr-8 border ${businessNameError ? "border-red-500" : "border-gray-300"} rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none`}
+                className={`w-full p-2 pr-8 border ${businessNameError ? "border-red-500" : "border-gray-300"} rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none`}
                 placeholder="Enter business name"
               />
               <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -466,7 +466,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                         }}
                         className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer transition-colors flex items-center gap-2"
                       >
-                        <Building2 className="w-3 h-3 text-blue-400" />
+                        <Building2 className="w-3 h-3 text-dark" />
                         {name}
                       </div>
                     ))}
@@ -478,7 +478,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 <label className="text-xs font-semibold text-gray-700">Keywords</label>
                 <button
                   onClick={() => setShowKeywordModal(true)}
-                  className="text-[10px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-md transition-colors"
+                  className="text-[10px] font-medium text-dark hover:text-yellow-700 flex items-center gap-1 bg-neutral-300 px-2 py-0.5 rounded-md transition-colors"
                 >
                   <Sparkles className="w-3 h-3" />
                   Select from list
@@ -502,7 +502,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                     }}
                     onFocus={() => setShowKeywordDropdown(true)}
                     onBlur={() => setTimeout(() => setShowKeywordDropdown(false), 200)}
-                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none`}
+                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm  focus:ring-primary outline-none`}
                     placeholder={selectedKeywords.length > 0 ? "Add more keywords..." : "Enter & save keywords"}
                   />
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -510,7 +510,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 <button
                   onClick={() => handleAddKeyword(keywordInput.trim())}
                   disabled={!keywordInput.trim() || isSavingKeyword}
-                  className="px-4 h-full bg-blue-500 text-white font-semibold rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  className="px-4 h-full bg-dark text-primary font-semibold rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                   {isSavingKeyword ? <Loader2 className="w-4 h-4 animate-spin" /> : ""}
                   Add
@@ -572,8 +572,8 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
               {!logo ? (
                 <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition-all">
                   <div className="flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-600">Click to upload</span>
+                    <ImageIcon className="w-5 h-5 text-dark" />
+                    <span className="text-sm text-dark">Click to upload</span>
                   </div>
                   <input
                     type="file"
@@ -842,7 +842,13 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
           <button
             onClick={handleGenerateClick}
             disabled={loading || !prompt.trim()}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 font-semibold text-sm"
+           className="w-full flex items-center justify-center gap-2
+bg-primary
+text-dark px-6 py-3 rounded-lg
+hover:shadow-lg hover:scale-[1.02]
+transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+font-semibold text-sm"
+
           >
             {loading ? (
               <>
@@ -852,7 +858,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Generate Post
+                Generate Post 
               </>
             )}
           </button>
@@ -874,7 +880,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <UploadCloud className="w-8 h-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-500 font-medium">Click to upload image</p>
+                    <p className="text-sm text-dark font-medium">Click to upload image</p>
                   </div>
                   <input type="file" accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tiff,.ico,.heic,.heif,.avif" className="hidden" onChange={(e) => setManualImage(e.target.files[0])} />
                 </label>
@@ -903,7 +909,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
             <button
               onClick={handleManualSubmit}
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-primary  text-dark rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Create Post"}
             </button>
@@ -916,7 +922,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800 text-sm">Select Keywords</h3>
+              <h3 className="font-bold text-dark text-sm">Select Keywords</h3>
               <button onClick={() => setShowKeywordModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-all">
                 <X className="w-5 h-5" />
               </button>
@@ -928,7 +934,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 <input 
                   type="text" 
                   placeholder="Search keywords..." 
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
                   value={modalSearch}
                   onChange={e => setModalSearch(e.target.value)}
                 />
@@ -968,7 +974,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
               <span className="text-xs text-gray-500">{selectedKeywords.length} selected</span>
               <button 
                 onClick={() => setShowKeywordModal(false)} 
-                className="px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-all shadow-sm"
+                className="px-6 py-2 bg-primary text-dark text-sm font-semibold rounded-lg hover:bg-yellow-300 transition-all shadow-sm"
               >
                 Done
               </button>

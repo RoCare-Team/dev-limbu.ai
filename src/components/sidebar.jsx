@@ -614,13 +614,13 @@ export default function Sidebar({ children, user }) {
                     mx: 1.5,
                     borderRadius: '10px',
                     transition: 'all 0.2s ease-in-out',
-                    color: isActive ? '#6366f1' : '#475569',
+                    color: isActive ? '#1e1e22' : '#475569',
                     bgcolor: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
                     '&:hover': {
                       background:
                         isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(0, 0, 0, 0.04)',
                       transform: 'translateX(2px)',
-                      color: isActive ? '#6366f1' : '#1e293b',
+                      color: isActive ? '#111113' : '#1e293b',
                     },
                   }}
                 >
@@ -829,7 +829,7 @@ export default function Sidebar({ children, user }) {
                                     </Box>
                                   </Grid>
                                   <Grid item xs={6}>
-                                    <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                    <Box sx={{ p: 1.5, bgcolor: '#1170cf', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
                                       <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">CITATIONS</Typography>
                                       <Typography variant="h6" color="primary.main" fontWeight="bold">{plan.citations}</Typography>
                                     </Box>
@@ -1032,8 +1032,8 @@ export default function Sidebar({ children, user }) {
                 onClick={handleWalletClick}
                 sx={{
                   fontWeight: 600,
-                  background: 'linear-gradient(135deg, rgb(141, 112, 205) 0%, rgb(128, 128, 213) 100%)',
-                  color: 'white',
+                  background: '#ffd600',
+                  color: 'dark',
                   border: 'none',
                   cursor: 'pointer',
                   boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
@@ -1083,8 +1083,10 @@ export default function Sidebar({ children, user }) {
                     sx={{
                       width: { xs: 32, sm: 36 },
                       height: { xs: 32, sm: 36 },
-                      bgcolor: '#6577c8',
+                       color: 'dark',
+                      bgcolor: '#101010',
                       fontWeight: 600,
+                      color: '#ffd600',
                     }}
                   >
                     {userName ? userName.charAt(0).toUpperCase() : 'U'}
@@ -1124,7 +1126,7 @@ export default function Sidebar({ children, user }) {
               minWidth: 220,
               borderRadius: 2,
               overflow: 'visible',
-              filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.15))',
+              filter: 'drop-shadow(0px 2px 8px rgba(139, 6, 6, 0.15))',
             },
           }}
         >
@@ -1136,7 +1138,7 @@ export default function Sidebar({ children, user }) {
                 sx={{
                   width: 40,
                   height: 40,
-                  bgcolor: '#667eea',
+                  bgcolor: '#364dd1',
                   fontWeight: 600,
                 }}
               >

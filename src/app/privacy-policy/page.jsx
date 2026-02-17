@@ -22,7 +22,7 @@ export default function PolicyPage() {
         <span className="font-medium">Back</span>
       </button>
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-blue-600 mb-4 text-center">
+        <h1 className="text-3xl font-bold text-neutral-700 mb-4 text-center">
           Privacy Policy, Terms of Service & Refund Policy
         </h1>
 

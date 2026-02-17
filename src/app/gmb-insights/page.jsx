@@ -636,7 +636,7 @@ export default function GmbInsightsPage() {
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">GMB Insights</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">GMB Insights </h1>
           <p className="text-gray-600">
             Select a location to view detailed insights and analytics
           </p>

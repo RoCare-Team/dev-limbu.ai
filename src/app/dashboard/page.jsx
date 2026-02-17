@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
+
+
 import {
   MapPin,
   Phone,
@@ -41,7 +43,7 @@ import {
   SquareChartGantt,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import FirstPostModal from "../../components/FirstPostModal";
+// import FirstPostModal from "../../components/FirstPostModal";
 
 import Link from "next/link";
 import { fetchAllPostsAction } from "../actions/postActions";
@@ -61,7 +63,7 @@ import {
 } from 'recharts';
 import MetaConnectCard from "../../components/MetaConnectCard";
 import SocialConnectCard from "../../components/SocialConnectCard";
-import SupportModal from "@/components/SupportModal";
+import SupportModal from "../../components/SupportModal";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -426,7 +428,7 @@ function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, start
 
     {/* HEADER */}
     <div className="
-        bg-gradient-to-r from-blue-600 to-purple-600 text-white 
+        bg-gradient-to-r from-yellow-500 to-purple-600 text-white 
         px-4 sm:px-6 py-4 
         flex justify-between items-center 
         rounded-t-2xl 
@@ -842,8 +844,8 @@ function ConnectModal({ isOpen, onClose }) {
         </button>
 
         {/* Icon */}
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 mb-6">
-          <Rocket className="h-8 w-8 text-blue-600" />
+        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary mb-6">
+          <Rocket className="h-8 w-8 text-dark" />
         </div>
 
         {/* Content */}
@@ -859,7 +861,7 @@ function ConnectModal({ isOpen, onClose }) {
           {/* CTA Button */}
           <button
             onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold px-8 py-4 rounded-xl hover:opacity-95 transition-opacity text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+            className="w-full bg-primary text-dark font-semibold px-8 py-4 rounded-xl hover:opacity-95 transition-opacity text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
           >
             <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512" fill="currentColor"><path d="M488 261.8C488 403.3 391.1 504 248 504C110.8 504 0 393.2 0 256S110.8 8 248 8c66.9 0 122.4 24.5 165.2 64.9l-66.8 64.9C318.6 109.9 285.1 96 248 96C150.6 96 72 174.6 72 272s78.6 176 176 176c90.1 0 148.4-51.8 160.3-124.6H248v-99.6h240C487.3 232.8 488 247.5 488 261.8z" /></svg>
             Connect Now with Bussiness
@@ -943,7 +945,7 @@ const navItems = [
   // },
   {
     href: "/gmb-insights",
-    icon: <SquareChartGantt className="h-6 w-6" />,
+    icon: <SquareChartGantt className="h-6 w-6 " />,
     label: "GMB Insights",
     isFree: true,
   },
@@ -978,13 +980,18 @@ const navItems = [
   {
     href: "/post-management",
     icon: <PlusSquare className="h-6 w-6" />,
-    label: "Create & Publish Post",
+    label: (
+  <>
+    Create & Publish <br />
+    Post
+  </>
+),
   },
 
 
   {
     href: "/wallet",
-    icon: <Wallet className="h-6 w-6" />,
+    icon: <Wallet className="h-6 w-6 "  />,
     label: "Wallet Recharge",
   },
 
@@ -992,10 +999,111 @@ const navItems = [
 ];
 
 
+// const NavLinks = ({ isAuthenticated }) => {
+//   return (
+//     <div className="w-full px-2 py-2 overflow-x-auto border-2 border-black">
+//       <div className="flex items-center gap-8 justify-center border-2 border-yellow ">
+//         {navItems.map((item) => {
+//           const isPublic =
+//             item.href === "/post-management" || item.href === "/wallet";
+
+//           const isEnabled = isAuthenticated || isPublic;
+//           const isKeywordPlanner = item.label === "Keyword Planner";
+
+//           const FeatureIcon = (
+//             <div
+//               className={`
+//                 relative
+//                 flex flex-col items-center
+//                 p-2
+//                 min-w-[80px]
+//                 cursor-pointer
+//                 transition-all
+//                 ${pathname === item.href && isAuthenticated ? "scale-200" : ""}
+//               `}
+//               onClick={
+//                 !isEnabled
+//                   ? () => signIn("google", { callbackUrl: item.href })
+//                   : undefined
+//               }
+//             >
+//               {/* FREE badge */}
+//               {item.isFree && (
+//                 <span className="absolute -top-2 -right-2 bg-black text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
+//                   FREE
+//                 </span>
+//               )}
+
+//               {/* Icon */}
+//               <div
+//                 className={`
+//                  p-3
+//         rounded-xl sm:p-3
+//                   rounded-xl
+//                   transition
+//                   ${
+//                     pathname === item.href && isAuthenticated
+//                       ? "bg-yellow-400 text-white"
+//                       : "bg-yellow-200 text-black"
+//                   }
+//                 `}
+//               >
+//                 {React.cloneElement(item.icon, { className: "h-5 w-5" })}
+
+//                 {/* Verified by Google */}
+//                 {isKeywordPlanner && (
+//                   <span
+//                     className="
+//                       absolute
+//                       -bottom-3
+//                       left-1/2 -translate-x-1/2
+//                       flex items-center gap-1
+//                       bg-white border border-gray-200
+//                       px-2 py-[2px]
+//                       rounded-full
+//                       shadow-sm
+//                        w-[80px] 
+//                       text-[7px]
+//                       text-gray-600
+//                       whitespace-nowrap
+//                     "
+//                   >
+//                     <span>Verified by</span>
+//                     <img
+//                       src="https://1000logos.net/wp-content/uploads/2021/05/Google-logo.png"
+//                       alt="Google"
+//                       className="h-2.5 w-auto"
+//                     />
+//                   </span>
+//                 )}
+//               </div>
+
+//               {/* Label */}
+//               <span className="mt-4 text-[9px] sm:text-xs font-semibold text-gray-800 text-center leading-tight">
+//                 {item.label}
+//               </span>
+//             </div>
+//           );
+
+//           if (isEnabled) {
+//             return (
+//               <Link key={item.label} href={item.href}>
+//                 {FeatureIcon}
+//               </Link>
+//             );
+//           }
+
+//           return <div key={item.label}>{FeatureIcon}</div>;
+//         })}
+//       </div>
+//     </div>
+//   );
+// };
+
 const NavLinks = ({ isAuthenticated }) => {
   return (
-    <div className="w-full px-2 py-2 overflow-x-auto">
-      <div className="flex items-center gap-6 w-max">
+    <div className="w-full px-4 py-3">
+      <div className="flex justify-center gap-16 flex-wrap">
         {navItems.map((item) => {
           const isPublic =
             item.href === "/post-management" || item.href === "/wallet";
@@ -1005,57 +1113,50 @@ const NavLinks = ({ isAuthenticated }) => {
 
           const FeatureIcon = (
             <div
-              className={`
-                relative
-                flex flex-col items-center
-                p-2
-                min-w-[80px]
-                cursor-pointer
-                transition-all
-                ${pathname === item.href && isAuthenticated ? "scale-105" : ""}
-              `}
+              className="flex flex-col items-center min-w-[90px] cursor-pointer transition"
               onClick={
                 !isEnabled
                   ? () => signIn("google", { callbackUrl: item.href })
                   : undefined
               }
             >
-              {/* FREE badge */}
-              {item.isFree && (
-                <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
-                  FREE
-                </span>
-              )}
+              {/* ICON WRAPPER */}
+              <div className="relative">
 
-              {/* Icon */}
-              <div
-                className={`
-                  relative
-                  p-2 sm:p-3
-                  rounded-xl
-                  transition
-                  ${
-                    pathname === item.href && isAuthenticated
-                      ? "bg-blue-600 text-white"
-                      : "bg-blue-100 text-blue-700"
-                  }
-                `}
-              >
-                {React.cloneElement(item.icon, { className: "h-5 w-5" })}
+                {/* FREE Badge */}
+                {item.isFree && (
+                  <span className="absolute -top-2 -right-8 bg-black text-white text-[8px] font-bold px-2 py-[2px] rounded-full shadow-md z-20">
+                    FREE
+                  </span>
+                )}
+
+                {/* Yellow Icon Box */}
+                <div
+                  className={`p-3 rounded-xl transition
+                    ${
+                      pathname === item.href && isAuthenticated
+                        ? "bg-yellow-400 text-white"
+                        : "bg-yellow-200 text-black"
+                    }
+                  `}
+                >
+                  {React.cloneElement(item.icon, {
+                    className: "h-5 w-5",
+                  })}
+                </div>
 
                 {/* Verified by Google */}
                 {isKeywordPlanner && (
                   <span
                     className="
                       absolute
-                      -bottom-3
+                      -bottom-5
                       left-1/2 -translate-x-1/2
                       flex items-center gap-1
                       bg-white border border-gray-200
                       px-2 py-[2px]
                       rounded-full
                       shadow-sm
-                       w-[80px] 
                       text-[7px]
                       text-gray-600
                       whitespace-nowrap
@@ -1071,8 +1172,8 @@ const NavLinks = ({ isAuthenticated }) => {
                 )}
               </div>
 
-              {/* Label */}
-              <span className="mt-4 text-[9px] sm:text-xs font-semibold text-gray-800 text-center leading-tight">
+              {/* LABEL */}
+              <span className="mt-6 text-xs font-semibold text-gray-800 text-center leading-tight h-[32px] flex items-start justify-center">
                 {item.label}
               </span>
             </div>
@@ -1092,7 +1193,6 @@ const NavLinks = ({ isAuthenticated }) => {
     </div>
   );
 };
-
 
 
 
@@ -1716,7 +1816,7 @@ const fetchInstagramPages = useCallback(async () => {
                   </button> */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className="bg-gradient-to-r from-blue-500 to-blue-500 text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                    className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>
@@ -1737,11 +1837,11 @@ const fetchInstagramPages = useCallback(async () => {
           <div className="p-4 border-b border-gray-100 flex flex-col gap-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-blue-600" />
-                <h2 className="font-bold text-gray-800">Google Business</h2>
+                <Building2 className="w-5 h-5 text-gray-800" />
+                <h2 className="font-bold text-gray-800">Google Business </h2>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
+                <span className="text-xs bg-neutral-600 text-white font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
                 {accounts.length > 0 && (
   <button
     onClick={() => signOut({ callbackUrl: "/dashboard" })}
@@ -1835,7 +1935,7 @@ const fetchInstagramPages = useCallback(async () => {
             {!loading && accounts.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                   <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
-                    <Building2 className="w-8 h-8 text-blue-500" />
+                    <Building2 className="w-8 h-8 text-neutral-600" />
                   </div>
                   
                   {session?.user?.email ? (
@@ -1865,7 +1965,7 @@ const fetchInstagramPages = useCallback(async () => {
                       <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
                         <button
                           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                          className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
+                          className="  w-full bg-dark text-primary   text-xs  font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
                         >
                           <Plus className="w-4 h-4" />
                           Connect Now
@@ -1883,7 +1983,7 @@ const fetchInstagramPages = useCallback(async () => {
           {/* Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
-              <Facebook className="w-5 h-5 text-[#1877F2]" />
+              <Facebook className="w-5 h-5 text-gray-800" />
               <h2 className="font-bold text-gray-800">Facebook</h2>
             </div>
             {facebookPages.length > 0 && <span className="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">{facebookPages.length}</span>}
@@ -1957,7 +2057,7 @@ const fetchInstagramPages = useCallback(async () => {
     if (!userId) return toast.error("Login first");
     window.location.href = `/api/facebook/login?userId=${userId}`;
   }}
-  className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold"
+  className="w-full bg-dark text-primary py-2 rounded-lg font-semibold"
 >
   Connect Facebook Page
 </button>
@@ -1972,7 +2072,7 @@ const fetchInstagramPages = useCallback(async () => {
               {/* Header */}
               <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <Instagram className="w-5 h-5 text-[#E1306C]" />
+                  <Instagram className="w-5 h-5 text-gray-800" />
                   <h2 className="font-bold text-gray-800">Instagram</h2>
                 </div>
                 {instagramPages.length > 0 && <span className="text-xs bg-pink-100 text-pink-700 font-semibold px-2 py-0.5 rounded-full">{instagramPages.length}</span>}
@@ -2020,7 +2120,7 @@ const fetchInstagramPages = useCallback(async () => {
                             toast.error("Logout failed");
                           }
                         }}
-                        className="w-full mt-2 flex items-center justify-center gap-2 bg-pink-600 text-white py-2 rounded-lg font-semibold hover:bg-pink-700 transition-all text-xs"
+                        className="w-full mt-2 flex items-center justify-center gap-2 bg-primary text-dark py-2 rounded-lg font-semibold hover:bg-pink-700 transition-all text-xs"
                       >
                         <LogOut className="w-4 h-4" /> Logout Instagram
                       </button>
@@ -2037,7 +2137,7 @@ const fetchInstagramPages = useCallback(async () => {
                     </button>
                   </>
                 ) : (
-                  <div className="text-center p-8 flex flex-col items-center justify-center h-full text-gray-500">
+                  <div className="text-center p-8 flex flex-col items-center justify-center h-full text-dark">
                     <Instagram className="w-10 h-10 mx-auto mb-3" />
                     <p className="text-sm font-medium mb-3">Connect Instagram Account</p>
                     <button
@@ -2046,7 +2146,7 @@ const fetchInstagramPages = useCallback(async () => {
                         if (!userId) return toast.error("Login first");
                         window.location.href = `/api/instagram/login?userId=${userId}`;
                       }}
-                      className="w-full bg-pink-600 text-white py-2 rounded-lg font-semibold hover:bg-pink-700 transition-colors"
+                      className="w-full bg-primary text-dark py-2 rounded-lg font-semibold  transition-colors"
                     >
                       Connect Instagram
                     </button>

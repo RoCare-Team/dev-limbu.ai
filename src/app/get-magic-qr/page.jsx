@@ -291,8 +291,8 @@ export default function BusinessQR() {
           </p>
           <button
             onClick={() => window.location.href = "/dashboard"}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl text-lg 
-                       hover:bg-blue-700 transition shadow-lg w-full font-semibold"
+            className="px-6 py-3 bg-primary text-dark rounded-xl text-lg 
+                       hover:bg-neutral-600 transition shadow-lg w-full font-semibold"
           >
             Go to Dashboard
           </button>
@@ -524,7 +524,7 @@ export default function BusinessQR() {
 
               <button
                 onClick={() => setShowDemo(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+                className="text-sm text-gray-600 hover:text-gray-700 font-semibold hover:underline"
               >
                 View Demo
               </button>

@@ -291,7 +291,7 @@ const formatTime = (dateString) => {
 
           <button
             onClick={() => setShowTransactions(!showTransactions)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-lg rounded-xl shadow-md border border-white/20 text-gray-700 hover:text-indigo-600 transition-all hover:shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-lg rounded-xl shadow-md border border-white/20 text-gray-700 hover:text-dark transition-all hover:shadow-lg"
           >
             <History className="w-5 h-5" />
             <span className="font-medium">Transaction History</span>
@@ -303,11 +303,11 @@ const formatTime = (dateString) => {
           <div className="space-y-6 lg:col-span-1 order-2 lg:order-1">
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Wallet className="w-8 h-8 text-white" />
+                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
+                  <Wallet className="w-8 h-8 text-dark" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold bg-dark  bg-clip-text text-transparent">
                     Wallet Recharge
                   </h1>
                   <p className="text-gray-600 text-sm mt-1">
@@ -317,18 +317,18 @@ const formatTime = (dateString) => {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
-                  <Zap className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+                  <Zap className="w-5 h-5 text-dark mt-0.5 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-800">Instant Credit</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="font-semibold text-dark">Instant Credit</h3>
+                    <p className="text-sm text-dark">
                       Coins added to your wallet immediately after payment
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
-                  <Shield className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+                  <Shield className="w-5 h-5 text-gray-800 mt-0.5 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-800">Secure Payment</h3>
                     <p className="text-sm text-gray-600">
@@ -337,8 +337,8 @@ const formatTime = (dateString) => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
-                  <TrendingUp className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+                  <TrendingUp className="w-5 h-5 text-gray-800 mt-0.5 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-800">Special Offers</h3>
                     <p className="text-sm text-gray-600">
@@ -354,7 +354,7 @@ const formatTime = (dateString) => {
           <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 space-y-6 lg:col-span-2 order-1 lg:order-2">
             <div>
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-600" />
+                <Sparkles className="w-5 h-5 text-dark" />
                 Choose Amount
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -364,23 +364,23 @@ const formatTime = (dateString) => {
                     onClick={() => setAmount(pkg.price)}
                     className={`relative border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all ${
                       amount === pkg.price
-                        ? "bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-indigo-600 shadow-lg transform scale-105"
-                        : "border-gray-200 text-gray-700 hover:border-indigo-300 hover:shadow-md bg-white"
+                        ? "bg-lightPrimary text-dark border-dark shadow-lg transform scale-105"
+                        : "border-gray-200 text-gray-700 hover:border-gray-300 hover:shadow-md bg-white"
                     }`}
                   >
                     {pkg.popular && (
-                      <span className="absolute -top-2 -left-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
+                      <span className="absolute -top-2 -left-2 bg-dark text-primary text-xs font-bold px-2 py-1 rounded-full shadow-md">
                         Popular
                       </span>
                     )}
                     {pkg.bonus && (
-                      <span className="absolute -top-2 -right-2 bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
+                      <span className="absolute -top-2 -right-2 bg-dark text-primary text-xs font-bold px-2 py-1 rounded-full shadow-md">
                         {pkg.bonus}
                       </span>
                     )}
                     <IndianRupee
                       className={`w-6 h-6 ${
-                        amount === pkg.price ? "text-white" : "text-indigo-600"
+                        amount === pkg.price ? "text-dark" : "text-primary"
                       }`}
                     />
                     <span className="font-bold text-xl">₹{pkg.price}</span>
@@ -392,21 +392,21 @@ const formatTime = (dateString) => {
 
             <div>
               <label className="block text-gray-800 font-semibold mb-3 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-indigo-600" />
+                <CreditCard className="w-5 h-5 text-dark" />
                 Custom Amount
               </label>
               <div className="relative">
-                <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark" />
                 <input
                   type="number"
                   min="200"
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full border-2 border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 font-medium text-lg bg-white"
+                  className="w-full border-2 border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800 font-medium text-lg bg-white"
                   placeholder="Enter amount"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+              <p className="text-xs text-dark mt-2 flex items-center gap-1">
                 <Coins className="w-3 h-3" />
                 {amount >= 5000 && "₹1 = 1.2 Coins (20% Bonus) • "}
                 {amount < 5000 && "₹1 = 1 Coin • "}
@@ -416,7 +416,7 @@ const formatTime = (dateString) => {
 
             <div>
               <label className="block text-gray-800 font-semibold mb-3 flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-indigo-600" />
+                <Receipt className="w-5 h-5 text-dark" />
                 GST Number (Optional)
               </label>
               <div className="relative">
@@ -424,7 +424,7 @@ const formatTime = (dateString) => {
                   type="text"
                   value={gstNumber}
                   onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 font-medium text-lg bg-white"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800 font-medium text-lg bg-white"
                   placeholder="Enter your GSTIN"
                   maxLength="15"
                 />
@@ -433,34 +433,34 @@ const formatTime = (dateString) => {
             {/* Payment Breakdown */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <FileText className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-bold text-gray-800">Payment Breakdown</h3>
+                <FileText className="w-5 h-5 text-dark" />
+                <h3 className="font-bold text-dark">Payment Breakdown</h3>
               </div>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                  <span className="text-gray-600">Base Amount</span>
-                  <span className="font-semibold text-gray-800">₹{amount.toFixed(2)}</span>
+                  <span className="text-dark">Base Amount</span>
+                  <span className="font-semibold text-dark">₹{amount.toFixed(2)}</span>
                 </div>
                 
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                   <span className="text-gray-600">GST (18%)</span>
-                  <span className="font-semibold text-gray-800">₹{gstAmount}</span>
+                  <span className="font-semibold text-dark">₹{gstAmount}</span>
                 </div>
                 
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-lg font-bold text-gray-800">Total Amount</span>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  <span className="text-2xl font-bold bg-primary bg-clip-text text-dark">
                     ₹{totalAmount}
                   </span>
                 </div>
 
-                <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
+                <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700 font-medium">You'll Receive</span>
                     <div className="flex items-center gap-2">
-                      <Coins className="w-5 h-5 text-green-600" />
-                      <span className="text-xl font-bold text-green-600">{coins} Coins</span>
+                      <Coins className="w-5 h-5 text-gray-600" />
+                      <span className="text-xl font-bold text-dark">{coins} Coins</span>
                     </div>
                   </div>
                 </div>
@@ -470,10 +470,10 @@ const formatTime = (dateString) => {
             <button
               onClick={handleRecharge}
               disabled={loading}
-              className={`w-full flex justify-center items-center gap-3 py-4 rounded-2xl shadow-lg font-bold text-white text-lg transition-all ${
+              className={`w-full flex justify-center items-center gap-3 py-4 rounded-2xl shadow-lg font-bold text-dark text-lg transition-all ${
                 loading
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-xl hover:scale-105"
+                  : "bg-primary  hover:shadow-xl hover:scale-105"
               }`}
             >
               {loading ? (
@@ -501,18 +501,18 @@ const formatTime = (dateString) => {
       {showTransactions && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden animate-scale-in">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 flex items-center justify-between">
+            <div className="bg-primary p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shadow-md">
-                  <History className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-dark rounded-xl flex items-center justify-center shadow-md">
+                  <History className="w-5 h-5 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold text-white">Transaction History</h2>
+                <h2 className="text-2xl font-bold text-dark">Transaction History</h2>
               </div>
               <button
                 onClick={() => setShowTransactions(false)}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
               >
-                <X className="w-6 h-6 text-white" />
+                <X className="w-6 h-6 text-dark" />
               </button>
             </div>
 
@@ -524,7 +524,7 @@ const formatTime = (dateString) => {
                     onClick={() => setFilterType(type)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       filterType === type
-                        ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md"
+                        ? "bg-dark text-primary shadow-md"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >

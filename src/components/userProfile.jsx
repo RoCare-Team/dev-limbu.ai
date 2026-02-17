@@ -269,7 +269,7 @@ export default function ProfileWithStats() {
           {/* Right Column - Stats & Transactions */}
           <div className="lg:col-span-2 space-y-6">
             {/* Post Statistics */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100  ">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <TrendingUp className="w-6 h-6 text-indigo-600" />
                 Post Analytics

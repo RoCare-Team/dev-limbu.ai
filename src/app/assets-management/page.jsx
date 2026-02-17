@@ -285,7 +285,7 @@ const sizeOptions = [
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+              <h1 className="text-4xl font-bold bg-neutral-700  bg-clip-text text-transparent mb-2">
                 Assets Manager
               </h1>
               <p className="text-gray-600">
@@ -308,21 +308,21 @@ const sizeOptions = [
               <button
                 onClick={() => saveAssetsToServer(assets)}
                 disabled={isSaving}
-                className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-fullLight hover:bg-lightPrimary text-dark rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-50"
               >
                 <Server className="w-4 h-4" />
                 Save Manually
               </button>
               <button
                 onClick={copyPayload}
-                className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl font-medium transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-fullLight hover:bg-lightPrimary text-neutral-700 rounded-xl font-medium transition-all flex items-center gap-2"
               >
                 {copiedPayload ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedPayload ? 'Copied!' : 'Copy'}
               </button>
               <button
                 onClick={downloadPayload}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-primary text-dark rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 Export
@@ -337,15 +337,15 @@ const sizeOptions = [
             {/* Color Palette */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg">
-                  <Palette className="w-5 h-5 text-white" />
+                <div className="p-2 bg-primary rounded-lg">
+                  <Palette className="w-5 h-5 text-dark" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-800">Color Palette</h2>
+                <h2 className="text-lg font-semibold text-dark">Color Palette</h2>
               </div>
               
               <div className="space-y-3">
                 {/* Color Picker */}
-                <div className="p-4 border-2 border-gray-200 rounded-xl bg-gray-50">
+                <div className="p-4 border-2 border-dark rounded-xl bg-lightPrimary">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Pick Colors
                   </label>
@@ -384,12 +384,12 @@ const sizeOptions = [
                         <p className="text-xs text-gray-500 mt-1">{palette.value}</p>
                         <div className="flex gap-1 mt-2">
                           {palette.colors.map(color => (
-                            <div key={color} className="w-5 h-5 rounded-full border border-gray-200" style={{ backgroundColor: color }}></div>
+                            <div key={color} className="w-5 h-5 rounded-full border border-dark" style={{ backgroundColor: color }}></div>
                           ))}
                         </div>
                       </div>
                       {assets.colourPalette === palette.value && (
-                        <Check className="w-5 h-5 text-purple-600" />
+                        <Check className="w-5 h-5 text-dark" />
                       )}
                     </div>
                   </button>
@@ -416,17 +416,17 @@ const sizeOptions = [
                     onClick={() => handleSizeChange(option.value)}
                     className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
                       assets.size === option.value
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 hover:border-purple-300 bg-white'
+                        ? 'border-gray-500 bg-gray-50'
+                        : 'border-lightPrimary hover:border-primary  bg-white'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-medium text-gray-700">{option.label}</span>
+                        <span className="font-medium text-dark">{option.label}</span>
                         <span className="text-xs text-gray-500 ml-2">{option.value}</span>
                       </div>
                       {assets.size === option.value && (
-                        <Check className="w-5 h-5 text-purple-600" />
+                        <Check className="w-5 h-5 text-primary" />
                       )}
                     </div>
                   </button>
@@ -437,7 +437,7 @@ const sizeOptions = [
                   value={assets.size}
                   onChange={(e) => handleSizeChange(e.target.value)}
                   placeholder="Custom size (e.g., 1920x1080)"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none transition-all"
+                  className="w-full px-4 py-3 border-2 border-lightPrimary   rounded-xl focus:border-primary focus:outline-none transition-all"
                 />
               </div>
             </div>
@@ -492,7 +492,7 @@ const sizeOptions = [
                         onChange={(e) => handleImageUpload(field.key, e.target.files[0])}
                         className="hidden"
                       />
-                      <div className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center gap-2">
+                      <div className="w-full px-4 py-2 bg-dark  text-primary rounded-lg font-medium hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center gap-2">
                         <Upload className="w-4 h-4" />
                         Upload
                       </div>
@@ -526,7 +526,7 @@ const sizeOptions = [
                         className="w-full h-32 object-cover rounded-md"
                       />
                       {index === 0 && (
-                        <div className="absolute top-2 left-2 bg-purple-600 text-white text-xs px-2 py-1 rounded">
+                        <div className="absolute top-2 left-2 bg-neutral-700 text-white text-xs px-2 py-1 rounded">
                           Primary
                         </div>
                       )}
@@ -553,7 +553,7 @@ const sizeOptions = [
                         }}
                         className="hidden"
                       />
-                      <div className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center gap-2">
+                      <div className="w-full px-4 py-2 bg-dark  text-primary rounded-lg font-medium hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center gap-2">
                         <Upload className="w-4 h-4" />
                         Upload Product(s)
                       </div>
@@ -583,8 +583,8 @@ const sizeOptions = [
 
               {/* Summary Card */}
               <div className="mt-8 p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-200">
-                <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Check className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-dark mb-4 flex items-center gap-2">
+                  <Check className="w-5 h-5 text-dark" />
                   Asset Summary
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

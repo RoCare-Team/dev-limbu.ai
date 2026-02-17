@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { sendOtpAction, verifyOtpAction, completeRegistrationAction } from "@/app/actions/authActions";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Moon, Sun, Phone, Mail, User, Lock, CheckCircle, AlertCircle, MapPin, Star, TrendingUp, BarChart3, Users, Globe, Tag } from "lucide-react";
+// import { theme } from "../app/styles/theme/theme";
+
 
 export default function LoginPage() {
   /* ─────────────── 100 % SAME STATE & LOGIC ─────────────── */
@@ -214,9 +216,9 @@ export default function LoginPage() {
                 `}
             >
               {/* SAME HEADER / FORM / FOOTER */}
-              <div className={`p-8 ${isDark ? "bg-gradient-to-r from-blue-600 to-purple-600" : "bg-gradient-to-r from-indigo-600 to-purple-600"}`}>
-                <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
-                <p className="text-indigo-100 mt-2">Sign in to access your dashboard</p>
+              <div className={`p-8 ${isDark ? "bg-white" : "bg-white"}`}>
+                <h2 className="text-3xl font-bold text-black">Welcome Back</h2>
+                <p className="text-gray-600 mt-2">Sign in to access your dashboard</p>
               </div>
 
               <div className="p-8">
@@ -227,8 +229,8 @@ export default function LoginPage() {
                       className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all duration-300 ${
                         step === "phone"
                           ? isDark
-                            ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50"
-                            : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/50"
+                            ? "  text-white shadow-lg shadow-blue-500/50"
+                            : "bg-yellow-400 text-black shadow-lg shadow-black/40"
                           : isDark
                           ? "bg-slate-700 text-slate-400"
                           : "bg-slate-200 text-slate-500"
@@ -238,19 +240,19 @@ export default function LoginPage() {
                     </div>
                     <div
                       className={`w-12 h-1 rounded-full transition-all duration-300 ${
-                        step !== "phone" ? (isDark ? "bg-blue-500" : "bg-indigo-600") : isDark ? "bg-slate-700" : "bg-slate-200"
+                        step !== "phone" ? (isDark ? "bg-white" : "bg-neutral-800") : isDark ? "bg-white" : "bg-neutral-800"
                       }`}
                     ></div>
                     <div
                       className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all duration-300 ${
                         step === "otp"
                           ? isDark
-                            ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50"
-                            : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/50"
+                            ? "bg-white text-yellow-300 shadow-lg shadow-blue-500/50"
+                            : "bg-neutral-600 text-white shadow-lg shadow-indigo-500/50"
                           : step === "details"
                           ? isDark
-                            ? "bg-blue-500 text-white"
-                            : "bg-indigo-600 text-white"
+                            ? "bg-white text-yellow-300"
+                            : "bg-neutral-600 text-white"
                           : isDark
                           ? "bg-slate-700 text-slate-400"
                           : "bg-slate-200 text-slate-500"
@@ -262,7 +264,7 @@ export default function LoginPage() {
                       <>
                         <div
                           className={`w-12 h-1 rounded-full transition-all duration-300 ${
-                            step === "details" ? (isDark ? "bg-blue-500" : "bg-indigo-600") : isDark ? "bg-slate-700" : "bg-slate-200"
+                            step === "details" ? (isDark ? "bg-neutral-900" : "bg-indigo-600") : isDark ? "bg-slate-700" : "bg-slate-200"
                           }`}
                         ></div>
                         <div
@@ -287,9 +289,9 @@ export default function LoginPage() {
                 {step === "phone" && (
                   <div className="space-y-6">
                     <div>
-                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-slate-700"}`}>Mobile Number</label>
+                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-neutral-600"}`}>Mobile Number</label>
                       <div className="relative">
-                        <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-slate-400" : "text-slate-400"}`} />
+                        <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-yellow-500" : "text-gray-500"}`} />
                         <input
                           type="tel"
                           placeholder="Enter your mobile number"
@@ -298,9 +300,9 @@ export default function LoginPage() {
                           onKeyPress={(e) => handleKeyPress(e, sendOtp)}
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
                             isDark
-                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white"
-                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
+                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-yellow-400 focus:bg-slate-800"
+                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-yellow-400 focus:bg-white"
+                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-yellow-400/20"}`}
                         />
                       </div>
                     </div>
@@ -308,10 +310,10 @@ export default function LoginPage() {
                     <button
                       onClick={sendOtp}
                       disabled={isLoading}
-                      className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`w-full py-4 rounded-xl font-bold text-black transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
                         isDark
-                          ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
-                          : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+                          ? "bg-white text-black hover:bg-gray-100"
+                          : "bg-yellow-400 text-black hover:bg-yellow-300"
                       }`}
                     >
                       {isLoading ? "Sending..." : "Send OTP"}
@@ -336,7 +338,7 @@ export default function LoginPage() {
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 text-center text-2xl tracking-[0.5em] font-bold ${
                             isDark
                               ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white"
+                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-yellow-400 focus:bg-white"
                           } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
                         />
                       </div>
@@ -347,8 +349,8 @@ export default function LoginPage() {
                       disabled={isLoading}
                       className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
                         isDark
-                          ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
-                          : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+                          ? "bg-white hover:from-blue-500 hover:to-purple-500"
+                          : "bg-yellow-400 text-black hover:bg-yellow-400"
                       }`}
                     >
                       {isLoading ? "Verifying..." : "Verify OTP"}
@@ -359,7 +361,7 @@ export default function LoginPage() {
                         onClick={() => setStep("phone")}
                         disabled={isLoading}
                         className={`w-full py-3 text-sm font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                          isDark ? "text-blue-400 hover:text-blue-300 hover:bg-slate-700/50" : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                          isDark ? "text-white hover:text-yellow-300 hover:bg-slate-700/50" : "text-neutral-700 hover:text-neytral-800 hover:bg-gray-200"
                         }`}
                       >
                         ← Change Phone Number
@@ -368,7 +370,7 @@ export default function LoginPage() {
                         onClick={sendOtp}
                         disabled={isLoading}
                         className={`w-full py-3 text-sm font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                          isDark ? "text-slate-300 hover:text-white hover:bg-slate-700/50" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                          isDark ? "text-slate-300 hover:text-white hover:bg-slate-700/50" : "text-slate-600 hover:text-slate-900 hover:bg-gray-200"
                         }`}
                       >
                         Resend OTP
@@ -462,7 +464,7 @@ export default function LoginPage() {
                           ? "bg-red-500/20 border border-red-500/30"
                           : "bg-red-50 border border-red-200"
                         : isDark
-                        ? "bg-blue-500/20 border border-blue-500/30"
+                        ? "bg-neutral-800/40 border-neutral-700"
                         : "bg-blue-50 border border-blue-200"
                     }`}
                   >
@@ -508,7 +510,7 @@ export default function LoginPage() {
                 `}
             >
               <div className="space-y-6">
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${isDark ? "bg-blue-500/20 text-blue-400" : "bg-indigo-100 text-indigo-700"}`}>
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${isDark ? "bg-blue-500/20 text-blue-400" : "bg-neutral-800 text-white"}`}>
                   <Globe className="w-4 h-4" />
                   GMB & Social Media management
                 </div>
@@ -516,7 +518,7 @@ export default function LoginPage() {
                 <h1 className={`text-4xl lg:text-5xl font-bold leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>
                   Your Business,
                   <br />
-                  <span className={`${isDark ? "text-blue-400" : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"}`}>Amplified Online</span>
+                  <span className={`${isDark ? "text-yellow-600" : "bg-gradient-to-r from-yellow-500 to-yellow-700 bg-clip-text text-transparent"}`}>Amplified Online</span>
                 </h1>
 
                 <p className={`text-lg ${isDark ? "text-slate-300" : "text-slate-600"}`}>
@@ -558,21 +560,21 @@ export default function LoginPage() {
 
               <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-slate-200 dark:border-slate-700">
                 <div className="text-center">
-                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-blue-400" : "text-indigo-600"}`}>
+                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-white" : "text-yellow-500"}`}>
                     <Star className="w-5 h-5 fill-current" />
                     4.9/5
                   </div>
-                  <p className={`text-sm mt-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Avg Rating</p>
+                  <p className={`text-sm mt-1 ${isDark ? "text-slate-400" : "text-neutral-800"}`}>Avg Rating</p>
                 </div>
                 <div className="text-center">
-                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-purple-400" : "text-purple-600"}`}>
+                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-white" : "text-yellow-500"}`}>
                     <Users className="w-5 h-5" />
                     1k+
                   </div>
                   <p className={`text-sm mt-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Businesses</p>
                 </div>
                 <div className="text-center">
-                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-green-400" : "text-green-600"}`}>
+                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-white" : "text-yellow-500"}`}>
                     <TrendingUp className="w-5 h-5" />
                     45%
                   </div>

@@ -209,7 +209,7 @@ const ScheduleModal = ({
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
+              <Calendar className="w-5 h-5 text-neutral-600" />
               Schedule Post
             </h2>
             <p className="text-sm text-gray-500 mt-1">Choose date, time, and platforms.</p>
@@ -239,7 +239,7 @@ const ScheduleModal = ({
                 const day = String(now.getDate()).padStart(2, '0');
                 return `${year}-${month}-${day}`;
               })()}
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
             />
           </div>
 
@@ -254,7 +254,7 @@ const ScheduleModal = ({
       onClick={() => setShowTimeDropdown(!showTimeDropdown)}
       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-left
       flex justify-between items-center text-sm text-gray-700
-      hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+      hover:border-primary focus:outline-none focus:ring-2 focus:ring-dark transition"
     >
       <span className={`${slot ? "text-gray-800" : "text-gray-400"}`}>
         {timeSlots.find((s) => s.value === parseInt(slot))?.label || "Select Time"}
@@ -301,18 +301,18 @@ const ScheduleModal = ({
                 <span className="flex items-center gap-1">
                   {s.label}
                   {s.isInsta && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-600 text-[10px] font-bold ml-1 shadow-sm border border-pink-200 animate-fade-in">
-                      Insta
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-fullLight text-dark text-[10px] font-bold ml-1 shadow-sm border border-pink-200 animate-fade-in">
+                      Insta 
                     </span>
                   )}
                   {s.isFb && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold ml-1 shadow-sm border border-blue-200 animate-fade-in">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-lightPrimary bg-dark text-dark text-[10px] font-bold ml-1 shadow-sm border border-blue-200 animate-fade-in">
                       FB
                     </span>
                   )}
                 </span>
                 {isSelected && (
-                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                  <span className="w-2 h-2 rounded-full bg-dark"></span>
                 )}
               </div>
             );
@@ -332,7 +332,7 @@ const ScheduleModal = ({
             <div className="flex border-b border-gray-100">
               {[
                 // { id: 'all', label: 'All Platforms', icon: CheckCircle, color: 'text-green-600', badge: 'Select All' },
-                { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-blue-600', badge: '20 Coins/Loc' },
+                { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-neutral-600', badge: '20 Coins/Loc' },
                 { id: 'fb', label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]', badge: 'Free' },
                 { id: 'ig', label: 'Instagram', icon: Instagram, color: 'text-[#E1306C]', badge: 'Free' }
               ].map(tab => (
@@ -359,7 +359,7 @@ const ScheduleModal = ({
                     <tab.icon className="w-4 h-4" />
                     {tab.label}
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.id === 'all' ? 'bg-green-100 text-green-700' : tab.badge === 'Free' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.id === 'all' ? 'bg-primary text-dark' : tab.badge === 'Free' ? 'bg-dark text-primary' : 'bg-yellow-100 text-yellow-700'}`}>
                     {tab.badge}
                   </span>
                 </button>
@@ -374,7 +374,7 @@ const ScheduleModal = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase">Select Locations</span>
-                    <button onClick={() => toggleAll(verifiedLocations, selectedGmb, setSelectedGmb, 'id')} className="text-xs text-blue-600 hover:underline font-medium">
+                    <button onClick={() => toggleAll(verifiedLocations, selectedGmb, setSelectedGmb, 'id')} className="text-xs text-neutral-600 hover:underline font-medium">
                       {selectedGmb.length === verifiedLocations.length && verifiedLocations.length > 0 ? 'Deselect All' : 'Select All Verified'}
                     </button>
                   </div>
@@ -387,7 +387,7 @@ const ScheduleModal = ({
                         checked={selectedGmb.includes(loc.id)} 
                         onChange={() => isVerified && toggleSelection(loc.id, selectedGmb, setSelectedGmb)} 
                         disabled={!isVerified}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:text-gray-400" 
+                        className="w-4 h-4 text-dark rounded focus:ring-neutral-500 disabled:text-gray-400" 
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center">
@@ -458,7 +458,7 @@ const ScheduleModal = ({
           <div className="flex flex-col">
             <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">Required Coins</span>
             <div className="flex items-baseline gap-2">
-              <span className={`text-lg font-bold ${userWallet < totalCost ? "text-red-600" : "text-blue-600"}`}>{totalCost}</span>
+              <span className={`text-lg font-bold ${userWallet < totalCost ? "text-red-600" : "text-neutral-600"}`}>{totalCost}</span>
               {userWallet < totalCost && (
                 <span className="text-xs text-red-500 font-medium">
                   (Available: {userWallet})
@@ -472,7 +472,7 @@ const ScheduleModal = ({
             </button>
             {userWallet < totalCost ? (
               <Link href="/wallet">
-                <button className="px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all shadow-lg flex items-center gap-2 text-sm">
+                <button className="px-6 py-2.5 bg-neutral-600 text-white rounded-xl font-semibold hover:bg-neutral-700 transition-all shadow-lg flex items-center gap-2 text-sm">
                   <Wallet className="w-4 h-4" />
                   Add Coins
                 </button>
@@ -481,7 +481,7 @@ const ScheduleModal = ({
               <button 
                 onClick={handleConfirm} 
                 disabled={selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                className="px-6 py-2.5 bg-primary text-dark rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
               >
                 <Calendar className="w-4 h-4" />
                 Schedule Post
@@ -733,7 +733,7 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
         ) : accounts.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-gray-600 mb-4">No Instagram Accounts connected.</p>
-            <Link href="/dashboard" className="bg-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
+            <Link href="/dashboard" className="bg-primary text-dark px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
               Connect Instagram
             </Link>
           </div>
@@ -902,7 +902,7 @@ const PreviewSection = ({
         </a>
 
         {/* DESCRIPTION */}
-        <div className="px-2.5 py-2 border-t border-gray-200 relative group/desc">
+        <div className="px-2.5 py-2 border-t border-gray-200 relative group/desc ">
           {isEditing ? (
             <div className="space-y-1.5">
               <textarea
@@ -946,20 +946,20 @@ const PreviewSection = ({
         </div>
 
       </div>
-      <div className="p-4 space-y-3 flex-1 flex flex-col bg-white">
+      <div className="p-4 space-y-3 flex-1 flex flex-col bg-white ">
 
         {status === "pending" && (
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => onUpdateStatus(previewData._id, "approved")}
-              className="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+              className="flex items-center justify-center gap-2 bg-primary text-dark border border-dark hover:bg-lightPrimary hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
             >
               <CheckCircle className="w-4 h-4" />
-              Approve
+              Approve dfgjkldflgjldjgldfkj
             </button>
             <button
               onClick={() => onReject(previewData._id)}
-              className="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+              className="flex items-center justify-center gap-2 bg-dark text-primary border border-red-200 hover:bg-red-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
             >
               <XCircle className="w-4 h-4" />
               Reject
@@ -973,9 +973,9 @@ const PreviewSection = ({
             <button
               onClick={() => handlePost(previewData)}
               className="flex-1 flex items-center justify-center gap-1.5
-        bg-gradient-to-r from-blue-100 to-indigo-100
-        hover:from-blue-200 hover:to-indigo-200
-        text-blue-700 border border-blue-200
+        bg-dark
+        hover:from-neutral-300 hover:to-indigo-200
+        text-primary border border-neutral-300
         px-3 py-2.5 rounded-lg
         text-sm font-semibold
         transition-all duration-200 shadow-sm"
@@ -987,10 +987,10 @@ const PreviewSection = ({
             <button
               onClick={() => onUpdateStatus(previewData)}
               className="flex-1 flex items-center justify-center gap-1.5
-        bg-white text-gray-700 border border-gray-200
-        hover:bg-gray-50 hover:border-gray-300
+        bg-primary
+        hover:bg-lightPrimary
         px-3 py-2.5 rounded-lg
-        text-sm font-semibold
+        text-dark  font-semibold
         transition-all duration-200 shadow-sm"
             >
               <Calendar className="w-4 h-4" />
@@ -1021,23 +1021,23 @@ const PreviewSection = ({
             </div>
             <button
               onClick={() => handlePost(previewData)}
-              className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+              className="w-full flex items-center justify-center gap-2 bg-neutral-50 text-neutral-600 border border-blue-100 hover:bg-blue-100 hover:border-neutral-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
             >
               <Send className="w-4 h-4" />
-              Post to GMB
+              Post to GMB 
             </button>
           </div>
         )}
 
         {status === "failed" && (
           <div className="space-y-3">
-            <div className="bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+            <div className="bg-neutral-50 border border-neutral -200 rounded-lg px-2 py-1.5">
               <p className="text-[10px] text-red-600 font-semibold uppercase flex items-center gap-1 leading-tight">
                 <XCircle className="w-2.5 h-2.5" />
                 Posting Failed
               </p>
 
-              <p className="text-xs text-red-700 mt-0.5 leading-snug">
+              <p className="text-xs text-neutral-700 mt-0.5 leading-snug">
                 {previewData.error || "Network Error"}
               </p>
             </div>
@@ -1056,7 +1056,7 @@ const PreviewSection = ({
               className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
             >
               <Calendar className="w-4 h-4" />
-              Schedule
+              Schedule 
             </button>
           </div>
         )}
@@ -1213,20 +1213,20 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
         {/* Description Header */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg">
-            <button onClick={() => setActiveDesc('gmb')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'gmb' ? 'bg-white shadow-sm text-blue-600 font-semibold' : 'text-gray-500'}`}>
+            <button onClick={() => setActiveDesc('gmb')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'gmb' ? 'bg-white shadow-sm text-reutral-600 font-semibold' : 'text-gray-500'}`}>
               <MapPin className="w-3 h-3" /> GMB
             </button>
             <button onClick={() => setActiveDesc('fb')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'fb' ? 'bg-white shadow-sm text-[#1877F2] font-semibold' : 'text-gray-500'}`}>
               <Facebook className="w-3 h-3" /> FB
             </button>
             <button onClick={() => setActiveDesc('ig')} className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 ${activeDesc === 'ig' ? 'bg-white shadow-sm text-[#E1306C] font-semibold' : 'text-gray-500'}`}>
-              <Instagram className="w-3 h-3" /> Insta
+              <Instagram className="w-3 h-3" /> Insta 
             </button>
           </div>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+              className="text-xs font-medium text-reutral-600 hover:text-reutral-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
             >
               <Edit3 className="w-3 h-3" /> Edit
             </button>
@@ -1313,15 +1313,15 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               {/* Status Indicators */}
               <div className="flex flex-wrap gap-2 mb-1">
-                {isPostedGmb && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> GMB Posted</span>}
-                {isPostedFb && <span className="text-[10px] bg-blue-50 text-[#1877F2] px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> FB Posted</span>}
-                {isPostedIg && <span className="text-[10px] bg-pink-50 text-pink-700 px-2 py-1 rounded-md border border-pink-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> IG Posted</span>}
+                {isPostedGmb && <span className="text-[10px] bg-neutral-100 text-neutral-700 px-2 py-1 rounded-md border border-neutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> GMB Posted </span>}
+                {isPostedFb && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md border border-blue-yellow-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> FB Posted</span>}
+                {isPostedIg && <span className="text-[10px] bg-neutral-100 text-neutral-700 px-2 py-1 rounded-md border border-neutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> IG Posted</span>}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handlePost(post)}
-                  className="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center justify-center gap-2 bg-fullLight text-dark border border-dark hover:bg-lightPrimary hover:border-neutral-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
                 >
                   <RefreshCw className="w-3 h-3" />
                   Retry GMB
@@ -1329,15 +1329,15 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
                 <button
                   onClick={() => handleFacebookPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedFb ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/20 hover:bg-[#1877F2]/20'}`}
+                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedFb ? 'bg-neutral-100 text-neutral-600 border-gray-200 hover:bg-neutral-200' : 'bg-neural-200 text-neutral-600 border-neutral-200 hover:bg-neutral-200'}`}
                 >
                   <Facebook className="w-3 h-3" />
-                  {isPostedFb ? "Repost FB" : "Post FB"}
+                  {isPostedFb ? "Repost FB" : "Post FB "}
                 </button>
 
                 <button
                   onClick={() => handleInstagramPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedIg ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100'}`}
+                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedIg ? 'bg-gray-50 text-gray-600 border-neutral-200 hover:bg-neutral-100' : 'bg-neutral-100 text-nautral-600 border-neutrl-200 hover:bg-pink-100'}`}
                 >
                   <Instagram className="w-3 h-3" />
                   {isPostedIg ? "Repost IG" : "Post IG"}
@@ -1345,10 +1345,10 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
                 <button
                   onClick={() => onUpdateStatus(post)}
-                  className="flex items-center justify-center gap-2 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center justify-center gap-2 bg-yellow-50 text-yellow-600 border border-yellow-200 hover:bg-yellow-100 hover:border-yellow-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
                 >
                   <Calendar className="w-3 h-3" />
-                  Schedule
+                  Schedule 
                 </button>
               </div>
             </div>
@@ -1358,14 +1358,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => onUpdateStatus(post._id, "approved")}
-                className="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="flex items-center justify-center gap-2 bg-primary text-dark border border-yellow-200 hover:bg-yellow-50 hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <CheckCircle className="w-4 h-4" />
                 Approve
               </button>
               <button
                 onClick={() => onReject(post._id)}
-                className="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="flex items-center justify-center gap-2 bg-lightPrimary text-dark border border-neutral-200 hover:bg-primary hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <XCircle className="w-4 h-4" />
                 Reject
@@ -1400,22 +1400,22 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 onClick={() => handlePost(post)}
                 className="
     w-full flex items-center justify-center gap-2
-    bg-gradient-to-r from-blue-100 to-indigo-100
-    hover:from-blue-200 hover:to-indigo-200
-    text-blue-700
-    border border-blue-200
+    bg-dark
+    hover:bg-neutral-600
+    text-primary
+    border border-neatural-200
     px-4 py-3 rounded-xl
     text-sm font-semibold
     transition-all duration-200
   "
               >
                 <Send className="w-4 h-4" />
-                Post to GMB
+                Post to GMB 
               </button>
 
               <button
                 onClick={() => handleInstagramPost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white/90 border border-white/20 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 bg-dark text-primary border border-white/20 hover:bg-neutral-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Instagram className="w-4 h-4" />
                 Post to Instagram
@@ -1423,7 +1423,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => handleFacebookPost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 hover:bg-[#1877F2]/20 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 bg-dark text-primary border border-[#1877F2]/20 hover:bg-neutral-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Facebook className="w-4 h-4" />
                 Post to Facebook
@@ -1437,7 +1437,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => onUpdateStatus(post)}
-                className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 bg-dark text-primary border border-gray-200 hover:bg-neutral-600 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Calendar className="w-4 h-4" />
                 Schedule
@@ -1573,8 +1573,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
           {post.status === "failed" && (
             <div className="space-y-3">
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <p className="text-xs text-red-600 font-bold uppercase flex items-center gap-1">
+              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3">
+                <p className="text-xs text-neutral-600 font-bold uppercase flex items-center gap-1">
                   <XCircle className="w-3 h-3" /> Posting Failed
                 </p>
                 <p className="text-sm text-red-800 mt-1 font-medium">
@@ -1584,15 +1584,15 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               {/* Status Indicators */}
               <div className="flex flex-wrap gap-2 mb-1">
-                  {isPostedGmb && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> GMB Posted</span>}
-                  {isPostedFb && <span className="text-[10px] bg-blue-50 text-[#1877F2] px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> FB Posted</span>}
-                  {isPostedIg && <span className="text-[10px] bg-pink-50 text-pink-700 px-2 py-1 rounded-md border border-pink-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> IG Posted</span>}
+                  {isPostedGmb && <span className="text-[10px] bg-reutral-50 text-reutral-700 px-2 py-1 rounded-md border border-reutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> GMB Posted</span>}
+                  {isPostedFb && <span className="text-[10px] bg-reutral-50 text-yellow-300 px-2 py-1 rounded-md border border-reutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> FB Posted</span>}
+                  {isPostedIg && <span className="text-[10px] bg-reutral-50 text-reutral-700 px-2 py-1 rounded-md border border-reutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> IG Posted</span>}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handlePost(post)}
-                  className="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center justify-center gap-2 bg-neutral-200 text-neutral-600 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
                 >
                   <RefreshCw className="w-3 h-3" />
                   Retry GMB
@@ -1600,15 +1600,15 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
                 <button
                   onClick={() => handleFacebookPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedFb ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/20 hover:bg-[#1877F2]/20'}`}
+                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedFb ? 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:b-neutral-100' : 'bg-neutral-100 text-neutral-600 border-neutral hover:bg-neutral-200'}`}
                 >
                   <Facebook className="w-3 h-3" />
-                  {isPostedFb ? "Repost FB" : "Post FB"}
+                  {isPostedFb ? "Repost FB" : "Post FB "}
                 </button>
 
                 <button
                   onClick={() => handleInstagramPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedIg ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100'}`}
+                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedIg ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'}`}
                 >
                   <Instagram className="w-3 h-3" />
                   {isPostedIg ? "Repost IG" : "Post IG"}
@@ -1616,7 +1616,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
                 <button
                   onClick={() => onUpdateStatus(post)}
-                  className="flex items-center justify-center gap-2 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center justify-center gap-2 bg-yellow-100 text-neutral-600 border border-yellow-200 hover:bg-purple-100 hover:border-purple-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
                 >
                   <Calendar className="w-3 h-3" />
                   Schedule
@@ -1629,15 +1629,15 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             <div className="space-y-3">
               {/* Status Indicators */}
               <div className="flex flex-wrap gap-2 mb-1">
-                  {isPostedGmb && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> GMB Posted</span>}
-                  {isPostedFb && <span className="text-[10px] bg-blue-50 text-[#1877F2] px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> FB Posted</span>}
-                  {isPostedIg && <span className="text-[10px] bg-pink-50 text-pink-700 px-2 py-1 rounded-md border border-pink-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> IG Posted</span>}
+                  {isPostedGmb && <span className="text-[10px] bg-lightPrimary text-dark px-2 py-1 rounded-md border border-neutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> GMB Posted</span>}
+                  {isPostedFb && <span className="text-[10px] bg-lightPrimary text-dark px-2 py-1 rounded-md border border-neutal-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> FB Posted</span>}
+                  {isPostedIg && <span className="text-[10px] bg-lightPrimary text-dark px-2 py-1 rounded-md border border-yellow-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> IG Posted</span>}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handlePost(post)}
-                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedGmb ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'}`}
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedGmb ? 'bg-neutral-50 text-neutral-600 border-gray-200 hover:bg-gray-100' : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'}`}
               >
                 <Send className="w-3 h-3" />
                 {isPostedGmb ? "Repost GMB" : "Post GMB"}
@@ -1645,7 +1645,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => handleFacebookPost(post)}
-                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedFb ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/20 hover:bg-[#1877F2]/20'}`}
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedFb ? 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-gray-100' : 'bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200'}`}
               >
                 <Facebook className="w-3 h-3" />
                 {isPostedFb ? "Repost FB" : "Post FB"}
@@ -1653,7 +1653,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => handleInstagramPost(post)}
-                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedIg ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100'}`}
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${isPostedIg ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'}`}
               >
                 <Instagram className="w-3 h-3" />
                 {isPostedIg ? "Repost IG" : "Post IG"}
@@ -1661,7 +1661,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => onUpdateStatus(post)}
-                className="flex items-center justify-center gap-2 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                className="flex items-center justify-center gap-2 bg-primary text-dark border border-yellow-200 hover:bg-fullLight px-3 py-2 rounded-lg text-xs font-semibold transition-all"
               >
                 <Calendar className="w-3 h-3" />
                 Schedule
@@ -3455,10 +3455,10 @@ export default function PostManagementPage() {
       whitespace-nowrap
     "
             >
-              <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
-                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <div className="p-1.5 sm:p-2 rounded-lg bg-neutral-50">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-neutral-800" />
               </div>
-              <span className="text-sm sm:text-xl font-bold text-blue-700">
+              <span className="text-sm sm:text-xl font-bold text-dark">
                 Post Management
               </span>
             </div>
@@ -3479,9 +3479,9 @@ export default function PostManagementPage() {
                       setSelectedPlatforms([]);
                     }
                   }}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+                  className="w-4 h-4 rounded border-gray-300 text-dark accent-primary  focus:ring-primary transition-all"
                 />
-                <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-800">All</span>
+                <span className="text-sm font-semibold text-dark   group-hover:text-gray-600">All</span>
               </label>
 
               {/* GMB */}
@@ -3496,7 +3496,7 @@ export default function PostManagementPage() {
           : [...prev, 'gmb']
       )
     }
-    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+    className="w-4 h-4 rounded border-gray-300 text-dark accent-primary  focus:ring-primary transition-all"
   />
 
   <div
@@ -3521,7 +3521,7 @@ export default function PostManagementPage() {
                   type="checkbox"
                   checked={selectedPlatforms.includes('fb')}
                   onChange={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
+                  className="w-4 h-4 rounded border-gray-300 text-primary accent-primary  focus:ring-primary transition-all"
                 />
                 <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('fb') ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
                   <Facebook className="w-5 h-5 fill-current" />
@@ -3534,7 +3534,7 @@ export default function PostManagementPage() {
                   type="checkbox"
                   checked={selectedPlatforms.includes('ig')}
                   onChange={() => setSelectedPlatforms(prev => prev.includes('ig') ? prev.filter(p => p !== 'ig') : [...prev, 'ig'])}
-                  className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500 transition-all"
+                  className="w-4 h-4 rounded border-gray-300 text-pink-600 accent-yellow-400  focus:ring-pink-500 transition-all"
                 />
                 <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('ig') ? 'bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
                   <Instagram className="w-5 h-5" />
@@ -3550,9 +3550,9 @@ export default function PostManagementPage() {
       inline-flex items-center gap-1.5
       px-3 sm:px-5 py-2
       rounded-xl
-      bg-gradient-to-r from-indigo-500 to-blue-600
-      hover:from-indigo-600 hover:to-blue-700
-      text-white font-semibold
+      bg-primary
+      hover:bg-lightPrimary
+      text-dark font-semibold
       shadow-md
       transition-all duration-200
       text-sm sm:text-base
@@ -3575,7 +3575,7 @@ export default function PostManagementPage() {
         </div>
 
         {/* Main Content Area - Two Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start ">
           {/* Left Column: Input Form */}
           <div className="lg:col-span-7">
             <PostInput
@@ -3619,7 +3619,7 @@ export default function PostManagementPage() {
         </div>
 
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5 ">
           {tabs.map((tab) => (
             <TabButton
               key={tab.id}

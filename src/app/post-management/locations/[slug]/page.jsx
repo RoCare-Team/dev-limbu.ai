@@ -387,14 +387,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => onUpdateStatus(post._id, "approved")}
-                className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:shadow-xl transition-all"
+                className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 bg-primary text-dark px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:shadow-xl transition-all"
               >
                 <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 Approve
               </button>
               <button
                 onClick={() => onReject(post._id)}
-                className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:shadow-xl transition-all"
+                className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 bg-fullLight text-dark px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:shadow-xl transition-all"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 Reject
@@ -412,7 +412,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                     id={`post-checkbox-${post._id}`}
                     checked={post.checkmark?.includes('post') ?? true}
                     onChange={() => onEditDescription(post._id, post.description, 'post')}
-                    className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="h-5 w-5 rounded border-gray-300 text-primary focus:dark cursor-pointer"
                   />
                   <label htmlFor={`post-checkbox-${post._id}`} className="ml-2 text-gray-700 font-medium cursor-pointer">Post</label>
                 </div>
@@ -422,12 +422,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                     id={`photo-checkbox-${post._id}`}
                     checked={post.checkmark?.includes('photo') ?? true}
                     onChange={() => onEditDescription(post._id, post.description, 'photo')}
-                    className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                    className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-dark cursor-pointer"
                   />
                   <label htmlFor={`photo-checkbox-${post._id}`} className="ml-2 text-gray-700 font-medium cursor-pointer">Photo</label>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg sm:rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div className="bg-gradient-to-br from-fullLight border-2 border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
                 <button
                   onClick={() => handlePost(post)}
                   className="w-full flex items-center justify-center gap-1.5 sm:gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-xs sm:text-base font-black hover:shadow-xl transition-all cursor-pointer"

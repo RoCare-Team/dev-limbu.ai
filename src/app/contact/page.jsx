@@ -72,7 +72,7 @@ export default function ContactUs() {
         </button>
 
         <div className="text-center mb-6 sm:mb-12">
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-900 mb-2 sm:mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-900 mb-2 sm:mb-4 bg-neutral-700 bg-clip-text text-transparent">
             Get In Touch
           </h1>
           <p className="text-gray-600 text-sm sm:text-lg max-w-2xl mx-auto px-2">
@@ -103,12 +103,12 @@ export default function ContactUs() {
         <div className="grid lg:grid-cols-2 gap-6 sm:gap-10">
 
           <div className="order-2 lg:order-1">
-            <div className="space-y-4 sm:space-y-5 bg-gradient-to-br from-gray-50 to-blue-50 p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100">
+            <div className="space-y-4 sm:space-y-5 bg-gradient-to-br from-neutral-50 to-yellow-50 p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Send a Message</h2>
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Full Name
+                  Full Name 
                 </label>
                 <input
                   type="text"
@@ -116,7 +116,7 @@ export default function ContactUs() {
                   value={formData.name}
                   placeholder="John Doe"
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-neutral-500 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -130,7 +130,7 @@ export default function ContactUs() {
                   value={formData.email}
                   placeholder="john@example.com"
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -144,7 +144,7 @@ export default function ContactUs() {
                   value={formData.phone}
                   placeholder="+91 9876543210"
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -158,7 +158,7 @@ export default function ContactUs() {
                   value={formData.message}
                   placeholder="Tell us how we can help you..."
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
+                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all resize-none"
                 ></textarea>
               </div>
 
@@ -169,7 +169,7 @@ export default function ContactUs() {
                   id="consent"
                   checked={formData.consent}
                   onChange={handleChange}
-                  className="mt-0.5 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 flex-shrink-0"
+                  className="mt-0.5 w-4 h-4 text-neutral-600 border-gray-300 rounded focus:ring-neutral-600 flex-shrink-0"
                 />
                 <label htmlFor="consent" className="text-xs text-gray-600 leading-snug">
                   By continuing, you agree to Limbu Ai and authorize our representatives to contact you via Call, Email, SMS, RCS, or WhatsApp regarding your service requests and related updates.
@@ -179,7 +179,7 @@ export default function ContactUs() {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !formData.consent}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 sm:py-4 text-sm sm:text-base rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="w-full bg-gradient-to-r from-neutral-700 to-yellow-600 text-white py-3 sm:py-4 text-sm sm:text-base rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
@@ -198,9 +198,9 @@ export default function ContactUs() {
 
           <div className="space-y-4 sm:space-y-5 order-1 lg:order-2">
 
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-blue-100 group">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-neutral-100 group">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-blue-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
+                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
                   <HiPhone className="text-lg sm:text-2xl" />
                 </div>
                 <div>
@@ -212,7 +212,7 @@ export default function ContactUs() {
 
             <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-purple-100 group">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-purple-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
+                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
                   <HiMail className="text-lg sm:text-2xl" />
                 </div>
                 <div>
@@ -224,12 +224,12 @@ export default function ContactUs() {
 
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-green-100 group">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-green-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
+                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
                   <HiLocationMarker className="text-lg sm:text-2xl" />
                 </div>
                 <div>
                   <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Address</h2>
-                  <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">
+                  <p className="text-neutral-700 text-xs sm:text-sm leading-relaxed">
                     Unit No. 831, 8th Floor, JMD Megapolis,<br />
                     Sector 48, Gurugram, Haryana 122018
                   </p>
@@ -239,7 +239,7 @@ export default function ContactUs() {
 
             <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-orange-100 group">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-orange-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
+                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
                   <HiClock className="text-lg sm:text-2xl" />
                 </div>
                 <div>
@@ -257,7 +257,7 @@ export default function ContactUs() {
           <p className="text-gray-600 mb-3 sm:mb-4 text-xs sm:text-base">Prefer to email us directly?</p>
           <a
             href="mailto:info@limbu.ai"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base rounded-xl sm:rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-neutral-700 to-yellow-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base rounded-xl sm:rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
           >
             <HiMail className="text-lg sm:text-xl" />
             Send us an Email

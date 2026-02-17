@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+
+@theme {
+  --color-primary: #ffd600;
+  --color-lightPrimary:  #FFF176;
+  --color-fullLight: #FFF9C4;
+  --color-dark: #101010;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -24,3 +32,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes scroll-logos {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-logos {
+  animation: scroll-logos 25s linear infinite;
+}
+

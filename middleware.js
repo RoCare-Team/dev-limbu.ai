@@ -7,6 +7,7 @@ export function middleware(request) {
   // Localhost case
   if (host.includes("localhost")) {
     return NextResponse.next();
+    
   }
 
   const cleanHost = host.split(":")[0];

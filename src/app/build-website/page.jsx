@@ -248,6 +248,8 @@ export default function BuildWebsitePage() {
       // 1️⃣ Fetch Business Data
       const businessRes = await fetch(apiUrl);
       const businessData = await businessRes.json();
+      console.log("businessData",businessData);
+      
 
       if (!businessRes.ok) {
         throw new Error(businessData?.error || "Business fetch failed");

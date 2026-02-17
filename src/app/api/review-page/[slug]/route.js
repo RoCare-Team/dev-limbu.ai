@@ -116,6 +116,7 @@ export async function GET(req, context) {
           (cat) => cat.displayName
         ) || [],
       websiteUri: matchedListing.websiteUri || null,
+      accountId: matchedListing.accountId || null,
       phoneNumbers:
         matchedListing.phoneNumbers || null,
       storefrontAddress:

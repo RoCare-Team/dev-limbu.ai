@@ -942,6 +942,7 @@ const navItems = [
   //   icon: <PlusSquare className="h-6 w-6" />,
   //   label: "Check Health",
   // },
+ 
   {
     href: "/gmb-insights",
     icon: <SquareChartGantt className="h-6 w-6" />,
@@ -977,10 +978,18 @@ const navItems = [
     isFree: true,
   },
   {
+   href: "/build-website",
+   icon: <Globe className="h-6 w-6" />,
+   label: "Website Builder",
+   isFree: true,
+   specialTag: "Launched Today",
+ },
+  {
     href: "/post-management",
     icon: <PlusSquare className="h-6 w-6" />,
     label: "Create & Publish Post",
   },
+
 
 
   {
@@ -1022,7 +1031,11 @@ const NavLinks = ({ isAuthenticated }) => {
               }
             >
               {/* FREE badge */}
-              {item.isFree && (
+              {item.specialTag ? (
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-max bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-md z-20 animate-pulse">
+                  {item.specialTag}
+                </span>
+              ) : item.isFree && (
                 <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
                   FREE
                 </span>

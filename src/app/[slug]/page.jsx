@@ -1,6 +1,7 @@
 import dbConnect from "@/lib/dbConnect";
 import Site from "@/models/Site";
 import { Phone, MapPin, MessageCircle } from "lucide-react";
+import { SiteAnimations } from "@/components/Siteclientcomponents";
 
 /* ================================
    Helper: WhatsApp link
@@ -633,22 +634,7 @@ export default async function SitePage({ params }) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           GLOBAL ANIMATION STYLES
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <style jsx global>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33%       { transform: translate(30px, -50px) scale(1.1); }
-          66%       { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob { animation: blob 7s infinite; }
-        .animation-delay-2000 { animation-delay: 2s; }
-        .animation-delay-4000 { animation-delay: 4s; }
-
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50%       { transform: translateY(-10px); }
-        }
-        .animate-bounce-slow { animation: bounce-slow 2s infinite; }
-      `}</style>
+      <SiteAnimations />
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import GoLiveButton from "@/components/GoLiveButton";
-import { Edit, Save, Plus, Trash2, Loader2, X, ArrowLeft, Phone, MapPin, Mail, Clock, MessageCircle } from "lucide-react";
+import { Edit, Save, Plus, Trash2, Loader2, X, ArrowLeft, Phone, MapPin, Mail, Clock, MessageCircle, Rocket } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 // ✅ Consistent Slug Generator
 const createSlug = (title = "", locality = "", address = "") => {
@@ -346,28 +347,42 @@ export default function BuildWebsitePage() {
     return `https://wa.me/${cleanPhone}`;
   };
 
-  // ✅ Loading State
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="bg-white p-12 rounded-3xl shadow-2xl text-center max-w-md border border-gray-100">
-          <div className="animate-spin mb-6 mx-auto text-blue-600">
-            <Loader2 className="w-16 h-16" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Building Your Website</h2>
-          <p className="text-gray-600 leading-relaxed">
-            Our AI is crafting content, selecting images, and structuring your layout. 
-            This usually takes about 30 seconds.
-          </p>
-          <div className="mt-6 flex justify-center gap-2">
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-          </div>
-        </div>
+  // ✅ Reusable Loading Overlay
+  const LoadingOverlay = () => (
+    <motion.div
+      initial={{ opacity: 1 }}
+      exit={{ y: -800, opacity: 0 }}
+      transition={{ duration: 1 }}
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 overflow-hidden"
+    >
+      <div className="bg-white p-12 rounded-3xl shadow-2xl text-center max-w-md border border-gray-100 relative">
+        {/* 🚀 Floating Rocket */}
+        <motion.div
+          animate={{ y: [0, -20, 0] }}
+          transition={{ repeat: Infinity, duration: 1.5 }}
+          className="mb-6 flex justify-center"
+        >
+          <Rocket className="w-20 h-20 text-blue-600" />
+        </motion.div>
+
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">
+          Launching Your Website 🚀
+        </h2>
+
+        <p className="text-gray-600 leading-relaxed">
+          AI is generating content, images, and structure.
+          Sit tight — we’re almost ready for takeoff!
+        </p>
+
+        {/* Fire Effect */}
+        <motion.div
+          animate={{ scaleY: [1, 1.4, 1] }}
+          transition={{ repeat: Infinity, duration: 0.4 }}
+          className="w-4 h-8 bg-gradient-to-b from-orange-400 to-red-600 mx-auto mt-3 rounded-b-full"
+        />
       </div>
-    );
-  }
+    </motion.div>
+  );
 
   // ✅ Error State
   if (error) {
@@ -394,20 +409,34 @@ export default function BuildWebsitePage() {
   if (!aiContent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
+        <AnimatePresence>
+          {loading && <LoadingOverlay />}
+        </AnimatePresence>
+
         <div className="max-w-3xl w-full space-y-8 bg-white p-12 rounded-3xl shadow-2xl border border-gray-100">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6 shadow-lg">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-              </svg>
-            </div>
-            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-3">
-              Build Your Business Website
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Select a location to instantly generate a professional website using AI-powered technology.
-            </p>
-          </div>
+         <div className="text-center">
+  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6 shadow-lg">
+    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+    </svg>
+  </div>
+
+  <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-4 leading-tight">
+    Build Your Professional Business Website with Limbu AI
+  </h1>
+
+  <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+    Launch your AI-powered business website in minutes with 
+    <span className="font-semibold text-blue-600"> Free Domain </span> 
+    and 
+    <span className="font-semibold text-indigo-600"> Free High-Speed  Server</span>. 
+    No coding required. Perfect for startups, local businesses, and entrepreneurs who want to grow online fast.
+  </p>
+
+  <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">
+    Select your location and let Limbu AI instantly generate a fully responsive, SEO-optimized website tailored for your business.
+  </p>
+</div>
 
           <div className="mt-10 space-y-6">
             {locations.length > 0 ? (
@@ -489,6 +518,10 @@ export default function BuildWebsitePage() {
   // ✅ Website Preview with Enhanced Design
   return (
     <div className="min-h-screen bg-white">
+      <AnimatePresence>
+        {loading && <LoadingOverlay />}
+      </AnimatePresence>
+
       {/* Toolbar */}
       <div className="fixed top-6 right-6 z-50 flex gap-3">
         <button

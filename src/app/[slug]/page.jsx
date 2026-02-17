@@ -623,7 +623,7 @@ export default async function SitePage({ params }) {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-gray-500 text-sm">Powered by AI</span>
+              <span className="text-gray-500 text-sm">Powered by Limbu AI</span>
               <div className="h-4 w-px bg-gray-700" />
               <span className="text-gray-500 text-sm">Professional Website</span>
             </div>

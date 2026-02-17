@@ -28,7 +28,7 @@ export function middleware(request) {
       return NextResponse.next();
     }
 
-    url.pathname = `/_sites/${slug}`;
+    url.pathname = `/${slug}`;
     return NextResponse.rewrite(url);
   }
 

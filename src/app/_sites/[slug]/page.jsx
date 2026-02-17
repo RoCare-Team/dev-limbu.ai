@@ -1,57 +1,32 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 
 /**
  * Get dynamic base URL (works with subdomains)
  */
-function getBaseUrl() {
-  const headersList = headers();
-  const host = headersList.get("host");
 
-  if (!host) {
-    throw new Error("Host header not found");
-  }
-
-  const protocol =
-    process.env.NODE_ENV === "production" ? "https" : "http";
-
-  return `${protocol}://${host}`;
-}
 
 /**
  * Fetch site data safely
  */
 async function getSiteData(slug) {
-  if (!slug || typeof slug !== "string") {
-    return null;
-  }
+  if (!slug) return null;
 
   try {
-    const baseUrl = getBaseUrl();
-
     const res = await fetch(
-      `${baseUrl}/api/get-site?slug=${slug}`,
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/get-site?slug=${slug}`,
       { cache: "no-store" }
     );
 
-    if (!res.ok) {
-      return null;
-    }
+    if (!res.ok) return null;
 
     const data = await res.json();
-
-    const siteData = data?.site || data;
-
-    if (!siteData || !siteData?.business?.title) {
-      return null;
-    }
-
-    return siteData;
+    return data?.site || null;
   } catch (error) {
-    console.error("Error fetching site data:", error);
+    console.error("Error fetching site:", error);
     return null;
   }
 }
+
 
 /**
  * Dynamic metadata generation

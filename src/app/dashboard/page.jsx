@@ -982,7 +982,7 @@ const navItems = [
    icon: <Globe className="h-6 w-6" />,
    label: "Website Builder",
    isFree: true,
-   specialTag: "Launched Today",
+  //  specialTag: "Launched Today",
  },
   {
     href: "/post-management",

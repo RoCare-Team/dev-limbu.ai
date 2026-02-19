@@ -2,15 +2,24 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 
-export async function GET() {
+export async function GET(req) {
   try {
     await dbConnect();
 
-    // 🔥 Sirf wahi users jinke paas refer_code hai
-    const users = await User.find({
+    const { searchParams } = new URL(req.url);
+    const referCode = searchParams.get("referCode");
+
+    const query = {
       referCode: { $exists: true, $ne: "" },
-    }).select(
-      "fullName email phone refer_code createdAt"
+    };
+
+    if (referCode) {
+      query.referCode = referCode;
+    }
+
+    // 🔥 Sirf wahi users jinke paas refer_code hai
+    const users = await User.find(query).select(
+      "fullName email phone referCode createdAt"
     );
 
     return NextResponse.json({

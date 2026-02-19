@@ -5,7 +5,7 @@ import FranchisePanel from "@/models/franchisePanel";
 
 function generateCode(name, count) {
   const prefix = name.replace(/\s+/g, "").substring(0, 5).toUpperCase();
-  const number = String(count).padStart(2, "0");
+  const number = String(count).padStart(3, "0");
   return `${prefix}${number}`;
 }
 
@@ -19,54 +19,55 @@ export async function POST(req) {
       mobileNumber,
       email,
       password,
-      referredBy,
     } = await req.json();
 
-    if (!franchiseName || !ownerName || !mobileNumber || !email || !password) {
+    // ✅ Validation
+    if (
+      !franchiseName ||
+      !ownerName ||
+      !mobileNumber ||
+      !email ||
+      !password
+    ) {
       return NextResponse.json(
         { success: false, message: "All fields are required" },
         { status: 400 }
       );
     }
 
-    // Check existing mobile or email
-    const exists = await FranchisePanel.findOne({
+    // ✅ Check duplicate email or mobile
+    const existing = await FranchisePanel.findOne({
       $or: [{ email }, { mobileNumber }],
     });
 
-    if (exists) {
+    if (existing) {
       return NextResponse.json(
         { success: false, message: "Franchise already exists" },
         { status: 409 }
       );
     }
 
-    // Count existing franchises with same prefix
-    const prefix = franchiseName.replace(/\s+/g, "").substring(0, 5).toUpperCase();
-    const total = await FranchisePanel.countDocuments({
-      franchiseCode: { $regex: `^${prefix}` },
-    });
-
+    // ✅ Generate franchise code
+    const total = await FranchisePanel.countDocuments();
     const franchiseCode = generateCode(franchiseName, total + 1);
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const franchise = await FranchisePanel.create({
+    const newFranchise = await FranchisePanel.create({
       franchiseName,
       ownerName,
       mobileNumber,
       email,
       password: hashedPassword,
       franchiseCode,
-      referredBy: referredBy || null,
     });
 
     return NextResponse.json({
       success: true,
       message: "Franchise created successfully",
       data: {
-        id: franchise._id,
-        franchiseCode: franchise.franchiseCode,
+        id: newFranchise._id,
+        franchiseCode: newFranchise.franchiseCode,
       },
     });
   } catch (error) {

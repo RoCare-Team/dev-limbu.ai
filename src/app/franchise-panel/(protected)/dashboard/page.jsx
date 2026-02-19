@@ -29,10 +29,15 @@ export default function FranchiseDashboard() {
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch(`/api/franchise-panel/franchise-user`);
-      const data = await res.json();
+      const storedUserStr = localStorage.getItem("franchise_user");
+      if (!storedUserStr) return;
+      const storedUser = JSON.parse(storedUserStr);
 
-      if (data.success) {
+      const res = await fetch(`/api/franchise-panel/franchise-user?referCode=${storedUser.franchiseCode}`);
+      const data = await res.json();
+      console.log("datadata",data);
+      
+      if (data.success && Array.isArray(data.users)) {
         setLeadsCount(data.users.length);
       }
     } catch (error) {
@@ -81,10 +86,10 @@ export default function FranchiseDashboard() {
   };
 
   const handleCopyCoupon = async () => {
-    if (user?.referCode) {
-      console.log("Copying coupon code:", user.referCode); // Debug log
+    if (user?.franchiseCode) {
+      console.log("Copying coupon code:", user.franchiseCode); // Debug log
       
-      const success = await copyToClipboard(user.referCode);
+      const success = await copyToClipboard(user.franchiseCode);
       if (success) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -95,9 +100,9 @@ export default function FranchiseDashboard() {
   };
 
   const handleCopyLink = async () => {
-    if (user?.referCode) {
+    if (user?.franchiseCode) {
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-      const referralLink = `${baseUrl}/login?refer=${user.referCode}`;
+      const referralLink = `${baseUrl}/login?refer=${user.franchiseCode}`;
       
       console.log("Copying referral link:", referralLink); // Debug log
       
@@ -113,9 +118,9 @@ export default function FranchiseDashboard() {
 
   const handleShare = async (type) => {
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-    const referralLink = `${baseUrl}/login?refer=${user?.referCode}`;
+    const referralLink = `${baseUrl}/login?refer=${user?.franchiseCode}`;
     const text = type === 'code' 
-      ? `Join Limbu.ai using my referral code: ${user?.referCode}`
+      ? `Join Limbu.ai using my referral code: ${user?.franchiseCode}`
       : `Join Limbu.ai using my referral link: ${referralLink}`;
 
     if (navigator.share) {
@@ -131,9 +136,9 @@ export default function FranchiseDashboard() {
   };
 
   const getReferralLink = () => {
-    if (user?.referCode) {
+    if (user?.franchiseCode) {
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-      return `${baseUrl}/login?refer=${user.referCode}`;
+      return `${baseUrl}/login?refer=${user.franchiseCode}`;
     }
     return "https://limbu.ai/login?refer=LIMBU01";
   };
@@ -146,12 +151,12 @@ export default function FranchiseDashboard() {
           <div className="flex items-center gap-2 mb-2">
             <Crown className="text-yellow-400" />
             <span className="text-sm uppercase tracking-wide text-gray-300">
-              Master Franchise
+              {user?.franchiseName || "Franchise Partner"}
             </span>
           </div>
 
           <h1 className="text-3xl font-bold">
-            Welcome, {user?.fullName}
+            Welcome, {user?.ownerName || "Partner"}
           </h1>
 
           <p className="text-gray-300 mt-1">
@@ -162,11 +167,11 @@ export default function FranchiseDashboard() {
         {/* 🔑 Refer Code - Compact Display */}
         <div className="mt-6 md:mt-0 bg-white/10 backdrop-blur px-6 py-4 rounded-xl">
           <p className="text-xs text-gray-300 mb-1">
-            Your Referral Code
+            Your Franchise Code
           </p>
           <div className="flex items-center gap-3">
             <p className="text-2xl font-bold tracking-widest">
-              {user?.referCode || "LIMBU01"}
+              {user?.franchiseCode || "LIMBU01"}
             </p>
           </div>
         </div>
@@ -224,7 +229,7 @@ export default function FranchiseDashboard() {
                 <Copy className="text-indigo-600" size={20} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">
-                Referral Code
+                Franchise Code
               </h3>
             </div>
 
@@ -235,10 +240,10 @@ export default function FranchiseDashboard() {
             {/* Code Display */}
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 mb-4 border border-indigo-200">
               <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">
-                Your Coupon Code
+                Your Franchise Code
               </p>
               <p className="text-3xl font-bold text-indigo-600 tracking-widest text-center py-2">
-                {user?.referCode || "LIMBU01"}
+                {user?.franchiseCode || "LIMBU01"}
               </p>
             </div>
 

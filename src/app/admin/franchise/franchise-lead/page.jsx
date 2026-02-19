@@ -131,6 +131,8 @@ export default function FranchiseLeadsPage() {
   const [bulkAssignee, setBulkAssignee] = useState("");
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [newLead, setNewLead] = useState({});
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
 
   /* ---------------- FETCH LEADS FROM API ---------------- */
   const fetchLeads = async () => {
@@ -550,7 +552,7 @@ export default function FranchiseLeadsPage() {
       "Call Back Later": "call_back",
       "Wrong Number": "wrong_number",
       "Switch Off": "switch_off",
-      "Meeting Scheduled": "meeting_scheduled"
+      "Meeting Scheduled": "meeting_scheduled_online"
     };
 
     const remark = remarkMap[remarkType];
@@ -590,19 +592,47 @@ if (!executiveMobile && typeof window !== "undefined") {
   }
 }
 
+    const payload = {
+      destination: phone,
+      userName: lead.full_name || "User",
+      enquiryId: lead.id,
+      executiveName: lead.assignedFranchiseAdmin?.fullName || "Executive",
+      executiveMobile: executiveMobile || "",
+      remark: remark,
+    };
+
+    if (remarkType === "Meeting Scheduled" && meetingData.date) {
+      payload.meetingDate = meetingData.date;
+      payload.meetingLink = meetingData.link;
+      payload.meetingId = meetingData.meetingId;
+      payload.passcode = meetingData.passcode;
+    }
+
+    // --- SEND EMAIL NOTIFICATION ---
+    if (lead.email) {
+      const emailPayload = {
+        email: lead.email,
+        userName: lead.full_name || "User",
+        enquiryId: lead.id,
+        executiveName: lead.assignedFranchiseAdmin?.fullName || "Executive",
+        remark: remark,
+        meetingDate: payload.meetingDate,
+        meetingLink: payload.meetingLink,
+        meetingId: payload.meetingId,
+        passcode: payload.passcode
+      };
+      fetch("/api/admin/email-send-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      }).catch(err => console.error("Email send failed", err));
+    }
 
     try {
       const res = await fetch("/api/admin/whatsapp-send-remarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          destination: phone,
-          userName: lead.full_name || "User",
-          enquiryId: lead.id,
-          executiveName: lead.assignedFranchiseAdmin?.fullName || "Executive",
-          executiveMobile: executiveMobile || "",
-          remark: remark,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -658,6 +688,44 @@ if (!executiveMobile && typeof window !== "undefined") {
       }
     } catch (error) {
       console.error("Error adding remark:", error);
+    }
+  };
+
+  const handleMeetingSubmit = async () => {
+    if (!meetingData.date || !meetingData.link || !meetingData.meetingId) {
+      toast.error("Please enter Date, Meeting Link and Meeting ID");
+      return;
+    }
+
+    // Send WhatsApp
+    await sendRemarkWhatsApp(remarkModalLead, "Meeting Scheduled");
+
+    // Save Remark
+    const remarkText = `Meeting Scheduled on ${meetingData.date}`;
+    
+    try {
+      const res = await fetch(`/api/franchise-leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: remarkModalLead.id,
+          text: remarkText,
+          addedBy: "Admin"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const updatedRemarks = data.remarks.map(r => ({
+          text: r.text,
+          timestamp: new Date(r.addedAt).toLocaleString(),
+          user: r.addedBy
+        })).reverse();
+        setRemarkHistory(prev => ({ ...prev, [remarkModalLead.id]: updatedRemarks }));
+        setShowMeetingModal(false);
+        setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
+      }
+    } catch (error) {
+      console.error("Error adding meeting remark:", error);
     }
   };
 
@@ -1390,7 +1458,13 @@ if (!executiveMobile && typeof window !== "undefined") {
                   {QUICK_REMARKS.map((remark) => (
                     <button
                       key={remark}
-                      onClick={() => setNewRemark(remark)}
+                      onClick={() => {
+                        if (remark === "Meeting Scheduled") {
+                          setShowMeetingModal(true);
+                        } else {
+                          setNewRemark(remark);
+                        }
+                      }}
                       className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-purple-100 text-gray-700 hover:text-purple-700 rounded-full transition-colors"
                     >
                       {remark}
@@ -1532,6 +1606,75 @@ if (!executiveMobile && typeof window !== "undefined") {
                   {loading ? "Adding..." : "Add Lead"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting Schedule Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={meetingData.date}
+                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <input
+                  type="text"
+                  placeholder="https://zoom.us/..."
+                  value={meetingData.link}
+                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <input
+                  type="text"
+                  placeholder="Meeting ID"
+                  value={meetingData.meetingId}
+                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="123456"
+                  value={meetingData.passcode}
+                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <button
+                onClick={handleMeetingSubmit}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium"
+              >
+                Schedule & Send
+              </button>
             </div>
           </div>
         </div>

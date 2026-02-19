@@ -48,58 +48,58 @@ export async function POST(req) {
       );
     }
 
+    // Generate userId if not provided
+    if (!body.userId) {
+      body.userId = `USR${Date.now()}`;
+    }
+
     // 1️⃣ Fetch ONLY active agents
     const agents = await Admin.find({ role: "agent", isActive: true })
       .sort({ createdAt: 1, _id: 1 })
       .lean();
 
-    if (!agents || agents.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "No active agents found" },
-        { status: 400 }
-      );
-    }
+    let assignedAgentId = null;
+    let rrValue = 0;
+    let assignedAgent = null;
 
-    // 2️⃣ Round Robin Counter
-    const RR_KEY = "agentLeadRR";
+    if (agents && agents.length > 0) {
+      // 2️⃣ Round Robin Counter
+      const RR_KEY = "agentLeadRR";
 
-    let rrDoc = await Setting.findOne({ key: RR_KEY });
+      let rrDoc = await Setting.findOne({ key: RR_KEY });
 
-    if (!rrDoc) {
-      rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
-    } else {
-      rrDoc.value += 1;
-      await rrDoc.save();
-    }
+      if (!rrDoc) {
+        rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
+      } else {
+        rrDoc.value += 1;
+        await rrDoc.save();
+      }
 
-    // ✅ FIXED HERE
-    let rrValue = parseInt(rrDoc.value, 10);
-    if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+      // ✅ FIXED HERE
+      rrValue = parseInt(rrDoc.value, 10);
+      if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
-    // 3️⃣ Round robin index
-    const index = rrValue % agents.length;
-    const assignedAgent = agents[index];
-
-    if (!assignedAgent) {
-      return NextResponse.json(
-        { success: false, error: "Assignment failed" },
-        { status: 500 }
-      );
+      // 3️⃣ Round robin index
+      const index = rrValue % agents.length;
+      assignedAgent = agents[index];
+      if (assignedAgent) {
+        assignedAgentId = assignedAgent._id;
+      }
     }
 
     // 4️⃣ Create Lead
-    const createPayload = { ...body, assignedAgentId: assignedAgent._id };
+    const createPayload = { ...body, assignedAgentId: assignedAgentId };
     const user = await User.create(createPayload);
 
     return NextResponse.json({
       success: true,
-      message: "Agent assigned via round robin successfully",
-      assignedAgent: {
+      message: assignedAgentId ? "Agent assigned via round robin successfully" : "User created (Unassigned)",
+      assignedAgent: assignedAgent ? {
         id: assignedAgent._id,
         name: assignedAgent.fullName || assignedAgent.name,
-      },
+      } : null,
       rrIndex: rrValue,
-      totalAgents: agents.length,
+      totalAgents: agents ? agents.length : 0,
       user,
     });
 

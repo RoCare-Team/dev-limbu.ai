@@ -2,14 +2,24 @@ import { NextResponse } from "next/server";
 
 const AISENSY_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
 
-/**
- * RULE (FIXED SEQUENCE):
- * {{1}} → userName
- * {{2}} → enquiryId
- * {{3}} → executiveName
- * {{4}} → executiveMobile
- * jitni zarurat ho, utni hi values bhejni hain
- */
+/* ================= MOBILE NORMALIZER ================= */
+
+const normalizeIndianNumber = (num) => {
+  if (!num) return null;
+
+  let n = String(num).replace(/\D/g, "");
+
+  // 10 digit → add 91
+  if (n.length === 10) return "91" + n;
+
+  // 91XXXXXXXXXX
+  if (n.length === 12 && n.startsWith("91")) return n;
+
+  return null;
+};
+
+/* ================= CAMPAIGN CONFIG ================= */
+
 const CAMPAIGN_CONFIG = {
   // 🔹 1 PARAM
   call_back: {
@@ -31,7 +41,7 @@ const CAMPAIGN_CONFIG = {
     required: ["userName", "enquiryId"],
   },
 
-  // 🔹 4 PARAMS
+  // 🔹 4 PARAMS (Executive Based)
   call_not_picked: {
     name: "call_not_picked_followup",
     params: (d) => [
@@ -75,17 +85,67 @@ const CAMPAIGN_CONFIG = {
     ],
     required: ["userName", "enquiryId", "executiveName", "executiveMobile"],
   },
+
+  // 🔥 NEW REMARKS
+
+  meeting_scheduled_online: {
+    name: "meeting_scheduled_online",
+    params: (d) => {
+      const [date, time] = (d.meetingDate || "").split("T");
+      return [
+        d.userName,
+        date,
+        time,
+        `${d.meetingLink} ID: ${d.meetingId || "N/A"} Pass: ${d.passcode || "N/A"}`,
+      ];
+    },
+    required: ["userName", "meetingDate", "meetingLink", "meetingId"],
+  },
+
+  meeting_scheduled_offline: {
+    name: "meeting_scheduled_offline",
+    params: (d) => [
+      d.userName,
+      d.enquiryId,
+      d.meetingDate,
+      d.meetingLocation,
+    ],
+    required: ["userName", "enquiryId", "meetingDate", "meetingLocation"],
+  },
+
+  followup_reminder: {
+    name: "followup_reminder",
+    params: (d) => [
+      d.userName,
+      d.enquiryId,
+      d.followupDate,
+    ],
+    required: ["userName", "enquiryId", "followupDate"],
+  },
 };
+
+/* ================= API HANDLER ================= */
 
 export async function POST(req) {
   try {
     const body = await req.json();
+
     const { remark, destination, userName } = body;
 
+    /* ===== BASIC VALIDATION ===== */
+
+    if (!remark) {
+      return NextResponse.json(
+        { success: false, message: "remark is required" },
+        { status: 400 }
+      );
+    }
+
     const config = CAMPAIGN_CONFIG[remark];
+
     if (!config) {
       return NextResponse.json(
-        { success: false, message: "Invalid remark" },
+        { success: false, message: "Invalid remark type" },
         { status: 400 }
       );
     }
@@ -97,7 +157,19 @@ export async function POST(req) {
       );
     }
 
-    // 🔍 Dynamic field validation (campaign wise)
+    /* ===== NUMBER NORMALIZATION ===== */
+
+    const formattedNumber = normalizeIndianNumber(destination);
+
+    if (!formattedNumber) {
+      return NextResponse.json(
+        { success: false, message: "Invalid Indian mobile number" },
+        { status: 400 }
+      );
+    }
+
+    /* ===== DYNAMIC FIELD VALIDATION ===== */
+
     for (const field of config.required) {
       if (!body[field]) {
         return NextResponse.json(
@@ -107,24 +179,36 @@ export async function POST(req) {
       }
     }
 
-    // 🔐 AiSensy rule: userName must be alphanumeric
-    const safeUserName = userName.replace(/[^a-zA-Z0-9]/g, "");
+    /* ===== SAFE USERNAME (AiSensy Rule) ===== */
+
+    const safeUserName =
+      userName.replace(/[^a-zA-Z0-9]/g, "") || "User";
+
+    /* ===== PAYLOAD BUILD ===== */
 
     const payload = {
       apiKey: process.env.AISENSY_API_KEY,
       campaignName: config.name,
-      destination,
-      userName: safeUserName || "User",
-
-      // 🔥 ONLY ACTUAL VALUES (order matters)
+      destination: formattedNumber,
+      userName: safeUserName,
       templateParams: config.params(body),
-
       source: "new-landing-page form",
+
+      // Optional but safe defaults
+      media: {},
+      buttons: [],
+      carouselCards: [],
+      location: {},
+      attributes: {},
     };
+
+    /* ===== API CALL ===== */
 
     const response = await fetch(AISENSY_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(payload),
     });
 
@@ -148,6 +232,7 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("AiSensy Error:", error);
+
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

@@ -50,6 +50,8 @@ export default function UserManagement() {
   const [detailedStats, setDetailedStats] = useState([]);
   const [stageModal, setStageModal] = useState(null); // { stage: "Follow Up" }
   const [stageStats, setStageStats] = useState({});
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -62,6 +64,10 @@ export default function UserManagement() {
   ];
 
   const handleDefaultRemarkClick = (remark) => {
+    if (remark === "Meeting Scheduled") {
+      setShowMeetingModal(true);
+      return;
+    }
     const adminName = localStorage.getItem("adminName") || "Admin";
     setRemarksInput(`${remark} - ${adminName}`);
   };
@@ -169,6 +175,8 @@ export default function UserManagement() {
     const active = connectedBusinessUsers.length;
     const todayMetaLeads = users.filter(u => (u.source === "bulk-upload" || u.source === "Meta Leads") && new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
     const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
+    console.log("usersusers",users);
+    
 
     // const leadStageActive = users.filter(u => (u.leadStage || "Active") === "Active").length;
     // const leadStageFollowUp = users.filter(u => u.leadStage === "Follow Up").length;
@@ -398,41 +406,117 @@ export default function UserManagement() {
     }
   };
 
-  const handleAssignChange = async (userId, newAgentId) => {
-    try {
-      const res = await fetch("/api/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          assignedAgentId: newAgentId || null,
-        }),
-      });
+const handleAssignChange = async (userId, newAgentId) => {
+  try {
+    console.log("🔄 Assign request started");
 
-      const data = await res.json();
+    // 1️⃣ Update Assigned Agent
+    const res = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        assignedAgentId: newAgentId || null,
+      }),
+    });
 
-      if (!data.success) {
-        showToast(data.error || "Failed to assign agent", "error");
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      showToast(data.error || "Failed to assign agent", "error");
+      return;
+    }
+
+    showToast("Agent assigned successfully", "success");
+
+    const updatedAgent = data.user?.assignedAgentId || newAgentId;
+    console.log("agentsagents",agents);
+    
+
+    // 2️⃣ Send WhatsApp Notification (ONLY if agent selected)
+    if (newAgentId) {
+      const agent = agents.find((a) => a._id === newAgentId);
+      const user = users.find((u) => u.userId === userId);
+
+      if (!agent || !user) {
+        console.warn("Agent or User not found");
         return;
       }
 
-      showToast("Agent assigned successfully", "success");
+      const payload = {
+        firstName: user.fullName || "User",
+        enquiryNo: user.userId,
+        executiveName: agent.fullName || "Executive",
+        executiveMobile: agent.mobile,
+        userMobile: user.phone || user.mobileNumber,
+      };
 
-      const updatedAgent = data.user?.assignedAgentId;
+      try {
+        const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.userId === userId
-            ? { ...user, assignedAgentId: updatedAgent }
-            : user
-        )
-      );
-      fetchUsers(true);
-    } catch (error) {
-      console.error("Assignment error:", error);
-      showToast("Something went wrong while assigning.", "error");
+        const waData = await waRes.json();
+
+        if (!waRes.ok || !waData.success) {
+          console.error("WhatsApp send failed:", waData);
+        } else {
+          console.log("✅ WhatsApp sent successfully");
+        }
+      } catch (err) {
+        console.error("WhatsApp API error:", err);
+      }
     }
-  };
+
+    // 3️⃣ Update local state immediately
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.userId === userId
+          ? { ...user, assignedAgentId: updatedAgent }
+          : user
+      )
+    );
+
+    // Update agent stats locally
+    if (newAgentId) {
+      setAgentStats(prev => ({
+        ...prev,
+        [newAgentId]: (prev[newAgentId] || 0) + 1,
+        unassigned: Math.max(0, (prev.unassigned || 0) - 1)
+      }));
+    }
+
+    // fetchUsers(true); // Optional: refresh in background if needed
+
+  } catch (error) {
+    console.error("🚨 Assignment error:", error);
+    showToast("Something went wrong while assigning.", "error");
+  }
+};
+
+const handleRoundRobinAssign = (userId) => {
+  if (agents.length === 0) {
+    showToast("No agents available", "error");
+    return;
+  }
+  
+  // Find agent with minimum leads (Load Balancing)
+  let minLeads = Infinity;
+  let targetAgentId = agents[0]._id;
+  
+  agents.forEach(agent => {
+      const count = agentStats[agent._id] || 0;
+      if (count < minLeads) {
+          minLeads = count;
+          targetAgentId = agent._id;
+      }
+  });
+  
+  handleAssignChange(userId, targetAgentId);
+};
+
 
   const handleLeadStageChange = async (userId, newStage) => {
     try {
@@ -491,6 +575,8 @@ export default function UserManagement() {
 
   // ✅ Helper to safely get agent name from populated object or string ID
   const getAgentName = (assignedAgentId) => {
+    console.log("assignedAgentIdassignedAgentId",assignedAgentId);
+    
     if (!assignedAgentId) return "Unassigned";
     
     // If it's a populated object with fullName
@@ -588,7 +674,7 @@ export default function UserManagement() {
 
     try {
       const res = await fetch("/api/users/add", {
-        method: "POST",
+        method: "POST",/*  */
         headers: {
           "Content-Type": "application/json",
         },
@@ -738,7 +824,7 @@ export default function UserManagement() {
       "Call Back Later": "call_back",
       "Wrong Number": "wrong_number",
       "Switch Off": "switch_off",
-      "Meeting Scheduled": "meeting_scheduled"
+      "Meeting Scheduled": "meeting_scheduled_online"
     };
 
     const remark = remarkMap[remarkType];
@@ -766,23 +852,56 @@ export default function UserManagement() {
 
       if (adminName.includes("aman") || email.includes("aman")) {
         executiveMobile = "9311587741";
+        executiveMobile = "919311587741";
       } else if (adminName.includes("moni") || email.includes("moni")) {
         executiveMobile = "7065021272";
+        executiveMobile = "917065021272";
       }
+    }
+
+    const payload = {
+      destination: phone,
+      userName: user.fullName || "User",
+      enquiryId: user.userId,
+      executiveName: user.assignedAgentId?.fullName || "Executive",
+      executiveMobile: executiveMobile || "",
+      remark: remark,
+    };
+
+    if (remarkType === "Meeting Scheduled" && meetingData.date) {
+      payload.meetingDate = meetingData.date;
+      payload.meetingTime = meetingData.date.split("T")[1];
+      payload.meetingLink = meetingData.link;
+      payload.meetingId = meetingData.meetingId;
+      payload.passcode = meetingData.passcode;
+    }
+
+    // --- SEND EMAIL NOTIFICATION ---
+    if (user.email) {
+      const emailPayload = {
+        email: user.email,
+        userName: user.fullName || "User",
+        enquiryId: user.userId,
+        executiveName: user.assignedAgentId?.fullName || "Executive",
+        remark: remark,
+        meetingDate: payload.meetingDate,
+        meetingTime: payload.meetingTime,
+        meetingLink: payload.meetingLink,
+        meetingId: payload.meetingId,
+        passcode: payload.passcode
+      };
+      fetch("/api/admin/email-send-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      }).catch(err => console.error("Email send failed", err));
     }
 
     try {
       const res = await fetch("/api/admin/whatsapp-send-remarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          destination: phone,
-          userName: user.fullName || "User",
-          enquiryId: user.userId,
-          executiveName: user.assignedAgentId?.fullName || "Executive",
-          executiveMobile: executiveMobile || "",
-          remark: remark,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -838,6 +957,45 @@ export default function UserManagement() {
     }
   };
 
+  const handleMeetingSubmit = async () => {
+    if (!meetingData.date || !meetingData.link || !meetingData.meetingId) {
+      showToast("Please enter Date, Meeting Link and Meeting ID", "error");
+      return;
+    }
+
+    const adminName = localStorage.getItem("adminName") || "Admin";
+    const remarkText = `Meeting Scheduled on ${meetingData.date} - ${adminName}`;
+
+    // Send WhatsApp with meeting details
+    const messageSent = await sendRemarkWhatsApp(remarksModalUser, "Meeting Scheduled");
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: remarksModalUser.userId,
+          remark: remarkText,
+          messageSent,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRemarksHistory(data.user.remarksHistory || []);
+        setRemarksInput("");
+        showToast("Meeting scheduled successfully", "success");
+        fetchUsers();
+        setShowMeetingModal(false);
+        setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
+      } else {
+        showToast(data.error || "Failed to save remark", "error");
+      }
+    } catch (error) {
+      console.error("Error saving meeting remark:", error);
+      showToast("Error saving meeting remark", "error");
+    }
+  };
+
   const handleUpdateRemarks = async () => {
     if (!remarksModalUser) return;
 
@@ -886,12 +1044,6 @@ export default function UserManagement() {
 
   console.log("agentsagents", agents);
   console.log("agentStatsagentStatsagentStats", agentStats);
-
-
-
-
-
-
 
 
   if (loading) {
@@ -1035,30 +1187,6 @@ export default function UserManagement() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 shadow-lg border border-purple-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-700 text-sm font-medium">Today Signups</p>
-                <p className="text-3xl font-bold text-purple-800 mt-1">
-                  {stats.todaySignups}
-                </p>
-              </div>
-              <Calendar className="text-purple-600" size={24} />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl p-6 shadow-lg border border-pink-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-pink-700 text-sm font-medium">Today Meta Leads</p>
-                <p className="text-3xl font-bold text-pink-800 mt-1">
-                  {stats.todayMetaLeads}
-                </p>
-              </div>
-              <User2Icon className="text-pink-600" size={24} />
-            </div>
-          </div>
-
           <div
             className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 shadow-lg border border-orange-200 cursor-pointer hover:shadow-xl transition-all"
             onClick={() => {
@@ -1122,22 +1250,7 @@ export default function UserManagement() {
         </div>
 
         {/* Lead Stage Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div
-            className="bg-green-50 rounded-2xl p-6 shadow-lg border border-green-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Active")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-700 text-sm font-medium">Active Leads</p>
-                <p className="text-3xl font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-xl">
-                <CheckCircle className="text-green-600" size={24} />
-              </div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div
             className="bg-yellow-50 rounded-2xl p-6 shadow-lg border border-yellow-200 cursor-pointer hover:shadow-xl transition-all"
             onClick={() => setStageModal("Follow Up")}
@@ -1418,6 +1531,16 @@ export default function UserManagement() {
                                 </option>
                               ))}
                             </select>
+
+                            {!user.assignedAgentId && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRoundRobinAssign(user.userId); }}
+                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                title="Auto Assign (Round Robin)"
+                              >
+                                <RefreshCw size={12} />
+                              </button>
+                            )}
 
                             <span className="pointer-events-none absolute right-2 flex items-center">
                               <ChevronDown className="h-3 w-3" />
@@ -2589,6 +2712,75 @@ export default function UserManagement() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting Schedule Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={meetingData.date}
+                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <input
+                  type="text"
+                  placeholder="https://zoom.us/..."
+                  value={meetingData.link}
+                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <input
+                  type="text"
+                  placeholder="Meeting ID"
+                  value={meetingData.meetingId}
+                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="123456"
+                  value={meetingData.passcode}
+                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <button
+                onClick={handleMeetingSubmit}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
+              >
+                Schedule & Send
+              </button>
             </div>
           </div>
         </div>

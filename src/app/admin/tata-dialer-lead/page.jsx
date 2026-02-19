@@ -88,15 +88,18 @@ export default function TataDailerLeadPage() {
   };
 
   /* ================= DATE → CAMPAIGN ================= */
-  const getCampaignByDate = (dateStr) => {
-    const day = new Date(dateStr).getDay(); // 0=Sun, 5=Fri
-    if (day === 5) return "session530pm";
-    if (day >= 1 && day <= 6) return "session4pm";
-    return null; // Sunday blocked
-  };
 
-  /* ================= SEND MESSAGES ================= */
-  const sendMessage = async () => {
+
+const getCampaignByDate = (dateStr) => {
+  const day = new Date(dateStr).getDay(); // 0=Sun, 5=Fri
+
+  if (day === 0) return null;              // Sunday blocked
+  if (day === 5) return "session530pm_new"; // Friday → 5:30 PM
+  return "session4pm_new";                 // Mon–Sat → 4 PM
+};
+
+const sendMessage = async () => {
+  try {
     if (!sendDate) {
       setResult({
         success: false,
@@ -106,6 +109,7 @@ export default function TataDailerLeadPage() {
     }
 
     const campaignName = getCampaignByDate(sendDate);
+
     if (!campaignName && messageType === "whatsapp") {
       setResult({
         success: false,
@@ -114,18 +118,19 @@ export default function TataDailerLeadPage() {
       return;
     }
 
-   const users = calls
-  .filter((c) => selected.includes(c._id))
-  .map((c) => ({
-    did_number: c.did_number,   // ✅ YE ADD KARNA HAI
-    mobile_no: c.mobile_no,
-  }));
-
+    /* ================= ONLY DID NUMBER ================= */
+    const users = calls
+      .filter((c) => selected.includes(c._id))
+      .map((c) => ({
+        customer_no_with_prefix: c.did_number, // ✅ ONLY THIS NUMBER WILL BE SENT
+        name: c.name || "User",
+      }))
+      .filter((u) => u.customer_no_with_prefix); // remove empty did numbers
 
     if (!users.length) {
       setResult({
         success: false,
-        message: "No users selected",
+        message: "No valid DID numbers selected",
       });
       return;
     }
@@ -134,6 +139,7 @@ export default function TataDailerLeadPage() {
     setResult(null);
 
     let endpoint = "";
+
     switch (messageType) {
       case "whatsapp":
         endpoint = "/api/tata-dailer-whatsapp";
@@ -151,21 +157,44 @@ export default function TataDailerLeadPage() {
         endpoint = "/api/tata-dailer-whatsapp";
     }
 
-    const res = await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ users, campaignName, scheduleDate: sendDate }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        users,
+        campaignName,
+        scheduleDate: sendDate,
+      }),
     });
 
-    const json = await res.json();
-    setSending(false);
+    const json = await response.json();
+
+    if (!response.ok) {
+      setResult({
+        success: false,
+        message: json?.message || "Server error occurred",
+      });
+    } else {
+      setResult({
+        success: json.success,
+        message: json.message || "Message processed",
+        sent: json.sent || 0,
+      });
+    }
+  } catch (error) {
+    console.error("Send Message Error:", error);
 
     setResult({
-      success: json.success,
-      message: json.message,
-      sent: json.sent,
+      success: false,
+      message: "Something went wrong while sending",
     });
-  };
+  } finally {
+    setSending(false);
+  }
+};
+
 
   /* ================= EXPORT DATA ================= */
   const exportData = () => {

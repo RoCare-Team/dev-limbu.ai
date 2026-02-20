@@ -9,7 +9,10 @@ import ClientLogosSection from "../components/sections/ClientLogosSection"
 import ExamplesSection from "../components/sections/ExamplesSection"
 import VideoExamplesSection from "../components/sections/VideoExamplesSection"
 import FeaturesSection from "../components/sections/FeaturesSection"
+import AccountSetupSection from "../components/sections/AccountSetupSection"
 import ServicesSection from "../components/sections/ServicesSection"
+import WebDevelopmentSection from "../components/sections/WebDevelopmentSection"
+import SeoPlans from "../components/sections/SeoPlans"
 import SubscriptionSection from "../components/sections/SubscriptionSection"
 import ComparisonSection from "../components/sections/ComparisonSection"
 import TestimonialsSection from "../components/sections/TestimonialsSection"
@@ -77,6 +80,7 @@ export default function LimbuAILanding() {
     email: "",
     gstNumber: ""
   })
+
 
   // =============================
   // 🟣 EFFECTS
@@ -156,15 +160,33 @@ export default function LimbuAILanding() {
       return;
     }
 
-    const res = await loadRazorpayScript();
-    if (!res) {
-      showToast("Razorpay SDK failed to load. Are you online?", "error");
-      return;
+    // const res = await loadRazorpayScript();
+    // if (!res) {
+    //   showToast("Razorpay SDK failed to load. Are you online?", "error");
+    //   return;
+    // }
+
+    const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.onload = () => {
+      resolve(true)
     }
+    script.onerror = () => {
+      resolve(false)
+    }
+    document.body.appendChild(script)
+  })
+}
 
     try {
       // 1. Create Order
-      const amountVal = parseInt(selectedPlan.totalPrice.replace(/[^\d]/g, ''));
+      // const amountVal = parseInt(selectedPlan.totalPrice.replace(/[^\d]/g, ''));
+      // const amountVal = selectedPlan.totalPrice;
+      const amountVal = typeof selectedPlan.totalPrice === "string"
+  ? parseInt(selectedPlan.totalPrice.replace(/[^\d]/g, ""))
+  : selectedPlan.totalPrice;
       
       const orderRes = await fetch("/api/razorpay/create-order", {
         method: "POST",
@@ -245,6 +267,45 @@ export default function LimbuAILanding() {
       showToast("Something went wrong. Please try again.", "error");
     }
   };
+
+  const accountSetupPlans = [
+  {
+    title: "Google Account Setup",
+    basePrice: 2500,
+    description: "Complete Google Business Profile setup and optimization.",
+    staticFeatures: [
+      "New google ads account creation",
+      "Biling & payment setup",
+      "Linking with google buisness profile (if available)",
+      "Linking with google analytics & google managr",
+      "Website conversion tracking (form submission, calls, purchases, etc)",
+      "Google tag manager setup (if required)",
+      "Google analytics 4 configuration",
+      "Wall tracking setup",
+      "Event tracking configuration",
+      "We will create a structured campaign",
+      "Search campaign setup"
+    ]
+  },
+  {
+    title: "Meta Account Setup",
+    basePrice: 3500,
+    description: "Complete Meta Business Manager and Ads setup.",
+    staticFeatures: [
+      "Facebook Business Manager Setup",
+      "Instagram Business Setup",
+      "Ad Account Creation",
+      "Audience research",
+      "Offer positioning",
+      "Pixel setup & integration configuration",
+      "custom audience creation",
+      "Lookalike audienc setup",
+      "Hook-based creatives",
+      "A/B testing variants",
+      "CTA optimization" 
+    ]
+  }
+]
   
 
   const subscriptionPlans = [
@@ -287,6 +348,111 @@ export default function LimbuAILanding() {
     },
  
   ];
+
+  const webDevelopmentPlans = [
+  {
+    title: "Starter Website",
+    basePrice: 9999,
+    basePages: 5,
+    staticFeatures: [
+      "Responsive Website Design",
+      "Basic SEO Setup",
+      "Contact Form Integration",
+      "Social Media Integration",
+      "1 Month Free Support"
+    ],
+    description: "Perfect for small businesses or startups needing an online presence",
+    color: "bg-neutral-600",
+    textColor: "text-neutral-600",
+    borderColor: "border-blue-200"
+  },
+  {
+    title: "Business Website",
+    basePrice: 25000,
+    basePages: 10,
+    staticFeatures: [
+      "Custom UI/UX Design",
+      "Advanced SEO Optimization",
+      "Speed Optimization",
+      "Admin Panel Access",
+      "3 Months Free Support",
+      "Google Analytics Integration"
+    ],
+    description: "Best for growing businesses looking for a professional website",
+    popular: true,
+    color: "bg-neutral-600",
+    textColor: "text-neutral-600",
+    borderColor: "border-neutral-200"
+  },
+  {
+    title: "Enterprise Website",
+    basePrice: 48000,
+    basePages: 20,
+    staticFeatures: [
+      "Fully Custom Design",
+      "E-commerce Functionality",
+      "Payment Gateway Integration",
+      "Advanced Security Setup",
+      "Performance Optimization",
+      "6 Months Free Support",
+      "Full SEO Optimization"
+    ],
+    description: "Perfect for brands needing advanced features and scalability",
+    color: "bg-neutral-600",
+    textColor: "text-neutral-600",
+    borderColor: "border-purple-200"
+  }
+];
+
+const seoPlans = [
+  {
+    title: "Basic SEO",
+    basePrice: 5999,
+    staticFeatures: [
+      "On-Page SEO Optimization",
+      "Keyword Research",
+      "Meta Tags Optimization",
+      "Basic Technical SEO",
+      "Monthly Report"
+    ],
+    description: "Perfect for small websites starting SEO",
+    color: "bg-neutral-600",
+    textColor: "text-neutral-600"
+  },
+  {
+    title: "Standard SEO",
+    basePrice: 9999,
+    staticFeatures: [
+      "Advanced On-Page SEO",
+      "Technical SEO Audit",
+      "Backlink Building",
+      "Competitor Analysis",
+      "Bi-Weekly Reports"
+    ],
+    description: "Best for growing businesses",
+    popular: true,
+    color: "bg-neutral-600",
+    textColor: "text-neutral-600"
+  },
+  {
+    title: "Advanced SEO",
+    basePrice: 15999,
+    staticFeatures: [
+      "Complete SEO Strategy",
+      "High Quality Backlinks",
+      "Technical Optimization",
+      "Local SEO",
+      "Weekly Performance Report"
+    ],
+    description: "Perfect for brands aiming for top ranking",
+    color: "bg-neutral-600",
+    textColor: "text-neutral-600"
+  }
+]
+
+
+
+
 
   const handleSubscriptionClick = (plan) => {
     const multiplier = getMultiplier();
@@ -353,6 +519,17 @@ export default function LimbuAILanding() {
     const { name, value } = e.target
     setDemoDetails((prev) => ({ ...prev, [name]: value }))
   }
+
+  const handlePlanClick = (plan) => {
+  setSelectedPlan(plan)
+  setBookingSuccess(false)
+  setShowServiceModal(true)
+}
+
+  // const handleServicePayment = (e) => {
+  //   e.preventDefault()
+  //   setBookingSuccess(true)
+  // }
 
  
   // =============================
@@ -555,6 +732,11 @@ export default function LimbuAILanding() {
         handleNavigation={handleNavigation}
       />
 
+      <AccountSetupSection
+  plans={accountSetupPlans}
+  handlePlanClick={handlePlanClick}
+/>
+
       <ServicesSection
         servicePlans={servicePlans}
         handleServiceBookClick={handleServiceBookClick}
@@ -568,6 +750,25 @@ export default function LimbuAILanding() {
         getMultiplier={getMultiplier}
         handleSubscriptionClick={handleSubscriptionClick}
       />
+
+        <WebDevelopmentSection
+        webPlans={webDevelopmentPlans}
+        handlePlanClick={(plan) =>
+          handlePlanClick({
+            ...plan,
+            price: `₹${plan.basePrice.toLocaleString()}`,
+            gstAmount: `₹${Math.round(plan.basePrice * 0.18).toLocaleString()}`,
+            totalPrice: `₹${Math.round(plan.basePrice * 1.18).toLocaleString()}`,
+            subtitle: plan.description
+          })
+        }
+      />
+
+      <SeoPlans
+  seoPlans={seoPlans}
+  handlePlanClick={handlePlanClick}
+/>
+  
 
       <ComparisonSection />
 
@@ -609,6 +810,8 @@ export default function LimbuAILanding() {
         selectedImage={selectedImage}
         setSelectedImage={setSelectedImage}
       />
+
+    
 
       <ServiceBookingModal
         showServiceModal={showServiceModal}

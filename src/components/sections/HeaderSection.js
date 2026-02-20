@@ -93,7 +93,7 @@ export default function HeaderSection({
 
           <button
             onClick={handleLogout}
-            className="px-6 py-2 bg-yellow-400 text-black rounded-lg font-semibold hover:shadow-md transition"
+            className="px-6 py-2 bg-primary text-drk rounded-lg font-semibold hover:shadow-md transition"
           >
             Logout
           </button>

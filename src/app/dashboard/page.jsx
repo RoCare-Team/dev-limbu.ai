@@ -989,11 +989,7 @@ const navItems = [
   },
 
 
-  {
-    href: "/wallet",
-    icon: <Wallet className="h-6 w-6 "  />,
-    label: "Wallet Recharge",
-  },
+  
 
   
 ];
@@ -1102,8 +1098,8 @@ const navItems = [
 
 const NavLinks = ({ isAuthenticated }) => {
   return (
-    <div className="w-full px-4 py-3">
-      <div className="flex justify-center gap-16 flex-wrap">
+    <div className="w-full  px-4 py-3 ">
+     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 place-items-center ">
         {navItems.map((item) => {
           const isPublic =
             item.href === "/post-management" || item.href === "/wallet";
@@ -1816,7 +1812,7 @@ const fetchInstagramPages = useCallback(async () => {
                   </button> */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                    className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>

@@ -353,7 +353,7 @@ export default function LimbuAILanding() {
   {
     title: "Starter Website",
     basePrice: 9999,
-    basePages: 5,
+    basePages: 1,
     staticFeatures: [
       "Responsive Website Design",
       "Basic SEO Setup",
@@ -369,7 +369,7 @@ export default function LimbuAILanding() {
   {
     title: "Business Website",
     basePrice: 25000,
-    basePages: 10,
+    basePages: 1,
     staticFeatures: [
       "Custom UI/UX Design",
       "Advanced SEO Optimization",
@@ -387,7 +387,7 @@ export default function LimbuAILanding() {
   {
     title: "Enterprise Website",
     basePrice: 48000,
-    basePages: 20,
+    basePages: 1,
     staticFeatures: [
       "Fully Custom Design",
       "E-commerce Functionality",

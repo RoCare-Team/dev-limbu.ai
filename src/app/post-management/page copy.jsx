@@ -1281,7 +1281,7 @@ export default function PostManagementPage() {
 
 </div> */}
 
-        <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 
+        <div className="bg-primary text-dark to-pink-400 
         rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border-4 border-white text-center">
 
   <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 sm:mb-3 

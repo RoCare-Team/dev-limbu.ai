@@ -280,36 +280,36 @@ export default function ProfileWithStats() {
                   title="Total Posts"
                   value={allCounts.total}
                   icon={<Image className="w-5 h-5" />}
-                  gradient="from-indigo-500 to-purple-600"
-                  textColor="text-indigo-600"
+                  gradient="bg-dark"
+                  textColor="text-white"
                 />
                 <StatCard
                   title="Approved"
                   value={allCounts.approved}
                   icon={<CheckCircle className="w-5 h-5" />}
-                  gradient="from-green-500 to-emerald-600"
-                  textColor="text-green-600"
+                  gradient="bg-dark"
+                  textColor="text-white"
                 />
                 <StatCard
                   title="Pending"
                   value={allCounts.pending}
                   icon={<Clock className="w-5 h-5" />}
-                  gradient="from-amber-500 to-orange-600"
-                  textColor="text-amber-600"
+                  gradient="bg-dark"
+                  textColor="text-white"
                 />
                 <StatCard
                   title="Scheduled"
                   value={allCounts.scheduled}
                   icon={<CalendarDays className="w-5 h-5" />}
-                  gradient="from-purple-500 to-pink-600"
+                  gradient="bg-dark"
                   textColor="text-purple-600"
                 />
                 <StatCard
                   title="Posted"
                   value={allCounts.posted}
                   icon={<Send className="w-5 h-5" />}
-                  gradient="from-blue-500 to-cyan-600"
-                  textColor="text-blue-600"
+                  gradient="bg-dark"
+                  textColor="text-white"
                 />
               </div>
             </div>

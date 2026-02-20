@@ -13,7 +13,9 @@ import {
   UploadCloud,
   Building2,
   Palette,
-  Plus
+  Plus,
+  Mic,
+  MicOff
 } from "lucide-react";
 
 const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
@@ -35,7 +37,87 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const [showKeywordModal, setShowKeywordModal] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
   const [isSavingKeyword, setIsSavingKeyword] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState(null);
+  const [voiceLang, setVoiceLang] = useState("en-US");
+  const textareaRef = React.useRef(null);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognitionInstance = new SpeechRecognition();
+        recognitionInstance.continuous = true;
+        recognitionInstance.interimResults = true;
+        recognitionInstance.lang = voiceLang;
+
+        recognitionInstance.onresult = (event) => {
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript + " ";
+            }
+          }
+
+          if (finalTranscript) {
+            const newText = finalTranscript.trim();
+            setPrompt((prev) => {
+               const currentValue = prev || "";
+               const input = textareaRef.current;
+               if (input) {
+                 const start = input.selectionStart || currentValue.length;
+                 const end = input.selectionEnd || currentValue.length;
+                 const beforeCursor = currentValue.substring(0, start);
+                 const afterCursor = currentValue.substring(end);
+                 const prefix = (beforeCursor && !beforeCursor.endsWith(" ") && !newText.startsWith(" ")) ? " " : "";
+                 return `${beforeCursor}${prefix}${newText}${afterCursor}`;
+               }
+               return currentValue ? `${currentValue} ${newText}` : newText;
+            });
+          }
+        };
+
+        recognitionInstance.onerror = (event) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        recognitionInstance.onend = () => {
+          setIsListening(false);
+        };
+
+        setRecognition(recognitionInstance);
+      }
+    }
+  }, [setPrompt, voiceLang]);
+
+  const toggleListening = () => {
+    if (!recognition) {
+      showToast("Speech recognition not supported in this browser.", "error");
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognition.lang = voiceLang;
+        recognition.start();
+        setIsListening(true);
+      } catch (error) {
+        console.error("Error starting recognition:", error);
+      }
+    }
+  };
+
+  const toggleVoiceLanguage = () => {
+    if (isListening && recognition) {
+      recognition.stop();
+      setIsListening(false);
+    }
+    setVoiceLang((prev) => (prev === "en-US" ? "hi-IN" : "en-US"));
+  };
 
   // Extract unique business names for the dropdown
   const uniqueBusinessNames = React.useMemo(() => {
@@ -409,13 +491,38 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
               <Sparkles className="w-4 h-4 text-blue-500" />
               What would you like to create?
             </label>
-            <textarea
-              placeholder="Describe your post idea..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all min-h-[40px] resize-none placeholder:text-gray-400"
-              disabled={loading}
-            />
+            <div className="relative">
+              <textarea
+                ref={textareaRef}
+                placeholder="Describe your post idea..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="w-full p-2 pr-24 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all min-h-[40px] resize-none placeholder:text-gray-400"
+                disabled={loading}
+              />
+              <div className="absolute right-2 top-2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={toggleVoiceLanguage}
+                  className="px-2 py-1 text-[10px] font-bold bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors uppercase border border-gray-200"
+                  title="Switch Language (English/Hindi)"
+                >
+                  {voiceLang === "en-US" ? "EN" : "HI"}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-1.5 rounded-full transition-all duration-200 ${
+                    isListening 
+                      ? "bg-red-500 text-white shadow-md ring-4 ring-red-200 animate-pulse scale-105" 
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                  }`}
+                  title={isListening ? "Stop listening" : "Start voice input"}
+                >
+                  {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                </button>
+              </div>
+            </div>
             {suggestedKeywords.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {suggestedKeywords.map((keyword, index) => (

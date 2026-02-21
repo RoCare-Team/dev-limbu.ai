@@ -1,12 +1,57 @@
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import crypto from "crypto";
+import { NextResponse } from "next/server";
 
 export async function POST(req) {
   await dbConnect();
 
   try {
-    const { userId, plan, payment } = await req.json();
+    const body = await req.json();
+    const { userId, plan, payment, platform, transactionId, productId, purchaseToken } = body;
+
+    if (platform === "ios") {
+      if (!userId || !transactionId || !productId || !purchaseToken) {
+        return NextResponse.json(
+          { success: false, message: "Missing required fields" },
+          { status: 400 }
+        );
+      }
+
+      const appleResponse = await fetch(
+        "https://buy.itunes.apple.com/verifyReceipt",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            "receipt-data": purchaseToken,
+            password: "975f34f776394c3ca0ebc58007ba98e4",
+          }),
+        }
+      );
+
+      const appleData = await appleResponse.json();
+
+      if (appleData.status === 0) {
+        return NextResponse.json({
+          success: true,
+          message: "Wallet credited successfully",
+          appleData,
+        });
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Invalid receipt",
+            appleStatus: appleData.status,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = payment || {};
 
     // ✅ Validate required fields

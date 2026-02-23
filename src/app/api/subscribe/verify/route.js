@@ -4,6 +4,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
+import Transaction from "@/models/Transaction";
 
 function generateAppleJWT() {
   const now = Math.floor(Date.now() / 1000);
@@ -28,7 +29,7 @@ export async function POST(req) {
   await dbConnect();
 
   try {
-    const { userId, plan, payment, platform, transactionId } =
+    const { userId, plan, payment, platform, transactionId, amount } =
       await req.json();
 
     if (!userId || !plan) {
@@ -38,11 +39,10 @@ export async function POST(req) {
       );
     }
 
-    // 🔥 Default Android if platform not sent
     const platformType = platform || "android";
 
     // =========================================================
-    // 🍏 iOS VERIFICATION
+    // 🍏 iOS Verification
     // =========================================================
     if (platformType === "ios") {
       if (!transactionId) {
@@ -79,19 +79,19 @@ export async function POST(req) {
         );
       }
 
-      if (
-        appleData.bundleId?.trim() !==
-        process.env.APPLE_BUNDLE_ID?.trim()
-      ) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Bundle ID mismatch" }),
-          { status: 400 }
-        );
-      }
+      // if (
+      //   appleData.bundleId?.trim() !==
+      //   process.env.APPLE_BUNDLE_ID?.trim()
+      // ) {
+      //   return new Response(
+      //     JSON.stringify({ success: false, error: "Bundle ID mismatch" }),
+      //     { status: 400 }
+      //   );
+      // }
     }
 
     // =========================================================
-    // 💳 ANDROID Razorpay (Default Flow — unchanged)
+    // 💳 Android Razorpay Verification
     // =========================================================
     if (platformType === "android") {
       if (!payment) {
@@ -103,13 +103,6 @@ export async function POST(req) {
 
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
         payment;
-
-      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Missing payment info" }),
-          { status: 400 }
-        );
-      }
 
       const body = razorpay_order_id + "|" + razorpay_payment_id;
 
@@ -127,7 +120,7 @@ export async function POST(req) {
     }
 
     // =========================================================
-    // 🔥 COMMON SUBSCRIPTION UPDATE (Same as before)
+    // 🔥 Common User Update
     // =========================================================
 
     const user = await User.findOne({ userId });
@@ -145,6 +138,7 @@ export async function POST(req) {
 
     user.subscription = {
       plan,
+      amount: amount || null,
       paymentId:
         platformType === "ios"
           ? transactionId
@@ -158,12 +152,31 @@ export async function POST(req) {
       status: "active",
     };
 
+    // =========================================================
+    // 💰 Wallet Recharge Auto-Run
+    // =========================================================
+    if (plan === "WalletRecharge" && typeof amount === "number") {
+      user.wallet += amount;
+
+      await Transaction.create({
+        userId,
+        type: "credit",
+        amount,
+        balanceAfter: user.wallet,
+        reason: "wallet_recharge",
+        metadata: {
+          transactionId: transactionId || payment?.razorpay_payment_id,
+        },
+      });
+    }
+
     await user.save();
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "Payment verified and plan activated",
+        wallet: user.wallet,
       }),
       { status: 200 }
     );

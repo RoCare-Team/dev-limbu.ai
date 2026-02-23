@@ -11,6 +11,9 @@ import {
   Share2,
   Link2,
   ExternalLink,
+  Calendar,
+  Filter,
+  X,
 } from "lucide-react";
 
 export default function FranchiseDashboard() {
@@ -18,6 +21,13 @@ export default function FranchiseDashboard() {
   const [copied, setCopied] = useState(false);
   const [leadsCount, setLeadsCount] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [stats, setStats] = useState({ total: 0, followUp: 0, inactive: 0, onboarded: 0, active: 0 });
+  const [filterDate, setFilterDate] = useState("All");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [filterUserType, setFilterUserType] = useState("All");
+  const [filterLeadStage, setFilterLeadStage] = useState("All");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("franchise_user");
@@ -27,18 +37,64 @@ export default function FranchiseDashboard() {
     fetchLeads();
   }, []);
 
+  useEffect(() => {
+    fetchLeads();
+  }, [filterDate, customStartDate, customEndDate, filterUserType, filterLeadStage]);
+
+  const getDateRangeParams = () => {
+    if (filterDate === "All") return { start: null, end: null };
+    
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (filterDate === "Today") {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (filterDate === "Last 7 Days") {
+      start.setDate(now.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+    } else if (filterDate === "Last 30 Days") {
+      start.setDate(now.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+    } else if (filterDate === "Custom" && customStartDate && customEndDate) {
+      start = new Date(customStartDate);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(customEndDate);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      return { start: null, end: null };
+    }
+
+    return { start: start.toISOString(), end: end.toISOString() };
+  };
+
   const fetchLeads = async () => {
     try {
       const storedUserStr = localStorage.getItem("franchise_user");
       if (!storedUserStr) return;
       const storedUser = JSON.parse(storedUserStr);
 
-      const res = await fetch(`/api/franchise-panel/franchise-user?referCode=${storedUser.franchiseCode}`);
+      const { start, end } = getDateRangeParams();
+      const params = new URLSearchParams({
+        referCode: storedUser.franchiseCode,
+      });
+
+      if (start && end) {
+        params.append("startDate", start);
+        params.append("endDate", end);
+      }
+      if (filterUserType !== "All") params.append("userType", filterUserType);
+      if (filterLeadStage !== "All") params.append("leadStage", filterLeadStage);
+
+      const res = await fetch(`/api/franchise-panel/franchise-user?${params.toString()}`);
       const data = await res.json();
       console.log("datadata",data);
       
       if (data.success && Array.isArray(data.users)) {
-        setLeadsCount(data.users.length);
+        setLeadsCount(data.stats ? data.stats.total : 0);
+        setUsersList(data.users);
+        if (data.stats) setStats(data.stats);
       }
     } catch (error) {
       console.error("Error fetching leads:", error);
@@ -143,6 +199,14 @@ export default function FranchiseDashboard() {
     return "https://limbu.ai/login?refer=LIMBU01";
   };
 
+  const clearFilters = () => {
+    setFilterDate("All");
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setFilterUserType("All");
+    setFilterLeadStage("All");
+  };
+
   return (
     <div className="space-y-8">
       {/* 🔥 Hero Section */}
@@ -177,31 +241,111 @@ export default function FranchiseDashboard() {
         </div>
       </div>
 
+      {/* 🔍 Filters Section */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+        <div className="flex flex-col lg:flex-row gap-4 items-center">
+          <div className="flex items-center gap-2 text-gray-500 font-medium">
+            <Filter size={20} />
+            <span>Filters:</span>
+          </div>
+
+          <div className="flex flex-wrap gap-3 flex-1">
+            {/* Date Filter */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <select
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+              >
+                <option value="All">All Time</option>
+                <option value="Today">Today</option>
+                <option value="Last 7 Days">Last 7 Days</option>
+                <option value="Last 30 Days">Last 30 Days</option>
+                <option value="Custom">Custom Range</option>
+              </select>
+            </div>
+
+            {filterDate === "Custom" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <span className="text-gray-400">-</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            )}
+
+            {/* User Type Filter */}
+            <select
+              value={filterUserType}
+              onChange={(e) => setFilterUserType(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+            >
+              <option value="All">All Types</option>
+              <option value="Hot">Hot 🔥</option>
+              <option value="Warm">Warm ☀️</option>
+              <option value="Cold">Cold ❄️</option>
+            </select>
+
+            {/* Lead Stage Filter */}
+            <select
+              value={filterLeadStage}
+              onChange={(e) => setFilterLeadStage(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+            >
+              <option value="All">All Stages</option>
+              <option value="Active">Active</option>
+              <option value="Follow Up">Follow Up</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Onboard">Onboarded</option>
+            </select>
+
+            {(filterDate !== "All" || filterUserType !== "All" || filterLeadStage !== "All") && (
+              <button
+                onClick={clearFilters}
+                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm flex items-center gap-1"
+              >
+                <X size={16} /> Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 📊 Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           icon={<Users />}
-          title="Total Team"
-          value="0"
+          title="Total Leads"
+          value={leadsCount}
           color="bg-blue-500"
         />
         <StatCard
           icon={<ClipboardList />}
-          title="Total Leads"
-          value={leadsCount}
+          title="Follow Up"
+          value={stats.followUp}
           color="bg-indigo-500"
         />
         <StatCard
           icon={<TrendingUp />}
-          title="Conversions"
-          value="0"
+          title="Onboarded"
+          value={stats.onboarded}
           color="bg-green-500"
         />
         <StatCard
           icon={<Crown />}
-          title="Your Rank"
-          value="Master"
-          color="bg-yellow-500"
+          title="Inactive"
+          value={stats.inactive}
+          color="bg-gray-500"
         />
       </div>
 
@@ -363,6 +507,71 @@ export default function FranchiseDashboard() {
               </ul>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 📋 Leads List Table */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900">Recent Leads</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+                <th className="px-6 py-4 font-semibold">Date</th>
+                <th className="px-6 py-4 font-semibold">Name</th>
+                <th className="px-6 py-4 font-semibold">Contact</th>
+                <th className="px-6 py-4 font-semibold">Type</th>
+                <th className="px-6 py-4 font-semibold">Stage</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {usersList.length > 0 ? (
+                usersList.map((lead) => (
+                  <tr key={lead._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(lead.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {lead.fullName || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex flex-col">
+                        <span>{lead.email}</span>
+                        <span className="text-xs text-gray-400">{lead.phone}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        lead.userType === 'Hot' ? 'bg-red-100 text-red-700' :
+                        lead.userType === 'Warm' ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {lead.userType || 'Cold'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        lead.leadStage === 'Onboard' ? 'bg-green-100 text-green-700' :
+                        lead.leadStage === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                        lead.leadStage === 'Follow Up' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {lead.leadStage || 'Active'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500 text-sm">
+                    No leads found matching your filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

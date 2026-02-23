@@ -455,6 +455,7 @@ export default function LimbuAILanding() {
     },
  
   ];
+  
 
   const getMultiplier = () => {
     switch (billingCycle) {

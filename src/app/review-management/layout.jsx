@@ -5,7 +5,7 @@ export default function PostManagementLayout({ children }) {
   console.log("children");
   
   return (
-            <Sidebar>{children}</Sidebar>
+      <Sidebar>{children}</Sidebar>
     
   );
 }

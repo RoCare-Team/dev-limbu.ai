@@ -2,6 +2,7 @@ import dbConnect from "@/lib/dbConnect";
 import Site from "@/models/Site";
 import { Phone, MapPin, MessageCircle } from "lucide-react";
 import { SiteAnimations } from "@/components/Siteclientcomponents";
+import NavBar from "@/components/websiteNavbar"; // <-- new client component below
 
 /* ================================
    Helper: WhatsApp link
@@ -34,7 +35,10 @@ async function getSiteData(slug) {
         });
         const data = await res.json();
         if (res.ok) {
-          googleImages = data.mediaItems?.filter((i) => i.mediaFormat === "PHOTO")?.map((i) => i.sourceUrl) || [];
+          googleImages =
+            data.mediaItems
+              ?.filter((i) => i.mediaFormat === "PHOTO")
+              ?.map((i) => i.sourceUrl) || [];
         }
       } catch (e) {
         console.log("Media error", e);
@@ -54,7 +58,8 @@ async function getSiteData(slug) {
 export async function generateMetadata({ params }) {
   const p = await params;
   const site = await getSiteData(p?.slug);
-  if (!site) return { title: "Business Website", description: "Professional business website" };
+  if (!site)
+    return { title: "Business Website", description: "Professional business website" };
   return {
     title: site?.aiContent?.meta?.title || site?.business?.title,
     description: site?.aiContent?.meta?.description || "Business website",
@@ -75,22 +80,38 @@ export default async function SitePage({ params }) {
   const business = siteData.business || {};
   const aiContent = siteData.aiContent || {};
 
-  const colorTheme = {
-    primary: { from: "from-blue-600", to: "to-indigo-600", hex: "#2563eb" },
-    secondary: { from: "from-indigo-600", to: "to-purple-600", hex: "#4f46e5" },
-    accent: { from: "from-green-500", to: "to-green-600", hex: "#22c55e" },
-    name: "Ocean Blue",
-  };
-
   const mediaImages =
-    siteData.googleImages?.length > 0 ? siteData.googleImages : siteData.mediaImages || [];
+    siteData.googleImages?.length > 0
+      ? siteData.googleImages
+      : siteData.mediaImages || [];
 
   const heroImage =
     mediaImages[0] ||
     "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
 
+  /* Nav items — show only sections that have real data */
+  const navItems = [
+    { label: "Home", href: "#home" },
+    ...(aiContent?.about?.content ? [{ label: "About", href: "#about" }] : []),
+    ...(aiContent?.services?.length > 0 ? [{ label: "Services", href: "#services" }] : []),
+    ...(mediaImages.length > 3 ? [{ label: "Gallery", href: "#gallery" }] : []),
+    { label: "Contact", href: "#contact" },
+  ];
+
+  /* Gallery: show only how many images exist, max 8 */
+  const galleryImages = mediaImages.slice(0, 8);
+
   return (
     <div className="font-sans text-gray-800 min-h-screen bg-white">
+
+      {/* ── NavBar (client component) ── */}
+      <NavBar
+        logo={business?.logoUrl}
+        title={business?.title}
+        navItems={navItems}
+        phone={business?.phoneNumbers?.primaryPhone}
+        whatsappLink={getWhatsAppLink(business?.phoneNumbers?.primaryPhone)}
+      />
 
       {/* ── Floating WhatsApp Button ── */}
       {business?.phoneNumbers?.primaryPhone && (
@@ -112,6 +133,7 @@ export default async function SitePage({ params }) {
           HERO SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section
+        id="home"
         className="relative text-white min-h-screen flex items-center justify-center text-center overflow-hidden"
         style={{
           backgroundImage: `url(${heroImage})`,
@@ -129,9 +151,9 @@ export default async function SitePage({ params }) {
           <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000" />
         </div>
 
-        {/* Logo — Top Left */}
+        {/* Logo — Top Left (hidden on mobile since navbar shows it) */}
         {business?.logoUrl && (
-          <div className="absolute top-6 left-6 z-20">
+          <div className="absolute top-6 left-6 z-20 hidden md:block">
             <div className="bg-white p-4 rounded-2xl shadow-2xl">
               <img
                 src={business.logoUrl}
@@ -142,7 +164,7 @@ export default async function SitePage({ params }) {
           </div>
         )}
 
-        <div className="relative z-10 px-6 max-w-6xl mx-auto w-full py-20 space-y-8">
+        <div className="relative z-10 px-6 max-w-6xl mx-auto w-full py-20 space-y-8 mt-16">
           <h1 className="text-5xl md:text-7xl lg:text-6xl font-extrabold tracking-tight drop-shadow-2xl leading-tight">
             {aiContent.hero?.headline || business?.title}
           </h1>
@@ -181,7 +203,7 @@ export default async function SitePage({ params }) {
           ABOUT SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {aiContent?.about?.content && (
-        <section className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
+        <section id="about" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <div className="inline-block">
@@ -209,7 +231,7 @@ export default async function SitePage({ params }) {
           SERVICES SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {aiContent.services?.length > 0 && (
-        <section className="py-32 px-6 bg-gradient-to-br from-gray-50 to-blue-50">
+        <section id="services" className="py-32 px-6 bg-gradient-to-br from-gray-50 to-blue-50">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20">
               <span
@@ -247,9 +269,7 @@ export default async function SitePage({ params }) {
                     <h3 className="font-bold text-2xl mb-4 text-gray-900 transition-colors">
                       {service.title}
                     </h3>
-                    <p className="text-gray-600 leading-relaxed">
-                      {service.description}
-                    </p>
+                    <p className="text-gray-600 leading-relaxed">{service.description}</p>
                   </div>
                 </div>
               ))}
@@ -260,9 +280,10 @@ export default async function SitePage({ params }) {
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           GALLERY SECTION
+          — only shown if images exist (> 3), shows max 8
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {mediaImages.length > 3 && (
-        <section className="py-32 px-6 bg-white">
+      {galleryImages.length > 3 && (
+        <section id="gallery" className="py-32 px-6 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20">
               <span
@@ -271,15 +292,13 @@ export default async function SitePage({ params }) {
               >
                 Our Work
               </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Gallery
-              </h2>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Gallery</h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Take a look at our projects and the quality of work we deliver
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {mediaImages.slice(0, 12).map((image, index) => (
+              {galleryImages.map((image, index) => (
                 <div
                   key={index}
                   className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300"
@@ -305,7 +324,10 @@ export default async function SitePage({ params }) {
           CUSTOM SECTIONS
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {aiContent.customSections?.map((section, i) => (
-        <section key={i} className="py-32 px-6 border-t border-gray-100 bg-gradient-to-b from-white to-gray-50">
+        <section
+          key={i}
+          className="py-32 px-6 border-t border-gray-100 bg-gradient-to-b from-white to-gray-50"
+        >
           <div className="max-w-5xl mx-auto text-center">
             <div className="mb-12">
               <span
@@ -330,7 +352,7 @@ export default async function SitePage({ params }) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           CONTACT FORM SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
+      <section id="contact" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span
@@ -487,7 +509,9 @@ export default async function SitePage({ params }) {
                   >
                     <option value="">Select a service</option>
                     {aiContent.services?.map((service, i) => (
-                      <option key={i} value={service.title}>{service.title}</option>
+                      <option key={i} value={service.title}>
+                        {service.title}
+                      </option>
                     ))}
                     <option value="Other">Other</option>
                   </select>
@@ -506,8 +530,6 @@ export default async function SitePage({ params }) {
                   />
                 </div>
 
-                {/* NOTE: WhatsApp form submission requires client-side JS.
-                    This button links directly to WhatsApp with the business number. */}
                 <a
                   href={getWhatsAppLink(business?.phoneNumbers?.primaryPhone)}
                   target="_blank"
@@ -540,7 +562,10 @@ export default async function SitePage({ params }) {
         />
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="text-center mb-16">
-            <span className="font-semibold text-sm uppercase tracking-wider mb-4 block" style={{ color: "#818cf8" }}>
+            <span
+              className="font-semibold text-sm uppercase tracking-wider mb-4 block"
+              style={{ color: "#818cf8" }}
+            >
               Get In Touch
             </span>
             <h2 className="text-4xl md:text-5xl font-bold mb-6">Contact Us</h2>
@@ -619,7 +644,8 @@ export default async function SitePage({ params }) {
             <div className="text-center md:text-left">
               <p className="text-gray-400">
                 © {new Date().getFullYear()}{" "}
-                <span className="text-white font-semibold">{business.title}</span>. All rights reserved.
+                <span className="text-white font-semibold">{business.title}</span>. All rights
+                reserved.
               </p>
             </div>
             <div className="flex items-center gap-4">

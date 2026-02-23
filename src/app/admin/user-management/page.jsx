@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -52,6 +52,60 @@ export default function UserManagement() {
   const [stageStats, setStageStats] = useState({});
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+  const [todayStats, setTodayStats] = useState({ count: 0, assignments: [] });
+  const [leadSourceStats, setLeadSourceStats] = useState({
+    metaLeads: 0,
+    signupLeads: 0
+  });
+  const [todayUsersCount, setTodayUsersCount] = useState(0);
+  const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
+  const [todayUsersSignups, setTodayUsersSignups] = useState(0);
+  const [leadStatusStats, setLeadStatusStats] = useState({
+    Hot: 0,
+    Warm: 0,
+    Cold: 0
+  });
+  const [leadStatusFilter, setLeadStatusFilter] = useState("All");
+  const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDate, setFilterDate] = useState("All");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentAgentId, setCurrentAgentId] = useState(null);
+
+  const filterLabel = useMemo(() => {
+    if (filterDate === "All") return null;
+    if (filterDate === "Custom Range") {
+      if (customStartDate && customEndDate) {
+        return `${new Date(customStartDate).toLocaleDateString()} - ${new Date(customEndDate).toLocaleDateString()}`;
+      }
+      return "Custom Range";
+    }
+    return filterDate;
+  }, [filterDate, customStartDate, customEndDate]);
+
+  const isAgent = role === "agent";
+
+  const displayTodayUsersCount = useMemo(() => {
+    if (isAgent && currentAgentId) {
+      const assignment = todayStats.assignments.find(a => a._id === currentAgentId);
+      return assignment ? assignment.count : 0;
+    }
+    return todayUsersCount;
+  }, [isAgent, currentAgentId, todayStats, todayUsersCount]);
+
+  const displayTotalChatsCount = useMemo(() => {
+    if (isAgent) {
+      // Filter chats for agent's users (based on loaded users for now, consistent with modal)
+      // Ideally backend should provide this count
+      return chatStats.data.filter(chat => users.some(u => u.userId === chat.userId)).length;
+    }
+    return chatStats.total;
+  }, [isAgent, chatStats, users]);
+
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -117,11 +171,6 @@ export default function UserManagement() {
     }
   };
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [filterDate, setFilterDate] = useState("All");
-  const [currentPage, setCurrentPage] = useState(1);
-
   const [stats, setStats] = useState({
     total: 0,
     basic: 0,
@@ -136,8 +185,36 @@ export default function UserManagement() {
     leadStageOnboard: 0
   });
 
+  const getCalculatedDateRange = (filter) => {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+
+    if (filter === "Today") {
+      // start is today
+    } else if (filter === "Last 7 Days") {
+      start.setDate(today.getDate() - 7);
+    } else if (filter === "Last 30 Days") {
+      start.setDate(today.getDate() - 30);
+    } else if (filter === "This Month") {
+      start.setDate(1);
+    } else {
+      return null;
+    }
+
+    const toLocalYMD = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    return { startDate: toLocalYMD(start), endDate: toLocalYMD(end) };
+  };
+
   useEffect(() => {
     setRole(localStorage.getItem("role"));
+    setCurrentAgentId(localStorage.getItem("userId"));
   }, []);
 
   useEffect(() => {
@@ -154,7 +231,20 @@ export default function UserManagement() {
   useEffect(() => {
     const fetchTotalPosts = async () => {
       try {
-        const res = await fetch("/api/post-status");
+        // Build date filter params
+        let url = "/api/post-status";
+        if (filterDate !== "All") {
+          if (filterDate === "Custom Range" && customStartDate && customEndDate) {
+            url += `?startDate=${customStartDate}&endDate=${customEndDate}`;
+          } else if (filterDate !== "Custom Range") {
+            const ranges = getCalculatedDateRange(filterDate);
+            if (ranges) {
+              url += `?startDate=${ranges.startDate}&endDate=${ranges.endDate}`;
+            }
+          }
+        }
+        
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setTotalPostsCount(data.count || 0);
@@ -163,8 +253,14 @@ export default function UserManagement() {
         console.error("Error fetching total posts:", error);
       }
     };
+    
+    // Don't fetch if custom range is selected but dates are not set
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) {
+      return;
+    }
+    
     fetchTotalPosts();
-  }, []);
+  }, [filterDate, customStartDate, customEndDate]);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -190,12 +286,47 @@ export default function UserManagement() {
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) return;
     try {
-      const res = await fetch(`/api/users?email=${adminEmail}&getAgentStats=true`);
+      const params = new URLSearchParams({
+        email: adminEmail,
+        getAgentStats: "true"
+      });
+
+      if (filterStatus !== "All") params.append("status", filterStatus);
+      if (filterDate !== "All") {
+        if (filterDate === "Custom Range") {
+          params.append("dateFilter", "Custom Range");
+          if (customStartDate) params.append("startDate", customStartDate);
+          if (customEndDate) params.append("endDate", customEndDate);
+        } else {
+          const ranges = getCalculatedDateRange(filterDate);
+          if (ranges) {
+            params.append("dateFilter", filterDate);
+            params.append("startDate", ranges.startDate);
+            params.append("endDate", ranges.endDate);
+          }
+        }
+      }
+      if (assigneeFilter !== "All") params.append("assignedAgentId", assigneeFilter);
+      if (leadStatusFilter !== "All") params.append("leadStatus", leadStatusFilter);
+
+      const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
         setDetailedStats(data.detailedStats || []);
+        
+        if (data.todayLeads !== undefined) {
+          setTodayStats({
+            count: data.todayLeads,
+            assignments: data.todayAgentAssignments || []
+          });
+        }
+
+        setLeadSourceStats({
+          metaLeads: data.metaLeadsCount || 0,
+          signupLeads: data.signupLeadsCount || 0
+        });
       }
     } catch (error) {
       console.error("Error fetching agent stats:", error);
@@ -203,8 +334,9 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
     fetchAgentStats();
-  }, [users]);
+  }, [users, filterDate, filterStatus, assigneeFilter, customStartDate, customEndDate, leadStatusFilter]);
 
   const fetchUsers = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -221,6 +353,29 @@ export default function UserManagement() {
 
       if (assigneeFilter !== "All") {
         params.append("assignedAgentId", assigneeFilter);
+      }
+
+      if (filterStatus !== "All") {
+        params.append("status", filterStatus);
+      }
+
+      if (filterDate !== "All") {
+        if (filterDate === "Custom Range") {
+          params.append("dateFilter", "Custom Range");
+          if (customStartDate) params.append("startDate", customStartDate);
+          if (customEndDate) params.append("endDate", customEndDate);
+        } else {
+          const ranges = getCalculatedDateRange(filterDate);
+          if (ranges) {
+            params.append("dateFilter", filterDate);
+            params.append("startDate", ranges.startDate);
+            params.append("endDate", ranges.endDate);
+          }
+        }
+      }
+
+      if (leadStatusFilter !== "All") {
+        params.append("leadStatus", leadStatusFilter);
       }
 
       const res = await fetch(`/api/users?${params.toString()}`);
@@ -249,8 +404,9 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
     fetchUsers();
-  }, [currentPage, filterStatus, filterDate, assigneeFilter]);
+  }, [currentPage, filterStatus, filterDate, assigneeFilter, customStartDate, customEndDate, leadStatusFilter]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -315,6 +471,7 @@ export default function UserManagement() {
   useEffect(() => {
     fetchChatStats();
     fetchIssues();
+    fetchTodayUsersCount();
   }, []);
 
 
@@ -386,6 +543,26 @@ export default function UserManagement() {
       }
     } catch (error) {
       console.error("Error fetching issues:", error);
+    }
+  };
+
+  const fetchTodayUsersCount = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return;
+    try {
+      const params = new URLSearchParams({
+        email: adminEmail,
+        getTodayUsersCount: "true"
+      });
+      const res = await fetch(`/api/users?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setTodayUsersCount(data.todayUsersCount || 0);
+        setTodayUsersMetaLeads(data.todayMetaLeads || 0);
+        setTodayUsersSignups(data.todaySignups || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching today's users count:", error);
     }
   };
 
@@ -547,6 +724,30 @@ const handleRoundRobinAssign = (userId) => {
     }
   };
 
+  const handleLeadStatusChange = async (userId, newStatus) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          leadStatus: newStatus,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Lead status updated successfully", "success");
+        setUsers((prevUsers) => prevUsers.map((user) => (user.userId === userId ? { ...user, leadStatus: newStatus } : user)));
+      } else {
+        showToast(data.error || "Failed to update lead status", "error");
+      }
+    } catch (error) {
+      console.error("Update lead status error:", error);
+      showToast("Something went wrong", "error");
+    }
+  };
 
   const getAvatarColor = (name) => {
     if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
@@ -596,7 +797,7 @@ const handleRoundRobinAssign = (userId) => {
   // When filters change, reset to the first page
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterDate]);
+  }, [searchQuery, filterStatus, filterDate, assigneeFilter]);
 
 
 
@@ -1026,7 +1227,10 @@ const handleRoundRobinAssign = (userId) => {
     setSearchQuery("");
     setFilterStatus("All");
     setFilterDate("All");
+    setCustomStartDate("");
+    setCustomEndDate("");
     setAssigneeFilter("All");
+    setLeadStatusFilter("All");
   };
 
   const handlePageChange = (newPage) => {
@@ -1150,90 +1354,218 @@ const handleRoundRobinAssign = (userId) => {
 
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        {/* Main Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Users */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">Total Users</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
+                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total Users</p>
+                <p className="text-2xl font-bold text-indigo-800 mt-1">{stats.total}</p>
               </div>
-              <div className="bg-indigo-100 p-3 rounded-xl">
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                 <User className="text-indigo-600" size={24} />
               </div>
             </div>
+            {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )}
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl p-6 shadow-lg border border-emerald-200">
+          {/* Active Users */}
+          {!isAgent && (
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-700 text-sm font-medium">Total Wallet</p>
-                <p className="text-3xl font-bold text-emerald-800 mt-1">
-                  {users.reduce((sum, u) => sum + (u.wallet || 0), 0)}
-                </p>
+                <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Active Users</p>
+                <p className="text-2xl font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
               </div>
-              <Wallet className="text-emerald-600" size={24} />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 shadow-lg border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium">Total Posts</p>
-                <p className="text-3xl font-bold text-blue-800 mt-1">
-                  {totalPostsCount}
-                </p>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="text-green-600" size={24} />
               </div>
-              <ImageIcon className="text-blue-600" size={24} />
             </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
           </div>
+          )}
 
-          <div
-            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 shadow-lg border border-orange-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => {
-              setChatModalFilter("all");
-              setShowChatStatsModal(true);
-            }}
+          {/* Follow Up */}
+          {!isAgent && (
+          <div 
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => setStageModal("Follow Up")}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-700 text-sm font-medium">Total Chats</p>
-                <p className="text-3xl font-bold text-orange-800 mt-1">{chatStats.total}</p>
+                <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">Follow Up</p>
+                <p className="text-2xl font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
               </div>
-              <MessageSquare className="text-orange-600" size={24} />
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Clock className="text-yellow-600" size={24} />
+              </div>
             </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
           </div>
+          )}
 
-          <div
-            className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-2xl p-6 shadow-lg border border-teal-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => {
-              setChatModalFilter("today");
-              setShowChatStatsModal(true);
-            }}
+          {/* Inactive */}
+          {!isAgent && (
+          <div 
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => setStageModal("Inactive")}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-teal-700 text-sm font-medium">Chats Today</p>
-                <p className="text-3xl font-bold text-teal-800 mt-1">{chatStats.today}</p>
+                <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Inactive</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
               </div>
-              <MessageSquare className="text-teal-600" size={24} />
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <UserX className="text-gray-600" size={24} />
+              </div>
             </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
           </div>
+          )}
 
-          <div
-            className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 shadow-lg border border-green-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => {
-              setChatModalFilter("resolved");
-              setShowChatStatsModal(true);
-            }}
+          {/* Onboarded */}
+          {!isAgent && (
+          <div 
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => setStageModal("Onboard")}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-700 text-sm font-medium">Total Resolved</p>
-                <p className="text-3xl font-bold text-green-800 mt-1">{chatStats.resolved}</p>
+                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Onboarded</p>
+                <p className="text-2xl font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
               </div>
-              <Shield className="text-green-600" size={24} />
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Rocket className="text-blue-600" size={24} />
+              </div>
+            </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
+          </div>
+          )}
+
+          {/* Total Posts */}
+          {!isAgent && (
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total Posts</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalPostsCount}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <ImageIcon className="text-blue-600" size={24} />
+              </div>
+            </div>
+            {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* Users Today */}
+          <div className="bg-gradient-to-br  rounded-lg p-6 shadow-sm border border-teal-200 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-teal-700 font-medium">Users Today</p>
+                <p className="text-2xl font-bold text-teal-800 mt-1">{displayTodayUsersCount}</p>
+                <div className="flex gap-2 mt-1">
+                  <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
+                    Meta: {todayUsersMetaLeads}
+                  </span>
+                  <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
+                    Signups: {todayUsersSignups}
+                  </span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-teal-200 rounded-lg flex items-center justify-center">
+                <User className="text-teal-700" size={24} />
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Chat Stats Cards - Separate Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Chats */}
+          <div
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => { setChatModalFilter("all"); setShowChatStatsModal(true); fetchChatStats(); }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total Chats</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-orange-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          {/* Chats Today */}
+          {!isAgent && (
+          <div
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => { setChatModalFilter("today"); setShowChatStatsModal(true); fetchChatStats(); }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Chats Today</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{chatStats.today}</p>
+              </div>
+              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-teal-600" size={24} />
+              </div>
+            </div>
+          </div>
+          )}
+
+          {/* Resolved */}
+          {!isAgent && (
+          <div
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Resolved</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Shield className="text-green-600" size={24} />
+              </div>
+            </div>
+          </div>
+          )}
+
+    
 
           {/* <div 
             className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 shadow-lg border border-red-200 cursor-pointer hover:shadow-xl transition-all"
@@ -1249,83 +1581,94 @@ const handleRoundRobinAssign = (userId) => {
           </div> */}
         </div>
 
-        {/* Lead Stage Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div
-            className="bg-yellow-50 rounded-2xl p-6 shadow-lg border border-yellow-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Follow Up")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-yellow-700 text-sm font-medium">Follow Up</p>
-                <p className="text-3xl font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
-              </div>
-              <div className="bg-yellow-100 p-3 rounded-xl">
-                <Clock className="text-yellow-600" size={24} />
+        {/* Lead Status Stats - Only for superAdmin */}
+        {/* {role === "superAdmin" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-red-50 rounded-2xl p-6 shadow-lg border border-red-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-700 text-sm font-medium">Hot Leads</p>
+                  <p className="text-3xl font-bold text-red-800 mt-1">{leadStatusStats.Hot || 0}</p>
+                </div>
+                <div className="bg-red-100 p-3 rounded-xl">
+                  <div className="w-6 h-6 bg-red-500 rounded-full"></div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            className="bg-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Inactive")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-700 text-sm font-medium">Inactive</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
-              </div>
-              <div className="bg-gray-200 p-3 rounded-xl">
-                <UserX className="text-gray-600" size={24} />
+            <div className="bg-orange-50 rounded-2xl p-6 shadow-lg border border-orange-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-700 text-sm font-medium">Warm Leads</p>
+                  <p className="text-3xl font-bold text-orange-800 mt-1">{leadStatusStats.Warm || 0}</p>
+                </div>
+                <div className="bg-orange-100 p-3 rounded-xl">
+                  <div className="w-6 h-6 bg-orange-500 rounded-full"></div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            className="bg-blue-50 rounded-2xl p-6 shadow-lg border border-blue-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Onboard")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium">Onboarded</p>
-                <p className="text-3xl font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-xl">
-                <Rocket className="text-blue-600" size={24} />
+            <div className="bg-blue-50 rounded-2xl p-6 shadow-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-700 text-sm font-medium">Cold Leads</p>
+                  <p className="text-3xl font-bold text-blue-800 mt-1">{leadStatusStats.Cold || 0}</p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-xl">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )} */}
 
         {/* AGENT ASSIGNMENT SUMMARY */}
         {/* AGENT ASSIGNMENT SUMMARY */}
         {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
 
-          <div className="flex flex-wrap gap-3 mb-6">
-
-            {/* Unassigned */}
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
-            >
-              <User className="w-3 h-3" />
-              <span>Unassigned: {agentStats.unassigned || 0}</span>
-            </div>
-
-            {/* Assigned Agents */}
-            {agents.map(agent => {
-              const count = agentStats[agent._id.toString()] || 0;
-              if (count === 0) return null;
-
-              return (
+          <div className="mb-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-gray-700 mb-2">Total Assignments</h3>
+              <div className="flex flex-wrap gap-3">
+                {/* Unassigned */}
                 <div
-                  key={agent._id}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
                 >
                   <User className="w-3 h-3" />
-                  <span>{agent.fullName}: {count}</span>
+                  <span>Unassigned: {agentStats.unassigned || 0}</span>
                 </div>
-              );
-            })}
+
+                {/* Assigned Agents */}
+                {agents.map(agent => {
+                  const count = agentStats[agent._id.toString()] || 0;
+                  if (count === 0) return null;
+
+                  return (
+                    <div
+                      key={agent._id}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+                    >
+                      <User className="w-3 h-3" />
+                      <span>{agent.fullName}: {count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {todayStats.assignments.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-gray-700 mb-2">Today's Assignments</h3>
+                <div className="flex flex-wrap gap-3">
+                  {todayStats.assignments.map((item, idx) => (
+                    <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(item.agentName)}`}>
+                      <User className="w-3 h-3" />
+                      <span>{item.agentName}: {item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1370,19 +1713,37 @@ const handleRoundRobinAssign = (userId) => {
             </div>
 
             {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
-              <div className="relative">
-                <select
-                  value={assigneeFilter}
-                  onChange={(e) => setAssigneeFilter(e.target.value)}
-                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
-                >
-                  <option value="All">All Agents</option>
-                  <option value="Unassigned">Unassigned</option>
-                  {agents.map((agent) => (
-                    <option key={agent._id} value={agent._id}>{agent.fullName}</option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="relative">
+                  <select
+                    value={assigneeFilter}
+                    onChange={(e) => setAssigneeFilter(e.target.value)}
+                    className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
+                  >
+                    <option value="All">All Agents</option>
+                    <option value="Unassigned">Unassigned</option>
+                    {agents.map((agent) => (
+                      <option key={agent._id} value={agent._id}>{agent.fullName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
+                  <div className="relative">
+                    <select
+                      value={leadStatusFilter}
+                      onChange={(e) => setLeadStatusFilter(e.target.value)}
+                      className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
+                    >
+                      <option value="All">All Lead Status</option>
+                      <option value="Hot">Hot Leads</option>
+                      <option value="Warm">Warm Leads</option>
+                      <option value="Cold">Cold Leads</option>
+                      <option value="Untagged">None</option>
+                    </select>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="relative">
@@ -1397,10 +1758,31 @@ const handleRoundRobinAssign = (userId) => {
                 <option value="Last 7 Days">Last 7 Days</option>
                 <option value="Last 30 Days">Last 30 Days</option>
                 <option value="This Month">This Month</option>
+                <option value="Custom Range">Custom Range</option>
               </select>
             </div>
 
-            {(searchQuery || filterStatus !== "All" || filterDate !== "All" || assigneeFilter !== "All") && (
+            {filterDate === "Custom Range" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  placeholder="End Date"
+                />
+              </div>
+            )}
+
+            {(searchQuery || filterStatus !== "All" || filterDate !== "All" || assigneeFilter !== "All" || leadStatusFilter !== "All") && (
               <button
                 onClick={clearFilters}
                 className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 whitespace-nowrap"
@@ -1480,6 +1862,23 @@ const handleRoundRobinAssign = (userId) => {
                               {user.fullName}
                             </div>
                           )}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={user.leadStatus || ""}
+                              onChange={(e) => handleLeadStatusChange(user.userId, e.target.value)}
+                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
+                                user.leadStatus === "Hot" ? "bg-red-50 text-red-700 border-red-200" :
+                                user.leadStatus === "Warm" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                                user.leadStatus === "Cold" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-gray-50 text-gray-600 border-gray-200"
+                              }`}
+                            >
+                              <option value="">Untagged</option>
+                              <option value="Hot">Hot</option>
+                              <option value="Warm">Warm</option>
+                              <option value="Cold">Cold</option>
+                            </select>
+                          </div>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {(user.source === "bulk-upload" || user.source === "Meta Leads") && (
                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
@@ -2474,7 +2873,7 @@ const handleRoundRobinAssign = (userId) => {
       {showChatStatsModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h2 className="text-2xl font-bold text-gray-800">
                 {chatModalFilter === 'today' ? 'Chats Today' : chatModalFilter === 'resolved' ? 'Resolved Chats' : 'All Chats'}
               </h2>
@@ -2500,7 +2899,11 @@ const handleRoundRobinAssign = (userId) => {
                 <tbody className="divide-y divide-gray-100">
                   {chatStats.data
                     .filter(chat => {
-                      console.log("chatStatschatStats", chatStats);
+                      // Filter for agents: only show chats from their assigned users
+                      if (role === 'agent') {
+                         // Check if the chat's user is in the currently fetched users list (which is filtered for the agent)
+                         if (!users.some(u => u.userId === chat.userId)) return false;
+                      }
 
                       if (chatModalFilter === 'today') {
                         if (!chat.createdAt) return false;
@@ -2545,6 +2948,10 @@ const handleRoundRobinAssign = (userId) => {
                       </tr>
                     ))}
                   {chatStats.data.filter(chat => {
+                    if (role === 'agent') {
+                       if (!users.some(u => u.userId === chat.userId)) return false;
+                    }
+
                     if (chatModalFilter === 'today') {
                       if (!chat.createdAt) return false;
                       const chatDate = new Date(chat.createdAt);
@@ -2669,7 +3076,7 @@ const handleRoundRobinAssign = (userId) => {
       {stageModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h2 className="text-xl font-bold text-gray-800">{stageModal} Leads Breakdown</h2>
               <button
                 onClick={() => setStageModal(null)}
@@ -2681,12 +3088,42 @@ const handleRoundRobinAssign = (userId) => {
 
             <div className="max-h-[60vh] overflow-y-auto pr-2">
               <table className="w-full">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
-                  </tr>
-                </thead>
+                {role === 'agent' ? (
+                  // Agent View: Show List of Users
+                  <>
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">User Name</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Phone</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {users
+                        .filter(u => (u.leadStage || "Active") === stageModal)
+                        .map((user, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                              {user.fullName || "Unknown"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                              {user.phone || user.mobileNumber || "N/A"}
+                            </td>
+                          </tr>
+                        ))}
+                      {users.filter(u => (u.leadStage || "Active") === stageModal).length === 0 && (
+                        <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No users found on this page</td></tr>
+                      )}
+                    </tbody>
+                  </>
+                ) : (
+                  // Admin View: Show Agent Breakdown
+                  <>
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
+                      </tr>
+                    </thead>
                 <tbody className="divide-y divide-gray-100">
                   {detailedStats
                     .filter(item => item.stage === stageModal)
@@ -2711,6 +3148,8 @@ const handleRoundRobinAssign = (userId) => {
                     <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No leads in this stage</td></tr>
                   )}
                 </tbody>
+                  </>
+                )}
               </table>
             </div>
           </div>

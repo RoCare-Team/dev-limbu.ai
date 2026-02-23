@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import Transaction from "@/models/Transaction";
+import RazorpayTransaction from "@/models/RazorpayTransaction";
 
 function generateAppleJWT() {
   const now = Math.floor(Date.now() / 1000);
@@ -29,21 +30,40 @@ export async function POST(req) {
   await dbConnect();
 
   try {
-    const { userId, plan, payment, platform, transactionId, amount } =
-      await req.json();
+    const {
+      userId,
+      platform,
+      plan,
+      amount,
+      gstAmount,
+      totalAmount,
+      gstin,
+      payment,
+      transactionId,
+    } = await req.json();
 
-    if (!userId || !plan) {
+    if (!userId || !plan || !amount) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing fields" }),
+        JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400 }
       );
     }
 
-    const platformType = platform || "android";
+    const platformType = platform || "web";
 
-    // =========================================================
-    // 🍏 iOS Verification
-    // =========================================================
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "User not found" }),
+        { status: 404 }
+      );
+    }
+
+    let paymentRef = null;
+
+    // ====================================================
+    // 🍏 iOS VERIFICATION
+    // ====================================================
     if (platformType === "ios") {
       if (!transactionId) {
         return new Response(
@@ -56,44 +76,38 @@ export async function POST(req) {
 
       let response = await fetch(
         `https://api.storekit.itunes.apple.com/inApps/v1/transactions/${transactionId}`,
-        {
-          headers: { Authorization: `Bearer ${appleJWT}` },
-        }
+        { headers: { Authorization: `Bearer ${appleJWT}` } }
       );
 
       if (!response.ok) {
         response = await fetch(
           `https://api.storekit-sandbox.itunes.apple.com/inApps/v1/transactions/${transactionId}`,
-          {
-            headers: { Authorization: `Bearer ${appleJWT}` },
-          }
+          { headers: { Authorization: `Bearer ${appleJWT}` } }
         );
       }
 
-      const appleData = await response.json();
-
       if (!response.ok) {
+        await Transaction.create({
+          userId,
+          type: "failed",
+          amount,
+          reason: "invalid_ios_transaction",
+          metadata: { transactionId },
+        });
+
         return new Response(
-          JSON.stringify({ success: false, error: "Invalid Apple transaction" }),
+          JSON.stringify({ success: false, error: "Invalid iOS transaction" }),
           { status: 400 }
         );
       }
 
-      // if (
-      //   appleData.bundleId?.trim() !==
-      //   process.env.APPLE_BUNDLE_ID?.trim()
-      // ) {
-      //   return new Response(
-      //     JSON.stringify({ success: false, error: "Bundle ID mismatch" }),
-      //     { status: 400 }
-      //   );
-      // }
+      paymentRef = transactionId;
     }
 
-    // =========================================================
-    // 💳 Android Razorpay Verification
-    // =========================================================
-    if (platformType === "android") {
+    // ====================================================
+    // 🤖 ANDROID + WEB (RAZORPAY)
+    // ====================================================
+    if (platformType === "android" || platformType === "web") {
       if (!payment) {
         return new Response(
           JSON.stringify({ success: false, error: "Missing payment data" }),
@@ -104,6 +118,25 @@ export async function POST(req) {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
         payment;
 
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Invalid payment fields" }),
+          { status: 400 }
+        );
+      }
+
+      // 🔒 Duplicate Razorpay check
+      const existingRazorpay = await RazorpayTransaction.findOne({
+        paymentId: razorpay_payment_id,
+      });
+
+      if (existingRazorpay) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Transaction already processed" }),
+          { status: 400 }
+        );
+      }
+
       const body = razorpay_order_id + "|" + razorpay_payment_id;
 
       const expectedSignature = crypto
@@ -112,81 +145,81 @@ export async function POST(req) {
         .digest("hex");
 
       if (expectedSignature !== razorpay_signature) {
+        await Transaction.create({
+          userId,
+          type: "failed",
+          amount,
+          reason: "invalid_signature",
+          metadata: { razorpay_payment_id },
+        });
+
         return new Response(
           JSON.stringify({ success: false, error: "Invalid signature" }),
           { status: 400 }
         );
       }
+
+      await RazorpayTransaction.create({
+        userId,
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        signature: razorpay_signature,
+        amount,
+        gstAmount: gstAmount || 0,
+        totalAmount,
+        gstin: gstin || "",
+      });
+
+      paymentRef = razorpay_payment_id;
     }
 
-    // =========================================================
-    // 🔥 Common User Update
-    // =========================================================
+    // ====================================================
+    // 💰 WALLET CREDIT (COMMON FOR ALL)
+    // ====================================================
 
-    const user = await User.findOne({ userId });
+    const existingWalletTxn = await Transaction.findOne({
+      "metadata.paymentRef": paymentRef,
+    });
 
-    if (!user) {
+    if (existingWalletTxn) {
       return new Response(
-        JSON.stringify({ success: false, error: "User not found" }),
-        { status: 404 }
+        JSON.stringify({ success: false, error: "Wallet already credited" }),
+        { status: 400 }
       );
     }
 
-    const purchaseDate = new Date();
-    const expiryDate = new Date(purchaseDate);
-    expiryDate.setMonth(expiryDate.getMonth() + 3);
+    user.wallet += amount;
 
-    user.subscription = {
-      plan,
-      amount: amount || null,
-      paymentId:
-        platformType === "ios"
-          ? transactionId
-          : payment?.razorpay_payment_id,
-      orderId:
-        platformType === "ios"
-          ? transactionId
-          : payment?.razorpay_order_id,
-      date: purchaseDate,
-      expiry: expiryDate,
-      status: "active",
-    };
-
-    // =========================================================
-    // 💰 Wallet Recharge Auto-Run
-    // =========================================================
-    if (plan === "WalletRecharge" && typeof amount === "number") {
-      user.wallet += amount;
-
-      await Transaction.create({
-        userId,
-        type: "credit",
-        amount,
-        balanceAfter: user.wallet,
-        reason: "wallet_recharge",
-        metadata: {
-          transactionId: transactionId || payment?.razorpay_payment_id,
-        },
-      });
-    }
+    await Transaction.create({
+      userId,
+      type: "credit",
+      amount,
+      balanceAfter: user.wallet,
+      reason: "wallet_recharge",
+      metadata: {
+        paymentRef,
+        platform: platformType,
+      },
+    });
 
     await user.save();
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Payment verified and plan activated",
+        message: "Wallet recharge successful",
         wallet: user.wallet,
       }),
       { status: 200 }
     );
 
   } catch (error) {
-    console.error("Payment verification error:", error);
+    console.error("Recharge Error:", error);
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "Verification failed",
+        error: "Internal Server Error",
       }),
       { status: 500 }
     );

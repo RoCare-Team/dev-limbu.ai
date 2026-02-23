@@ -1,21 +1,31 @@
-# Multi-Tenant Subdomain Fix - TODO
-
-## Issues Found:
-1. **CRITICAL: Middleware Route Mismatch** - Middleware rewrites to `/live/${subdomain}` but there's no `/live` route - the actual page is at `/[slug]`
-2. Missing Vercel wildcard subdomain configuration
+# TODO: Add Total Users Today Card Section
 
 ## Plan:
-- [ ] 1. Fix `middleware.js` - Change rewrite from `/live/${subdomain}` to `/${subdomain}` to match the `/[slug]` dynamic route
-- [ ] 2. Verify `vercel.json` - Add wildcard subdomain routing for Vercel deployment
-- [ ] 3. Test the complete flow
 
-## Files to Edit:
-1. `middleware.js` - Fix the rewrite path (CRITICAL)
-2. `vercel.json` - Add wildcard subdomain routing (if needed for Vercel)
+### 1. Information Gathered:
+- **Current State**: The page has stats for Total Users, Signup Leads, Meta Leads, Total Posts, but "Users Today" is calculated client-side only from the current page (not accurate)
+- **API**: `/api/users/route.js` handles user CRUD operations and has a `getAgentStats` feature
+- **User Model**: `src/models/User.js` has `createdAt` field for tracking user creation date
 
-## Flow Verification:
-- [ ] GoLiveButton generates slug
-- [ ] save-site API creates/updates site in database
-- [ ] Middleware detects subdomain and rewrites to /[slug]
-- [ ] Dynamic page fetches site data from get-site API
-- [ ] Website renders correctly at slug.limbu.ai
+### 2. Files to Edit:
+1. **src/app/api/users/route.js**
+   - Add API endpoint to get today's user count
+   
+2. **src/app/admin/user-management/page.jsx**
+   - Add state for today's user count
+   - Fetch today's user count from API
+   - Add "Users Today" card in the stats section
+
+### 3. Implementation Steps:
+
+#### Step 1: Add API endpoint for today's users count
+- Add a new GET parameter to fetch today's user count
+
+#### Step 2: Update the frontend
+- Add `todayUsersCount` state
+- Fetch today's users on page load
+- Add a new stats card showing "Users Today"
+
+### 4. Followup Steps:
+- Test the implementation
+- Verify the card displays correctly

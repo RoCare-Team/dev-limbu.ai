@@ -23,6 +23,11 @@ leadStage: {
   enum: ["Active", "Follow Up", "Inactive", "Onboard"],
   default: "Active",
 },
+leadStatus: {
+  type: String,
+  enum: ["Hot", "Warm", "Cold", ""],
+  default: "",
+},
 
     referCode : {type: String},
     assignedAgentId: {

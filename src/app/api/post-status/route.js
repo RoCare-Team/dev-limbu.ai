@@ -21,6 +21,10 @@ export async function GET(req) {
     const id = searchParams.get("id");
     const status = searchParams.get("status");
     const userId = searchParams.get("userId");
+    
+    // Date filter parameters
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     // Build the query object dynamically
     const query = {};
@@ -29,6 +33,18 @@ export async function GET(req) {
     }
     if (status) {
       query.status = status;
+    }
+    
+    // Date filtering
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt = {
+        $gte: start,
+        $lte: end
+      };
     }
 
     // Single post

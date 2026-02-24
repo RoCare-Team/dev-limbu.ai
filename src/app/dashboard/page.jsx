@@ -1849,7 +1849,7 @@ const fetchInstagramPages = useCallback(async () => {
                   <button
                     onClick={handleManualRefresh}
                     disabled={loading}
-                    className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border-2"
                     title="Refresh data from Google"
                   >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1864,7 +1864,7 @@ const fetchInstagramPages = useCallback(async () => {
                   </button> */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                    className=" font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2 border-2"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>

@@ -604,9 +604,9 @@ const seoPlans = [
   const clientLogos = [
         // NOTE: Add your client logos in public/images/clients/
     { name: "Client 1", src: AnupGuptaLogo },
-    { name: "Mannubhai", src: MannubhaiLogo },
     { name: "Ro-Care India", src: RoCareIndiaLogo },
     { name: "Client 2", src: DynamicDrapryLogo },
+    { name: "Mannubhai", src: MannubhaiLogo },
     { name: "Client 3", src: BanjaraSalonLogo },
     { name: "Client 4", src: MazzLogo },
     { name: "Client 6", src: GudiyaCollectionLogo },

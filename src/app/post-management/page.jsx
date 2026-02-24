@@ -822,7 +822,7 @@ const PreviewSection = ({
           <h3 className="text-xl font-bold text-gray-800">Generating Magic...</h3>
           <p className="text-gray-500 mt-2">Creating your stunning post</p>
           {countdown > 0 && (
-            <p className="text-sm font-mono text-blue-600 mt-4 bg-blue-50 px-3 py-1 rounded-full inline-block">
+            <p className="text-sm font-mono text-yellow-600 mt-4 bg-blue-50 px-3 py-1 rounded-full inline-block">
               {countdown}s remaining
             </p>
           )}
@@ -955,7 +955,7 @@ const PreviewSection = ({
               className="flex items-center justify-center gap-2 bg-primary text-dark border border-dark hover:bg-lightPrimary hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
             >
               <CheckCircle className="w-4 h-4" />
-              Approve dfgjkldflgjldjgldfkj
+              Approve
             </button>
             <button
               onClick={() => onReject(previewData._id)}

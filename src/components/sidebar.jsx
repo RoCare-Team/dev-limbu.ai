@@ -1010,46 +1010,56 @@ export default function Sidebar({ children, user }) {
 
               {/* Plan Chip */}
               {(paidPackage || paidService) && (
-                <Chip
-                  label={paidPackage || paidService}
-                  onClick={handleOpenPlansModal}
-                  sx={{
-                    fontWeight: 600,
-                    background: 'linear-gradient(135deg, #0b1253 0%, #8b6cd2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)',
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    height: { xs: 28, sm: 32 },
-                  }}
-                />
-              )}
+  <Chip
+    label={paidPackage || paidService}
+    onClick={handleOpenPlansModal}
+    sx={{
+      fontWeight: 600,
+      background: '#101010',
+      color: 'white',
+      border: 'none',
+      cursor: 'pointer',
+      boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)',
+      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+      height: { xs: 28, sm: 32 },
+
+      '&:hover': {
+        background: '#101010',   // same as normal
+        color: 'white',         // same as normal
+        boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)', // same shadow
+      }
+    }}
+  />
+)}
 
               {/* Wallet Chip */}
-              <Chip
-                label={isMobile ? `${walletBalance}` : `${walletBalance} Coins`}
-                icon={<AddCircleOutlineIcon sx={{ color: 'white !important' }} />}
-                onClick={handleWalletClick}
-                sx={{
-                  fontWeight: 600,
-                  background: '#ffd600',
-                  color: 'dark',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  height: { xs: 28, sm: 32 },
-                  '&:hover': {
-                    opacity: 0.9,
-                    transform: 'scale(1.05)',
-                    transition: 'all 0.2s',
-                  },
-                  '& .MuiChip-icon': {
-                    fontSize: { xs: '1rem', sm: '1.25rem' },
-                  },
-                }}
-              />
+             <Chip
+  label={isMobile ? `${walletBalance}` : `${walletBalance} Coins`}
+  icon={<AddCircleOutlineIcon sx={{ color: 'white !important' }} />}
+  onClick={handleWalletClick}
+  sx={{
+    fontWeight: 600,
+    background: '#101010',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+    height: { xs: 28, sm: 32 },
+
+    '&:hover': {
+      background: '#101010',
+      color: 'yellow',
+      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+      transform: 'none',
+      opacity: 1,
+    },
+
+    '& .MuiChip-icon': {
+      fontSize: { xs: '1rem', sm: '1.25rem' },
+    },
+  }}
+/>
 
 
 
@@ -1087,7 +1097,7 @@ export default function Sidebar({ children, user }) {
                        color: 'dark',
                       bgcolor: '#101010',
                       fontWeight: 600,
-                      color: '#ffd600',
+                      color: 'white',
                     }}
                   >
                     {userName ? userName.charAt(0).toUpperCase() : 'U'}

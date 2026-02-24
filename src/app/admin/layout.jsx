@@ -78,7 +78,8 @@ export default function AdminLayout({ children }) {
     { name: "Demo Leads", icon: <LeaderboardSharp />, href: "/admin/demoBook", key: "manageLeads" },
 
     { name: "Franchise Lead", icon: <LeaderboardSharp />, href: "/admin/franchise/franchise-lead", key: "manageFranchise" },
-    { name: "Tata Dialer Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead" },
+    { name: "Tata Dialer Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
+    { name: "Create Franchise", icon: <LeaderboardSharp />, href: "/admin/create-franchise" },
 
     // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },
 
@@ -92,6 +93,11 @@ export default function AdminLayout({ children }) {
   ---------------------------- */
   const navItems = allNavItems.filter((item) => {
     if (role === "superAdmin" || role === "admin") return true;
+
+    if (role === "agent") {
+      return ["Leads", "Visit Website"].includes(item.name);
+    }
+
     if (["franchiseAdmin", "superFranchiseAdmin"].includes(role) && item.name === "Dashboard") return false;
     if (!item.key) return true;
     return permissions[item.key] === true;

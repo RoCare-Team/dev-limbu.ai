@@ -10,56 +10,64 @@ export async function POST(req) {
 
     const { email, password } = await req.json();
 
-    // ❌ Refer code removed from validation
     if (!email || !password) {
       return NextResponse.json(
-        { success: false, message: "Email & Password required" },
+        { success: false, message: "Email and password are required" },
         { status: 400 }
       );
     }
 
-    const user = await FranchisePanel.findOne({ email });
-    if (!user) {
+    const franchise = await FranchisePanel.findOne({ email });
+
+    if (!franchise) {
       return NextResponse.json(
-        { success: false, message: "Invalid credentials" },
+        { success: false, message: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    if (!user.isActive) {
+    if (!franchise.isActive) {
       return NextResponse.json(
-        { success: false, message: "Account inactive" },
+        { success: false, message: "Account is inactive" },
         { status: 403 }
       );
     }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
+    const isMatch = await bcrypt.compare(password, franchise.password);
+
+    if (!isMatch) {
       return NextResponse.json(
-        { success: false, message: "Invalid credentials" },
+        { success: false, message: "Invalid email or password" },
         { status: 401 }
       );
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      {
+        id: franchise._id,
+        role: franchise.role,
+        franchiseCode: franchise.franchiseCode,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     return NextResponse.json({
       success: true,
-      message: "Login successful",
+      message: "Franchise login successful",
       token,
       user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
+        id: franchise._id,
+        franchiseName: franchise.franchiseName,
+        ownerName: franchise.ownerName,
+        email: franchise.email,
+        mobileNumber: franchise.mobileNumber,
+        franchiseCode: franchise.franchiseCode,
+        role: franchise.role,
       },
     });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error("Franchise Login Error:", error);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }

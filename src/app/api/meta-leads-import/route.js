@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import fetch from "node-fetch";
 import User from "@/models/User";
 import MetaSync from "@/models/MetaSync";
+import Admin from "@/models/Admin";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,13 @@ const LIMIT = 3000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const TATA_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMyMTIxOSwiaXNzIjoiaHR0cHM6XC9cL2Nsb3VkcGhvbmUudGF0YXRlbGVzZXJ2aWNlcy5jb21cL3Rva2VuXC9nZW5lcmF0ZSIsImlhdCI6MTY3NDA0MjI4MSwiZXhwIjoxOTc0MDQyMjgxLCJuYmYiOjE2NzQwNDIyODEsImp0aSI6IkZ3Z2l4b003TE9jRjh6TTIifQ.ZJmlobL9nuBMHYYgGji-cmKIFU0cDsqIKhkMIc4a4Uc";
 const MONGODB_URI = process.env.MONGODB_URI;
+
+// Define Setting Schema for Round Robin
+const SettingSchema = new mongoose.Schema({
+  key: String,
+  value: mongoose.Schema.Types.Mixed,
+});
+const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
 /* ================= DB ================= */
 async function connectDB() {
@@ -88,6 +96,9 @@ export async function GET(req) {
   try {
     await connectDB();
 
+    // Fetch active agents for Round Robin
+    const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 });
+
     const { searchParams } = new URL(req.url);
     const formId = process.env.META_FORM_ID || searchParams.get("formId");
 
@@ -136,6 +147,24 @@ export async function GET(req) {
           continue;
         }
 
+        // Round Robin Logic
+        let assignedAgentId = null;
+        if (activeAgents && activeAgents.length > 0) {
+          const RR_KEY = "agentLeadRR";
+          let rrDoc = await Setting.findOne({ key: RR_KEY });
+          if (!rrDoc) {
+            rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
+          } else {
+            rrDoc.value += 1;
+            await rrDoc.save();
+          }
+
+          let rrValue = parseInt(rrDoc.value, 10);
+          if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+
+          assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
+        }
+
         await User.create({
           userId: `USR${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
           fullName,
@@ -151,6 +180,7 @@ export async function GET(req) {
           source: "bulk-upload",
           whatsappSent: true,
           tataCallSent: true,
+          assignedAgentId,
         });
 
         inserted++;

@@ -499,6 +499,7 @@ export default function Sidebar({ children, user }) {
       ]
     },
     { text: 'GMB Health', icon: <Activity size={20} />, path: '/gmb-health' },
+    // { text: 'Build Website', icon: <Activity size={20} />, path: '/build-website' },
     // { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
     { text: 'User Profile', icon: <User size={20} />, path: '/profile' },
   ];

@@ -41,59 +41,79 @@ export async function POST(req) {
     await dbConnect();
     const body = await req.json();
 
-    // 1️⃣ Fetch active agents
-    const agents = await Admin.find({
-      role: "agent",
-      isActive: true,
-    }).sort({ createdAt: 1 });
-
-    console.log("Agents:", agents.map(a => a.fullName));
-
-    if (agents.length < 1) {
+    if (!body || Object.keys(body).length === 0) {
       return NextResponse.json(
-        { success: false, message: "No active agents found" },
+        { success: false, error: "Missing body" },
         { status: 400 }
       );
     }
 
-    // 2️⃣ Round robin key
-    const RR_KEY = "franchiseLeadRRIndex";
+    // Generate userId if not provided
+    if (!body.userId) {
+      body.userId = `USR${Date.now()}`;
+    }
 
-    // 🔥 Atomic Update to prevent race conditions (Proper 1-1 distribution)
-    const updatedSetting = await Setting.findOneAndUpdate(
-      { key: RR_KEY },
-      { $inc: { value: 1 } },
-      { new: true, upsert: true }
-    );
+    // 1️⃣ Fetch ONLY active agents
+    const agents = await Admin.find({ role: "agent", isActive: true })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean();
 
-    const index = (updatedSetting.value || 1) - 1;
+    let assignedAgentId = null;
+    let rrValue = 0;
+    let assignedAgent = null;
 
-    // 3️⃣ Assign agent
-    const assignedAgent = agents[index % agents.length];
+    if (agents && agents.length > 0) {
+      // 2️⃣ Round Robin Counter
+      const RR_KEY = "agentLeadRR";
 
-    // 5️⃣ Create lead
-    const user = await User.create({
-      ...body,
-      assignedAgentId: assignedAgent._id,
-    });
+      let rrDoc = await Setting.findOne({ key: RR_KEY });
+
+      if (!rrDoc) {
+        rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
+      } else {
+        rrDoc.value += 1;
+        await rrDoc.save();
+      }
+
+      // ✅ FIXED HERE
+      rrValue = parseInt(rrDoc.value, 10);
+      if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+
+      // 3️⃣ Round robin index
+      const index = rrValue % agents.length;
+      assignedAgent = agents[index];
+      if (assignedAgent) {
+        assignedAgentId = assignedAgent._id;
+      }
+    }
+
+    // 4️⃣ Create Lead
+    const createPayload = { ...body, assignedAgentId: assignedAgentId };
+    const user = await User.create(createPayload);
 
     return NextResponse.json({
       success: true,
-      assignedAgent: {
+      message: assignedAgentId ? "Agent assigned via round robin successfully" : "User created (Unassigned)",
+      assignedAgent: assignedAgent ? {
         id: assignedAgent._id,
-        name: assignedAgent.fullName,
-      },
+        name: assignedAgent.fullName || assignedAgent.name,
+      } : null,
+      rrIndex: rrValue,
+      totalAgents: agents ? agents.length : 0,
       user,
     });
 
   } catch (error) {
     console.error("ROUND ROBIN FAILED:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error.message || "Server error" },
       { status: 500 }
     );
   }
 }
+
+
+
 
 
 /* ------------------ PATCH: ASSIGN AGENT ------------------ */
@@ -114,7 +134,7 @@ export async function PATCH(req) {
       { userId },
       { $set: { assignedAgentId: assignedAgentId || null } },
       { new: true }
-    ).populate("assignedAgentId", "fullName email role");
+    ).populate("assignedAgentId", "fullName email role mobileNumber");
 
     if (!updatedUser) {
       return NextResponse.json(
@@ -149,7 +169,7 @@ export async function GET(req) {
     const userId = searchParams.get("userId");
 
     if (userId) {
-      const user = await User.findOne({ userId }).populate("assignedAgentId", "fullName email role");
+      const user = await User.findOne({ userId }).populate("assignedAgentId", "fullName email role mobileNumber");
       if (!user) {
         return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
       }
@@ -161,6 +181,12 @@ export async function GET(req) {
     const assignedAgentId = searchParams.get("assignedAgentId");
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 70;
+    
+    // Date filter parameters
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+    const leadStatus = searchParams.get("leadStatus");
 
     if (!email) {
       return NextResponse.json(
@@ -185,7 +211,8 @@ export async function GET(req) {
           $group: {
             _id: {
               agent: "$assignedAgentId",
-              stage: { $ifNull: ["$leadStage", "Active"] }
+              stage: { $ifNull: ["$leadStage", "Active"] },
+              leadStatus: { $ifNull: ["$leadStatus", "Cold"] }
             },
             count: { $sum: 1 },
           },
@@ -199,11 +226,17 @@ export async function GET(req) {
         "Inactive": 0,
         "Onboard": 0
       };
+      const leadStatusStats = {
+        "Hot": 0,
+        "Warm": 0,
+        "Cold": 0
+      };
       const detailedStats = [];
 
       stats.forEach((item) => {
         const agentId = item._id.agent ? item._id.agent.toString() : "Unassigned";
         const stage = item._id.stage;
+        const leadStatus = item._id.leadStatus || "Cold";
         const count = item.count;
 
         // Agent Totals
@@ -212,11 +245,84 @@ export async function GET(req) {
         // Stage Totals
         stageStats[stage] = (stageStats[stage] || 0) + count;
 
+        // Lead Status Totals
+        leadStatusStats[leadStatus] = (leadStatusStats[leadStatus] || 0) + count;
+
         // Detailed Breakdown
-        detailedStats.push({ stage, agentId, count });
+        detailedStats.push({ stage, agentId, leadStatus, count });
       });
 
-      return NextResponse.json({ success: true, stats: agentStats, stageStats, detailedStats });
+      let superAdminStats = {};
+      if (admin.role === "superAdmin") {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const [totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments] = await Promise.all([
+          User.countDocuments({}),
+          User.countDocuments({ source: "Meta" }),
+          User.countDocuments({ createdAt: { $gte: startOfDay } }),
+          User.aggregate([
+            { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
+            { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
+            { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
+            { $unwind: "$agent" },
+            { $project: { agentName: "$agent.fullName", count: 1 } }
+          ])
+        ]);
+
+        superAdminStats = {
+          totalSignups,
+          totalMetaLeads,
+          todayLeads,
+          todayAgentAssignments
+        };
+      }
+
+      return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...superAdminStats });
+    }
+
+    /* 🔍 Fetch Today's Users Count */
+    if (searchParams.get("getTodayUsersCount") === "true") {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const todayUsersCount = await User.countDocuments({
+        createdAt: { $gte: startOfDay, $lte: endOfDay }
+      });
+
+      // Get breakdown by source for today
+      const todayBySource = await User.aggregate([
+        { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay } } },
+        { $group: { _id: "$source", count: { $sum: 1 } } }
+      ]);
+
+      const sourceBreakdown = {};
+      todayBySource.forEach(item => {
+        sourceBreakdown[item._id || "unknown"] = item.count;
+      });
+
+      // Get today's meta leads count
+      const todayMetaLeads = await User.countDocuments({
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        source: { $in: ["bulk-upload", "Meta Leads", "Meta"] }
+      });
+
+      // Get today's signups count
+      const todaySignups = await User.countDocuments({
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        source: { $nin: ["bulk-upload", "Meta Leads", "Meta"] }
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        todayUsersCount,
+        todayMetaLeads,
+        todaySignups,
+        sourceBreakdown
+      });
     }
 
     /* 2️⃣ Role-based query */
@@ -231,6 +337,29 @@ export async function GET(req) {
         query.assignedAgentId = null;
       } else {
         query.assignedAgentId = assignedAgentId;
+      }
+    }
+
+    // Date filtering logic
+    if (dateFilter && startDateParam && endDateParam) {
+      const startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+      
+      query.createdAt = {
+        $gte: startDate,
+        $lte: endDate
+      };
+    }
+
+    // Lead Status filtering
+    if (leadStatus && leadStatus !== "All") {
+      if (leadStatus === "Untagged") {
+        query.leadStatus = { $in: ["", null, undefined] };
+      } else {
+        query.leadStatus = leadStatus;
       }
     }
 
@@ -255,10 +384,36 @@ export async function GET(req) {
 
     /* 3️⃣ Fetch users */
     const users = await User.find(query)
-      .populate("assignedAgentId", "fullName email role")
+      .populate("assignedAgentId", "fullName email role mobileNumber")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    let superAdminData = {};
+    if (admin.role === "superAdmin") {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const [totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments] = await Promise.all([
+        User.countDocuments({}),
+        User.countDocuments({ source: "Meta" }),
+        User.countDocuments({ createdAt: { $gte: startOfDay } }),
+        User.aggregate([
+          { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
+          { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
+          { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
+          { $unwind: "$agent" },
+          { $project: { agentName: "$agent.fullName", count: 1 } }
+        ])
+      ]);
+
+      superAdminData = {
+        totalSignups,
+        totalMetaLeads,
+        todayLeads,
+        todayAgentAssignments
+      };
+    }
 
     return NextResponse.json({
       success: true,
@@ -267,6 +422,7 @@ export async function GET(req) {
       totalPages: Math.ceil(totalUsers / limit),
       currentPage: page,
       users,
+      ...superAdminData,
     });
 
   } catch (error) {
@@ -292,7 +448,9 @@ export async function PUT(req) {
       paidPackage,
       planDuration,
       isServiceBooked,
-      leadStage, // ✅ shifted from userStatus
+      planExpiry,
+      leadStage,
+      leadStatus,
     } = body;
 
     const remark = body.remark || body.remarks;
@@ -334,11 +492,19 @@ export async function PUT(req) {
       };
     }
 
-    /* -------- LEAD STAGE UPDATE (SHIFTED) -------- */
+    /* -------- LEAD STAGE UPDATE -------- */
     if (leadStage) {
       updateData.$set = {
         ...updateData.$set,
         leadStage,
+      };
+    }
+
+    /* -------- LEAD STATUS UPDATE (HOT/WARM/COLD) -------- */
+    if (leadStatus !== undefined) {
+      updateData.$set = {
+        ...updateData.$set,
+        leadStatus,
       };
     }
 

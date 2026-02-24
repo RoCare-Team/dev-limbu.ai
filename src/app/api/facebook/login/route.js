@@ -11,7 +11,7 @@ export async function GET(req) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
     redirect_uri: `${process.env.BASE_URL}/api/facebook/callback`,
-    scope: "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata",
+    scope: "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,business_management",
     response_type: "code",
     state: userId, // 🔥 Secure user mapping
   });

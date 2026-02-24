@@ -924,6 +924,7 @@ export default function DashboardPage() {
   const [showFirstPostModal, setShowFirstPostModal] = useState(false);
   const [FbPageData,setFbPageData] = useState([])
   const [isSessionExpired, setIsSessionExpired] = useState(false);
+  const [listings, setListings] = useState([]);
 
 
   const userId = localStorage.getItem("userId");
@@ -975,6 +976,13 @@ const navItems = [
     label: "Keyword Planner",
     isFree: true,
   },
+  {
+   href: "/build-website",
+   icon: <Globe className="h-6 w-6" />,
+   label: "Website Builder",
+   isFree: true,
+  //  specialTag: "Launched Today",
+ },
   {
     href: "/post-management",
     icon: <PlusSquare className="h-5 w-5" />,
@@ -1622,6 +1630,31 @@ const fetchInstagramPages = useCallback(async () => {
 
   // Summary Update & Store location details
   useEffect(() => {
+    if (listings.length > 0) {
+      const total = listings.length;
+      const verified = listings.filter((l) => l.hasVoiceOfMerchant === true).length;
+      const unverified = listings.filter((l) => l.hasVoiceOfMerchant === false).length;
+      const pending = 0;
+      setSummary({ total, verified, unverified, pending });
+
+      const locationDetails = listings.map(item => {
+        const locationId = item.name.split("/")[1];
+        const accountId = item.accountId || "";
+        const locality = item.storefrontAddress?.locality || "";
+        const address = item.storefrontAddress?.addressLines?.[0] || "";
+        const title = item.title || "";
+        const isVerified = item.hasVoiceOfMerchant === true;
+        const websiteUrl = item.websiteUri || "";
+        const reviewUri = item.metadata?.newReviewUri || "";
+    
+        return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified };
+      });
+      localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
+      if (listings.length > 0) {
+        localStorage.setItem("reviewUrl", listings[0].metadata?.newReviewUri || "");
+      }
+      return;
+    }
     if (accounts.length > 0) {
       const allListings = accounts.flatMap((acc) => acc.listings);
       
@@ -1651,7 +1684,7 @@ const fetchInstagramPages = useCallback(async () => {
       const pending = 0;
       setSummary({ total, verified, unverified, pending });
     }
-  }, [accounts]);
+  }, [accounts, listings]);
 
   // Add Project with proper cache clearing
   const handleAddProject = async () => {
@@ -1714,6 +1747,29 @@ const fetchInstagramPages = useCallback(async () => {
     return listings;
   };
 
+  useEffect(() => {
+    const fetchListings = async () => {
+
+      const token =
+        localStorage.getItem("isImpersonating") === "true"
+          ? localStorage.getItem("userToken")
+          : localStorage.getItem("adminToken");
+
+      if (!token) return;
+
+      const res = await fetch("/api/admin/saveBussiness", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      setListings(data.listings || []);
+    };
+
+    fetchListings();
+  }, []);
+
   // Loading State
   if (status === "loading") {
     return (
@@ -1728,7 +1784,10 @@ const fetchInstagramPages = useCallback(async () => {
 
 
 
-  console.log("facebookPagesfacebookPagesfacebookPages",facebookPages);
+
+
+
+  console.log("listingslistings",listings);
   
 
   return (
@@ -1872,7 +1931,54 @@ const fetchInstagramPages = useCallback(async () => {
                 <p className="mt-2 text-sm">Loading Listings...</p>
               </div>
             )}
-            {!loading && accounts.length > 0 && getFilteredListings(accounts[0].listings).map((listing, i) => (
+            {!loading && listings.length > 0 ? (
+              getFilteredListings(listings).map((listing, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 transition-all hover:shadow-md">
+                {/* Header: Logo + Title + Badge */}
+                <div className="flex items-start gap-3">
+                  {/* Logo */}
+                  <div className="flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100 text-blue-500">
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                        <h3 className="font-bold text-sm text-gray-900 truncate" title={listing.title}>{listing.title}</h3>
+                        <div className="flex-shrink-0 scale-90 origin-top-right">
+                          {getVerificationBadge(listing)}
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">{listing.categories?.primaryCategory?.displayName || "Business"}</p>
+                  </div>
+                </div>
+
+                {/* Details: Phone, Website, Address */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                      <span className="truncate">{listing.phoneNumbers?.primaryPhone || "No phone"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <Globe className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+                      {listing.websiteUri ? <a href={listing.websiteUri} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-600 hover:underline">{listing.websiteUri}</a> : <span className="text-gray-400">No website</span>}
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                      <MapPin className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{listing.storefrontAddress?.addressLines?.join(", ") || "No address"}{listing.storefrontAddress?.locality && `, ${listing.storefrontAddress.locality}`}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
+                  <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
+                  <button onClick={() => handleViewInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
+                </div>
+              </div>
+            ))
+            ) : (
+              !loading && accounts.length > 0 && getFilteredListings(accounts[0].listings).map((listing, i) => (
               <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 transition-all hover:shadow-md">
                 {/* Header: Logo + Title + Badge */}
                 <div className="flex items-start gap-3">
@@ -1920,8 +2026,9 @@ const fetchInstagramPages = useCallback(async () => {
                   <button onClick={() => handleViewInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
                 </div>
               </div>
-            ))}
-            {!loading && accounts.length === 0 && (
+            ))
+            )}
+            {!loading && accounts.length === 0 && listings.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                   <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
                     <Building2 className="w-8 h-8 text-neutral-600" />

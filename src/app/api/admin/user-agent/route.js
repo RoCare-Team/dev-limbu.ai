@@ -9,7 +9,7 @@ export async function GET() {
     await dbConnect();
     // Fetch only admins with role 'franchiseAdmin'
     const admins = await Admin.find({ role: "agent" })
-      .select("fullName email _id")
+      .select("fullName email _id mobile role")
       .lean();
 
     return NextResponse.json({ success: true, data: admins });

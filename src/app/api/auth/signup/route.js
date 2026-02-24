@@ -3,6 +3,14 @@ import Transaction from "@/models/Transaction";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+
+// Define Setting Schema for Round Robin
+const SettingSchema = new mongoose.Schema({
+  key: String,
+  value: mongoose.Schema.Types.Mixed,
+});
+const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
 // ✅ SIGNUP (same as before)
 export async function POST(req) {
@@ -43,20 +51,22 @@ export async function POST(req) {
     // Round-robin Agent Assignment
     let assignedAgentId = null;
     try {
-      const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1 });
+      const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 });
       
       if (activeAgents.length > 0) {
-        const lastUser = await User.findOne({ assignedAgentId: { $ne: null } }).sort({ createdAt: -1 });
-        let nextIndex = 0;
-        
-        if (lastUser && lastUser.assignedAgentId) {
-          const lastAgentId = lastUser.assignedAgentId.toString();
-          const lastIndex = activeAgents.findIndex(a => a._id.toString() === lastAgentId);
-          if (lastIndex !== -1) {
-            nextIndex = (lastIndex + 1) % activeAgents.length;
-          }
+        const RR_KEY = "agentLeadRR";
+        let rrDoc = await Setting.findOne({ key: RR_KEY });
+        if (!rrDoc) {
+          rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
+        } else {
+          rrDoc.value += 1;
+          await rrDoc.save();
         }
-        assignedAgentId = activeAgents[nextIndex]._id;
+
+        let rrValue = parseInt(rrDoc.value, 10);
+        if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+
+        assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
       }
     } catch (error) {
       console.error("Agent assignment error:", error);

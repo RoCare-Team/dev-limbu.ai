@@ -40,6 +40,84 @@ import { Clock, MessageSquare, PenTool, Star } from "lucide-react"
 
 // import Toast from '../components/Toast';
 
+// const MobileAppBanner = () => (
+// <section className="mt-10 px-4 sm:px-6 mb-4">
+// <div className="max-w-7xl mx-auto rounded-3xl bg-white shadow-xl overflow-hidden border border-slate-200">
+//         <div className="flex flex-col lg:flex-row items-center justify-between px-6 sm:px-10 py-10 gap-10">
+
+//           {/* LEFT CONTENT */}
+//           <div className="max-w-xl text-center lg:text-left">
+
+//             {/* Logo + Brand */}
+//             <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
+//               <Image src={LogoImage} alt="Limbu.ai" className="w-10 h-10" />
+//               <span className="text-lg font-semibold text-slate-700">
+//                 Limbu.ai
+//               </span>
+//             </div>
+
+//             <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 leading-tight">
+//               Manage Your Business the Smart Way
+//             </h2>
+
+//             <p className="mt-3 text-slate-600 text-base">
+//               Ek hi app se manage karein{" "}
+//               <span className="font-semibold text-slate-800">
+//                 Google Business Profile, Instagram aur Facebook
+//               </span>{" "}
+//               — posts, reviews, leads aur customer messages.
+//             </p>
+
+//             {/* FEATURES */}
+//             <div className="mt-5 space-y-2 text-slate-700 text-sm">
+//               <div className="flex items-center gap-2 justify-center lg:justify-start">
+//                 <CheckCircle className="w-4 h-4 text-green-600" />
+//                 Create & schedule social media posts easily
+//               </div>
+//               <div className="flex items-center gap-2 justify-center lg:justify-start">
+//                 <CheckCircle className="w-4 h-4 text-green-600" />
+//                 Manage Google reviews & customer chats
+//               </div>
+//               <div className="flex items-center gap-2 justify-center lg:justify-start">
+//                 <CheckCircle className="w-4 h-4 text-green-600" />
+//                 Simple dashboard – no technical skills required
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* RIGHT OFFER CARD */}
+//           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center max-w-sm w-full">
+//             <p className="text-sm text-slate-500">Limited Time Offer</p>
+
+//             <h3 className="text-3xl font-bold text-slate-800 mt-2">
+//               🎁 500 FREE Coins
+//             </h3>
+
+//             <p className="text-slate-600 text-sm mt-2">
+//               Download the Limbu.ai app and get bonus coins instantly
+//             </p>
+
+//             <a
+//               href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
+//               target="_blank"
+//               rel="noopener noreferrer"
+//               className="mt-5 inline-flex items-center justify-center gap-2 w-full bg-slate-900 text-white py-3 rounded-lg font-semibold hover:bg-slate-800 transition"
+//             >
+//               <Download className="w-5 h-5" />
+//               Download App Now
+//             </a>
+
+//             <img
+//               src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+//               alt="Get it on Google Play"
+//               className="h-12 mx-auto mt-4"
+//             />
+//           </div>
+
+//         </div>
+//       </div>
+//     </section>
+// );
 
 export default function LimbuAILanding() {
 
@@ -250,6 +328,11 @@ export default function LimbuAILanding() {
       showToast("Something went wrong. Please try again.", "error");
     }
   };
+
+
+  
+
+  
   
   const accountSetupPlans = [
   {
@@ -331,6 +414,7 @@ export default function LimbuAILanding() {
     },
  
   ];
+  
 
   const webDevelopmentPlans = [
   {

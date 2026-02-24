@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -50,6 +50,62 @@ export default function UserManagement() {
   const [detailedStats, setDetailedStats] = useState([]);
   const [stageModal, setStageModal] = useState(null); // { stage: "Follow Up" }
   const [stageStats, setStageStats] = useState({});
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+  const [todayStats, setTodayStats] = useState({ count: 0, assignments: [] });
+  const [leadSourceStats, setLeadSourceStats] = useState({
+    metaLeads: 0,
+    signupLeads: 0
+  });
+  const [todayUsersCount, setTodayUsersCount] = useState(0);
+  const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
+  const [todayUsersSignups, setTodayUsersSignups] = useState(0);
+  const [leadStatusStats, setLeadStatusStats] = useState({
+    Hot: 0,
+    Warm: 0,
+    Cold: 0
+  });
+  const [leadStatusFilter, setLeadStatusFilter] = useState("All");
+  const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDate, setFilterDate] = useState("All");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentAgentId, setCurrentAgentId] = useState(null);
+
+  const filterLabel = useMemo(() => {
+    if (filterDate === "All") return null;
+    if (filterDate === "Custom Range") {
+      if (customStartDate && customEndDate) {
+        return `${new Date(customStartDate).toLocaleDateString()} - ${new Date(customEndDate).toLocaleDateString()}`;
+      }
+      return "Custom Range";
+    }
+    return filterDate;
+  }, [filterDate, customStartDate, customEndDate]);
+
+  const isAgent = role === "agent";
+
+  const displayTodayUsersCount = useMemo(() => {
+    if (isAgent && currentAgentId) {
+      const assignment = todayStats.assignments.find(a => a._id === currentAgentId);
+      return assignment ? assignment.count : 0;
+    }
+    return todayUsersCount;
+  }, [isAgent, currentAgentId, todayStats, todayUsersCount]);
+
+  const displayTotalChatsCount = useMemo(() => {
+    if (isAgent) {
+      // Filter chats for agent's users (based on loaded users for now, consistent with modal)
+      // Ideally backend should provide this count
+      return chatStats.data.filter(chat => users.some(u => u.userId === chat.userId)).length;
+    }
+    return chatStats.total;
+  }, [isAgent, chatStats, users]);
+
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -62,6 +118,10 @@ export default function UserManagement() {
   ];
 
   const handleDefaultRemarkClick = (remark) => {
+    if (remark === "Meeting Scheduled") {
+      setShowMeetingModal(true);
+      return;
+    }
     const adminName = localStorage.getItem("adminName") || "Admin";
     setRemarksInput(`${remark} - ${adminName}`);
   };
@@ -111,11 +171,6 @@ export default function UserManagement() {
     }
   };
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [filterDate, setFilterDate] = useState("All");
-  const [currentPage, setCurrentPage] = useState(1);
-
   const [stats, setStats] = useState({
     total: 0,
     basic: 0,
@@ -130,8 +185,36 @@ export default function UserManagement() {
     leadStageOnboard: 0
   });
 
+  const getCalculatedDateRange = (filter) => {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+
+    if (filter === "Today") {
+      // start is today
+    } else if (filter === "Last 7 Days") {
+      start.setDate(today.getDate() - 7);
+    } else if (filter === "Last 30 Days") {
+      start.setDate(today.getDate() - 30);
+    } else if (filter === "This Month") {
+      start.setDate(1);
+    } else {
+      return null;
+    }
+
+    const toLocalYMD = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    return { startDate: toLocalYMD(start), endDate: toLocalYMD(end) };
+  };
+
   useEffect(() => {
     setRole(localStorage.getItem("role"));
+    setCurrentAgentId(localStorage.getItem("userId"));
   }, []);
 
   useEffect(() => {
@@ -148,7 +231,20 @@ export default function UserManagement() {
   useEffect(() => {
     const fetchTotalPosts = async () => {
       try {
-        const res = await fetch("/api/post-status");
+        // Build date filter params
+        let url = "/api/post-status";
+        if (filterDate !== "All") {
+          if (filterDate === "Custom Range" && customStartDate && customEndDate) {
+            url += `?startDate=${customStartDate}&endDate=${customEndDate}`;
+          } else if (filterDate !== "Custom Range") {
+            const ranges = getCalculatedDateRange(filterDate);
+            if (ranges) {
+              url += `?startDate=${ranges.startDate}&endDate=${ranges.endDate}`;
+            }
+          }
+        }
+        
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setTotalPostsCount(data.count || 0);
@@ -157,8 +253,14 @@ export default function UserManagement() {
         console.error("Error fetching total posts:", error);
       }
     };
+    
+    // Don't fetch if custom range is selected but dates are not set
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) {
+      return;
+    }
+    
     fetchTotalPosts();
-  }, []);
+  }, [filterDate, customStartDate, customEndDate]);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -169,7 +271,9 @@ export default function UserManagement() {
     const active = connectedBusinessUsers.length;
     const todayMetaLeads = users.filter(u => (u.source === "bulk-upload" || u.source === "Meta Leads") && new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
     const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
+    console.log("usersusers",users);
     
+
     // const leadStageActive = users.filter(u => (u.leadStage || "Active") === "Active").length;
     // const leadStageFollowUp = users.filter(u => u.leadStage === "Follow Up").length;
     // const leadStageInactive = users.filter(u => u.leadStage === "Inactive").length;
@@ -182,12 +286,47 @@ export default function UserManagement() {
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) return;
     try {
-      const res = await fetch(`/api/users?email=${adminEmail}&getAgentStats=true`);
+      const params = new URLSearchParams({
+        email: adminEmail,
+        getAgentStats: "true"
+      });
+
+      if (filterStatus !== "All") params.append("status", filterStatus);
+      if (filterDate !== "All") {
+        if (filterDate === "Custom Range") {
+          params.append("dateFilter", "Custom Range");
+          if (customStartDate) params.append("startDate", customStartDate);
+          if (customEndDate) params.append("endDate", customEndDate);
+        } else {
+          const ranges = getCalculatedDateRange(filterDate);
+          if (ranges) {
+            params.append("dateFilter", filterDate);
+            params.append("startDate", ranges.startDate);
+            params.append("endDate", ranges.endDate);
+          }
+        }
+      }
+      if (assigneeFilter !== "All") params.append("assignedAgentId", assigneeFilter);
+      if (leadStatusFilter !== "All") params.append("leadStatus", leadStatusFilter);
+
+      const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
         setDetailedStats(data.detailedStats || []);
+        
+        if (data.todayLeads !== undefined) {
+          setTodayStats({
+            count: data.todayLeads,
+            assignments: data.todayAgentAssignments || []
+          });
+        }
+
+        setLeadSourceStats({
+          metaLeads: data.metaLeadsCount || 0,
+          signupLeads: data.signupLeadsCount || 0
+        });
       }
     } catch (error) {
       console.error("Error fetching agent stats:", error);
@@ -195,54 +334,79 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
     fetchAgentStats();
-  }, [users]);
+  }, [users, filterDate, filterStatus, assigneeFilter, customStartDate, customEndDate, leadStatusFilter]);
 
-const fetchUsers = async (silent = false) => {
-  if (!silent) setLoading(true);
-  const adminEmail = localStorage.getItem("email");
+  const fetchUsers = async (silent = false) => {
+    if (!silent) setLoading(true);
+    const adminEmail = localStorage.getItem("email");
 
 
-  try {
-    const params = new URLSearchParams({
-      email: adminEmail,   // 🔑 REQUIRED
-      page: currentPage,
-      search: searchQuery.trim(),
-      limit: 70,
-    });
-
-    if (assigneeFilter !== "All") {
-      params.append("assignedAgentId", assigneeFilter);
-    }
-
-    const res = await fetch(`/api/users?${params.toString()}`);
-    const data = await res.json();
-
-    if (data.success) {
-      setUsers(data.users);
-
-      setPagination({
-        totalUsers: data.totalUsers,
-        currentPage: data.currentPage || currentPage,
-        totalPages: data.totalPages || Math.ceil(data.totalUsers / 70),
+    try {
+      const params = new URLSearchParams({
+        email: adminEmail,   // 🔑 REQUIRED
+        page: currentPage,
+        search: searchQuery.trim(),
         limit: 70,
       });
 
-      return data.users;
-    }
+      if (assigneeFilter !== "All") {
+        params.append("assignedAgentId", assigneeFilter);
+      }
 
-    return [];
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    return [];
-  } finally {
-    if (!silent) setLoading(false);
-  }
-};
+      if (filterStatus !== "All") {
+        params.append("status", filterStatus);
+      }
+
+      if (filterDate !== "All") {
+        if (filterDate === "Custom Range") {
+          params.append("dateFilter", "Custom Range");
+          if (customStartDate) params.append("startDate", customStartDate);
+          if (customEndDate) params.append("endDate", customEndDate);
+        } else {
+          const ranges = getCalculatedDateRange(filterDate);
+          if (ranges) {
+            params.append("dateFilter", filterDate);
+            params.append("startDate", ranges.startDate);
+            params.append("endDate", ranges.endDate);
+          }
+        }
+      }
+
+      if (leadStatusFilter !== "All") {
+        params.append("leadStatus", leadStatusFilter);
+      }
+
+      const res = await fetch(`/api/users?${params.toString()}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setUsers(data.users);
+
+        setPagination({
+          totalUsers: data.totalUsers,
+          currentPage: data.currentPage || currentPage,
+          totalPages: data.totalPages || Math.ceil(data.totalUsers / 70),
+          limit: 70,
+        });
+
+        return data.users;
+      }
+
+      return [];
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      return [];
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
     fetchUsers();
-  }, [currentPage, filterStatus, filterDate, assigneeFilter]);
+  }, [currentPage, filterStatus, filterDate, assigneeFilter, customStartDate, customEndDate, leadStatusFilter]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -307,20 +471,10 @@ const fetchUsers = async (silent = false) => {
   useEffect(() => {
     fetchChatStats();
     fetchIssues();
+    fetchTodayUsersCount();
   }, []);
 
 
-  const fetchConnectedBusinessUsers = async () => {
-    try {
-      const res = await fetch(`/api/connectedBussiness`);
-      const data = await res.json();
-      if (data.success && data.users) {
-        setConnectedBusinessUsers(data.users);
-      }
-    } catch (err) {
-      console.error("Error fetching connected business users:", err);
-    }
-  };
 
   const fetchAllUserPostsCounts = async () => {
     if (users.length === 0) return;
@@ -341,7 +495,7 @@ const fetchUsers = async (silent = false) => {
           acc[userId] = countsData[userId] || { total: 0, posted: 0, approved: 0, rejected: 0, pending: 0 };
           return acc;
         }, {});
-        
+
         setUserPostsData(fullPostData);
       } else {
         // Handle error case, maybe set all to 0
@@ -369,8 +523,8 @@ const fetchUsers = async (silent = false) => {
           if (!c.createdAt) return false;
           const chatDate = new Date(c.createdAt);
           return chatDate.getDate() === todayDate.getDate() &&
-                 chatDate.getMonth() === todayDate.getMonth() &&
-                 chatDate.getFullYear() === todayDate.getFullYear();
+            chatDate.getMonth() === todayDate.getMonth() &&
+            chatDate.getFullYear() === todayDate.getFullYear();
         }).length;
         const resolved = chats.filter(c => c.status === 'resolved').length;
         setChatStats({ total, today, resolved, data: chats });
@@ -389,6 +543,26 @@ const fetchUsers = async (silent = false) => {
       }
     } catch (error) {
       console.error("Error fetching issues:", error);
+    }
+  };
+
+  const fetchTodayUsersCount = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return;
+    try {
+      const params = new URLSearchParams({
+        email: adminEmail,
+        getTodayUsersCount: "true"
+      });
+      const res = await fetch(`/api/users?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setTodayUsersCount(data.todayUsersCount || 0);
+        setTodayUsersMetaLeads(data.todayMetaLeads || 0);
+        setTodayUsersSignups(data.todaySignups || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching today's users count:", error);
     }
   };
 
@@ -411,6 +585,9 @@ const fetchUsers = async (silent = false) => {
 
 const handleAssignChange = async (userId, newAgentId) => {
   try {
+    console.log("🔄 Assign request started");
+
+    // 1️⃣ Update Assigned Agent
     const res = await fetch("/api/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -422,15 +599,55 @@ const handleAssignChange = async (userId, newAgentId) => {
 
     const data = await res.json();
 
-    if (!data.success) {
+    if (!res.ok || !data.success) {
       showToast(data.error || "Failed to assign agent", "error");
       return;
     }
 
     showToast("Agent assigned successfully", "success");
 
-    const updatedAgent = data.user?.assignedAgentId;
+    const updatedAgent = data.user?.assignedAgentId || newAgentId;
+    console.log("agentsagents",agents);
+    
 
+    // 2️⃣ Send WhatsApp Notification (ONLY if agent selected)
+    if (newAgentId) {
+      const agent = agents.find((a) => a._id === newAgentId);
+      const user = users.find((u) => u.userId === userId);
+
+      if (!agent || !user) {
+        console.warn("Agent or User not found");
+        return;
+      }
+
+      const payload = {
+        firstName: user.fullName || "User",
+        enquiryNo: user.userId,
+        executiveName: agent.fullName || "Executive",
+        executiveMobile: agent.mobile,
+        userMobile: user.phone || user.mobileNumber,
+      };
+
+      try {
+        const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const waData = await waRes.json();
+
+        if (!waRes.ok || !waData.success) {
+          console.error("WhatsApp send failed:", waData);
+        } else {
+          console.log("✅ WhatsApp sent successfully");
+        }
+      } catch (err) {
+        console.error("WhatsApp API error:", err);
+      }
+    }
+
+    // 3️⃣ Update local state immediately
     setUsers((prevUsers) =>
       prevUsers.map((user) =>
         user.userId === userId
@@ -438,42 +655,99 @@ const handleAssignChange = async (userId, newAgentId) => {
           : user
       )
     );
-    fetchUsers(true);
+
+    // Update agent stats locally
+    if (newAgentId) {
+      setAgentStats(prev => ({
+        ...prev,
+        [newAgentId]: (prev[newAgentId] || 0) + 1,
+        unassigned: Math.max(0, (prev.unassigned || 0) - 1)
+      }));
+    }
+
+    // fetchUsers(true); // Optional: refresh in background if needed
+
   } catch (error) {
-    console.error("Assignment error:", error);
+    console.error("🚨 Assignment error:", error);
     showToast("Something went wrong while assigning.", "error");
   }
 };
 
-const handleLeadStageChange = async (userId, newStage) => {
-  try {
-    const res = await fetch("/api/users", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId,
-        leadStage: newStage,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      showToast("Lead stage updated successfully", "success");
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.userId === userId ? { ...user, leadStage: newStage } : user
-        )
-      );
-    } else {
-      showToast(data.error || "Failed to update lead stage", "error");
-    }
-  } catch (error) {
-    console.error("Update lead stage error:", error);
-    showToast("Something went wrong", "error");
+const handleRoundRobinAssign = (userId) => {
+  if (agents.length === 0) {
+    showToast("No agents available", "error");
+    return;
   }
+  
+  // Find agent with minimum leads (Load Balancing)
+  let minLeads = Infinity;
+  let targetAgentId = agents[0]._id;
+  
+  agents.forEach(agent => {
+      const count = agentStats[agent._id] || 0;
+      if (count < minLeads) {
+          minLeads = count;
+          targetAgentId = agent._id;
+      }
+  });
+  
+  handleAssignChange(userId, targetAgentId);
 };
 
+
+  const handleLeadStageChange = async (userId, newStage) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          leadStage: newStage,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Lead stage updated successfully", "success");
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.userId === userId ? { ...user, leadStage: newStage } : user
+          )
+        );
+      } else {
+        showToast(data.error || "Failed to update lead stage", "error");
+      }
+    } catch (error) {
+      console.error("Update lead stage error:", error);
+      showToast("Something went wrong", "error");
+    }
+  };
+
+  const handleLeadStatusChange = async (userId, newStatus) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          leadStatus: newStatus,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Lead status updated successfully", "success");
+        setUsers((prevUsers) => prevUsers.map((user) => (user.userId === userId ? { ...user, leadStatus: newStatus } : user)));
+      } else {
+        showToast(data.error || "Failed to update lead status", "error");
+      }
+    } catch (error) {
+      console.error("Update lead status error:", error);
+      showToast("Something went wrong", "error");
+    }
+  };
 
   const getAvatarColor = (name) => {
     if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
@@ -500,10 +774,30 @@ const handleLeadStageChange = async (userId, newStage) => {
     return colors[Math.abs(hash) % colors.length];
   };
 
+  // ✅ Helper to safely get agent name from populated object or string ID
+  const getAgentName = (assignedAgentId) => {
+    console.log("assignedAgentIdassignedAgentId",assignedAgentId);
+    
+    if (!assignedAgentId) return "Unassigned";
+    
+    // If it's a populated object with fullName
+    if (typeof assignedAgentId === "object" && assignedAgentId?.fullName) {
+      return assignedAgentId.fullName;
+    }
+    
+    // If it's a string ID, try to find agent name in agents array
+    if (typeof assignedAgentId === "string") {
+      const agent = agents.find(a => a._id === assignedAgentId);
+      return agent?.fullName || "Unassigned";
+    }
+    
+    return "Unassigned";
+  };
+
   // When filters change, reset to the first page
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterDate]);
+  }, [searchQuery, filterStatus, filterDate, assigneeFilter]);
 
 
 
@@ -581,7 +875,7 @@ const handleLeadStageChange = async (userId, newStage) => {
 
     try {
       const res = await fetch("/api/users/add", {
-        method: "POST",
+        method: "POST",/*  */
         headers: {
           "Content-Type": "application/json",
         },
@@ -679,54 +973,29 @@ const handleLeadStageChange = async (userId, newStage) => {
     }
   };
   const AdminPanelButton = async (userId) => {
-    setImpersonatingUser(userId);
+    const adminToken = localStorage.getItem("token"); // 👈 tumhara existing token
 
-    try {
-      const adminToken = localStorage.getItem("token");
+    const res = await fetch("/api/admin/login-as-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${adminToken}`, // 👈 MUST
+      },
+      body: JSON.stringify({ userId }),
+    });
 
-      console.log("🔍 Admin Token Sent:", adminToken);
+    const data = await res.json();
 
-      if (!adminToken) {
-        alert("Admin token missing. Please login as admin again.");
-        return;
-      }
-
-      const res = await fetch("/api/admin/login-as-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      console.log("🔍 Response Status:", res.status);
-
-      const data = await res.json();
-
-      console.log("🔍 API Response:", data);
-
-      if (!res.ok) {
-        alert(data.error || "Something went wrong");
-        setImpersonatingUser(null);
-        return;
-      }
-
-      if (data?.token) {
-        // Save User Token
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("impersonatedUser", userId);
-        localStorage.setItem("userId", data.user.userId);
-
-        window.location.href = "/dashboard";
-      } else {
-        alert("Unable to impersonate user");
-      }
-    } catch (error) {
-      console.log("❌ Frontend error:", error);
-      setImpersonatingUser(null);
+    if (data.token) {
+      localStorage.setItem("userToken", data.token);
+      localStorage.setItem("impersonatedUser", userId);
+      localStorage.setItem("userId", data.user.userId);
+      localStorage.setItem("isImpersonating", "true");
+      window.location.href = "/dashboard";
     }
   };
+
+
 
   const handleOpenRemarksModal = async (user) => {
     setRemarksModalUser(user);
@@ -747,8 +1016,121 @@ const handleLeadStageChange = async (userId, newStage) => {
     }
   };
 
+  const sendRemarkWhatsApp = async (user, remarkType) => {
+    // 🔥 UI REMARK → BACKEND REMARK
+    const remarkMap = {
+      "Call Not Picked": "call_not_picked",
+      "Not Interested": "not_interested",
+      "Interested": "interested",
+      "Call Back Later": "call_back",
+      "Wrong Number": "wrong_number",
+      "Switch Off": "switch_off",
+      "Meeting Scheduled": "meeting_scheduled_online"
+    };
+
+    const remark = remarkMap[remarkType];
+    if (!remark) {
+      console.warn("Invalid remark:", remarkType);
+      return;
+    }
+
+    // 📞 Phone normalize
+    let phone = user.phone || user.mobileNumber;
+    if (phone) {
+      phone = String(phone).replace(/\D/g, "");
+      if (phone.length === 10) phone = "91" + phone;
+    }
+    if (!phone) {
+      console.warn("Phone number missing");
+      return;
+    }
+
+    let executiveMobile = user.assignedAgentId?.mobileNumber;
+
+    if (!executiveMobile && typeof window !== "undefined") {
+      const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
+      const email = (localStorage.getItem("email") || "").toLowerCase();
+
+      if (adminName.includes("aman") || email.includes("aman")) {
+        executiveMobile = "9311587741";
+        executiveMobile = "919311587741";
+      } else if (adminName.includes("moni") || email.includes("moni")) {
+        executiveMobile = "7065021272";
+        executiveMobile = "917065021272";
+      }
+    }
+
+    const payload = {
+      destination: phone,
+      userName: user.fullName || "User",
+      enquiryId: user.userId,
+      executiveName: user.assignedAgentId?.fullName || "Executive",
+      executiveMobile: executiveMobile || "",
+      remark: remark,
+    };
+
+    if (remarkType === "Meeting Scheduled" && meetingData.date) {
+      payload.meetingDate = meetingData.date;
+      payload.meetingTime = meetingData.date.split("T")[1];
+      payload.meetingLink = meetingData.link;
+      payload.meetingId = meetingData.meetingId;
+      payload.passcode = meetingData.passcode;
+    }
+
+    // --- SEND EMAIL NOTIFICATION ---
+    if (user.email) {
+      const emailPayload = {
+        email: user.email,
+        userName: user.fullName || "User",
+        enquiryId: user.userId,
+        executiveName: user.assignedAgentId?.fullName || "Executive",
+        remark: remark,
+        meetingDate: payload.meetingDate,
+        meetingTime: payload.meetingTime,
+        meetingLink: payload.meetingLink,
+        meetingId: payload.meetingId,
+        passcode: payload.passcode
+      };
+      fetch("/api/admin/email-send-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      }).catch(err => console.error("Email send failed", err));
+    }
+
+    try {
+      const res = await fetch("/api/admin/whatsapp-send-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Success! Remark has been successfully sent to the user via WhatsApp.", "success");
+        return true;
+      } else {
+        showToast(`Failed: ${data.message}`, "error");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      showToast("WhatsApp send failed", "error");
+      return false;
+    }
+  };
+
+
   const handleAddRemark = async () => {
     if (!remarksModalUser || !remarksInput.trim()) return;
+
+    let messageSent = false;
+    const remarkType = defaultRemarks.find((r) => remarksInput.startsWith(r));
+
+    if (remarkType) {
+      messageSent = await sendRemarkWhatsApp(remarksModalUser, remarkType);
+    }
 
     try {
       const res = await fetch("/api/users", {
@@ -756,12 +1138,14 @@ const handleLeadStageChange = async (userId, newStage) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: remarksModalUser.userId,
-          remark: remarksInput
+          remark: remarksInput,
+          messageSent,
         })
       });
       const data = await res.json();
       if (data.success) {
         setRemarksHistory(data.user.remarksHistory || []);
+
         setRemarksInput("");
         showToast("Remark added successfully", "success");
         fetchUsers();
@@ -771,6 +1155,45 @@ const handleLeadStageChange = async (userId, newStage) => {
     } catch (error) {
       console.error("Error adding remark:", error);
       showToast("Error adding remark", "error");
+    }
+  };
+
+  const handleMeetingSubmit = async () => {
+    if (!meetingData.date || !meetingData.link || !meetingData.meetingId) {
+      showToast("Please enter Date, Meeting Link and Meeting ID", "error");
+      return;
+    }
+
+    const adminName = localStorage.getItem("adminName") || "Admin";
+    const remarkText = `Meeting Scheduled on ${meetingData.date} - ${adminName}`;
+
+    // Send WhatsApp with meeting details
+    const messageSent = await sendRemarkWhatsApp(remarksModalUser, "Meeting Scheduled");
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: remarksModalUser.userId,
+          remark: remarkText,
+          messageSent,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRemarksHistory(data.user.remarksHistory || []);
+        setRemarksInput("");
+        showToast("Meeting scheduled successfully", "success");
+        fetchUsers();
+        setShowMeetingModal(false);
+        setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
+      } else {
+        showToast(data.error || "Failed to save remark", "error");
+      }
+    } catch (error) {
+      console.error("Error saving meeting remark:", error);
+      showToast("Error saving meeting remark", "error");
     }
   };
 
@@ -804,7 +1227,10 @@ const handleLeadStageChange = async (userId, newStage) => {
     setSearchQuery("");
     setFilterStatus("All");
     setFilterDate("All");
+    setCustomStartDate("");
+    setCustomEndDate("");
     setAssigneeFilter("All");
+    setLeadStatusFilter("All");
   };
 
   const handlePageChange = (newPage) => {
@@ -820,8 +1246,8 @@ const handleLeadStageChange = async (userId, newStage) => {
 
 
 
-
-  
+  console.log("agentsagents", agents);
+  console.log("agentStatsagentStatsagentStats", agentStats);
 
 
   if (loading) {
@@ -846,8 +1272,8 @@ const handleLeadStageChange = async (userId, newStage) => {
         <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
           <div
             className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === "success"
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
               }`}
           >
             {toast.type === "success" ? (
@@ -928,114 +1354,218 @@ const handleLeadStageChange = async (userId, newStage) => {
 
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        {/* Main Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Users */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">Total Users</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
+                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total Users</p>
+                <p className="text-2xl font-bold text-indigo-800 mt-1">{stats.total}</p>
               </div>
-              <div className="bg-indigo-100 p-3 rounded-xl">
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                 <User className="text-indigo-600" size={24} />
               </div>
             </div>
+            {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )}
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl p-6 shadow-lg border border-emerald-200">
+          {/* Active Users */}
+          {!isAgent && (
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-700 text-sm font-medium">Total Wallet</p>
-                <p className="text-3xl font-bold text-emerald-800 mt-1">
-                  {users.reduce((sum, u) => sum + (u.wallet || 0), 0)}
-                </p>
+                <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Active Users</p>
+                <p className="text-2xl font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
               </div>
-              <Wallet className="text-emerald-600" size={24} />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 shadow-lg border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium">Total Posts</p>
-                <p className="text-3xl font-bold text-blue-800 mt-1">
-                  {totalPostsCount}
-                </p>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="text-green-600" size={24} />
               </div>
-              <ImageIcon className="text-blue-600" size={24} />
             </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 shadow-lg border border-purple-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-700 text-sm font-medium">Today Signups</p>
-                <p className="text-3xl font-bold text-purple-800 mt-1">
-                  {stats.todaySignups}
-                </p>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
               </div>
-              <Calendar className="text-purple-600" size={24} />
-            </div>
+            )} */}
           </div>
+          )}
 
-          <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl p-6 shadow-lg border border-pink-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-pink-700 text-sm font-medium">Today Meta Leads</p>
-                <p className="text-3xl font-bold text-pink-800 mt-1">
-                  {stats.todayMetaLeads}
-                </p>
-              </div>
-              <User2Icon className="text-pink-600" size={24} />
-            </div>
-          </div>
-
+          {/* Follow Up */}
+          {!isAgent && (
           <div 
-            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 shadow-lg border border-orange-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => {
-              setChatModalFilter("all");
-              setShowChatStatsModal(true);
-            }}
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => setStageModal("Follow Up")}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-700 text-sm font-medium">Total Chats</p>
-                <p className="text-3xl font-bold text-orange-800 mt-1">{chatStats.total}</p>
+                <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">Follow Up</p>
+                <p className="text-2xl font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
               </div>
-              <MessageSquare className="text-orange-600" size={24} />
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Clock className="text-yellow-600" size={24} />
+              </div>
             </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
           </div>
+          )}
 
+          {/* Inactive */}
+          {!isAgent && (
           <div 
-            className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-2xl p-6 shadow-lg border border-teal-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => {
-              setChatModalFilter("today");
-              setShowChatStatsModal(true);
-            }}
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => setStageModal("Inactive")}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-teal-700 text-sm font-medium">Chats Today</p>
-                <p className="text-3xl font-bold text-teal-800 mt-1">{chatStats.today}</p>
+                <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Inactive</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
               </div>
-              <MessageSquare className="text-teal-600" size={24} />
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <UserX className="text-gray-600" size={24} />
+              </div>
             </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
           </div>
+          )}
 
+          {/* Onboarded */}
+          {!isAgent && (
           <div 
-            className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 shadow-lg border border-green-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => {
-              setChatModalFilter("resolved");
-              setShowChatStatsModal(true);
-            }}
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => setStageModal("Onboard")}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-700 text-sm font-medium">Total Resolved</p>
-                <p className="text-3xl font-bold text-green-800 mt-1">{chatStats.resolved}</p>
+                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Onboarded</p>
+                <p className="text-2xl font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
               </div>
-              <Shield className="text-green-600" size={24} />
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Rocket className="text-blue-600" size={24} />
+              </div>
+            </div>
+            {/* {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )} */}
+          </div>
+          )}
+
+          {/* Total Posts */}
+          {!isAgent && (
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total Posts</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalPostsCount}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <ImageIcon className="text-blue-600" size={24} />
+              </div>
+            </div>
+            {filterLabel && (
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {filterLabel}
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* Users Today */}
+          <div className="bg-gradient-to-br  rounded-lg p-6 shadow-sm border border-teal-200 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-teal-700 font-medium">Users Today</p>
+                <p className="text-2xl font-bold text-teal-800 mt-1">{displayTodayUsersCount}</p>
+                <div className="flex gap-2 mt-1">
+                  <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
+                    Meta: {todayUsersMetaLeads}
+                  </span>
+                  <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
+                    Signups: {todayUsersSignups}
+                  </span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-teal-200 rounded-lg flex items-center justify-center">
+                <User className="text-teal-700" size={24} />
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Chat Stats Cards - Separate Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Chats */}
+          <div
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => { setChatModalFilter("all"); setShowChatStatsModal(true); fetchChatStats(); }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total Chats</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-orange-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          {/* Chats Today */}
+          {!isAgent && (
+          <div
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => { setChatModalFilter("today"); setShowChatStatsModal(true); fetchChatStats(); }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Chats Today</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{chatStats.today}</p>
+              </div>
+              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-teal-600" size={24} />
+              </div>
+            </div>
+          </div>
+          )}
+
+          {/* Resolved */}
+          {!isAgent && (
+          <div
+            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Resolved</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Shield className="text-green-600" size={24} />
+              </div>
+            </div>
+          </div>
+          )}
+
+    
 
           {/* <div 
             className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 shadow-lg border border-red-200 cursor-pointer hover:shadow-xl transition-all"
@@ -1051,88 +1581,97 @@ const handleLeadStageChange = async (userId, newStage) => {
           </div> */}
         </div>
 
-        {/* Lead Stage Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div 
-            className="bg-green-50 rounded-2xl p-6 shadow-lg border border-green-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Active")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-700 text-sm font-medium">Active Leads</p>
-                <p className="text-3xl font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-xl">
-                <CheckCircle className="text-green-600" size={24} />
+        {/* Lead Status Stats - Only for superAdmin */}
+        {/* {role === "superAdmin" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-red-50 rounded-2xl p-6 shadow-lg border border-red-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-700 text-sm font-medium">Hot Leads</p>
+                  <p className="text-3xl font-bold text-red-800 mt-1">{leadStatusStats.Hot || 0}</p>
+                </div>
+                <div className="bg-red-100 p-3 rounded-xl">
+                  <div className="w-6 h-6 bg-red-500 rounded-full"></div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div 
-            className="bg-yellow-50 rounded-2xl p-6 shadow-lg border border-yellow-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Follow Up")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-yellow-700 text-sm font-medium">Follow Up</p>
-                <p className="text-3xl font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
-              </div>
-              <div className="bg-yellow-100 p-3 rounded-xl">
-                <Clock className="text-yellow-600" size={24} />
+            <div className="bg-orange-50 rounded-2xl p-6 shadow-lg border border-orange-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-700 text-sm font-medium">Warm Leads</p>
+                  <p className="text-3xl font-bold text-orange-800 mt-1">{leadStatusStats.Warm || 0}</p>
+                </div>
+                <div className="bg-orange-100 p-3 rounded-xl">
+                  <div className="w-6 h-6 bg-orange-500 rounded-full"></div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div 
-            className="bg-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Inactive")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-700 text-sm font-medium">Inactive</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
-              </div>
-              <div className="bg-gray-200 p-3 rounded-xl">
-                <UserX className="text-gray-600" size={24} />
+            <div className="bg-blue-50 rounded-2xl p-6 shadow-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-700 text-sm font-medium">Cold Leads</p>
+                  <p className="text-3xl font-bold text-blue-800 mt-1">{leadStatusStats.Cold || 0}</p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-xl">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
+                </div>
               </div>
             </div>
           </div>
-
-          <div 
-            className="bg-blue-50 rounded-2xl p-6 shadow-lg border border-blue-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setStageModal("Onboard")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium">Onboarded</p>
-                <p className="text-3xl font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-xl">
-                <Rocket className="text-blue-600" size={24} />
-              </div>
-            </div>
-          </div>
-        </div>
+        )} */}
 
         {/* AGENT ASSIGNMENT SUMMARY */}
+        {/* AGENT ASSIGNMENT SUMMARY */}
         {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
-          <div className="flex flex-wrap gap-3 mb-6">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
-              <User className="w-3 h-3" />
-              <span>Unassigned: {agentStats["Unassigned"] || 0}</span>
-            </div>
-            {agents.map(agent => {
-              const count = agentStats[agent._id] || 0;
-              if (count === 0) return null;
-              return (
-                <div key={agent._id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}>
+
+          <div className="mb-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-gray-700 mb-2">Total Assignments</h3>
+              <div className="flex flex-wrap gap-3">
+                {/* Unassigned */}
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+                >
                   <User className="w-3 h-3" />
-                  <span>{agent.fullName}: {count}</span>
+                  <span>Unassigned: {agentStats.unassigned || 0}</span>
                 </div>
-              );
-            })}
+
+                {/* Assigned Agents */}
+                {agents.map(agent => {
+                  const count = agentStats[agent._id.toString()] || 0;
+                  if (count === 0) return null;
+
+                  return (
+                    <div
+                      key={agent._id}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+                    >
+                      <User className="w-3 h-3" />
+                      <span>{agent.fullName}: {count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {todayStats.assignments.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-gray-700 mb-2">Today's Assignments</h3>
+                <div className="flex flex-wrap gap-3">
+                  {todayStats.assignments.map((item, idx) => (
+                    <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(item.agentName)}`}>
+                      <User className="w-3 h-3" />
+                      <span>{item.agentName}: {item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
+
 
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -1174,19 +1713,37 @@ const handleLeadStageChange = async (userId, newStage) => {
             </div>
 
             {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
-              <div className="relative">
-                <select
-                  value={assigneeFilter}
-                  onChange={(e) => setAssigneeFilter(e.target.value)}
-                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
-                >
-                  <option value="All">All Agents</option>
-                  <option value="Unassigned">Unassigned</option>
-                  {agents.map((agent) => (
-                    <option key={agent._id} value={agent._id}>{agent.fullName}</option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="relative">
+                  <select
+                    value={assigneeFilter}
+                    onChange={(e) => setAssigneeFilter(e.target.value)}
+                    className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
+                  >
+                    <option value="All">All Agents</option>
+                    <option value="Unassigned">Unassigned</option>
+                    {agents.map((agent) => (
+                      <option key={agent._id} value={agent._id}>{agent.fullName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
+                  <div className="relative">
+                    <select
+                      value={leadStatusFilter}
+                      onChange={(e) => setLeadStatusFilter(e.target.value)}
+                      className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
+                    >
+                      <option value="All">All Lead Status</option>
+                      <option value="Hot">Hot Leads</option>
+                      <option value="Warm">Warm Leads</option>
+                      <option value="Cold">Cold Leads</option>
+                      <option value="Untagged">None</option>
+                    </select>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="relative">
@@ -1201,10 +1758,31 @@ const handleLeadStageChange = async (userId, newStage) => {
                 <option value="Last 7 Days">Last 7 Days</option>
                 <option value="Last 30 Days">Last 30 Days</option>
                 <option value="This Month">This Month</option>
+                <option value="Custom Range">Custom Range</option>
               </select>
             </div>
 
-            {(searchQuery || filterStatus !== "All" || filterDate !== "All" || assigneeFilter !== "All") && (
+            {filterDate === "Custom Range" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  placeholder="End Date"
+                />
+              </div>
+            )}
+
+            {(searchQuery || filterStatus !== "All" || filterDate !== "All" || assigneeFilter !== "All" || leadStatusFilter !== "All") && (
               <button
                 onClick={clearFilters}
                 className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 whitespace-nowrap"
@@ -1236,21 +1814,21 @@ const handleLeadStageChange = async (userId, newStage) => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              </table>
-              </div>
-              <div className="overflow-y-auto flex-grow">
-              <table className="min-w-full">
+            </table>
+          </div>
+          <div className="overflow-y-auto flex-grow">
+            <table className="min-w-full">
               <tbody className="divide-y divide-gray-100">
                 {filteredUsers.map((user) => {
                   const postData = userPostsData[user.userId] || { total: 0, posted: 0, rejected: 0 };
                   return (
-                    
+
                     <tr
                       key={user._id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleViewPosts(user)}
                     >
-                           <td className="px-6 py-4">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-gray-400" />
                           <div className="text-sm text-gray-700">
@@ -1275,7 +1853,7 @@ const handleLeadStageChange = async (userId, newStage) => {
                           </div>
                         </div>
                       </td>
-                      
+
                       <td className="px-6 py-4">
                         <div className="space-y-1">
                           {user.fullName && (
@@ -1284,6 +1862,23 @@ const handleLeadStageChange = async (userId, newStage) => {
                               {user.fullName}
                             </div>
                           )}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={user.leadStatus || ""}
+                              onChange={(e) => handleLeadStatusChange(user.userId, e.target.value)}
+                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
+                                user.leadStatus === "Hot" ? "bg-red-50 text-red-700 border-red-200" :
+                                user.leadStatus === "Warm" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                                user.leadStatus === "Cold" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-gray-50 text-gray-600 border-gray-200"
+                              }`}
+                            >
+                              <option value="">Untagged</option>
+                              <option value="Hot">Hot</option>
+                              <option value="Warm">Warm</option>
+                              <option value="Cold">Cold</option>
+                            </select>
+                          </div>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {(user.source === "bulk-upload" || user.source === "Meta Leads") && (
                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
@@ -1298,59 +1893,70 @@ const handleLeadStageChange = async (userId, newStage) => {
                           </div>
                         </div>
                       </td>
-                  
-<td
-  className="px-6 py-4 whitespace-nowrap"
-  onClick={(e) => e.stopPropagation()}
->
-  {role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" ? (
-    <div
-      className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-        user?.assignedAgentId?.fullName || "Unassigned"
-      )}`}
-    >
-      <select
-        className="
+
+                      <td
+                        className="px-6 py-4 whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" ? (
+                          <div
+                            className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
+                              getAgentName(user.assignedAgentId)
+                            )}`}
+                          >
+                            <select
+                              className="
           appearance-none bg-transparent 
           px-4 py-1.5 pr-8 
           text-xs font-bold 
           focus:outline-none 
           cursor-pointer
         "
-        value={
-          typeof user.assignedAgentId === "object"
-            ? user.assignedAgentId?._id
-            : user.assignedAgentId || ""
-        }
-        onChange={(e) =>
-          handleAssignChange(user.userId, e.target.value)
-        }
-      >
-        <option value="">-- Unassigned --</option>
+                              value={
+                                // ✅ Handle populated object, string ID, null, and undefined
+                                user.assignedAgentId?._id || 
+                                (typeof user.assignedAgentId === "string" && user.assignedAgentId) || 
+                                ""
+                              }
+                              onChange={(e) =>
+                                handleAssignChange(user.userId, e.target.value)
+                              }
+                            >
+                              <option value="">-- Unassigned --</option>
 
-        {agents.map((agent) => (
-          <option key={agent._id} value={agent._id}>
-            {agent.fullName}
-          </option>
-        ))}
-      </select>
+                              {agents.map((agent) => (
+                                <option key={agent._id} value={agent._id}>
+                                  {agent.fullName}
+                                </option>
+                              ))}
+                            </select>
 
-      <span className="pointer-events-none absolute right-2 flex items-center">
-        <ChevronDown className="h-3 w-3" />
-      </span>
-    </div>
-  ) : (
-    <span
-      className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-        user.assignedAgentId?.fullName || "Unassigned"
-      )}`}
-    >
-      {user.assignedAgentId?.fullName || "Unassigned"}
-    </span>
-  )}
-</td>       
-   <td className="px-6 py-4">
-                        <div 
+                            {!user.assignedAgentId && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRoundRobinAssign(user.userId); }}
+                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                title="Auto Assign (Round Robin)"
+                              >
+                                <RefreshCw size={12} />
+                              </button>
+                            )}
+
+                            <span className="pointer-events-none absolute right-2 flex items-center">
+                              <ChevronDown className="h-3 w-3" />
+                            </span>
+                          </div>
+                        ) : (
+                          <span
+                            className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
+                              getAgentName(user.assignedAgentId)
+                            )}`}
+                          >
+                            {getAgentName(user.assignedAgentId)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenRemarksModal(user);
@@ -1363,11 +1969,14 @@ const handleLeadStageChange = async (userId, newStage) => {
                               <span className="font-bold text-xs">{user.remarksHistory?.length || 0}</span>
                             </div>
                           </div>
-                          
+
                           {user.Remarks ? (
-                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all">
+                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
                               <span className="font-semibold text-gray-800 mr-1">Latest:</span>
-                              {user.Remarks}
+                              <span className="truncate">{user.Remarks}</span>
+                              {user.remarksHistory && user.remarksHistory.length > 0 && user.remarksHistory[user.remarksHistory.length - 1].messageSent && (
+                                <CheckCircle size={12} className="text-green-600 ml-1 flex-shrink-0" />
+                              )}
                             </div>
                           ) : (
                             <span className="text-[10px] text-gray-400 italic pl-1">Tap to add...</span>
@@ -1380,12 +1989,11 @@ const handleLeadStageChange = async (userId, newStage) => {
                           value={user.leadStage || "Active"}
                           onChange={(e) => handleLeadStageChange(user.userId, e.target.value)}
                           onClick={(e) => e.stopPropagation()}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
-                            user.leadStage === "Active" ? "bg-green-50 text-green-700 border-green-200" :
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${user.leadStage === "Active" ? "bg-green-50 text-green-700 border-green-200" :
                             user.leadStage === "Follow Up" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                            user.leadStage === "Onboard" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                            "bg-gray-50 text-gray-700 border-gray-200"
-                          }`}
+                              user.leadStage === "Onboard" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-gray-50 text-gray-700 border-gray-200"
+                            }`}
                         >
                           <option value="Active">Active</option>
                           <option value="Follow Up">Follow Up</option>
@@ -1408,8 +2016,8 @@ const handleLeadStageChange = async (userId, newStage) => {
                           )}
                         </div>
                       </td>
-                    
-{/* 
+
+                      {/* 
                     <td className="px-6 py-4">
   <div onClick={(e) => e.stopPropagation()}>
     <ChatModalForAdmin userId={user.userId} />
@@ -1417,21 +2025,21 @@ const handleLeadStageChange = async (userId, newStage) => {
 </td> */}
 
                       <td className="px-6 py-4">
-                              <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleUpgradePlan(user);
-                            }}
-                            className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
-                            title="Change Plan"
-                          >
-                            <Crown size={16} />
-                          </button>
-</td>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUpgradePlan(user);
+                          }}
+                          className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
+                          title="Change Plan"
+                        >
+                          <Crown size={16} />
+                        </button>
+                      </td>
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                    
+
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1470,12 +2078,12 @@ const handleLeadStageChange = async (userId, newStage) => {
                       </td>
 
                       <td className="px-6 py-4">
-  <div onClick={(e) => e.stopPropagation()}>
-    <AddAddUserActivity userId={user.userId} />
-  </div>
-</td>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <AddAddUserActivity userId={user.userId} />
+                        </div>
+                      </td>
 
-                   <td className="px-6 py-4">
+                      <td className="px-6 py-4">
                         {user.businessListings && user.businessListings.length > 0 ? (
 
                           <div>
@@ -1585,216 +2193,216 @@ const handleLeadStageChange = async (userId, newStage) => {
                 )}
               </tbody>
             </table>
-            </div>
           </div>
-          {/* Pagination Controls */}
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 bg-white rounded-b-2xl border-t border-gray-200">
-              <span className="text-sm text-gray-600">
-                Page <span className="font-semibold">{pagination.currentPage}</span> of <span className="font-semibold">{pagination.totalPages}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <ChevronLeft size={16} />
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  Next
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-              <span className="text-sm text-gray-600">
-                Total Users: <span className="font-semibold">{pagination.totalUsers}</span>
-              </span>
-            </div>
-          )}
         </div>
-
-        {/* Wallet Update Modal */}
-        {walletModalUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
-                    <Wallet className="text-white" size={20} />
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-800">Update Wallet</h2>
-                </div>
-                <button
-                  onClick={() => setWalletModalUser(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-0.5">User</p>
-                <p className="font-semibold text-sm text-gray-800">{walletModalUser.email}</p>
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-xs text-gray-600">Current Balance</p>
-                  <p className="text-xl font-bold text-emerald-600">{walletModalUser.wallet || 0} coins</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Transaction Type</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "credit"
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 hover:border-gray-300"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="type"
-                        value="credit"
-                        checked={walletUpdate.type === "credit"}
-                        onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <Plus className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`} size={18} />
-                        <span className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}>
-                          Add
-                        </span>
-                      </div>
-                    </label>
-                    <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "debit"
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-200 hover:border-gray-300"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="type"
-                        value="debit"
-                        checked={walletUpdate.type === "debit"}
-                        onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <X className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`} size={18} />
-                        <span className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}>
-                          Deduct
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (Coins)</label>
-                  <input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={walletUpdate.amount}
-                    onChange={(e) => setWalletUpdate({ ...walletUpdate, amount: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Reason</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., admin add by bonus"
-                    value={walletUpdate.reason}
-                    onChange={(e) => setWalletUpdate({ ...walletUpdate, reason: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                  />
-                </div>
-
-                {walletUpdate.amount && (
-                  <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-0.5">New Balance Preview</p>
-                    <p className="text-lg font-bold text-indigo-600">
-                      {walletUpdate.type === "credit"
-                        ? (parseFloat(walletModalUser.wallet || 0) + parseFloat(walletUpdate.amount || 0)).toFixed(2)
-                        : (parseFloat(walletModalUser.wallet || 0) - parseFloat(walletUpdate.amount || 0)).toFixed(2)}{" "}
-                      coins
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setWalletModalUser(null)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateWallet}
-                  disabled={updatingWallet}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {updatingWallet ? "Updating..." : "Update Wallet"}
-                </button>
-              </div>
+        {/* Pagination Controls */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 bg-white rounded-b-2xl border-t border-gray-200">
+            <span className="text-sm text-gray-600">
+              Page <span className="font-semibold">{pagination.currentPage}</span> of <span className="font-semibold">{pagination.totalPages}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === pagination.totalPages}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
             </div>
+            <span className="text-sm text-gray-600">
+              Total Users: <span className="font-semibold">{pagination.totalUsers}</span>
+            </span>
           </div>
         )}
+      </div>
 
-        {selectedUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
+      {/* Wallet Update Modal */}
+      {walletModalUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
+                  <Wallet className="text-white" size={20} />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">Update Wallet</h2>
+              </div>
+              <button
+                onClick={() => setWalletModalUser(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
+              <p className="text-xs text-gray-600 mb-0.5">User</p>
+              <p className="font-semibold text-sm text-gray-800">{walletModalUser.email}</p>
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-600">Current Balance</p>
+                <p className="text-xl font-bold text-emerald-600">{walletModalUser.wallet || 0} coins</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Transaction Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label
+                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "credit"
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:border-gray-300"
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="type"
+                      value="credit"
+                      checked={walletUpdate.type === "credit"}
+                      onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <Plus className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`} size={18} />
+                      <span className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}>
+                        Add
+                      </span>
+                    </div>
+                  </label>
+                  <label
+                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "debit"
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200 hover:border-gray-300"
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="type"
+                      value="debit"
+                      checked={walletUpdate.type === "debit"}
+                      onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <X className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`} size={18} />
+                      <span className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}>
+                        Deduct
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
 
-              <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">User</p>
-                <p className="font-semibold text-gray-800">{selectedUser.email}</p>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (Coins)</label>
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={walletUpdate.amount}
+                  onChange={(e) => setWalletUpdate({ ...walletUpdate, amount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                  min="0"
+                  step="0.01"
+                />
               </div>
 
-              {subscriptionPlans && (
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-                  {subscriptionPlans.billingCycles.map((cycle) => (
-                    <button
-                      key={cycle.cycle}
-                      onClick={() => setSelectedCycle(cycle.cycle)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${selectedCycle === cycle.cycle
-                          ? "bg-indigo-600 text-white shadow-md"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                    >
-                      {cycle.label}
-                    </button>
-                  ))}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Reason</label>
+                <input
+                  type="text"
+                  placeholder="e.g., admin add by bonus"
+                  value={walletUpdate.reason}
+                  onChange={(e) => setWalletUpdate({ ...walletUpdate, reason: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              {walletUpdate.amount && (
+                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-0.5">New Balance Preview</p>
+                  <p className="text-lg font-bold text-indigo-600">
+                    {walletUpdate.type === "credit"
+                      ? (parseFloat(walletModalUser.wallet || 0) + parseFloat(walletUpdate.amount || 0)).toFixed(2)
+                      : (parseFloat(walletModalUser.wallet || 0) - parseFloat(walletUpdate.amount || 0)).toFixed(2)}{" "}
+                    coins
+                  </p>
                 </div>
               )}
+            </div>
 
-              <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
-                {(subscriptionPlans ? subscriptionPlans.billingCycles.find(c => c.cycle === selectedCycle)?.plans : ["Basic Plan", "Professional Plan", "Premium Plan"].map(p => ({ title: p }))).map((plan) => {
-                  const planName = plan.title || plan;
-                  return (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setWalletModalUser(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateWallet}
+                disabled={updatingWallet}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {updatingWallet ? "Updating..." : "Update Wallet"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+              <p className="text-sm text-gray-600 mb-1">User</p>
+              <p className="font-semibold text-gray-800">{selectedUser.email}</p>
+            </div>
+
+            {subscriptionPlans && (
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+                {subscriptionPlans.billingCycles.map((cycle) => (
+                  <button
+                    key={cycle.cycle}
+                    onClick={() => setSelectedCycle(cycle.cycle)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${selectedCycle === cycle.cycle
+                      ? "bg-indigo-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                  >
+                    {cycle.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+              {(subscriptionPlans ? subscriptionPlans.billingCycles.find(c => c.cycle === selectedCycle)?.plans : ["Basic Plan", "Professional Plan", "Premium Plan"].map(p => ({ title: p }))).map((plan) => {
+                const planName = plan.title || plan;
+                return (
                   <label
                     key={planName}
                     className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === planName
-                        ? "border-indigo-500 bg-indigo-50"
-                        : "border-gray-200 hover:border-gray-300"
+                      ? "border-indigo-500 bg-indigo-50"
+                      : "border-gray-200 hover:border-gray-300"
                       }`}
                   >
                     <div className="flex items-center gap-3 w-full">
@@ -1821,482 +2429,496 @@ const handleLeadStageChange = async (userId, newStage) => {
                       </div>
                     </div>
                   </label>
-                )})}
-              </div>
+                )
+              })}
+            </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmPlanChange}
-                  disabled={updating === selectedUser.userId}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
-                >
-                  {updating === selectedUser.userId ? "Updating..." : "Confirm"}
-                </button>
-              </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPlanChange}
+                disabled={updating === selectedUser.userId}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
+              >
+                {updating === selectedUser.userId ? "Updating..." : "Confirm"}
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Remarks Modal */}
-     {remarksModalUser && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
+      {/* Remarks Modal */}
+      {remarksModalUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-800">
-          Remarks History
-        </h2>
-        <button
-          onClick={() => setRemarksModalUser(null)}
-          className="p-1.5 hover:bg-gray-100 rounded-full transition"
-        >
-          <X size={16} />
-        </button>
-      </div>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-800">
+                Remarks History
+              </h2>
+              <button
+                onClick={() => setRemarksModalUser(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
 
-      {/* Add Remark Section (Input + Button in one line) */}
-      <div className="flex items-center gap-2 mb-4">
-        <input
-          type="text"
-          value={remarksInput}
-          onChange={(e) => setRemarksInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAddRemark()}
-          className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-          placeholder="Type a new remark..."
-        />
-        <button
-          onClick={handleAddRemark}
-          disabled={!remarksInput.trim()}
-          className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium text-sm whitespace-nowrap"
-        >
-          Submit
-        </button>
-      </div>
-      
-      {/* Default Remarks */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        {defaultRemarks.map((remark, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleDefaultRemarkClick(remark)}
-            className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-indigo-100 hover:text-indigo-700 transition-colors border border-gray-200"
-          >
-            {remark}
-          </button>
-        ))}
-      </div>
+            {/* Add Remark Section (Input + Button in one line) */}
+            <div className="flex items-center gap-2 mb-4">
+              <input
+                type="text"
+                value={remarksInput}
+                onChange={(e) => setRemarksInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddRemark()}
+                className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="Type a new remark..."
+              />
+              <button
+                onClick={handleAddRemark}
+                disabled={!remarksInput.trim()}
+                className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium text-sm whitespace-nowrap"
+              >
+                Submit
+              </button>
+            </div>
 
-      {/* Remarks List */}
-      <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
-
-        {loadingRemarks ? (
-          <div className="text-center py-6 text-gray-500 text-xs">
-            Loading history...
-          </div>
-        ) : (!remarksHistory || remarksHistory.length === 0) ? (
-          <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-            <MessageSquare size={20} className="mb-1 opacity-20" />
-            No remarks found
-          </div>
-        ) : (
-          remarksHistory
-            .slice()
-            .reverse()
-            .map((r, idx) => {
-              const isLatest = idx === 0;
-
-              return (
-                <div
+            {/* Default Remarks */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {defaultRemarks.map((remark, idx) => (
+                <button
                   key={idx}
-                  className={`p-3 rounded-xl border transition-all shadow-sm
-                    ${isLatest
-                      ? "bg-green-50 border-green-300"
-                      : "bg-white border-gray-200"
-                    }`}
+                  onClick={() => handleDefaultRemarkClick(remark)}
+                  className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-indigo-100 hover:text-indigo-700 transition-colors border border-gray-200"
                 >
-                  {/* Top Row */}
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-semibold text-gray-600">
-                      Remark
-                    </span>
-
-                    {isLatest && (
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">
-                        Latest
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Remark Text */}
-                  <p className="text-sm text-gray-800 leading-relaxed">
-                    {r.text}
-                  </p>
-
-                  {/* Timestamp */}
-                  <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">
-                    <Calendar size={9} />
-                    {new Date(r.createdAt).toLocaleString([], {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </p>
-                </div>
-              );
-            })
-        )}
-      </div>
-
-    </div>
-  </div>
-)}
-
-
-        {addingUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
-
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                  Add New User
-                </h2>
-                <button
-                  onClick={() => setAddingUser(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                >
-                  <X size={20} className="text-gray-700 dark:text-gray-300" />
+                  {remark}
                 </button>
+              ))}
+            </div>
+
+            {/* Remarks List */}
+            <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
+
+              {loadingRemarks ? (
+                <div className="text-center py-6 text-gray-500 text-xs">
+                  Loading history...
+                </div>
+              ) : (!remarksHistory || remarksHistory.length === 0) ? (
+                <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <MessageSquare size={20} className="mb-1 opacity-20" />
+                  No remarks found
+                </div>
+              ) : (
+                remarksHistory
+                  .slice()
+                  .reverse()
+                  .map((r, idx) => {
+                    const isLatest = idx === 0;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-xl border transition-all shadow-sm
+                    ${isLatest
+                            ? "bg-green-50 border-green-300"
+                            : "bg-white border-gray-200"
+                          }`}
+                      >
+                        {/* Top Row */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-semibold text-gray-600">
+                            Remark
+                          </span>
+
+                          {isLatest && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">
+                              Latest
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Remark Text */}
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                          {r.text}
+                        </p>
+
+                        {r.messageSent && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <CheckCircle size={12} className="text-green-500" />
+                            <span className="text-[10px] text-green-600 font-medium">
+                              Message Sent
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Timestamp */}
+                        <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                          <Calendar size={9} />
+                          {new Date(r.createdAt).toLocaleString([], {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </p>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
+      {addingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                Add New User
+              </h2>
+              <button
+                onClick={() => setAddingUser(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+              >
+                <X size={20} className="text-gray-700 dark:text-gray-300" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-4 mb-6">
+
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter full name"
+                  value={newUser.fullName}
+                  onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                />
               </div>
 
-              {/* Form */}
-              <div className="space-y-4 mb-6">
-
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter full name"
-                    value={newUser.fullName}
-                    onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
                        focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+91 9876543210"
-                    value={newUser.phone}
-                    onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Plan */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Plan
-                  </label>
-                  <select
-                    value={newUser.plan}
-                    onChange={(e) => setNewUser({ ...newUser, plan: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                  >
-                    <option value="Free">Free</option>
-                    <option value="Basic">Basic</option>
-                    <option value="Standard">Standard</option>
-                    <option value="Premium">Premium</option>
-                  </select>
-                </div>
+                />
               </div>
 
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setAddingUser(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+91 9876543210"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                />
+              </div>
+
+              {/* Plan */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Plan
+                </label>
+                <select
+                  value={newUser.plan}
+                  onChange={(e) => setNewUser({ ...newUser, plan: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                >
+                  <option value="Free">Free</option>
+                  <option value="Basic">Basic</option>
+                  <option value="Standard">Standard</option>
+                  <option value="Premium">Premium</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAddingUser(false)}
+                className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
                      text-gray-700 dark:text-gray-200 rounded-xl 
                      hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
-                >
-                  Cancel
-                </button>
+              >
+                Cancel
+              </button>
 
-                <button
-                  onClick={handleAddUser}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
+              <button
+                onClick={handleAddUser}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
                      transition-all font-medium"
-                >
-                  Add User
-                </button>
-              </div>
-
+              >
+                Add User
+              </button>
             </div>
-          </div>
-        )}
-        {viewingUserPosts && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">User Posts</h2>
-                  <p className="text-gray-600 text-sm mt-1">{viewingUserPosts.email}</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setViewingUserPosts(null);
-                    setUserPosts([]);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
-                    <p className="text-2xl font-bold text-indigo-600">
-                      {viewingUserPosts.wallet || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Posts</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {loadingPosts ? "..." : userPosts.length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Posted</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {loadingPosts ? "..." : userPosts.filter(p => p.status === "posted").length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Rejected</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {loadingPosts ? "..." : userPosts.filter(p => p.status === "rejected").length}
-                    </p>
-                  </div>
-                  {/* <div>
+          </div>
+        </div>
+      )}
+      {viewingUserPosts && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">User Posts</h2>
+                <p className="text-gray-600 text-sm mt-1">{viewingUserPosts.email}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setViewingUserPosts(null);
+                  setUserPosts([]);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
+                  <p className="text-2xl font-bold text-indigo-600">
+                    {viewingUserPosts.wallet || 0}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total Posts</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {loadingPosts ? "..." : userPosts.length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Posted</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {loadingPosts ? "..." : userPosts.filter(p => p.status === "posted").length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Rejected</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {loadingPosts ? "..." : userPosts.filter(p => p.status === "rejected").length}
+                  </p>
+                </div>
+                {/* <div>
                     <p className="text-sm text-gray-600 mb-1">Plan</p>
                     <p className="text-2xl font-bold text-pink-600">
                       {viewingUserPosts.subscription?.plan || "Basic"}
                     </p>
                   </div> */}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loadingPosts ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
                 </div>
-              </div>
+              ) : userPosts.length === 0 ? (
+                <div className="text-center py-12">
+                  <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-500 font-medium">No posts yet</p>
+                  <p className="text-gray-400 text-sm">This user hasn't created any posts</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {userPosts.map((post, index) => (
+                    <div
+                      key={post._id || index}
+                      className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
+                    >
+                      <div className="aspect-square relative">
+                        <img
+                          src={post.aiOutput}
+                          alt={`Post ${index + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setFullViewImage(post.aiOutput)}
+                          onError={(e) => {
+                            e.target.src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
 
-              <div className="flex-1 overflow-y-auto">
-                {loadingPosts ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
-                  </div>
-                ) : userPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No posts yet</p>
-                    <p className="text-gray-400 text-sm">This user hasn't created any posts</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {userPosts.map((post, index) => (
-                      <div
-                        key={post._id || index}
-                        className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
-                      >
-                        <div className="aspect-square relative">
-                          <img
-                            src={post.aiOutput}
-                            alt={`Post ${index + 1}`}
-                            className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => setFullViewImage(post.aiOutput)}
-                            onError={(e) => {
-                              e.target.src =
-                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
-                            }}
-                          />
-
-                          <div className="absolute top-2 right-2">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
-                                  ? "bg-green-100 text-green-700 border border-green-300"
-                                  : post.status === "rejected"
-                                    ? "bg-red-100 text-red-700 border border-red-300"
-                                    : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                                }`}
-                            >
-                              <div
-                                className={`w-2 h-2 rounded-full ${post.status === "posted"
-                                    ? "bg-green-500"
-                                    : post.status === "rejected"
-                                      ? "bg-red-500"
-                                      : "bg-yellow-500"
-                                  }`}
-                              ></div>
-                              {post.status === "posted" ? "Posted" : post.status === "rejected" ? "Rejected" : "Pending"}
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => setFullViewImage(post.aiOutput)}
-                            className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
+                              ? "bg-green-100 text-green-700 border border-green-300"
+                              : post.status === "rejected"
+                                ? "bg-red-100 text-red-700 border border-red-300"
+                                : "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                              }`}
                           >
-                            <ZoomIn size={16} className="text-gray-700" />
-                          </button>
+                            <div
+                              className={`w-2 h-2 rounded-full ${post.status === "posted"
+                                ? "bg-green-500"
+                                : post.status === "rejected"
+                                  ? "bg-red-500"
+                                  : "bg-yellow-500"
+                                }`}
+                            ></div>
+                            {post.status === "posted" ? "Posted" : post.status === "rejected" ? "Rejected" : "Pending"}
+                          </span>
                         </div>
 
-                        <div className="p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">Post #{index + 1}</span>
-                            <span className="text-xs text-gray-400">
-                              {new Date(post.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          {post.promat && (
-                            <p className="text-sm text-gray-700 line-clamp-2">
-                              <span className="font-bold">Prompt:</span> {post.promat}
-                            </p>
-                          )}
-                          {post.status === "rejected" && post.rejectReason && (
-                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                              <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
-                              <p className="text-xs text-red-600">{post.rejectReason}</p>
-                            </div>
-                          )}
-
-                        </div>
+                        <button
+                          onClick={() => setFullViewImage(post.aiOutput)}
+                          className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <ZoomIn size={16} className="text-gray-700" />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setViewingUserPosts(null);
-                    setUserPosts([]);
-                  }}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
-                >
-                  Close
-                </button>
-              </div>
+                      <div className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">Post #{index + 1}</span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(post.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        {post.promat && (
+                          <p className="text-sm text-gray-700 line-clamp-2">
+                            <span className="font-bold">Prompt:</span> {post.promat}
+                          </p>
+                        )}
+                        {post.status === "rejected" && post.rejectReason && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
+                            <p className="text-xs text-red-600">{post.rejectReason}</p>
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
 
-        {fullViewImage && (
-          <div
-            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-            onClick={() => setFullViewImage(null)}
-          >
-            <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+            <div className="mt-6 pt-4 border-t border-gray-200">
               <button
-                onClick={() => setFullViewImage(null)}
-                className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
+                onClick={() => {
+                  setViewingUserPosts(null);
+                  setUserPosts([]);
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
               >
-                <X size={24} />
+                Close
               </button>
-              <img
-                src={fullViewImage}
-                alt="Full view"
-                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {showChatStatsModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {chatModalFilter === 'today' ? 'Chats Today' : chatModalFilter === 'resolved' ? 'Resolved Chats' : 'All Chats'}
-                </h2>
-                <button
-                  onClick={() => setShowChatStatsModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {chatStats.data
-                      .filter(chat => {
-                        console.log("chatStatschatStats",chatStats);
-                        
-                        if (chatModalFilter === 'today') {
-                          if (!chat.createdAt) return false;
-                          const chatDate = new Date(chat.createdAt);
-                          const todayDate = new Date();
-                          return chatDate.getDate() === todayDate.getDate() &&
-                                 chatDate.getMonth() === todayDate.getMonth() &&
-                                 chatDate.getFullYear() === todayDate.getFullYear();
-                        }
-                        if (chatModalFilter === 'resolved') {
-                          return chat.status === 'resolved';
-                        }
-                        return true;
-                      })
-                      .map((chat, idx) => (
+      {fullViewImage && (
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          onClick={() => setFullViewImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setFullViewImage(null)}
+              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={fullViewImage}
+              alt="Full view"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
+      {showChatStatsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {chatModalFilter === 'today' ? 'Chats Today' : chatModalFilter === 'resolved' ? 'Resolved Chats' : 'All Chats'}
+              </h2>
+              <button
+                onClick={() => setShowChatStatsModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {chatStats.data
+                    .filter(chat => {
+                      // Filter for agents: only show chats from their assigned users
+                      if (role === 'agent') {
+                         // Check if the chat's user is in the currently fetched users list (which is filtered for the agent)
+                         if (!users.some(u => u.userId === chat.userId)) return false;
+                      }
+
+                      if (chatModalFilter === 'today') {
+                        if (!chat.createdAt) return false;
+                        const chatDate = new Date(chat.createdAt);
+                        const todayDate = new Date();
+                        return chatDate.getDate() === todayDate.getDate() &&
+                          chatDate.getMonth() === todayDate.getMonth() &&
+                          chatDate.getFullYear() === todayDate.getFullYear();
+                      }
+                      if (chatModalFilter === 'resolved') {
+                        return chat.status === 'resolved';
+                      }
+                      return true;
+                    })
+                    .map((chat, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {new Date(chat.createdAt).toLocaleString()}
@@ -2311,9 +2933,8 @@ const handleLeadStageChange = async (userId, newStage) => {
                           {chat.issue || "-"}
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            chat.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${chat.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>
                             {chat.status || 'open'}
                           </span>
                         </td>
@@ -2326,179 +2947,283 @@ const handleLeadStageChange = async (userId, newStage) => {
                         </td> */}
                       </tr>
                     ))}
-                    {chatStats.data.filter(chat => {
-                        if (chatModalFilter === 'today') {
-                          if (!chat.createdAt) return false;
-                          const chatDate = new Date(chat.createdAt);
-                          const todayDate = new Date();
-                          return chatDate.getDate() === todayDate.getDate() &&
-                                 chatDate.getMonth() === todayDate.getMonth() &&
-                                 chatDate.getFullYear() === todayDate.getFullYear();
-                        }
-                        if (chatModalFilter === 'resolved') {
-                          return chat.status === 'resolved';
-                        }
-                        return true;
-                      }).length === 0 && (
+                  {chatStats.data.filter(chat => {
+                    if (role === 'agent') {
+                       if (!users.some(u => u.userId === chat.userId)) return false;
+                    }
+
+                    if (chatModalFilter === 'today') {
+                      if (!chat.createdAt) return false;
+                      const chatDate = new Date(chat.createdAt);
+                      const todayDate = new Date();
+                      return chatDate.getDate() === todayDate.getDate() &&
+                        chatDate.getMonth() === todayDate.getMonth() &&
+                        chatDate.getFullYear() === todayDate.getFullYear();
+                    }
+                    if (chatModalFilter === 'resolved') {
+                      return chat.status === 'resolved';
+                    }
+                    return true;
+                  }).length === 0 && (
                       <tr>
                         <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No chats found</td>
                       </tr>
                     )}
-                  </tbody>
-                </table>
-              </div>
+                </tbody>
+              </table>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {showIssuesModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Reported Issues</h2>
-                <button
-                  onClick={() => setShowIssuesModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {issues.map((issue, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {new Date(issue.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                          <div>{issue.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">{issue.mobile}</div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
-                          {issue.issue}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            issue.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+      {showIssuesModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Reported Issues</h2>
+              <button
+                onClick={() => setShowIssuesModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {issues.map((issue, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {new Date(issue.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                        <div>{issue.fullName || "Unknown"}</div>
+                        <div className="text-xs text-gray-500">{issue.mobile}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
+                        {issue.issue}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${issue.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                           }`}>
-                            {issue.status || 'open'}
-                          </span>
-                        </td>
-                        {/* <td className="px-6 py-4 text-sm">
+                          {issue.status || 'open'}
+                        </span>
+                      </td>
+                      {/* <td className="px-6 py-4 text-sm">
                           {issue.status !== 'resolved' && (
                             <button onClick={() => handleResolveIssue(issue._id)} className="text-blue-600 hover:underline text-xs font-semibold">
                               Mark Resolved
                             </button>
                           )}
                         </td> */}
-                      </tr>
-                    ))}
-                    {issues.length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No issues found</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </tr>
+                  ))}
+                  {issues.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No issues found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Delete User Confirmation Modal */}
-        {deleteUserModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle className="text-red-600" size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Delete User?</h3>
-                <p className="text-gray-500 text-sm mb-6">
-                  Are you sure you want to delete <strong>{deleteUserModal.fullName || deleteUserModal.email}</strong>? This action cannot be undone.
-                </p>
-                <div className="flex gap-3 w-full">
-                  <button
-                    onClick={() => setDeleteUserModal(null)}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDeleteUser}
-                    disabled={isDeleting}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
-                  >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
+      {/* Delete User Confirmation Modal */}
+      {deleteUserModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="text-red-600" size={24} />
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Stage Breakdown Modal */}
-        {stageModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">{stageModal} Leads Breakdown</h2>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete User?</h3>
+              <p className="text-gray-500 text-sm mb-6">
+                Are you sure you want to delete <strong>{deleteUserModal.fullName || deleteUserModal.email}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 w-full">
                 <button
-                  onClick={() => setStageModal(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                  onClick={() => setDeleteUserModal(null)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
                 >
-                  <X size={18} />
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteUser}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </button>
               </div>
-
-              <div className="max-h-[60vh] overflow-y-auto pr-2">
-                <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
-                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {detailedStats
-                      .filter(item => item.stage === stageModal)
-                      .sort((a, b) => b.count - a.count)
-                      .map((item, idx) => {
-                        const agentName = item.agentId === "Unassigned" 
-                          ? "Unassigned" 
-                          : agents.find(a => a._id === item.agentId)?.fullName || "Unknown Agent";
-                        
-                        return (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
-                              {agentName}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
-                              {item.count}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    {detailedStats.filter(item => item.stage === stageModal).length === 0 && (
-                      <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No leads in this stage</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Stage Breakdown Modal */}
+      {stageModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-800">{stageModal} Leads Breakdown</h2>
+              <button
+                onClick={() => setStageModal(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto pr-2">
+              <table className="w-full">
+                {role === 'agent' ? (
+                  // Agent View: Show List of Users
+                  <>
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">User Name</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Phone</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {users
+                        .filter(u => (u.leadStage || "Active") === stageModal)
+                        .map((user, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                              {user.fullName || "Unknown"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                              {user.phone || user.mobileNumber || "N/A"}
+                            </td>
+                          </tr>
+                        ))}
+                      {users.filter(u => (u.leadStage || "Active") === stageModal).length === 0 && (
+                        <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No users found on this page</td></tr>
+                      )}
+                    </tbody>
+                  </>
+                ) : (
+                  // Admin View: Show Agent Breakdown
+                  <>
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
+                      </tr>
+                    </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {detailedStats
+                    .filter(item => item.stage === stageModal)
+                    .sort((a, b) => b.count - a.count)
+                    .map((item, idx) => {
+                      const agentName = item.agentId === "Unassigned"
+                        ? "Unassigned"
+                        : agents.find(a => a._id === item.agentId)?.fullName || "Unknown Agent";
+
+                      return (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                            {agentName}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
+                            {item.count}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {detailedStats.filter(item => item.stage === stageModal).length === 0 && (
+                    <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No leads in this stage</td></tr>
+                  )}
+                </tbody>
+                  </>
+                )}
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting Schedule Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={meetingData.date}
+                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <input
+                  type="text"
+                  placeholder="https://zoom.us/..."
+                  value={meetingData.link}
+                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <input
+                  type="text"
+                  placeholder="Meeting ID"
+                  value={meetingData.meetingId}
+                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="123456"
+                  value={meetingData.passcode}
+                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <button
+                onClick={handleMeetingSubmit}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
+              >
+                Schedule & Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

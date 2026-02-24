@@ -5,12 +5,20 @@ import OTP from "@/models/Otp";
 import Admin from "@/models/Admin";
 import axios from "axios";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 // 🔴 TEST CONFIG
 const TEST_PHONE = "7740847114";
 const TEST_OTP = 1234;
+
+// Define Setting Schema for Round Robin
+const SettingSchema = new mongoose.Schema({
+  key: String,
+  value: mongoose.Schema.Types.Mixed,
+});
+const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
 export async function POST(req) {
   try {
@@ -134,18 +142,21 @@ export async function POST(req) {
           role: "agent",
           isActive: true,
         }).sort({ createdAt: 1 });
-
-        console.log("activeAgents",activeAgents);
-        
+        console.log("activeAgents", activeAgents);
 
         if (activeAgents.length > 0) {
-          // Static index storage (in memory or DB)
-          if (!global.agentIndex) global.agentIndex = 0;
+          // DB based Round Robin;
+          let rrDoc = await Setting.findOne({ key: "agentLeadRR" });
+          if (!rrDoc) {
+            rrDoc = await Setting.create({ key: "agentLeadRR", value: 0 });
+          }
 
-          assignedAgentId =
-            activeAgents[global.agentIndex % activeAgents.length]._id;
+          let rrValue = parseInt(rrDoc.value, 10);
+          if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
-          global.agentIndex++;
+          assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
+
+          await Setting.updateOne({ key: "agentLeadRR" }, { $inc: { value: 1 } });
         }
       } catch (err) {
         console.error("Agent assign error:", err);

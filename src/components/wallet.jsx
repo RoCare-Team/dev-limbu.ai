@@ -51,7 +51,7 @@ export default function SmartWalletRecharge() {
   const totalAmount = (amount + parseFloat(gstAmount)).toFixed(2);
 
   const presetAmounts = [
-    { price: 200, coins: 200, popular: false, bonus: null },
+    { price: 1, coins: 200, popular: false, bonus: null },
     { price: 500, coins: 500, popular: false, bonus: null },
     { price: 1000, coins: 1000, popular: false, bonus: null },
     { price: 5000, coins: 6000, popular: true, bonus: "+1000 Bonus" },
@@ -93,139 +93,123 @@ export default function SmartWalletRecharge() {
     }
   };
 
-  const handleRecharge = async () => {
-    if (!userId) {
-      alert("User not found. Please log in again.");
-      return;
-    }
-    if (amount < 200) {
-      alert("Minimum recharge is ₹200");
-      return;
-    }
+const handleRecharge = async () => {
+  if (!userId) {
+    alert("User not found. Please log in again.");
+    return;
+  }
 
-    const res = await loadRazorpayScript();
-    if (!res) {
-      alert("Razorpay SDK failed to load.");
-      return;
-    }
+  // if (amount < 200) {
+  //   alert("Minimum recharge is ₹200");
+  //   return;
+  // }
 
-    try {
-      setLoading(true);
-      const planData = localStorage.getItem("Plan");
+  const res = await loadRazorpayScript();
+  if (!res) {
+    alert("Razorpay SDK failed to load.");
+    return;
+  }
 
-      const orderRes = await fetch("/api/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          plan: planData,
-          amount: parseFloat(totalAmount),
-          gstin: gstNumber,
-        }),
-      });
+  try {
+    setLoading(true);
 
-      const orderData = await orderRes.json();
-      if (!orderRes.ok) {
-        alert(orderData.error || "Order creation failed");
-        setLoading(false);
-        return;
-      }
+    const planData = "WalletRecharge";
 
-      const options = {
-        key: process.env.RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Limbu AI Wallet",
-        description: `Recharge ₹${amount} + GST ₹${gstAmount}`,
-        order_id: orderData.id,
-        theme: { color: "#2563eb" },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
-          },
-        },
-        handler: async (response) => {
-          try {
-            const verifyRes = await fetch("/api/subscribe/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId,
-                plan: "WalletRecharge",
-                payment: response,
-              }),
-            });
+    const orderRes = await fetch("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        plan: planData,
+        amount: parseFloat(totalAmount),
+        gstin: gstNumber,
+      }),
+    });
 
-            const result = await verifyRes.json();
-            if (!result.success) {
-              alert("Payment verification failed!");
-              setLoading(false);
-              return;
-            }
+    const orderData = await orderRes.json();
 
-            // ✅ Store transaction details in the new endpoint
-            await fetch("/api/razorpay/razorpay-transaction", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId,
-                payment: response,
-                amount: amount,
-                gstAmount: parseFloat(gstAmount),
-                totalAmount: parseFloat(totalAmount),
-                gstin: gstNumber,
-              }),
-            });
-
-            const walletRes = await fetch(`/api/auth/signup?userId=${userId}`, {
-  method: "PUT",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    amount: coins,
-    type: "add",
-    reason: "wallet Reacharge"
-  }),
-});
-
-
-            const walletData = await walletRes.json();
-            if (walletRes.ok) {
-              setShowSuccess(true);
-              fetchTransactions(userId);
-              setTimeout(() => {
-                setShowSuccess(false);
-                    router.push("/dashboard");   // 🔥 SUCCESS → REDIRECT
-              }, 2500);
-            } else {
-              alert(walletData.message || "Recharge successful but wallet update failed.");
-            }
-          } catch (err) {
-            console.error("Payment verification error:", err);
-            alert("Verification failed!");
-          } finally {
-            setLoading(false);
-          }
-        },
-        prefill: {
-          name: "Auto GMB User",
-          email: "user@example.com",
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", () => {
-        alert("Payment failed!");
-        setLoading(false);
-      });
-      rzp.open();
-    } catch (err) {
-      console.error("Recharge error:", err);
-      alert("Something went wrong!");
+    if (!orderRes.ok) {
+      alert(orderData.error || "Order creation failed");
       setLoading(false);
+      return;
     }
-  };
+
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "Limbu AI Wallet",
+      description: `Recharge ₹${amount} + GST ₹${gstAmount}`,
+      order_id: orderData.id,
+      theme: { color: "#2563eb" },
+      modal: {
+        ondismiss: function () {
+          setLoading(false);
+        },
+      },
+
+      handler: async (response) => {
+        try {
+          const verifyRes = await fetch("/api/subscribe/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId,
+              platform: "web",   // ✅ FIXED
+              plan: "WalletRecharge",
+              amount: parseFloat(amount),
+              gstAmount: parseFloat(gstAmount),
+              totalAmount: parseFloat(totalAmount),
+              gstin: gstNumber,
+              payment: response,
+            }),
+          });
+
+          const result = await verifyRes.json();
+
+          if (!result.success) {
+            alert(result.error || "Payment verification failed!");
+            setLoading(false);
+            return;
+          }
+
+          setShowSuccess(true);
+          fetchTransactions(userId);
+
+          setTimeout(() => {
+            setShowSuccess(false);
+            router.push("/dashboard");
+          }, 2000);
+
+        } catch (err) {
+          console.error("Verification error:", err);
+          alert("Verification failed!");
+        } finally {
+          setLoading(false);
+        }
+      },
+
+      prefill: {
+        name: "Auto GMB User",
+        email: "user@example.com",
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+
+    rzp.on("payment.failed", function () {
+      alert("Payment failed!");
+      setLoading(false);
+    });
+
+    rzp.open();
+
+  } catch (err) {
+    console.error("Recharge error:", err);
+    alert("Something went wrong!");
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     setLoading(false);

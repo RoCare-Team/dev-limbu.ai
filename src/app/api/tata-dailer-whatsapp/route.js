@@ -3,17 +3,13 @@ import { NextResponse } from "next/server";
 const AISENSY_URL =
   "https://backend.aisensy.com/campaign/t1/api/v2";
 
-const MEDIA = {
-  session4pm:
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
-  session530pm:
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.21+PM.jpeg",
-};
-
+/* ===========================
+   Normalize Indian Numbers
+=========================== */
 const normalizeNumber = (num) => {
   if (!num) return null;
 
-  let n = num.replace(/\D/g, "");
+  let n = num.toString().replace(/\D/g, "");
 
   if (n.startsWith("0")) n = n.slice(1);
   if (n.length === 10) n = "91" + n;
@@ -21,68 +17,133 @@ const normalizeNumber = (num) => {
   return n.length === 12 ? n : null;
 };
 
+/* ===========================
+   Campaign Config
+=========================== */
+const CAMPAIGN_CONFIG = {
+  session4pm_new: {
+    mediaUrl:
+      "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
+  },
+  session530pm_new: {
+    mediaUrl:
+      "https://limbuai.s3.ap-south-1.amazonaws.com/2WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
+  },
+};
+
+/* ===========================
+   POST API
+=========================== */
 export async function POST(req) {
   try {
-    const { users, campaignName } = await req.json();
+    const body = await req.json();
+    const { users, campaignName } = body;
 
-    if (!users?.length) {
-      return NextResponse.json({
-        success: false,
-        message: "No users provided",
-      });
+    if (!users || !Array.isArray(users) || users.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Users array is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!campaignName || !CAMPAIGN_CONFIG[campaignName]) {
+      return NextResponse.json(
+        { success: false, message: "Invalid campaign name" },
+        { status: 400 }
+      );
     }
 
     let sent = 0;
-    const messageIds = [];
+    const results = [];
 
-    for (const u of users) {
+    for (const user of users) {
       const destination = normalizeNumber(
-        u.customer_no_with_prefix
+        user.customer_no_with_prefix
       );
-      if (!destination) continue;
 
-      const res = await fetch(AISENSY_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey: process.env.AISENSY_API_KEY,
-          campaignName,
-          destination,
-          userName: "LimbuAI",
-          templateParams: [],
-          source: "incoming-ivr",
-          media: {
-            url: MEDIA[campaignName],
-            filename: "session",
+      if (!destination) {
+        results.push({
+          number: user.customer_no_with_prefix,
+          status: "Invalid number",
+        });
+        continue;
+      }
+
+      const payload = {
+        apiKey: process.env.AISENSY_API_KEY,
+        campaignName,
+        destination,
+        userName: "LimbuAI",
+
+        // ✅ FIXED TEMPLATE PARAMS
+        templateParams: [
+          "https://us06web.zoom.us/meeting/register/GdVk9iYlRgWL4Y1wC721_A",
+          "883 7574 4050",
+          "916645",
+        ],
+
+        source: "new-landing-page form",
+
+        media: {
+          url: CAMPAIGN_CONFIG[campaignName].mediaUrl,
+          filename: "session_image",
+        },
+
+        buttons: [],
+        carouselCards: [],
+        location: {},
+        attributes: {},
+
+        paramsFallbackValue: {
+          FirstName: user?.name || "User",
+        },
+      };
+
+      try {
+        const response = await fetch(AISENSY_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-          buttons: [],
-          carouselCards: [],
-          location: {},
-          attributes: {},
-          paramsFallbackValue: {},
-        }),
-      });
+          body: JSON.stringify(payload),
+        });
 
-      const json = await res.json();
+        const json = await response.json();
 
-      if (json?.success === "true") {
-        sent++;
-        if (json.submitted_message_id) {
-          messageIds.push(json.submitted_message_id);
+        if (json?.success === "true") {
+          sent++;
+          results.push({
+            number: destination,
+            status: "Sent",
+            messageId: json.submitted_message_id || null,
+          });
+        } else {
+          results.push({
+            number: destination,
+            status: "Failed",
+            response: json,
+          });
         }
+      } catch (error) {
+        results.push({
+          number: destination,
+          status: "Error",
+          error: error.message,
+        });
       }
     }
 
     return NextResponse.json({
       success: true,
+      totalUsers: users.length,
       sent,
-      message: `WhatsApp successfully sent to ${sent} users`,
-      messageIds,
+      failed: users.length - sent,
+      details: results,
     });
-  } catch (err) {
-    return NextResponse.json({
-      success: false,
-      message: err.message,
-    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
   }
 }

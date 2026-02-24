@@ -26,16 +26,18 @@ export default function AuthGuard({ children }) {
       "/cancellation-policy",
       "/terms-and-conditions",
       "/refund-policy",
+      "/franchise-panel/login",
     ];
 
     const allowedAdminRoles = ["admin", "superAdmin","superFranchiseAdmin", "franchiseAdmin", "manager", "agent", "subadmin"];
     const isPublicRoute = publicRoutes.includes(pathname);
     const isAdminRoute = pathname.startsWith("/admin");
     const isReviewRoute = pathname.startsWith("/reviews");
+    const isFranchiseRoute = pathname.startsWith("/franchise-panel");
 
     setTimeout(() => {
-      // Reviews are public
-      if (isReviewRoute) {
+      // Reviews and Franchise Panel are public or handled separately
+      if (isReviewRoute || isFranchiseRoute) {
         setIsChecking(false);
         return;
       }

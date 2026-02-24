@@ -106,8 +106,8 @@ export default function KeywordPage() {
       <div className="max-w-screen-xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-            <TrendingUp className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4 shadow-lg">
+            <TrendingUp className="w-8 h-8 text-dark" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">Keyword Research</h1>
           <p className="text-gray-600 text-sm sm:text-base">Discover and save the best keywords for your content</p>
@@ -120,7 +120,7 @@ export default function KeywordPage() {
             {/* Search Box */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Search className="w-5 h-5 text-blue-600" />
+                <Search className="w-5 h-5 text-neutral-600" />
                 Find Keywords
               </h2>
               <div className="relative">
@@ -132,7 +132,7 @@ export default function KeywordPage() {
                     searchKeywords(e.target.value);
                   }}
                   placeholder="Type keyword (e.g. best ro service)"
-                  className="w-full pl-12 pr-12 py-3 text-base border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
+                  className="w-full pl-12 pr-12 py-3 text-base border-2 border-gray-200 rounded-xl focus:border-dark focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                 />
                 {isSearching && (
                   <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 w-5 h-5 animate-spin" />
@@ -174,12 +174,12 @@ export default function KeywordPage() {
                       <div className="flex items-center gap-4">
                         {k.volume && (
                           <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 font-medium">
-                            <BarChart3 className="w-4 h-4 text-purple-400" />
+                            <BarChart3 className="w-4 h-4 text-dark" />
                             <span>{k.volume.toLocaleString()}</span>
                           </div>
                         )}
                         {k.competition && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full hidden sm:inline-block ${k.competition === 'LOW' ? 'bg-green-100 text-green-700' :
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full hidden sm:inline-block ${k.competition === 'LOW' ? 'bg-fullLight text-dark' :
                               k.competition === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
                                 'bg-red-100 text-red-700'
                             }`}>
@@ -198,7 +198,7 @@ export default function KeywordPage() {
                           <button
                             onClick={() => addKeyword(k)}
                             disabled={isSaving === k.keyword}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait"
+                            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-dark rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait"
                           >
                             {isSaving === k.keyword ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -221,7 +221,7 @@ export default function KeywordPage() {
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-purple-600" />
+                  <Tag className="w-5 h-5 text-dark" />
                   My Keywords
                 </h2>
                 <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{saved.length}</span>

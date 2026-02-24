@@ -1,9 +1,9 @@
 import "./globals.css";
 import ClientLayout from "../app/client-layout";
-import AuthGuard from "@/components/AuthGuard";
 import SessionProviderWrapper from "./providers/SessionProviderWrapper";
 import Script from "next/script";
 import { Inter } from "next/font/google";
+import AuthGuard from "../components/AuthGuard";
 
 const inter = Inter({
   subsets: ["latin"],

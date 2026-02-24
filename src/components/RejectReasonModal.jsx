@@ -27,7 +27,7 @@ const RejectReasonModal = ({ onClose, onSubmit, reason, setReason }) => {
             <button
               onClick={onSubmit}
               disabled={!reason.trim()}
-              className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-gradient-to-r from-neutral-700 to-yellow-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Submit Rejection
             </button>

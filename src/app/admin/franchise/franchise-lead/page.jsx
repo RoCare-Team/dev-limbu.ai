@@ -58,17 +58,26 @@ const STATUS_STEPS = [
 
 const LEAD_QUALITIES = [
   {
+    label: "None",
+    value: "None",
+    color: "bg-gray-100 text-gray-700 border-gray-200",
+    icon: User,
+  },
+  {
     label: "Hot🔥",
+    value: "Hot",
     color: "bg-red-100 text-red-700 border-red-200",
     icon: Flame,
   },
   {
     label: "Warm☀️",
+    value: "Warm",
     color: "bg-orange-100 text-orange-700 border-orange-200",
     icon: Sun,
   },
   {
     label: "Cold❄️",
+    value: "Cold",
     color: "bg-blue-100 text-blue-700 border-blue-200",
     icon: Snowflake,
   },
@@ -86,12 +95,15 @@ const QUICK_REMARKS = [
 
 /* ---------------- NORMALIZE LEAD ---------------- */
 const normalizeLead = (lead) => {
+  // Treat "Cold" as "None" for backward compatibility
+  const normalizedQuality = (lead.lead_quality === "Cold" || !lead.lead_quality) ? "None" : lead.lead_quality;
+  
   const obj = {
     id: lead.id,
     created_time: lead.created_time,
     status: lead.status || "Active",
     remarks: lead.remarks || [],
-    lead_quality: lead.lead_quality || "Cold",
+    lead_quality: normalizedQuality,
     assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
     whatsapp_count: lead.whatsapp_count || 0,
     source: lead.source || "meta",
@@ -130,7 +142,7 @@ export default function FranchiseLeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [bulkAssignee, setBulkAssignee] = useState("");
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
-  const [newLead, setNewLead] = useState({});
+  const [newLead, setNewLead] = useState({ lead_quality: "None" });
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
 
@@ -483,7 +495,7 @@ export default function FranchiseLeadsPage() {
       const data = await res.json();
       if (data.success) {
         setShowAddLeadModal(false);
-        setNewLead({});
+        setNewLead({ lead_quality: "None" });
         alert("Lead added successfully");
         window.location.reload();
         fetchLeads();
@@ -858,7 +870,7 @@ if (!executiveMobile && typeof window !== "undefined") {
             >
               <option value="All">All Qualities</option>
               {LEAD_QUALITIES.map((q) => (
-                <option key={q.label} value={q.label}>{q.label}</option>
+                <option key={q.value} value={q.value}>{q.label}</option>
               ))}
             </select>
 
@@ -942,24 +954,72 @@ if (!executiveMobile && typeof window !== "undefined") {
         </div>
         
         {/* ADMIN ASSIGNMENT SUMMARY (Only for Super Admin) */}
-        {(role === "superFranchiseAdmin" || role === "superAdmin") && franchiseAdmins.length > 0 && (
-          <div className="flex flex-wrap gap-3 pb-2">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
-              <User className="w-3 h-3" />
-              <span>Unassigned: {adminCounts["Unassigned"] || 0}</span>
-            </div>
-            {franchiseAdmins.map(admin => {
-              const count = adminCounts[admin._id] || 0;
-              if (count === 0) return null; // Optional: hide admins with 0 leads
-              return (
-                <div key={admin._id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(admin.fullName)}`}>
-                  <User className="w-3 h-3" />
-                  <span>{admin.fullName}: {count}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+       {(role === "superFranchiseAdmin" || role === "superAdmin") && franchiseAdmins.length > 0 && (
+  <div className="flex flex-wrap gap-3 pb-2">
+
+    {/* Unassigned Count */}
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
+      <User className="w-3 h-3" />
+      <span>Unassigned: {adminCounts["Unassigned"] || 0}</span>
+    </div>
+
+    {franchiseAdmins.map(admin => {
+      const count = adminCounts[admin._id] || 0;
+
+      return (
+        <div
+          key={admin._id}
+          className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm text-sm font-medium transition-all duration-200
+            ${getAvatarColor(admin.fullName)} 
+            ${!admin.isActive ? 'opacity-60' : ''}`}
+        >
+          <User className="w-4 h-4" />
+          <span className="font-semibold">
+            {admin.fullName}: {count}
+          </span>
+
+          {/* STATUS TOGGLE BUTTON */}
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/admin/franchise-admins", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    adminId: admin._id,
+                    isActive: !admin.isActive
+                  })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                  setFranchiseAdmins(prev =>
+                    prev.map(a =>
+                      a._id === admin._id
+                        ? { ...a, isActive: !a.isActive }
+                        : a
+                    )
+                  );
+                }
+              } catch (error) {
+                console.error("Error toggling admin status:", error);
+              }
+            }}
+            className={`ml-2 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border
+              ${
+                admin.isActive
+                  ? "bg-green-500 text-white hover:bg-green-600 border-green-600"
+                  : "bg-red-500 text-white hover:bg-red-600 border-red-600"
+              }`}
+          >
+            {admin.isActive ? "Deactivate" : "Activate"}
+          </button>
+        </div>
+      );
+    })}
+  </div>
+)}
 
           {/* SEARCH BAR */}
           <div className="mt-6 mb-2">
@@ -1124,12 +1184,12 @@ if (!executiveMobile && typeof window !== "undefined") {
                               value={lead.lead_quality}
                               onChange={(e) => handleQualityChange(lead.id, e.target.value)}
                               className={`text-[10px] font-semibold px-2 py-0.5 rounded border cursor-pointer focus:outline-none ${
-                                LEAD_QUALITIES.find(q => q.label === lead.lead_quality)?.color || "bg-gray-100 text-gray-600 border-gray-200"
+                                LEAD_QUALITIES.find(q => q.value === lead.lead_quality)?.color || "bg-gray-100 text-gray-600 border-gray-200"
                               }`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               {LEAD_QUALITIES.map(q => (
-                                <option key={q.label} value={q.label}>{q.label}</option>
+                                <option key={q.value} value={q.value}>{q.label}</option>
                               ))}
                             </select>
                           </div>

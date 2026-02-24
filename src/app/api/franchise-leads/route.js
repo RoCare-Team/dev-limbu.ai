@@ -27,8 +27,8 @@ const LeadSchema = new mongoose.Schema(
     },
     lead_quality: {
       type: String,
-      default: "Cold",
-      enum: ["Hot", "Warm", "Cold"]
+      default: "None",
+      enum: ["None", "Hot", "Warm", "Cold"]
     },
 
     // ⭐ Assigned Admin
@@ -94,7 +94,7 @@ function formatLeadForResponse(leadDoc) {
     occupation: leadDoc.occupation,
     investment: leadDoc.investment,
     status: leadDoc.status,
-    lead_quality: leadDoc.lead_quality || "Cold",
+    lead_quality: leadDoc.lead_quality || "None",
     remarks: leadDoc.remarks || [],
     assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
   };
@@ -138,6 +138,7 @@ export async function GET(req) {
           occupation: lead.occupation,
           investment: lead.investment,
           status: lead.status,
+          lead_quality: lead.lead_quality || "None",
           createdTime: lead.createdTime,
           remarks: lead.remarks || [],
           assignedFranchiseAdmin: lead.assignedFranchiseAdminId,
@@ -233,7 +234,7 @@ export async function GET(req) {
           createdTime: new Date(lead.created_time),
           source: "meta",
           status: "Active",
-          lead_quality: "Cold",
+          lead_quality: "None",
           remarks: [],
         };
 
@@ -364,7 +365,7 @@ export async function POST(req) {
         source: "manual",
         createdTime: new Date(),
         status: "Active",
-        lead_quality: body.lead_quality || "Cold",
+        lead_quality: body.lead_quality || "None",
         verified: false,
         remarks: [],
       });
@@ -417,7 +418,7 @@ export async function PATCH(req) {
     }
 
     if (lead_quality) {
-      const validQualities = ["Hot", "Warm", "Cold"];
+      const validQualities = ["None", "Hot", "Warm", "Cold"];
       if (!validQualities.includes(lead_quality)) {
         return NextResponse.json(
           { success: false, message: "Invalid lead quality value" },

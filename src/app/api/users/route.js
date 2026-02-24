@@ -182,11 +182,13 @@ export async function GET(req) {
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 70;
     
+    
     // Date filter parameters
     const dateFilter = searchParams.get("dateFilter");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
     const leadStatus = searchParams.get("leadStatus");
+    const leadStage = searchParams.get("leadStage");
 
     if (!email) {
       return NextResponse.json(
@@ -206,7 +208,46 @@ export async function GET(req) {
 
     /* 🔍 Fetch Agent Stats (Total Counts) */
     if (searchParams.get("getAgentStats") === "true") {
+      const matchStage = {};
+
+      if (admin.role === "agent") {
+        matchStage.assignedAgentId = admin._id;
+      } else if (assignedAgentId) {
+        if (assignedAgentId === "Unassigned") {
+          matchStage.assignedAgentId = null;
+        } else {
+          matchStage.assignedAgentId = new mongoose.Types.ObjectId(assignedAgentId);
+        }
+      }
+
+      if (dateFilter && startDateParam && endDateParam) {
+        const startDate = new Date(startDateParam);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(endDateParam);
+        endDate.setHours(23, 59, 59, 999);
+        matchStage.createdAt = { $gte: startDate, $lte: endDate };
+      }
+
+      if (leadStatus && leadStatus !== "All") {
+        if (leadStatus === "Untagged") {
+          matchStage.leadStatus = { $in: ["", null, undefined] };
+        } else {
+          matchStage.leadStatus = leadStatus;
+        }
+      }
+
+      if (leadStage && leadStage !== "All") {
+        if (leadStage === "Active") {
+          matchStage.leadStage = { $in: ["Active", "", null] };
+        } else {
+          matchStage.leadStage = leadStage;
+        }
+      }
+
       const stats = await User.aggregate([
+        {
+          $match: matchStage
+        },
         {
           $group: {
             _id: {
@@ -360,6 +401,15 @@ export async function GET(req) {
         query.leadStatus = { $in: ["", null, undefined] };
       } else {
         query.leadStatus = leadStatus;
+      }
+    }
+
+    // Lead Stage filtering
+    if (leadStage && leadStage !== "All") {
+      if (leadStage === "Active") {
+        query.leadStage = { $in: ["Active", "", null] };
+      } else {
+        query.leadStage = leadStage;
       }
     }
 

@@ -28,6 +28,15 @@ leadStatus: {
   enum: ["Hot", "Warm", "Cold", ""],
   default: "",
 },
+accountManager: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Admin",
+  default: null,
+},
+accountManagerName: {
+  type: String,
+  default: null,
+},
 
     referCode : {type: String},
     assignedAgentId: {

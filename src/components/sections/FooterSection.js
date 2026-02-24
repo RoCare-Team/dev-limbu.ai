@@ -25,14 +25,6 @@ export default function FooterSection() {
               Limbu.ai is an AI marketing platform that automates Google Business Profile & Social Media activity.
             </p>
 
-            {/* Social Icons */}
-            <div className="flex gap-4 mb-6">
-              <Facebook className="w-5 h-5 text-slate-300 hover:text-white cursor-pointer" />
-              <Instagram className="w-5 h-5 text-slate-300 hover:text-white cursor-pointer" />
-              <Youtube className="w-5 h-5 text-slate-300 hover:text-white cursor-pointer" />
-              <Linkedin className="w-5 h-5 text-slate-300 hover:text-white cursor-pointer" />
-            </div>
-
             <p className="text-sm text-slate-300 mb-2">Get our Mobile App</p>
 
             <Image
@@ -89,7 +81,18 @@ export default function FooterSection() {
             </ul>
           </div>
 
+          
+
         </div>
+
+          
+            {/* Social Icons */}
+            <div className="flex justify-end  gap-5 mb-6 ">
+              <Facebook className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
+              <Instagram className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
+              <Youtube className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
+              <Linkedin className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
+            </div>
 
         {/* Divider */}
         <div className="border-t border-slate-700 mt-12 pt-6 text-center text-sm text-slate-400">

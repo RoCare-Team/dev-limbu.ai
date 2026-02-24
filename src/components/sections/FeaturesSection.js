@@ -23,32 +23,30 @@ export default function FeaturesSection({ features }) {
         </div>
 
         {/* Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+  {features?.map((feature, index) => {
+    const Icon = feature.icon
 
-          {features?.map((feature, index) => {
-            const Icon = feature.icon
-
-            return (
-              <div
-                key={index}
-                className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-slate-100"
-              >
-                <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-br bg-primary text-dark mb-6 group-hover:scale-110 transition-transform">
-                  <Icon size={28} />
-                </div>
-
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  {feature.title}
-                </h3>
-
-                <p className="text-slate-600 leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            )
-          })}
-
+    return (
+      <div
+        key={index}
+        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-slate-100"
+      >
+        <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-br bg-primary text-dark mb-6 group-hover:scale-110 transition-transform">
+          <Icon size={28} />
         </div>
+
+        <h3 className="text-xl font-bold text-slate-900 mb-3">
+          {feature.title}
+        </h3>
+
+        <p className="text-slate-600 leading-relaxed">
+          {feature.description}
+        </p>
+      </div>
+    )
+  })}
+</div>
 
       </div>
 

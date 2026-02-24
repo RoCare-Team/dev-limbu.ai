@@ -64,7 +64,7 @@ export default function HeroSection({
         {/* Headline */}
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight mb-4 ml-[10px]">
           <span className="text-white">
-            The All-in-One AI Marketing Platform for Google,
+             AI Marketing Platform for Google,
           </span>
           <br />
           <span className="text-white">

@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
@@ -938,33 +940,29 @@ export default function DashboardPage() {
   const maxAccounts = userPlan === "" ? 1 : 0;
 
 const navItems = [
-  //  {
-  //   href: "/checkHealth",
-  //   icon: <PlusSquare className="h-6 w-6" />,
-  //   label: "Check Health",
-  // },
+  
   {
     href: "/gmb-insights",
-    icon: <SquareChartGantt className="h-6 w-6 " />,
+    icon: <SquareChartGantt className="h-5 w-5 " />,
     label: "GMB Insights",
     isFree: true,
   },
    {
     href: "/gmb-health",
-    icon: <Activity className="h-6 w-6" />,
+    icon: <Activity className="h-5 w-5" />,
     label: "GMB Health",
     isFree: true,
   },
     {
     href: "/get-magic-qr",
-    icon: <QrCode className="h-6 w-6" />,
+    icon: <QrCode className="h-5 w-5" />,
     label: "Magic QR",
     isFree: true,
   },
 
     {
     href: "/review-management",
-    icon: <Star className="h-6 w-6" />,
+    icon: <Star className="h-5 w-5" />,
     label: "Review Reply",
     isFree: true,
   },
@@ -973,13 +971,13 @@ const navItems = [
    
   {
     href: "/keyword-planner",
-    icon: <FolderKey className="h-6 w-6" />,
+    icon: <FolderKey className="h-5 w-5" />,
     label: "Keyword Planner",
     isFree: true,
   },
   {
     href: "/post-management",
-    icon: <PlusSquare className="h-6 w-6" />,
+    icon: <PlusSquare className="h-5 w-5" />,
     label: (
   <>
     Create & Publish <br />
@@ -987,14 +985,6 @@ const navItems = [
   </>
 ),
   },
-
-
-  {
-    href: "/wallet",
-    icon: <Wallet className="h-6 w-6 "  />,
-    label: "Wallet Recharge",
-  },
-
   
 ];
 
@@ -1132,7 +1122,7 @@ const NavLinks = ({ isAuthenticated }) => {
 
                 {/* Yellow Icon Box */}
                 <div
-                  className={`p-3 rounded-xl transition
+                  className={`p-5 rounded-xl transition 
                     ${
                       pathname === item.href && isAuthenticated
                         ? "bg-yellow-400 text-white"
@@ -1291,8 +1281,7 @@ const NavLinks = ({ isAuthenticated }) => {
 
       
 
-      
-      
+
       
 
       if (accountsData.length === 0) {

@@ -11,6 +11,7 @@ import VideoExamplesSection from "../components/sections/VideoExamplesSection"
 import FeaturesSection from "../components/sections/FeaturesSection"
 import AccountSetupSection from "../components/sections/AccountSetupSection"
 import ServicesSection from "../components/sections/ServicesSection"
+import SeoPlans from "../components/sections/SeoPlans"
 import SubscriptionSection from "../components/sections/SubscriptionSection"
 import WebDevelopmentSection from "../components/sections/WebDevelopmentSection"
 import SEOSection from "../components/sections/SEOSection"
@@ -238,11 +239,25 @@ export default function LimbuAILanding() {
       return;
     }
 
-    const res = await loadRazorpayScript();
-    if (!res) {
-      showToast("Razorpay SDK failed to load. Are you online?", "error");
-      return;
+    // const res = await loadRazorpayScript();
+    // if (!res) {
+    //   showToast("Razorpay SDK failed to load. Are you online?", "error");
+    //   return;
+    // }
+
+    const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.onload = () => {
+      resolve(true)
     }
+    script.onerror = () => {
+      resolve(false)
+    }
+    document.body.appendChild(script)
+  })
+}
 
     try {
       const amountVal = typeof selectedPlan.totalPrice === "string"
@@ -328,7 +343,6 @@ export default function LimbuAILanding() {
       showToast("Something went wrong. Please try again.", "error");
     }
   };
-
 
   
 
@@ -511,6 +525,8 @@ const seoPlans = [
     textColor: "text-neutral-600"
   }
 ]
+
+
 
 
   const handleSubscriptionClick = (plan) => {
@@ -838,6 +854,8 @@ const seoPlans = [
         selectedImage={selectedImage}
         setSelectedImage={setSelectedImage}
       />
+
+    
 
       <ServiceBookingModal
         showServiceModal={showServiceModal}

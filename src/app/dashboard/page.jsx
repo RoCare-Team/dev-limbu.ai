@@ -944,26 +944,26 @@ const navItems = [
   
   {
     href: "/gmb-insights",
-    icon: <SquareChartGantt className="h-5 w-5 " />,
+    icon: <SquareChartGantt className="h-4 w-4 " />,
     label: "GMB Insights",
     isFree: true,
   },
    {
     href: "/gmb-health",
-    icon: <Activity className="h-5 w-5" />,
+    icon: <Activity className="h-4 w-4" />,
     label: "GMB Health",
     isFree: true,
   },
     {
     href: "/get-magic-qr",
-    icon: <QrCode className="h-5 w-5" />,
+    icon: <QrCode className="h-4 w-4" />,
     label: "Magic QR",
     isFree: true,
   },
 
     {
     href: "/review-management",
-    icon: <Star className="h-5 w-5" />,
+    icon: <Star className="h-4 w-4" />,
     label: "Review Reply",
     isFree: true,
   },
@@ -972,20 +972,20 @@ const navItems = [
    
   {
     href: "/keyword-planner",
-    icon: <FolderKey className="h-5 w-5" />,
+    icon: <FolderKey className="h-4 w-4" />,
     label: "Keyword Planner",
     isFree: true,
   },
   {
    href: "/build-website",
-   icon: <Globe className="h-6 w-6" />,
+   icon: <Globe className="h-4 w-4" />,
    label: "Website Builder",
    isFree: true,
   //  specialTag: "Launched Today",
  },
   {
     href: "/post-management",
-    icon: <PlusSquare className="h-5 w-5" />,
+    icon: <PlusSquare className="h-4 w-4" />,
     label: (
   <>
     Create & Publish <br />
@@ -1100,8 +1100,8 @@ const navItems = [
 
 const NavLinks = ({ isAuthenticated }) => {
   return (
-    <div className="w-full px-4 py-3">
-      <div className="flex justify-center gap-16 flex-wrap">
+    <div className="w-full  px-4 py-3 ">
+     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4 place-items-center ">
         {navItems.map((item) => {
           const isPublic =
             item.href === "/post-management" || item.href === "/wallet";
@@ -1864,7 +1864,7 @@ const fetchInstagramPages = useCallback(async () => {
                   </button> */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-blue-600 hover:to-red-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                    className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>

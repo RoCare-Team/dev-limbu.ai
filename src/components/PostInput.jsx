@@ -585,7 +585,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 <label className="text-xs font-semibold text-gray-700">Keywords</label>
                 <button
                   onClick={() => setShowKeywordModal(true)}
-                  className="text-[10px] font-medium text-dark hover:text-yellow-700 flex items-center gap-1 bg-neutral-300 px-2 py-0.5 rounded-md transition-colors"
+                  className="text-[10px] font-medium text-dark hover:text-primary flex items-center gap-1 bg-neutral-300 px-2 py-0.5 rounded-md transition-colors"
                 >
                   <Sparkles className="w-3 h-3" />
                   Select from list
@@ -617,10 +617,10 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                 <button
                   onClick={() => handleAddKeyword(keywordInput.trim())}
                   disabled={!keywordInput.trim() || isSavingKeyword}
-                  className="px-4 h-full bg-dark text-primary font-semibold rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  className="px-4 h-full  text-dark font-semibold rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                   {isSavingKeyword ? <Loader2 className="w-4 h-4 animate-spin" /> : ""}
-                  Add
+                  Add 
                 </button>
               </div>
               {keywordError && selectedKeywords.length === 0 && (

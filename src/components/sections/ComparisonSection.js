@@ -87,7 +87,7 @@ export default function ComparisonSection() {
               <div className="space-y-4">
 
                 {/* Old Way */}
-                <div className="flex gap-4 p-4 rounded-2xl bg-lightPrimary border border-red-100">
+                <div className="flex gap-4 p-4 rounded-2xl bg-neutral-100 border border-dark">
                   <div className="mt-1">
                     <X className="w-5 h-5 text-neutral-900" />
                   </div>

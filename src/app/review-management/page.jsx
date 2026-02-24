@@ -690,7 +690,7 @@ export default function DashboardPage() {
         {loading && !hasLoadedReviews ? (
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center max-w-md">
-              <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" />
+              <Loader2 className="w-16 h-16 text-gray-600 animate-spin mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Reviews</h2>
               <p className="text-gray-600">
                 Please wait while we fetch your customer reviews...
@@ -698,9 +698,9 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : error ? (
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 p-8 rounded-2xl text-center max-w-2xl mx-auto">
+          <div className="bg-gradient-to-br from-gray-50 to-yellow-50 border-2 border-gray-200 p-8 rounded-2xl text-center max-w-2xl mx-auto">
             <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Info className="w-10 h-10 text-blue-600" />
+              <Info className="w-10 h-10 text-gray-600" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">Unable to Load Reviews</h3>
             <p className="text-gray-700 mb-6 text-lg">
@@ -720,7 +720,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => fetchReviews()}
                 disabled={loading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
+                className="bg-primary text-dark px-8 py-3 rounded-lg hover:from-gray-500 hover:to-yellow-300 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
               >
                 {loading ? (
                   <>
@@ -737,7 +737,7 @@ export default function DashboardPage() {
               {(error === "LOCATION_NOT_FOUND" || error === "LOCATION_EMPTY") && (
                 <div>
                   <Link href="/dashboard">
-                    <button className="bg-white text-blue-600 px-8 py-3 rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-all font-semibold text-lg">
+                    <button className="bg-white text-gray-500 px-8 py-3 rounded-lg border-2 border-gray-600 hover:bg-gray-50 transition-all font-semibold text-lg">
                       Go to Dashboard
                     </button>
                   </Link>
@@ -747,8 +747,8 @@ export default function DashboardPage() {
           </div>
         ) : reviews.length === 0 ? (
           <div className="bg-white p-12 sm:p-16 rounded-2xl shadow-sm text-center border border-gray-100 max-w-2xl mx-auto">
-            <div className="bg-gradient-to-br from-blue-100 to-purple-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-              <MessageCircle className="w-12 h-12 text-blue-600" />
+            <div className="bg-dark rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+              <MessageCircle className="w-12 h-12 text-primary" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">No Reviews Yet</h3>
             <p className="text-gray-600 text-lg mb-6">
@@ -757,7 +757,7 @@ export default function DashboardPage() {
             <button
               onClick={() => fetchReviews()}
               disabled={loading}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
+              className="bg-primary text-dark px-8 py-3 rounded-lg hover:from-gray-500 hover:to-yellow-300 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
             >
               {loading ? (
                 <>

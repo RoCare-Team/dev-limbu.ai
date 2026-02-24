@@ -130,7 +130,7 @@ export default function AuditPage() {
     <div className="min-h-screen bg-gray-50 font-sans">
       <Toaster />
       {/* Header Section with Gradient */}
-      <div className="bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 pb-20 pt-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <div className="bg-lightPrimary pb-20 pt-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Abstract Background Shapes */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
           <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-blue-400 blur-3xl"></div>
@@ -138,13 +138,13 @@ export default function AuditPage() {
         </div>
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center justify-center p-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-xl mb-4 ring-1 ring-white/10">
-            <BarChart3 className="w-6 h-6 text-white" />
+          <div className="inline-flex items-center justify-center p-2 bg-primary backdrop-blur-md rounded-xl border border-white/20 shadow-xl mb-4 ring-1 ring-white/10">
+            <BarChart3 className="w-6 h-6 text-dark" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-dark tracking-tight mb-4 drop-shadow-md">
             GBP Report Card
           </h1>
-          <p className="text-blue-100 text-base md:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
+          <p className="text-dark text-base md:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
             Select a location to generate a comprehensive audit of your Google Business Profile performance.
           </p>
         </div>
@@ -188,7 +188,7 @@ export default function AuditPage() {
             <button
               onClick={handleGenerateReport}
               disabled={loading || locations.length === 0}
-              className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[200px]"
+              className="w-full md:w-auto px-8 py-4 bg-dark text-primary rounded-xl font-bold shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[200px]"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -198,7 +198,7 @@ export default function AuditPage() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Generate Report
+                  Generate Report 
                 </>
               )}
             </button>
@@ -246,8 +246,8 @@ export default function AuditPage() {
         {!auditData && !loading && (
           <div className="text-center py-16">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 max-w-2xl mx-auto">
-              <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Activity className="w-10 h-10 text-blue-600" />
+              <div className="bg-primary w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Activity className="w-10 h-10 text-drak" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to Analyze</h3>
               <p className="text-gray-500">

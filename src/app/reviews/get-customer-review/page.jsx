@@ -79,7 +79,7 @@ export default function ReviewsPage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 border border-gray-100 text-center">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Store className="w-8 h-8 text-blue-600" />
+              <Store className="w-8 h-8 text-neutral-600" />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">
               Business Not Selected
@@ -89,7 +89,7 @@ export default function ReviewsPage() {
             </p>
             <button
               onClick={() => router.push("/get-magic-qr")}
-              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-200 transition-all transform hover:scale-105"
+              className="px-6 py-3 rounded-xl bg-neutral-600 hover:bg-neutral-700 text-white font-semibold shadow-lg shadow-blue-200 transition-all transform hover:scale-105"
             >
               Select Business
             </button>

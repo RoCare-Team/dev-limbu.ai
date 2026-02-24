@@ -121,20 +121,20 @@ const handleIssueSubmit = async () => {
             setShowSupportPopup(true);
             setIsAutoOpened(false);
           }}
-          className="fixed bottom-4 right-4 z-50 bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:shadow-xl transition-all hover:scale-110 mb-20"
+          className="fixed bottom-4 right-4 z-50 bg-white p-3 rounded-full shadow-lg border border-neutral-100 hover:shadow-xl transition-all hover:scale-110 mb-20"
         >
-          <MessageSquare className="w-6 h-6 text-blue-600" />
+          <MessageSquare className="w-6 h-6  text-neutral-600" />
         </button>
       )}
 
       {/* Support Popup */}
       {showSupportPopup && (
         <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full">
-          <div className="bg-white border border-blue-100 p-5 rounded-2xl shadow-2xl relative">
+          <div className="bg-white border border-neutral-100 p-5 rounded-2xl shadow-2xl relative">
 
             <button 
               onClick={() => setShowSupportPopup(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-red-500"
+              className="absolute top-2 right-2 text-gray-400 hover:text-neutral-500"
             >
               <X className="w-4 h-4" />
             </button>
@@ -161,14 +161,14 @@ const handleIssueSubmit = async () => {
             <div className="flex gap-2 mt-4">
               <button 
                 onClick={() => setShowIssueModal(true)}
-                className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold"
+                className="flex-1 bg-primary text-dark px-3 py-2 rounded-lg text-xs font-bold"
               >
                 Report New Issue
               </button>
 
               <a 
                 href="tel:9289344726"
-                className="flex-1 text-blue-700 bg-blue-50 border px-3 py-2 rounded-lg text-xs font-bold text-center"
+                className="flex-1 text-neutral-700 bg-neutral-50 border px-3 py-2 rounded-lg text-xs font-bold text-center"
               >
                 <Phone className="inline w-3 h-3" /> Call Support
               </a>

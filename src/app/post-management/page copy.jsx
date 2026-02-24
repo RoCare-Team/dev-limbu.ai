@@ -76,7 +76,7 @@ const ScheduleModal = ({ isOpen, onClose, onConfirm, post }) => {
           <button onClick={onClose} className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
             Cancel
           </button>
-          <button onClick={handleConfirm} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700">
+          <button onClick={handleConfirm} className="flex-1 bg-primary text-dark py-2.5 rounded-lg font-semibold hover:bg-fullLight">
             Confirm & Schedule
           </button>
         </div>
@@ -155,13 +155,13 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
         {/* Description Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-500" />
+            <Sparkles className="w-4 h-4 text-neutral-600" />
             AI Caption
           </h3>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+              className="text-xs font-medium text-white hover:text-reutral-200 hover:bg-reutral-600 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
             >
               <Edit3 className="w-3 h-3" /> Edit
             </button>
@@ -181,13 +181,13 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                  className="flex-1 py-2 bg-dark text-primary rounded-lg text-xs font-semibold hover:bg-reutral-500 transition-colors shadow-sm"
                 >
                   Save
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors"
+                  className="flex-1 py-2 bg-fullLight text-dark rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
@@ -201,7 +201,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               {post?.description?.length > 120 && (
                 <button
                   onClick={() => setShowFull(!showFull)}
-                  className="mt-1 text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  className="mt-1 text-xs font-semibold text-dark hover:text-reutral-500 flex items-center gap-1"
                 >
                   {showFull ? "Show Less" : "Read More"}
                 </button>
@@ -222,14 +222,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => onUpdateStatus(post._id, "approved")}
-                className="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="flex items-center justify-center gap-2 bg-dark text-primary border border-green-200 hover:bg-neutral-700 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <CheckCircle className="w-4 h-4" />
-                Approve
+                Approve 
               </button>
               <button
                 onClick={() => onReject(post._id)}
-                className="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="flex items-center justify-center gap-2 bg-neutral-50 text-dark border border-red-200 hover:bg-neutral-100 hover:border-red-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <XCircle className="w-4 h-4" />
                 Reject
@@ -245,7 +245,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                       type="checkbox"
                       checked={Array.isArray(post.checkmark) ? post.checkmark.includes('post') : true}
                       onChange={() => onEditDescription(post._id, post.description, 'post')}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-gray-300 text-reutral-600 focus:ring-reutral-600"
                     />
                     <span>Post</span>
                   </label>
@@ -254,7 +254,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                       type="checkbox"
                       checked={Array.isArray(post.checkmark) ? post.checkmark.includes('photo') : true}
                       onChange={() => onEditDescription(post._id, post.description, 'photo')}
-                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-dark"
                     />
                     <span>Photo</span>
                   </label>
@@ -264,10 +264,10 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   onClick={() => handlePost(post)}
   className="
     w-full flex items-center justify-center gap-2
-    bg-gradient-to-r from-blue-100 to-indigo-100
-    hover:from-blue-200 hover:to-indigo-200
-    text-blue-700
-    border border-blue-200
+    bg-drk
+    hover:from-reutral-600 
+    text-primary
+    border border-reutral-200
     px-4 py-3 rounded-xl
     text-sm font-semibold
     transition-all duration-200
@@ -290,12 +290,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
           {post.status === "scheduled" && (
             <div className="space-y-3">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Calendar className="w-5 h-5 text-blue-600" />
+              <div className="bg-reutral-400 border border-reutral-400 rounded-xl p-3 flex items-start gap-3">
+                <div className="bg-reutral-200 p-2 rounded-lg">
+                  <Calendar className="w-5 h-5 text-reutral-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Scheduled For</p>
+                  <p className="text-xs text-reutral-600 font-semibold uppercase tracking-wide">Scheduled For</p>
                   <p className="text-sm font-bold text-gray-800">
                     {post.scheduledDate
                       ? new Date(post.scheduledDate).toLocaleString("en-IN", {
@@ -312,9 +312,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   onClick={() => handlePost(post)}
   className="
     w-full flex items-center justify-center gap-2
-    bg-blue-50 text-blue-600
-    border border-blue-100
-    hover:bg-blue-100 hover:border-blue-200
+    bg-neutral-50 text-dark
+    border border-neutral-100
+    hover:bg-neutral-100
     px-4 py-2.5 rounded-xl
     text-sm font-semibold
     transition-all duration-200
@@ -333,9 +333,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       onClick={() => handlePost(post)}
       className="
         flex items-center justify-center gap-2
-        bg-blue-50 text-blue-600
-        border border-blue-200
-        hover:bg-blue-100 hover:border-blue-300
+        bg-neutral-600 text-white
+        border border-reutral-200
+        hover:bg-reutral-100 hover:border-reutral-300
         px-4 py-2.5 rounded-xl text-sm font-semibold
         transition-all
       "
@@ -349,7 +349,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       onClick={() => onUpdateStatus(post)}
       className="
         flex items-center justify-center gap-2
-        bg-purple-50 text-purple-600
+        bg-yellow-700 text-white
         border border-purple-200
         hover:bg-purple-100 hover:border-purple-300
         px-4 py-2.5 rounded-xl text-sm font-semibold
@@ -1281,8 +1281,8 @@ export default function PostManagementPage() {
 
 </div> */}
 
-        <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 
-rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border-4 border-white text-center">
+        <div className="bg-primary text-dark to-pink-400 
+        rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border-4 border-white text-center">
 
   <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 sm:mb-3 
   flex items-center justify-center gap-2 sm:gap-3">

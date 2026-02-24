@@ -75,7 +75,7 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
         <div className="space-y-4 sm:space-y-6 flex-grow overflow-y-auto">
           <div className="text-center">
               {title.includes("Post") && (
-                <p className="text-gray-600 text-sm sm:text-base mt-2">Choose locations to post (20 coins per location)</p>
+                <p className="text- text-sm sm:text-base mt-2">Choose locations to post (20 coins per location)</p>
               )}
               {/* Checkmark options for Post and Photo */}
               <div className="flex justify-center gap-4 sm:gap-6 mt-4">
@@ -85,9 +85,9 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                     id="post-checkbox"
                     checked={checkmark.includes('post')}
                     onChange={() => handleCheckmarkChange('post')}
-                    className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="h-5 w-5 rounded border-gray-300 accent-primary text-dark focus:ring-dark cursor-pointer"
                   />
-                  <label htmlFor="post-checkbox" className="ml-2 text-gray-700 font-medium cursor-pointer">Post</label>
+                  <label htmlFor="post-checkbox" className="ml-2 text-dark font-medium cursor-pointer">Post</label>
                 </div>
   
                 <div className="flex items-center">
@@ -96,9 +96,9 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                     id="photo-checkbox"
                     checked={checkmark.includes('photo')}
                     onChange={() => handleCheckmarkChange('photo')}
-                    className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                    className="h-5 w-5 rounded border-gray-300 accent-primary text-dark focus:ring-dark cursor-pointer"
                   />
-                  <label htmlFor="photo-checkbox" className="ml-2 text-gray-700 font-medium cursor-pointer">Photo</label>
+                  <label htmlFor="photo-checkbox" className="ml-2 text-dark font-medium cursor-pointer">Photo</label>
                 </div>
               </div>
               {/* Select All checkbox */}
@@ -117,29 +117,29 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
             </div>
             
             {/* Summary Card */}
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-blue-200 pb-2">
+            <div className="bg-gradient-to-r from-neutral-50 to-yellow-50 border-2 border-neutral-300 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
                 <div>
-                  <p className="text-sm text-gray-600">Selected Locations</p>
-                  <p className="text-xl font-black text-blue-700">{selectedLocations.length}</p>
+                  <p className="text-sm text-dark">Selected Locations</p>
+                  <p className="text-xl font-black text-primary">{selectedLocations.length}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600 text-right">Cost per Location</p>
-                  <p className="text-xl font-black text-blue-600">20 coins</p>
+                  <p className="text-sm text-dark text-right">Cost per Location</p>
+                  <p className="text-xl font-black text-primary">20 coins</p>
                 </div>
               </div>
               
               {isPostAction && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Your Wallet</p>
-                    <p className={`text-xl font-black ${insufficientFunds ? 'text-red-500' : 'text-green-600'}`}>
+                    <p className="text-sm text-dark">Your Wallet</p>
+                    <p className={`text-xl font-black ${insufficientFunds ? 'text-white' : 'text-primary'}`}>
                       {walletBalance} coins
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-gray-600">Total Cost</p>
-                    <p className={`text-xl font-black ${insufficientFunds ? 'text-red-600' : 'text-purple-600'}`}>
+                    <p className={`text-xl font-black ${insufficientFunds ? 'text-primary' : 'text-primary'}`}>
                       {totalCost} coins
                     </p>
                   </div>
@@ -183,7 +183,7 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                         </p>
                       </div>
                     </div>
-                    <span className="text-blue-600 font-bold text-sm">20 coins</span>
+                    <span className="text-dark font-bold text-sm">20 coins</span>
                   </div>
                 </div>
               ))}
@@ -208,7 +208,7 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                             </p>
                           </div>
                         </div>
-                        <span className="text-gray-500 font-bold text-sm">20 coins</span>
+                        <span className="text-dark font-bold text-sm">20 coins</span>
                       </div>
                     </div>
                   ))}
@@ -232,13 +232,13 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
               <button
                 onClick={() => onConfirm(selectedLocations, getPayload())}
                 disabled={selectedLocations.length === 0 || insufficientFunds}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 sm:py-4 rounded-xl font-bold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                className="flex-1 bg-dark text-primary px-6 py-3 sm:py-4 rounded-xl font-bold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
               >
                 {insufficientFunds ? "Recharge to Post" : `${confirmText} to ${selectedLocations.length} Location${selectedLocations.length !== 1 ? 's' : ''}`}
               </button>
               <button
                 onClick={onClose} // Close button
-                className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 sm:py-4 rounded-xl font-bold hover:bg-gray-300 transition-all text-sm sm:text-base"
+                className="flex-1 bg-lightPrimary text-dark px-6 py-3 sm:py-4 rounded-xl font-bold hover:bg-gray-300 transition-all text-sm sm:text-base"
               >
                 Cancel
               </button>

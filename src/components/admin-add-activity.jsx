@@ -28,7 +28,7 @@ export default function AddAddUserActivity({ userId }) {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/user-activity?userId=${userId}&date=${date}`);
-      const data = await res.json();
+      const data = await res.json();  
 
       if (data.success && data.data) {
         // Merge fetched data with default structure to ensure all keys exist and icons are preserved

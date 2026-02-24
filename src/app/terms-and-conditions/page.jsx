@@ -21,7 +21,7 @@ export default function TermsPage() {
         <span className="font-medium">Back</span>
       </button>
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-blue-600 mb-4 text-center">
+        <h1 className="text-3xl font-bold text-neutral-600 mb-4 text-center">
           Terms & Conditions
         </h1>
 

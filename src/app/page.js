@@ -656,57 +656,56 @@ const seoPlans = [
       link: "/get-magic-qr"
     }
   ]
-  const servicePlans = [
-    
-    {
-      title: "GMB Assistance & Update Plan",
-      planType: "our-service",
-      planDuration: "1 Month",
-      price: "₹2,500",
-      period: "+ 18% GST",
-      totalPrice: "₹1,179",
-      gstAmount: "₹180",
-      subtitle: "Ideal for existing Google Business Profiles",
-      features: [
-        "Google Business Profile functionality check",
-        "Website URL update",
-        "Mobile number update",
-        "Basic profile verification check",
-        "Minor corrections (name, address consistency)",
-        "1 month  support assistance"
-      ],
-      tag: (
-  <>
-    Best for: Businesses that already have a GMB listing 
-    and need  basic updates <br /> or fixes.
-  </>
-),
-      iconColor: "text-blue-500",
-      buttonColor: "bg-neutral-600"
-    },
-    {
-      title: "GMB Creation & Management Plan (From Scratch)",
-      planType: "our-service",
-      planDuration: "1 Month",
-      price: "₹3,000",
-      period: "+ 18% GST",
-      totalPrice: "₹2,950",
-      gstAmount: "₹450",
-      subtitle: "Ideal for new businesses or those without GMB",
-      features: [
-        "Google Business Profile creation from scratch",
-        "Business address setup & verification guidance",
-        "Category selection (primary & secondary)",
-        "Product listing setup",
-        "Service listing & management",
-        "Business details optimization",
-        "1-month complete assistance & support"
-      ],
-      tag: "Best for: New businesses or those without GMB",
-      iconColor: "text-neutral-500",
-      buttonColor: "bg-neutral-600"
-    },
-  ]
+ const servicePlans = [
+  {
+    title: "GMB Assistance & Update Plan",
+    planType: "our-service",
+    planDuration: "1 Month",
+    price: "₹2,500",
+    period: "+ 18% GST",
+    totalPrice: "2,950",
+    gstAmount: "₹450",
+    subtitle: "Ideal for existing Google Business Profiles",
+    features: [
+      "Google Business Profile functionality check",
+      "Website URL update",
+      "Mobile number update",
+      "Basic profile verification check",
+      "Minor corrections (name, address consistency)",
+      "1 month support assistance"
+    ],
+    tag: (
+      <>
+        Best for: Businesses that already have a GMB listing 
+        and need basic updates <br /> or fixes.
+      </>
+    ),
+    iconColor: "text-blue-500",
+    buttonColor: "bg-neutral-600"
+  },
+  {
+    title: "GMB Creation & Management Plan (From Scratch)",
+    planType: "our-service",
+    planDuration: "1 Month",
+    price: "₹3,000",
+    period: "+ 18% GST",
+    totalPrice: "3,540",
+    gstAmount: "₹540",
+    subtitle: "Ideal for new businesses or those without GMB",
+    features: [
+      "Google Business Profile creation from scratch",
+      "Business address setup & verification guidance",
+      "Category selection (primary & secondary)",
+      "Product listing setup",
+      "Service listing & management",
+      "Business details optimization",
+      "1-month complete assistance & support"
+    ],
+    tag: "Best for: New businesses or those without GMB",
+    iconColor: "text-neutral-500",
+    buttonColor: "bg-neutral-600"
+  },
+];
   // const subscriptionPlans = []
   const testimonials = []
 

@@ -1029,7 +1029,7 @@ const handleRoundRobinAssign = (userId) => {
       "Not Interested": "not_interested",
       "Interested": "interested",
       "Call Back Later": "call_back",
-      "Wrong Number": "wrong_number",
+      "Wrong Number": "wrong_number_update",
       "Switch Off": "switch_off",
       "Meeting Scheduled": "meeting_scheduled_online"
     };
@@ -1051,17 +1051,15 @@ const handleRoundRobinAssign = (userId) => {
       return;
     }
 
-    let executiveMobile = user.assignedAgentId?.mobileNumber;
+    let executiveMobile = user.assignedAgentId?.mobile || user.assignedAgentId?.mobileNumber;
 
     if (!executiveMobile && typeof window !== "undefined") {
       const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
       const email = (localStorage.getItem("email") || "").toLowerCase();
 
       if (adminName.includes("aman") || email.includes("aman")) {
-        executiveMobile = "9311587741";
         executiveMobile = "919311587741";
       } else if (adminName.includes("moni") || email.includes("moni")) {
-        executiveMobile = "7065021272";
         executiveMobile = "917065021272";
       }
     }
@@ -1090,6 +1088,7 @@ const handleRoundRobinAssign = (userId) => {
         userName: user.fullName || "User",
         enquiryId: user.userId,
         executiveName: user.assignedAgentId?.fullName || "Executive",
+        executiveMobile: executiveMobile || "",
         remark: remark,
         meetingDate: payload.meetingDate,
         meetingTime: payload.meetingTime,

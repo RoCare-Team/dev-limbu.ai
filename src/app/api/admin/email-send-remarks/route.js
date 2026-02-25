@@ -25,72 +25,92 @@ export async function POST(req) {
 
     // If no custom HTML is provided, generate based on remark
     if (!emailContent) {
+      const execMobile = otherParams.executiveMobile || "";
+      const execName = otherParams.executiveName || "Team";
+      const enquiryId = otherParams.enquiryId || "N/A";
+
+      const commonFooter = `
+        <br>
+        <p>Regards,<br><strong>Limbu.ai Team</strong></p>
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eaeaea;">
+          <p style="margin: 0; font-size: 14px; color: #555;">
+            <a href="https://limbu.ai" style="color: #007bff; text-decoration: none; font-weight: bold;">🌐 Visit Limbu.ai</a> 
+            &nbsp;|&nbsp; 
+            <a href="https://www.youtube.com/watch?v=eQUd6u36w3g" style="color: #d93025; text-decoration: none; font-weight: bold;">📺 Watch Demo</a>
+          </p>
+        </div>
+      `;
+
       switch (remark) {
         case "call_not_picked":
           emailSubject = "We tried calling you - LimbuAI";
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear ${recipientName},</p>
-              <p>We tried calling you regarding your enquiry (${otherParams.enquiryId || 'N/A'}) but couldn't connect.</p>
-              <p>Our executive <strong>${otherParams.executiveName || 'Team'}</strong> will try to reach you again shortly.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              <p>We tried calling you regarding your enquiry (ID: <strong>${enquiryId}</strong>) but couldn't connect.</p>
+              <p>Our executive <strong>${execName}</strong> will try to reach you again shortly.</p>
+              ${execMobile ? `<p>You can contact our executive at: <strong>${execMobile}</strong></p>` : ""}
+              ${commonFooter}
             </div>`;
           break;
         case "not_interested":
           emailSubject = "Update on your enquiry - LimbuAI";
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear ${recipientName},</p>
-              <p>We have noted that you are not interested at the moment regarding enquiry ${otherParams.enquiryId || 'N/A'}.</p>
+              <p>We have noted that you are not interested at the moment regarding enquiry (ID: <strong>${enquiryId}</strong>).</p>
               <p>If you change your mind, feel free to contact us.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              ${commonFooter}
             </div>`;
           break;
         case "interested":
           emailSubject = "Thank you for your interest - LimbuAI";
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear ${recipientName},</p>
               <p>Thank you for your interest! We are excited to help you.</p>
-              <p>Our executive <strong>${otherParams.executiveName || 'Team'}</strong> will be in touch with you shortly to take this forward.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              <p>Our executive <strong>${execName}</strong> will be in touch with you shortly to take this forward.</p>
+              ${execMobile ? `<p>Contact Executive: <strong>${execMobile}</strong></p>` : ""}
+              ${commonFooter}
             </div>`;
           break;
         case "call_back":
           emailSubject = "We will call you back - LimbuAI";
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear ${recipientName},</p>
-              <p>As requested, we have scheduled a call back for your enquiry ${otherParams.enquiryId || 'N/A'}.</p>
+              <p>As requested, we have scheduled a call back for your enquiry (ID: <strong>${enquiryId}</strong>).</p>
               <p>Our executive will contact you soon.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              ${execMobile ? `<p>Executive Contact: <strong>${execMobile}</strong></p>` : ""}
+              ${commonFooter}
             </div>`;
           break;
         case "wrong_number":
           emailSubject = "Wrong Number Update - LimbuAI";
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear User,</p>
-              <p>We have marked this number as a wrong number for enquiry ${otherParams.enquiryId || 'N/A'}.</p>
+              <p>We have marked this number as a wrong number for enquiry (ID: <strong>${enquiryId}</strong>).</p>
               <p>If this is a mistake, please reply to this email.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              ${commonFooter}
             </div>`;
           break;
         case "switch_off":
           emailSubject = "Unable to reach you - LimbuAI";
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear ${recipientName},</p>
               <p>We tried calling you but your phone was switched off/not reachable.</p>
               <p>We will attempt to contact you again later.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              ${execMobile ? `<p>You can call us back at: <strong>${execMobile}</strong></p>` : ""}
+              ${commonFooter}
             </div>`;
           break;
         case "meeting_scheduled_online":
           emailSubject = "Meeting Scheduled Successfully - LimbuAI";
           const [date, time] = (otherParams.meetingDate || "").split("T");
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Hi ${recipientName},</p>
               <p>Your meeting has been scheduled successfully.</p>
               <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
@@ -100,20 +120,21 @@ export async function POST(req) {
                 <p style="margin: 5px 0;"><strong>🔑 Passcode:</strong> ${otherParams.passcode || "N/A"}</p>
               </div>
               <p>If you have any questions, please contact us.</p>
+              ${execMobile ? `<p>Executive Contact: <strong>${execMobile}</strong></p>` : ""}
               <p>See you soon.</p>
-              <p>Regards,<br>LimbuAI Team</p>
+              ${commonFooter}
             </div>
           `;
           break;
         default:
           emailContent = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
               <p>Dear ${recipientName},</p>
-              <p>There is an update on your enquiry (${otherParams.enquiryId || 'N/A'}):</p>
+              <p>There is an update on your enquiry (ID: <strong>${enquiryId}</strong>):</p>
               <blockquote style="border-left: 4px solid #ccc; padding-left: 10px; margin: 10px 0; color: #555;">
                 ${rawRemark || rawRemarks || "No specific details provided."}
               </blockquote>
-              <p>Regards,<br>LimbuAI Team</p>
+              ${commonFooter}
             </div>`;
           break;
       }

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy } from "lucide-react";
+import { Copy, Power, Trash2 } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
@@ -56,6 +56,60 @@ export default function UsersPage() {9
         setLoading(false);
       });
   };
+
+  const handleDelete = async (id) => {
+  if (!confirm("Are you sure you want to delete this user?")) return;
+
+  try {
+    const res = await fetch(`/api/users/add?id=${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setUsers(prev => prev.filter(u => u._id !== id));
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const toggleStatus = async (id, currentStatus) => {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`/api/users/create?id=${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        isActive: !currentStatus,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setUsers(prev =>
+        prev.map(u =>
+          u._id === id ? { ...u, isActive: !currentStatus } : u
+        )
+      );
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const copyToClipboard = (text) => {
     if (text) {
@@ -116,7 +170,7 @@ export default function UsersPage() {9
 
       {/* USERS LIST TAB */}
       {activeTab === "list" && (
-        <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-6">
+        <div className="max-w-8xl mx-auto bg-white rounded-2xl shadow-lg p-6">
 
           <h2 className="text-xl font-bold text-gray-800 mb-4">
             Users List
@@ -161,6 +215,33 @@ export default function UsersPage() {9
                           <span className="text-red-600 font-medium">Inactive</span>
                         )}
                       </td>
+                      <td className="border px-4 py-2">
+  <div className="flex items-center gap-3">
+
+    {/* Activate / Deactivate */}
+    <button
+      onClick={() => toggleStatus(u._id, u.isActive)}
+      className={`p-2 rounded-full transition ${
+        u.isActive
+          ? "bg-green-100 text-green-600 hover:bg-green-200"
+          : "bg-red-100 text-red-600 hover:bg-red-200"
+      }`}
+      title={u.isActive ? "Deactivate" : "Activate"}
+    >
+      <Power size={16} />
+    </button>
+
+    {/* Delete */}
+    <button
+      onClick={() => handleDelete(u._id)}
+      className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition"
+      title="Delete User"
+    >
+      <Trash2 size={16} />
+    </button>
+
+  </div>
+</td>
                     </tr>
                   ))}
                 </tbody>

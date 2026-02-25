@@ -9,8 +9,10 @@ export default function FeaturesSection({ features }) {
   if (!features || features.length === 0) return null
 
   return (
-    <section className="py-20 bg-gradient-to-br from-white to-slate-50">
-
+<section
+  id="features"
+  className="py-20 bg-gradient-to-br from-white to-slate-50 dark:from-gray-900 dark:to-gray-800 transition-colors"
+>
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Heading */}

@@ -44,13 +44,13 @@ export default function HeaderSection({
     </div>
 
     {/* CENTER - NAV LINKS */}
-    <nav className="hidden lg:flex items-center gap-7 text-sm text-sm font-dark">
+    <nav className="hidden lg:flex items-center gap-7 text-sm text-sm text-[#101010] font-dark">
       <a href="#features" className="hover:text-yellow-500 transition">
         Features
       </a>
 
-      <a href="#how-it-works" className="hover:primary transition">
-        How It Works
+      <a href="/work-with-us" className="hover:primary transition">
+        work with Us
       </a>
 
       <a href="#services" className="hover:text-primary transition">

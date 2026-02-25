@@ -391,8 +391,8 @@ export default function LimbuAILanding() {
   const subscriptionPlans = [
     {
       title: "Basic Plan",
-      basePrice: 999,
-      totalAmount: 1179,
+      basePrice: 2500,
+      totalAmount: 2950,
       basePosts: 5,
       baseCitations: 2,
       staticFeatures: ["Review Reply Management","Magic Qr Code Generation","Insights Dashboard"],
@@ -403,8 +403,8 @@ export default function LimbuAILanding() {
     },
        {
       title: "Premium Plan",
-      basePrice: 5000,
-      totalAmount: 5900,
+      basePrice: 7500,
+      totalAmount: 8850,
       basePosts: 30,
       baseCitations: 12,
       staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
@@ -416,8 +416,8 @@ export default function LimbuAILanding() {
     },
     {
       title: "Professional Plan",
-      basePrice: 2500,
-      totalAmount: 2950,
+      basePrice: 5500,
+      totalAmount: 6490,
       basePosts: 15,
       baseCitations: 5,
       staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization"],
@@ -449,7 +449,7 @@ export default function LimbuAILanding() {
   {
     title: "Business Website",
     basePrice: 25000,
-    basePages: 10,
+    basePages: 15,
     staticFeatures: [
       "Custom UI/UX Design",
       "Advanced SEO Optimization",
@@ -465,7 +465,7 @@ export default function LimbuAILanding() {
   {
     title: "Enterprise Website",
     basePrice: 48000,
-    basePages: 20,
+    basePages: 35,
     staticFeatures: [
       "Fully Custom Design",
       "E-commerce Integration",
@@ -653,29 +653,12 @@ const seoPlans = [
     }
   ]
   const servicePlans = [
-    {
-      title: "Physical Magic QR Code",
-      planType: "our-service",
-      planDuration: "one-time",
-      price: "₹200",
-      period: "+ 18% GST",
-      totalPrice: "₹236",
-      gstAmount: "₹36",
-      subtitle: "Get a physical QR code delivered to your doorstep",
-      features: [
-        "Durable, high-quality print",
-        "Weather-resistant material",
-        "Helps in getting more positive reviews"
-      ],
-      tag: "Best for: Offline businesses wanting to boost online reviews.",
-      iconColor: "text-green-500",
-      buttonColor: "bg-neutral-600"
-    },
+    
     {
       title: "GMB Assistance & Update Plan",
       planType: "our-service",
       planDuration: "1 Month",
-      price: "₹999",
+      price: "₹2,500",
       period: "+ 18% GST",
       totalPrice: "₹1,179",
       gstAmount: "₹180",
@@ -688,7 +671,12 @@ const seoPlans = [
         "Minor corrections (name, address consistency)",
         "1 month  support assistance"
       ],
-      tag: "Best for: Businesses that already have a GMB listing and need basic updates or fixes.",
+      tag: (
+  <>
+    Best for: Businesses that already have a GMB listing 
+    and need  basic updates <br /> or fixes.
+  </>
+),
       iconColor: "text-blue-500",
       buttonColor: "bg-neutral-600"
     },
@@ -696,7 +684,7 @@ const seoPlans = [
       title: "GMB Creation & Management Plan (From Scratch)",
       planType: "our-service",
       planDuration: "1 Month",
-      price: "₹2,500",
+      price: "₹3,000",
       period: "+ 18% GST",
       totalPrice: "₹2,950",
       gstAmount: "₹450",

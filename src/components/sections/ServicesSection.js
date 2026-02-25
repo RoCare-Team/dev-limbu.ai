@@ -9,10 +9,9 @@ export default function ServicesSection({
 }) {
 
   return (
-    <section id="services" className="relative bg-slate-50 py-16 sm:py-20 md:py-24">
+    <section id="services" className="relative  bg-slate-50 py-16 sm:py-20 md:py-24 ">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-
+    <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {/* Heading */}
         <div className="text-center mb-12 sm:mb-16">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4 px-4">
@@ -28,7 +27,7 @@ export default function ServicesSection({
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-4 max-w-7xl mx-auto">
+        <div className="flex flex-wrap justify-center gap-6">
 
           {servicePlans.map((plan, idx) => (
             <div

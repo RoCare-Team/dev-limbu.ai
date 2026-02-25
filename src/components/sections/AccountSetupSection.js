@@ -7,7 +7,7 @@ import { CheckCircle } from "lucide-react"
 export default function AccountSetupSection({ plans, handlePlanClick }) {
   return (
     <section className="relative bg-white py-16 border-t border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
         {/* Heading */}
         <div className="text-center mb-12">

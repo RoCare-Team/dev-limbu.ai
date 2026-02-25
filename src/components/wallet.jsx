@@ -104,6 +104,7 @@ const handleRecharge = async () => {
     return;
   }
 
+  const referCode = localStorage.getItem("franchise_code")
   const res = await loadRazorpayScript();
   if (!res) {
     alert("Razorpay SDK failed to load.");
@@ -161,6 +162,7 @@ const handleRecharge = async () => {
               gstAmount: parseFloat(gstAmount),
               totalAmount: parseFloat(totalAmount),
               gstin: gstNumber,
+              referCode: referCode,
               payment: response,
             }),
           });

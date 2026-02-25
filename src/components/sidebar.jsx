@@ -1015,7 +1015,7 @@ export default function Sidebar({ children, user }) {
     onClick={handleOpenPlansModal}
     sx={{
       fontWeight: 600,
-      background: '#101010',
+      background: '#525252',
       color: 'white',
       border: 'none',
       cursor: 'pointer',
@@ -1024,7 +1024,7 @@ export default function Sidebar({ children, user }) {
       height: { xs: 28, sm: 32 },
 
       '&:hover': {
-        background: '#101010',   // same as normal
+        background: '#525252',   // same as normal
         color: 'white',         // same as normal
         boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)', // same shadow
       }
@@ -1039,7 +1039,7 @@ export default function Sidebar({ children, user }) {
   onClick={handleWalletClick}
   sx={{
     fontWeight: 600,
-    background: '#101010',
+    background: '#525252',
     color: 'white',
     border: 'none',
     cursor: 'pointer',
@@ -1048,7 +1048,7 @@ export default function Sidebar({ children, user }) {
     height: { xs: 28, sm: 32 },
 
     '&:hover': {
-      background: '#101010',
+      background: '#525252',
       color: 'yellow',
       boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
       transform: 'none',
@@ -1095,7 +1095,7 @@ export default function Sidebar({ children, user }) {
                       width: { xs: 32, sm: 36 },
                       height: { xs: 32, sm: 36 },
                        color: 'dark',
-                      bgcolor: '#101010',
+                      bgcolor: '#525252',
                       fontWeight: 600,
                       color: 'white',
                     }}

@@ -40,6 +40,7 @@ export async function POST(req) {
       gstin,
       payment,
       transactionId,
+      referCode
     } = await req.json();
 
     if (!userId || !plan || !amount) {
@@ -159,6 +160,9 @@ export async function POST(req) {
         );
       }
 
+      console.log("eeeeeeeee",plan);
+      
+
       await RazorpayTransaction.create({
         userId,
         orderId: razorpay_order_id,
@@ -168,6 +172,7 @@ export async function POST(req) {
         gstAmount: gstAmount || 0,
         totalAmount,
         gstin: gstin || "",
+        referCode: referCode || "",
       });
 
       paymentRef = razorpay_payment_id;

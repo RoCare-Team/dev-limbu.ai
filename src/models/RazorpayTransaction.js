@@ -23,6 +23,7 @@ const RazorpayTransactionSchema = new mongoose.Schema(
     gstAmount: { type: Number, required: true },
     totalAmount: { type: Number, required: true },
     gstin: { type: String },
+    referCode: {type: String}
   },
   { timestamps: true }
 );

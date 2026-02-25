@@ -66,6 +66,7 @@ import {
 import MetaConnectCard from "../../components/MetaConnectCard";
 import SocialConnectCard from "../../components/SocialConnectCard";
 import SupportModal from "../../components/SupportModal";
+import FirstPostModal from "@/components/FirstPostModal";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -1123,7 +1124,7 @@ const NavLinks = ({ isAuthenticated }) => {
 
                 {/* FREE Badge */}
                 {item.isFree && (
-                  <span className="absolute -top-2 -right-8 bg-black text-white text-[8px] font-bold px-2 py-[2px] rounded-full shadow-md z-20">
+                  <span className="absolute -top-2 -right-8 bg-[#525252] text-white text-[8px] font-bold px-2 py-[2px] rounded-full shadow-md z-20">
                     FREE
                   </span>
                 )}
@@ -1849,7 +1850,7 @@ const fetchInstagramPages = useCallback(async () => {
                   <button
                     onClick={handleManualRefresh}
                     disabled={loading}
-                    className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border-2"
+                    className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     title="Refresh data from Google"
                   >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1864,7 +1865,7 @@ const fetchInstagramPages = useCallback(async () => {
                   </button> */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className=" font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2 border-2"
+                    className=" font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>
@@ -1889,7 +1890,7 @@ const fetchInstagramPages = useCallback(async () => {
                 <h2 className="font-bold text-gray-800">Google Business </h2>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs bg-neutral-600 text-white font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
+<span className="text-xs bg-gray-700 text-white font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
                 {accounts.length > 0 && (
   <button
     onClick={() => signOut({ callbackUrl: "/dashboard" })}
@@ -2061,7 +2062,7 @@ const fetchInstagramPages = useCallback(async () => {
                       <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
                         <button
                           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                          className="  w-full bg-dark text-primary   text-xs  font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
+className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
                         >
                           <Plus className="w-4 h-4" />
                           Connect Now
@@ -2099,7 +2100,7 @@ const fetchInstagramPages = useCallback(async () => {
                     </div>
                     <p className="text-xs text-gray-500">ID: {page.pageId}</p>
                     <div className="pt-2 border-t border-gray-100">
-                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-blue-100 text-blue-700 py-1.5 rounded-md hover:bg-blue-200 font-semibold">Manage Page</button>
+                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-[#525252] text-white py-1.5 rounded-md hover:bg-[#525252] font-semibold">Manage Page</button>
                     </div>
                   </div>
                 ))}
@@ -2127,7 +2128,7 @@ const fetchInstagramPages = useCallback(async () => {
                         toast.error("Logout failed");
                       }
                     }}
-                    className="w-full mt-2 flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all text-xs"
+                    className="w-full mt-2 flex items-center justify-center gap-2 bg-[#525252] text-white py-2 rounded-lg font-semibold hover: bg-[#525252] transition-all text-xs"
                   >
                     <LogOut className="w-4 h-4" /> Logout Facebook
                   </button>
@@ -2188,7 +2189,7 @@ const fetchInstagramPages = useCallback(async () => {
                         </div>
                         <p className="text-xs text-gray-500">ID: {page.igId}</p>
                         <div className="pt-2 border-t border-gray-100">
-                          <button onClick={() => router.push(`/post-management?pageId=${page.igId}`)} className="w-full text-xs bg-pink-100 text-pink-700 py-1.5 rounded-md hover:bg-pink-200 font-semibold">Manage Account</button>
+                          <button onClick={() => router.push(`/post-management?pageId=${page.igId}`)} className="w-full text-xs bg-[#525252] text-white py-1.5 rounded-md hover:bg-[#525252] font-semibold">Manage Account</button>
                         </div>
                       </div>
                     ))}
@@ -2216,7 +2217,7 @@ const fetchInstagramPages = useCallback(async () => {
                             toast.error("Logout failed");
                           }
                         }}
-                        className="w-full mt-2 flex items-center justify-center gap-2 bg-primary text-dark py-2 rounded-lg font-semibold hover:bg-pink-700 transition-all text-xs"
+                        className="w-full mt-2 flex items-center justify-center gap-2 bg-[#525252] text-white py-2 rounded-lg font-semibold hover:bg-[#525252] transition-all text-xs"
                       >
                         <LogOut className="w-4 h-4" /> Logout Instagram
                       </button>

@@ -36,7 +36,7 @@ export default function SubscriptionSection({
 
           {/* Billing Toggle */}
           <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {["monthly", "quarterly", "half-yearly", "yearly"].map((cycle) => (
+            {["monthly", "quarterly",  "yearly"].map((cycle) => (
               <button
                 key={cycle}
                 onClick={() => setBillingCycle(cycle)}
@@ -50,19 +50,14 @@ export default function SubscriptionSection({
                   ? "Monthly"
                   : cycle === "quarterly"
                   ? "Quarterly"
-                  : cycle === "half-yearly"
-                  ? "Half-Yearly"
+                  
                   : "Yearly"}
 
                 {cycle === "quarterly" && (
-                  <span className="ml-1 text-xs text-lightPrimary">-10%</span>
+                  <span className="ml-1 text-xs text-lightPrimary">-10%  (Recommended)</span>
                 )}
 
-                {cycle === "half-yearly" && (
-                  <span className="ml-1 text-xs text-lightPrimary">
-                    -15% (Recommended)
-                  </span>
-                )}
+                
 
                 {cycle === "yearly" && (
                   <span className="ml-1 text-xs text-yellow-400">-20%</span>

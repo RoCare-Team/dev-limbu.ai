@@ -2,6 +2,8 @@
 
 "use client"
 
+import Link from "next/link"
+
 export default function FeaturesSection({ features }) {
 
   if (!features || features.length === 0) return null
@@ -28,6 +30,8 @@ export default function FeaturesSection({ features }) {
     const Icon = feature.icon
 
     return (
+     <>
+      <Link href={feature.link} key={index}>
       <div
         key={index}
         className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-slate-100"
@@ -44,6 +48,8 @@ export default function FeaturesSection({ features }) {
           {feature.description}
         </p>
       </div>
+      </Link>
+     </>
     )
   })}
 </div>

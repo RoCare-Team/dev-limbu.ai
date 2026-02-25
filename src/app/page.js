@@ -347,55 +347,61 @@ export default function LimbuAILanding() {
   
 
   
-  
-  const accountSetupPlans = [
+const accountSetupPlans = [
   {
-    title: "Google Account Setup",
+    title: "Google Ads Account Setup",
     basePrice: 2500,
-    description: "New Google Ads account creation",
+    description:
+      "Complete Google Ads account setup with keyword research, tracking, and analytics integration.",
     staticFeatures: [
-      "Billing & payment setup",
-      "Linking with Google Business Profile (if available)",
-      "Linking with Google Analytics & Google Tag Manager",
-      "Conversion Tracking Setup",
-      "Website conversion tracking (form submissions, calls, purchases, etc.)",
+      "New Google Ads account creation",
+      "Billing & payment configuration",
+      "Search campaign keyword research",
+      "High-intent keyword selection",
+      "Negative keyword setup",
+      "Competitor keyword analysis",
+      "Campaign structure planning (Search / Display if required)",
+      "Google Business Profile linking (if available)",
+      "Google Analytics 4 (GA4) setup & configuration",
       "Google Tag Manager setup (if required)",
-      "Google Analytics 4 configuration",
-      "Call tracking setup",
+      "Conversion tracking setup",
+      "Website conversion tracking (forms, calls, purchases, etc.)",
       "Event tracking configuration",
-     
-     
+      "Call tracking setup"
     ]
   },
   {
-    title: "Meta Ad Account Setup",
+    title: "Meta Ads Account Setup",
     basePrice: 3500,
     popular: true,
-    description: "Audience reaserch",
+    description:
+      "Complete Meta (Facebook & Instagram) ad account setup with audience research, tracking system, and creative strategy.",
     staticFeatures: [
-      "Offer positioning",
-      "Campaign Setup Business Manager setup/verification",
-      "Pixel setup & tracking configuration",
-      "Conversion API integration (if required)",
+      "Business Manager setup & verification",
+      "Ad account creation & configuration",
+      "Audience research & competitor analysis",
+      "Interest-based targeting research",
       "Custom audience creation",
       "Lookalike audience setup",
-      " Ad CreationCreative direction strategy",
-      "Ad copywriting (high-converting scripts)",
+      "Pixel setup & tracking configuration",
+      "Conversion API integration (if required)",
+      "Ad creative strategy & direction",
+      "High-converting ad copywriting",
       "Hook-based creatives",
       "A/B testing variations",
-      "CTA optimization"
+      "CTA optimization setup"
     ]
   }
-]
+];
 
   const subscriptionPlans = [
     {
       title: "Basic Plan",
       basePrice: 2500,
       totalAmount: 2950,
-      basePosts: 5,
-      baseCitations: 2,
-      staticFeatures: ["Review Reply Management","Magic Qr Code Generation","Insights Dashboard"],
+      basePosts: 15,
+      baseCitations: 5,
+      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Website Builder"],
       description: "Ideal for small businesses needing basic online presence",
       color: "bg-neutral-600",
       textColor: "text-neutral-600",
@@ -405,9 +411,9 @@ export default function LimbuAILanding() {
       title: "Premium Plan",
       basePrice: 7500,
       totalAmount: 8850,
-      basePosts: 30,
-      baseCitations: 12,
-      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Add Professional Service"],
+      basePosts: 45,
+      baseCitations: 15,
+      staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization", "Website Builder","Add Professional Services"],
       description: "Perfect for brands focused on automation and maximum reach",
       popular: true,
       color: "bg-neutral-600",
@@ -418,9 +424,9 @@ export default function LimbuAILanding() {
       title: "Professional Plan",
       basePrice: 5500,
       totalAmount: 6490,
-      basePosts: 15,
-      baseCitations: 5,
-      staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization"],
+      basePosts: 30,
+      baseCitations: 12,
+      staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization","website Builder"],
       description: "Best for growing businesses looking for better visibility",
       color: "bg-neutral-600",
       textColor: "text-neutral-600",
@@ -484,7 +490,6 @@ const seoPlans = [
     title: "Basic SEO",
     basePrice: 5999,
     staticFeatures: [
-      "10-Page SEO Optimization",
       "Keyword Research",
       "Meta Tags Optimization",
       "Basic Technical SEO",
@@ -498,7 +503,6 @@ const seoPlans = [
     title: "Standard SEO",
     basePrice: 9999,
     staticFeatures: [
-      "Advanced 25-Page SEO",
       "Technical SEO Audit",
       "Backlink Building",
       "Competitor Analysis",
@@ -775,10 +779,7 @@ const seoPlans = [
         handleNavigation={handleNavigation}
       />
 
-      <AccountSetupSection
-  plans={accountSetupPlans}
-  handlePlanClick={handlePlanClick}
-/>
+
 
       <ServicesSection
         servicePlans={servicePlans}
@@ -801,6 +802,10 @@ const seoPlans = [
 
 <SEOSection
   seoPlans={seoPlans}
+  handlePlanClick={handlePlanClick}
+/>
+      <AccountSetupSection
+  plans={accountSetupPlans}
   handlePlanClick={handlePlanClick}
 />
       <ComparisonSection />

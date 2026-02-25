@@ -66,6 +66,7 @@ import {
 import MetaConnectCard from "../../components/MetaConnectCard";
 import SocialConnectCard from "../../components/SocialConnectCard";
 import SupportModal from "../../components/SupportModal";
+import FirstPostModal from "@/components/FirstPostModal";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -1119,7 +1120,7 @@ const NavLinks = ({ isAuthenticated }) => {
               }
             >
               {/* ICON WRAPPER */}
-              <div className="relative">
+              <div className="relative ">
 
                 {/* FREE Badge */}
                 {item.isFree && (
@@ -1151,7 +1152,7 @@ const NavLinks = ({ isAuthenticated }) => {
                       -bottom-5
                       left-1/2 -translate-x-1/2
                       flex items-center gap-1
-                      bg-white border border-gray-200
+                      bg-white border border-neutral-400
                       px-2 py-[2px]
                       rounded-full
                       shadow-sm

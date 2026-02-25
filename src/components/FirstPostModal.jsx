@@ -26,7 +26,7 @@ const FirstPostModal = ({ onClose, onCreate }) => {
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-50 animate-spin-slow" />
             <div className="relative bg-white p-3 rounded-2xl shadow-xl border border-purple-100">
-              <Wand2 className="w-10 h-10 text-purple-600 animate-bounce" />
+              <Wand2 className="w-10 h-10 text-dark animate-bounce" />
             </div>
             <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-pulse" />
             <Sparkles className="absolute -bottom-2 -left-2 w-4 h-4 text-blue-400 animate-pulse delay-300" />
@@ -45,19 +45,19 @@ const FirstPostModal = ({ onClose, onCreate }) => {
           {/* STEPS TEXT ONLY */}
           <div className="w-full bg-gradient-to-br from-blue-50 to-purple-50 border border-purple-200 rounded-2xl p-4 text-left space-y-2 text-sm text-gray-700 font-medium">
             <p>
-              <span className="font-bold text-purple-600">Step 1:</span>{" "}
+              <span className="font-bold text-dark">Step 1:</span>{" "}
               Enter a Relevant Keyword.
             </p>
 
             {/* i10% */}
 
             <p>
-              <span className="font-bold text-purple-600">Step 2:</span>{" "}
+              <span className="font-bold text-dark">Step 2:</span>{" "}
               Optionally add your business logo to make the post more branded.
             </p>
 
             <p>
-              <span className="font-bold text-purple-600">Step 3:</span>{" "}
+              <span className="font-bold text-dark">Step 3:</span>{" "}
               Click <span className="font-semibold text-gray-900">Generate Post with Ai</span> and let AI generate a professional post for you.
             </p>
           </div>
@@ -68,7 +68,7 @@ const FirstPostModal = ({ onClose, onCreate }) => {
               if (onCreate) onCreate();
               onClose();
             }}
-            className="w-full py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-xl font-bold text-base shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2 group"
+            className="w-full py-3 bg-primary text-dark rounded-xl font-bold text-base shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2 group"
           >
             <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
             Create Magic Now

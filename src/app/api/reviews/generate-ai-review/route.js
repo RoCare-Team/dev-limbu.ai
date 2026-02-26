@@ -20,20 +20,26 @@ export async function POST(req) {
       : primaryCategory;
 
     const prompt = `
-Generate 5 completely different, highly positive, attractive and natural-sounding Google reviews.
+Generate 5 completely different Google reviews.
 
 Business Name: ${business}
 Business Category: ${categoryText}
 
-Rules:
+Instructions:
+
 - All reviews must be 100% positive.
-- Each review must sound like written by a real customer.
-- Each review must be different in tone and structure.
-- Mention services or qualities relevant to the category.
-- Keep each review between 60–100 words.
-- Avoid generic lines like "Highly recommended" only — add real experience.
-- Make it emotionally engaging and believable.
-- Do NOT repeat phrases across reviews.
+- Use simple and clear English that everyone can understand.
+- Do NOT use any negative or neutral words.
+- Each review must sound like written by a real happy customer.
+- Each review must have a different tone and structure.
+- Mention specific services, products, or qualities related to the category.
+- Add small real-life details (like staff help, product quality, pricing, cleanliness, speed of service, etc.).
+- Keep each review between 70–100 words.
+- Make it natural and emotional, but not dramatic.
+- Do NOT repeat sentences or phrases across reviews.
+- Avoid overused lines like only "Highly recommended".
+- Make it feel like a genuine 5-star experience.
+- Write in paragraph format (no numbering, no bullet points).
 `;
 
     const completion = await openai.chat.completions.create({

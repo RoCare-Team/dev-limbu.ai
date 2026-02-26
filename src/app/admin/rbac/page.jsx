@@ -58,10 +58,12 @@ export default function UsersPage() {9
   };
 
   const handleDelete = async (id) => {
+      const token = localStorage.getItem("token");
+
   if (!confirm("Are you sure you want to delete this user?")) return;
 
   try {
-    const res = await fetch(`/api/users/add?id=${id}`, {
+    const res = await fetch(`/api/users/create?id=${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,

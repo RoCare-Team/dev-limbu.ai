@@ -108,6 +108,8 @@ export async function fetchAllLocationsByAccount(accessToken, accountId) {
       if (!res.ok) throw new Error(`Failed to fetch locations for account ${accountId}: ${res.status}`);
 
       const data = await res.json();
+      console.log("pagesLocations",data);
+      
       
       if (data.locations && data.locations.length > 0) {
         allLocations = [...allLocations, ...data.locations];
@@ -172,8 +174,6 @@ export async function fetchLocationLogo(accessToken, locationName) {
 
 // --- Admin Storage Helper ---
 export async function storeUserListingsForAdmin(userEmail, listings) {
-  
-  
   try {
     const response = await fetch('/api/admin/saveBussiness', {
       method: 'POST',
@@ -183,19 +183,14 @@ export async function storeUserListingsForAdmin(userEmail, listings) {
       body: JSON.stringify({
         userEmail,
         listings,
-        timestamp: new Date().toISOString(),
       }),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to store listings for admin');
-    }
-
     const data = await response.json();
     return data;
+
   } catch (error) {
     console.error('Error storing listings for admin:', error);
-    // Don't throw error - admin storage failure shouldn't break user experience
   }
 }
 

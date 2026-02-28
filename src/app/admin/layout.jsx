@@ -100,6 +100,10 @@ export default function AdminLayout({ children }) {
       return ["Leads", "Visit Website"].includes(item.name);
     }
 
+    if (role === "manager") {
+      return ["Leads", "Account Manager", "Visit Website"].includes(item.name);
+    }
+
     if (["franchiseAdmin", "superFranchiseAdmin"].includes(role) && item.name === "Dashboard") return false;
     if (!item.key) return true;
     return permissions[item.key] === true;

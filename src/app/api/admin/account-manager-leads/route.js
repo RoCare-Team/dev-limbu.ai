@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
@@ -13,12 +14,32 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
 
     const leadStage = searchParams.get("leadStage");
-    const accountManager = searchParams.get("accountManager");
+    const accountManagerParam = searchParams.get("accountManager");
+    const email = searchParams.get("email");
 
+    // Find the admin by email to get their role
     let filter = {};
+    let loggedInRole = "";
+    let loggedInAdminId = null;
+
+    if (email) {
+      const admin = await Admin.findOne({ email });
+      if (admin) {
+        loggedInRole = admin.role;
+        loggedInAdminId = admin._id;
+      }
+    }
+
+    // Apply role-based filtering
+    if (loggedInRole === "manager" && loggedInAdminId) {
+      // Manager: Only show users assigned to this manager
+      filter.accountManager = new mongoose.Types.ObjectId(loggedInAdminId);
+    } else if (accountManagerParam) {
+      // SuperAdmin/Admin: Filter by specific manager if provided
+      filter.accountManager = accountManagerParam;
+    }
 
     if (leadStage) filter.leadStage = leadStage;
-    if (accountManager) filter.accountManager = accountManager;
 
     const users = await User.find(filter)
       .populate("accountManager", "fullName email role")
@@ -27,9 +48,11 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       data: users,
+      loggedInRole: loggedInRole,
     });
 
   } catch (error) {
+    console.error("Error in account-manager-leads:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

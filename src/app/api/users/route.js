@@ -212,6 +212,9 @@ export async function GET(req) {
 
       if (admin.role === "agent") {
         matchStage.assignedAgentId = admin._id;
+      } else if (admin.role === "manager") {
+        // Manager → only users where accountManager matches this manager's ID
+        matchStage.accountManager = admin._id;
       } else if (assignedAgentId) {
         if (assignedAgentId === "Unassigned") {
           matchStage.assignedAgentId = null;
@@ -372,6 +375,9 @@ export async function GET(req) {
     if (admin.role === "agent") {
       // Agent → only assigned users
       query.assignedAgentId = admin._id;
+    } else if (admin.role === "manager") {
+      // Manager → only users where accountManager matches this manager's ID
+      query.accountManager = admin._id;
     } else if (assignedAgentId) {
       // Admin filtering by agent
       if (assignedAgentId === "Unassigned") {
@@ -435,6 +441,7 @@ export async function GET(req) {
     /* 3️⃣ Fetch users */
     const users = await User.find(query)
       .populate("assignedAgentId", "fullName email role mobileNumber")
+      .populate("accountManager", "fullName email role mobileNumber")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

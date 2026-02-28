@@ -89,23 +89,24 @@ export default function UserManagement() {
   }, [filterDate, customStartDate, customEndDate]);
 
   const isAgent = role === "agent";
+  const isManager = role === "manager";
 
   const displayTodayUsersCount = useMemo(() => {
-    if (isAgent && currentAgentId) {
+    if ((isAgent || isManager) && currentAgentId) {
       const assignment = todayStats.assignments.find(a => a._id === currentAgentId);
       return assignment ? assignment.count : 0;
     }
     return todayUsersCount;
-  }, [isAgent, currentAgentId, todayStats, todayUsersCount]);
+  }, [isAgent, isManager, currentAgentId, todayStats, todayUsersCount]);
 
   const displayTotalChatsCount = useMemo(() => {
-    if (isAgent) {
-      // Filter chats for agent's users (based on loaded users for now, consistent with modal)
+    if (isAgent || isManager) {
+      // Filter chats for agent's/users (based on loaded users for now, consistent with modal)
       // Ideally backend should provide this count
       return chatStats.data.filter(chat => users.some(u => u.userId === chat.userId)).length;
     }
     return chatStats.total;
-  }, [isAgent, chatStats, users]);
+  }, [isAgent, isManager, chatStats, users]);
 
 
   const defaultRemarks = [
@@ -1382,7 +1383,7 @@ const handleRoundRobinAssign = (userId) => {
           </div>
 
           {/* Active Users */}
-          {!isAgent && (
+          {!isAgent && !isManager && (
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>

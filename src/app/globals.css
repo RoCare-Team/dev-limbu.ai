@@ -2,7 +2,7 @@
 
 
 @theme {
-  --color-primary: #ffd600;
+  --color-primary: #FCC803;
   --color-lightPrimary:  #FFF176;
   --color-fullLight: #FFF9C4;
   --color-dark: #808080;
@@ -45,4 +45,23 @@ body {
 .animate-scroll-logos {
   animation: scroll-logos 25s linear infinite;
 }
+
+@keyframes scrollVideos {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-videos {
+  animation: scrollVideos 10s linear infinite;
+}
+
+.animate-scroll-videos:hover {
+  animation-play-state: paused;
+}
+
+
 

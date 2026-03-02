@@ -6,10 +6,11 @@ import { X, Gift } from "lucide-react"
 
 export default function SignupPopup({
   showSignupPopup,
-  setShowSignupPopup
+  setShowSignupPopup,
+  isLoggedIn
 }) {
 
-  if (!showSignupPopup) return null
+  if (!showSignupPopup || isLoggedIn) return null
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">

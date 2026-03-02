@@ -940,26 +940,26 @@ const navItems = [
   
   {
     href: "/gmb-insights",
-    icon: <SquareChartGantt className="h-4 w-4 " />,
+    icon: <SquareChartGantt className="h-4 w-4 sm:h-5 sm:w-5" />,
     label: "GMB Insights",
     isFree: true,
   },
    {
     href: "/gmb-health",
-    icon: <Activity className="h-4 w-4" />,
+    icon: <Activity className="h-4 w-4 sm:h-5 sm:w-5" />,
     label: "GMB Health",
     isFree: true,
   },
     {
     href: "/get-magic-qr",
-    icon: <QrCode className="h-4 w-4" />,
+    icon: <QrCode className="h-4 w-4 sm:h-5 sm:w-5" />,
     label: "Magic QR",
     isFree: true,
   },
 
     {
     href: "/review-management",
-    icon: <Star className="h-4 w-4" />,
+    icon: <Star className="h-4 w-4 sm:h-5 sm:w-5" />,
     label: "Review Reply",
     isFree: true,
   },
@@ -968,20 +968,20 @@ const navItems = [
    
   {
     href: "/keyword-planner",
-    icon: <FolderKey className="h-4 w-4" />,
+    icon: <FolderKey className="h-4 w-4 sm:h-5 sm:w-5" />,
     label: "Keyword Planner",
     isFree: true,
   },
   {
    href: "/build-website",
-   icon: <Globe className="h-4 w-4" />,
+   icon: <Globe className="h-4 w-4 sm:h-5 sm:w-5" />,
    label: "Website Builder",
    isFree: true,
   //  specialTag: "Launched Today",
  },
   {
     href: "/post-management",
-    icon: <PlusSquare className="h-4 w-4" />,
+    icon: <PlusSquare className="h-4 w-4 sm:h-5 sm:w-5" />,
     label: (
   <>
     Create & Publish <br />
@@ -993,106 +993,7 @@ const navItems = [
 ];
 
 
-// const NavLinks = ({ isAuthenticated }) => {
-//   return (
-//     <div className="w-full px-2 py-2 overflow-x-auto border-2 border-black">
-//       <div className="flex items-center gap-8 justify-center border-2 border-yellow ">
-//         {navItems.map((item) => {
-//           const isPublic =
-//             item.href === "/post-management" || item.href === "/wallet";
 
-//           const isEnabled = isAuthenticated || isPublic;
-//           const isKeywordPlanner = item.label === "Keyword Planner";
-
-//           const FeatureIcon = (
-//             <div
-//               className={`
-//                 relative
-//                 flex flex-col items-center
-//                 p-2
-//                 min-w-[80px]
-//                 cursor-pointer
-//                 transition-all
-//                 ${pathname === item.href && isAuthenticated ? "scale-200" : ""}
-//               `}
-//               onClick={
-//                 !isEnabled
-//                   ? () => signIn("google", { callbackUrl: item.href })
-//                   : undefined
-//               }
-//             >
-//               {/* FREE badge */}
-//               {item.isFree && (
-//                 <span className="absolute -top-2 -right-2 bg-black text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
-//                   FREE
-//                 </span>
-//               )}
-
-//               {/* Icon */}
-//               <div
-//                 className={`
-//                  p-3
-//         rounded-xl sm:p-3
-//                   rounded-xl
-//                   transition
-//                   ${
-//                     pathname === item.href && isAuthenticated
-//                       ? "bg-yellow-400 text-white"
-//                       : "bg-yellow-200 text-black"
-//                   }
-//                 `}
-//               >
-//                 {React.cloneElement(item.icon, { className: "h-5 w-5" })}
-
-//                 {/* Verified by Google */}
-//                 {isKeywordPlanner && (
-//                   <span
-//                     className="
-//                       absolute
-//                       -bottom-3
-//                       left-1/2 -translate-x-1/2
-//                       flex items-center gap-1
-//                       bg-white border border-gray-200
-//                       px-2 py-[2px]
-//                       rounded-full
-//                       shadow-sm
-//                        w-[80px] 
-//                       text-[7px]
-//                       text-gray-600
-//                       whitespace-nowrap
-//                     "
-//                   >
-//                     <span>Verified by</span>
-//                     <img
-//                       src="https://1000logos.net/wp-content/uploads/2021/05/Google-logo.png"
-//                       alt="Google"
-//                       className="h-2.5 w-auto"
-//                     />
-//                   </span>
-//                 )}
-//               </div>
-
-//               {/* Label */}
-//               <span className="mt-4 text-[9px] sm:text-xs font-semibold text-gray-800 text-center leading-tight">
-//                 {item.label}
-//               </span>
-//             </div>
-//           );
-
-//           if (isEnabled) {
-//             return (
-//               <Link key={item.label} href={item.href}>
-//                 {FeatureIcon}
-//               </Link>
-//             );
-//           }
-
-//           return <div key={item.label}>{FeatureIcon}</div>;
-//         })}
-//       </div>
-//     </div>
-//   );
-// };
 
 const NavLinks = ({ isAuthenticated }) => {
   return (
@@ -1167,7 +1068,7 @@ const NavLinks = ({ isAuthenticated }) => {
               </div>
 
               {/* LABEL */}
-              <span className="mt-6 text-xs font-semibold text-gray-800 text-center leading-tight h-[32px] flex items-start justify-center">
+              <span className="mt-4 sm:mt-6 text-[10px] sm:text-xs font-semibold text-gray-800 text-center leading-tight h-[32px] flex items-start justify-center">
                 {item.label}
               </span>
             </div>

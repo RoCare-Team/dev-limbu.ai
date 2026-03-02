@@ -1,20 +1,17 @@
-
-
 "use client"
 
-import { Video } from "lucide-react"
+import { useState } from "react"
+import { Video, X } from "lucide-react"
 
-export default function VideoExamplesSection({
-  videoExamples,
-  setSelectedVideo
-}) {
+export default function VideoExamplesSection({ videoExamples }) {
+
+  const [selectedVideo, setSelectedVideo] = useState(null)
 
   return (
     <section
       id="video-examples"
       className="relative bg-slate-50 py-16 sm:py-20 md:py-24"
     >
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
         {/* Heading */}
@@ -39,22 +36,19 @@ export default function VideoExamplesSection({
             {[...videoExamples, ...videoExamples].map((videoSrc, idx) => (
               <button
                 key={idx}
-                className="flex-shrink-0 w-56 h-80 cursor-pointer hover:scale-105 transition-transform group relative focus:outline-none focus:ring-4 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-slate-50 rounded-xl"
+                className="flex-shrink-0 w-56 h-80 cursor-pointer hover:scale-105 transition-transform group relative rounded-xl"
                 onClick={() => setSelectedVideo(videoSrc)}
               >
 
-                {/* Background Video Preview */}
                 <video
                   src={videoSrc}
                   loop
                   muted
                   autoPlay
                   playsInline
-                  preload="auto"
                   className="w-full h-full object-cover rounded-xl shadow-lg"
                 />
 
-                {/* Hover Overlay */}
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
                   <Video className="w-12 h-12 text-white" />
                 </div>
@@ -65,8 +59,34 @@ export default function VideoExamplesSection({
           </div>
 
         </div>
-
       </div>
+
+      {/* MODAL */}
+      {selectedVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+
+          <div className="relative w-full max-w-4xl">
+
+            <button
+              onClick={() => setSelectedVideo(null)}
+              className="absolute -top-12 right-0 text-white hover:text-pink-400 transition"
+            >
+              <X className="w-8 h-8" />
+            </button>
+
+            <div className="rounded-2xl overflow-hidden shadow-2xl">
+              <video
+                src={selectedVideo}
+                controls
+                autoPlay
+                className="w-full h-auto"
+              />
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </section>
   )
 }

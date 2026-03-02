@@ -39,7 +39,7 @@ export default function HeaderSection({
           limbu.ai
         </h2>
         <p className="text-xs text-gray-600">
-          Social & Local Growth
+          Local Growth & Social 
         </p>
       </div>
     </div>
@@ -133,7 +133,7 @@ export default function HeaderSection({
     <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 shadow-xl transform transition-transform duration-300 ease-in-out">
 
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-xl font-bold text-slate-800">Menu</h2>
+        <h2 className="text-xl font-bold text-slate-800">Limbu.ai</h2>
         <button onClick={() => setIsMobileMenuOpen(false)}>
           <X className="w-6 h-6" />
         </button>

@@ -143,6 +143,17 @@ export default function KeywordPage() {
               <h2 className="text-xl font-bold text-gray-800 mb-4">Suggestions</h2>
 
               <div className="space-y-2">
+                {!isSearching && suggestions.length > 0 && (
+                  <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 mb-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Keyword</span>
+                    <div className="flex items-center gap-4">
+                      <span className="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 text-right">Volume</span>
+                      <span className="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-center">Competition</span>
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-center">Action</span>
+                    </div>
+                  </div>
+                )}
+
                 {isSearching && (
                   <div className="flex justify-center items-center py-20">
                     <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -172,42 +183,52 @@ export default function KeywordPage() {
                         <span className={`font-medium text-sm ${isAdded ? 'text-green-800' : 'text-gray-800'}`}>{k.keyword}</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        {k.volume && (
-                          <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 font-medium">
-                            <BarChart3 className="w-4 h-4 text-dark" />
-                            <span>{k.volume.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {k.competition && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full hidden sm:inline-block ${k.competition === 'LOW' ? 'bg-fullLight text-dark' :
-                              k.competition === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                            }`}>
-                            {k.competition}
-                          </span>
-                        )}
-                        {isAdded ? (
-                          <button
-                            disabled
-                            className="flex items-center gap-1.5 px-4 py-2 bg-green-200 text-green-800 rounded-lg text-sm font-semibold cursor-default"
-                          >
-                            <Check className="w-4 h-4" />
-                            Added
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => addKeyword(k)}
-                            disabled={isSaving === k.keyword}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-dark rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait"
-                          >
-                            {isSaving === k.keyword ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Plus className="w-4 h-4" />
-                            )}
-                            Add
-                          </button>
-                        )}
+                        <div className="hidden sm:flex items-center justify-end gap-1.5 text-sm text-gray-500 font-medium w-20">
+                          {k.volume ? (
+                            <>
+                              <BarChart3 className="w-4 h-4 text-dark" />
+                              <span>{k.volume.toLocaleString()}</span>
+                            </>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </div>
+                        <div className="hidden sm:flex justify-center w-24">
+                          {k.competition ? (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${k.competition === 'LOW' ? 'bg-fullLight text-dark' :
+                                k.competition === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                              }`}>
+                              {k.competition}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </div>
+                        <div className="w-24 flex justify-center">
+                          {isAdded ? (
+                            <button
+                              disabled
+                              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-green-200 text-green-800 rounded-lg text-sm font-semibold cursor-default w-full"
+                            >
+                              <Check className="w-4 h-4" />
+                              Added
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => addKeyword(k)}
+                              disabled={isSaving === k.keyword}
+                              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-dark rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait w-full"
+                            >
+                              {isSaving === k.keyword ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Plus className="w-4 h-4" />
+                              )}
+                              Add
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

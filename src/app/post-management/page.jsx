@@ -2022,7 +2022,7 @@ export default function PostManagementPage() {
       px-3 sm:px-5 py-2
       rounded-xl
       bg-primary
-      hover:from-neutral-500 hover:to-yellow-600
+      hover:from-neutral-400 hover:to-yellow-600
       text-dark font-semibold
       shadow-md
       transition-all duration-200

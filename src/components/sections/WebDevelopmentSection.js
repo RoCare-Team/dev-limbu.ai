@@ -77,7 +77,7 @@ export default function WebDevelopmentSection({
                   {displayFeatures.map((feature, fIdx) => (
                     <li
                       key={fIdx}
-                      className="flex items-start gap-3 text-sm text-slate-700"
+                      className="flex items-start gap-3 text-sm text-dark"
                     >
                       <CheckCircle
                         className={`w-5 h-5 ${plan.textColor} flex-shrink-0`}

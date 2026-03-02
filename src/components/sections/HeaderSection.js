@@ -4,6 +4,7 @@
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
 import LogoImage from "../../../public/images/bg-logo.png"
+import { Phone } from "lucide-react";
 
 export default function HeaderSection({
   isLoggedIn,
@@ -74,13 +75,12 @@ export default function HeaderSection({
 
       {/* WhatsApp */}
       <a
-        href="https://wa.me/919283344726"
-        target="_blank"
-        className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
-      >
-        <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-        9283344726
-      </a>
+  href="tel:9283344726"
+  className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
+>
+  <Phone className="w-4 h-4" />
+  9283344726
+</a>
 
       {isLoggedIn ? (
         <>
@@ -121,73 +121,73 @@ export default function HeaderSection({
 
       {/* MOBILE MENU */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-white z-50 p-6 md:hidden">
+  <div className="fixed inset-0 z-50 md:hidden">
+    
+    {/* Overlay */}
+    <div 
+      className="absolute inset-0 bg-black/40"
+      onClick={() => setIsMobileMenuOpen(false)}
+    ></div>
 
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-bold text-slate-800">Menu</h2>
-            <button onClick={() => setIsMobileMenuOpen(false)}>
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+    {/* Right Slide Panel */}
+    <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 shadow-xl transform transition-transform duration-300 ease-in-out">
 
-          <nav className="flex flex-col gap-6">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-xl font-bold text-slate-800">Menu</h2>
+        <button onClick={() => setIsMobileMenuOpen(false)}>
+          <X className="w-6 h-6" />
+        </button>
+      </div>
 
-            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium text-slate-700">
-              Features
-            </a>
+      <nav className="flex flex-col gap-6">
 
-           
+        <a 
+          href="#features" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          className="text-lg font-medium text-slate-700"
+        >
+          Features
+        </a>
 
-            <a href="#services" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium text-slate-700">
-              Services
-            </a>
+        <a 
+          href="#services" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          className="text-lg font-medium text-slate-700"
+        >
+          Services
+        </a>
 
-            <button
-              onClick={() => {
-                setShowBookDemoModal(true)
-                setIsMobileMenuOpen(false)
-              }}
-              className="text-lg font-medium text-dark text-left"
-            >
-              Book a Demo
-            </button>
+        <a 
+          href="/franchise-opportunities" 
+          className=" text-dark hover:text-primary transition"
+        >
+          Become Franchise Partners
+        </a>
 
-            <a
-              href="https://wa.me/919283344726"
-              target="_blank"
-              className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
-            >
-              🟢 9283344726
-            </a>
+        <button
+          onClick={() => {
+            setShowBookDemoModal(true)
+            setIsMobileMenuOpen(false)
+          }}
+          className="text-lg font-medium text-dark text-left"
+        >
+          Book a Demo
+        </button>
 
-            {isLoggedIn ? (
-              <>
-                <button
-                  onClick={() => handleNavigation('/dashboard')}
-                  className="mt-4 px-6 py-3 bg-white border-2 border-dark text-dark rounded-lg font-semibold"
-                >
-                  Dashboard
-                </button>
+        {/* WhatsApp / Call Number */}
+        <a
+  href="tel:9283344726"
+  className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
+>
+  <Phone className="w-4 h-4" />
+  9283344726
+</a>
 
-                <button
-                  onClick={handleLogout}
-                  className="px-6 py-3 bg-primary text-dark rounded-lg font-semibold"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => handleNavigation('/login')}
-                className="mt-4 px-6 py-3 bg-primary text-dark rounded-lg font-semibold"
-              >
-                Login
-              </button>
-            )}
-
-          </nav>
-        </div>
-      )}
+      </nav>
+    </div>
+  </div>
+)}
+          
     </>
   )
 }

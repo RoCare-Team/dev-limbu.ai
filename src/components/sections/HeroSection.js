@@ -1,5 +1,6 @@
 
 "use client"
+import { useState, useEffect } from "react"
 
 export default function HeroSection({
   videoExamples,
@@ -12,16 +13,36 @@ export default function HeroSection({
   setShowVideoModal
 }) {
 
+  const images = [
+  "/images/banners1.avif",
+  "/images/banner3.jpg",
+  "/images/banners3.webp",
+]
+
+const [currentImage, setCurrentImage] = useState(0)
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setCurrentImage((prev) => (prev + 1) % images.length)
+  }, 4000)
+
+  return () => clearInterval(interval)
+}, [])
+
   return (
     <section className="relative h-[80vh] md:h-screen w-full flex items-end md:items-center justify-center overflow-hidden">
 
       {/* Background Video */}
-
-     <img
-    src="/images/banner3.jpg"
-    alt="Home Background"
-    className="absolute inset-0 w-full h-full object-cover"
+    {images.map((img, index) => (
+  <img
+    key={index}
+    src={img}
+    alt="Hero Background"
+    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+      index === currentImage ? "opacity-100" : "opacity-0"
+    }`}
   />
+))}
 
       {/* <video
         autoPlay

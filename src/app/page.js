@@ -137,6 +137,7 @@ export default function LimbuAILanding() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
+
   const [selectedPlan, setSelectedPlan] = useState(null)
   const [billingCycle, setBillingCycle] = useState("monthly")
 
@@ -177,10 +178,10 @@ export default function LimbuAILanding() {
 
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    setIsLoggedIn(!!token)
-  }, [])
-
+  const token = localStorage.getItem("token")
+  setIsLoggedIn(!!token)
+}, [])
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSignupPopup(true)
@@ -213,9 +214,10 @@ export default function LimbuAILanding() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    window.location.href = "/login"
-  }
+  localStorage.removeItem("token")
+  setIsLoggedIn(false)
+  window.location.href = "/login"
+}
 
   const handleServiceBookClick = (plan) => {
     setSelectedPlan(plan)
@@ -660,7 +662,7 @@ const seoPlans = [
       planDuration: "1 Month",
       price: "₹2,500",
       period: "+ 18% GST",
-      totalPrice: "₹1,179",
+      totalPrice: "₹2,950",
       gstAmount: "₹180",
       subtitle: "Ideal for existing Google Business Profiles",
       features: [
@@ -686,7 +688,7 @@ const seoPlans = [
       planDuration: "1 Month",
       price: "₹3,000",
       period: "+ 18% GST",
-      totalPrice: "₹2,950",
+      totalPrice: "₹3,450",
       gstAmount: "₹450",
       subtitle: "Ideal for new businesses or those without GMB",
       features: [
@@ -816,9 +818,10 @@ const seoPlans = [
 
       {/* MODALS */}
       <SignupPopup
-        showSignupPopup={showSignupPopup}
-        setShowSignupPopup={setShowSignupPopup}
-      />
+  showSignupPopup={showSignupPopup}
+  setShowSignupPopup={setShowSignupPopup}
+  isLoggedIn={isLoggedIn}
+/>
 
       {showVideoModal && (
   <VideoModal

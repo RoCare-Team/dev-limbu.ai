@@ -533,7 +533,7 @@ export default function DashboardPage() {
       <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
         {/* Location Info Banner */}
         {locationInfo && (
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 px-4 sm:px-6 py-3 sm:py-4">
+          <div className="bg-primary px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex items-start gap-2 sm:gap-3">
               <div className="flex-shrink-0 mt-1">
                 <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
@@ -543,8 +543,8 @@ export default function DashboardPage() {
                   {locationInfo.title}
                 </h4>
                 <div className="flex items-start gap-1 sm:gap-2">
-                  <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-100 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs sm:text-sm text-blue-50 leading-relaxed">
+                  <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-fullLight flex-shrink-0 mt-0.5" />
+                  <p className="text-xs sm:text-sm text-fullLight leading-relaxed">
                     {locationInfo.address}
                   </p>
                 </div>
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-gray-200 shadow-sm object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg sm:text-xl shadow-md">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary text-dark flex items-center justify-center font-bold text-lg sm:text-xl shadow-md">
                   {review.reviewer?.displayName?.[0] || "U"}
                 </div>
               )}
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => handleAIReply(review, setLocalReply, setShowReplyInput, setGeneratingAI)}
                     disabled={generatingAI || isReplying}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                    className="bg-primary text-dark text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                   >
                     {generatingAI ? (
                       <>
@@ -611,7 +611,7 @@ export default function DashboardPage() {
                   </button>
                   <button
                     onClick={() => setShowReplyInput(!showReplyInput)}
-                    className="bg-white text-gray-700 text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg border-2 border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all w-full sm:w-auto"
+                    className="bg-white text-dark text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg border-2 border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all w-full sm:w-auto"
                   >
                     <MessageCircle className="w-4 h-4 inline-block mr-2" />
                     Manual Reply
@@ -625,7 +625,7 @@ export default function DashboardPage() {
                     value={localReply}
                     onChange={(e) => setLocalReply(e.target.value)}
                     placeholder="Write your reply here..."
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-xs sm:text-sm"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none text-xs sm:text-sm"
                     rows="3"
                     disabled={isReplying}
                   />
@@ -633,7 +633,7 @@ export default function DashboardPage() {
                     <button
                       onClick={handleManualReply}
                       disabled={isReplying || !localReply?.trim()}
-                      className="bg-blue-600 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
+                      className="bg-primary text-dark text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg hover:bg-lightPrimary transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
                     >
                       {isReplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       Send
@@ -656,10 +656,10 @@ export default function DashboardPage() {
 
   if (checkingPlan || status === "loading") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-yellow-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+          <p className="text-dark font-medium">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -674,15 +674,15 @@ export default function DashboardPage() {
             aria-label="Go back to dashboard"
             className="bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-200 hover:scale-110 transition-transform"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-800" />
+            <ArrowLeft className="w-5 h-5 text-dark" />
           </button>
         </Link>
       </div>
       <Toaster />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-6 pt-6">
         <div className="mb-6 sm:mb-10">
-          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 text-center">Customer Reviews</h1>
-          <p className="text-gray-600 text-sm sm:text-lg text-center px-2 sm:px-4">
+          <h1 className="text-2xl sm:text-4xl font-bold text-dark mb-2 text-center">Customer Reviews</h1>
+          <p className="text-dark text-sm sm:text-lg text-center px-2 sm:px-4">
             Manage and respond to your Google Business reviews with AI assistance
           </p>
         </div>
@@ -690,9 +690,9 @@ export default function DashboardPage() {
         {loading && !hasLoadedReviews ? (
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center max-w-md">
-              <Loader2 className="w-16 h-16 text-gray-600 animate-spin mx-auto mb-4" />
+              <Loader2 className="w-16 h-16 text-dark animate-spin mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Reviews</h2>
-              <p className="text-gray-600">
+              <p className="text-dark">
                 Please wait while we fetch your customer reviews...
               </p>
             </div>
@@ -751,13 +751,13 @@ export default function DashboardPage() {
               <MessageCircle className="w-12 h-12 text-primary" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">No Reviews Yet</h3>
-            <p className="text-gray-600 text-lg mb-6">
+            <p className="text-dark text-lg mb-6">
               Your business doesn't have any customer reviews at the moment.
             </p>
             <button
               onClick={() => fetchReviews()}
               disabled={loading}
-              className="bg-primary text-dark px-8 py-3 rounded-lg hover:from-gray-500 hover:to-yellow-300 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
+              className="bg-primary text-dark px-8 py-3 rounded-lg hover:from-fullLight hover:to-lightPrimary transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
             >
               {loading ? (
                 <>
@@ -781,7 +781,7 @@ export default function DashboardPage() {
                   onClick={handleReplyModeToggle}
                   className={`
                     w-full flex items-center justify-between p-2 rounded-xl shadow-md transition-all duration-300 ease-in-out
-                    ${replyMode === 'auto' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' : 'bg-gray-200 text-gray-800'}
+                    ${replyMode === 'auto' ? 'bg-primary text-dark' : 'bg-gray-200 text-gray-800'}
                   `}
                 >
                   <span className="font-bold text-base px-4">
@@ -794,7 +794,7 @@ export default function DashboardPage() {
                     {replyMode === 'auto' ? (
                       <ToggleRight className="w-7 h-7 text-white" />
                     ) : (
-                      <ToggleLeft className="w-7 h-7 text-gray-500" />
+                      <ToggleLeft className="w-7 h-7 text-dark" />
                     )}
                     {replyMode === 'auto' ? 'ON' : 'OFF'}
                   </span>
@@ -805,7 +805,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => fetchReviews()}
                 disabled={loading}
-                className="w-full sm:w-auto bg-white text-gray-700 px-5 py-3 rounded-xl border-2 border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 text-base font-semibold shadow-sm"
+                className="w-full sm:w-auto bg-white text-gray-700 px-5 py-3 rounded-xl border-2 border-gray-300 hover:border-fullLight hover:text-primary transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 text-base font-semibold shadow-sm"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -816,8 +816,8 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-700">
+            <div className="bg-fullLight border border-primary rounded-lg p-4 mb-6">
+              <p className="text-sm text-dark">
                 <span className="font-bold">Note:</span> Auto Reply <span className="font-semibold">ON</span> will automatically fetch new reviews and send AI-generated replies.
                 <br />
                 Auto Reply <span className="font-semibold">OFF</span> means you will reply to reviews manually.
@@ -825,7 +825,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="text-right mb-8">
-              <p className="text-gray-700 font-medium text-lg">
+              <p className="text-dark font-medium text-lg">
                 Showing {reviews.length} review{reviews.length !== 1 ? "s" : ""}
               </p>
             </div>

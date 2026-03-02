@@ -61,66 +61,7 @@ export default function ServiceBookingList() {
       </thead>
 
       <tbody>
-        {data.map((item, index) => (
-          <tr
-            key={item._id}
-            className={`border-b transition ${
-              index % 2 === 0 ? "bg-gray-50" : "bg-white"
-            } hover:bg-blue-50`}
-          >
-            {/* Name */}
-            <td className="px-5 py-4">
-              <div className="font-semibold text-gray-900">
-                {item.name}
-              </div>
-              <div className="text-xs text-gray-500">
-                {item.email}
-              </div>
-            </td>
-
-            {/* Contact */}
-            <td className="px-5 py-4">
-              <div className="text-gray-800">{item.phone}</div>
-            </td>
-
-            {/* Plan */}
-            <td className="px-5 py-4 font-medium text-indigo-600">
-              {item.planTitle}
-            </td>
-
-            {/* Amount */}
-            <td className="px-5 py-4 text-right font-bold text-gray-900">
-              {item.totalAmount}
-            </td>
-
-            {/* GST */}
-            <td className="px-5 py-4 text-gray-700">
-              {item.gstNumber || "—"}
-            </td>
-
-            {/* Status */}
-            <td className="px-5 py-4 text-center">
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                  item.status === "paid"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {item.status.toUpperCase()}
-              </span>
-            </td>
-
-            {/* Date */}
-            <td className="px-5 py-4 text-right text-gray-600">
-              {new Date(item.createdAt).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
-            </td>
-          </tr>
-        ))}
+      <h1>Loading your data</h1>
       </tbody>
     </table>
   </div>

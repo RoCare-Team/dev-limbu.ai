@@ -546,9 +546,10 @@ export default function FranchiseDashboard() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         lead.userType === 'Hot' ? 'bg-red-100 text-red-700' :
                         lead.userType === 'Warm' ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
+                        lead.userType === 'Cold' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
                       }`}>
-                        {lead.userType || 'Cold'}
+                      {lead.userType || 'None'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

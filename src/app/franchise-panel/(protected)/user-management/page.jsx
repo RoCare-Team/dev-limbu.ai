@@ -7,16 +7,28 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [franchiseCode, setFranchiseCode] = useState("");
 
   useEffect(() => {
-    fetchUsers();
-  }, [search]);
+    // Get franchiseCode from localStorage on mount
+    const code = localStorage.getItem("franchise_code");
+    setFranchiseCode(code || "");
+    fetchUsers(code || "");
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (referCode) => {
     setLoading(true);
 
-    const res = await fetch(`/api/franchise-panel/franchise-user`);
+    // Build URL with referCode parameter if available
+    let url = "/api/franchise-panel/franchise-user";
+    if (referCode) {
+      url += `?referCode=${referCode}`;
+    }
+
+    const res = await fetch(url);
     const data = await res.json();
+    console.log("datadata",data);
+    
 
     if (data.success) {
       let filteredUsers = data.users;
@@ -36,6 +48,9 @@ export default function UserManagement() {
 
     setLoading(false);
   };
+
+  console.log("sssssssss",users);
+  
 
   return (
     <div>

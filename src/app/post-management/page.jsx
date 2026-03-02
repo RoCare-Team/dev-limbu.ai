@@ -1091,6 +1091,30 @@ export default function PostManagementPage() {
 
       showToast("Post published on Facebook 🎉", "success");
 
+      // Send post published email notification for Facebook
+      try {
+        const pageName = pageData.pageName || "Facebook Page";
+        
+        const emailResponse = await fetch('/api/send-post-published-email', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: localStorage.getItem("userId"),
+            platform: "Facebook",
+            businessName: pageName,
+            locationName: pageName,
+            postUrl: post.aiOutput,
+          }),
+        });
+        
+        const emailResult = await emailResponse.json();
+        if (emailResult.success) {
+          console.log("📧 Facebook post published email sent successfully");
+        }
+      } catch (emailError) {
+        console.log("⚠️ Error sending Facebook post published email:", emailError.message);
+      }
+
       await updatePostStatusAction({
         id: post._id,
         userId: localStorage.getItem("userId"),
@@ -1173,6 +1197,31 @@ export default function PostManagementPage() {
 
       if (publishData.id) {
         showToast("Post published on Instagram 🎉", "success");
+
+        // Send post published email notification for Instagram
+        try {
+          const igUsername = accountData.igUsername || "Instagram Account";
+          
+          const emailResponse = await fetch('/api/send-post-published-email', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: localStorage.getItem("userId"),
+              platform: "Instagram",
+              businessName: igUsername,
+              locationName: igUsername,
+            postUrl: post.aiOutput,
+            }),
+          });
+          
+          const emailResult = await emailResponse.json();
+          if (emailResult.success) {
+            console.log("📧 Instagram post published email sent successfully");
+          }
+        } catch (emailError) {
+          console.log("⚠️ Error sending Instagram post published email:", emailError.message);
+        }
+
         await updatePostStatusAction({
           id: post._id,
           userId: localStorage.getItem("userId"),
@@ -1395,6 +1444,37 @@ export default function PostManagementPage() {
           } else {
             showToast("Post successfully sent to all locations!", "success");
             setShowSuccess(true);
+
+            // Send post published email notification
+            try {
+              // Get business name from first successful location
+              const businessName = successfulLocations[0]?.name || "";
+              const locationName = successfulLocations[0]?.name || "";
+              const postUrl = successfulLocations[0]?.websiteUrl || "";
+
+              // Send email to user
+              const emailResponse = await fetch('/api/send-post-published-email', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: userId,
+                  platform: "Google My Business",
+                  businessName: businessName,
+                  locationName: locationName,
+                  postUrl: postUrl,
+                }),
+              });
+              
+              const emailResult = await emailResponse.json();
+              if (emailResult.success) {
+                console.log("📧 Post published email sent successfully");
+              } else {
+                console.log("⚠️ Failed to send post published email:", emailResult.message);
+              }
+            } catch (emailError) {
+              console.log("⚠️ Error sending post published email:", emailError.message);
+              // Don't fail the post if email fails
+            }
           }
 
           // Update post with successful locations

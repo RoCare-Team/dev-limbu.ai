@@ -20,10 +20,10 @@ const menu = [
   { name: "Leads", href: "/franchise-panel/leads", icon: FileText },
   { name: "Users Recharge", href: "/franchise-panel/user-management/recharge", icon: Users2 },
   { name: "Team  Management", href: "/franchise-panel/team-management", icon: FileText },
-      { name: "Service Booking", icon: Server, href: "/admin/service-booking" },
-      { name: "Package Booking", icon: Package, href: "/admin/service-booking" },
+      { name: "Service Booking", icon: Server, href: "/franchise-panel/service-booking" },
+      { name: "Package Booking", icon: Package, href: "/franchise-panel/package-booking" },
 
-  { name: "Settings", href: "/franchise-panel/settings", icon: Settings },
+  // { name: "Settings", href: "/franchise-panel/settings", icon: Settings },
       { name: "Visit Website", icon: ArrowUpIcon, href: "/" },
 
 ];

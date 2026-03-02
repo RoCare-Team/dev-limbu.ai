@@ -2,13 +2,17 @@
 
 "use client"
 
+import Link from "next/link"
+
 export default function FeaturesSection({ features }) {
 
   if (!features || features.length === 0) return null
 
   return (
-    <section className="py-20 bg-gradient-to-br from-white to-slate-50">
-
+<section
+  id="features"
+  className="py-20 bg-gradient-to-br from-white to-slate-50 dark:from-gray-900 dark:to-gray-800 transition-colors"
+>
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Heading */}
@@ -28,6 +32,8 @@ export default function FeaturesSection({ features }) {
     const Icon = feature.icon
 
     return (
+     <>
+      <Link href={feature.link} key={index}>
       <div
         key={index}
         className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-slate-100"
@@ -44,6 +50,8 @@ export default function FeaturesSection({ features }) {
           {feature.description}
         </p>
       </div>
+      </Link>
+     </>
     )
   })}
 </div>

@@ -10,19 +10,19 @@ export default function AccountSetupSection({ plans, handlePlanClick }) {
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
         {/* Heading */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Account{" "}
-            <span className="bg-primary bg-clip-text text-transparent">
-              Setup Services
-            </span>
-          </h2>
+       <div className="text-center mb-12">
+  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+    Professional{" "}
+    <span className="bg-primary bg-clip-text text-transparent">
+      Account Setup Services
+    </span>
+  </h2>
 
-          <p className="text-lg text-slate-600">
-            Setup your business accounts professionally
-          </p>
-        </div>
+  <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+       We provide professional Google & Meta account setup services.
 
+  </p>
+</div>
         {/* Cards */}
         <div className="grid md:grid-cols-2 gap-8">
 

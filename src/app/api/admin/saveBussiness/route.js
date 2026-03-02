@@ -27,49 +27,44 @@ const AdminBusiness =
   mongoose.models.AdminBusiness ||
   mongoose.model("AdminBusiness", AdminBusinessSchema);
 
-export async function GET(req) {
+export async function POST(req) {
   try {
     await connectDB();
 
-    const authHeader = req.headers.get("Authorization");
+    const body = await req.json();
+    const { userEmail, listings } = body;
 
-    if (!authHeader) {
-      return NextResponse.json({ error: "Token missing" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "").trim();
-
-    let decoded;
-
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch {
+    if (!userEmail) {
       return NextResponse.json(
-        { error: "Invalid token" },
-        { status: 401 }
-      );
-    }
-
-    const email = decoded.email?.toLowerCase();
-
-    if (!email) {
-      return NextResponse.json(
-        { error: "No email found in token" },
+        { error: "userEmail is required" },
         { status: 400 }
       );
     }
 
-    const business = await AdminBusiness.findOne({
-      userEmail: email,
-    });
+    if (!Array.isArray(listings)) {
+      return NextResponse.json(
+        { error: "Listings must be an array" },
+        { status: 400 }
+      );
+    }
+
+    const updatedBusiness = await AdminBusiness.findOneAndUpdate(
+      { userEmail: userEmail.toLowerCase() },
+      {
+        userEmail: userEmail.toLowerCase(),
+        listings,
+        timestamp: new Date(),
+      },
+      { upsert: true, new: true }
+    );
 
     return NextResponse.json({
       success: true,
-      listings: business?.listings || [],
+      listings: updatedBusiness.listings,
     });
 
   } catch (err) {
-    console.error("Fetch listings error:", err);
+    console.error("Save listings error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

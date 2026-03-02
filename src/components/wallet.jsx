@@ -51,7 +51,7 @@ export default function SmartWalletRecharge() {
   const totalAmount = (amount + parseFloat(gstAmount)).toFixed(2);
 
   const presetAmounts = [
-    { price: 1, coins: 200, popular: false, bonus: null },
+    { price: 200, coins: 200, popular: false, bonus: null },
     { price: 500, coins: 500, popular: false, bonus: null },
     { price: 1000, coins: 1000, popular: false, bonus: null },
     { price: 5000, coins: 6000, popular: true, bonus: "+1000 Bonus" },
@@ -99,11 +99,12 @@ const handleRecharge = async () => {
     return;
   }
 
-  // if (amount < 200) {
-  //   alert("Minimum recharge is ₹200");
-  //   return;
-  // }
+  if (amount < 200) {
+    alert("Minimum recharge is ₹200");
+    return;
+  }
 
+  const referCode = localStorage.getItem("franchise_code")
   const res = await loadRazorpayScript();
   if (!res) {
     alert("Razorpay SDK failed to load.");
@@ -161,6 +162,7 @@ const handleRecharge = async () => {
               gstAmount: parseFloat(gstAmount),
               totalAmount: parseFloat(totalAmount),
               gstin: gstNumber,
+              referCode: referCode,
               payment: response,
             }),
           });

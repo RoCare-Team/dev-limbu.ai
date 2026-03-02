@@ -27,6 +27,7 @@ export default function AuthGuard({ children }) {
       "/terms-and-conditions",
       "/refund-policy",
       "/franchise-panel/login",
+      "/work-with-us"
     ];
 
     const allowedAdminRoles = ["admin", "superAdmin","superFranchiseAdmin", "franchiseAdmin", "manager", "agent", "subadmin"];

@@ -73,11 +73,11 @@ export default function ServiceBookingModal({
 
                 <div className="text-sm text-slate-600">
                   <span className="font-semibold">
-  ₹{selectedPlan.price.toLocaleString()}
+  {selectedPlan.price.toLocaleString()}
 </span>
 <span className="mx-1 text-slate-400">+</span>
 <span className="font-semibold">
-  ₹{selectedPlan.gstAmount.toLocaleString()}
+  {selectedPlan.gstAmount.toLocaleString()}
 </span>
 
                   <span className="ml-1 text-xs text-slate-500">(GST)</span>
@@ -88,7 +88,7 @@ export default function ServiceBookingModal({
                     Total:
                   </span>
                 <span className="text-lg font-bold text-neutral-800">
-  ₹{selectedPlan.totalPrice.toLocaleString()}
+  {selectedPlan.totalPrice.toLocaleString()}
 </span>
 
                 </div>

@@ -5,14 +5,21 @@
       "path": "/api/cron/autoreply",
       "schedule": "*/30 * * * *"
     },
-   {
-  "path": "/api/publish-scheduled",
-  "schedule": "*/20 * * * *"
-},
-   {
-  "path": "/api/meta-leads-import?formId=1393275835835157",
-  "schedule": "*/10 * * * *"
-}
-
+    {
+      "path": "/api/publish-scheduled",
+      "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/meta-leads-import?formId=1393275835835157",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/subscription-expiry",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/gmb-report",
+      "schedule": "0 10 1 * *"
+    }
   ]
 }

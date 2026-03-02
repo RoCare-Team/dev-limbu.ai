@@ -28,3 +28,43 @@ export async function GET() { // GET request ka handler.  || Jab koi frontend se
     );
   }
 }
+
+// PATCH: Toggle isActive status
+export async function PATCH(req) {
+  try {
+    await dbConnect();
+    const body = await req.json();
+    const { adminId, isActive } = body;
+
+    if (!adminId) {
+      return NextResponse.json(
+        { success: false, message: "adminId is required" },
+        { status: 400 }
+      );
+    }
+
+    const updatedAdmin = await Admin.findByIdAndUpdate(
+      adminId,
+      { isActive },
+      { new: true }
+    ).select("fullName email _id isActive");
+
+    if (!updatedAdmin) {
+      return NextResponse.json(
+        { success: false, message: "Admin not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: isActive ? "Admin activated successfully" : "Admin deactivated successfully",
+      data: updatedAdmin
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: "Server Error", error: error.message },
+      { status: 500 }
+    );
+  }
+}

@@ -18,6 +18,14 @@ const userSchema = new mongoose.Schema(
     paidService:{type: String},
     paidPackage: {type: String},
     planDuration: {type: String},
+    
+    // Package start and expiry dates
+    packageStartDate: { type: Date },
+    packageExpiryDate: { type: Date },
+    
+    // Service start and expiry dates
+    serviceStartDate: { type: Date },
+    serviceExpiryDate: { type: Date },
 leadStage: {
   type: String,
   enum: ["Active", "Follow Up", "Inactive", "Onboard"],
@@ -27,6 +35,15 @@ leadStatus: {
   type: String,
   enum: ["Hot", "Warm", "Cold", ""],
   default: "",
+},
+accountManager: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Admin",
+  default: null,
+},
+accountManagerName: {
+  type: String,
+  default: null,
 },
 
     referCode : {type: String},

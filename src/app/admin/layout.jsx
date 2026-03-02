@@ -80,6 +80,8 @@ export default function AdminLayout({ children }) {
     { name: "Franchise Lead", icon: <LeaderboardSharp />, href: "/admin/franchise/franchise-lead", key: "manageFranchise" },
     { name: "Tata Dialer Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
     { name: "Create Franchise", icon: <LeaderboardSharp />, href: "/admin/create-franchise" },
+        { name: "Account Manager", icon: <UserSquare size={18} />, href: "/admin/manager-assignment" },
+
 
     // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },
 
@@ -96,6 +98,10 @@ export default function AdminLayout({ children }) {
 
     if (role === "agent") {
       return ["Leads", "Visit Website"].includes(item.name);
+    }
+
+    if (role === "manager") {
+      return ["Leads", "Account Manager", "Visit Website"].includes(item.name);
     }
 
     if (["franchiseAdmin", "superFranchiseAdmin"].includes(role) && item.name === "Dashboard") return false;

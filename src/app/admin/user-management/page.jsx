@@ -66,6 +66,7 @@ export default function UserManagement() {
     Cold: 0
   });
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
+  const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,23 +89,24 @@ export default function UserManagement() {
   }, [filterDate, customStartDate, customEndDate]);
 
   const isAgent = role === "agent";
+  const isManager = role === "manager";
 
   const displayTodayUsersCount = useMemo(() => {
-    if (isAgent && currentAgentId) {
+    if ((isAgent || isManager) && currentAgentId) {
       const assignment = todayStats.assignments.find(a => a._id === currentAgentId);
       return assignment ? assignment.count : 0;
     }
     return todayUsersCount;
-  }, [isAgent, currentAgentId, todayStats, todayUsersCount]);
+  }, [isAgent, isManager, currentAgentId, todayStats, todayUsersCount]);
 
   const displayTotalChatsCount = useMemo(() => {
-    if (isAgent) {
-      // Filter chats for agent's users (based on loaded users for now, consistent with modal)
+    if (isAgent || isManager) {
+      // Filter chats for agent's/users (based on loaded users for now, consistent with modal)
       // Ideally backend should provide this count
       return chatStats.data.filter(chat => users.some(u => u.userId === chat.userId)).length;
     }
     return chatStats.total;
-  }, [isAgent, chatStats, users]);
+  }, [isAgent, isManager, chatStats, users]);
 
 
   const defaultRemarks = [
@@ -308,6 +310,7 @@ export default function UserManagement() {
       }
       if (assigneeFilter !== "All") params.append("assignedAgentId", assigneeFilter);
       if (leadStatusFilter !== "All") params.append("leadStatus", leadStatusFilter);
+      if (leadStageFilter !== "All") params.append("leadStage", leadStageFilter);
 
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
@@ -336,7 +339,7 @@ export default function UserManagement() {
   useEffect(() => {
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
     fetchAgentStats();
-  }, [users, filterDate, filterStatus, assigneeFilter, customStartDate, customEndDate, leadStatusFilter]);
+  }, [users, filterDate, filterStatus, assigneeFilter, customStartDate, customEndDate, leadStatusFilter, leadStageFilter]);
 
   const fetchUsers = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -378,6 +381,10 @@ export default function UserManagement() {
         params.append("leadStatus", leadStatusFilter);
       }
 
+      if (leadStageFilter !== "All") {
+        params.append("leadStage", leadStageFilter);
+      }
+
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
 
@@ -406,7 +413,7 @@ export default function UserManagement() {
   useEffect(() => {
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
     fetchUsers();
-  }, [currentPage, filterStatus, filterDate, assigneeFilter, customStartDate, customEndDate, leadStatusFilter]);
+  }, [currentPage, filterStatus, filterDate, assigneeFilter, customStartDate, customEndDate, leadStatusFilter, leadStageFilter]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -1023,7 +1030,7 @@ const handleRoundRobinAssign = (userId) => {
       "Not Interested": "not_interested",
       "Interested": "interested",
       "Call Back Later": "call_back",
-      "Wrong Number": "wrong_number",
+      "Wrong Number": "wrong_number_update",
       "Switch Off": "switch_off",
       "Meeting Scheduled": "meeting_scheduled_online"
     };
@@ -1045,17 +1052,15 @@ const handleRoundRobinAssign = (userId) => {
       return;
     }
 
-    let executiveMobile = user.assignedAgentId?.mobileNumber;
+    let executiveMobile = user.assignedAgentId?.mobile || user.assignedAgentId?.mobileNumber;
 
     if (!executiveMobile && typeof window !== "undefined") {
       const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
       const email = (localStorage.getItem("email") || "").toLowerCase();
 
       if (adminName.includes("aman") || email.includes("aman")) {
-        executiveMobile = "9311587741";
         executiveMobile = "919311587741";
       } else if (adminName.includes("moni") || email.includes("moni")) {
-        executiveMobile = "7065021272";
         executiveMobile = "917065021272";
       }
     }
@@ -1084,6 +1089,7 @@ const handleRoundRobinAssign = (userId) => {
         userName: user.fullName || "User",
         enquiryId: user.userId,
         executiveName: user.assignedAgentId?.fullName || "Executive",
+        executiveMobile: executiveMobile || "",
         remark: remark,
         meetingDate: payload.meetingDate,
         meetingTime: payload.meetingTime,
@@ -1231,6 +1237,7 @@ const handleRoundRobinAssign = (userId) => {
     setCustomEndDate("");
     setAssigneeFilter("All");
     setLeadStatusFilter("All");
+    setLeadStageFilter("All");
   };
 
   const handlePageChange = (newPage) => {
@@ -1357,7 +1364,7 @@ const handleRoundRobinAssign = (userId) => {
         {/* Main Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {/* Total Users */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total Users</p>
@@ -1376,8 +1383,8 @@ const handleRoundRobinAssign = (userId) => {
           </div>
 
           {/* Active Users */}
-          {!isAgent && (
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          {!isAgent && !isManager && (
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Active Users</p>
@@ -1399,7 +1406,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Follow Up */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Follow Up")}
           >
             <div className="flex items-center justify-between">
@@ -1423,7 +1430,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Inactive */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Inactive")}
           >
             <div className="flex items-center justify-between">
@@ -1443,11 +1450,12 @@ const handleRoundRobinAssign = (userId) => {
             )} */}
           </div>
           )}
+          
 
           {/* Onboarded */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Onboard")}
           >
             <div className="flex items-center justify-between">
@@ -1470,7 +1478,7 @@ const handleRoundRobinAssign = (userId) => {
 
           {/* Total Posts */}
           {!isAgent && (
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Total Posts</p>
@@ -1490,7 +1498,7 @@ const handleRoundRobinAssign = (userId) => {
           )}
 
           {/* Users Today */}
-          <div className="bg-gradient-to-br  rounded-lg p-6 shadow-sm border border-teal-200 hover:shadow-md transition-all">
+          <div className="bg-gradient-to-br  rounded-lg p-4 shadow-sm border border-teal-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-teal-700 font-medium">Users Today</p>
@@ -1515,7 +1523,7 @@ const handleRoundRobinAssign = (userId) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {/* Total Chats */}
           <div
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("all"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
@@ -1532,7 +1540,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Chats Today */}
           {!isAgent && (
           <div
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("today"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
@@ -1550,7 +1558,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Resolved */}
           {!isAgent && (
           <div
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
@@ -1702,13 +1710,15 @@ const handleRoundRobinAssign = (userId) => {
 
             <div className="relative">
               <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                value={leadStageFilter}
+                onChange={(e) => setLeadStageFilter(e.target.value)}
                 className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
               >
-                <option value="All">All Status</option>
-                <option value="active">Connected</option>
-                <option value="inactive">Not Connected</option>
+                <option value="All">All Stages</option>
+                <option value="Active">Active</option>
+                <option value="Follow Up">Follow Up</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Onboard">Onboard</option>
               </select>
             </div>
 

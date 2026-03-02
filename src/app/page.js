@@ -667,7 +667,7 @@ const seoPlans = [
       price: "₹2,500",
       period: "+ 18% GST",
       totalPrice: "₹2,950",
-      gstAmount: "₹180",
+      gstAmount: "₹450",
       subtitle: "Ideal for existing Google Business Profiles",
       features: [
         "Google Business Profile functionality check",
@@ -692,8 +692,8 @@ const seoPlans = [
       planDuration: "1 Month",
       price: "₹3,000",
       period: "+ 18% GST",
-      totalPrice: "₹3,450",
-      gstAmount: "₹450",
+      totalPrice: "₹3,540",
+      gstAmount: "₹540",
       subtitle: "Ideal for new businesses or those without GMB",
       features: [
         "Google Business Profile creation from scratch",

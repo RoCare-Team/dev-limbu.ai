@@ -202,3 +202,37 @@ export async function GET(req) {
     });
   }
 }
+
+// ✅ DELETE USER
+export async function DELETE(req) {
+  await dbConnect();
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    const phone = searchParams.get("phone");
+
+    if (!userId && !phone) {
+      return new Response(
+        JSON.stringify({ error: "userId or phone is required" }),
+        { status: 400 }
+      );
+    }
+
+    let deletedUser;
+    if (userId) {
+      deletedUser = await User.findOneAndDelete({ userId });
+    } else {
+      deletedUser = await User.findOneAndDelete({ phone });
+    }
+
+    if (!deletedUser) {
+      return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
+    }
+
+    return new Response(JSON.stringify({ message: "User deleted successfully" }), { status: 200 });
+  } catch (error) {
+    console.error("Delete User Error:", error);
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+  }
+}

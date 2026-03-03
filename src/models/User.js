@@ -46,7 +46,11 @@ accountManagerName: {
   default: null,
 },
 
-    referCode : {type: String},
+referCode : {type: String},
+    // Franchise and agent referral tracking
+    franchiseId: { type: String, default: null },
+    referredByAgentId: { type: mongoose.Schema.Types.ObjectId, ref: "FranchiseTeam", default: null },
+    referredByAgentName: { type: String, default: null },
     assignedAgentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Admin",

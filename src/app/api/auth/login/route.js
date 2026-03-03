@@ -7,6 +7,7 @@ import dbConnect from "@/lib/dbConnect";
 
 // ye mongoose models he user  user data ke liye
 import User from "@/models/User";
+import FranchiseTeam from "@/models/FranchiseTeam";
 
 // OTP store karne ke liye 
 import OTP from "@/models/Otp";
@@ -29,7 +30,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 
 // 🔴 TEST CONFIG testing ke liye fixed otp 
-const TEST_PHONE = "7740847114";
+const TEST_PHONES = ["7740847114", "7740847110"];
 const TEST_OTP = 1234;
 
 // Define Setting Schema for Round Robin
@@ -60,7 +61,7 @@ export async function POST(req) { // ye API ka post handler he
 
       // 🔴 TEST OTP HANDLING
       let generatedOtp;
-      if (phone === TEST_PHONE) {
+      if (TEST_PHONES.includes(phone)) {
         generatedOtp = TEST_OTP;
       } else {
         generatedOtp = Math.floor(1000 + Math.random() * 9000); // 4 digit otp bana raha he 
@@ -88,7 +89,7 @@ export async function POST(req) { // ye API ka post handler he
 
       return NextResponse.json({
         message:
-          phone === TEST_PHONE
+          TEST_PHONES.includes(phone)
             ? "Test OTP generated successfully"
             : "OTP sent successfully",
         isExistingUser: !!existingUser,
@@ -109,7 +110,7 @@ export async function POST(req) { // ye API ka post handler he
     }
 
     // 🔴 Skip expiry check for test number
-    if (phone !== TEST_PHONE) {
+    if (!TEST_PHONES.includes(phone)) {
       const isExpired =
         (Date.now() - otpRecord.createdAt.getTime()) / 1000 / 60 > 5;  // ye check karta he hai 5minute se jayada ho gaye ya nahi 
 
@@ -155,38 +156,62 @@ export async function POST(req) { // ye API ka post handler he
         );
       }
 
-      // Round-robin Agent Assignment
+// Round-robin Agent Assignment
       let assignedAgentId = null;
-      try {
-        const activeAgents = await Admin.find({
-          role: "agent",
-          isActive: true,
-        }).sort({ createdAt: 1 }); // active agent nikal raha he 
-        console.log("activeAgents", activeAgents);
-
-        if (activeAgents.length > 0) {
-          // DB based Round Robin;
-          let rrDoc = await Setting.findOne({ key: "agentLeadRR" }); // ye Database se counter nikal raha hai
-          if (!rrDoc) {
-            rrDoc = await Setting.create({ key: "agentLeadRR", value: 0 });
-          }
-
-          let rrValue = parseInt(rrDoc.value, 10);
-          if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
-
-          assignedAgentId = activeAgents[rrValue % activeAgents.length]._id; // ye important line he agent = index counter % total agents isse leads equal distribute hoti hai
-
-          await Setting.updateOne({ key: "agentLeadRR" }, { $inc: { value: 1 } }); // ye counter +1 kar raha he 
+      let referredByAgentId = null;
+      let referredByAgentName = null;
+      let franchiseId = null;
+      
+      // Check for franchise team referral code
+      if (referCode) {
+        const teamMember = await FranchiseTeam.findOne({ 
+          referralCode: referCode.toUpperCase(),
+          isActive: true 
+        });
+        
+        if (teamMember) {
+          referredByAgentId = teamMember._id;
+          referredByAgentName = teamMember.fullName;
+          franchiseId = teamMember.franchiseId;
+          assignedAgentId = teamMember._id;
+          console.log("User referred by team member:", teamMember.fullName);
         }
-      } catch (err) {
-        console.error("Agent assign error:", err);
       }
+      
+      // If no referral code, use round-robin for admin agents
+      if (!referredByAgentId) {
+        try {
+          const activeAgents = await Admin.find({
+            role: "agent",
+            isActive: true,
+          }).sort({ createdAt: 1 });
+
+          if (activeAgents.length > 0) {
+            let rrDoc = await Setting.findOne({ key: "agentLeadRR" });
+            if (!rrDoc) {
+              rrDoc = await Setting.create({ key: "agentLeadRR", value: 0 });
+            }
+
+            let rrValue = parseInt(rrDoc.value, 10);
+            if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+
+            assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
+            await Setting.updateOne({ key: "agentLeadRR" }, { $inc: { value: 1 } });
+          }
+        } catch (err) {
+          console.error("Agent assign error:", err);
+        }
+      }
+      
       user = await User.create({  // ye new user database me save ho raha he 
         userId: `USR${Date.now()}`,
         fullName: name,
         email,
         phone,
         referCode,
+        franchiseId,
+        referredByAgentId,
+        referredByAgentName,
         wallet: 500,
         freeUsedCount: 2, // ye user ko signup bonus mil raha he 
         assignedAgentId,

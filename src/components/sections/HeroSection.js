@@ -99,7 +99,7 @@ useEffect(() => {
 
         {/* Subheadline */}
         <p className="text-sm sm:text-lg md:text-xl text-slate-200 mb-6 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
-          Grow your revenue with Limbu.ai — the AI command center for Google Business Profile and social media automation.
+          Grow your revenue with Limbu.ai  — the AI command center for Google Business Profile and social media automation.
         </p>
 
         {/* Buttons */}

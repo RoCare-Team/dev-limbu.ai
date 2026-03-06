@@ -1,10 +1,13 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY not defined");
+  return new OpenAI({ apiKey });
+}
 
 export async function POST(req) {
+  const openai = getOpenAIClient();
   try {
     const { business, primaryCategory, additionalCategories } = await req.json();
 

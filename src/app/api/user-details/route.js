@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
+function getMongoClient() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI not defined");
+  return new MongoClient(uri);
+}
 
 // ------------------ GET API ------------------
 export async function GET(req) {
+  const client = getMongoClient();
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -37,11 +41,14 @@ export async function GET(req) {
 
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
+  } finally {
+    await client.close();
   }
 }
 
 // ------------------ PUT API (Update GST Only) ------------------
 export async function PUT(req) {
+  const client = getMongoClient();
   try {
     const body = await req.json();
     const { userId, gst, coins } = body;
@@ -96,5 +103,7 @@ export async function PUT(req) {
       { success: false, error: error.message },
       { status: 500 }
     );
+  } finally {
+    await client.close();
   }
 }

@@ -1,23 +1,18 @@
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
-
-if (!uri) {
-  throw new Error("Please define MONGODB_URI in .env");
-}
-
-let client;
-let clientPromise;
-
-if (process.env.NODE_ENV === "development") {
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri);
-    global._mongoClientPromise = client.connect();
+function getClientPromise() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("Please define MONGODB_URI in .env");
+  if (process.env.NODE_ENV === "development") {
+    if (!global._reviewPageClientPromise) {
+      global._reviewPageClientPromise = new MongoClient(uri).connect();
+    }
+    return global._reviewPageClientPromise;
   }
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri);
-  clientPromise = client.connect();
+  if (!global._reviewPageClientPromise) {
+    global._reviewPageClientPromise = new MongoClient(uri).connect();
+  }
+  return global._reviewPageClientPromise;
 }
 
 // ✅ Slug generator
@@ -47,7 +42,7 @@ export async function GET(req, context) {
 
     console.log("🔍 Incoming slug:", slug);
 
-    const client = await clientPromise;
+    const client = await getClientPromise();
     const db = client.db("test");
     const collection = db.collection("adminbusinesses");
 

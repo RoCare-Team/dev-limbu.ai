@@ -100,7 +100,7 @@ export default function FranchiseLogin() {
         {/* Login Button */}
         <button
           disabled={loading}
-          className="w-full bg-green-500 hover:bg-green-600 transition-all duration-300 text-black font-semibold py-3 rounded-xl flex justify-center items-center gap-2"
+          className="w-full bg-white hover:bg-white-600 transition-all duration-300 text-black font-semibold py-3 rounded-xl flex justify-center items-center gap-2"
         >
           {loading ? (
             <>

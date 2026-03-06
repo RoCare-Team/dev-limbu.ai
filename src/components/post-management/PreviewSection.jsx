@@ -53,7 +53,7 @@ const PreviewSection = ({
           <h3 className="text-xl font-bold text-gray-800">Generating Magic...</h3>
           <p className="text-gray-500 mt-2">Creating your stunning post</p>
           {countdown > 0 && (
-            <p className="text-sm font-mono text-blue-600 mt-4 bg-blue-50 px-3 py-1 rounded-full inline-block">
+            <p className="text-sm font-mono text-dark mt-4 bg-lightPrimary px-3 py-1 rounded-full inline-block">
               {countdown}s remaining
             </p>
           )}

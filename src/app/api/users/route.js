@@ -53,6 +53,26 @@ export async function POST(req) {
       body.userId = `USR${Date.now()}`;
     }
 
+    // Auto-calculate package dates based on planDuration if not provided
+    if (body.planDuration && !body.packageStartDate) {
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      
+      const duration = body.planDuration.toLowerCase();
+      if (duration === "monthly") {
+        endDate.setMonth(endDate.getMonth() + 1);
+      } else if (duration === "quarterly") {
+        endDate.setMonth(endDate.getMonth() + 3);
+      } else if (duration === "half-yearly") {
+        endDate.setMonth(endDate.getMonth() + 6);
+      } else if (duration === "yearly") {
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      }
+      
+      body.packageStartDate = startDate;
+      body.packageExpiryDate = endDate;
+    }
+
     // 1️⃣ Fetch ONLY active agents
     const agents = await Admin.find({ role: "agent", isActive: true })
       .sort({ createdAt: 1, _id: 1 })
@@ -536,6 +556,15 @@ export async function PUT(req) {
         "subscription.plan": newPlan,
         "subscription.status": "active",
         "subscription.date": new Date(),
+      };
+    }
+
+    /* -------- PACKAGE START AND EXPIRY DATE UPDATE -------- */
+    if (body.packageStartDate || body.packageExpiryDate) {
+      updateData.$set = {
+        ...updateData.$set,
+        ...(body.packageStartDate && { packageStartDate: new Date(body.packageStartDate) }),
+        ...(body.packageExpiryDate && { packageExpiryDate: new Date(body.packageExpiryDate) }),
       };
     }
 

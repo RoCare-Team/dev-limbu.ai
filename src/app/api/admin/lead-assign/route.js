@@ -142,58 +142,49 @@ export async function PUT(req) {
   try {
     await dbConnect();
 
-    const { userId, agentId } = await req.json();
+    const EXCLUDED_AGENT_ID = "69737cd544c63ceb679410a3";
+    const TARGET_AGENT_ID = "699c100f90278fadff8f8aa9";
 
-    if (
-      !userId ||
-      !agentId ||
-      !mongoose.Types.ObjectId.isValid(userId) ||
-      !mongoose.Types.ObjectId.isValid(agentId)
-    ) {
-      return NextResponse.json(
-        { success: false, error: "Valid userId and agentId required" },
-        { status: 400 }
-      );
-    }
+    const excludedObjectId = new mongoose.Types.ObjectId(EXCLUDED_AGENT_ID);
+    const targetObjectId = new mongoose.Types.ObjectId(TARGET_AGENT_ID);
 
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-    const agentObjectId = new mongoose.Types.ObjectId(agentId);
-
+    // ✅ Make sure target agent exists
     const agentExists = await Admin.findOne({
-      _id: agentObjectId,
+      _id: targetObjectId,
       role: "agent",
     });
 
     if (!agentExists) {
       return NextResponse.json(
-        { success: false, error: "Agent not found" },
+        { success: false, error: "Target agent not found" },
         { status: 404 }
       );
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userObjectId,
-      { $set: { assignedAgentId: agentObjectId } },
-      { new: true }
+    // ✅ Bulk update
+    const result = await User.updateMany(
+      {
+        assignedAgentId: {
+          $ne: excludedObjectId, // don't touch this agent
+        },
+      },
+      {
+        $set: {
+          assignedAgentId: targetObjectId,
+        },
+      }
     );
-
-    if (!updatedUser) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      message: "Lead agent updated successfully",
-      user: updatedUser,
+      message: "Bulk agent replacement completed",
+      modifiedCount: result.modifiedCount,
     });
 
   } catch (error) {
-    console.error("PUT lead assign error:", error);
+    console.error("Bulk update error:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

@@ -210,6 +210,9 @@ export default function Sidebar({ children, user }) {
         const data = await response.json();
         setSubscriptionData(data);
 
+        console.log("dataata",data);
+        
+
         // Extract user name correctly
         if (data.fullName) {
           setUserName(data.fullName);
@@ -503,6 +506,8 @@ export default function Sidebar({ children, user }) {
     // { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
     { text: 'User Profile', icon: <User size={20} />, path: '/profile' },
   ];
+
+  
 
   // const getPlanConfig = (plan) => {
   //   const planLower = plan?.toLowerCase() || 'free';
@@ -830,13 +835,23 @@ export default function Sidebar({ children, user }) {
                                     </Box>
                                   </Grid>
                                   <Grid item xs={6}>
-                                    <Box sx={{ p: 1.5, bgcolor: '#1170cf', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                    <Box sx={{ p: 1.5, bgcolor: '#fafcfe', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
                                       <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">CITATIONS</Typography>
                                       <Typography variant="h6" color="primary.main" fontWeight="bold">{plan.citations}</Typography>
                                     </Box>
                                   </Grid>
                                 </Grid>
 
+                                <Box>
+                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Plan: {plan.title} ({plan.duration})
+                                  </Typography>
+                                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: '#334155' }}>
+                                    Plan Details: Start Date : {subscriptionData.packageStartDate ? new Date(subscriptionData.packageStartDate).toLocaleDateString() : 'N/A'} | Expiry Date : {subscriptionData.packageExpiryDate ? new Date(subscriptionData.packageExpiryDate).toLocaleDateString() : 'N/A'}
+                                  </Typography>
+                                  
+                                </Box>
+{/* 
                                 <Box sx={{ mb: 2, p: 2, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                                       <Typography variant="body2" color="text.secondary">Base Price</Typography>
@@ -851,7 +866,7 @@ export default function Sidebar({ children, user }) {
                                       <Typography variant="subtitle2" fontWeight="bold">Total Value</Typography>
                                       <Typography variant="subtitle2" fontWeight="bold" color="success.main">₹{plan.totalAmount} / {plan.duration}</Typography>
                                    </Box>
-                                </Box>
+                                </Box> */}
 
                                 <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: '#334155' }}>
                                   Plan Features:

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe, Bell } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -35,6 +35,8 @@ export default function UserManagement() {
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
+  const [planStartDate, setPlanStartDate] = useState("");
+  const [planExpiryDate, setPlanExpiryDate] = useState("");
   const [chatStats, setChatStats] = useState({ total: 0, today: 0, resolved: 0, data: [] });
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
   const [chatModalFilter, setChatModalFilter] = useState("all");
@@ -814,10 +816,35 @@ const handleRoundRobinAssign = (userId) => {
     );
   };
 
+  useEffect(() => {
+    if (planStartDate) {
+      const start = new Date(planStartDate);
+      const end = new Date(start);
+      
+      if (selectedCycle === "monthly") {
+        end.setMonth(end.getMonth() + 1);
+      } else if (selectedCycle === "quarterly") {
+        end.setMonth(end.getMonth() + 3);
+      } else if (selectedCycle === "half-yearly") {
+        end.setMonth(end.getMonth() + 6);
+      } else if (selectedCycle === "yearly") {
+        end.setFullYear(end.getFullYear() + 1);
+      }
+      
+      if (!isNaN(end.getTime())) {
+         setPlanExpiryDate(end.toISOString().split('T')[0]);
+      }
+    }
+  }, [planStartDate, selectedCycle]);
+
   const handleUpgradePlan = (user) => {
     setSelectedUser(user);
     setSelectedPlan(user.paidPackage || "Basic Plan");
     setSelectedCycle(user.planDuration || "monthly");
+    const start = user.packageStartDate 
+      ? new Date(user.packageStartDate).toISOString().split('T')[0] 
+      : new Date().toISOString().split('T')[0];
+    setPlanStartDate(start);
   };
 
   const confirmPlanChange = async () => {
@@ -833,6 +860,8 @@ const handleRoundRobinAssign = (userId) => {
           isServiceBooked: true,
           paidPackage: selectedPlan,
           planDuration: selectedCycle,
+          packageStartDate: planStartDate,
+          packageExpiryDate: planExpiryDate
         }),
       });
       const data = await res.json();
@@ -871,6 +900,51 @@ const handleRoundRobinAssign = (userId) => {
       showToast("Error deleting user", "error");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Function to send subscription expired notification via WhatsApp
+  const sendSubscriptionExpiredNotification = async (user) => {
+    try {
+      // Normalize phone number
+      let phone = user.phone || user.mobileNumber;
+      if (phone) {
+        phone = String(phone).replace(/\D/g, "");
+        if (phone.length === 10) phone = "91" + phone;
+      }
+      
+      if (!phone) {
+        showToast("Phone number not found for user", "error");
+        return;
+      }
+
+      const payload = {
+        destination: phone,
+        userName: user.fullName || "User",
+        enquiryId: user.userId,
+        expiryDate: user.packageExpiryDate ? new Date(user.packageExpiryDate).toLocaleDateString() : "N/A",
+        plan: user.paidPackage || user.subscription?.plan || "N/A",
+      };
+
+      const res = await fetch("/api/admin/whatsapp-send-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          remark: "subscription_expired_new"
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Subscription expiry notification sent via WhatsApp!", "success");
+      } else {
+        showToast(`Failed: ${data.message}`, "error");
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      showToast("Failed to send notification", "error");
     }
   };
 
@@ -2168,6 +2242,16 @@ const handleRoundRobinAssign = (userId) => {
                               "Login"
                             )}
                           </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sendSubscriptionExpiredNotification(user);
+                            }}
+                            className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
+                            title="Send Expiry Notification"
+                          >
+                            <Bell size={16} />
+                          </button>
                           {role === "superAdmin" && (
                             <button
                               onClick={(e) => {
@@ -2441,6 +2525,27 @@ const handleRoundRobinAssign = (userId) => {
                   </label>
                 )
               })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Start Date</label>
+                <input
+                  type="date"
+                  value={planStartDate}
+                  onChange={(e) => setPlanStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Expiry Date</label>
+                <input
+                  type="date"
+                  value={planExpiryDate}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
+                />
+              </div>
             </div>
 
             <div className="flex gap-3">

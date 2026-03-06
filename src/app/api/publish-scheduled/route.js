@@ -469,6 +469,47 @@ export async function GET() {
         post.status = "posted";
         post.error = null;
         stats.posted++;
+
+        // Send post published email notification
+        try {
+          // Determine which platform(s) were posted
+          const platforms = [];
+          if (post.whenPosted?.gmb === "posted") platforms.push("Google My Business");
+          if (post.whenPosted?.facebook === "posted") platforms.push("Facebook");
+          if (post.whenPosted?.instagram === "posted") platforms.push("Instagram");
+          
+          // Get business name from first location if available
+          const businessName = post.locations?.[0]?.name || post.locations?.[0]?.city || "";
+          const locationName = post.locations?.[0]?.name || "";
+          
+          // Get post URL (use websiteUrl from location if available)
+          const postUrl = post.locations?.[0]?.websiteUrl || "";
+
+          // Send email for each platform that was posted
+          for (const platform of platforms) {
+            const emailResponse = await fetch(new URL('/api/send-post-published-email', req.url).toString(), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: post.userId,
+                platform: platform,
+                businessName: businessName,
+                locationName: locationName,
+                postUrl: postUrl,
+              }),
+            });
+            
+            const emailResult = await emailResponse.json();
+            if (emailResult.success) {
+              log(`📧 Post published email sent to user for ${platform}`);
+            } else {
+              log(`⚠️ Failed to send post published email for ${platform}:`, emailResult.message);
+            }
+          }
+        } catch (emailError) {
+          log(`⚠️ Error sending post published email:`, emailError.message);
+          // Don't fail the post if email fails
+        }
       } else {
         post.status = "failed";
         post.error = "One or more targets failed to post.";

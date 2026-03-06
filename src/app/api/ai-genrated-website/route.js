@@ -51,7 +51,8 @@ Return ONLY valid JSON with this structure:
     {
       "title": "",
       "description": "",
-      "iconKeyword": ""
+      "iconKeyword": "",
+      "imageKeyword": ""
     }
   ],
   "features": [
@@ -84,12 +85,16 @@ Return ONLY valid JSON with this structure:
   "meta": {
     "title": "",
     "description": ""
-  }
+  },
+  "imageKeywords": ["", "", ""]
 }
 
-Make it highly professional, SEO optimized, modern and premium.
-Do not add explanations.
-Only return valid JSON.
+Rules:
+- imageKeywords: provide 3 specific visual keywords describing what photos of this business look like (e.g. "modern salon interior", "hair styling", "beauty treatment"). These will be used to generate or search for relevant images.
+- Each service's imageKeyword: a short phrase describing a photo for that specific service.
+- Make it highly professional, SEO optimized, modern and premium.
+- Do not add explanations.
+- Only return valid JSON.
 `;
 
     const completion = await openai.chat.completions.create({

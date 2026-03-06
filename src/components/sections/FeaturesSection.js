@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import Link from "next/link"
@@ -9,18 +7,21 @@ export default function FeaturesSection({ features }) {
   if (!features || features.length === 0) return null
 
   return (
-<section
-  id="features"
-  className="py-20 bg-gradient-to-br from-white to-slate-50 dark:from-gray-900 dark:to-gray-800 transition-colors"
->
+    <section
+      id="features"
+      className="py-20 bg-gradient-to-br from-white to-slate-50 transition-colors"
+    >
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Heading */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Powerful Features for
-            <span className="bg-primary bg-clip-text text-transparent"> Business Growth</span>
+            <span className="bg-primary bg-clip-text text-transparent">
+              {" "}Business Growth
+            </span>
           </h2>
+
           <p className="text-slate-600 text-lg">
             Everything you need to automate and grow your Google Business profile.
           </p>
@@ -28,36 +29,38 @@ export default function FeaturesSection({ features }) {
 
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-  {features?.map((feature, index) => {
-    const Icon = feature.icon
+          {features?.map((feature, index) => {
+            const Icon = feature.icon
 
-    return (
-     <>
-      <Link href={feature.link} key={index}>
-      <div
-        key={index}
-        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-slate-100"
-      >
-        <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-br bg-primary text-dark mb-6 group-hover:scale-110 transition-transform">
-          <Icon size={28} />
+            return (
+              <Link href={feature.link} key={index}>
+                <div
+                  className="group bg-white rounded-2xl p-8 
+                  shadow-sm hover:shadow-xl 
+                  transition-all duration-300 
+                  hover:-translate-y-2 
+                  border border-slate-100"
+                >
+                  <div className="w-14 h-14 flex items-center justify-center 
+                  rounded-xl bg-primary text-white mb-6 
+                  group-hover:scale-110 transition-transform">
+                    <Icon size={28} />
+                  </div>
+
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">
+                    {feature.title}
+                  </h3>
+
+                  <p className="text-slate-600 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
+              </Link>
+            )
+          })}
         </div>
 
-        <h3 className="text-xl font-bold text-slate-900 mb-3">
-          {feature.title}
-        </h3>
-
-        <p className="text-slate-600 leading-relaxed">
-          {feature.description}
-        </p>
       </div>
-      </Link>
-     </>
-    )
-  })}
-</div>
-
-      </div>
-
     </section>
   )
 }

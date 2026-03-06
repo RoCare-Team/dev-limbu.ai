@@ -94,12 +94,12 @@ export default async function SitePage({ params }) {
     { label: "Home", href: "#home" },
     ...(aiContent?.about?.content ? [{ label: "About", href: "#about" }] : []),
     ...(aiContent?.services?.length > 0 ? [{ label: "Services", href: "#services" }] : []),
-    ...(mediaImages.length > 3 ? [{ label: "Gallery", href: "#gallery" }] : []),
+    ...(mediaImages.length >= 1 ? [{ label: "Gallery", href: "#gallery" }] : []),
     { label: "Contact", href: "#contact" },
   ];
 
-  /* Gallery: show only how many images exist, max 8 */
-  const galleryImages = mediaImages.slice(0, 8);
+  /* Gallery: show all available images, max 12 */
+  const galleryImages = mediaImages.slice(0, 12);
 
   return (
     <div className="font-sans text-gray-800 min-h-screen bg-white">
@@ -249,30 +249,66 @@ export default async function SitePage({ params }) {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {aiContent.services.map((service, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden group transform hover:-translate-y-2"
-                >
-                  <div className="h-64 overflow-hidden relative">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <img
-                      src={
-                        mediaImages[i + 1] ||
-                        `https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80`
-                      }
-                      alt={service.title}
-                      className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+              {aiContent.services.map((service, i) => {
+                const serviceImg =
+                  mediaImages.length > 0
+                    ? mediaImages[i % mediaImages.length]
+                    : "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80";
+                const accentHexList = ["#2563eb", "#4f46e5", "#0d9488"];
+                const accent = accentHexList[i % accentHexList.length];
+                return (
+                  <div
+                    key={i}
+                    className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden group transform hover:-translate-y-2 flex flex-col"
+                  >
+                    {/* Gradient accent bar */}
+                    <div
+                      className="h-1.5 w-full"
+                      style={{ background: `linear-gradient(to right, ${accent}, #818cf8)` }}
                     />
+                    {/* Image */}
+                    <div className="h-56 overflow-hidden relative">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      {/* Service number badge */}
+                      <div
+                        className="absolute top-4 left-4 z-20 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg"
+                        style={{ background: accent }}
+                      >
+                        {String(i + 1).padStart(2, "0")}
+                      </div>
+                      <img
+                        src={serviceImg}
+                        alt={service.title}
+                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                      />
+                      {/* Hover title overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="text-white font-bold text-lg drop-shadow-lg">{service.title}</p>
+                      </div>
+                    </div>
+                    {/* Content */}
+                    <div className="p-7 flex-1 flex flex-col">
+                      <h3 className="font-bold text-xl mb-3 text-gray-900 transition-colors">
+                        {service.title}
+                      </h3>
+                      <p className="text-gray-500 leading-relaxed text-sm flex-1">
+                        {service.description}
+                      </p>
+                      <div className="mt-5 pt-4 border-t border-gray-100">
+                        <span
+                          className="inline-flex items-center gap-1.5 text-sm font-semibold"
+                          style={{ color: accent }}
+                        >
+                          Learn More
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-8">
-                    <h3 className="font-bold text-2xl mb-4 text-gray-900 transition-colors">
-                      {service.title}
-                    </h3>
-                    <p className="text-gray-600 leading-relaxed">{service.description}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -282,40 +318,90 @@ export default async function SitePage({ params }) {
           GALLERY SECTION
           — only shown if images exist (> 3), shows max 8
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {galleryImages.length > 3 && (
-        <section id="gallery" className="py-32 px-6 bg-white">
+      {galleryImages.length >= 1 && (
+        <section id="gallery" className="py-32 px-6 bg-gradient-to-b from-gray-50 to-white">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-20">
+            {/* Header */}
+            <div className="text-center mb-16">
               <span
                 className="font-semibold text-sm uppercase tracking-wider mb-4 block"
                 style={{ color: "#2563eb" }}
               >
                 Our Work
               </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Gallery</h2>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Gallery</h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Take a look at our projects and the quality of work we deliver
               </p>
+              {/* Image count badge */}
+              <div className="mt-6 inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-2 shadow-sm">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium text-gray-600">
+                  {galleryImages.length} Photo{galleryImages.length !== 1 ? "s" : ""}
+                </span>
+              </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {galleryImages.map((image, index) => (
-                <div
-                  key={index}
-                  className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300"
-                >
+
+            {/* Responsive masonry-style grid */}
+            {galleryImages.length === 1 ? (
+              <div className="max-w-3xl mx-auto">
+                <div className="relative overflow-hidden rounded-3xl group cursor-pointer shadow-2xl">
                   <img
-                    src={image}
-                    alt={`Gallery ${index + 1}`}
-                    className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                    src={galleryImages[0]}
+                    alt="Gallery 1"
+                    className="w-full h-96 object-cover transform group-hover:scale-105 transition-transform duration-700"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-6">
-                    <span className="text-white font-semibold transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                      View Image
-                    </span>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8">
+                    <span className="text-white font-semibold text-lg">View Image</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : galleryImages.length === 2 ? (
+              <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
+                {galleryImages.map((image, index) => (
+                  <div key={index} className="relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl hover:shadow-2xl transition-all duration-300">
+                    <img
+                      src={image}
+                      alt={`Gallery ${index + 1}`}
+                      className="w-full h-72 object-cover transform group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-6">
+                      <span className="text-white font-semibold">View Image</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* 3+ images — masonry: first image featured (2×2), rest 1×1 */
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[200px]">
+                {galleryImages.map((image, index) => (
+                  <div
+                    key={index}
+                    className={`relative overflow-hidden rounded-2xl group cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 ${
+                      index === 0 ? "col-span-2 row-span-2" : ""
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt={`Gallery ${index + 1}`}
+                      className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-900/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-5">
+                      <span className="text-white font-semibold text-sm transform translate-y-3 group-hover:translate-y-0 transition-transform duration-300">
+                        View Image
+                      </span>
+                    </div>
+                    {index === 0 && (
+                      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow">
+                        Featured
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

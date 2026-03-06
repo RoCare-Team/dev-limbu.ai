@@ -1,31 +1,17 @@
-# TODO: Add Total Users Today Card Section
+# Gallery & Services Image Enhancement TODO
 
-## Plan:
+## Steps
 
-### 1. Information Gathered:
-- **Current State**: The page has stats for Total Users, Signup Leads, Meta Leads, Total Posts, but "Users Today" is calculated client-side only from the current page (not accurate)
-- **API**: `/api/users/route.js` handles user CRUD operations and has a `getAgentStats` feature
-- **User Model**: `src/models/User.js` has `createdAt` field for tracking user creation date
+- [x] Step 1: Create `/api/generate-images/route.js` — DALL-E 3 image generation + Cloudinary upload
+- [x] Step 2: Edit `/api/ai-genrated-website/route.js` — Add `imageKeywords` to AI response
+- [x] Step 3: Edit `src/app/build-website/page.jsx` — AI image fallback when no media + better gallery/services design
+  - [x] Added `aiGeneratedImages` state (Set) to track AI-generated image URLs
+  - [x] Step 3.5: Calls `/api/generate-images` when `images.length === 0` after media fetch
+  - [x] Gallery: threshold `> 3` → `> 0`; masonry layout (1-img featured, 2-img side-by-side, 3+ masonry grid); AI badge; photo count badge
+  - [x] Services: image cycling via modulo `mediaImages[i % mediaImages.length]`; gradient accent bar; numbered badge; "Learn More" link; improved card design
+- [x] Step 4: Edit `src/app/[slug]/page.jsx` — Better gallery/services design, remove >3 threshold
+  - [x] Nav: Gallery link shown when `mediaImages.length >= 1` (was `> 3`)
+  - [x] Gallery: max images 8 → 12; threshold `>= 1`; masonry layout with Featured badge on first image
+  - [x] Services: image cycling via modulo; gradient accent bar; numbered badge; "Learn More" link; improved card design
 
-### 2. Files to Edit:
-1. **src/app/api/users/route.js**
-   - Add API endpoint to get today's user count
-   
-2. **src/app/admin/user-management/page.jsx**
-   - Add state for today's user count
-   - Fetch today's user count from API
-   - Add "Users Today" card in the stats section
-
-### 3. Implementation Steps:
-
-#### Step 1: Add API endpoint for today's users count
-- Add a new GET parameter to fetch today's user count
-
-#### Step 2: Update the frontend
-- Add `todayUsersCount` state
-- Fetch today's users on page load
-- Add a new stats card showing "Users Today"
-
-### 4. Followup Steps:
-- Test the implementation
-- Verify the card displays correctly
+## All Steps Complete ✅

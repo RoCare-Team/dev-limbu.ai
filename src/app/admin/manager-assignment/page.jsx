@@ -25,7 +25,7 @@ const WA_TEMPLATES = [
     id: "expiring", label: "Sub Expiring Soon", icon: "⚠️",
     chip: "bg-amber-100 text-amber-700",
     btn: "bg-amber-500 hover:bg-amber-600",
-    build: (u) => `Dear ${u.fullName} 👋\n\n⚠️ *Your subscription expires soon!*\n\n📦 Plan: *${u.subscription?.plan || "Free"}*\nStatus: ${u.subscription?.status || "—"}\n\nRenew now → https://limbu.ai/renew\n\nTeam Limbu.ai`,
+    build: (u) => `Dear ${u.fullName} 👋\n\n⚠️ *Your subscription expires soon!*\n\n📦 Plan: *${u.paidPackage || "Free"}*\nStatus: ${u.subscription?.status || "—"}\n\nRenew now → https://limbu.ai/renew\n\nTeam Limbu.ai`,
   },
   {
     id: "expired", label: "Subscription Expired", icon: "🔴",
@@ -588,9 +588,9 @@ function WaModal({ user, onClose }) {
         campaignName: "subscription_expiring_new",
         phone: `91${n}`,
         firstName,
-        planName: user.subscription?.plan || "Free",
-        expiryDate: user.subscription?.expiry ? formatDate(user.subscription.expiry) : "Soon",
-        subscriptionLink: "https://limbu.ai/renew",
+        planName: user.paidPackage || "Free",
+        expiryDate: user.packageExpiryDate ? formatDate(user.packageExpiryDate) : "Soon",
+        subscriptionLink: "http://limbu.ai/#subscription-plans",
       };
     } else if (sel === "welcome") {
       // Format dates for welcome message
@@ -1294,6 +1294,9 @@ planName: user.paidPackage
   }, [users, filterAssign]);
 
   const clearDates = () => { setStartDate(""); setEndDate(""); setTimeout(fetchUsers, 0); };
+
+  console.log("usersusers",users);
+  
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">

@@ -92,7 +92,7 @@ export default function FranchiseDashboard() {
       console.log("datadata",data);
       
       if (data.success && Array.isArray(data.users)) {
-        setLeadsCount(data.stats ? data.stats.total : 0);
+        setLeadsCount(data.total ? data.total : 0);
         setUsersList(data.users);
         if (data.stats) setStats(data.stats);
       }
@@ -242,84 +242,7 @@ export default function FranchiseDashboard() {
       </div>
 
       {/* 🔍 Filters Section */}
-      <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-        <div className="flex flex-col lg:flex-row gap-4 items-center">
-          <div className="flex items-center gap-2 text-gray-500 font-medium">
-            <Filter size={20} />
-            <span>Filters:</span>
-          </div>
-
-          <div className="flex flex-wrap gap-3 flex-1">
-            {/* Date Filter */}
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <select
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
-              >
-                <option value="All">All Time</option>
-                <option value="Today">Today</option>
-                <option value="Last 7 Days">Last 7 Days</option>
-                <option value="Last 30 Days">Last 30 Days</option>
-                <option value="Custom">Custom Range</option>
-              </select>
-            </div>
-
-            {filterDate === "Custom" && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <span className="text-gray-400">-</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            )}
-
-            {/* User Type Filter */}
-            <select
-              value={filterUserType}
-              onChange={(e) => setFilterUserType(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
-            >
-              <option value="All">All Types</option>
-              <option value="Hot">Hot 🔥</option>
-              <option value="Warm">Warm ☀️</option>
-              <option value="Cold">Cold ❄️</option>
-            </select>
-
-            {/* Lead Stage Filter */}
-            <select
-              value={filterLeadStage}
-              onChange={(e) => setFilterLeadStage(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
-            >
-              <option value="All">All Stages</option>
-              <option value="Active">Active</option>
-              <option value="Follow Up">Follow Up</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Onboard">Onboarded</option>
-            </select>
-
-            {(filterDate !== "All" || filterUserType !== "All" || filterLeadStage !== "All") && (
-              <button
-                onClick={clearFilters}
-                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm flex items-center gap-1"
-              >
-                <X size={16} /> Clear
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+    
 
       {/* 📊 Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -1,6 +1,17 @@
 import dbConnect from "@/lib/dbConnect";
 import Assets from "@/models/assets";
 
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
+
+// Helper function to validate image size (base64)
+function validateImageSize(base64String) {
+  if (!base64String) return true; // Allow empty/null images
+  
+  // Calculate approximate file size from base64 string
+  const fileSize = Math.ceil((base64String.length * 3) / 4);
+  return fileSize <= MAX_IMAGE_SIZE;
+}
+
 /* --------------------------------
    POST → Create Asset (Base64)
 --------------------------------- */
@@ -25,6 +36,27 @@ export async function POST(req) {
         { success: false, error: "userId is required" },
         { status: 400 }
       );
+    }
+
+    // Validate image sizes (max 2 MB each)
+    const imageFields = [
+      "characterImage",
+      "uniformImage",
+      "productImage",
+      "backgroundImage",
+      "logoImage",
+    ];
+
+    for (const field of imageFields) {
+      if (body[field] && !validateImageSize(body[field])) {
+        return Response.json(
+          {
+            success: false,
+            error: `${field} exceeds 2 MB size limit`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const saved = await Assets.create({
@@ -101,6 +133,27 @@ export async function PUT(req) {
         { success: false, error: "id is required" },
         { status: 400 }
       );
+    }
+
+    // Validate image sizes (max 2 MB each)
+    const imageFields = [
+      "characterImage",
+      "uniformImage",
+      "productImage",
+      "backgroundImage",
+      "logoImage",
+    ];
+
+    for (const field of imageFields) {
+      if (body[field] && !validateImageSize(body[field])) {
+        return Response.json(
+          {
+            success: false,
+            error: `${field} exceeds 2 MB size limit`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const existing = await Assets.findById(id);

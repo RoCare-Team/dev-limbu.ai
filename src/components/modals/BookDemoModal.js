@@ -55,72 +55,93 @@ export default function BookDemoModal({
           </div>
         ) : (
           /* FORM */
-          <>
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">
-              Book Your Free Demo
-            </h2>
+       <>
+  <h2 className="text-2xl font-bold text-slate-800 mb-4">
+    Book Your Free Demo
+  </h2>
 
-            <form onSubmit={handleBookDemoSubmit} className="space-y-4">
+  <form onSubmit={handleBookDemoSubmit} className="space-y-4">
 
-              {/* Name */}
-              <input
-                type="text"
-                name="name"
-                placeholder="Your Name"
-                value={demoDetails.name}
-                onChange={handleDemoInputChange}
-                required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-neutral-500 outline-none transition"
-              />
+    {/* Name */}
+    <input
+      type="text"
+      name="name"
+      placeholder="Your Name"
+      value={demoDetails.name}
+      onChange={handleDemoInputChange}
+      required
+      className="w-full px-4 py-3 
+      bg-white
+      border border-slate-300 
+      text-slate-800
+      placeholder:text-slate-400
+      rounded-lg focus:ring-2 focus:ring-neutral-500 
+      outline-none transition"
+    />
 
-              {/* Phone */}
-              <input
-                type="tel"
-                name="contact"
-                placeholder="Contact Number"
-                value={demoDetails.contact}
-                onChange={handleDemoInputChange}
-                required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-neutral-500 outline-none transition"
-              />
+    {/* Phone */}
+    <input
+      type="tel"
+      name="contact"
+      placeholder="Contact Number"
+      value={demoDetails.contact}
+      onChange={handleDemoInputChange}
+      required
+      className="w-full px-4 py-3 
+      bg-white
+      border border-slate-300 
+      text-slate-800
+      placeholder:text-slate-400
+      rounded-lg focus:ring-2 focus:ring-neutral-500 
+      outline-none transition"
+    />
 
-              {/* Date */}
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-2">
-                  Select Seminar Date (Monday - Saturday):
-                </label>
+    {/* Date */}
+    <div>
+      <label className="block text-sm font-medium text-slate-600 mb-2">
+        Select Seminar Date (Monday - Saturday):
+      </label>
 
-                <input
-                  type="date"
-                  name="selectedDate"
-                  value={demoDetails.selectedDate.toISOString().split("T")[0]}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(e) =>
-                    setDemoDetails((prev) => ({
-                      ...prev,
-                      selectedDate: new Date(e.target.value),
-                    }))
-                  }
-                  required
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-neutral-500 outline-none transition"
-                />
+      <input
+        type="date"
+        name="selectedDate"
+        value={demoDetails.selectedDate.toISOString().split("T")[0]}
+        min={new Date().toISOString().split("T")[0]}
+        onChange={(e) =>
+          setDemoDetails((prev) => ({
+            ...prev,
+            selectedDate: new Date(e.target.value),
+          }))
+        }
+        required
+        className="w-full px-4 py-3 
+        bg-white
+        border border-slate-300 
+        text-slate-800
+        rounded-lg focus:ring-2 focus:ring-neutral-500 
+        outline-none transition"
+      />
 
-                <p className="text-sm font-medium text-slate-600 mt-2">
-                  Time: 4:00 PM
-                </p>
-              </div>
+      <p className="text-sm font-medium text-slate-600 mt-2">
+        Time: 4:00 PM
+      </p>
+    </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isSubmittingDemo}
-                className="w-full px-6 py-3 bg-gradient-to-r from-gray-700 to-yellow-500 text-white rounded-lg font-bold hover:shadow-lg transition-all disabled:opacity-60"
-              >
-                {isSubmittingDemo ? "Submitting..." : "Submit Request"}
-              </button>
+    {/* Submit */}
+    <button
+      type="submit"
+      disabled={isSubmittingDemo}
+      className="w-full px-6 py-3 
+      bg-gradient-to-r from-gray-700 to-yellow-500 
+      text-white rounded-lg font-bold 
+      hover:shadow-lg transition-all 
+      disabled:opacity-60"
+    >
+      {isSubmittingDemo ? "Submitting..." : "Submit Request"}
+    </button>
 
-            </form>
-          </>
+  </form>
+</>
         )}
 
       </div>

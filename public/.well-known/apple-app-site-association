@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appID": "PREFIX.com.limbu.ai.limbu",
+        "components": [
+          {
+            "/": "/refer*",
+            "comment": "Matches any URL whose path starts with /refer"
+          }
+        ]
+      }
+    ]
+  }
+}

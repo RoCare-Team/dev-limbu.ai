@@ -8,8 +8,8 @@ async function refreshAccessToken(token) {
   try {
     const url = "https://oauth2.googleapis.com/token";
     const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
       grant_type: "refresh_token",
       refresh_token: token.refreshToken,
     });
@@ -36,8 +36,8 @@ async function refreshAccessToken(token) {
 export const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       authorization: {
         params: {
           scope: "openid email profile https://www.googleapis.com/auth/business.manage",

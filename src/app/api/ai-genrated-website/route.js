@@ -1,8 +1,16 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} not defined`);
+  return value;
+}
+
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: getRequiredEnv("OPENAI_API_KEY"),
+  });
+}
 
 export async function POST(req) {
   try {
@@ -96,6 +104,8 @@ Rules:
 - Do not add explanations.
 - Only return valid JSON.
 `;
+
+    const openai = getOpenAIClient();
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",

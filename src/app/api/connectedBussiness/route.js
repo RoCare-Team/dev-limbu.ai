@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} not defined`);
+  return value;
+}
 
 export async function GET() {
+  const uri = getRequiredEnv("MONGODB_URI");
+  const client = new MongoClient(uri);
+
   try {
     await client.connect();
     const db = client.db("gmb_dashboard");

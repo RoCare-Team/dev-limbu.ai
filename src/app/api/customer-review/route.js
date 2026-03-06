@@ -1,10 +1,14 @@
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
+function getMongoClient() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI not defined");
+  return new MongoClient(uri);
+}
 
 // -------------------- CREATE / SAVE REVIEW (POST) --------------------
 export async function POST(req) {
+  const client = getMongoClient();
   try {
     const body = await req.json();
     const { name, feedback, rating, business } = body;
@@ -36,6 +40,8 @@ export async function POST(req) {
   } catch (err) {
     console.error("POST Error:", err);
     return new Response(JSON.stringify({ success: false }), { status: 500 });
+  } finally {
+    await client.close();
   }
 }
 
@@ -44,6 +50,7 @@ export async function POST(req) {
 // -------------------- GET ALL REVIEWS --------------------
 // -------------------- GET REVIEWS (ALL OR BY BUSINESS) --------------------
 export async function GET(req) {
+    const client = getMongoClient();
     try {
         await client.connect();
         const db = client.db("test");
@@ -86,5 +93,7 @@ export async function GET(req) {
             JSON.stringify({ success: false, error: err.message }),
             { status: 500 }
         );
+    } finally {
+        await client.close();
     }
 }

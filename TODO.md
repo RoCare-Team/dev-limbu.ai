@@ -9,4 +9,10 @@
 - [x] Step 5: Patch additional routes that still perform top-level env-dependent initialization (if build reports more failures). *(No additional patch needed after Step 4 verification.)*
 
 ## In Progress
-- Build safety refactor complete
+- Additional CI build-safety patches:
+  - [ ] `src/app/api/admin/saveBussiness/route.js`
+  - [ ] `src/app/api/ai-genrated-website/route.js`
+  - [ ] `src/app/api/app-version/route.js`
+  - [ ] `src/app/api/connectedBussiness/route.js`
+  - [ ] `src/lib/auth.js`
+  - [ ] Re-run `npm run build`

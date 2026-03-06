@@ -2,18 +2,18 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET not defined in environment");
-}
-
-const JWT_SECRET = process.env.JWT_SECRET;
-const MONGODB_URI = process.env.MONGODB_URI;
-
 let isConnected = false;
+
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} not defined in environment`);
+  return value;
+}
 
 async function connectDB() {
   if (isConnected) return;
-  await mongoose.connect(MONGODB_URI);
+  const mongoUri = getRequiredEnv("MONGODB_URI");
+  await mongoose.connect(mongoUri);
   isConnected = true;
 }
 

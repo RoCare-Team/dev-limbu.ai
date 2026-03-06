@@ -2,18 +2,19 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 /* ----------------- DB CONNECTION ----------------- */
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error("Please add MONGODB_URI in .env file");
-}
-
 let isConnected = false;
+
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Please add ${name} in .env file`);
+  return value;
+}
 
 async function connectDB() {
   if (isConnected) return;
 
-  const db = await mongoose.connect(MONGODB_URI);
+  const mongoUri = getRequiredEnv("MONGODB_URI");
+  const db = await mongoose.connect(mongoUri);
   isConnected = db.connections[0].readyState;
   console.log("MongoDB Connected");
 }

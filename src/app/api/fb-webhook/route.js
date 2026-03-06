@@ -3,14 +3,17 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 // =============================
-// 🔗 MONGODB CONNECT
+// 🔗 MONGODB CONNECT (lazy — only on first request)
 // =============================
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!global._mongooseConnection) {
-  global._mongooseConnection = mongoose.connect(MONGODB_URI, {
-    dbName: "test" // your DB name from screenshot
-  });
+function ensureMongoConnection() {
+  if (!global._mongooseConnection) {
+    const MONGODB_URI = process.env.MONGODB_URI;
+    if (!MONGODB_URI) throw new Error("MONGODB_URI not defined");
+    global._mongooseConnection = mongoose.connect(MONGODB_URI, {
+      dbName: "test",
+    });
+  }
+  return global._mongooseConnection;
 }
 
 // =============================
@@ -59,7 +62,7 @@ export async function GET(req) {
 // =============================
 export async function POST(req) {
   try {
-    await global._mongooseConnection; // ensure DB connected
+    await ensureMongoConnection(); // ensure DB connected
     const body = await req.json();
 
     console.log("WEBHOOK EVENT:", JSON.stringify(body, null, 2));

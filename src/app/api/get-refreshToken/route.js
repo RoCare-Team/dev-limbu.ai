@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 
-const MONGO_URI = process.env.MONGODB_URI;
 const DB_NAME = "gmb_dashboard";
 const COLLECTION = "users";
 
@@ -9,13 +8,19 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 let clientPromise;
 
-if (!MONGO_URI) {
-  throw new Error("MONGODB_URI not defined");
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} not defined`);
+  return value;
 }
 
-if (!clientPromise) {
-  const client = new MongoClient(MONGO_URI);
-  clientPromise = client.connect();
+function getMongoClientPromise() {
+  if (!clientPromise) {
+    const mongoUri = getRequiredEnv("MONGODB_URI");
+    const client = new MongoClient(mongoUri);
+    clientPromise = client.connect();
+  }
+  return clientPromise;
 }
 
 /**
@@ -23,11 +28,11 @@ if (!clientPromise) {
  */
 async function exchangeAuthCode(authCode) {
   const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET,
+    client_id: getRequiredEnv("GOOGLE_CLIENT_ID"),
+    client_secret: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
     code: authCode,
     grant_type: "authorization_code",
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI, // MUST MATCH FLUTTER
+    redirect_uri: getRequiredEnv("GOOGLE_REDIRECT_URI"), // MUST MATCH FLUTTER
   });
 
   const res = await fetch(GOOGLE_TOKEN_URL, {
@@ -63,7 +68,7 @@ export async function POST(req) {
     }
 
     // 🔗 CONNECT DB
-    const mongoClient = await clientPromise;
+    const mongoClient = await getMongoClientPromise();
     const db = mongoClient.db(DB_NAME);
     const usersCol = db.collection(COLLECTION);
 
@@ -77,18 +82,18 @@ export async function POST(req) {
      * CASE 1️⃣ : USER EXISTS → RETURN DB TOKEN
      * ===============================
      */
-if (user?.projects?.length > 0) {
-  const project = user.projects[user.projects.length - 1]; // 👈 LAST PROJECT
+    if (user?.projects?.length > 0) {
+      const project = user.projects[user.projects.length - 1]; // 👈 LAST PROJECT
 
-  if (project?.refreshToken) {
-    return NextResponse.json({
-      success: true,
-      email: user.email,
-      refreshToken: project.refreshToken,
-      source: "db",
-    });
-  }
-}
+      if (project?.refreshToken) {
+        return NextResponse.json({
+          success: true,
+          email: user.email,
+          refreshToken: project.refreshToken,
+          source: "db",
+        });
+      }
+    }
 
     /**
      * ===============================

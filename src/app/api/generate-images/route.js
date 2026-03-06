@@ -1,9 +1,17 @@
 import OpenAI from "openai";
 import cloudinary from "@/lib/cloudinary";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} not defined`);
+  return value;
+}
+
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: getRequiredEnv("OPENAI_API_KEY"),
+  });
+}
 
 /**
  * POST /api/generate-images
@@ -32,6 +40,7 @@ export async function POST(req) {
       locality ? ` located in ${locality}` : ""
     }. The image should showcase ${keywordStr}. Modern, clean, bright, commercial photography style. No text or logos.`;
 
+    const openai = getOpenAIClient();
     const generatedUrls = [];
 
     for (let i = 0; i < imageCount; i++) {

@@ -7,8 +7,7 @@ import { NextResponse } from "next/server";
 async function connectDB() {
   if (mongoose.connection.readyState === 0) {
     await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      bufferCommands: false,
     });
   }
 }

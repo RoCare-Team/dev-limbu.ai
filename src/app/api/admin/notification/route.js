@@ -27,9 +27,8 @@ const Notification = // Next.js development mode mein hot reload hota hai.
 async function connectDB() { // Custom DB connect function.
   if (mongoose.connection.readyState === 0) { // Agar connection already open nahi hai to hi connect karo. || Agar ye check hata do: || Har request pe naya connection banega → performance issue.
     await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }); // Modern MongoDB options.
+      bufferCommands: false,
+    });
   }
 }
 

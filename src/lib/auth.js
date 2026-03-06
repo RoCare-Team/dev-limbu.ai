@@ -34,6 +34,7 @@ async function refreshAccessToken(token) {
 }
 
 export const authOptions = {
+  trustHost: true,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",

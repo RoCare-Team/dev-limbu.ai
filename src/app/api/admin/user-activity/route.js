@@ -15,8 +15,7 @@ async function dbConnect() {
 
   if (!global.mongoose.promise) {
     global.mongoose.promise = mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      bufferCommands: false,
     });
   }
 

@@ -1,36 +1,40 @@
-import { MongoClient } from "mongodb"
+import mongoose from "mongoose";
 
-// Lazy singleton — never evaluated at module load time so build succeeds
-// without MONGODB_URI being set in the build environment.
-function getClientPromise() {
-  const uri = process.env.MONGODB_URI
-  if (!uri) throw new Error("MONGODB_URI not defined")
+const MONGODB_URI = process.env.MONGODB_URI;
 
-  if (process.env.NODE_ENV === "development") {
-    if (!global._mongoClientPromise) {
-      const client = new MongoClient(uri)
-      global._mongoClientPromise = client.connect()
-    }
-    return global._mongoClientPromise
-  }
-
-  // Production: create a new promise per cold-start (module is cached anyway)
-  if (!global._mongoClientPromise) {
-    const client = new MongoClient(uri)
-    global._mongoClientPromise = client.connect()
-  }
-  return global._mongoClientPromise
+if (!MONGODB_URI) {
+  throw new Error("Please define the MONGODB_URI environment variable");
 }
 
-// Export a Proxy so callers can still `await clientPromise` — the actual
-// connection is only established when the promise is first awaited at runtime.
-const clientPromise = new Proxy(
-  {},
-  {
-    get(_target, prop) {
-      return getClientPromise()[prop]
-    },
-  }
-)
+let cached = global.mongoose;
 
-export default clientPromise
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function dbConnect() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      return mongoose;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
+}
+
+export default dbConnect;

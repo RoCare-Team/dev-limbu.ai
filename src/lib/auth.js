@@ -8,8 +8,8 @@ async function refreshAccessToken(token) {
   try {
     const url = "https://oauth2.googleapis.com/token";
     const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
       grant_type: "refresh_token",
       refresh_token: token.refreshToken,
     });
@@ -34,61 +34,89 @@ async function refreshAccessToken(token) {
 }
 
 export const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
+  pages: {
+    signIn: "/auth/signin",
+    error: "/auth/error",
+  },
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           scope: "openid email profile https://www.googleapis.com/auth/business.manage",
           access_type: "offline",
-          prompt: "consent", // ensure refresh_token returned
+          prompt: "consent",
         },
       },
     }),
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     // JWT callback
-    async jwt({ token, account }) {
-      // first sign in
-      if (account) {
+    async jwt({ token, account, user }) {
+      // First sign in
+      if (account && user) {
         return {
           ...token,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
-          accessTokenExpires: Date.now() + account.expires_in * 1000, // in ms
+          accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
+          provider: account.provider,
         };
       }
 
-      // return previous token if not expired
-      if (Date.now() < token.accessTokenExpires) return token;
+      // Return previous token if not expired
+      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
+        return token;
+      }
 
-      // access token expired -> refresh
-      return await refreshAccessToken(token);
+      // Access token expired -> refresh
+      if (token.refreshToken) {
+        return await refreshAccessToken(token);
+      }
+
+      return token;
     },
 
-    // session callback
+    // Session callback
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.error = token.error;
-      session.expires = new Date(token.accessTokenExpires).toISOString();
+      if (session && token) {
+        session.user = {
+          ...session.user,
+          id: token.id,
+        };
+        session.accessToken = token.accessToken;
+        session.refreshToken = token.refreshToken;
+        session.error = token.error;
+        session.provider = token.provider;
+      }
       return session;
     },
 
-    // signIn callback -> MongoDB user/projects
+    // SignIn callback
     async signIn({ user, account, profile }) {
-      if (account.provider === "google") {
-        try {
+      try {
+        if (account?.provider === "google") {
           const client = await clientPromise;
           const db = client.db("gmb_dashboard");
 
-          // Upsert user info & append project
-          await db.collection("users").updateOne(
+          // Upsert user info
+          const result = await db.collection("users").updateOne(
             { email: user.email },
             {
               $set: {
@@ -97,30 +125,28 @@ export const authOptions = {
                 image: user.image,
                 updatedAt: new Date(),
               },
-              $addToSet: {
-                projects: {
-                  googleId: profile.sub,
-                  accessToken: account.access_token,
-                  refreshToken: account.refresh_token,
-                  createdAt: new Date(),
-                },
+              $setOnInsert: {
+                createdAt: new Date(),
               },
             },
             { upsert: true }
           );
 
           return true;
-        } catch (error) {
-          console.error("Error saving user/project:", error);
-          return false;
         }
+        return true;
+      } catch (error) {
+        console.error("SignIn Error:", error);
+        return true; // Allow login even if DB fails, to avoid blocking auth
       }
-      return true;
     },
-  },
-  pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
+
+    // Redirect callback
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
   },
 };
 

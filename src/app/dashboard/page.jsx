@@ -67,6 +67,7 @@ import MetaConnectCard from "../../components/MetaConnectCard";
 import SocialConnectCard from "../../components/SocialConnectCard";
 import SupportModal from "../../components/SupportModal";
 import FirstPostModal from "@/components/FirstPostModal";
+import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -242,85 +243,7 @@ export async function fetchSearchKeywords(accessToken, locationId, startMonth, e
 function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, startDate, endDate, onDateChange, searchKeywords, searchKeywordsLoading }) {
   if (!isOpen) return null;
 
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById("insights-modal-content");
-    if (!element) {
-      toast.error("Content not found for PDF generation.");
-      return;
-    }
 
-    toast.loading("Generating PDF...", { id: "pdf-toast" });
-
-    // Store original styles to restore later
-    const scrollContainer = document.getElementById("insights-scroll-container");
-    let originalScrollHeight = '';
-    let originalScrollOverflow = '';
-    let originalRootMaxHeight = '';
-    let originalRootOverflow = '';
-
-    try {
-      // Temporarily expand the container to capture full content
-      if (scrollContainer) {
-        originalScrollHeight = scrollContainer.style.height;
-        originalScrollOverflow = scrollContainer.style.overflow;
-        scrollContainer.style.height = 'auto';
-        scrollContainer.style.overflow = 'visible';
-      }
-      
-      originalRootMaxHeight = element.style.maxHeight;
-      originalRootOverflow = element.style.overflow;
-      element.style.maxHeight = 'none';
-      element.style.overflow = 'visible';
-
-      const dataUrl = await toPng(element, {
-        quality: 0.98,
-        backgroundColor: "#ffffff",
-        pixelRatio: 2, // For better resolution
-      });
-
-      // Restore styles
-      if (scrollContainer) {
-        scrollContainer.style.height = originalScrollHeight;
-        scrollContainer.style.overflow = originalScrollOverflow;
-      }
-      element.style.maxHeight = originalRootMaxHeight;
-      element.style.overflow = originalRootOverflow;
-
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position -= pdfHeight;
-        pdf.addPage();
-        pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeight);
-        heightLeft -= pdfHeight;
-      }
-
-      pdf.save(`GMB-Insights-${listingTitle.replace(/\s+/g, "-")}.pdf`);
-      toast.success("PDF Downloaded!", { id: "pdf-toast" });
-    } catch (error) {
-      console.error("PDF generation failed:", error);
-      toast.error("Failed to generate PDF.", { id: "pdf-toast" });
-      
-      // Restore styles in case of error
-      if (scrollContainer) {
-        scrollContainer.style.height = originalScrollHeight;
-        scrollContainer.style.overflow = originalScrollOverflow;
-      }
-      element.style.maxHeight = originalRootMaxHeight;
-      element.style.overflow = originalRootOverflow;
-    }
-  };
 
   const calculateTotal = (metricData) => {
     if (!metricData || !metricData.timeSeries || !metricData.timeSeries.datedValues) {
@@ -435,19 +358,12 @@ function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, start
       <div className="flex items-center gap-3">
         <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
         <div>
-          <h2 className="text-lg sm:text-xl font-bold">Performance Insights</h2>
+          <h2 className="text-lg sm:text-xl font-bold">Performance Insightss</h2>
           <p className="text-xs sm:text-sm text-blue-100">{listingTitle}</p>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={handleDownloadPDF}
-          className="hover:bg-white/20 p-2 rounded-lg transition"
-          title="Download as PDF"
-        >
-          <Download className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
         <button
           onClick={onClose}
           className="hover:bg-white/20 p-2 rounded-lg transition"
@@ -497,6 +413,7 @@ function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, start
               End Date
             </label>
             <input
+
               type="date"
               value={formatDate(endDate)}
               onChange={(e) => onDateChange(startDate, new Date(e.target.value))}
@@ -932,6 +849,21 @@ export default function DashboardPage() {
     return date;
   });
   const [insightsEndDate, setInsightsEndDate] = useState(new Date());
+
+  // Performance Insights Modal States
+  const [showPerformanceInsightsModal, setShowPerformanceInsightsModal] = useState(false);
+  const [performanceInsightsData, setPerformanceInsightsData] = useState(null);
+  const [performanceInsightsLoading, setPerformanceInsightsLoading] = useState(false);
+  const [selectedPerformanceLocation, setSelectedPerformanceLocation] = useState(null);
+  const [performanceInsightsDateRange, setPerformanceInsightsDateRange] = useState(() => ({
+    startDate: (() => {
+      const date = new Date();
+      date.setDate(date.getDate() - 30);
+      return date;
+    })(),
+    endDate: new Date(),
+  }));
+  const [performanceSearchKeywords, setPerformanceSearchKeywords] = useState(null);
 
   const userPlan = session?.user?.plan || "";
   const maxAccounts = userPlan === "" ? 1 : 0;
@@ -1501,6 +1433,64 @@ const fetchInstagramPages = useCallback(async () => {
     }
   };
 
+  // Handle View Performance Insights
+  const handleViewPerformanceInsights = async (listing, customStartDate = null, customEndDate = null) => {
+    const locationId = listing.name.split("/")[1];
+    
+    setShowPerformanceInsightsModal(true);
+    setPerformanceInsightsLoading(true);
+    setPerformanceInsightsData(null);
+    setSelectedPerformanceLocation({
+      name: listing.title || "Unknown Listing",
+      id: locationId,
+      businessProfileId: listing.name,
+    });
+
+    const startDate = customStartDate || performanceInsightsDateRange.startDate;
+    const endDate = customEndDate || performanceInsightsDateRange.endDate;
+
+    try {
+      const insights = await fetchLocationInsights(session.accessToken, locationId, startDate, endDate);
+      setPerformanceInsightsData(insights);
+
+      const currentDate = new Date();
+      const startMonth = {
+        year: currentDate.getFullYear(),
+        month: currentDate.getMonth() - 3
+      };
+      
+      if (startMonth.month <= 0) {
+        startMonth.month += 12;
+        startMonth.year -= 1;
+      }
+
+      const endMonth = {
+        year: currentDate.getFullYear(),
+        month: currentDate.getMonth() + 1
+      };
+
+      const keywords = await fetchSearchKeywords(session.accessToken, locationId, startMonth, endMonth);
+      setPerformanceSearchKeywords(keywords);
+    } catch (error) {
+      console.error("Error fetching performance insights:", error);
+      toast.error("Failed to load performance insights. Please try again.");
+    } finally {
+      setPerformanceInsightsLoading(false);
+    }
+  };
+
+  const handlePerformanceInsightsDateChange = (dateRange) => {
+    setPerformanceInsightsDateRange(dateRange);
+    // Refetch insights with new date range
+    if (selectedPerformanceLocation) {
+      const listing = {
+        name: selectedPerformanceLocation.businessProfileId,
+        title: selectedPerformanceLocation.name,
+      };
+      handleViewPerformanceInsights(listing, dateRange.startDate, dateRange.endDate);
+    }
+  };
+
   // Handle date change in modal
   const handleDateChange = async (newStartDate, newEndDate) => {
     setInsightsStartDate(newStartDate);
@@ -1701,6 +1691,20 @@ const fetchInstagramPages = useCallback(async () => {
         searchKeywords={searchKeywordsData}
         searchKeywordsLoading={searchKeywordsLoading}
       />
+
+      <PerformanceInsightsModal
+        isOpen={showPerformanceInsightsModal}
+        onClose={() => setShowPerformanceInsightsModal(false)}
+        insightsData={performanceInsightsData}
+        businessName={selectedPerformanceLocation?.name || ""}
+        locationName={selectedPerformanceLocation?.name || ""}
+        locationId={selectedPerformanceLocation?.id || ""}
+        businessProfileId={selectedPerformanceLocation?.businessProfileId || ""}
+        dateRange={performanceInsightsDateRange}
+        searchKeywords={performanceSearchKeywords}
+        loading={performanceInsightsLoading}
+        onDateChange={handlePerformanceInsightsDateChange}
+      />
       
       <SessionExpiredModal 
         isOpen={isSessionExpired} 
@@ -1870,7 +1874,7 @@ const fetchInstagramPages = useCallback(async () => {
                 {/* Actions */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
                   <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
-                  <button onClick={() => handleViewInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
+                  <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
                 </div>
               </div>
             ))
@@ -1920,7 +1924,7 @@ const fetchInstagramPages = useCallback(async () => {
                 {/* Actions */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
                   <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
-                  <button onClick={() => handleViewInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
+                  <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
                 </div>
               </div>
             ))

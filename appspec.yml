@@ -4,6 +4,7 @@ os: linux
 files:
   - source: /
     destination: /home/ec2-user/gmb-automation
+    overwrite: true
 
 hooks:
   ApplicationStop:
@@ -11,7 +12,7 @@ hooks:
       timeout: 300
       runas: ec2-user
 
-  AfterInstall:
+  BeforeInstall:
     - location: scripts/install.sh
       timeout: 300
       runas: ec2-user

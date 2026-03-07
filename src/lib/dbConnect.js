@@ -9,8 +9,10 @@ if (!cached) {
 export default async function dbConnect() {
   const MONGO_URI = process.env.MONGODB_URI;
 
+  // Build time par crash na ho
   if (!MONGO_URI) {
-    throw new Error("Please define the MONGODB_URI environment variable");
+    console.warn("⚠️ MONGODB_URI not defined. Skipping DB connection.");
+    return null;
   }
 
   if (cached.conn) return cached.conn;
@@ -21,6 +23,12 @@ export default async function dbConnect() {
     });
   }
 
-  cached.conn = await cached.promise;
+  try {
+    cached.conn = await cached.promise;
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    return null;
+  }
+
   return cached.conn;
 }

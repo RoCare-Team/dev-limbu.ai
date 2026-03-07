@@ -683,7 +683,7 @@ export default function DashboardPage() {
         <div className="mb-6 sm:mb-10">
           <h1 className="text-2xl sm:text-4xl font-bold text-dark mb-2 text-center">Customer Reviews</h1>
           <p className="text-dark text-sm sm:text-lg text-center px-2 sm:px-4">
-            Manage and respond to your Google Business reviews with AI assistance
+            Manage & respond to your Google Business reviews with AI assistance
           </p>
         </div>
 

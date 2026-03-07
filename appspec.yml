@@ -6,6 +6,7 @@ files:
     destination: /home/ec2-user/gmb-automation
     file_exists_behavior: OVERWRITE
 
+
 hooks:
   ApplicationStop:
     - location: scripts/stop.sh

@@ -42,12 +42,23 @@ export default async function dbConnect() {
 }
 
 // Export a clientPromise for NextAuth and other modules that need direct MongoDB client access
+// This follows the standard pattern used in Next.js + MongoDB applications
 export const clientPromise = (async () => {
   const MONGODB_URI = process.env.MONGODB_URI;
   
   if (!MONGODB_URI) {
+    // Return a valid client-like object that will fail gracefully when used
+    // This allows the app to continue working even without DB
     console.warn("MONGODB_URI environment variable is not defined. Database connection will not be available.");
-    return null;
+    return {
+      db: () => ({
+        collection: () => ({
+          updateOne: async () => ({ acknowledged: false }),
+          findOne: async () => null,
+          insertOne: async () => ({ insertedId: null }),
+        })
+      })
+    };
   }
 
   if (clientPromiseCached.client) {
@@ -55,7 +66,8 @@ export const clientPromise = (async () => {
   }
 
   if (!clientPromiseCached.promise) {
-    clientPromiseCached.promise = MongoClient.connect(MONGODB_URI);
+    const client = new MongoClient(MONGODB_URI);
+    clientPromiseCached.promise = client.connect().then(() => client);
   }
 
   try {

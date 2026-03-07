@@ -7,6 +7,7 @@ import axios from "axios";
 async function refreshAccessToken(token) {
   try {
     const url = "https://oauth2.googleapis.com/token";
+
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
@@ -25,7 +26,11 @@ async function refreshAccessToken(token) {
       refreshToken: response.data.refresh_token ?? token.refreshToken,
     };
   } catch (error) {
-    console.error("Error refreshing access token:", error.response?.data ?? error.message);
+    console.error(
+      "Error refreshing access token:",
+      error.response?.data ?? error.message
+    );
+
     return {
       ...token,
       error: "RefreshAccessTokenError",
@@ -36,36 +41,44 @@ async function refreshAccessToken(token) {
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
+
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+
       allowDangerousEmailAccountLinking: true,
+
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/business.manage",
+          scope:
+            "openid email profile https://www.googleapis.com/auth/business.manage",
           access_type: "offline",
           prompt: "consent",
         },
       },
     }),
   ],
+
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
+    maxAge: 30 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
   },
+
   jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
+
   callbacks: {
     // JWT callback
     async jwt({ token, account, user }) {
-      // First sign in
+      // First login
       if (account && user) {
         return {
           ...token,
@@ -75,17 +88,18 @@ export const authOptions = {
           image: user.image,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
-          accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
+          accessTokenExpires:
+            Date.now() + (account.expires_in || 3600) * 1000,
           provider: account.provider,
         };
       }
 
-      // Return previous token if not expired
+      // Token still valid
       if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
         return token;
       }
 
-      // Access token expired -> refresh
+      // Token expired -> refresh
       if (token.refreshToken) {
         return await refreshAccessToken(token);
       }
@@ -100,23 +114,37 @@ export const authOptions = {
           ...session.user,
           id: token.id,
         };
+
         session.accessToken = token.accessToken;
         session.refreshToken = token.refreshToken;
         session.error = token.error;
         session.provider = token.provider;
       }
+
       return session;
     },
 
     // SignIn callback
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       try {
         if (account?.provider === "google") {
+          
+          // Build time safety
+          if (!process.env.MONGODB_URI) {
+            console.warn("⚠️ MONGODB_URI missing, skipping DB save");
+            return true;
+          }
+
           const client = await clientPromise;
+
+          if (!client) {
+            console.warn("MongoDB client unavailable");
+            return true;
+          }
+
           const db = client.db("gmb_dashboard");
 
-          // Upsert user info
-          const result = await db.collection("users").updateOne(
+          await db.collection("users").updateOne(
             { email: user.email },
             {
               $set: {
@@ -131,13 +159,12 @@ export const authOptions = {
             },
             { upsert: true }
           );
-
-          return true;
         }
+
         return true;
       } catch (error) {
         console.error("SignIn Error:", error);
-        return true; // Allow login even if DB fails, to avoid blocking auth
+        return true;
       }
     },
 

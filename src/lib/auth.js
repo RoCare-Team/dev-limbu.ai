@@ -3,7 +3,6 @@ import GoogleProvider from "next-auth/providers/google";
 import clientPromise from "./mongodb";
 import axios from "axios";
 
-// Helper: refresh Google access token
 async function refreshAccessToken(token) {
   try {
     const url = "https://oauth2.googleapis.com/token";
@@ -26,27 +25,18 @@ async function refreshAccessToken(token) {
     };
   } catch (error) {
     console.error("Error refreshing access token:", error.response?.data ?? error.message);
-    return {
-      ...token,
-      error: "RefreshAccessTokenError",
-    };
+    return { ...token, error: "RefreshAccessTokenError" };
   }
 }
 
 export const authOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
-  pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
-  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
+          // IMPORTANT: Yahan scope sahi hona chahiye listings fetch karne ke liye
           scope: "openid email profile https://www.googleapis.com/auth/business.manage",
           access_type: "offline",
           prompt: "consent",
@@ -54,99 +44,77 @@ export const authOptions = {
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
+  session: { strategy: "jwt" },
   callbacks: {
-    // JWT callback
     async jwt({ token, account, user }) {
-      // First sign in
+      // First sign-in
       if (account && user) {
         return {
-          ...token,
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
-          provider: account.provider,
+          user,
         };
       }
 
       // Return previous token if not expired
-      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
-        return token;
-      }
+      if (Date.now() < token.accessTokenExpires) return token;
 
-      // Access token expired -> refresh
-      if (token.refreshToken) {
-        return await refreshAccessToken(token);
-      }
-
-      return token;
+      // Access token expired -> refresh it
+      return await refreshAccessToken(token);
     },
 
-    // Session callback
     async session({ session, token }) {
-      if (session && token) {
-        session.user = {
-          ...session.user,
-          id: token.id,
-        };
-        session.accessToken = token.accessToken;
-        session.refreshToken = token.refreshToken;
-        session.error = token.error;
-        session.provider = token.provider;
-      }
+      session.accessToken = token.accessToken;
+      session.refreshToken = token.refreshToken;
+      session.error = token.error;
+      session.user = token.user;
       return session;
     },
 
-    // SignIn callback
     async signIn({ user, account, profile }) {
-      try {
-        if (account?.provider === "google") {
+      if (account.provider === "google") {
+        try {
           const client = await clientPromise;
           const db = client.db("gmb_dashboard");
 
-          // Upsert user info
-          const result = await db.collection("users").updateOne(
+          // User aur unka token MongoDB mein update/save karna
+          await db.collection("users").updateOne(
             { email: user.email },
             {
               $set: {
                 name: user.name,
                 email: user.email,
                 image: user.image,
-                updatedAt: new Date(),
+                lastLogin: new Date(),
               },
-              $setOnInsert: {
-                createdAt: new Date(),
+              $addToSet: {
+                // Taaki multiple business accounts link ho sakein
+                accounts: {
+                  provider: "google",
+                  googleId: profile.sub,
+                  accessToken: account.access_token,
+                  refreshToken: account.refresh_token,
+                  updatedAt: new Date(),
+                },
               },
             },
             { upsert: true }
           );
-
           return true;
+        } catch (error) {
+          console.error("MongoDB Save Error:", error);
+          // Return true hi rakhein taaki login na ruke, 
+          // par error log zaroor check karein
+          return true; 
         }
-        return true;
-      } catch (error) {
-        console.error("SignIn Error:", error);
-        return true; // Allow login even if DB fails, to avoid blocking auth
       }
+      return true;
     },
-
-    // Redirect callback
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
-      return baseUrl;
-    },
+  },
+  pages: {
+    signIn: "/auth/signin",
+    error: "/auth/error", // Yahan error handle hota hai
   },
 };
 

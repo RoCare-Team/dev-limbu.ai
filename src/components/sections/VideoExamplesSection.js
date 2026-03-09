@@ -24,7 +24,7 @@ export default function VideoExamplesSection({ videoExamples }) {
           </h2>
 
           <p className="text-base sm:text-lg md:text-xl text-slate-600 px-4">
-            Watch our AI bring ideas to life with video.
+            Explore AI-powered creations tailored for businesses like yours.
           </p>
         </div>
 

@@ -24,97 +24,115 @@ async function refreshAccessToken(token) {
       refreshToken: response.data.refresh_token ?? token.refreshToken,
     };
   } catch (error) {
-    console.error("Error refreshing access token:", error.response?.data ?? error.message);
+    console.error("Refresh Error:", error.response?.data || error.message);
     return { ...token, error: "RefreshAccessTokenError" };
   }
 }
 
 export const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
+  // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
+  debug: true, // Temporarily enable for production debugging
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
-          // IMPORTANT: Yahan scope sahi hona chahiye listings fetch karne ke liye
           scope: "openid email profile https://www.googleapis.com/auth/business.manage",
           access_type: "offline",
-          prompt: "consent",
+          prompt: "consent", // Pehli baar mein refresh_token lene ke liye zaroori hai
         },
       },
     }),
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, account, user }) {
-      // First sign-in
-      if (account && user) {
-        return {
-          accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
-          user,
-        };
-      }
-
-      // Return previous token if not expired
-      if (Date.now() < token.accessTokenExpires) return token;
-
-      // Access token expired -> refresh it
-      return await refreshAccessToken(token);
-    },
-
-    async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.error = token.error;
-      session.user = token.user;
-      return session;
-    },
-
     async signIn({ user, account, profile }) {
       if (account.provider === "google") {
         try {
           const client = await clientPromise;
           const db = client.db("gmb_dashboard");
+          const usersCollection = db.collection("users");
 
-          // User aur unka token MongoDB mein update/save karna
-          await db.collection("users").updateOne(
-            { email: user.email },
+          if (!user.email || !profile.sub) return false;
+
+          // Attempt to update the tokens for an existing project
+          const result = await usersCollection.updateOne(
+            { email: user.email, "projects.googleId": profile.sub },
             {
               $set: {
-                name: user.name,
-                email: user.email,
-                image: user.image,
-                lastLogin: new Date(),
+                "projects.$.accessToken": account.access_token,
+                // Only update the refresh token if a new one is provided
+                ...(account.refresh_token && { "projects.$.refreshToken": account.refresh_token }),
               },
-              $addToSet: {
-                // Taaki multiple business accounts link ho sakein
-                accounts: {
-                  provider: "google",
-                  googleId: profile.sub,
-                  accessToken: account.access_token,
-                  refreshToken: account.refresh_token,
-                  updatedAt: new Date(),
+            }
+          );
+
+          // If no document was matched, the project doesn't exist for this user.
+          // So, we add it using $push, and create the user if they don't exist.
+          if (result.matchedCount === 0) {
+            await usersCollection.updateOne(
+              { email: user.email },
+              {
+                $set: { name: user.name, image: user.image, updatedAt: new Date() },
+                $push: {
+                  projects: {
+                    googleId: profile.sub,
+                    accessToken: account.access_token,
+                    refreshToken: account.refresh_token,
+                    createdAt: new Date(),
+                  },
                 },
               },
-            },
-            { upsert: true }
-          );
+              { upsert: true } // Creates the user document if it doesn't exist
+            );
+          }
           return true;
         } catch (error) {
-          console.error("MongoDB Save Error:", error);
-          // Return true hi rakhein taaki login na ruke, 
-          // par error log zaroor check karein
-          return true; 
+          console.error("Database Error during Sign-In:", error);
+          // On database error, prevent sign-in to ensure data integrity.
+          return false;
         }
       }
       return true;
     },
+
+    async jwt({ token, account, user }) {
+      if (account && user) {
+        return {
+          ...token,
+          id: user.id,
+          accessToken: account.access_token,
+          // Persist the refresh token from the first login
+          refreshToken: account.refresh_token ?? token.refreshToken,
+          accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
+        };
+      }
+
+      if (Date.now() < token.accessTokenExpires) {
+        return token;
+      }
+
+      // The access token has expired, try to refresh it.
+      if (!token.refreshToken) {
+        console.error("Error refreshing access token: No refresh token found.");
+        return { ...token, error: "RefreshAccessTokenError" };
+      }
+
+      return refreshAccessToken(token);
+    },
+
+    async session({ session, token }) {
+      session.user.id = token.id;
+      session.accessToken = token.accessToken;
+      session.error = token.error;
+      return session;
+    },
   },
   pages: {
     signIn: "/auth/signin",
-    error: "/auth/error", // Yahan error handle hota hai
+    error: "/auth/signin", // Error hone par wapis signin page par bhejega
   },
 };
 

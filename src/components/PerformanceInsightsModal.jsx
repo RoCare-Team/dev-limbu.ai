@@ -14,6 +14,8 @@ const PerformanceInsightsModal = ({
   insightsData,
   businessName,
   locationName,
+  city = "",
+  locality = "",
   locationId,
   businessProfileId,
   dateRange,
@@ -35,7 +37,6 @@ const PerformanceInsightsModal = ({
     dateRange?.startDate ? new Date(dateRange.startDate) : (() => {
       const date = new Date();
       date.setDate(1); // First day of current month
-      date.setMonth(date.getMonth() - 1); // Go to first day of previous month
       return date;
     })()
   );
@@ -126,6 +127,8 @@ const PerformanceInsightsModal = ({
             locationId,
             businessName,
             locationName,
+            city: city || "",
+            locality: locality || "",
             businessProfileId,
             insightsData,
             searchKeywords,
@@ -221,9 +224,13 @@ const PerformanceInsightsModal = ({
 
   const handleApplyDateRange = () => {
     if (onDateChange) {
+      // Ensure dates are proper Date objects
+      const startDate = localStartDate instanceof Date ? localStartDate : new Date(localStartDate);
+      const endDate = localEndDate instanceof Date ? localEndDate : new Date(localEndDate);
+      
       onDateChange({
-        startDate: localStartDate,
-        endDate: localEndDate,
+        startDate: startDate,
+        endDate: endDate,
       });
     }
     setShowDatePicker(false);
@@ -243,11 +250,19 @@ const PerformanceInsightsModal = ({
   const handleLast1Month = async () => {
     const date = new Date();
     date.setDate(1); // First day of current month
-    date.setMonth(date.getMonth() - 1); // Go to first day of previous month
+    const today = new Date();
     setLocalStartDate(date);
-    setLocalEndDate(new Date());
+    setLocalEndDate(today);
     setReportMode("1month");
     setShowDatePicker(false);
+
+    // Notify parent to fetch fresh data - ensure dates are Date objects
+    if (onDateChange) {
+      onDateChange({
+        startDate: date,
+        endDate: today,
+      });
+    }
 
     try {
       const reportDate = new Date();
@@ -287,8 +302,13 @@ const PerformanceInsightsModal = ({
 
   const handleLast6Months = async () => {
     const today = new Date();
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const sixMonthsAgo = new Date(today);
+    // Properly handle month subtraction to go back 6 months
+    sixMonthsAgo.setMonth(today.getMonth() - 6);
+    // If the month didn't roll back correctly (e.g., Jan 31 -> Feb 28), adjust
+    if (sixMonthsAgo.getMonth() > today.getMonth()) {
+      sixMonthsAgo.setDate(0); // Go to last day of previous month
+    }
 
     setLocalStartDate(sixMonthsAgo);
     setLocalEndDate(today);
@@ -428,90 +448,234 @@ const PerformanceInsightsModal = ({
         </div>
 
         {/* Controls */}
-        <div c lassName="px-6 py-4 border-b border-gray-200 flex gap-3 items-center flex-wrap" style={{ backgroundColor: "#f9fafb" }}>
-          <button
-            onClick={() => setShowDatePicker(!showDatePicker)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all text-gray-700 font-medium"
-          >
-            <Calendar size={18} />
-            Change Date Range
-          </button>
+        <div style={{ padding: "16px 24px", borderBottom: "1px solid #e5e7eb", backgroundColor: "#ffffff" }}>
+          {/* Filter Section Header */}
+          <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Report Options</p>
+          
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                background: "#ffffff",
+                border: "2px solid #e5e7eb",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#374151",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#3b82f6";
+                e.currentTarget.style.backgroundColor = "#eff6ff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#e5e7eb";
+                e.currentTarget.style.backgroundColor = "#ffffff";
+              }}
+            >
+              📅 Change Date Range
+            </button>
 
-          <button
-            onClick={handleLast1Month}
-            className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-blue-700 font-medium"
-            style={{
-              borderColor: reportMode === "1month" ? "#2563eb" : "#93c5fd",
-              backgroundColor: reportMode === "1month" ? "#eff6ff" : "#ffffff",
-            }}
-          >
-            📅 Last 1 Month
-          </button>
+            <button
+              onClick={handleLast1Month}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                background: reportMode === "1month" ? "#eff6ff" : "#ffffff",
+                border: `2px solid ${reportMode === "1month" ? "#3b82f6" : "#e5e7eb"}`,
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                color: reportMode === "1month" ? "#1d4ed8" : "#374151",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (reportMode !== "1month") {
+                  e.currentTarget.style.borderColor = "#93c5fd";
+                  e.currentTarget.style.backgroundColor = "#f0f9ff";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (reportMode !== "1month") {
+                  e.currentTarget.style.borderColor = "#e5e7eb";
+                  e.currentTarget.style.backgroundColor = "#ffffff";
+                }
+              }}
+            >
+              📊 Last 1 Month
+            </button>
 
-          <button
-            onClick={handleLast6Months}
-            className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-orange-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all text-orange-700 font-medium"
-            style={{
-              borderColor: reportMode === "6months" ? "#ea580c" : "#fdba74",
-              backgroundColor: reportMode === "6months" ? "#fff7ed" : "#ffffff",
-            }}
-          >
-            📊 6 Month Report
-          </button>
+            <button
+              onClick={handleLast6Months}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                background: reportMode === "6months" ? "#fff7ed" : "#ffffff",
+                border: `2px solid ${reportMode === "6months" ? "#f97316" : "#e5e7eb"}`,
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                color: reportMode === "6months" ? "#c2410c" : "#374151",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (reportMode !== "6months") {
+                  e.currentTarget.style.borderColor = "#fed7aa";
+                  e.currentTarget.style.backgroundColor = "#fef3c7";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (reportMode !== "6months") {
+                  e.currentTarget.style.borderColor = "#e5e7eb";
+                  e.currentTarget.style.backgroundColor = "#ffffff";
+                }
+              }}
+            >
+              📈 6 Month Report
+            </button>
 
-          <button
-            onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border-2 rounded-lg transition-all text-gray-700 font-medium"
-            style={{
-              borderColor: autoRefreshEnabled ? "#10b981" : "#d1d5db",
-              backgroundColor: autoRefreshEnabled ? "#ecfdf5" : "#f9fafb",
-              color: autoRefreshEnabled ? "#059669" : "#6b7280",
-            }}
-          >
-            {autoRefreshEnabled ? (
-              <>
-                <RefreshCw size={18} className="animate-spin" />
-                Auto-Refresh ON (10s)
-              </>
-            ) : (
-              <>
-                <RefreshCw size={18} />
-                Auto-Refresh OFF
-              </>
+            <div style={{ borderLeft: "1px solid #e5e7eb", height: 20, margin: "0 6px" }} />
+
+            <button
+              onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                background: autoRefreshEnabled ? "#f0fdf4" : "#ffffff",
+                border: `2px solid ${autoRefreshEnabled ? "#16a34a" : "#e5e7eb"}`,
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                color: autoRefreshEnabled ? "#15803d" : "#374151",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!autoRefreshEnabled) {
+                  e.currentTarget.style.borderColor = "#86efac";
+                  e.currentTarget.style.backgroundColor = "#f0fdf4";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!autoRefreshEnabled) {
+                  e.currentTarget.style.borderColor = "#e5e7eb";
+                  e.currentTarget.style.backgroundColor = "#ffffff";
+                }
+              }}
+            >
+              {autoRefreshEnabled ? (
+                <>
+                  <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+                  Auto-Refresh ON
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} />
+                  Auto-Refresh
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                handleRefreshData();
+                toast.success("✓ Data refreshed!", { id: "manual-refresh" });
+              }}
+              disabled={lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                background: "#ffffff",
+                border: "2px solid #3b82f6",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#1d4ed8",
+                cursor: lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000 ? "not-allowed" : "pointer",
+                opacity: lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000 ? 0.5 : 1,
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!(lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000)) {
+                  e.currentTarget.style.backgroundColor = "#eff6ff";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#ffffff";
+              }}
+            >
+              <RefreshCw size={14} />
+              Refresh Now
+            </button>
+
+            <button
+              onClick={handleDownloadPDF}
+              disabled={loading || isDownloading || !displayData}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                background: "#2563eb",
+                border: "2px solid transparent",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#ffffff",
+                cursor: loading || isDownloading || !displayData ? "not-allowed" : "pointer",
+                opacity: loading || isDownloading || !displayData ? 0.5 : 1,
+                transition: "all 0.3s ease",
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
+              }}
+              onMouseEnter={(e) => {
+                if (!(loading || isDownloading || !displayData)) {
+                  e.currentTarget.style.background = "#1d4ed8";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.4)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#2563eb";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.3)";
+              }}
+            >
+              {isDownloading ? (
+                <CircularProgress size={14} sx={{ color: "white" }} />
+              ) : (
+                <Download size={14} />
+              )}
+              {isDownloading ? "Generating..." : "Download PDF"}
+            </button>
+
+            {lastUpdated && (
+              <div style={{
+                marginLeft: "auto",
+                fontSize: 11,
+                background: "#eff6ff",
+                color: "#1d4ed8",
+                padding: "8px 12px",
+                borderRadius: 8,
+                fontWeight: 600,
+                border: "1px solid #bfdbfe",
+              }}>
+                ✓ Updated: {lastUpdated.toLocaleTimeString()}
+              </div>
             )}
-          </button>
-
-          <button
-            onClick={() => {
-              handleRefreshData();
-              toast.success("✓ Data refreshed!", { id: "manual-refresh" });
-            }}
-            disabled={lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000}
-            className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw size={18} />
-            Refresh Now
-          </button>
-
-          <button
-            onClick={handleDownloadPDF}
-            disabled={loading || isDownloading || !displayData}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: "#2563eb" }}
-          >
-            {isDownloading ? (
-              <CircularProgress size={18} sx={{ color: "white" }} />
-            ) : (
-              <Download size={18} />
-            )}
-            {isDownloading ? "Generating PDF..." : "Download PDF"}
-          </button>
-
-          {lastUpdated && (
-            <div className="ml-auto text-xs bg-blue-100 text-blue-700 px-3 py-2 rounded-lg font-medium">
-              Updated: {lastUpdated.toLocaleTimeString()}
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Date Range Picker */}
@@ -591,12 +755,14 @@ const PerformanceInsightsModal = ({
                 insightsData={displayData.insightsData}
                 businessName={displayData.businessName}
                 locationName={displayData.locationName}
+                city={displayData.city || ""}
+                locality={displayData.locality || ""}
                 dateRange={{
                   startDate: new Date(displayData.dateRange.startDate),
                   endDate: new Date(displayData.dateRange.endDate),
                 }}
                 storedMetrics={displayData.metrics}
-                searchKeywords={searchKeywords}
+                searchKeywords={displayData.searchKeywords || searchKeywords}
               />
             </div>
           )}

@@ -15,9 +15,17 @@ const PerformanceInsightsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    city: {
+      type: String,
+      default: "",
+    },
+    locality: {
+      type: String,
+      default: "",
+    },
     businessProfileId: {
       type: String,
-      required: true,
+      default: "",
     },
     insightsData: {
       type: mongoose.Schema.Types.Mixed,

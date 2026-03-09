@@ -865,6 +865,9 @@ export default function DashboardPage() {
   }));
   const [performanceSearchKeywords, setPerformanceSearchKeywords] = useState(null);
 
+  // Location Selector for GMB Insights
+  const [showLocationSelectorModal, setShowLocationSelectorModal] = useState(false);
+
   const userPlan = session?.user?.plan || "";
   const maxAccounts = userPlan === "" ? 1 : 0;
 
@@ -927,7 +930,7 @@ const navItems = [
 
 
 
-const NavLinks = ({ isAuthenticated }) => {
+const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
   return (
     <div className="w-full  px-4 py-3 ">
      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4 place-items-center ">
@@ -937,6 +940,7 @@ const NavLinks = ({ isAuthenticated }) => {
 
           const isEnabled = isAuthenticated || isPublic;
           const isKeywordPlanner = item.label === "Keyword Planner";
+          const isGmbInsights = item.label === "GMB Insights";
 
           const FeatureIcon = (
             <div
@@ -944,6 +948,8 @@ const NavLinks = ({ isAuthenticated }) => {
               onClick={
                 !isEnabled
                   ? () => signIn("google", { callbackUrl: item.href })
+                  : isGmbInsights
+                  ? onGmbInsightsClick
                   : undefined
               }
             >
@@ -1444,6 +1450,8 @@ const fetchInstagramPages = useCallback(async () => {
       name: listing.title || "Unknown Listing",
       id: locationId,
       businessProfileId: listing.name,
+      city: listing.storefrontAddress?.locality || "",
+      locality: listing.storefrontAddress?.administrativeArea || "",
     });
 
     const startDate = customStartDate || performanceInsightsDateRange.startDate;
@@ -1470,13 +1478,40 @@ const fetchInstagramPages = useCallback(async () => {
       };
 
       const keywords = await fetchSearchKeywords(session.accessToken, locationId, startMonth, endMonth);
-      setPerformanceSearchKeywords(keywords);
+      // Extract the array from the Google API response (remove searchKeywordsCounts wrapper)
+      const keywordsArray = keywords?.searchKeywordsCounts || keywords || null;
+      setPerformanceSearchKeywords(keywordsArray);
     } catch (error) {
       console.error("Error fetching performance insights:", error);
       toast.error("Failed to load performance insights. Please try again.");
     } finally {
       setPerformanceInsightsLoading(false);
     }
+  };
+
+  // Handle GMB Insights nav item click - show location selector then open modal
+  const handleGmbInsightsClick = () => {
+    // Get all locations from accounts
+    const allListings = accounts.length > 0 ? accounts.flatMap((acc) => acc.listings) : [];
+    
+    if (allListings.length === 0) {
+      toast.error("No locations found. Please connect your Google Business Profile first.");
+      return;
+    }
+    
+    if (allListings.length === 1) {
+      // Only one location - directly open insights
+      handleViewPerformanceInsights(allListings[0]);
+    } else {
+      // Multiple locations - show location selector
+      setShowLocationSelectorModal(true);
+    }
+  };
+
+  // Handle location selection from selector modal
+  const handleLocationSelect = (listing) => {
+    setShowLocationSelectorModal(false);
+    handleViewPerformanceInsights(listing);
   };
 
   const handlePerformanceInsightsDateChange = (dateRange) => {
@@ -1533,8 +1568,9 @@ const fetchInstagramPages = useCallback(async () => {
         const isVerified = item.hasVoiceOfMerchant === true;
         const websiteUrl = item.websiteUri || "";
         const reviewUri = item.metadata?.newReviewUri || "";
+        const businessProfileId = item.name || "";
     
-        return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified };
+        return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified, businessProfileId };
       });
       localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
       if (listings.length > 0) {
@@ -1555,8 +1591,9 @@ const fetchInstagramPages = useCallback(async () => {
     const isVerified = item.hasVoiceOfMerchant === true;
     const websiteUrl = item.websiteUri || "";
     const reviewUri = item.metadata?.newReviewUri || "";
+    const businessProfileId = item.name || "";
 
-    return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified };
+    return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified, businessProfileId };
   });
 
   if (allListings.length > 0) {
@@ -1698,6 +1735,8 @@ const fetchInstagramPages = useCallback(async () => {
         insightsData={performanceInsightsData}
         businessName={selectedPerformanceLocation?.name || ""}
         locationName={selectedPerformanceLocation?.name || ""}
+        city={selectedPerformanceLocation?.city || ""}
+        locality={selectedPerformanceLocation?.locality || ""}
         locationId={selectedPerformanceLocation?.id || ""}
         businessProfileId={selectedPerformanceLocation?.businessProfileId || ""}
         dateRange={performanceInsightsDateRange}

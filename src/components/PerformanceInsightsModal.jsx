@@ -248,10 +248,9 @@ const PerformanceInsightsModal = ({
 
   // Handler for Last 1 Month button
   const handleLast1Month = async () => {
-    const date = new Date();
-    date.setDate(1); // First day of current month
     const today = new Date();
-    setLocalStartDate(date);
+    const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1); // Start from the first day of the *previous* month
+    setLocalStartDate(startDate);
     setLocalEndDate(today);
     setReportMode("1month");
     setShowDatePicker(false);
@@ -259,7 +258,7 @@ const PerformanceInsightsModal = ({
     // Notify parent to fetch fresh data - ensure dates are Date objects
     if (onDateChange) {
       onDateChange({
-        startDate: date,
+        startDate: startDate,
         endDate: today,
       });
     }
@@ -426,11 +425,17 @@ const PerformanceInsightsModal = ({
   const currentEndDate = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
 
   return !isOpen ? null : (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-white bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-8 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="text-white px-6 py-5 flex justify-between items-center border-b" style={{ backgroundColor: "#2563eb", borderColor: "#1e40af" }}>
-          <div className="flex items-center gap-3">
+<div
+  className="text-white flex justify-between items-center border-b"
+  style={{
+    backgroundColor: "#2563eb",
+    borderColor: "#1e40af",
+    padding: "20px"
+  }}
+>        <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
               📊
             </div>

@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import dbConnect from "@/lib/mongodb";
+import Site from "@/models/Site";
+import { generateSlug } from "../../../../utils/generateSlug";
 
 function getRequiredEnv(name) {
   const value = process.env[name];
@@ -19,6 +22,8 @@ export async function POST(req) {
       locality,
       primaryCategory,
       additionalCategories = [],
+      userId,
+      locationId,
     } = await req.json();
 
     if (!title || !primaryCategory) {
@@ -134,7 +139,65 @@ Rules:
       );
     }
 
-    return Response.json({ content: parsed });
+    // Generate slug from the business details
+    const slug = generateSlug(title, locality, "");
+
+    // If userId is provided, save to database
+    if (userId) {
+      try {
+        await dbConnect();
+        
+        // Check if slug already exists for this user
+        let finalSlug = slug;
+        let counter = 0;
+        let existingSite = await Site.findOne({ slug: finalSlug, userId });
+        
+        while (existingSite) {
+          counter++;
+          finalSlug = `${slug}-${counter}`;
+          existingSite = await Site.findOne({ slug: finalSlug, userId });
+        }
+
+        // Save the website to database
+        const site = new Site({
+          slug: finalSlug,
+          userId,
+          locationId: locationId || "",
+          business: {
+            title,
+            locality,
+            primaryCategory,
+            additionalCategories,
+          },
+          aiContent: parsed,
+          isPublished: true,
+        });
+
+        await site.save();
+
+        return Response.json({ 
+          content: parsed, 
+          slug: finalSlug,
+          saved: true 
+        });
+      } catch (dbError) {
+        console.error("Database Save Error:", dbError);
+        // Return the content even if save fails
+        return Response.json({ 
+          content: parsed, 
+          slug: slug,
+          saved: false,
+          saveError: dbError.message 
+        });
+      }
+    }
+
+    // If no userId, just return the content with slug (preview mode)
+    return Response.json({ 
+      content: parsed, 
+      slug: slug,
+      saved: false 
+    });
 
   } catch (err) {
     console.error("AI Website Generation Error:", err);

@@ -32,7 +32,6 @@ async function refreshAccessToken(token) {
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
-  debug: true, // Temporarily enable for production debugging
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -51,48 +50,39 @@ export const authOptions = {
     async signIn({ user, account, profile }) {
       if (account.provider === "google") {
         try {
+          // 1. Database connection check
           const client = await clientPromise;
           const db = client.db("gmb_dashboard");
-          const usersCollection = db.collection("users");
 
-          if (!user.email || !profile.sub) return false;
+          // 2. Data save logic with basic validation
+          if (!user.email) return false;
 
-          // Attempt to update the tokens for an existing project
-          const result = await usersCollection.updateOne(
-            { email: user.email, "projects.googleId": profile.sub },
+          await db.collection("users").updateOne(
+            { email: user.email },
             {
               $set: {
-                "projects.$.accessToken": account.access_token,
-                // Only update the refresh token if a new one is provided
-                ...(account.refresh_token && { "projects.$.refreshToken": account.refresh_token }),
+                name: user.name,
+                image: user.image,
+                updatedAt: new Date(),
               },
-            }
-          );
-
-          // If no document was matched, the project doesn't exist for this user.
-          // So, we add it using $push, and create the user if they don't exist.
-          if (result.matchedCount === 0) {
-            await usersCollection.updateOne(
-              { email: user.email },
-              {
-                $set: { name: user.name, image: user.image, updatedAt: new Date() },
-                $push: {
-                  projects: {
-                    googleId: profile.sub,
-                    accessToken: account.access_token,
-                    refreshToken: account.refresh_token,
-                    createdAt: new Date(),
-                  },
+              // $addToSet tabhi kaam karega jab 'projects' ek array field ho
+              $addToSet: {
+                projects: {
+                  googleId: profile.sub,
+                  accessToken: account.access_token,
+                  refreshToken: account.refresh_token,
+                  createdAt: new Date(),
                 },
               },
-              { upsert: true } // Creates the user document if it doesn't exist
-            );
-          }
-          return true;
+            },
+            { upsert: true }
+          );
+          return true; // Success
         } catch (error) {
           console.error("Database Error during Sign-In:", error);
-          // On database error, prevent sign-in to ensure data integrity.
-          return false;
+          // Agar database error aaye toh bhi sign in allow karein (optional) 
+          // ya false return karein agar DB zaroori hai
+          return true; 
         }
       }
       return true;
@@ -104,8 +94,7 @@ export const authOptions = {
           ...token,
           id: user.id,
           accessToken: account.access_token,
-          // Persist the refresh token from the first login
-          refreshToken: account.refresh_token ?? token.refreshToken,
+          refreshToken: account.refresh_token,
           accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
         };
       }
@@ -114,18 +103,13 @@ export const authOptions = {
         return token;
       }
 
-      // The access token has expired, try to refresh it.
-      if (!token.refreshToken) {
-        console.error("Error refreshing access token: No refresh token found.");
-        return { ...token, error: "RefreshAccessTokenError" };
-      }
-
       return refreshAccessToken(token);
     },
 
     async session({ session, token }) {
       session.user.id = token.id;
       session.accessToken = token.accessToken;
+      session.refreshToken = token.refreshToken;
       session.error = token.error;
       return session;
     },

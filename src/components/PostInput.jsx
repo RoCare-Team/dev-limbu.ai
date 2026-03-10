@@ -228,6 +228,13 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check file size (1 MB = 1048576 bytes)
+    if (file.size > 1048576) {
+      showToast("The selected image is too large. Please upload an image smaller than 1 MB.", "error");
+      e.target.value = null;
+      return;
+    }
+
     setUpdatingAsset(asset.name);
 
     try {
@@ -430,11 +437,11 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
 
   const handleManualSubmit = async () => {
     if (!manualImage) {
-      showToast("Please upload an image", "error");
+      showToast("Please upload an image (maximum size 1 MB)", "error");
       return;
     }
     if (!manualDescription.trim()) {
-      showToast("Please enter a description", "error");
+      showToast("Please enter a caption for your post", "error");
       return;
     }
 

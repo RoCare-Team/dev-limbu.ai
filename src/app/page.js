@@ -670,7 +670,7 @@ const seoPlans = [
       gstAmount: "₹450",
       subtitle: "Ideal for existing Google Business Profiles",
       features: [
-        "Google Business Profile functionality check",
+        "Google Business Profile Functionality check",
         "Website URL update",
         "Mobile number update",
         "Basic profile verification check",

@@ -1,7 +1,8 @@
 "use client";
+
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe, Bell } from "lucide-react";
+import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe, Bell, Upload } from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -36,7 +37,9 @@ export default function UserManagement() {
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
   const [planStartDate, setPlanStartDate] = useState("");
+  const [planAmount, setPlanAmount] = useState("");
   const [planExpiryDate, setPlanExpiryDate] = useState("");
+  const [planScreenshot, setPlanScreenshot] = useState(null);
   const [chatStats, setChatStats] = useState({ total: 0, today: 0, resolved: 0, data: [] });
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
   const [chatModalFilter, setChatModalFilter] = useState("all");
@@ -70,6 +73,26 @@ export default function UserManagement() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
+  const [callStats, setCallStats] = useState(null);
+  
+  // Revenue tracking state
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [revenueCount, setRevenueCount] = useState(0);
+  const [userOnboardCount, setUserOnboardCount] = useState(0);
+  const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
+  
+  // Onboarded Client state
+  const [showOnboardModal, setShowOnboardModal] = useState(false);
+  const [onboardModalUser, setOnboardModalUser] = useState(null);
+  const [onboardData, setOnboardData] = useState({ plan: "", amount: "", screenshot: null, notes: "" });
+  const [uploadingOnboard, setUploadingOnboard] = useState(false);
+  
+  // Payment Screenshot Upload state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentModalUser, setPaymentModalUser] = useState(null);
+  const [paymentData, setPaymentData] = useState({ amount: "", screenshot: null, notes: "", plan: "" });
+  const [uploadingPayment, setUploadingPayment] = useState(false);
+  const [paidUsersStatus, setPaidUsersStatus] = useState({});
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
@@ -265,6 +288,25 @@ export default function UserManagement() {
     
     fetchTotalPosts();
   }, [filterDate, customStartDate, customEndDate]);
+
+  useEffect(() => {
+    const fetchCallStats = async () => {
+        const adminEmail = localStorage.getItem("email");
+        if (!adminEmail || (role !== 'superAdmin' && role !== 'admin')) return;
+
+        try {
+            const res = await fetch(`/api/admin/call-stats?email=${adminEmail}`);
+            const data = await res.json();
+            if (data.success) {
+                setCallStats(data.stats);
+            }
+        } catch (error) {
+            console.error("Failed to fetch call stats:", error);
+        }
+    };
+
+    fetchCallStats();
+  }, [role, users]); // Refetch on role change or when user data updates
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -481,7 +523,98 @@ export default function UserManagement() {
     fetchChatStats();
     fetchIssues();
     fetchTodayUsersCount();
+    fetchRevenue();
   }, []);
+  
+  /* ---------------- UPLOAD TO CLOUDINARY ---------------- */
+  const uploadToCloudinary = async (file) => {
+    try {
+      // Get signature from server
+      const { getCloudinarySignatureAction } = await import("@/app/actions/uploadCloudinary");
+      const signatureData = await getCloudinarySignatureAction();
+      
+      if (!signatureData.success) {
+        throw new Error("Failed to get Cloudinary signature");
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", signatureData.apiKey);
+      formData.append("timestamp", signatureData.timestamp);
+      formData.append("signature", signatureData.signature);
+      formData.append("folder", signatureData.folder);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error("Cloudinary upload failed");
+      }
+      
+      const data = await response.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      throw error;
+    }
+  };
+
+  /* ---------------- FETCH REVENUE DATA ---------------- */
+  const fetchRevenue = async () => {
+    const userEmail = localStorage.getItem("email");
+    const userRole = localStorage.getItem("role");
+    
+    if (!userEmail || !userRole) return;
+
+     try {
+       const res = await fetch(
+         `/api/franchise-revenue?email=${userEmail}&role=${userRole}`
+       );
+      
+       if (res.ok) {
+         const data = await res.json();
+         if (data.success) {
+           // On this page, we only care about user onboarding revenue.
+           if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
+             setTotalRevenue(data.totalUserOnboardRevenue || 0);
+             setRevenueCount(data.userOnboardCount || 0);
+           } else if (userRole === "agent") {
+             // For agents, totalRevenue from API is already just their user_onboard revenue
+             setTotalRevenue(data.totalRevenue || 0);
+             setRevenueCount(data.userOnboardCount || 0);
+           } else {
+             // For other roles like franchiseAdmin, they have no user_onboard revenue
+             setTotalRevenue(0);
+             setRevenueCount(0);
+           }
+
+           // Create a map of paid users from 'user_onboard' type revenue entries
+           const paidStatus = {};
+           if (data.revenue) {
+             data.revenue
+               .filter(rev => rev.type === 'user_onboard')
+               .forEach(rev => {
+                 // Since data is sorted by date descending, the first one we see for a user is the latest.
+                 // Store the screenshot URL if it exists.
+                 if (!paidStatus[rev.leadId] && rev.paymentScreenshot) {
+                   paidStatus[rev.leadId] = rev.paymentScreenshot;
+                 }
+               });
+             setPaidUsersStatus(paidStatus);
+          } else {
+            setRevenueCount(data.userOnboardCount || 0);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch revenue", err);
+    }
+  };
 
 
 
@@ -845,14 +978,53 @@ const handleRoundRobinAssign = (userId) => {
       ? new Date(user.packageStartDate).toISOString().split('T')[0] 
       : new Date().toISOString().split('T')[0];
     setPlanStartDate(start);
+    setPlanAmount(""); // Reset amount
+    setPlanScreenshot(null); // Reset screenshot
   };
 
   const confirmPlanChange = async () => {
     if (!selectedUser || !selectedPlan) return;
+
+    // If amount is entered, screenshot is mandatory
+    if (planAmount && parseFloat(planAmount) > 0 && !planScreenshot) {
+      showToast("Payment screenshot is required when amount is entered.", "error");
+      return;
+    }
+
     setUpdating(selectedUser.userId);
 
     try {
-      const res = await fetch(`/api/users`, {
+      let screenshotUrl = null;
+      // 1. Handle revenue recording if amount is provided
+      if (planAmount && parseFloat(planAmount) > 0) {
+        screenshotUrl = await uploadToCloudinary(planScreenshot);
+
+        const revenueRes = await fetch("/api/franchise-revenue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            leadId: selectedUser.userId,
+            leadName: selectedUser.fullName,
+            amount: parseFloat(planAmount),
+            paymentScreenshot: screenshotUrl,
+            email: localStorage.getItem("email"),
+            plan: selectedPlan,
+            type: "user_onboard",
+            notes: `Plan upgrade to ${selectedPlan}`,
+          }),
+        });
+
+        const revenueData = await revenueRes.json();
+        if (!revenueData.success) {
+          throw new Error(revenueData.message || "Failed to record revenue.");
+        }
+      } else if (planScreenshot) {
+        // If no amount but screenshot is there, just upload it for the user record
+        screenshotUrl = await uploadToCloudinary(planScreenshot);
+      }
+
+      // 2. Update user plan details
+      const userUpdateRes = await fetch(`/api/users`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -861,18 +1033,26 @@ const handleRoundRobinAssign = (userId) => {
           paidPackage: selectedPlan,
           planDuration: selectedCycle,
           packageStartDate: planStartDate,
-          packageExpiryDate: planExpiryDate
+          packageExpiryDate: planExpiryDate,
+          ...(screenshotUrl && { paymentScreenshot: screenshotUrl })
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const userUpdateData = await userUpdateRes.json();
+      if (userUpdateData.success) {
+        showToast("User plan updated successfully!", "success");
         fetchUsers();
+        if (planAmount && parseFloat(planAmount) > 0) {
+          fetchRevenue(); // Refresh revenue only if it was added
+        }
         setSelectedUser(null);
+        setPlanScreenshot(null); // Reset after successful upload
+        setPlanAmount("");
       } else {
-        alert(data.error || "Failed to update plan");
+        throw new Error(userUpdateData.error || "Failed to update plan");
       }
     } catch (err) {
       console.error("Error updating plan:", err);
+      showToast(err.message, "error");
     } finally {
       setUpdating(null);
     }
@@ -1212,6 +1392,10 @@ const handleRoundRobinAssign = (userId) => {
       messageSent = await sendRemarkWhatsApp(remarksModalUser, remarkType);
     }
 
+    // Get current admin info for call tracking
+    const adminId = localStorage.getItem("userId");
+    const adminName = localStorage.getItem("adminName") || "Admin";
+
     try {
       const res = await fetch("/api/users", {
         method: "PUT",
@@ -1220,6 +1404,8 @@ const handleRoundRobinAssign = (userId) => {
           userId: remarksModalUser.userId,
           remark: remarksInput,
           messageSent,
+          agentId: adminId,
+          agentName: adminName
         })
       });
       const data = await res.json();
@@ -1250,6 +1436,10 @@ const handleRoundRobinAssign = (userId) => {
     // Send WhatsApp with meeting details
     const messageSent = await sendRemarkWhatsApp(remarksModalUser, "Meeting Scheduled");
 
+    // Get current admin info for call tracking
+    const adminId = localStorage.getItem("userId");
+    const adminNameForCall = localStorage.getItem("adminName") || "Admin";
+
     try {
       const res = await fetch("/api/users", {
         method: "PUT",
@@ -1258,6 +1448,8 @@ const handleRoundRobinAssign = (userId) => {
           userId: remarksModalUser.userId,
           remark: remarkText,
           messageSent,
+          agentId: adminId,
+          agentName: adminNameForCall,
         })
       });
       const data = await res.json();
@@ -1274,6 +1466,54 @@ const handleRoundRobinAssign = (userId) => {
     } catch (error) {
       console.error("Error saving meeting remark:", error);
       showToast("Error saving meeting remark", "error");
+    }
+  };
+
+  /* ---------------- HANDLE ONBOARD CLIENT SUBMISSION ---------------- */
+  const handleOnboardSubmit = async () => {
+    if (!onboardData.plan || !onboardData.amount || !onboardData.screenshot) {
+      showToast("Please provide plan, amount and payment screenshot", "error");
+      return;
+    }
+
+    setUploadingOnboard(true);
+
+    try {
+      // Upload screenshot to Cloudinary
+      const screenshotUrl = await uploadToCloudinary(onboardData.screenshot);
+
+      // Save onboard data to database
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: onboardModalUser.userId,
+          leadName: onboardModalUser.fullName,
+          amount: parseFloat(onboardData.amount),
+          paymentScreenshot: screenshotUrl,
+          email: localStorage.getItem("email"),
+          notes: onboardData.notes,
+          plan: onboardData.plan,
+          type: "user_onboard",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Client onboarded successfully!", "success");
+        setShowOnboardModal(false);
+        setOnboardModalUser(null);
+        setOnboardData({ plan: "", amount: "", screenshot: null, notes: "" });
+        fetchRevenue(); // Refresh revenue data
+      } else {
+        showToast(data.message || "Failed to onboard client", "error");
+      }
+    } catch (error) {
+      console.error("Error onboarding client:", error);
+      showToast("Error onboarding client", "error");
+    } finally {
+      setUploadingOnboard(false);
     }
   };
 
@@ -1329,6 +1569,8 @@ const handleRoundRobinAssign = (userId) => {
 
   console.log("agentsagents", agents);
   console.log("agentStatsagentStatsagentStats", agentStats);
+  console.log("callStatscallStats",callStats);
+  
 
 
   if (loading) {
@@ -1434,6 +1676,35 @@ const handleRoundRobinAssign = (userId) => {
           </div>
 
         </div>
+
+        {/* Call Stats */}
+        {callStats && (role === 'superAdmin' || role === 'admin') && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Call Performance</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-sm font-medium text-blue-700">Total Calls Today</p>
+                <p className="text-3xl font-bold text-blue-800 mt-1">{callStats.totalCallsToday}</p>
+              </div>
+              {/* <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Today's Calls by Agent</p>
+                {callStats.todayCallsByAgent.length > 0 ? (
+                  <ul className="space-y-2 max-h-40 overflow-y-auto">
+                    {callStats.todayCallsByAgent.map(agent => (
+                      <li key={agent.agentId || agent.agentName} className="flex justify-between items-center text-sm pr-2">
+                        <span className="font-medium text-gray-800">{agent.agentName}</span>
+                        <span className="font-bold text-gray-900 bg-gray-200 px-2 py-0.5 rounded-full text-xs">{agent.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No calls made today.</p>
+                )}
+              </div> */}
+            </div>
+          </div>
+        )}
+
 
         {/* Main Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -1591,6 +1862,30 @@ const handleRoundRobinAssign = (userId) => {
               </div>
             </div>
           </div>
+          
+          {/* Total Revenue - Role-based visibility */}
+          {(role === "superAdmin" || role === "franchiseAdmin" || role === "agent") && (
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 shadow-sm border border-emerald-200 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-emerald-700 font-medium">
+                    {role === "superAdmin" || role === "superFranchiseAdmin" ? "User Onboard Revenue" : "My Revenue"}
+                  </p>
+                  <p className="text-2xl font-bold text-emerald-800 mt-1">
+                    ₹{totalRevenue.toLocaleString()}
+                  </p>
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                      {revenueCount} Users
+                    </span>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-emerald-200 rounded-lg flex items-center justify-center">
+                  <Wallet className="text-emerald-700" size={24} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Chat Stats Cards - Separate Row */}
@@ -1940,12 +2235,30 @@ const handleRoundRobinAssign = (userId) => {
 
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          {user.fullName && (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <User2Icon size={14} className="text-gray-400" />
-                              {user.fullName}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {user.fullName && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <User2Icon size={14} className="text-gray-400" />
+                                {user.fullName}
+                              </div>
+                            )}
+                            {paidUsersStatus[user.userId] && ( // A URL exists for this user
+                              <>
+                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                  Paid
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setFullViewImage(paidUsersStatus[user.userId]); }}
+                                  className="p-1 hover:bg-gray-200 rounded-full"
+                                  title="View Payment Screenshot"
+                                >
+                                  <Eye size={14} className="text-gray-500" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+
+
                           <div onClick={(e) => e.stopPropagation()}>
                             <select
                               value={user.leadStatus || ""}
@@ -2242,6 +2555,19 @@ const handleRoundRobinAssign = (userId) => {
                               "Login"
                             )}
                           </button>
+                          {(role === "superAdmin" || role === "agent") && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOnboardModalUser(user);
+                                setShowOnboardModal(true);
+                              }}
+                              className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
+                              title="Onboard Client"
+                            >
+                              <CheckCircle size={16} />
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2453,119 +2779,198 @@ const handleRoundRobinAssign = (userId) => {
         </div>
       )}
 
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
+    {selectedUser && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
+    
+    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
 
-            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-              <p className="text-sm text-gray-600 mb-1">User</p>
-              <p className="font-semibold text-gray-800">{selectedUser.email}</p>
-            </div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
+        <button
+          onClick={() => setSelectedUser(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-            {subscriptionPlans && (
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-                {subscriptionPlans.billingCycles.map((cycle) => (
-                  <button
-                    key={cycle.cycle}
-                    onClick={() => setSelectedCycle(cycle.cycle)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${selectedCycle === cycle.cycle
-                      ? "bg-indigo-600 text-white shadow-md"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                  >
-                    {cycle.label}
-                  </button>
-                ))}
-              </div>
-            )}
+      <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+        <p className="text-sm text-gray-600 mb-1">User</p>
+        <p className="font-semibold text-gray-800">{selectedUser.email}</p>
+      </div>
 
-            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
-              {(subscriptionPlans ? subscriptionPlans.billingCycles.find(c => c.cycle === selectedCycle)?.plans : ["Basic Plan", "Professional Plan", "Premium Plan"].map(p => ({ title: p }))).map((plan) => {
-                const planName = plan.title || plan;
-                return (
-                  <label
-                    key={planName}
-                    className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === planName
-                      ? "border-indigo-500 bg-indigo-50"
-                      : "border-gray-200 hover:border-gray-300"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <input
-                        type="radio"
-                        name="plan"
-                        value={planName}
-                        checked={selectedPlan === planName}
-                        onChange={(e) => setSelectedPlan(e.target.value)}
-                        className="w-4 h-4 text-indigo-600 shrink-0"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          {planName.includes("Premium") && <Crown size={18} className="text-purple-600" />}
-                          {planName.includes("Professional") && <Zap size={18} className="text-blue-600" />}
-                          {planName.includes("Basic") && <Shield size={18} className="text-gray-600" />}
-                          <span className="font-semibold text-gray-800">{planName}</span>
-                        </div>
-                        {plan.totalAmount && (
-                          <div className="text-xs text-gray-500 mt-1 ml-7">
-                            ₹{plan.totalAmount} / {plan.duration}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Start Date</label>
-                <input
-                  type="date"
-                  value={planStartDate}
-                  onChange={(e) => setPlanStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Expiry Date</label>
-                <input
-                  type="date"
-                  value={planExpiryDate}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPlanChange}
-                disabled={updating === selectedUser.userId}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
-              >
-                {updating === selectedUser.userId ? "Updating..." : "Confirm"}
-              </button>
-            </div>
-          </div>
+      {subscriptionPlans && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+          {subscriptionPlans.billingCycles.map((cycle) => (
+            <button
+              key={cycle.cycle}
+              onClick={() => setSelectedCycle(cycle.cycle)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                selectedCycle === cycle.cycle
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {cycle.label}
+            </button>
+          ))}
         </div>
       )}
+
+      <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+        {(subscriptionPlans
+          ? subscriptionPlans.billingCycles.find(
+              (c) => c.cycle === selectedCycle
+            )?.plans
+          : ["Basic Plan", "Professional Plan", "Premium Plan"].map((p) => ({
+              title: p,
+            }))
+        ).map((plan) => {
+          const planName = plan.title || plan;
+          return (
+            <label
+              key={planName}
+              className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                selectedPlan === planName
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <div className="flex items-center gap-3 w-full">
+                <input
+                  type="radio"
+                  name="plan"
+                  value={planName}
+                  checked={selectedPlan === planName}
+                  onChange={(e) => setSelectedPlan(e.target.value)}
+                  className="w-4 h-4 text-indigo-600 shrink-0"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    {planName.includes("Premium") && (
+                      <Crown size={18} className="text-purple-600" />
+                    )}
+                    {planName.includes("Professional") && (
+                      <Zap size={18} className="text-blue-600" />
+                    )}
+                    {planName.includes("Basic") && (
+                      <Shield size={18} className="text-gray-600" />
+                    )}
+                    <span className="font-semibold text-gray-800">
+                      {planName}
+                    </span>
+                  </div>
+
+                  {plan.totalAmount && (
+                    <div className="text-xs text-gray-500 mt-1 ml-7">
+                      ₹{plan.totalAmount} / {plan.duration}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">
+            Amount (₹) <span className="text-gray-400">(for new revenue)</span>
+          </label>
+          <input
+            type="number"
+            placeholder="e.g., 5000"
+            value={planAmount}
+            onChange={(e) => setPlanAmount(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={planStartDate}
+            onChange={(e) => setPlanStartDate(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">
+            Expiry Date
+          </label>
+          <input
+            type="date"
+            value={planExpiryDate}
+            readOnly
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
+          />
+        </div>
+      </div>
+
+      {/* Payment Screenshot Upload */}
+      <div className="mb-6">
+        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+          Payment Screenshot <span className="text-gray-400">(if amount entered)</span>
+        </label>
+
+        <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                setPlanScreenshot(file);
+              }
+            }}
+            className="hidden"
+            id="plan-screenshot-upload"
+          />
+
+          <label
+            htmlFor="plan-screenshot-upload"
+            className="flex flex-col items-center cursor-pointer"
+          >
+            <Upload className="w-8 h-8 text-gray-400 mb-2" />
+
+            <span className="text-sm text-gray-600">
+              {planScreenshot
+                ? planScreenshot.name
+                : "Click to upload payment screenshot"}
+            </span>
+
+            <span className="text-xs text-gray-400 mt-1">
+              PNG, JPG up to 10MB
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => setSelectedUser(null)}
+          className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={confirmPlanChange}
+          disabled={updating === selectedUser.userId}
+          className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
+        >
+          {updating === selectedUser.userId ? "Updating..." : "Confirm"}
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
 
       {/* Remarks Modal */}
       {remarksModalUser && (
@@ -3266,6 +3671,121 @@ const handleRoundRobinAssign = (userId) => {
                   </>
                 )}
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onboard Client Modal */}
+      {showOnboardModal && onboardModalUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Onboard Client</h2>
+                <p className="text-sm text-gray-500 mt-1">{onboardModalUser.fullName}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowOnboardModal(false);
+                  setOnboardModalUser(null);
+                  setOnboardData({ plan: "", amount: "", screenshot: null, notes: "" });
+                }}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Plan <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={onboardData.plan}
+                  onChange={(e) => setOnboardData({ ...onboardData, plan: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+                  <option value="">Select Plan</option>
+                  <option value="Basic Plan">Basic Plan</option>
+                  <option value="Professional Plan">Professional Plan</option>
+                  <option value="Premium Plan">Premium Plan</option>
+                  <option value="Enterprise Plan">Enterprise Plan</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Amount (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={onboardData.amount}
+                  onChange={(e) => setOnboardData({ ...onboardData, amount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Screenshot <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-emerald-500 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setOnboardData({ ...onboardData, screenshot: file });
+                      }
+                    }}
+                    className="hidden"
+                    id="onboard-screenshot-upload"
+                  />
+                  <label
+                    htmlFor="onboard-screenshot-upload"
+                    className="flex flex-col items-center cursor-pointer"
+                  >
+                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-600">
+                      {onboardData.screenshot ? onboardData.screenshot.name : "Click to upload screenshot"}
+                    </span>
+                    <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <textarea
+                  placeholder="Add any additional notes..."
+                  value={onboardData.notes}
+                  onChange={(e) => setOnboardData({ ...onboardData, notes: e.target.value })}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                />
+              </div>
+
+              <button
+                onClick={handleOnboardSubmit}
+                disabled={uploadingOnboard || !onboardData.plan || !onboardData.amount || !onboardData.screenshot}
+                className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {uploadingOnboard ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Onboard Client
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

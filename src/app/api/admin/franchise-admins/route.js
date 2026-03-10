@@ -1,53 +1,54 @@
-
-// Next.js ka built-in response helper. || API se JSON format me response bhejne ke liye.
 import { NextResponse } from "next/server";
-
-// Custom function jo MongoDB se connection karta hai. || kya kaam Database connect kiye bina query nahi chalegi.|| agar hata de Admin.find() pe error aayega → DB connected nahi.
 import dbConnect from "@/lib/dbConnect";
-
-// Admin model (Mongoose schema). || kya kaam Admin collection me data read karne ke liye.
 import Admin from "@/models/Admin";
 
-// Next.js App Router me by default GET request kabhi-kabhi static caching kar deta hai. || force-dynamic ka matlab: Har request pe fresh data fetch karo  Cache use mat karo
-export const dynamic = "force-dynamic";
-
-export async function GET() { // GET request ka handler.  || Jab koi frontend se request kare:
+// ==================
+// GET: FETCH FRANCHISE ADMINS
+// ==================
+export async function GET(req) {
   try {
-    await dbConnect(); // Database connection ensure karta hai. || Har API request pe ye call hota hai.
-    // Fetch only admins with role 'franchiseAdmin'
-    // Admin collection me search karta hai: || Sirf woh admins lao jinka role franchiseAdmin hai. || Sab admins aa jayenge (superAdmin, agent, sab).
-    const admins = await Admin.find({ role: "franchiseAdmin" }) 
-      .select("fullName email _id") // Sirf ye fields return kare: fullName email id
-      .lean(); // Normal Mongoose query return karta hai: \\  Mongoose Document Object || .lean() use karne se: || Plain JavaScript object milta hai
+    await dbConnect();
 
-    return NextResponse.json({ success: true, data: admins }); // Client ko JSON response bhej raha hai.
-  } catch (error) { // Agar DB error aaye to handle karega.
+    const franchiseAdmins = await Admin.find({ role: "franchiseAdmin" })
+      .select("fullName email role isActive createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      data: franchiseAdmins,
+    });
+  } catch (error) {
+    console.error("Fetch Franchise Admins Error:", error);
     return NextResponse.json(
-      { success: false, message: "Server Error", error: error.message },
+      { success: false, message: error.message || "Server error" },
       { status: 500 }
     );
   }
 }
 
-// PATCH: Toggle isActive status
+// ==================
+// PATCH: TOGGLE ADMIN ACTIVE STATUS
+// ==================
 export async function PATCH(req) {
   try {
     await dbConnect();
+
     const body = await req.json();
     const { adminId, isActive } = body;
 
     if (!adminId) {
       return NextResponse.json(
-        { success: false, message: "adminId is required" },
+        { success: false, message: "Admin ID is required" },
         { status: 400 }
       );
     }
 
     const updatedAdmin = await Admin.findByIdAndUpdate(
       adminId,
-      { isActive },
+      { isActive: isActive },
       { new: true }
-    ).select("fullName email _id isActive");
+    ).select("fullName email role isActive").lean();
 
     if (!updatedAdmin) {
       return NextResponse.json(
@@ -58,13 +59,15 @@ export async function PATCH(req) {
 
     return NextResponse.json({
       success: true,
-      message: isActive ? "Admin activated successfully" : "Admin deactivated successfully",
-      data: updatedAdmin
+      message: isActive ? "Admin activated" : "Admin deactivated",
+      data: updatedAdmin,
     });
   } catch (error) {
+    console.error("Update Admin Status Error:", error);
     return NextResponse.json(
-      { success: false, message: "Server Error", error: error.message },
+      { success: false, message: error.message || "Server error" },
       { status: 500 }
     );
   }
 }
+

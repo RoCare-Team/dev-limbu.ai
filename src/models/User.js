@@ -23,6 +23,9 @@ const userSchema = new mongoose.Schema(
     packageStartDate: { type: Date },
     packageExpiryDate: { type: Date },
     
+    // Payment screenshot for plan upgrades
+    paymentScreenshot: { type: String, default: null },
+    
     // Service start and expiry dates
     serviceStartDate: { type: Date },
     serviceExpiryDate: { type: Date },
@@ -55,6 +58,18 @@ referCode : {type: String},
     type: mongoose.Schema.Types.ObjectId,
     ref: "Admin",
   },
+    
+    // Call Tracking Fields
+    callCount: { type: Number, default: 0 },
+    callHistory: [
+      {
+        agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+        agentName: { type: String },
+        calledAt: { type: Date, default: Date.now },
+        remark: { type: String },
+      }
+    ],
+    
     remarksHistory: [
       {
         text: String,

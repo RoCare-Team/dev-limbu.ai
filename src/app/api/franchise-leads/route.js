@@ -114,7 +114,7 @@ export async function GET(req) {
     
     let limit = parseInt(searchParams.get("limit") || "500", 10);
     if (isNaN(limit) || limit < 1) limit = 500;
-    if (limit > 1000) limit = 1000;
+    if (limit > 1500) limit = 1500;
 
     // ========== FETCH SINGLE LEAD WITH REMARKS ==========
     if (leadId) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo,useCallback } from "react";
 import {
   Users,
   Phone,
@@ -34,6 +34,9 @@ import {
   Flame,
   Sun,
   Snowflake,
+  DollarSign,
+  Upload,
+  BadgeCheck,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Lottie from "lottie-react";
@@ -145,6 +148,82 @@ export default function FranchiseLeadsPage() {
   const [newLead, setNewLead] = useState({ lead_quality: "None" });
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+  
+  // Revenue state
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
+  const [revenueModalLead, setRevenueModalLead] = useState(null);
+  const [revenueData, setRevenueData] = useState({ amount: "", screenshot: null, notes: "" });
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [revenueCount, setRevenueCount] = useState(0);
+  const [leadRevenueStatus, setLeadRevenueStatus] = useState({}); // Track which leads have paid
+  const [fullViewImage, setFullViewImage] = useState(null);
+  const [onboardBreakdown, setOnboardBreakdown] = useState([]);
+
+  /* ---------------- FETCH REVENUE DATA ---------------- */
+  const fetchRevenue = async () => {
+    const userEmail = localStorage.getItem("email");
+    const userRole = localStorage.getItem("role");
+    
+    if (!userEmail || !userRole) return;
+
+    try {
+      const res = await fetch(
+        `/api/franchise-revenue?email=${userEmail}&role=${userRole}`
+      );
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          // For superAdmin, show only franchise revenue on this page
+          if (userRole === 'superAdmin' || userRole === 'superFranchiseAdmin') {
+            setTotalRevenue(data.totalFranchiseRevenue || 0);
+            setRevenueCount(data.franchiseLeadCount || 0);
+          } else {
+            setTotalRevenue(data.totalRevenue || 0);
+            setRevenueCount(data.count || 0);
+          }
+          
+          // Check for paid leads and update status
+          const status = {};
+          if (data.revenue) {
+            data.revenue
+              .filter(rev => rev.type === 'franchise_lead' && rev.paymentScreenshot)
+              .forEach(rev => {
+                if (!status[rev.leadId]) {
+                  status[rev.leadId] = rev.paymentScreenshot;
+                }
+              });
+            setLeadRevenueStatus(status);
+          }
+
+          // Calculate Onboard Leads Breakdown for super admins
+          if ((userRole === 'superAdmin' || userRole === 'superFranchiseAdmin') && data.revenue) {
+            const breakdown = data.revenue
+              .filter(rev => rev.type === 'franchise_lead')
+              .reduce((acc, rev) => {
+                const adminId = rev.onboardedBy?._id;
+                if (!adminId) return acc;
+
+                if (!acc[adminId]) {
+                  acc[adminId] = {
+                    name: rev.onboardedBy.fullName || 'Unknown Admin',
+                    count: 0,
+                    revenue: 0,
+                  };
+                }
+                acc[adminId].count += 1;
+                acc[adminId].revenue += rev.amount || 0;
+                return acc;
+              }, {});
+            setOnboardBreakdown(Object.values(breakdown).sort((a, b) => b.revenue - a.revenue));
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch revenue", err);
+    }
+  };
 
   /* ---------------- FETCH LEADS FROM API ---------------- */
   const fetchLeads = async () => {
@@ -155,7 +234,7 @@ export default function FranchiseLeadsPage() {
 
     try {
       const res = await fetch(
-        `/api/franchise-leads?formId=${formId}&limit=1000&summary=true&email=${userEmail || ""}`
+        `/api/franchise-leads?formId=${formId}&limit=2000&summary=true&email=${userEmail || ""}`
       );
       
       if (!res.ok) {
@@ -192,16 +271,8 @@ export default function FranchiseLeadsPage() {
     setLoading(false);
   };
 
-  /* ---------------- LOAD ON MOUNT ---------------- */
-  useEffect(() => {
-    fetchLeads();
-  }, [formId]);
-
-  /* ---------------- FETCH ADMINS & ROLE ---------------- */
-  useEffect(() => {
+  const fetchFranchiseAdmins = useCallback(() => {
     const userRole = localStorage.getItem("role");
-    setRole(userRole);
-
     if (userRole === "superFranchiseAdmin" || userRole === "superAdmin") {
       fetch("/api/admin/franchise-admins")
         .then((res) => res.json())
@@ -210,6 +281,22 @@ export default function FranchiseLeadsPage() {
         })
         .catch((err) => console.error("Error fetching admins:", err));
     }
+  }, []);
+
+  /* ---------------- LOAD ON MOUNT ---------------- */
+  useEffect(() => {
+    fetchLeads();
+    fetchRevenue();
+    const userRole = localStorage.getItem("role");
+    setRole(userRole);
+    fetchFranchiseAdmins();
+  }, [formId, fetchFranchiseAdmins]);
+
+  /* ---------------- FETCH ADMINS & ROLE ---------------- */
+  useEffect(() => {
+    const userRole = localStorage.getItem("role");
+    setRole(userRole);
+    fetchFranchiseAdmins();
   }, []);
 
   /* ---------------- HELPER: COLOR GENERATOR ---------------- */
@@ -361,7 +448,7 @@ export default function FranchiseLeadsPage() {
     const onboardCount = sourceData.filter(l => l.status === "Onboard").length;
     const inactiveCount = sourceData.filter(l => l.status === "Inactive").length;
 
-    return [
+    const baseStats = [
       { label: "Total Leads", value: sourceData.length, icon: Users, color: "text-blue-600" },
       { label: "New Today", value: today, icon: TrendingUp, color: "text-green-600" },
       { label: "Active", value: activeCount, icon: Activity, color: "text-blue-600" },
@@ -369,7 +456,18 @@ export default function FranchiseLeadsPage() {
       { label: "Onboard", value: onboardCount, icon: UserCheck, color: "text-green-600" },
       { label: "Inactive", value: inactiveCount, icon: UserX, color: "text-gray-600" },
     ];
-  }, [dateFilteredLeads]);
+
+    // Add Revenue stat
+    baseStats.push({
+      label: "Total Revenue",
+      value: `₹${totalRevenue.toLocaleString()}`,
+      icon: DollarSign,
+      color: "text-emerald-600", 
+      subtitle: `${revenueCount} Franchises`,
+    });
+
+    return baseStats;
+  }, [dateFilteredLeads, totalRevenue, revenueCount]);
 
   /* ---------------- STATUS CHANGE ---------------- */
   const handleStatusChange = async (id, newStatus) => {
@@ -496,17 +594,103 @@ export default function FranchiseLeadsPage() {
       if (data.success) {
         setShowAddLeadModal(false);
         setNewLead({ lead_quality: "None" });
-        alert("Lead added successfully");
-        window.location.reload();
+        toast.success("Lead added successfully");
         fetchLeads();
       } else {
-        alert(data.message || "Failed to add lead");
+        toast.error(data.message || "Failed to add lead");
       }
     } catch (err) {
       console.error(err);
-      alert("Error adding lead");
+      toast.error("Error adding lead");
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ---------------- UPLOAD SCREENSHOT TO CLOUDINARY ---------------- */
+  const uploadToCloudinary = async (file) => {
+    try {
+      // Get signature from server
+      const { getCloudinarySignatureAction } = await import("@/app/actions/uploadCloudinary");
+      const signatureData = await getCloudinarySignatureAction();
+      
+      if (!signatureData.success) {
+        throw new Error("Failed to get Cloudinary signature");
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", signatureData.apiKey);
+      formData.append("timestamp", signatureData.timestamp);
+      formData.append("signature", signatureData.signature);
+      formData.append("folder", signatureData.folder);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error("Cloudinary upload failed");
+      }
+      
+      const data = await response.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      throw error;
+    }
+  };
+
+  /* ---------------- HANDLE REVENUE SUBMISSION ---------------- */
+  const handleRevenueSubmit = async () => {
+    if (!revenueData.amount || !revenueData.screenshot) {
+      toast.error("Please provide amount and payment screenshot");
+      return;
+    }
+
+    setUploadingScreenshot(true);
+
+    try {
+      // Upload screenshot to Cloudinary
+      const screenshotUrl = await uploadToCloudinary(revenueData.screenshot);
+
+      // Save revenue to database
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: revenueModalLead.id,
+          leadName: revenueModalLead.full_name,
+          amount: parseFloat(revenueData.amount),
+          paymentScreenshot: screenshotUrl,
+          email: localStorage.getItem("email"),
+          notes: revenueData.notes,
+          type: "franchise_lead",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Revenue added successfully!");
+        setShowRevenueModal(false);
+        setRevenueModalLead(null);
+        setRevenueData({ amount: "", screenshot: null, notes: "" });
+        fetchRevenue(); // Refresh revenue data
+        // Optimistically update the UI to show the "Paid" tag
+        setLeadRevenueStatus(prev => ({ ...prev, [revenueModalLead.id]: true }));
+      } else {
+        toast.error(data.message || "Failed to add revenue");
+      }
+    } catch (error) {
+      console.error("Error adding revenue:", error);
+      toast.error("Error adding revenue");
+    } finally {
+      setUploadingScreenshot(false);
     }
   };
 
@@ -672,6 +856,9 @@ if (!executiveMobile && typeof window !== "undefined") {
       await sendRemarkWhatsApp(remarkModalLead, remarkType);
     }
 
+    const agentId = remarkModalLead.assignedFranchiseAdmin?._id || localStorage.getItem("userId");
+    const agentName = remarkModalLead.assignedFranchiseAdmin?.fullName || localStorage.getItem("adminName") || "Admin";
+
     try {
       const res = await fetch(`/api/franchise-leads`, {
         method: 'POST',
@@ -679,7 +866,9 @@ if (!executiveMobile && typeof window !== "undefined") {
         body: JSON.stringify({ 
           leadId: remarkModalLead.id, 
           text: newRemark,
-          addedBy: "Admin" 
+          addedBy: "Admin",
+          agentId: agentId,
+          agentName: agentName
         })
       });
 
@@ -715,6 +904,9 @@ if (!executiveMobile && typeof window !== "undefined") {
     // Save Remark
     const remarkText = `Meeting Scheduled on ${meetingData.date}`;
     
+    const agentId = remarkModalLead.assignedFranchiseAdmin?._id || localStorage.getItem("userId");
+    const agentName = remarkModalLead.assignedFranchiseAdmin?.fullName || localStorage.getItem("adminName") || "Admin";
+
     try {
       const res = await fetch(`/api/franchise-leads`, {
         method: 'POST',
@@ -722,7 +914,9 @@ if (!executiveMobile && typeof window !== "undefined") {
         body: JSON.stringify({
           leadId: remarkModalLead.id,
           text: remarkText,
-          addedBy: "Admin"
+          addedBy: "Admin",
+          agentId: agentId,
+          agentName: agentName
         })
       });
       const data = await res.json();
@@ -943,16 +1137,48 @@ if (!executiveMobile && typeof window !== "undefined") {
         )}
 
         {/* STATS */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
           {stats.map((s, i) => (
             <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
               <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{s.value}</p>
+              {s.subtitle && (
+                <p className="text-xs text-gray-400 mt-1">{s.subtitle}</p>
+              )}
             </div>
           ))}
         </div>
         
+        {/* Onboard Leads Breakdown */}
+        {/* {(role === "superAdmin" || role === "superFranchiseAdmin") && onboardBreakdown.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Onboard Leads Breakdown</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {onboardBreakdown.map((adminData, index) => (
+                <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${getAvatarColor(adminData.name)}`}>
+                    {adminData.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">{adminData.name}</p>
+                    <div className="mt-1 flex gap-4">
+                      <div>
+                        <p className="text-lg font-bold text-blue-600">{adminData.count}</p>
+                        <p className="text-xs text-gray-500">Leads</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-green-600">₹{adminData.revenue.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">Revenue</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )} */}
+
         {/* ADMIN ASSIGNMENT SUMMARY (Only for Super Admin) */}
        {(role === "superFranchiseAdmin" || role === "superAdmin") && franchiseAdmins.length > 0 && (
   <div className="flex flex-wrap gap-3 pb-2">
@@ -994,13 +1220,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 const data = await res.json();
 
                 if (data.success) {
-                  setFranchiseAdmins(prev =>
-                    prev.map(a =>
-                      a._id === admin._id
-                        ? { ...a, isActive: !a.isActive }
-                        : a
-                    )
-                  );
+                  fetchFranchiseAdmins();
                 }
               } catch (error) {
                 console.error("Error toggling admin status:", error);
@@ -1013,7 +1233,17 @@ if (!executiveMobile && typeof window !== "undefined") {
                   : "bg-red-500 text-white hover:bg-red-600 border-red-600"
               }`}
           >
-            {admin.isActive ? "Deactivate" : "Activate"}
+            {admin.isActive ? (
+              <>
+                <UserCheck className="w-3 h-3" />
+                Active
+              </>
+            ) : (
+              <>
+                <UserX className="w-3 h-3" />
+                Inactive
+              </>
+            )}
           </button>
         </div>
       );
@@ -1178,7 +1408,23 @@ if (!executiveMobile && typeof window !== "undefined") {
                           </td>
                         )}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-gray-900">{lead.full_name || "Unknown"}</div>
+                          <div className="font-medium text-gray-900 flex items-center gap-2">
+                            {lead.full_name || "Unknown"}
+                            {leadRevenueStatus[lead.id] && (
+                              <button
+                                onClick={(e) => { e.stopPropagation
+                                setFullViewImage(leadRevenueStatus[lead.id]); }}
+                                title="View Payment Screenshot"
+                              >
+                                <Eye size={14} className="text-gray-500" />
+                              </button>
+                            )}
+                            </div>
+                          {leadRevenueStatus[lead.id] && (
+                            <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                              Paid
+                            </span>
+                          )}
                           <div className="mt-1">
                             <select
                               value={lead.lead_quality}
@@ -1219,6 +1465,16 @@ if (!executiveMobile && typeof window !== "undefined") {
                                     {remarkHistory[lead.id].length}
                                   </span>
                                 )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRevenueModalLead(lead);
+                                  setShowRevenueModal(true);
+                                }}
+                                className="p-2 hover:bg-emerald-100 rounded-lg transition-colors group"
+                                title="OnBoarded Franchise"
+                              >
+                                <BadgeCheck className="w-4 h-4 text-gray-400 group-hover:text-emerald-600" />
                               </button>
                               <button
                                 onClick={() => setSelectedLead(lead)}
@@ -1736,6 +1992,127 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Schedule & Send
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* OnBoarded Franchise Revenue Modal */}
+      {showRevenueModal && revenueModalLead && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">OnBoarded Franchise</h2>
+                <p className="text-sm text-gray-500 mt-1">{revenueModalLead.full_name}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRevenueModal(false);
+                  setRevenueModalLead(null);
+                  setRevenueData({ amount: "", screenshot: null, notes: "" });
+                }}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Amount (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={revenueData.amount}
+                  onChange={(e) => setRevenueData({ ...revenueData, amount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Screenshot <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-emerald-500 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setRevenueData({ ...revenueData, screenshot: file });
+                      }
+                    }}
+                    className="hidden"
+                    id="screenshot-upload"
+                  />
+                  <label
+                    htmlFor="screenshot-upload"
+                    className="flex flex-col items-center cursor-pointer"
+                  >
+                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-600">
+                      {revenueData.screenshot ? revenueData.screenshot.name : "Click to upload screenshot"}
+                    </span>
+                    <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <textarea
+                  placeholder="Add any additional notes..."
+                  value={revenueData.notes}
+                  onChange={(e) => setRevenueData({ ...revenueData, notes: e.target.value })}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                />
+              </div>
+
+              <button
+                onClick={handleRevenueSubmit}
+                disabled={uploadingScreenshot || !revenueData.amount || !revenueData.screenshot}
+                className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {uploadingScreenshot ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <BadgeCheck className="w-5 h-5" />
+                    Submit Revenue
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full View Image Modal */}
+      {fullViewImage && (
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          onClick={() => setFullViewImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setFullViewImage(null)}
+              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={fullViewImage}
+              alt="Full view"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

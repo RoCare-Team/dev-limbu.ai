@@ -544,9 +544,30 @@ export async function PUT(req) {
     /* -------- REMARK UPDATE -------- */
     if (remark) {
       updateData.$set = { Remarks: remark };
-      updateData.$push = {
-        remarksHistory: { text: remark, createdAt: new Date() },
+      
+      // Track call if this is a call-related remark
+      const callRemarks = ["Call Not Picked", "Call Back Later", "Switch Off", "Interested", "Not Interested", "Wrong Number", "Meeting Scheduled"];
+      const isCallRemark = callRemarks.some(r => remark.startsWith(r));
+      
+      const pushOperations = {
+        remarksHistory: { text: remark, createdAt: new Date() }
       };
+      
+      if (isCallRemark) {
+        // Get agent info from request body or header
+        const agentId = body.agentId || null;
+        const agentName = body.agentName || "Admin";
+        
+        updateData.$inc = { callCount: 1 };
+        pushOperations.callHistory = {
+          agentId: agentId ? new mongoose.Types.ObjectId(agentId) : null,
+          agentName: agentName,
+          calledAt: new Date(),
+          remark: remark
+        };
+      }
+      
+      updateData.$push = pushOperations;
     }
 
     /* -------- PLAN UPDATE -------- */

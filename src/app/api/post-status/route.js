@@ -134,7 +134,7 @@ export async function POST(req) {
       fbDescription,
       igDescription,
       promat,
-      whenPosted: whenPosted || null, // 👈 OPTIONAL
+      whenPosted: whenPosted || {}, // 👈 Default to empty object instead of null
       status: status || "pending",
     });
 
@@ -272,6 +272,16 @@ export async function PUT(req) {
     if (whenPosted !== undefined && whenPosted !== null) {
       // Handle partial updates for whenPosted object (e.g. { facebook: "..." })
       if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {
+        // First, ensure whenPosted is initialized as an object if it's null
+        // Get the current post to check if whenPosted is null
+        const currentPost = await Post.findOne({ _id: id, userId });
+        
+        if (currentPost && (currentPost.whenPosted === null || currentPost.whenPosted === undefined)) {
+          // Initialize whenPosted as an empty object first
+          updateData.whenPosted = {};
+        }
+        
+        // Now set the nested properties
         for (const key in whenPosted) {
           updateData[`whenPosted.${key}`] = whenPosted[key];
         }

@@ -27,7 +27,7 @@ scheduledDateSource: {
 
     whenPosted: {
       type: Object,
-      default: {}
+      default: () => ({})
     },
 
     fbPages:[],

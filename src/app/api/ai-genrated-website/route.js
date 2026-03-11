@@ -17,6 +17,7 @@ function getOpenAIClient() {
 
 export async function POST(req) {
   try {
+
     const {
       title,
       locality,
@@ -24,6 +25,7 @@ export async function POST(req) {
       additionalCategories = [],
       userId,
       locationId,
+      mediaImages = []
     } = await req.json();
 
     if (!title || !primaryCategory) {
@@ -68,16 +70,8 @@ Return ONLY valid JSON with this structure:
       "imageKeyword": ""
     }
   ],
-  "features": [
-    "",
-    "",
-    ""
-  ],
-  "whyChooseUs": [
-    "",
-    "",
-    ""
-  ],
+  "features": ["","",""],
+  "whyChooseUs": ["","",""],
   "testimonials": [
     {
       "name": "",
@@ -99,15 +93,9 @@ Return ONLY valid JSON with this structure:
     "title": "",
     "description": ""
   },
-  "imageKeywords": ["", "", ""]
+  "imageKeywords": ["","",""]
 }
-
-Rules:
-- imageKeywords: provide 3 specific visual keywords describing what photos of this business look like (e.g. "modern salon interior", "hair styling", "beauty treatment"). These will be used to generate or search for relevant images.
-- Each service's imageKeyword: a short phrase describing a photo for that specific service.
-- Make it highly professional, SEO optimized, modern and premium.
-- Do not add explanations.
-- Only return valid JSON.
+Return ONLY valid JSON.
 `;
 
     const openai = getOpenAIClient();
@@ -126,9 +114,13 @@ Rules:
       max_tokens: 1500,
     });
 
-    const raw = completion.choices[0].message.content;
+    let raw = completion.choices[0].message.content;
+
+    // Remove markdown if AI sends ```json
+    raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let parsed;
+
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
@@ -139,68 +131,65 @@ Rules:
       );
     }
 
-    // Generate slug from the business details
-    const slug = generateSlug(title, locality, "");
+    // Generate base slug
+    const baseSlug = generateSlug(title, locality);
 
-    // If userId is provided, save to database
-    if (userId) {
-      try {
-        await dbConnect();
-        
-        // Check if slug already exists for this user
-        let finalSlug = slug;
-        let counter = 0;
-        let existingSite = await Site.findOne({ slug: finalSlug, userId });
-        
-        while (existingSite) {
-          counter++;
-          finalSlug = `${slug}-${counter}`;
-          existingSite = await Site.findOne({ slug: finalSlug, userId });
-        }
+    let finalSlug = baseSlug;
+    let counter = 0;
 
-        // Save the website to database
-        const site = new Site({
-          slug: finalSlug,
-          userId,
-          locationId: locationId || "",
-          business: {
-            title,
-            locality,
-            primaryCategory,
-            additionalCategories,
-          },
-          aiContent: parsed,
-          isPublished: true,
-        });
+    await dbConnect();
 
-        await site.save();
+    // Check duplicate slug
+    let existingSite = await Site.findOne({ slug: finalSlug });
 
-        return Response.json({ 
-          content: parsed, 
-          slug: finalSlug,
-          saved: true 
-        });
-      } catch (dbError) {
-        console.error("Database Save Error:", dbError);
-        // Return the content even if save fails
-        return Response.json({ 
-          content: parsed, 
-          slug: slug,
-          saved: false,
-          saveError: dbError.message 
-        });
-      }
+    while (existingSite) {
+      counter++;
+      finalSlug = `${baseSlug}-${counter}`;
+      existingSite = await Site.findOne({ slug: finalSlug });
     }
 
-    // If no userId, just return the content with slug (preview mode)
-    return Response.json({ 
-      content: parsed, 
-      slug: slug,
-      saved: false 
+    // If no userId -> preview mode
+    if (!userId) {
+      return Response.json({
+        success: true,
+        slug: finalSlug,
+        preview: true,
+        content: parsed,
+        message: "Preview mode - site not saved"
+      });
+    }
+
+    // Save to database
+    const site = new Site({
+      slug: finalSlug,
+      userId,
+      locationId: locationId || "",
+      business: {
+        title,
+        locality,
+        primaryCategory,
+        additionalCategories,
+      },
+      aiContent: parsed,
+      mediaImages,
+      isPublished: true,
+      updatedAt: new Date()
+    });
+
+    await site.save();
+
+    return Response.json({
+      success: true,
+      slug: finalSlug,
+      siteId: site._id,
+      content: parsed,
+      message: "Website generated and saved successfully"
     });
 
   } catch (err) {
+
     console.error("AI Website Generation Error:", err);
+
     return Response.json(
       { error: "AI website generation failed" },
       { status: 500 }

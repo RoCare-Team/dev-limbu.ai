@@ -15,7 +15,51 @@ function getOpenAIClient() {
   });
 }
 
+
+// 🔹 Fetch Google Business Profile Images
+async function fetchGMBImages(accountId, locationId, accessToken) {
+  try {
+
+    if (!accountId || !locationId || !accessToken) {
+      return [];
+    }
+
+    const mediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media`;
+
+    const mediaRes = await fetch(mediaUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+    });
+
+    const mediaData = await mediaRes.json();
+    console.log("mediaDatamediaData",mediaData);
+    
+
+    if (!mediaRes.ok) {
+      console.warn("Media fetch failed:", mediaData);
+      return [];
+    }
+
+    const images =
+      mediaData.mediaItems
+        ?.filter((item) => item.mediaFormat === "PHOTO")
+        ?.map((item) => item.googleUrl || item.sourceUrl)
+        ?.slice(0, 10) || [];
+
+    return images;
+
+  } catch (err) {
+    console.warn("Media fetch error:", err);
+    return [];
+  }
+}
+
+
 export async function POST(req) {
+
   try {
 
     const {
@@ -24,9 +68,11 @@ export async function POST(req) {
       primaryCategory,
       additionalCategories = [],
       userId,
+      accountId,
       locationId,
-      mediaImages = []
+      accessToken
     } = await req.json();
+
 
     if (!title || !primaryCategory) {
       return Response.json(
@@ -34,6 +80,20 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+
+
+    // 🔹 Fetch GMB Images
+    let mediaImages = [];
+
+    if (accountId && locationId && accessToken) {
+      mediaImages = await fetchGMBImages(
+        accountId,
+        locationId,
+        accessToken
+      );
+    }
+
+
 
     const prompt = `
 Create a COMPLETE professional business website landing page in JSON format.
@@ -95,10 +155,14 @@ Return ONLY valid JSON with this structure:
   },
   "imageKeywords": ["","",""]
 }
+
 Return ONLY valid JSON.
 `;
 
+
+
     const openai = getOpenAIClient();
+
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -106,85 +170,125 @@ Return ONLY valid JSON.
         {
           role: "system",
           content:
-            "You are a senior website copywriter and conversion expert. Return valid structured JSON only.",
+            "You are a senior website copywriter and conversion expert. Return valid structured JSON only."
         },
-        { role: "user", content: prompt },
+        {
+          role: "user",
+          content: prompt
+        }
       ],
       temperature: 0.9,
-      max_tokens: 1500,
+      max_tokens: 1500
     });
+
+
 
     let raw = completion.choices[0].message.content;
 
-    // Remove markdown if AI sends ```json
     raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+
+
 
     let parsed;
 
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
+
       console.error("AI JSON Parse Error:", raw);
+
       return Response.json(
         { error: "Invalid AI JSON format" },
         { status: 500 }
       );
     }
 
-    // Generate base slug
+
+
+    // 🔹 Generate slug
     const baseSlug = generateSlug(title, locality);
 
     let finalSlug = baseSlug;
     let counter = 0;
 
+
     await dbConnect();
 
-    // Check duplicate slug
+
     let existingSite = await Site.findOne({ slug: finalSlug });
 
     while (existingSite) {
+
       counter++;
+
       finalSlug = `${baseSlug}-${counter}`;
+
       existingSite = await Site.findOne({ slug: finalSlug });
     }
 
-    // If no userId -> preview mode
+
+
+    // 🔹 Preview Mode
     if (!userId) {
+
       return Response.json({
         success: true,
         slug: finalSlug,
         preview: true,
         content: parsed,
+        mediaImages,
         message: "Preview mode - site not saved"
       });
     }
 
-    // Save to database
+
+
+    // 🔹 Save Site
     const site = new Site({
+
       slug: finalSlug,
+
       userId,
+
       locationId: locationId || "",
+
       business: {
         title,
         locality,
         primaryCategory,
-        additionalCategories,
+        additionalCategories
       },
+
       aiContent: parsed,
+
       mediaImages,
+
       isPublished: true,
+
       updatedAt: new Date()
     });
 
+
+
     await site.save();
 
+
+
     return Response.json({
+
       success: true,
+
       slug: finalSlug,
+
       siteId: site._id,
+
+      mediaImages,
+
       content: parsed,
+
       message: "Website generated and saved successfully"
     });
+
 
   } catch (err) {
 

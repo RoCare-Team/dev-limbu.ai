@@ -583,116 +583,138 @@ export default function Sidebar({ children, user }) {
 
       <Divider sx={{ borderColor: 'rgba(102, 126, 234, 0.1)' }} />
 
-      <List sx={{ flex: 1, overflowY: 'auto', px: 1.5, pt: 2 }}>
-        {menuItems.map((item, index) => {
-          const isDropdown = !!item.children;
-          const isOpen = openDropdown === index;
-          const isActive = item.path === pathname || (item.children && item.children.some(c => c.path === pathname));
+     <List sx={{ flex: 1, overflowY: 'auto', px: 1.5, pt: 2 }}>
+  {menuItems.map((item, index) => {
+    const isDropdown = !!item.children;
+    const isOpen = openDropdown === index;
 
-          const navigateTo = (path) => {
-            let finalPath = path;
+    const isActive =
+      item.path === pathname ||
+      (item.children && item.children.some(c => c.path === pathname));
 
-            if (path.includes("[bussiness]")) {
-              const slug = locationCheck && locationCheck.trim().replace(/\s+/g, "-").toLowerCase();
-              finalPath = path.replace("[bussiness]", slug);
-            }
+    const navigateTo = (path) => {
+      let finalPath = path;
 
-            if (isMobile) handleDrawerToggle();
-            router.push(finalPath);
-          };
+      if (path.includes("[bussiness]")) {
+        const slug =
+          locationCheck &&
+          locationCheck.trim().replace(/\s+/g, "-").toLowerCase();
 
-          return (
-            <div key={index}>
-              {/* MAIN BUTTON */}
-              <ListItem disablePadding sx={{ display: 'block', mb: 0.5 }}>
+        finalPath = path.replace("[bussiness]", slug);
+      }
+
+      if (isMobile) handleDrawerToggle();
+      router.push(finalPath);
+    };
+
+    return (
+      <div key={index}>
+        {/* MAIN BUTTON */}
+        <ListItem disablePadding sx={{ display: "block", mb: 0.5 }}>
+          <ListItemButton
+            onClick={() => {
+              if (isDropdown) {
+                setOpenDropdown(isOpen ? null : index);
+              } else {
+                navigateTo(item.path);
+              }
+            }}
+            sx={{
+              minHeight: 44,
+              justifyContent: open ? "initial" : "center",
+              px: 2,
+              mx: 1.5,
+              borderRadius: "10px",
+              transition: "all 0.2s ease-in-out",
+
+              /* ACTIVE COLOR */
+              bgcolor: isActive ? "#0F172A" : "transparent",
+              color: isActive ? "#ffffff" : "#475569",
+
+              "&:hover": {
+                background: isActive
+                  ? "#0F172A"
+                  : "rgba(0,0,0,0.04)",
+                transform: "translateX(2px)",
+                color: isActive ? "#ffffff" : "#1e293b",
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 0,
+                mr: open ? 2 : "auto",
+                justifyContent: "center",
+                color: isActive ? "#ffffff" : "#94a3b8",
+              }}
+            >
+              {item.icon}
+            </ListItemIcon>
+
+            <ListItemText
+              primary={item.text}
+              sx={{
+                opacity: open ? 1 : 0,
+                "& .MuiTypography-root": {
+                  fontWeight: isActive ? 600 : 500,
+                  fontSize: "0.9rem",
+                },
+              }}
+            />
+
+            {isDropdown && open && (
+              <Box sx={{ color: isActive ? "#fff" : "#94a3b8", display: "flex" }}>
+                {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </Box>
+            )}
+          </ListItemButton>
+        </ListItem>
+
+        {/* DROPDOWN CHILDREN */}
+        {isDropdown && isOpen && open && (
+          <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2">
+            {item.children.map((sub, i) => {
+              const isSubActive = sub.path === pathname;
+
+              return (
                 <ListItemButton
-                  onClick={() => {
-                    if (isDropdown) {
-                      setOpenDropdown(isOpen ? null : index);
-                    } else {
-                      navigateTo(item.path);
-                    }
-                  }}
+                  key={i}
+                  onClick={() => navigateTo(sub.path)}
                   sx={{
-                    minHeight: 44,
-                    justifyContent: open ? 'initial' : 'center',
-                    px: 2,
-                    mx: 1.5,
-                    borderRadius: '10px',
-                    transition: 'all 0.2s ease-in-out',
-                    color: isActive ? '#1e1e22' : '#475569',
-                    bgcolor: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
-                    '&:hover': {
-                      background:
-                        isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(0, 0, 0, 0.04)',
-                      transform: 'translateX(2px)',
-                      color: isActive ? '#111113' : '#1e293b',
+                    pl: 2,
+                    py: 0.8,
+                    borderRadius: "8px",
+                    mb: 0.5,
+
+                    bgcolor: isSubActive ? "#0F172A" : "transparent",
+                    color: isSubActive ? "#ffffff" : "#64748b",
+
+                    "&:hover": {
+                      background: isSubActive
+                        ? "#0F172A"
+                        : "rgba(0,0,0,0.03)",
+                      color: isSubActive ? "#ffffff" : "#1e293b",
                     },
                   }}
                 >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 0,
-                      mr: open ? 2 : 'auto',
-                      justifyContent: 'center',
-                      color: isActive ? 'inherit' : '#94a3b8',
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-
                   <ListItemText
-                    primary={item.text}
+                    primary={sub.text}
                     sx={{
-                      opacity: open ? 1 : 0,
-                      '& .MuiTypography-root': { fontWeight: isActive ? 600 : 500, fontSize: '0.9rem' },
+                      "& .MuiTypography-root": {
+                        fontSize: "0.85rem",
+                        fontWeight: isSubActive ? 600 : 400,
+                      },
                     }}
                   />
-
-                  {isDropdown && open && (
-                    <Box sx={{ color: isActive ? 'inherit' : '#94a3b8', display: 'flex' }}>
-                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </Box>
-                  )}
                 </ListItemButton>
-              </ListItem>
-
-              {/* DROPDOWN CHILDREN */}
-              {isDropdown && isOpen && open && (
-                <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2">
-                  {item.children.map((sub, i) => {
-                    const isSubActive = sub.path === pathname;
-                    return (
-                    <ListItemButton
-                      key={i}
-                      onClick={() => navigateTo(sub.path)}
-                      sx={{
-                        pl: 2,
-                        py: 0.8,
-                        borderRadius: '8px',
-                        mb: 0.5,
-                        color: isSubActive ? '#171adb' : '#64748b',
-                        bgcolor: isSubActive ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
-                        '&:hover': { 
-                          background: 'rgba(0,0,0,0.03)',
-                          color: '#1e293b'
-                        },
-                      }}
-                    >
-                      <ListItemText
-                        primary={sub.text}
-                        sx={{ '& .MuiTypography-root': { fontSize: '0.85rem', fontWeight: isSubActive ? 600 : 400 } }}
-                      />
-                    </ListItemButton>
-                  )})}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-
-      </List>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  })}
+</List>
 
       {/* <Box sx={{ p: 2, mt: 'auto' }}>
         <Box
@@ -995,7 +1017,7 @@ export default function Sidebar({ children, user }) {
                   alt="Logo"
                   style={{ marginRight: 6 }}
                 />
-                Limbu.AI
+                Limbu AI
               </Typography></Link>
               <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <Typography
@@ -1014,7 +1036,7 @@ export default function Sidebar({ children, user }) {
                     height={32}
                     alt="Logo"
                   />
-                  Limbu.AI
+                  Limbu AI
                 </Typography>
               </Link>
 
@@ -1030,7 +1052,7 @@ export default function Sidebar({ children, user }) {
     onClick={handleOpenPlansModal}
     sx={{
       fontWeight: 600,
-      background: '#525252',
+      background: '#0F172A',
       color: 'white',
       border: 'none',
       cursor: 'pointer',
@@ -1039,7 +1061,7 @@ export default function Sidebar({ children, user }) {
       height: { xs: 28, sm: 32 },
 
       '&:hover': {
-        background: '#525252',   // same as normal
+        background: '#0F172A',   // same as normal
         color: 'white',         // same as normal
         boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)', // same shadow
       }
@@ -1054,7 +1076,7 @@ export default function Sidebar({ children, user }) {
   onClick={handleWalletClick}
   sx={{
     fontWeight: 600,
-    background: '#525252',
+    background: '#0F172A',
     color: 'white',
     border: 'none',
     cursor: 'pointer',
@@ -1063,7 +1085,7 @@ export default function Sidebar({ children, user }) {
     height: { xs: 28, sm: 32 },
 
     '&:hover': {
-      background: '#525252',
+      background: '#0F172A',
       color: 'yellow',
       boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
       transform: 'none',
@@ -1110,7 +1132,7 @@ export default function Sidebar({ children, user }) {
                       width: { xs: 32, sm: 36 },
                       height: { xs: 32, sm: 36 },
                        color: 'dark',
-                      bgcolor: '#525252',
+                      bgcolor: '#0F172A',
                       fontWeight: 600,
                       color: 'white',
                     }}

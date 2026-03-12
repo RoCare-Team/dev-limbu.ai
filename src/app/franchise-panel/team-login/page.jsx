@@ -32,9 +32,15 @@ export default function TeamLogin() {
       return;
     }
 
+    // Store under team-specific keys (for team-aware pages)
     localStorage.setItem("franchise_team_token", data.token);
     localStorage.setItem("franchise_team_user", JSON.stringify(data.user));
     localStorage.setItem("franchise_team_permissions", JSON.stringify(data.user.permissions));
+
+    // Also store under the shared key so the protected layout lets team members through
+    localStorage.setItem("franchise_token", data.token);
+    localStorage.setItem("franchise_user", JSON.stringify(data.user));
+
     router.push("/franchise-panel/dashboard");
   };
 

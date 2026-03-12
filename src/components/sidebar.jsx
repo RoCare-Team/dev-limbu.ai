@@ -1047,6 +1047,7 @@ export default function Sidebar({ children, user }) {
 
               {/* Plan Chip */}
               {(paidPackage || paidService) && (
+                
   <Chip
     label={paidPackage || paidService}
     onClick={handleOpenPlansModal}

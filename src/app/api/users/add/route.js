@@ -65,7 +65,7 @@ export async function POST(req) {
       phone,
 
       // Default wallet & usage
-      wallet: 1000,
+      wallet: 500,
       freeUsedCount: 2,
 
       // Default subscription

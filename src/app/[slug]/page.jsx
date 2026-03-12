@@ -250,10 +250,6 @@ export default async function SitePage({ params }) {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {aiContent.services.map((service, i) => {
-                const serviceImg =
-                  mediaImages.length > 0
-                    ? mediaImages[i % mediaImages.length]
-                    : "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80";
                 const accentHexList = ["#2563eb", "#4f46e5", "#0d9488"];
                 const accent = accentHexList[i % accentHexList.length];
                 return (
@@ -266,26 +262,6 @@ export default async function SitePage({ params }) {
                       className="h-1.5 w-full"
                       style={{ background: `linear-gradient(to right, ${accent}, #818cf8)` }}
                     />
-                    {/* Image */}
-                    <div className="h-56 overflow-hidden relative">
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      {/* Service number badge */}
-                      <div
-                        className="absolute top-4 left-4 z-20 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg"
-                        style={{ background: accent }}
-                      >
-                        {String(i + 1).padStart(2, "0")}
-                      </div>
-                      <img
-                        src={serviceImg}
-                        alt={service.title}
-                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
-                      />
-                      {/* Hover title overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p className="text-white font-bold text-lg drop-shadow-lg">{service.title}</p>
-                      </div>
-                    </div>
                     {/* Content */}
                     <div className="p-7 flex-1 flex flex-col">
                       <h3 className="font-bold text-xl mb-3 text-gray-900 transition-colors">
@@ -294,17 +270,6 @@ export default async function SitePage({ params }) {
                       <p className="text-gray-500 leading-relaxed text-sm flex-1">
                         {service.description}
                       </p>
-                      <div className="mt-5 pt-4 border-t border-gray-100">
-                        <span
-                          className="inline-flex items-center gap-1.5 text-sm font-semibold"
-                          style={{ color: accent }}
-                        >
-                          Learn More
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                          </svg>
-                        </span>
-                      </div>
                     </div>
                   </div>
                 );

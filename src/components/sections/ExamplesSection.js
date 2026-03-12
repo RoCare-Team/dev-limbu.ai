@@ -22,7 +22,7 @@ export default function ExamplesSection({
           </h2>
 
           <p className="text-base sm:text-lg md:text-xl text-slate-600 px-4">
-       Discover how our AI solutions can transform businesses like yours.
+      Discover AI-Powered Solutions Designed to Transform and Scale Your Business.
           </p>
         </div>
 

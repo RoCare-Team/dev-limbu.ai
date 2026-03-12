@@ -303,7 +303,6 @@ function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, start
 
   const chartData = React.useMemo(() => {
     if (!insights) return [];
-    
     const directions = getMetricByType("BUSINESS_DIRECTION_REQUESTS")?.timeSeries?.datedValues || [];
     const calls = getMetricByType("CALL_CLICKS")?.timeSeries?.datedValues || [];
     const website = getMetricByType("WEBSITE_CLICKS")?.timeSeries?.datedValues || [];
@@ -759,15 +758,15 @@ function ConnectModal({ isOpen, onClose }) {
         </button>
 
         {/* Icon */}
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary mb-6">
+        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-lightPrimary mb-6">
           <Rocket className="h-8 w-8 text-dark" />
         </div>
 
         {/* Content */}
         <div className="text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+          <h2 className="text-2xl sm:text-3xl font-bold text-dark mb-3">
             Connect Your Business
-            <span className="block text-lg sm:text-xl text-gray-600 font-medium mt-1">— Hassle-Free & Instantly</span>
+            <span className="block text-lg sm:text-xl text-lightPrimary font-medium mt-1">— Hassle-Free & Instantly</span>
           </h2>
           <p className="text-gray-600 mb-8 text-sm sm:text-base max-w-sm mx-auto">
             Securely link your Google Business Profile with a single click to unlock powerful management tools.
@@ -776,7 +775,7 @@ function ConnectModal({ isOpen, onClose }) {
           {/* CTA Button */}
           <button
             onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="w-full bg-primary text-dark font-semibold px-8 py-4 rounded-xl hover:opacity-95 transition-opacity text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+            className="w-full bg-lightPrimary text-dark font-semibold px-8 py-4 rounded-xl hover:opacity-95 transition-opacity text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
           >
             <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512" fill="currentColor"><path d="M488 261.8C488 403.3 391.1 504 248 504C110.8 504 0 393.2 0 256S110.8 8 248 8c66.9 0 122.4 24.5 165.2 64.9l-66.8 64.9C318.6 109.9 285.1 96 248 96C150.6 96 72 174.6 72 272s78.6 176 176 176c90.1 0 148.4-51.8 160.3-124.6H248v-99.6h240C487.3 232.8 488 247.5 488 261.8z" /></svg>
             Connect Now with Bussiness
@@ -958,7 +957,7 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
 
                 {/* FREE Badge */}
                 {item.isFree && (
-                  <span className="absolute -top-2 -right-8 bg-[#525252] text-white text-[8px] font-bold px-2 py-[2px] rounded-full shadow-md z-20">
+                  <span className="absolute -top-2 -right-8 bg-dark text-lightPrimary text-[8px] font-bold px-2 py-[2px] rounded-full shadow-md z-20">
                     FREE
                   </span>
                 )}
@@ -968,8 +967,8 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                   className={`p-5 rounded-xl transition 
                     ${
                       pathname === item.href && isAuthenticated
-                        ? "bg-yellow-400 text-white"
-                        : "bg-yellow-200 text-black"
+                        ? "bg-dark text-white"
+                        : "bg-lightPrimary text-dark"
                     }
                   `}
                 >
@@ -1776,7 +1775,7 @@ const fetchInstagramPages = useCallback(async () => {
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-3 sm:gap-4">
             {/* Left side: Social Icons & Welcome */}
             <div className="flex-1 min-w-0 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-              <p className="text-gray-600 text-sm truncate font-medium">
+              <p className="text-dark text-sm truncate font-medium">
                 Welcome, <span className="text-gray-900 font-bold">{session?.user?.name || "User"}</span> 👋
               </p>
             </div>
@@ -1789,11 +1788,11 @@ const fetchInstagramPages = useCallback(async () => {
                   <button
                     onClick={handleManualRefresh}
                     disabled={loading}
-                    className="bg-gradient-to-r from-white-100 to-white-600 text-black font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-white-700 hover:to-white-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-lightPrimary text-dark font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:bg-yellow-400 transition-all duration-300 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     title="Refresh data from Google"
                   >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">Refresh</span>
+                    <span className="hidden sm:inline ">Refresh </span>
                   </button>
                   {/* <button
                     onClick={handleMetaLogout}
@@ -1804,7 +1803,7 @@ const fetchInstagramPages = useCallback(async () => {
                   </button> */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                    className=" font-semibold px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
+                    className=" font-semibold px-3 sm:px-4 py-2 rounded-lg bg-lightPrimary text-dark sm:rounded-xl shadow-md hover:bg-yellow-400 transition-all duration-300 text-sm sm:text-base whitespace-nowrap flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden sm:inline">Logout</span>
@@ -1825,11 +1824,11 @@ const fetchInstagramPages = useCallback(async () => {
           <div className="p-4 border-b border-gray-100 flex flex-col gap-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-gray-800" />
-                <h2 className="font-bold text-gray-800">Google Business </h2>
+                <Building2 className="w-5 h-5 text-dark" />
+                <h2 className="font-bold text-dark">Google Business </h2>
               </div>
               <div className="flex items-center gap-2">
-<span className="text-xs bg-gray-700 text-white font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
+<span className="text-xs bg-dark text-lightPrimary font-semibold px-2 py-0.5 rounded-full">Total: {summary.total}</span>
                 {accounts.length > 0 && (
   <button
     onClick={() => signOut({ callbackUrl: "/dashboard" })}
@@ -1912,7 +1911,7 @@ const fetchInstagramPages = useCallback(async () => {
 
                 {/* Actions */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
-                  <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
+                  <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-dark hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage </button>
                   <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
                 </div>
               </div>
@@ -1935,7 +1934,7 @@ const fetchInstagramPages = useCallback(async () => {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-bold text-sm text-gray-900 truncate" title={listing.title}>{listing.title}</h3>
+                        <h3 className="font-bold text-sm text-dark truncate" title={listing.title}>{listing.title}</h3>
                         <div className="flex-shrink-0 scale-90 origin-top-right">
                           {getVerificationBadge(listing)}
                         </div>
@@ -1946,24 +1945,24 @@ const fetchInstagramPages = useCallback(async () => {
 
                 {/* Details: Phone, Website, Address */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                  <div className="flex items-center gap-2 text-xs text-dark">
+                      <Phone className="w-3.5 h-3.5 text-dark flex-shrink-0" />
                       <span className="truncate">{listing.phoneNumbers?.primaryPhone || "No phone"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Globe className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+                  <div className="flex items-center gap-2 text-xs text-dark">
+                      <Globe className="w-3.5 h-3.5 text-lightPrimary flex-shrink-0" />
                       {listing.websiteUri ? <a href={listing.websiteUri} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-600 hover:underline">{listing.websiteUri}</a> : <span className="text-gray-400">No website</span>}
                   </div>
                   <div className="flex items-start gap-2 text-xs text-gray-600">
-                      <MapPin className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <MapPin className="w-3.5 h-3.5 text-dark flex-shrink-0 mt-0.5" />
                       <span className="line-clamp-2">{listing.storefrontAddress?.addressLines?.join(", ") || "No address"}{listing.storefrontAddress?.locality && `, ${listing.storefrontAddress.locality}`}</span>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
-                  <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
-                  <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
+                  <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-dark text-lightPrimary hover:bg-gray-700 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
+                  <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-yellow-200 text-dark hover:bg-yellow-300 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
                 </div>
               </div>
             ))
@@ -1971,7 +1970,7 @@ const fetchInstagramPages = useCallback(async () => {
             {!loading && accounts.length === 0 && listings.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                   <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
-                    <Building2 className="w-8 h-8 text-neutral-600" />
+                    <Building2 className="w-8 h-8 text-dark" />
                   </div>
                   
                   {session?.user?.email ? (
@@ -1984,7 +1983,7 @@ const fetchInstagramPages = useCallback(async () => {
                       <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
                         <button
                           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                          className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
+                          className="w-full bg-lightPrimary text-dark text-xs font-bold py-2.5 rounded-lg hover:bg-yellow-400 transition flex items-center justify-center gap-2 shadow-sm"
                         >
                           <RefreshCw className="w-4 h-4" />
                           Switch Account
@@ -2001,7 +2000,7 @@ const fetchInstagramPages = useCallback(async () => {
                       <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
                         <button
                           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
+className="w-full bg-dark text-lightPrimary text-xs font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
                         >
                           <Plus className="w-4 h-4" />
                           Connect Now
@@ -2019,8 +2018,8 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
           {/* Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
-              <Facebook className="w-5 h-5 text-gray-800" />
-              <h2 className="font-bold text-gray-800">Facebook</h2>
+              <Facebook className="w-5 h-5 text-dark" />
+              <h2 className="font-bold text-dark">Facebook</h2>
             </div>
             {facebookPages.length > 0 && <span className="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">{facebookPages.length}</span>}
           </div>
@@ -2033,13 +2032,13 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
                     <div className="flex justify-between items-start">
                       <p className="font-semibold text-sm text-gray-800">{page.pageName}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-green-600 font-bold">Connected</span>
+                        <span className="text-xs text-dark font-bold">Connected</span>
                         <button onClick={() => handleDisconnectFacebook(page.pageId)} className="text-gray-400 hover:text-red-500 transition-colors" title="Disconnect"><LogOut className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                     <p className="text-xs text-gray-500">ID: {page.pageId}</p>
                     <div className="pt-2 border-t border-gray-100">
-                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-[#525252] text-white py-1.5 rounded-md hover:bg-[#525252] font-semibold">Manage Page</button>
+                      <button onClick={() => router.push(`/post-management`)} className="w-full text-xs bg-dark text-lightPrimary py-1.5 rounded-md hover:bg-[#525252] font-semibold">Manage Page</button>
                     </div>
                   </div>
                 ))}
@@ -2067,7 +2066,7 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
                         toast.error("Logout failed");
                       }
                     }}
-                    className="w-full mt-2 flex items-center justify-center gap-2 bg-[#525252] text-white py-2 rounded-lg font-semibold hover: bg-[#525252] transition-all text-xs"
+                    className="w-full mt-2 flex items-center justify-center gap-2 bg-dark text-lightPrimary py-2 rounded-lg font-semibold hover: bg-[#525252] transition-all text-xs"
                   >
                     <LogOut className="w-4 h-4" /> Logout Facebook
                   </button>
@@ -2078,7 +2077,7 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
                     if (!userId) return toast.error("Login first");
                     window.location.href = `/api/facebook/login?userId=${userId}`;
                   }}
-                  className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 text-gray-600 py-2 rounded-lg font-semibold hover:border-blue-500 hover:text-blue-600 transition-all text-xs"
+                  className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-lightPrimary text-lightPrimary py-2 rounded-lg font-semibold hover:border-dark hover:text-dark transition-all text-xs"
                 >
                   <Plus className="w-4 h-4" /> Connect Another Page
                 </button>
@@ -2108,8 +2107,8 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
               {/* Header */}
               <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <Instagram className="w-5 h-5 text-gray-800" />
-                  <h2 className="font-bold text-gray-800">Instagram</h2>
+                  <Instagram className="w-5 h-5 text-dark" />
+                  <h2 className="font-bold text-dark">Instagram</h2>
                 </div>
                 {instagramPages.length > 0 && <span className="text-xs bg-pink-100 text-pink-700 font-semibold px-2 py-0.5 rounded-full">{instagramPages.length}</span>}
               </div>
@@ -2167,7 +2166,7 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
                         if (!userId) return toast.error("Login first");
                         window.location.href = `/api/instagram/login?userId=${userId}`;
                       }}
-                      className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 text-gray-600 py-2 rounded-lg font-semibold hover:border-pink-500 hover:text-pink-600 transition-all text-xs"
+                      className="w-full mt-2 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-lightPrimary text-lightPrimary py-2 rounded-lg font-semibold hover:border-dark hover:text-lightPrimary transition-all text-xs"
                     >
                       <Plus className="w-4 h-4" /> Connect Another Account
                     </button>
@@ -2182,7 +2181,7 @@ className="w-full bg-gray-700 text-white text-xs font-bold py-2.5 rounded-lg tra
                         if (!userId) return toast.error("Login first");
                         window.location.href = `/api/instagram/login?userId=${userId}`;
                       }}
-                      className="w-full bg-primary text-dark py-2 rounded-lg font-semibold  transition-colors"
+                      className="w-full bg-lightPrimary text-dark py-2 rounded-lg font-semibold  transition-colors"
                     >
                       Connect Instagram
                     </button>

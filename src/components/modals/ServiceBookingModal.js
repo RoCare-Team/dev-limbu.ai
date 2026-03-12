@@ -117,7 +117,7 @@ export default function ServiceBookingModal({
                   onChange={(e) =>
                     setServiceForm({ ...serviceForm, name: e.target.value })
                   }
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  className="w-full px-3 py-2 text-sm border text-dark border-slate-300 rounded-lg focus:ring-2 focus:ring-lightPrimary outline-none transition"
                   placeholder="Enter your name"
                 />
               </div>
@@ -135,7 +135,7 @@ export default function ServiceBookingModal({
                   onChange={(e) =>
                     setServiceForm({ ...serviceForm, phone: e.target.value })
                   }
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  className="w-full px-3 py-2 text-sm border text-dark border-slate-300 rounded-lg focus:ring-2 focus:ring-lightPrimary outline-none transition"
                   placeholder="Enter your phone number"
                 />
               </div>
@@ -153,7 +153,7 @@ export default function ServiceBookingModal({
                   onChange={(e) =>
                     setServiceForm({ ...serviceForm, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  className="w-full px-3 py-2 text-sm border text-dark border-slate-300 rounded-lg focus:ring-2 focus:ring-lightPrimary outline-none transition"
                   placeholder="Enter your email"
                 />
               </div>
@@ -170,7 +170,7 @@ export default function ServiceBookingModal({
                   onChange={(e) =>
                     setServiceForm({ ...serviceForm, gstNumber: e.target.value })
                   }
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  className="w-full px-3 py-2 text-sm border text-dark border-slate-300 rounded-lg focus:ring-2 focus:ring-lightprimary outline-none transition"
                   placeholder="Enter GST number"
                 />
               </div>
@@ -178,7 +178,7 @@ export default function ServiceBookingModal({
               {/* Submit */}
               <button
                 type="submit"
-                className="w-full px-6 py-3 bg-neutral-800 text-white rounded-xl font-bold hover:shadow-lg transition-all hover:scale-[1.02] mt-2 text-sm"
+                className="w-full px-6 py-3 bg-dark text-lightPrimary rounded-xl font-bold hover:shadow-lg transition-all hover:scale-[1.02] mt-2 text-sm"
               >
                 Pay Now
               </button>

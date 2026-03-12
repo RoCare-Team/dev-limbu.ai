@@ -181,7 +181,7 @@ const ScheduleModal = ({
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-neutral-600" />
+              <Calendar className="w-5 h-5 text-dark" />
               Schedule Post
             </h2>
             <p className="text-sm text-gray-500 mt-1">Choose date, time, and platforms.</p>
@@ -304,9 +304,9 @@ const ScheduleModal = ({
             <div className="flex border-b border-gray-100">
               {[
                 // { id: 'all', label: 'All Platforms', icon: CheckCircle, color: 'text-green-600', badge: 'Select All' },
-                { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-neutral-600', badge: '20 Coins/Loc' },
-                { id: 'fb', label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]', badge: 'Free' },
-                { id: 'ig', label: 'Instagram', icon: Instagram, color: 'text-[#E1306C]', badge: 'Free' }
+                { id: 'gmb', label: 'Google', icon: MapPin, color: 'text-dark', badge: '20 Coins/Loc' },
+                { id: 'fb', label: 'Facebook', icon: Facebook, color: 'text-dark', badge: 'Free' },
+                { id: 'ig', label: 'Instagram', icon: Instagram, color: 'text-dark', badge: 'Free' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -331,7 +331,7 @@ const ScheduleModal = ({
                     <tab.icon className="w-4 h-4" />
                     {tab.label}
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.id === 'all' ? 'bg-green-100 text-green-700' : tab.badge === 'Free' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tab.id === 'all' ? 'bg-fullLight text-lightPrimary' : tab.badge === 'Free' ? 'bg-green-100 text-lightPrimary' : 'bg-yellow-100 text-lightPrimary'}`}>
                     {tab.badge}
                   </span>
                 </button>
@@ -353,18 +353,18 @@ const ScheduleModal = ({
                   {availableLocations.map(loc => {
                     const isVerified = loc.isVerified;
                     return (
-                    <label key={loc.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${!isVerified ? 'opacity-60 bg-gray-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedGmb.includes(loc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
+                    <label key={loc.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${!isVerified ? 'opacity-60 bg-gray-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedGmb.includes(loc.id) ? 'border-lighPrimary bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
                       <input 
                         type="checkbox" 
                         checked={selectedGmb.includes(loc.id)} 
                         onChange={() => isVerified && toggleSelection(loc.id, selectedGmb, setSelectedGmb)} 
                         disabled={!isVerified}
-                        className="w-4 h-4 text-neutral-600 rounded focus:ring-neutral-500 disabled:text-gray-400" 
+                        className="w-4 h-4 text-dark rounded focus:ring-neutral-500 disabled:text-gray-400" 
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center">
                             <p className={`text-sm font-medium truncate ${!isVerified ? 'text-gray-500' : 'text-gray-900'}`}>{loc.name}</p>
-                            {!isVerified && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">Unverified</span>}
+                            {!isVerified && <span className="text-[10px] bg-red-100 text-lightPrimary px-1.5 py-0.5 rounded font-bold">Unverified</span>}
                         </div>
                         <p className="text-xs text-gray-500 truncate">{loc.address}</p>
                       </div>
@@ -378,18 +378,18 @@ const ScheduleModal = ({
               {activeTab === 'fb' && (
                 <div className="space-y-2">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-gray-500 uppercase">Select Pages</span>
-                    <button onClick={() => toggleAll(facebookPages, selectedFb, setSelectedFb, 'pageId')} className="text-xs text-blue-600 hover:underline font-medium">
+                    <span className="text-xs font-bold text-dark uppercase">Select Pages</span>
+                    <button onClick={() => toggleAll(facebookPages, selectedFb, setSelectedFb, 'pageId')} className="text-xs text-dark hover:underline font-medium">
                       {selectedFb.length === facebookPages.length ? 'Deselect All' : 'Select All'}
                     </button>
                   </div>
                   {loadingFb ? (
-                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-dark" /></div>
                   ) : facebookPages.length > 0 ? (
                     facebookPages.map(page => (
-                      <label key={page.pageId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedFb.includes(page.pageId) ? 'border-[#1877F2] bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
-                        <input type="checkbox" checked={selectedFb.includes(page.pageId)} onChange={() => toggleSelection(page.pageId, selectedFb, setSelectedFb)} className="w-4 h-4 text-[#1877F2] rounded focus:ring-[#1877F2]" />
-                        <span className="text-sm font-medium text-gray-900">{page.pageName}</span>
+                      <label key={page.pageId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedFb.includes(page.pageId) ? 'border-lightPrimary bg-blue-50' : 'border-gray-200 hover:border-yellow-300'}`}>
+                        <input type="checkbox" checked={selectedFb.includes(page.pageId)} onChange={() => toggleSelection(page.pageId, selectedFb, setSelectedFb)} className="w-4 h-4 text-lightPrimary rounded focus:ring-lightPrimary" />
+                        <span className="text-sm font-medium text-dark">{page.pageName}</span>
                       </label>
                     ))
                   ) : (
@@ -402,22 +402,22 @@ const ScheduleModal = ({
               {activeTab === 'ig' && (
                 <div className="space-y-2">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-gray-500 uppercase">Select Accounts</span>
-                    <button onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, 'igId')} className="text-xs text-pink-600 hover:underline font-medium">
+                    <span className="text-xs font-bold text-dark uppercase">Select Accounts</span>
+                    <button onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, 'igId')} className="text-xs text-dark hover:underline font-medium">
                       {selectedIg.length === instagramAccounts.length ? 'Deselect All' : 'Select All'}
                     </button>
                   </div>
                   {loadingIg ? (
-                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-pink-500" /></div>
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-lighPrimary" /></div>
                   ) : instagramAccounts.length > 0 ? (
                     instagramAccounts.map(acc => (
-                      <label key={acc.igId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedIg.includes(acc.igId) ? 'border-[#E1306C] bg-pink-50' : 'border-gray-200 hover:border-pink-300'}`}>
-                        <input type="checkbox" checked={selectedIg.includes(acc.igId)} onChange={() => toggleSelection(acc.igId, selectedIg, setSelectedIg)} className="w-4 h-4 text-[#E1306C] rounded focus:ring-[#E1306C]" />
-                        <span className="text-sm font-medium text-gray-900">{acc.igUsername}</span>
+                      <label key={acc.igId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedIg.includes(acc.igId) ?  'border-lightPrimary bg-pink-50'  : 'border-gray-200 hover:border-lightPrimary'}`} >
+                        <input type="checkbox" checked={selectedIg.includes(acc.igId)} onChange={() => toggleSelection(acc.igId, selectedIg, setSelectedIg)} className="w-4 h-4 text-lightPrimary rounded focus:ring-dark" />
+                        <span className="text-sm font-medium text-dark">{acc.igUsername}</span>
                       </label>
                     ))
                   ) : (
-                    <p className="text-center text-gray-400 text-sm py-8">No Instagram accounts connected.</p>
+                    <p className="text-center text-dark text-sm py-8">No Instagram accounts connected.</p>
                   )}
                 </div>
               )}
@@ -428,23 +428,23 @@ const ScheduleModal = ({
         {/* Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
           <div className="flex flex-col">
-            <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">Required Coins</span>
+            <span className="text-xs text-dark font-medium uppercase tracking-wide">Required Coins</span>
             <div className="flex items-baseline gap-2">
               <span className={`text-lg font-bold ${userWallet < totalCost ? "text-red-600" : "text-neutral-600"}`}>{totalCost}</span>
               {userWallet < totalCost && (
-                <span className="text-xs text-red-500 font-medium">
+                <span className="text-xs text-dark font-medium">
                   (Available: {userWallet})
                 </span>
               )}
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm">
+            <button onClick={onClose} className="px-6 py-2.5 bg-white border border-gray-300 text-dark rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm">
               Cancel
             </button>
             {userWallet < totalCost ? (
               <Link href="/wallet">
-                <button className="px-6 py-2.5 bg-neutral-600 text-white rounded-xl font-semibold hover:bg-neutral-700 transition-all shadow-lg flex items-center gap-2 text-sm">
+                <button className="px-6 py-2.5 bg-dark text-lightPrimary rounded-xl font-semibold hover:bg-neutral-700 transition-all shadow-lg flex items-center gap-2 text-sm">
                   <Wallet className="w-4 h-4" />
                   Add Coins
                 </button>
@@ -453,7 +453,7 @@ const ScheduleModal = ({
               <button 
                 onClick={handleConfirm} 
                 disabled={selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0}
-                className="px-6 py-2.5 bg-gradient-to-r from-gray-700 to-yellow-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                className="px-6 py-2.5 bg-lightPrimary text-dark rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
               >
                 <Calendar className="w-4 h-4" />
                 Schedule Post

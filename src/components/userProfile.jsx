@@ -130,7 +130,7 @@ export default function ProfileWithStats() {
     return (
       <div className="h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-primary rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-xl font-semibold text-gray-700">Loading your profile...</p>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function ProfileWithStats() {
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 p-4 sm:p-8 mt-10">
       <div className="max-w-6xl mx-auto">
         {/* ---------------- HERO PROFILE CARD ---------------- */}
-        <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-3xl shadow-2xl p-8 mb-8 overflow-hidden">
+        <div className="relative bg-lightPrimary rounded-3xl shadow-2xl p-8 mb-8 overflow-hidden">
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
@@ -158,26 +158,26 @@ export default function ProfileWithStats() {
               {/* Avatar with glow effect */}
               <div className="relative">
                 <div className="absolute inset-0 bg-white/30 rounded-full blur-xl"></div>
-                <div className="relative w-28 h-28 rounded-full bg-gradient-to-tr from-white to-purple-100 flex items-center justify-center text-indigo-600 text-5xl font-bold shadow-2xl ring-4 ring-white/50">
+                <div className="relative w-28 h-28 rounded-full bg-gradient-to-tr from-white to-purple-100 flex items-center justify-center text-dark text-5xl font-bold shadow-2xl ring-4 ring-white/50">
                   {fullName?.charAt(0)}
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-green-400 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white" />
+                <div className="absolute -bottom-2 -right-2 bg-lightPrimary w-8 h-8 rounded-full border-4 border-white flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-dark" />
                 </div>
               </div>
 
               {/* User Info */}
               <div className="text-center md:text-left flex-1">
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">
+                <h1 className="text-3xl md:text-4xl font-bold text-dark  mb-2 drop-shadow-lg">
                   {fullName}
                 </h1>
-                <p className="text-purple-100 text-sm md:text-base flex items-center gap-2 justify-center md:justify-start">
+                <p className="text-dark text-sm md:text-base flex items-center gap-2 justify-center md:justify-start">
                   <Award className="w-4 h-4" />
                   Premium Member • Active Since 2024
                 </p>
                 <button
       onClick={() => router.push("/user-activity")}
-      className="mt-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-2 rounded-xl font-semibold shadow-md hover:scale-105 transition flex items-center gap-2 mx-auto md:mx-0"
+      className="mt-4 bg-dark text-primary px-6 py-2 rounded-xl font-semibold shadow-md hover:scale-105 transition flex items-center gap-2 mx-auto md:mx-0"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -200,14 +200,14 @@ export default function ProfileWithStats() {
 
               {/* Wallet Quick Access */}
               <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-4 border border-white/30 shadow-xl">
-                <p className="text-purple-100 text-sm mb-1">Wallet Balance</p>
+                <p className="text-dark text-sm mb-1">Wallet Balance</p>
                 <div className="flex items-center gap-3">
                   <Coins className="text-yellow-300 w-8 h-8" />
-                  <span className="text-3xl font-bold text-white">{wallet}</span>
+                  <span className="text-3xl font-bold text-dark">{wallet}</span>
                 </div>
                 <button
                   onClick={() => router.push("/wallet")}
-                  className="mt-3 w-full bg-white text-indigo-600 px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+                  className="mt-3 w-full bg-dark text-primary px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
                 >
                   Add Coins
                 </button>
@@ -222,7 +222,7 @@ export default function ProfileWithStats() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-indigo-600" />
+                <User className="w-5 h-5 text-primary" />
                 Contact Information
               </h3>
               <div className="space-y-3">
@@ -232,7 +232,7 @@ export default function ProfileWithStats() {
             </div>
 
             {/* Plan Card */}
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl p-6 mt-6 text-white relative overflow-hidden">
+            <div className="bg-dark rounded-2xl shadow-xl p-6 mt-6 text-lightPrimary relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
@@ -271,7 +271,7 @@ export default function ProfileWithStats() {
             {/* Post Statistics */}
             <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100  ">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <TrendingUp className="w-6 h-6 text-indigo-600" />
+                <TrendingUp className="w-6 h-6 text-dark" />
                 Post Analytics
               </h2>
 
@@ -281,35 +281,35 @@ export default function ProfileWithStats() {
                   value={allCounts.total}
                   icon={<Image className="w-5 h-5" />}
                   gradient="bg-dark"
-                  textColor="text-white"
+                  textColor="text-lightPrimary"
                 />
                 <StatCard
                   title="Approved"
                   value={allCounts.approved}
                   icon={<CheckCircle className="w-5 h-5" />}
                   gradient="bg-dark"
-                  textColor="text-white"
+                  textColor="text-lightPrimary"
                 />
                 <StatCard
                   title="Pending"
                   value={allCounts.pending}
                   icon={<Clock className="w-5 h-5" />}
                   gradient="bg-dark"
-                  textColor="text-white"
+                  textColor="text-lightPrimary"
                 />
                 <StatCard
                   title="Scheduled"
                   value={allCounts.scheduled}
                   icon={<CalendarDays className="w-5 h-5" />}
                   gradient="bg-dark"
-                  textColor="text-purple-600"
+                  textColor="text-lightPrimary"
                 />
                 <StatCard
                   title="Posted"
                   value={allCounts.posted}
                   icon={<Send className="w-5 h-5" />}
                   gradient="bg-dark"
-                  textColor="text-white"
+                  textColor="text-lightPrimary"
                 />
               </div>
             </div>
@@ -317,7 +317,7 @@ export default function ProfileWithStats() {
             {/* Transaction History */}
             <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <Coins className="w-6 h-6 text-indigo-600" />
+                <Coins className="w-6 h-6 text-dark" />
                 Recent Transactions
               </h2>
 
@@ -338,15 +338,15 @@ export default function ProfileWithStats() {
                   transactions.map((tx, index) => (
                     <div
                       key={tx.id}
-                      className="group relative bg-gradient-to-r from-gray-50 to-white p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
+                      className="group relative bg-gradient-to-r from-gray-50 to-white p-4 rounded-xl border border-gray-200 hover:border-dark hover:shadow-md transition-all duration-200"
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
                       <div className="flex items-start gap-4">
                         <div
                           className={`p-3 rounded-xl ${
                             tx.type === "credit"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-red-100 text-red-600"
+                              ? "bg-white text-dark"
+                              : "bg-lightPrimary text-dark"
                           }`}
                         >
                           {tx.type === "credit" ? (
@@ -375,7 +375,7 @@ export default function ProfileWithStats() {
 
                         <div
                           className={`text-xl font-bold whitespace-nowrap ${
-                            tx.type === "credit" ? "text-green-600" : "text-red-600"
+                            tx.type === "credit" ? "text-lightPrimary" : "text-dark"
                           }`}
                         >
                           {tx.type === "credit" ? "+" : "-"}
@@ -393,7 +393,7 @@ export default function ProfileWithStats() {
         {/* ---------------- AI GENERATED IMAGES GALLERY ---------------- */}
         <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <ImageIcon className="w-6 h-6 text-indigo-600" />
+            <ImageIcon className="w-6 h-6 text-dark" />
             AI Generated Images
             <span className="ml-auto text-sm font-normal text-gray-500">
               {aiImages.length} {aiImages.length === 1 ? "image" : "images"}

@@ -26,12 +26,12 @@ export default function SignupPopup({
         </button>
 
         {/* Gift Icon */}
-        <div className="text-primary mb-4">
+        <div className="text-lightPrimary mb-4">
           <Gift className="w-16 h-16 mx-auto animate-bounce" />
         </div>
 
         {/* Heading */}
-        <h2 className="text-3xl font-bold text-dark mb-2">
+        <h2 className="text-3xl font-bold text-lightPrimary mb-2">
           Hurry Up!
         </h2>
 
@@ -46,7 +46,7 @@ export default function SignupPopup({
         {/* Button */}
         <button
           onClick={() => window.location.href = "/login"}
-          className="w-full group px-8 py-4 bg-primary text-dark rounded-xl font-bold text-lg hover:shadow-2xl transition-all hover:scale-105 inline-flex items-center justify-center gap-2"
+          className="w-full group px-8 py-4 bg-lightPrimary text-dark rounded-xl font-bold text-lg hover:shadow-2xl transition-all hover:scale-105 inline-flex items-center justify-center gap-2"
         >
           Signup Fast & Get Coins
         </button>

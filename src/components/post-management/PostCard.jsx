@@ -291,14 +291,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => onUpdateStatus(post._id, "approved")}
-                className="flex items-center justify-center gap-2 bg-primary text-dark border border-yellow-200 hover:bg-yellow-300 hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="flex items-center justify-center gap-2 bg-lightPrimary text-dark border border-yellow-200 hover:bg-yellow-300 hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <CheckCircle className="w-4 h-4" />
                 Approve 
               </button>
               <button
                 onClick={() => onReject(post._id)}
-                className="flex items-center justify-center gap-2 bg-neutral-50 text-neutral-600 border border-neutral-200 hover:bg-neutral-300 hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="flex items-center justify-center gap-2 bg-fullLight text-neutral-600 border border-neutral-200 hover:bg-neutral-300 hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <XCircle className="w-4 h-4" />
                 Reject
@@ -334,9 +334,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 className="
     w-full flex items-center justify-center gap-2
     bg-dark
-    hover:bg-gray-500
-    text-primary
-    border border-gray-800
+    hover:bg-gray-600
+    text-lightPrimary
+    border border-lightPrimary
     px-4 py-3 rounded-xl
     text-sm font-semibold
     transition-all duration-200
@@ -348,7 +348,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => handleInstagramPost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-dark text-primary border border-gray-800 hover:bg-gray-500 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Instagram className="w-4 h-4" />
                 Post to Instagram
@@ -356,7 +356,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => handleFacebookPost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-dark  text-primary border border-gray-800 hover:bg-gray-500 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 bg-dark  text-lightPrimary border border-lighPrimary hover:bg-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Facebook className="w-4 h-4" />
                 Post to Facebook
@@ -370,7 +370,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => onUpdateStatus(post)}
-                className="w-full flex items-center justify-center gap-2 bg-dark text-primary border border-gray-800 hover:bg-gray-500 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-500 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Calendar className="w-4 h-4" />
                 Schedule
@@ -594,7 +594,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
               <button
                 onClick={() => onUpdateStatus(post)}
-                className="flex items-center justify-center gap-2 bg-primary text-dark border border-yellow-200 hover:bg-yellow-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                className="flex items-center justify-center gap-2 bg-lightPrimary text-dark border border-yellow-200 hover:bg-yellow-300 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
               >
                 <Calendar className="w-3 h-3" />
                 Schedule 

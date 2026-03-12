@@ -17,7 +17,7 @@ export default function FeaturesSection({ features }) {
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Powerful Features for
-            <span className="bg-primary bg-clip-text text-transparent">
+            <span className="bg-lightPrimary bg-clip-text text-transparent">
               {" "}Business Growth
             </span>
           </h2>
@@ -33,16 +33,17 @@ export default function FeaturesSection({ features }) {
             const Icon = feature.icon
 
             return (
-              <Link href={feature.link} key={index}>
+              <Link href={feature.link} key={index} className="h-full">
                 <div
                   className="group bg-white rounded-2xl p-8 
                   shadow-sm hover:shadow-xl 
                   transition-all duration-300 
                   hover:-translate-y-2 
-                  border border-slate-100"
+                  border border-slate-100
+                   flex flex-col h-full "
                 >
                   <div className="w-14 h-14 flex items-center justify-center 
-                  rounded-xl bg-primary text-white mb-6 
+                  rounded-xl bg-lightPrimary text-dark mb-6 
                   group-hover:scale-110 transition-transform">
                     <Icon size={28} />
                   </div>
@@ -51,7 +52,7 @@ export default function FeaturesSection({ features }) {
                     {feature.title}
                   </h3>
 
-                  <p className="text-slate-600 leading-relaxed">
+                  <p className="text-slate-600 leading-relaxed flex-grow">
                     {feature.description}
                   </p>
                 </div>

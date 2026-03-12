@@ -338,14 +338,14 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => onUpdateStatus(post._id, "approved")}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-xl font-bold hover:shadow-xl transition-all"
+                className="flex-1 flex items-center justify-center gap-2 bg-fullLight text-dark px-4 py-3 rounded-xl font-bold hover:shadow-xl transition-all"
               >
                 <CheckCircle className="w-5 h-5" />
                 Approve
               </button>
               <button
                 onClick={() => onReject(post._id)}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-3 rounded-xl font-bold hover:shadow-xl transition-all"
+                className="flex-1 flex items-center justify-center gap-2 bg-lightPrimary text-dark px-4 py-3 rounded-xl font-bold hover:shadow-xl transition-all"
               >
                 <X className="w-5 h-5" />
                 Reject

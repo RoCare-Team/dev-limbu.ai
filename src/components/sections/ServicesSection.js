@@ -16,7 +16,7 @@ export default function ServicesSection({
         <div className="text-center mb-12 sm:mb-16">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4 px-4">
             Our{" "}
-            <span className="bg-primary bg-clip-text text-transparent">
+            <span className="bg-lightPrimary bg-clip-text text-transparent">
               Service Plans
             </span>
           </h2>
@@ -41,7 +41,7 @@ export default function ServicesSection({
 
               {/* Popular Badge */}
               {plan.popular && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-gray-700 to-yellow-600 text-white px-3 py-0.5 rounded-full text-xs font-bold shadow-lg">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-lightPrimary text-dark px-3 py-0.5 rounded-full text-xs font-bold shadow-lg">
                   Most Popular
                 </div>
               )}
@@ -124,7 +124,7 @@ export default function ServicesSection({
                 onClick={() => handleServiceBookClick(plan)}
                 className={`w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg hover:shadow-xl transition-all hover:scale-105 ${plan.buttonColor}`}
               >
-                Book Service
+                Book Service 
               </button>
 
             </div>

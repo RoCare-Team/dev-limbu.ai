@@ -85,7 +85,7 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                     id="post-checkbox"
                     checked={checkmark.includes('post')}
                     onChange={() => handleCheckmarkChange('post')}
-                    className="h-5 w-5 rounded border-gray-300 accent-primary text-dark focus:ring-dark cursor-pointer"
+                    className="h-5 w-5 rounded border-gray-300 accent-lightPrimary text-dark focus:ring-dark cursor-pointer"
                   />
                   <label htmlFor="post-checkbox" className="ml-2 text-dark font-medium cursor-pointer">Post</label>
                 </div>
@@ -96,7 +96,7 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                     id="photo-checkbox"
                     checked={checkmark.includes('photo')}
                     onChange={() => handleCheckmarkChange('photo')}
-                    className="h-5 w-5 rounded border-gray-300 accent-primary text-dark focus:ring-dark cursor-pointer"
+                    className="h-5 w-5 rounded border-gray-300 accent-lightPrimary text-dark focus:ring-dark cursor-pointer"
                   />
                   <label htmlFor="photo-checkbox" className="ml-2 text-dark font-medium cursor-pointer">Photo</label>
                 </div>
@@ -108,16 +108,16 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                   id="select-all-checkbox"
                   checked={verifiedLocations.length > 0 && selectedLocations.length === verifiedLocations.length}
                   onChange={handleSelectAll}
-                  className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="h-5 w-5 rounded border-gray-300 text-dark focus:ring-dark cursor-pointer"
                 />
-                <label htmlFor="select-all-checkbox" className="ml-2 text-gray-700 font-medium cursor-pointer">
+                <label htmlFor="select-all-checkbox" className="ml-2 text-dark font-medium cursor-pointer">
                   {selectedLocations.length === verifiedLocations.length ? 'Deselect All' : 'Select All'}
                 </label>
               </div>
             </div>
             
             {/* Summary Card */}
-            <div className="bg-gradient-to-r from-neutral-50 to-yellow-50 border-2 border-neutral-300 rounded-xl p-4 space-y-3">
+            <div className="bg-lightPrimary border-neutral-300 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
                 <div>
                   <p className="text-sm text-dark">Selected Locations</p>

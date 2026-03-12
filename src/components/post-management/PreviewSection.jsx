@@ -84,14 +84,14 @@ const PreviewSection = ({
     <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-sm">
         <h3 className="font-bold text-gray-800 flex items-center gap-2">
-          <Eye className="w-5 h-5 text-blue-600" /> Live Preview
+          <Eye className="w-5 h-5 text-dark" /> Live Preview
         </h3>
         <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1 uppercase tracking-wider ${status === "approved" ? "bg-green-100/90 text-green-700 border-green-200" :
             status === "pending" ? "bg-yellow-100/90 text-yellow-700 border-yellow-200" :
-              status === "posted" ? "bg-purple-100/90 text-purple-700 border-purple-200" :
-                status === "scheduled" ? "bg-blue-100/90 text-blue-700 border-blue-200" :
+              status === "posted" ? "bg-purple-100/90 text-dark border-purple-200" :
+                status === "scheduled" ? "bg-fullLight text-dark border-blue-200" :
                   status === "failed" ? "bg-red-100/90 text-red-700 border-red-200" :
-                    "bg-blue-100/90 text-blue-700 border-blue-200"
+                    "bg-blue-100/90 text-dark border-blue-200"
           }`}>
           {status}
         </span>
@@ -183,7 +183,7 @@ const PreviewSection = ({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => onUpdateStatus(previewData._id, "approved")}
-              className="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+              className="flex items-center justify-center gap-2 bg-fullLight text-lighPrimary border border-green-200 hover:bg-green-100 hover:border-green-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
             >
               <CheckCircle className="w-4 h-4" />
               Approve
@@ -296,14 +296,14 @@ const PreviewSection = ({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handlePost(previewData)}
-              className="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              className="flex items-center justify-center gap-2 bg-lightPrimary text-dark border border-yellow-600 hover:bg-fullLight hover:border-yellow-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
             >
               <Send className="w-4 h-4" />
               Repost
             </button>
             <button
               onClick={() => onUpdateStatus(previewData)}
-              className="flex items-center justify-center gap-2 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              className="flex items-center justify-center gap-2 bg-fullLight text-dark border border-purple-200 hover:bg-yellow-100 hover:border-yellow-200  px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
             >
               <Calendar className="w-4 h-4" />
               Schedule

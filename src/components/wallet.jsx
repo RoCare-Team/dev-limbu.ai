@@ -269,7 +269,7 @@ const formatTime = (dateString) => {
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={goBack}
-            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors group"
+            className="flex items-center gap-2 text-dark hover:text-lightPrimary transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="font-medium">Back to Dashboard</span>
@@ -277,10 +277,10 @@ const formatTime = (dateString) => {
 
           <button
             onClick={() => setShowTransactions(!showTransactions)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-lg rounded-xl shadow-md border border-white/20 text-gray-700 hover:text-dark transition-all hover:shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 bg-lightPrimary backdrop-blur-lg rounded-xl shadow-md border border-white/20 text-gray-700 hover:text-dark transition-all hover:shadow-lg"
           >
             <History className="w-5 h-5" />
-            <span className="font-medium">Transaction History</span>
+            <span className="font-medium">Transaction History </span>
           </button>
         </div>
 
@@ -289,11 +289,11 @@ const formatTime = (dateString) => {
           <div className="space-y-6 lg:col-span-1 order-2 lg:order-1">
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
+                <div className="w-16 h-16 bg-lightPrimary rounded-2xl flex items-center justify-center shadow-lg">
                   <Wallet className="w-8 h-8 text-dark" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-dark  bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold  bg-clip-text text-lightPrimary">
                     Wallet Recharge
                   </h1>
                   <p className="text-gray-600 text-sm mt-1">
@@ -306,7 +306,7 @@ const formatTime = (dateString) => {
                 <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
                   <Zap className="w-5 h-5 text-dark mt-0.5 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-dark">Instant Credit</h3>
+                    <h3 className="font-semibold text-lightPrimary">Instant Credit</h3>
                     <p className="text-sm text-dark">
                       Coins added to your wallet immediately after payment
                     </p>
@@ -316,7 +316,7 @@ const formatTime = (dateString) => {
                 <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
                   <Shield className="w-5 h-5 text-gray-800 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-800">Secure Payment</h3>
+                    <h3 className="font-semibold text-lightPrimary">Secure Payment</h3>
                     <p className="text-sm text-gray-600">
                       Protected by Razorpay's enterprise-grade security
                     </p>
@@ -326,7 +326,7 @@ const formatTime = (dateString) => {
                 <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
                   <TrendingUp className="w-5 h-5 text-gray-800 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-800">Special Offers</h3>
+                    <h3 className="font-semibold text-lightPrimary">Special Offers</h3>
                     <p className="text-sm text-gray-600">
                       Get 20% bonus on ₹5,000+ recharges
                     </p>
@@ -377,8 +377,8 @@ const formatTime = (dateString) => {
             </div>
 
             <div>
-              <label className="block text-gray-800 font-semibold mb-3 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-dark" />
+              <label className="block text-lightPrimary font-semibold mb-3 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-lightPrimary" />
                 Custom Amount
               </label>
               <div className="relative">
@@ -459,7 +459,7 @@ const formatTime = (dateString) => {
               className={`w-full flex justify-center items-center gap-3 py-4 rounded-2xl shadow-lg font-bold text-dark text-lg transition-all ${
                 loading
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-primary  hover:shadow-xl hover:scale-105"
+                  : "bg-lightPrimary  hover:shadow-xl hover:scale-105"
               }`}
             >
               {loading ? (
@@ -487,12 +487,12 @@ const formatTime = (dateString) => {
       {showTransactions && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden animate-scale-in">
-            <div className="bg-primary p-6 flex items-center justify-between">
+            <div className="bg-lightPrimary p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-dark rounded-xl flex items-center justify-center shadow-md">
-                  <History className="w-5 h-5 text-primary" />
+                  <History className="w-5 h-5 text-lightPrimary" />
                 </div>
-                <h2 className="text-2xl font-bold text-dark">Transaction History</h2>
+                <h2 className="text-2xl font-bold text-dark">Transaction History </h2>
               </div>
               <button
                 onClick={() => setShowTransactions(false)}
@@ -510,7 +510,7 @@ const formatTime = (dateString) => {
                     onClick={() => setFilterType(type)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       filterType === type
-                        ? "bg-dark text-primary shadow-md"
+                        ? "bg-dark text-lightPrimary shadow-md"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
@@ -594,7 +594,7 @@ const formatTime = (dateString) => {
       {showSuccess && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl p-8 text-center w-full max-w-md animate-scale-in">
-            <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce-in">
+            <div className="w-20 h-20 bg-lightPrimary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce-in">
               <CheckCircle className="w-12 h-12 text-white" />
             </div>
 
@@ -603,18 +603,18 @@ const formatTime = (dateString) => {
             </h2>
 
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6">
-              <p className="text-gray-600 mb-2">Total Paid</p>
-              <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <p className="text-dark mb-2">Total Paid</p>
+              <p className="text-3xl font-bold bg-lightPrimary bg-clip-text text-transparent">
                 ₹{totalAmount}
               </p>
-              <div className="flex items-center justify-center gap-2 mt-3 text-green-600">
+              <div className="flex items-center justify-center gap-2 mt-3 text-dark">
                 <Coins className="w-5 h-5" />
                 <span className="font-semibold">{coins} Coins Added</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+            <div className="flex items-center justify-center gap-2 text-dark text-sm">
+              <div className="w-2 h-2 bg-lightPrimary rounded-full animate-pulse"></div>
               Transaction recorded successfully
             </div>
           </div>

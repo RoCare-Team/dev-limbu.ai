@@ -19,8 +19,16 @@ export default function LoginPage() {
   const [messageType, setMessageType] = useState("info");
   const [isDark, setIsDark] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
+const router = useRouter();
+const searchParams = useSearchParams();
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    router.replace("/login");
+  }
+}, []);
 
   useEffect(() => {
     const theme = localStorage.getItem("theme");
@@ -510,7 +518,7 @@ export default function LoginPage() {
                 `}
             >
               <div className="space-y-6">
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${isDark ? "bg-blue-500/20 text-blue-400" : "bg-neutral-800 text-white"}`}>
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${isDark ? "bg-lightPrimary text-dark" : "bg-dark text-lightPrimary"}`}>
                   <Globe className="w-4 h-4" />
                   GMB & Social Media management
                 </div>
@@ -518,7 +526,7 @@ export default function LoginPage() {
                 <h1 className={`text-4xl lg:text-5xl font-bold leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>
                   Your Business,
                   <br />
-                  <span className={`${isDark ? "text-yellow-600" : "bg-gradient-to-r from-yellow-500 to-yellow-700 bg-clip-text text-transparent"}`}>Amplified Online</span>
+                  <span className={`${isDark ? "text-yellow-600" : "bg-lightPrimary bg-clip-text text-transparent"}`}>Amplified Online</span>
                 </h1>
 
                 <p className={`text-lg ${isDark ? "text-slate-300" : "text-slate-600"}`}>

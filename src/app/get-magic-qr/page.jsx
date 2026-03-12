@@ -317,7 +317,7 @@ export default function BusinessQR() {
       <Toaster />
       <div className="container mx-auto px-4 pt-20 sm:pt-12 pb-12">
         <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-5 py-2 rounded-full text-sm font-semibold mb-4 shadow-sm">
+          <div className="inline-flex items-center gap-2 bg-lightPrimary text-dark px-5 py-2 rounded-full text-sm font-semibold mb-4 shadow-sm">
             <Sparkles size={16} />
             <span>Smart Review System</span>
           </div>
@@ -337,8 +337,8 @@ export default function BusinessQR() {
                 value={selectedLocationId}
                 onChange={(e) => handleLocationChange(e.target.value)}
                 className="w-full px-4 py-3 bg-white border-2 border-blue-200 rounded-xl 
-                           text-gray-800 font-semibold shadow-sm hover:border-blue-300 
-                           focus:border-blue-500 focus:ring-2 focus:ring-blue-100 
+                           text-dark font-semibold shadow-sm hover:border-lightPrimary 
+                           focus:border-lightPrimary focus:ring-2 focus:ring-blue-100 
                            transition-all cursor-pointer"
               >
                 {allLocations.map((loc) => (
@@ -358,8 +358,8 @@ export default function BusinessQR() {
         <div className="grid lg:grid-cols-2 gap-10 max-w-7xl mx-auto">
           <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-gray-100 hover:shadow-2xl transition">
             <div className="flex items-center gap-3 mb-8">
-              <div className="p-3 bg-blue-100 rounded-xl shadow-sm">
-                <QrCode className="text-blue-600" size={26} />
+              <div className="p-3 bg-lightPrimary rounded-xl shadow-sm">
+                <QrCode className="text-dark" size={26} />
               </div>
               <h2 className="text-2xl font-bold text-gray-800">Your QR Code</h2>
             </div>
@@ -372,7 +372,7 @@ export default function BusinessQR() {
       <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-yellow-400 rounded-br-[120px]" />
       <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-red-500 rounded-bl-[120px]" />
       <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-green-500 rounded-tr-[120px]" />
-      <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-blue-500 rounded-tl-[120px]" />
+      <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-fullLight rounded-tl-[120px]" />
     </div>
 
     {/* White Card */}
@@ -447,8 +447,8 @@ export default function BusinessQR() {
             <div className="grid grid-cols-2 gap-3 mb-8">
               <button
                 onClick={downloadQR}
-                className="bg-blue-600 text-white py-3.5 rounded-xl flex items-center justify-center gap-2 
-                           hover:bg-blue-700 transition shadow-md font-semibold"
+                className="bg-lightPrimary text-dark py-3.5 rounded-xl flex items-center justify-center gap-2 
+                           hover:bg-yellow-400 transition shadow-md font-semibold"
               >
                 <Download size={20} />
                 Download
@@ -456,8 +456,8 @@ export default function BusinessQR() {
               
               <button
                 onClick={printQR}
-                className="bg-indigo-600 text-white py-3.5 rounded-xl flex items-center justify-center gap-2 
-                           hover:bg-indigo-700 transition shadow-md font-semibold"
+                className="bg-lightPrimary text-dark py-3.5 rounded-xl flex items-center justify-center gap-2 
+                           hover:bg-yellow-400 tra-400nsition shadow-md font-semibold"
               >
                 <Printer size={20} />
                 Print
@@ -467,7 +467,7 @@ export default function BusinessQR() {
             {reviewUrl && (
               <div className="space-y-5">
                 <div className="flex items-center gap-2 text-gray-700 font-semibold">
-                  <Share2 size={20} className="text-blue-600" />
+                  <Share2 size={20} className="text-dark" />
                   <span>Share Review Link</span>
                 </div>
 
@@ -477,7 +477,7 @@ export default function BusinessQR() {
                       type="text"
                       readOnly
                       value={reviewUrl}
-                      className="flex-1 text-sm text-gray-700 bg-transparent outline-none"
+                      className="flex-1 text-sm text-dark bg-transparent outline-none"
                     />
 
                     <button
@@ -502,7 +502,7 @@ export default function BusinessQR() {
 
                 <button
                   onClick={shareLink}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 
+                  className="w-full bg-lightPrimary text-dark py-3.5 
                              rounded-xl flex items-center justify-center gap-2 hover:opacity-90 
                              transition-all shadow-md font-semibold"
                 >
@@ -516,15 +516,15 @@ export default function BusinessQR() {
           <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-gray-100 hover:shadow-2xl transition">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-indigo-100 rounded-xl shadow-sm">
-                  <MessageSquare className="text-indigo-600" size={24} />
+                <div className="p-3 bg-lightPrimary rounded-xl shadow-sm">
+                  <MessageSquare className="text-dark" size={24} />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800">How It Works</h2>
               </div>
 
               <button
                 onClick={() => setShowDemo(true)}
-                className="text-sm text-gray-600 hover:text-gray-700 font-semibold hover:underline"
+                className="text-sm text-dark hover:text-gray-700 font-semibold hover:underline"
               >
                 View Demo
               </button>
@@ -534,11 +534,11 @@ export default function BusinessQR() {
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex gap-1">
                   {[1, 2, 3].map(i => (
-                    <Star key={i} size={20} className="text-orange-500" fill="currentColor" />
+                    <Star key={i} size={20} className="text-lightPrimary" fill="currentColor" />
                   ))}
                 </div>
                 <span className="font-bold text-gray-800">1–3 Stars</span>
-                <span className="ml-auto bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <span className="ml-auto bg-lightPrimay text-dark : text-xs font-bold px-3 py-1 rounded-full">
                   Private
                 </span>
               </div>
@@ -552,11 +552,11 @@ export default function BusinessQR() {
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <Star key={i} size={20} className="text-green-600" fill="currentColor" />
+                    <Star key={i} size={20} className="text-lightPrimary" fill="currentColor" />
                   ))}
                 </div>
                 <span className="font-bold text-gray-800">4–5 Stars</span>
-                <span className="ml-auto bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <span className="ml-auto bg-lightPrimary text-dark text-xs font-bold px-3 py-1 rounded-full">
                   Public
                 </span>
               </div>
@@ -619,7 +619,7 @@ export default function BusinessQR() {
 
             <button
               onClick={() => setShowDemo(false)}
-              className="w-full mt-6 bg-blue-600 text-white py-3.5 rounded-xl hover:bg-blue-700 transition font-semibold"
+              className="w-full mt-6 bg-fullLight text-dark py-3.5 rounded-xl hover:bg-yellow-300 transition font-semibold"
             >
               Close
             </button>

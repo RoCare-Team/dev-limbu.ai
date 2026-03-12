@@ -283,12 +283,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 <Calendar className="w-4 h-4" />
-                Schedule
+                Schedule 
               </button>
             </div>
           )}
 
-          {post.status === "scheduled" && (
+          {post.status ===cheduled" && (
             <div className="space-y-3">
               <div className="bg-reutral-400 border border-reutral-400 rounded-xl p-3 flex items-start gap-3">
                 <div className="bg-reutral-200 p-2 rounded-lg">
@@ -333,7 +333,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       onClick={() => handlePost(post)}
       className="
         flex items-center justify-center gap-2
-        bg-neutral-600 text-white
+        bg-dark text-white
         border border-reutral-200
         hover:bg-reutral-100 hover:border-reutral-300
         px-4 py-2.5 rounded-xl text-sm font-semibold

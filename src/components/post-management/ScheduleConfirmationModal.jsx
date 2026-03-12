@@ -20,11 +20,11 @@ import { CheckCircle, MapPin, Facebook, Instagram } from "lucide-react";
 
     {/* Header */}
     <div className="flex flex-col items-center text-center px-5 pt-5 pb-4 border-b">
-      <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center mb-2">
-        <CheckCircle className="w-6 h-6 text-green-600" />
+      <div className="w-11 h-11 rounded-full bg-lightPrimary flex items-center justify-center mb-2">
+        <CheckCircle className="w-6 h-6 text-dark" />
       </div>
 
-      <h2 className="text-lg font-semibold text-gray-900">
+      <h2 className="text-lg font-semibold text-dark">
         Post Scheduled
       </h2>
       <p className="text-xs text-gray-500 mt-1">
@@ -37,7 +37,7 @@ import { CheckCircle, MapPin, Facebook, Instagram } from "lucide-react";
       {hasGMB && (
         <div className="flex items-center justify-between text-sm border rounded-lg px-3 py-2">
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-blue-600" />
+            <MapPin className="w-4 h-4 text-dark" />
             <span className="font-medium text-gray-700">Google Business</span>
           </div>
           <span className="text-xs text-gray-500">
@@ -49,7 +49,7 @@ import { CheckCircle, MapPin, Facebook, Instagram } from "lucide-react";
       {hasFB && (
         <div className="flex items-center justify-between text-sm border rounded-lg px-3 py-2">
           <div className="flex items-center gap-2">
-            <Facebook className="w-4 h-4 text-blue-600" />
+            <Facebook className="w-4 h-4 text-dark" />
             <span className="font-medium text-gray-700">Facebook</span>
           </div>
           <span className="text-xs text-gray-500">
@@ -76,7 +76,7 @@ import { CheckCircle, MapPin, Facebook, Instagram } from "lucide-react";
       <button
         onClick={onClose}
         className="w-full py-2.5 rounded-lg text-sm font-medium
-                   bg-blue-600 text-white hover:bg-blue-700"
+                   bg-lightPrimary text-dark hover:bg-yellow-400"
       >
         Done
       </button>

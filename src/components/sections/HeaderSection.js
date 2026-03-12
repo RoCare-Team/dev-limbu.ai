@@ -46,25 +46,25 @@ export default function HeaderSection({
 
     {/* CENTER - NAV LINKS */}
     <nav className="hidden lg:flex items-center gap-7 text-sm text-sm text-[#101010] font-dark">
-      <a href="#features" className="hover:text-yellow-500 transition">
+      <a href="#features" className="hover:text-lightPrimary transition">
         Features
       </a>
 
-      <a href="/work-with-us" className="hover:primary transition">
+      <a href="/work-with-us" className="hover:text-lightPrimary transition">
         work with Us
       </a>
 
-      <a href="#services" className="hover:text-primary transition">
+      <a href="#services" className="hover:text-lightPrimary transition">
         Our Services
       </a>
 
-      <a href="/franchise-opportunities" className="hover:text-primary transition">
+      <a href="/franchise-opportunities" className="hover:text-lightPrimary transition">
         Become Franchise Partners
       </a>
 
       <button
         onClick={() => setShowBookDemoModal(true)}
-        className="text-primary hover:underline"
+        className="text-lightPrimary hover:underline"
       >
         Book a Demo
       </button>
@@ -93,7 +93,7 @@ export default function HeaderSection({
 
           <button
             onClick={handleLogout}
-            className="px-6 py-2 bg-primary text-drk rounded-lg font-semibold hover:shadow-md transition"
+            className="px-6 py-2 bg-lightPrimary text-dark rounded-lg font-semibold hover:shadow-md transition"
           >
             Logout
           </button>
@@ -101,7 +101,7 @@ export default function HeaderSection({
       ) : (
         <button
           onClick={() => handleNavigation('/login')}
-          className="px-6 py-2 bg-yellow-400 text-black rounded-lg font-semibold hover:shadow-md transition"
+          className="px-6 py-2 bg-lightPrimary text-dark rounded-lg font-semibold hover:shadow-md transition"
         >
           Login
         </button>

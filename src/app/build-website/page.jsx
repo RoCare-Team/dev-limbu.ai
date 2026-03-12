@@ -446,21 +446,21 @@ export default function BuildWebsitePage() {
 
         <div className="max-w-3xl w-full space-y-8 bg-white p-12 rounded-3xl shadow-2xl border border-gray-100">
          <div className="text-center">
-  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6 shadow-lg">
-    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div className="inline-flex items-center justify-center w-20 h-20 bg-lightPrimary  rounded-2xl mb-6 shadow-lg">
+    <svg className="w-10 h-10 text-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
     </svg>
   </div>
 
-  <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-4 leading-tight">
+  <h1 className="text-5xl font-extrabold text-dark mb-4 leading-tight">
     Build Your Professional Business Website with Limbu AI
   </h1>
 
   <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
     Launch your AI-powered business website in minutes with 
-    <span className="font-semibold text-blue-600"> Free Domain </span> 
+    <span className="font-semibold text-lightPrimary"> Free Domain </span> 
     and 
-    <span className="font-semibold text-indigo-600"> Free High-Speed  Server</span>. 
+    <span className="font-semibold text-lightPrimary"> Free High-Speed  Server</span>. 
     No coding required. Perfect for startups, local businesses, and entrepreneurs who want to grow online fast.
   </p>
 
@@ -472,11 +472,11 @@ export default function BuildWebsitePage() {
           <div className="mt-10 space-y-6">
             {locations.length > 0 ? (
               <div className="relative">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-dark mb-2">
                   Choose Your Business Location
                 </label>
                 <select
-                  className="block w-full pl-5 pr-10 py-4 text-base border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm rounded-xl bg-white hover:border-blue-300 transition-all cursor-pointer appearance-none shadow-sm"
+                  className="block w-full pl-5 pr-10 py-4 text-base border-2 text-dark border-gray-200 focus:outline-none focus:ring-2 focus:ring-lightPrimary focus:border-transparent sm:text-sm rounded-xl bg-white hover:border-lightPrimary transition-all cursor-pointer appearance-none shadow-sm"
                   onChange={(e) => setSelectedLocation(locations.find(loc => loc.locationId === e.target.value))}
                   value={selectedLocation?.locationId || ""}
                 >
@@ -487,7 +487,7 @@ export default function BuildWebsitePage() {
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-blue-600 mt-8">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-lightPrimary mt-8">
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
@@ -506,9 +506,9 @@ export default function BuildWebsitePage() {
             <button
               onClick={handleGenerate}
               disabled={!selectedLocation}
-              className={`w-full flex justify-center items-center gap-3 py-5 px-6 border-0 rounded-xl shadow-lg text-lg font-bold text-white transition-all duration-300 ${
+              className={`w-full flex justify-center items-center gap-3 py-5 px-6 border-0 rounded-xl shadow-lg text-lg font-bold text-dark transition-all duration-300 ${
                 selectedLocation 
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-2xl transform hover:-translate-y-1 active:translate-y-0" 
+                  ? "bg-lightPrimary hover:shadow-2xl transform hover:-translate-y-1 active:translate-y-0" 
                   : "bg-gray-300 cursor-not-allowed opacity-60"
               }`}
             >
@@ -526,17 +526,17 @@ export default function BuildWebsitePage() {
 
             <div className="pt-6 border-t border-gray-200">
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <div className="text-2xl font-bold text-blue-600">30s</div>
-                  <div className="text-xs text-gray-600 mt-1">Generation Time</div>
+                <div className="p-4 bg-dark rounded-xl">
+                  <div className="text-2xl font-bold text-lightPrimary">30s</div>
+                  <div className="text-xs text-lightPrimary mt-1">Generation Time</div>
                 </div>
-                <div className="p-4 bg-indigo-50 rounded-xl">
-                  <div className="text-2xl font-bold text-indigo-600">AI</div>
-                  <div className="text-xs text-gray-600 mt-1">Powered Content</div>
+                <div className="p-4 bg-lightPrimary rounded-xl">
+                  <div className="text-2xl font-bold text-dark">AI</div>
+                  <div className="text-xs text-dark mt-1">Powered Content</div>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <div className="text-2xl font-bold text-purple-600">100%</div>
-                  <div className="text-xs text-gray-600 mt-1">Customizable</div>
+                <div className="p-4 bg-dark rounded-xl">
+                  <div className="text-2xl font-bold text-lightPrimary">100%</div>
+                  <div className="text-xs text-lightPrimary mt-1">Customizable</div>
                 </div>
               </div>
             </div>

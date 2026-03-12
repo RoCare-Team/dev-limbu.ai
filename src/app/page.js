@@ -215,8 +215,11 @@ export default function LimbuAILanding() {
 
   const handleLogout = () => {
   localStorage.removeItem("token")
-  setIsLoggedIn(false)
-  window.location.href = "/login"
+  localStorage.removeItem("userId")
+  localStorage.removeItem("fullName")
+  localStorage.removeItem("mobileNumber")
+
+  window.location.replace("/login")
 }
 
   const handleServiceBookClick = (plan) => {
@@ -406,8 +409,8 @@ const accountSetupPlans = [
       staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Website Builder"],
       description: "Ideal for small businesses needing basic online presence",
       color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-      borderColor: "border-blue-200"
+      textColor: "text-dark",
+      borderColor: "border-lightPrimary"
     },
        {
       title: "Premium Plan",
@@ -705,8 +708,8 @@ const seoPlans = [
         "1-month complete assistance & support"
       ],
       tag: "Best for: New businesses or those without GMB",
-      iconColor: "text-neutral-500",
-      buttonColor: "bg-neutral-600"
+      iconColor: "text-dark",
+      buttonColor: "bg-lightPrimary"
     },
   ]
   // const subscriptionPlans = []
@@ -746,7 +749,7 @@ const seoPlans = [
     >
       <button
         onClick={() => setShowVideoModal(false)}
-        className="absolute -top-4 -right-4 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center shadow-lg"
+        className="absolute -top-4 -right-4 w-10 h-10 bg-lightPrimary text-black rounded-full flex items-center justify-center shadow-lg"
       >
         ✕
       </button>

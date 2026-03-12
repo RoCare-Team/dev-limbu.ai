@@ -533,18 +533,18 @@ export default function DashboardPage() {
       <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
         {/* Location Info Banner */}
         {locationInfo && (
-          <div className="bg-primary px-4 sm:px-6 py-3 sm:py-4">
+          <div className="bg-lightPrimary px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex items-start gap-2 sm:gap-3">
               <div className="flex-shrink-0 mt-1">
-                <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-dark" />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-white text-base sm:text-lg mb-1 truncate">
+                <h4 className="font-bold text-dark text-base sm:text-lg mb-1 truncate">
                   {locationInfo.title}
                 </h4>
                 <div className="flex items-start gap-1 sm:gap-2">
-                  <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-fullLight flex-shrink-0 mt-0.5" />
-                  <p className="text-xs sm:text-sm text-fullLight leading-relaxed">
+                  <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-dark flex-shrink-0 mt-0.5" />
+                  <p className="text-xs sm:text-sm text-darkt leading-relaxed">
                     {locationInfo.address}
                   </p>
                 </div>
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-gray-200 shadow-sm object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary text-dark flex items-center justify-center font-bold text-lg sm:text-xl shadow-md">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-lightPrimary text-dark flex items-center justify-center font-bold text-lg sm:text-xl shadow-md">
                   {review.reviewer?.displayName?.[0] || "U"}
                 </div>
               )}
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => handleAIReply(review, setLocalReply, setShowReplyInput, setGeneratingAI)}
                     disabled={generatingAI || isReplying}
-                    className="bg-primary text-dark text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                    className="bg-lightPrimary text-dark text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                   >
                     {generatingAI ? (
                       <>
@@ -611,7 +611,7 @@ export default function DashboardPage() {
                   </button>
                   <button
                     onClick={() => setShowReplyInput(!showReplyInput)}
-                    className="bg-white text-dark text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg border-2 border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all w-full sm:w-auto"
+                    className="bg-white text-dark text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg border-2 border-gray-300 hover:border-lightPrimary hover:text-lightPrimary transition-all w-full sm:w-auto"
                   >
                     <MessageCircle className="w-4 h-4 inline-block mr-2" />
                     Manual Reply
@@ -625,7 +625,7 @@ export default function DashboardPage() {
                     value={localReply}
                     onChange={(e) => setLocalReply(e.target.value)}
                     placeholder="Write your reply here..."
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none text-xs sm:text-sm"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lightPrimary focus:border-transparent resize-none text-xs sm:text-sm"
                     rows="3"
                     disabled={isReplying}
                   />
@@ -633,7 +633,7 @@ export default function DashboardPage() {
                     <button
                       onClick={handleManualReply}
                       disabled={isReplying || !localReply?.trim()}
-                      className="bg-primary text-dark text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg hover:bg-lightPrimary transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
+                      className="bg-lightPrimary text-dark text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg hover:bg-lightPrimary transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
                     >
                       {isReplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       Send
@@ -658,7 +658,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-yellow-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-lightPrimary animate-spin mx-auto mb-4" />
           <p className="text-dark font-medium">Loading your dashboard...</p>
         </div>
       </div>
@@ -698,12 +698,12 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : error ? (
-          <div className="bg-gradient-to-br from-gray-50 to-yellow-50 border-2 border-gray-200 p-8 rounded-2xl text-center max-w-2xl mx-auto">
-            <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Info className="w-10 h-10 text-gray-600" />
+          <div className=" bg-fullLight border-2 border-gray-200 p-8 rounded-2xl text-center max-w-2xl mx-auto">
+            <div className="bg-lightPrimary rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-md">
+              <Info className="w-10 h-10 text-dark" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Unable to Load Reviews</h3>
-            <p className="text-gray-700 mb-6 text-lg">
+            <h3 className="text-2xl font-bold text-dark mb-3">Unable to Load Reviews</h3>
+            <p className="text-dark mb-6 text-lg">
               {error === "LOCATION_NOT_FOUND" || error === "LOCATION_EMPTY" 
                 ? "Please set up your business location to view reviews."
                 : error === "AUTH_TOKEN_MISSING"
@@ -720,7 +720,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => fetchReviews()}
                 disabled={loading}
-                className="bg-primary text-dark px-8 py-3 rounded-lg hover:from-gray-500 hover:to-yellow-300 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
+                className="bg-lightPrimary text-dark px-8 py-3 rounded-lg hover:from-gray-500 hover:to-yellow-300 transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
               >
                 {loading ? (
                   <>
@@ -747,8 +747,8 @@ export default function DashboardPage() {
           </div>
         ) : reviews.length === 0 ? (
           <div className="bg-white p-12 sm:p-16 rounded-2xl shadow-sm text-center border border-gray-100 max-w-2xl mx-auto">
-            <div className="bg-dark rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-              <MessageCircle className="w-12 h-12 text-primary" />
+            <div className="bg-lightPrimary rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+              <MessageCircle className="w-12 h-12 text-dark" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">No Reviews Yet</h3>
             <p className="text-dark text-lg mb-6">
@@ -757,7 +757,7 @@ export default function DashboardPage() {
             <button
               onClick={() => fetchReviews()}
               disabled={loading}
-              className="bg-primary text-dark px-8 py-3 rounded-lg hover:from-fullLight hover:to-lightPrimary transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
+              className="bg-lightPrimary text-dark px-8 py-3 rounded-lg hover:from-fullLight hover:to-lightPrimary transition-all inline-flex items-center gap-2 disabled:opacity-50 font-semibold text-lg shadow-md"
             >
               {loading ? (
                 <>
@@ -781,7 +781,7 @@ export default function DashboardPage() {
                   onClick={handleReplyModeToggle}
                   className={`
                     w-full flex items-center justify-between p-2 rounded-xl shadow-md transition-all duration-300 ease-in-out
-                    ${replyMode === 'auto' ? 'bg-primary text-dark' : 'bg-gray-200 text-gray-800'}
+                    ${replyMode === 'auto' ? 'bg-lightPrimary text-dark' : 'bg-gray-200 text-gray-800'}
                   `}
                 >
                   <span className="font-bold text-base px-4">
@@ -805,7 +805,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => fetchReviews()}
                 disabled={loading}
-                className="w-full sm:w-auto bg-white text-gray-700 px-5 py-3 rounded-xl border-2 border-gray-300 hover:border-fullLight hover:text-primary transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 text-base font-semibold shadow-sm"
+                className="w-full sm:w-auto bg-white text-gray-700 px-5 py-3 rounded-xl border-2 border-gray-300 hover:border-dark hover:text-lightPrimary transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 text-base font-semibold shadow-sm"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -816,8 +816,8 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <div className="bg-fullLight border border-primary rounded-lg p-4 mb-6">
-              <p className="text-sm text-dark">
+            <div className="bg-dark border border-dark rounded-lg p-4 mb-6">
+              <p className="text-sm text-white">
                 <span className="font-bold">Note:</span> Auto Reply <span className="font-semibold">ON</span> will automatically fetch new reviews and send AI-generated replies.
                 <br />
                 Auto Reply <span className="font-semibold">OFF</span> means you will reply to reviews manually.
@@ -841,7 +841,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                   disabled={currentPage === 1}
-                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 border rounded-lg bg-white text-gray-600 hover:text-blue-600 hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 border rounded-lg bg-white text-gray-600 hover:text-dark hover:border-lightPrimary disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
                 >
                   <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Prev</span>
                 </button>
@@ -851,7 +851,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 border rounded-lg bg-white text-gray-600 hover:text-blue-600 hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 border rounded-lg bg-white text-gray-600 hover:text-dark hover:border-lightPrimary disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
                 >
                   <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
                 </button>

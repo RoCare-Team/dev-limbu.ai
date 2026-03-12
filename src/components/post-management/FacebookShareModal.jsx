@@ -94,7 +94,7 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex-1 bg-[#1877F2] text-white py-2.5 rounded-lg font-semibold hover:bg-[#166fe5] transition flex items-center justify-center gap-2"
+                className="flex-1 bg-lightPrimary textdark py-2.5 rounded-lg font-semibold hover:bg-[#166fe5] transition flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
                 Post Now

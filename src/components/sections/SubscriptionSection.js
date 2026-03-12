@@ -25,7 +25,7 @@ export default function SubscriptionSection({
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Our{" "}
-            <span className="bg-primary bg-clip-text text-transparent">
+            <span className="bg-lightPrimary bg-clip-text text-transparent">
               Package
             </span>
           </h2>
@@ -163,7 +163,7 @@ export default function SubscriptionSection({
                 {/* Button */}
                 <button
                   onClick={() => handleSubscriptionClick(plan)}
-                  className={`w-full py-3 rounded-xl font-bold text-primary shadow-lg hover:shadow-xl transition-all ${plan.color}`}
+                  className={`w-full py-3 rounded-xl font-bold text-lightPrimary   shadow-lg hover:shadow-xl transition-all ${plan.color}`}
                 >
                   Get Started
                 </button>

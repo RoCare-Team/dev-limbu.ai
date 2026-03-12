@@ -75,7 +75,7 @@ export default function BookDemoModal({
       border border-slate-300 
       text-slate-800
       placeholder:text-slate-400
-      rounded-lg focus:ring-2 focus:ring-neutral-500 
+      rounded-lg focus:ring-2 focus:ring-lightPrimary 
       outline-none transition"
     />
 
@@ -92,7 +92,7 @@ export default function BookDemoModal({
       border border-slate-300 
       text-slate-800
       placeholder:text-slate-400
-      rounded-lg focus:ring-2 focus:ring-neutral-500 
+      rounded-lg focus:ring-2 focus:ring-lightPrimary
       outline-none transition"
     />
 
@@ -118,7 +118,7 @@ export default function BookDemoModal({
         bg-white
         border border-slate-300 
         text-slate-800
-        rounded-lg focus:ring-2 focus:ring-neutral-500 
+        rounded-lg focus:ring-2 focus:ring-lightPrimary
         outline-none transition"
       />
 
@@ -132,8 +132,8 @@ export default function BookDemoModal({
       type="submit"
       disabled={isSubmittingDemo}
       className="w-full px-6 py-3 
-      bg-gradient-to-r from-gray-700 to-yellow-500 
-      text-white rounded-lg font-bold 
+      bg-lightPrimary
+      text-dark rounded-lg font-bold 
       hover:shadow-lg transition-all 
       disabled:opacity-60"
     >

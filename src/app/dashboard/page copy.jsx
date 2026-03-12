@@ -275,7 +275,7 @@ export default function DashboardPage() {
               {session && (
                 <button
                   onClick={() => signOut({ callbackUrl: "/dashboard" })}
-                  className="bg-gradient-to-r from-primary to-dark text-white font-semibold px-3 sm:px-5 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap"
+                  className="bg-lightPrimary text-dark font-semibold px-3 sm:px-5 py-2 rounded-lg sm:rounded-xl shadow-md hover:from-lightPrimary hover:to-dark transition-all duration-300 text-sm sm:text-base whitespace-nowrap"
                 >
                   Logout
                 </button>

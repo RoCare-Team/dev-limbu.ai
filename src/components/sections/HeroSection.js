@@ -110,7 +110,7 @@ useEffect(() => {
             onClick={() =>
               handleNavigation(isLoggedIn ? '/dashboard' : '/login')
             }
-            className="group w-auto px-4 sm:px-8 py-3 sm:py-4 bg-transparent border-2 border-primary backdrop-blur-sm text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg hover:shadow-2xl transition-all hover:scale-105 inline-flex items-center justify-center gap-2 hover:shadow-xl hover:border-slate-400"
+            className="group w-auto px-4 sm:px-8 py-3 sm:py-4 bg-transparent border-2 border-lightPrimary backdrop-blur-sm text-lightPrimary rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg hover:shadow-2xl transition-all hover:scale-105 inline-flex items-center justify-center gap-2 hover:shadow-xl hover:border-slate-200"
           >
             {isLoggedIn ? "Go to Dashboard" : "Start Free Trial"}
             <svg
@@ -125,7 +125,7 @@ useEffect(() => {
           {/* Watch Demo Button */}
           <button
             onClick={() => setShowVideoModal(true)}
-            className="group w-auto px-4 sm:px-8 py-3 sm:py-4 bg-transparent backdrop-blur-sm border-2 border-white/30 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg hover:shadow-xl hover:border-slate-400 transition-all inline-flex items-center justify-center gap-2"
+            className="group w-auto px-4 sm:px-8 py-3 sm:py-4 bg-transparent backdrop-blur-sm border-2 border-dark text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg hover:shadow-xl hover:border-lightPrimary transition-all inline-flex items-center justify-center gap-2"
           >
             ▶ Watch Demo
           </button>

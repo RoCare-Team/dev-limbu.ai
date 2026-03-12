@@ -143,7 +143,7 @@ const handleIssueSubmit = async () => {
 
             {/* Admin Response Section */}
             {adminResponse ? (
-              <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700 mt-2">
+              <div className="bg-fullLight p-3 rounded-lg text-xs text-dark mt-2">
                 <p><strong>Status:</strong> {adminResponse.status}</p>
                 <p className="mt-1">
                   <strong>Admin:</strong>{" "}
@@ -161,14 +161,14 @@ const handleIssueSubmit = async () => {
             <div className="flex gap-2 mt-4">
               <button 
                 onClick={() => setShowIssueModal(true)}
-                className="flex-1 bg-primary text-dark px-3 py-2 rounded-lg text-xs font-bold"
+                className="flex-1 bg-lightPrimary text-dark px-3 py-2 rounded-lg text-xs font-bold"
               >
                 Report New Issue
               </button>
 
               <a 
                 href="tel:9289344726"
-                className="flex-1 text-neutral-700 bg-neutral-50 border px-3 py-2 rounded-lg text-xs font-bold text-center"
+                className="flex-1 text-dark bg-fullLight border px-3 py-2 rounded-lg text-xs font-bold text-center"
               >
                 <Phone className="inline w-3 h-3" /> Call Support
               </a>

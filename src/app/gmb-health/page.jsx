@@ -156,17 +156,17 @@ export default function AuditPage() {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 mb-8">
           <div className="flex flex-col md:flex-row gap-5 items-end">
             <div className="flex-1 w-full">
-              <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">
+              <label className="block text-sm font-bold text-dark mb-2 ml-1">
                 Select Business Location
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+                  <MapPin className="h-5 w-5 text-gray-400 group-focus-within:text-lightPrimary transition-colors" />
                 </div>
                 <select
                   value={selectedLocationId}
                   onChange={(e) => setSelectedLocationId(e.target.value)}
-                  className="block w-full pl-11 pr-10 py-4 text-base border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-xl transition-all bg-gray-50 hover:bg-white cursor-pointer appearance-none font-medium text-gray-700"
+                  className="block w-full pl-11 pr-10 py-4 text-base border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-lightPrimary focus:border-lightPrimary sm:text-sm rounded-xl transition-all bg-gray-50 hover:bg-white cursor-pointer appearance-none font-medium text-gray-700"
                   disabled={loading || locations.length === 0}
                 >
                   {locations.length === 0 ? (
@@ -188,7 +188,7 @@ export default function AuditPage() {
             <button
               onClick={handleGenerateReport}
               disabled={loading || locations.length === 0}
-              className="w-full md:w-auto px-8 py-4 bg-dark text-primary rounded-xl font-bold shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[200px]"
+              className="w-full md:w-auto px-8 py-4 bg-dark text-lightPrimary rounded-xl font-bold shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[200px]"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -246,11 +246,11 @@ export default function AuditPage() {
         {!auditData && !loading && (
           <div className="text-center py-16">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 max-w-2xl mx-auto">
-              <div className="bg-primary w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="bg-lightPrimary w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Activity className="w-10 h-10 text-drak" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to Analyze</h3>
-              <p className="text-gray-500">
+              <p className="text-dark">
                 Select a location from the dropdown above and click "Generate Report" to see your detailed performance metrics.
               </p>
             </div>

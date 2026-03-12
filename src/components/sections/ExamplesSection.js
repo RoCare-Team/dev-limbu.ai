@@ -16,7 +16,7 @@ export default function ExamplesSection({
         <div className="text-center mb-8 sm:mb-12">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4 px-4">
             AI-Generated{" "}
-            <span className="bg-primary bg-clip-text text-transparent">
+            <span className="bg-lightPrimary bg-clip-text text-transparent">
               Post Examples
             </span>
           </h2>

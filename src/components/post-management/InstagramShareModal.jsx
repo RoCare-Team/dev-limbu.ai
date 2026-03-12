@@ -54,7 +54,7 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
         ) : accounts.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-gray-600 mb-4">No Instagram Accounts connected.</p>
-            <Link href="/dashboard" className="bg-neutral-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
+            <Link href="/dashboard" className="bg-lightPrimary text-dark px-4 py-2 rounded-lg font-semibold hover:bg-pink-700 transition">
               Connect Instagram
             </Link>
           </div>
@@ -94,7 +94,7 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition flex items-center justify-center gap-2"
+                className="flex-1 bg-lightPrimary text-dark py-2.5 rounded-lg font-semibold hover:opacity-90 transition flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
                 Post Now

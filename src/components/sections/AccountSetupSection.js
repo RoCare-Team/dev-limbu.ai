@@ -13,7 +13,7 @@ export default function AccountSetupSection({ plans, handlePlanClick }) {
        <div className="text-center mb-12">
   <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
     Professional{" "}
-    <span className="bg-primary bg-clip-text text-transparent">
+    <span className="bg-lightPrimary bg-clip-text text-transparent">
       Account Setup Services
     </span>
   </h2>

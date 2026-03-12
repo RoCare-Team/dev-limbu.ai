@@ -519,14 +519,11 @@ export default function PostManagementPage() {
       const data = apiResponse.data || {};
       console.log("datadatadata", data);
 
-
       console.log("datadata", data);
-
 
       const gmbDesc = data.gmb_des;
       const fbDesc = data.fb_des;
       const igDesc = data.ig_des;
-
 
       // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
@@ -596,12 +593,7 @@ export default function PostManagementPage() {
       return;
     }
 
-
-
     const userId = localStorage.getItem("userId");
-
-
-
     try {
       // Check wallet balance for AI generation (150 coins)
       const userData = await getUserWalletAction(userId);
@@ -727,39 +719,7 @@ export default function PostManagementPage() {
       setCountdown(0);
     }
   };
-  //   if (!previewData) return;
-
-  //   const userId = localStorage.getItem("userId");
-  //   try {
-  //     const postData = await savePostAction({
-  //       userId,
-  //       aiOutput: previewData.aiOutput,
-  //       description: previewData.description,
-  //       logoUrl: previewData.logoUrl,
-  //       status: "pending",
-  //       promat: previewData.user_input,
-  //       locations: [],
-  //     });
-
-  //     if (!postData.success) {
-  //       throw new Error(postData.error || "Failed to save post.");
-  //     }
-
-  //     setPosts((prev) => [postData.data, ...prev]);
-  //     setAllCounts((prev) => ({
-  //       ...prev,
-  //       total: prev.total + 1,
-  //       pending: prev.pending + 1,
-  //     }));
-
-  //     showToast("Post Saved Successfully! 💾");
-  //     setPreviewData(postData.data);
-  //     setPrompt("");
-  //     setLogo(null);
-  //   } catch (error) {
-  //     showToast(error.message, "error");
-  //   }
-  // };
+ 
 
   const handleDateChange = (id, value) => {
     setScheduleDates((prev) => ({ ...prev, [id]: value }));
@@ -2108,7 +2068,7 @@ export default function PostManagementPage() {
             <p className="text-gray-500 mt-4 font-medium">Loading your creatives...</p>
           </div>
         ) : filteredPosts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6 mt-6">
             {filteredPosts.map((post) => (
               <PostCard
                 key={post._id}

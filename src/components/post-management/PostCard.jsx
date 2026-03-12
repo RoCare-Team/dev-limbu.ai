@@ -82,9 +82,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   }, [post]);
 
   return (
-    <div className="group bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
+    <div className="group bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-neutral-200 overflow-hidden hover:scale-[1.02] transition-all duration-300 flex flex-col">
       {/* Image Section */}
-      <div className="relative overflow-hidden bg-gray-100 aspect-[4/3]">
+      <div className="relative w-full h-52 overflow-hidden bg-gray-100 aspect-[4/3]">
         <a href={post.aiOutput} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
           <img
             src={post?.aiOutput || "https://via.placeholder.com/400"}
@@ -141,7 +141,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       </div>
 
       {/* Content Section */}
-      <div className="p-5 flex flex-col flex-grow space-y-4">
+      <div className="p-4 flex flex-col flex-1 space-y-3">
 
         {/* Description Header */}
         <div className="flex items-center justify-between gap-2">
@@ -218,22 +218,10 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               : "Date unknown"}
         </div>
 
-        {/* Facebook Stats */}
-        {/* {fbStats && (
-          <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-1.5 text-gray-600 text-xs font-medium">
-              <ThumbsUp className="w-3.5 h-3.5 text-blue-600" />
-              <span>{fbStats.likes} Likes</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-gray-600 text-xs font-medium">
-              <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-              <span>{fbStats.comments} Comments</span>
-            </div>
-          </div>
-        )} */}
+       
 
         {/* Action Buttons Area */}
-        <div className="pt-1">
+        <div className="pt-1 mt-auto">
           {post.status === "processing" && (
             <div className="space-y-3">
               <div className="flex flex-col items-center justify-center p-4 bg-blue-50/50 rounded-xl border border-blue-100 mb-2">
@@ -307,76 +295,42 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           )}
 
           {post.status === "approved" && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                {/* <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
-                    <input
-                      type="checkbox"
-                      checked={post.checkmark === "both" || post.checkmark === "post" || !post.checkmark}
-                      onChange={() => onToggleCheckmark(post._id, 'post')}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span>Post</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
-                    <input
-                      type="checkbox"
-                      checked={post.checkmark === "both" || post.checkmark === "photo"}
-                      onChange={() => onToggleCheckmark(post._id, 'photo')}
-                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    <span>Photo</span>
-                  </label> */}
-              </div>
+  <div className="grid grid-cols-2 gap-2">
 
-              <button
-                onClick={() => handlePost(post)}
-                className="
-    w-full flex items-center justify-center gap-2
-    bg-dark
-    hover:bg-gray-600
-    text-lightPrimary
-    border border-lightPrimary
-    px-4 py-3 rounded-xl
-    text-sm font-semibold
-    transition-all duration-200
-  "
-              >
-                <Send className="w-4 h-4" />
-                Post to GMB 
-              </button>
+    <button
+      onClick={() => handlePost(post)}
+      className="w-full flex items-center justify-center gap-2 bg-dark hover:bg-gray-600 text-lightPrimary border border-lightPrimary px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap"
+    >
+      <Send className="w-4 h-4" />
+      Post to GMB
+    </button>
 
-              <button
-                onClick={() => handleInstagramPost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <Instagram className="w-4 h-4" />
-                Post to Instagram
-              </button>
+    <button
+  onClick={() => handleInstagramPost(post)}
+  className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-600 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap"
+>
+  <Instagram size={16} />
+  Post to Instagram
+</button>
 
-              <button
-                onClick={() => handleFacebookPost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-dark  text-lightPrimary border border-lighPrimary hover:bg-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <Facebook className="w-4 h-4" />
-                Post to Facebook
-              </button>
+<button
+  onClick={() => handleFacebookPost(post)}
+  className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-600 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap"
+>
+  <Facebook size={16} />
+  Post to Facebook
+</button>
 
-              {/* <span className="text-xs text-gray-500">
-  Post will be published only after you click Publish
-</span> */}
+    <button
+      onClick={() => onUpdateStatus(post)}
+      className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-500 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+    >
+      <Calendar className="w-4 h-4" />
+      Schedule
+    </button>
 
-              {/* <p>like: 0, comment: 0</p> */}
-
-              <button
-                onClick={() => onUpdateStatus(post)}
-                className="w-full flex items-center justify-center gap-2 bg-dark text-lightPrimary border border-lightPrimary hover:bg-gray-500 hover:border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                <Calendar className="w-4 h-4" />
-                Schedule
-              </button>
-            </div>
-          )}
+  </div>
+)}
 
           {post.status === "scheduled" && (
             <div className="space-y-3">

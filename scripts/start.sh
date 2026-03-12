@@ -1,11 +1,26 @@
 #!/bin/bash
+echo "Starting deployment..."
 
 export NVM_DIR="/home/ec2-user/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-
-PM2=$(which pm2 || echo "/home/ec2-user/.nvm/versions/node/v20.20.0/bin/pm2")
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 cd /home/ec2-user/gmb-automation || exit
 
-$PM2 restart limbuAi || $PM2 start npm --name "limbuAi" -- start
-$PM2 save
+echo "Installing dependencies..."
+npm install
+
+echo "Removing old Next.js build..."
+rm -rf .next
+
+echo "Building application..."
+npm run build
+
+echo "Restarting PM2..."
+pm2 delete limbuAi || true
+pm2 start npm --name "limbuAi" -- start
+pm2 save
+
+echo "Fixing permissions..."
+chown -R ec2-user:ec2-user /home/ec2-user/gmb-automation
+
+echo "Deployment completed"

@@ -15,9 +15,9 @@ rm -rf .next
 echo "Building application..."
 npm run build
 
-echo "Restarting PM2..."
-pm2 delete limbuAi || true
-pm2 start npm --name "limbuAi" -- start
+echo "Reloading PM2 (zero downtime)..."
+pm2 reload limbuAi || pm2 start npm --name "limbuAi" -- start
+
 pm2 save
 
 echo "Fixing permissions..."

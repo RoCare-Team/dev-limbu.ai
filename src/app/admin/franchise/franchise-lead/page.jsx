@@ -590,7 +590,7 @@ export default function FranchiseLeadsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newLead),
       });
-      const data =   res.json();
+      const data = await res.json();
       if (data.success) {
         setShowAddLeadModal(false);
         setNewLead({ lead_quality: "None" });

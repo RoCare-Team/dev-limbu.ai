@@ -33,14 +33,8 @@ export default function SidebarFranchisePanel() {
   const router = useRouter();
 
   const logout = () => {
-    // Clear franchise admin keys
     localStorage.removeItem("franchise_token");
     localStorage.removeItem("franchise_user");
-    localStorage.removeItem("franchise_code");
-    // Clear team member keys
-    localStorage.removeItem("franchise_team_token");
-    localStorage.removeItem("franchise_team_user");
-    localStorage.removeItem("franchise_team_permissions");
     router.push("/franchise-panel/login");
   };
 

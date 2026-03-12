@@ -86,7 +86,7 @@ export async function POST(req) {
     }
     
     const body = await req.json();
-    const { fullName, email, mobile, password, role, city, address } = body;
+    const { fullName, email, mobile, password, role } = body;
     
     if (!fullName || !email || !mobile || !password) {
       return NextResponse.json({ success: false, message: "All fields are required" }, { status: 400 });
@@ -98,8 +98,7 @@ export async function POST(req) {
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
-    // Generate referral code for agents (and superFranchiseAdmin/manager too — useful for tracking)
-    const referralCode = FranchiseTeam.generateReferralCode(fullName);
+    const referralCode = role === "agent" || !role ? FranchiseTeam.generateReferralCode(fullName) : null;
     
     const teamMember = await FranchiseTeam.create({
       fullName,
@@ -109,8 +108,6 @@ export async function POST(req) {
       role: role || "agent",
       franchiseId: decoded.franchiseCode,
       referralCode,
-      city: city || null,
-      address: address || null,
     });
     
     return NextResponse.json({
@@ -123,9 +120,6 @@ export async function POST(req) {
         mobile: teamMember.mobile,
         role: teamMember.role,
         referralCode: teamMember.referralCode,
-        franchiseId: teamMember.franchiseId,
-        city: teamMember.city,
-        address: teamMember.address,
         isActive: teamMember.isActive,
         createdAt: teamMember.createdAt,
       },
@@ -155,7 +149,7 @@ export async function PUT(req) {
     }
     
     const body = await req.json();
-    const { id, fullName, mobile, role, isActive, address, city, password } = body;
+    const { id, fullName, mobile, role, isActive, address, password } = body;
     
     if (!id) {
       return NextResponse.json({ success: false, message: "Team member ID is required" }, { status: 400 });
@@ -166,8 +160,7 @@ export async function PUT(req) {
     if (mobile) updateData.mobile = mobile;
     if (role) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
-    if (address !== undefined) updateData.address = address;
-    if (city !== undefined) updateData.city = city;
+    if (address) updateData.address = address;
     if (password) updateData.password = await bcrypt.hash(password, 10);
     
     const updatedMember = await FranchiseTeam.findByIdAndUpdate(id, updateData, { new: true }).select("-password");

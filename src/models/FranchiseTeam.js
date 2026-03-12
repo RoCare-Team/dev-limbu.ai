@@ -62,7 +62,6 @@ const franchiseTeamSchema = new mongoose.Schema({
   // Profile fields
   profileImage: { type: String },
   address: { type: String },
-  city: { type: String, default: null },
   
   // For agent specific
   assignedLeads: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

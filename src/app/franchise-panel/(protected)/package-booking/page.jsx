@@ -10,16 +10,7 @@ export default function PackageBookingList() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        // Get franchise referCode from localStorage
-        const referCode = localStorage.getItem("referCode");
-        
-        // Build query with referCode filter
-        const query = new URLSearchParams({
-          planType: "our-package",
-          ...(referCode && { referCode })
-        });
-        
-        const res = await fetch(`/api/service-booking?${query.toString()}`);
+        const res = await fetch("/api/service-booking?planType=our-package");
         const json = await res.json();
 
         if (!json.success) throw new Error("Failed to fetch bookings");

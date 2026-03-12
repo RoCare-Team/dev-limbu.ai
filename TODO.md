@@ -1,11 +1,6 @@
-# Implementation Plan - Search Keywords Performance
+# OAuth + Mongo Warning Fix TODO
 
-## Task: Remove searchKeywordsCounts, improve keyword data display with time-based values
-
-### Steps:
-- [x] 1. Update PerformanceInsightsReport.jsx - Remove searchKeywordsCounts, use keywords directly
-- [x] 2. Update PerformanceInsightsModal.jsx - Ensure 1 month default and 6 month report button works
-- [x] 3. Update dashboard/page.jsx - Pass keywords in correct format to modal
-
-### Status: Completed
-
+- [completed] Update NextAuth config to be proxy-safe and reduce state-cookie mismatch risk
+- [completed] Remove deprecated mongoose connection options from API routes
+- [pending] Add deployment notes for NEXTAUTH_URL / NEXTAUTH_SECRET and proxy forwarded headers
+- [in-progress] Mark completion after edits

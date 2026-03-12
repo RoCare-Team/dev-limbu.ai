@@ -1,8 +1,7 @@
 "use client";
 
 import { ArrowRight, CheckCircle, Star, PhoneCall, TrendingUp, Users, DollarSign, Award, Shield, Zap, BarChart, Target, Rocket, Clock, HeadphonesIcon, BookOpen, Gift, X, Sparkles, ArrowLeft } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 
 export default function FranchisePage() {
@@ -16,22 +15,6 @@ export default function FranchisePage() {
     gstNumber: ""
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
-
-  // Read tracking codes from URL query params
-  // e.g. /franchise-opportunities?franchiseCode=FD004&ref=JOHN1234
-  const searchParams = useSearchParams();
-  const urlFranchiseCode = searchParams.get("franchiseCode") || searchParams.get("fc") || null;
-  const urlReferCode = searchParams.get("ref") || searchParams.get("referCode") || null;
-
-  // Persist codes in state so they survive re-renders
-  const [trackingCodes, setTrackingCodes] = useState({ franchiseCode: null, referCode: null });
-
-  useEffect(() => {
-    setTrackingCodes({
-      franchiseCode: urlFranchiseCode,
-      referCode: urlReferCode,
-    });
-  }, [urlFranchiseCode, urlReferCode]);
 
   const handleOpenForm = async (plan = null) => {
     if (plan) setSelectedPlan(plan);
@@ -102,7 +85,7 @@ export default function FranchisePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId: selectedPlan,
-          amount: totalAmount,
+          amount: totalAmount, // Send total amount including GST
           receipt: `franchise_${Date.now()}`,
           notes: {
             plan_name: selectedPlan,
@@ -127,58 +110,37 @@ export default function FranchisePage() {
         order_id: orderData.order.id,
         handler: async function (response) {
           try {
-            // ── Save to SESI leads (franchise-panel) ──────────────
-            await fetch("/api/franchise-panel/sesi-leads", {
+            const res = await fetch("/api/franchise", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: serviceForm.name,
-                email: serviceForm.email,
-                phone: serviceForm.phone,
-                city: serviceForm.city,
-                gstNumber: serviceForm.gstNumber,
+              body: JSON.stringify({ 
+                ...serviceForm, 
                 plan: selectedPlan,
                 investment: investmentAmount,
                 paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                amount: totalAmount,
-                status: "paid",
-                // Tracking codes from URL
-                franchiseCode: trackingCodes.franchiseCode,
-                referCode: trackingCodes.referCode,
+                orderId: response.razorpay_order_id, 
+                amount: totalAmount, // Send total amount paid
+                status: "paid"
               }),
             });
 
-            // ── Also save to legacy /api/franchise for backward compat ──
-            await fetch("/api/franchise", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: serviceForm.name,
-                email: serviceForm.email,
-                phone: serviceForm.phone,
-                city: serviceForm.city,
-                plan: selectedPlan,
-                investment: String(investmentAmount),
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                amount: totalAmount,
-                status: "paid",
-              }),
-            });
-
-            setFormSubmitted(true);
-            setTimeout(() => {
-              setShowForm(false);
-              setFormSubmitted(false);
-              setServiceForm({
-                name: "",
-                phone: "",
-                email: "",
-                city: "",
-                gstNumber: ""
-              });
-            }, 3000);
+            if (res.ok) {
+              setFormSubmitted(true);
+              setTimeout(() => {
+                setShowForm(false);
+                setFormSubmitted(false);
+                setServiceForm({
+                  name: "",
+                  phone: "",
+                  email: "",
+                  city: "",
+                  gstNumber: ""
+                });
+              }, 3000);
+            } else {
+              const data = await res.json();
+              alert(data.message || "Something went wrong. Please try again.");
+            }
           } catch (error) {
             console.error("Error submitting form:", error);
             alert("Failed to submit application. Please check your connection.");

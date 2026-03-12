@@ -27,69 +27,45 @@ export async function GET(req) {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Aggregate today's calls
-    const todayCallsByAgent = await User.aggregate([
-      { $unwind: "$callHistory" },
-      {
-        $match: {
-          "callHistory.calledAt": { $gte: today, $lt: tomorrow }
-        }
-      },
-      {
-        $group: {
-          _id: "$callHistory.agentId",
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: "admins",
-          localField: "_id",
-          foreignField: "_id",
-          as: "agentInfo"
-        }
-      },
-      {
-        $unwind: { path: "$agentInfo", preserveNullAndEmptyArrays: true }
-      },
-      {
-        $project: {
-          _id: 0,
-          agentId: "$_id",
-          agentName: { $ifNull: ["$agentInfo.fullName", "Unknown"] },
-          count: 1
-        }
-      }
-    ]);
+   const todayCallsByAgent = await User.aggregate([
+  { $unwind: "$callHistory" },
+  {
+    $match: {
+      "callHistory.calledAt": { $gte: today, $lt: tomorrow }
+    }
+  },
+  {
+    $group: {
+      _id: "$callHistory.agentName",
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      agentName: "$_id",
+      count: 1
+    }
+  }
+]);
 
     // Aggregate total calls per agent
-    const totalCallsByAgent = await User.aggregate([
-        { $unwind: "$callHistory" },
-        {
-            $group: {
-                _id: "$callHistory.agentId",
-                count: { $sum: 1 }
-            }
-        },
-        {
-            $lookup: {
-                from: "admins",
-                localField: "_id",
-                foreignField: "_id",
-                as: "agentInfo"
-            }
-        },
-        {
-            $unwind: { path: "$agentInfo", preserveNullAndEmptyArrays: true }
-        },
-        {
-            $project: {
-                _id: 0,
-                agentId: "$_id",
-                agentName: { $ifNull: ["$agentInfo.fullName", "Unknown"] },
-                count: 1
-            }
-        }
-    ]);
+  const totalCallsByAgent = await User.aggregate([
+  { $unwind: "$callHistory" },
+  {
+    $group: {
+      _id: "$callHistory.agentName",
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      agentName: "$_id",
+      count: 1
+    }
+  }
+]);
     
     const totalCallsToday = todayCallsByAgent.reduce((sum, agent) => sum + agent.count, 0);
 

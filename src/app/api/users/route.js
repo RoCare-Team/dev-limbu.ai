@@ -528,6 +528,7 @@ export async function PUT(req) {
       planExpiry,
       leadStage,
       leadStatus,
+      utrNumber,
     } = body;
 
     const remark = body.remark || body.remarks;
@@ -537,6 +538,21 @@ export async function PUT(req) {
         { success: false, error: "Missing userId" },
         { status: 400 }
       );
+    }
+
+    // Check for duplicate UTR number if provided
+    if (utrNumber) {
+      const existingUser = await User.findOne({ 
+        utrNumber,
+        userId: { $ne: userId } // Exclude current user
+      });
+      
+      if (existingUser) {
+        return NextResponse.json(
+          { success: false, error: "UTR Number already exists. Please enter a unique UTR number." },
+          { status: 400 }
+        );
+      }
     }
 
     let updateData = {};
@@ -586,6 +602,22 @@ export async function PUT(req) {
         ...updateData.$set,
         ...(body.packageStartDate && { packageStartDate: new Date(body.packageStartDate) }),
         ...(body.packageExpiryDate && { packageExpiryDate: new Date(body.packageExpiryDate) }),
+      };
+    }
+
+    /* -------- UTR NUMBER UPDATE -------- */
+    if (utrNumber) {
+      updateData.$set = {
+        ...updateData.$set,
+        utrNumber,
+      };
+    }
+
+    /* -------- PAYMENT SCREENSHOT UPDATE -------- */
+    if (body.paymentScreenshot) {
+      updateData.$set = {
+        ...updateData.$set,
+        paymentScreenshot: body.paymentScreenshot,
       };
     }
 
@@ -642,6 +674,15 @@ export async function PUT(req) {
     });
   } catch (error) {
     console.error("PUT error:", error);
+    
+    // Handle duplicate key error for UTR
+    if (error.code === 11000 && error.keyPattern?.utrNumber) {
+      return NextResponse.json(
+        { success: false, error: "UTR Number already exists. Please enter a unique UTR number." },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

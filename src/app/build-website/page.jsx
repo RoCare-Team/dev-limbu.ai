@@ -369,7 +369,10 @@ export default function BuildWebsitePage() {
     }
   };
 
-  const heroImage = mediaImages[0] || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
+  const validMediaImages = mediaImages.filter(Boolean);
+  const heroImage = validMediaImages[0] || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
+  const galleryImages = validMediaImages.slice(0, 10);
+
 
   // ✅ Format phone number for WhatsApp
   const getWhatsAppLink = (phone) => {
@@ -879,7 +882,7 @@ export default function BuildWebsitePage() {
         </section>
 
         {/* GALLERY SECTION — shows with any images (including AI-generated) */}
-        {mediaImages.length > 0 && (
+        {galleryImages.length > 0 && (
           <section className="py-32 px-6 bg-gradient-to-b from-gray-50 to-white">
             <div className="max-w-7xl mx-auto">
               {/* Header */}
@@ -895,7 +898,7 @@ export default function BuildWebsitePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="text-sm font-medium text-gray-600">
-                    {Math.min(mediaImages.length, 12)} Photo{Math.min(mediaImages.length, 12) !== 1 ? 's' : ''}
+                    {galleryImages.length} Photo{galleryImages.length !== 1 ? 's' : ''}
                   </span>
                   {aiGeneratedImages.size > 0 && (
                     <span className="ml-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
@@ -906,12 +909,12 @@ export default function BuildWebsitePage() {
               </div>
 
               {/* Masonry-style grid */}
-              {mediaImages.length === 1 ? (
+              {galleryImages.length === 1 ? (
                 // Single image — full width featured
                 <div className="max-w-3xl mx-auto">
                   <div className="relative overflow-hidden rounded-3xl group cursor-pointer shadow-2xl">
                     <img
-                      src={mediaImages[0]}
+                      src={galleryImages[0]}
                       alt="Gallery 1"
                       className="w-full h-96 object-cover transform group-hover:scale-105 transition-transform duration-700"
                       onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80"; }}
@@ -919,17 +922,17 @@ export default function BuildWebsitePage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8">
                       <span className="text-white font-semibold text-lg">View Image</span>
                     </div>
-                    {aiGeneratedImages.has(mediaImages[0]) && (
+                    {aiGeneratedImages.has(galleryImages[0]) && (
                       <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
                         ✨ AI Generated
                       </div>
                     )}
                   </div>
                 </div>
-              ) : mediaImages.length === 2 ? (
+              ) : galleryImages.length === 2 ? (
                 // Two images — side by side
-                <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
-                  {mediaImages.slice(0, 2).map((image, index) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                  {galleryImages.map((image, index) => (
                     <div key={index} className="relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl hover:shadow-2xl transition-all duration-300">
                       <img
                         src={image}
@@ -951,7 +954,7 @@ export default function BuildWebsitePage() {
               ) : (
                 // 3+ images — masonry grid: first image featured (2×2), rest 1×1
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[200px]">
-                  {mediaImages.slice(0, 12).map((image, index) => (
+                  {galleryImages.map((image, index) => (
                     <div
                       key={index}
                       className={`relative overflow-hidden rounded-2xl group cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 ${

@@ -37,6 +37,7 @@ export default function UserManagement() {
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
   const [planStartDate, setPlanStartDate] = useState("");
+  const [utrNumber,setUtrNumber] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planExpiryDate, setPlanExpiryDate] = useState("");
   const [planScreenshot, setPlanScreenshot] = useState(null);
@@ -978,6 +979,7 @@ const handleRoundRobinAssign = (userId) => {
       ? new Date(user.packageStartDate).toISOString().split('T')[0] 
       : new Date().toISOString().split('T')[0];
     setPlanStartDate(start);
+    setUtrNumber("");
     setPlanAmount(""); // Reset amount
     setPlanScreenshot(null); // Reset screenshot
   };
@@ -1034,7 +1036,8 @@ const handleRoundRobinAssign = (userId) => {
           planDuration: selectedCycle,
           packageStartDate: planStartDate,
           packageExpiryDate: planExpiryDate,
-          ...(screenshotUrl && { paymentScreenshot: screenshotUrl })
+          ...(screenshotUrl && { paymentScreenshot: screenshotUrl }),
+          ...(utrNumber && { utrNumber: utrNumber })
         }),
       });
       const userUpdateData = await userUpdateRes.json();
@@ -1568,8 +1571,9 @@ const handleRoundRobinAssign = (userId) => {
 
 
   console.log("agentsagents", agents);
-  console.log("agentStatsagentStatsagentStats", agentStats);
-  console.log("callStatscallStats",callStats);
+  console.log("agentStatsagentStatsagentStats", stageStats);
+  console.log("callStats",callStats);
+  
   
 
 
@@ -1686,21 +1690,21 @@ const handleRoundRobinAssign = (userId) => {
                 <p className="text-sm font-medium text-blue-700">Total Calls Today</p>
                 <p className="text-3xl font-bold text-blue-800 mt-1">{callStats.totalCallsToday}</p>
               </div>
-              {/* <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Today's Calls by Agent</p>
-                {callStats.todayCallsByAgent.length > 0 ? (
-                  <ul className="space-y-2 max-h-40 overflow-y-auto">
-                    {callStats.todayCallsByAgent.map(agent => (
-                      <li key={agent.agentId || agent.agentName} className="flex justify-between items-center text-sm pr-2">
-                        <span className="font-medium text-gray-800">{agent.agentName}</span>
-                        <span className="font-bold text-gray-900 bg-gray-200 px-2 py-0.5 rounded-full text-xs">{agent.count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">No calls made today.</p>
-                )}
-              </div> */}
+                <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Today's Calls by Agent</p>
+                  {callStats.todayCallsByAgent.length > 0 ? (
+                    <ul className="space-y-2 max-h-40 overflow-y-auto">
+                      {callStats.todayCallsByAgent.map(agent => (
+                        <li key={agent.agentId || agent.agentName} className="flex justify-between items-center text-sm pr-2">
+                          <span className="font-medium text-gray-800">{agent.agentName}</span>
+                          <span className="font-bold text-gray-900 bg-gray-200 px-2 py-0.5 rounded-full text-xs">{agent.count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">No calls made today.</p>
+                  )}
+                </div>
             </div>
           </div>
         )}
@@ -2913,44 +2917,58 @@ const handleRoundRobinAssign = (userId) => {
       </div>
 
       {/* Payment Screenshot Upload */}
-      <div className="mb-6">
-        <label className="block text-xs font-medium text-gray-700 mb-1.5">
-          Payment Screenshot <span className="text-gray-400">(if amount entered)</span>
-        </label>
+    <div className="mb-6">
+  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+    Payment Screenshot <span className="text-gray-400">(if amount entered)</span>
+  </label>
 
-        <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files[0];
-              if (file) {
-                setPlanScreenshot(file);
-              }
-            }}
-            className="hidden"
-            id="plan-screenshot-upload"
-          />
+  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        const file = e.target.files[0];
+        if (file) {
+          setPlanScreenshot(file);
+        }
+      }}
+      className="hidden"
+      id="plan-screenshot-upload"
+    />
 
-          <label
-            htmlFor="plan-screenshot-upload"
-            className="flex flex-col items-center cursor-pointer"
-          >
-            <Upload className="w-8 h-8 text-gray-400 mb-2" />
+    <label
+      htmlFor="plan-screenshot-upload"
+      className="flex flex-col items-center cursor-pointer"
+    >
+      <Upload className="w-8 h-8 text-gray-400 mb-2" />
 
-            <span className="text-sm text-gray-600">
-              {planScreenshot
-                ? planScreenshot.name
-                : "Click to upload payment screenshot"}
-            </span>
+      <span className="text-sm text-gray-600">
+        {planScreenshot
+          ? planScreenshot.name
+          : "Click to upload payment screenshot"}
+      </span>
 
-            <span className="text-xs text-gray-400 mt-1">
-              PNG, JPG up to 10MB
-            </span>
-          </label>
-        </div>
-      </div>
+      <span className="text-xs text-gray-400 mt-1">
+        PNG, JPG up to 10MB
+      </span>
+    </label>
+  </div>
 
+  {/* UTR Number Field */}
+  <div className="mt-4">
+    <label className="block text-xs font-medium text-gray-700 mb-1">
+      UTR Number
+    </label>
+
+    <input
+      type="text"
+      value={utrNumber}
+      onChange={(e) => setUtrNumber(e.target.value)}
+      placeholder="Enter UTR / Transaction ID"
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+    />
+  </div>
+</div>
       <div className="flex gap-3">
         <button
           onClick={() => setSelectedUser(null)}
@@ -3644,30 +3662,45 @@ const handleRoundRobinAssign = (userId) => {
                         <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
                       </tr>
                     </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {detailedStats
-                    .filter(item => item.stage === stageModal)
-                    .sort((a, b) => b.count - a.count)
-                    .map((item, idx) => {
-                      const agentName = item.agentId === "Unassigned"
-                        ? "Unassigned"
-                        : agents.find(a => a._id === item.agentId)?.fullName || "Unknown Agent";
+             <tbody className="divide-y divide-gray-100">
+  {Object.values(
+    detailedStats
+      .filter(item => item.stage === stageModal)
+      .reduce((acc, item) => {
+        const agentName =
+          item.agentId === "Unassigned"
+            ? "Unassigned"
+            : agents.find(a => a._id === item.agentId)?.fullName || "Unknown Agent";
 
-                      return (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-800 font-medium">
-                            {agentName}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
-                            {item.count}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  {detailedStats.filter(item => item.stage === stageModal).length === 0 && (
-                    <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No leads in this stage</td></tr>
-                  )}
-                </tbody>
+        if (!acc[agentName]) {
+          acc[agentName] = { agentName, count: 0 };
+        }
+
+        acc[agentName].count += item.count;
+
+        return acc;
+      }, {})
+  )
+    .sort((a, b) => b.count - a.count)
+    .map((item, idx) => (
+      <tr key={idx} className="hover:bg-gray-50">
+        <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+          {item.agentName}
+        </td>
+        <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
+          {item.count}
+        </td>
+      </tr>
+    ))}
+
+  {detailedStats.filter(item => item.stage === stageModal).length === 0 && (
+    <tr>
+      <td colSpan="2" className="text-center py-4 text-gray-500 text-sm">
+        No leads in this stage
+      </td>
+    </tr>
+  )}
+</tbody>
                   </>
                 )}
               </table>

@@ -52,9 +52,8 @@ const CallSchema = new mongoose.Schema(
 );
 
 const Call =
-  mongoose.models.dialer_call_status_tata ||
-  mongoose.model("dialer_call_status_tata", CallSchema);
-
+  mongoose.models.Call ||
+  mongoose.model("Call", CallSchema, "franchiseIVRData");
 /* ================= AISENSY CONFIG ================= */
 
 const AISENSY_URL =
@@ -75,30 +74,30 @@ const normalizeNumber = (num) => {
   return n.length === 12 ? n : null;
 };
 
-async function sendWhatsApp(number, campaignName) {
-  const destination = normalizeNumber(number);
-  if (!destination) return false;
+// async function sendWhatsApp(number, campaignName) {
+//   const destination = normalizeNumber(number);
+//   if (!destination) return false;
 
-  const res = await fetch(AISENSY_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzZhOWFjMTNhNjFmMGQ3YjExYmQ1NCIsIm5hbWUiOiJMaW1idUFJIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY2NjhhNWZmYTNhMzhjNTJhMDVmZDYzOCIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NjUxOTAwNjB9.Xps-oRJ5QqgkCs5BaBuPd1KS9Yxnv4D2PCYB-g5zgr4",
-      campaignName,
-      destination,
-      userName: "LimbuAI",
-      templateParams: [],
-      source: "incoming-ivr",
-      media: {
-        url: MEDIA[campaignName],
-        filename: "session",
-      },
-    }),
-  });
+//   const res = await fetch(AISENSY_URL, {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify({
+//       apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzZhOWFjMTNhNjFmMGQ3YjExYmQ1NCIsIm5hbWUiOiJMaW1idUFJIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY2NjhhNWZmYTNhMzhjNTJhMDVmZDYzOCIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NjUxOTAwNjB9.Xps-oRJ5QqgkCs5BaBuPd1KS9Yxnv4D2PCYB-g5zgr4",
+//       campaignName,
+//       destination,
+//       userName: "LimbuAI",
+//       templateParams: [],
+//       source: "incoming-ivr",
+//       media: {
+//         url: MEDIA[campaignName],
+//         filename: "session",
+//       },
+//     }),
+//   });
 
-  const json = await res.json();
-  return json?.success === "true";
-}
+//   const json = await res.json();
+//   return json?.success === "true";
+// }
 
 /* ================= POST WEBHOOK ================= */
 
@@ -168,21 +167,21 @@ export async function POST(req) {
     });
 
     // ✅ REAL-TIME WHATSAPP TRIGGER
-    if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
-      const sent = await sendWhatsApp(
-        customer_no_with_prefix,
-        "session4pm"
-      );
+    // if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
+    //   const sent = await sendWhatsApp(
+    //     customer_no_with_prefix,
+    //     "session4pm"
+    //   );
 
-      if (sent) {
-        savedCall.whatsapp_sent = true;
-        await savedCall.save();
-      }
-    }
+    //   if (sent) {
+    //     savedCall.whatsapp_sent = true;
+    //     await savedCall.save();
+    //   }
+    // }
 
     return NextResponse.json({
       success: true,
-      message: "Call stored & WhatsApp triggered",
+      message: "Call stored",
     });
   } catch (error) {
     console.error("Webhook Error:", error);

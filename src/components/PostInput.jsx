@@ -957,7 +957,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
             onClick={handleGenerateClick}
             disabled={loading || !prompt.trim()}
            className="w-full flex items-center justify-center gap-2
-bg-primary
+bg-lightPrimary
 text-dark px-6 py-3 rounded-lg
 hover:shadow-lg hover:scale-[1.02]
 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100

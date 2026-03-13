@@ -54,16 +54,16 @@ export default function ComparisonSection() {
               title: "Scalability",
               old: "Struggling to manage just one location effectively without chaos.",
               new: "Managing unlimited locations effortlessly from a single dashboard.",
-              bg: "bg-neutral-50",
-              color: "text-primary"
+              bg: "bg-lightPrimary",
+              color: "text-dark"
             },
             {
               icon: <Shield className="w-7 h-7" />,
               title: "Security",
               old: "Sharing passwords insecurely via email or chat.",
               new: "Official API Integration. 100% Secure & Encrypted.",
-              bg: "bg-teal-50",
-              color: "text-primary"
+              bg: "bg-lightPrimary",
+              color: "text-dark"
             }
           ].map((item, idx) => (
 

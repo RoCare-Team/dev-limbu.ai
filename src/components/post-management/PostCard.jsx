@@ -517,7 +517,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               {/* Status Indicators */}
               <div className="flex flex-wrap gap-2 mb-1">
                   {isPostedGmb && <span className="text-[10px] bg-neutral-100 text-neutral-700 px-2 py-1 rounded-md border border-neutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> GMB Posted</span>}
-                  {isPostedFb && <span className="text-[10px] bg-neutral-100 text-neutral px-2 py-1 rounded-md border border-neutal-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> FB Posted</span>}
+                  {isPostedFb && <span className="text-[10px] bg-neutral-100 text-neutral px-2 py-1 rounded-md  flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> FB Posted</span>}
                   {isPostedIg && <span className="text-[10px] bg-yellow-100 text-neutral-700 px-2 py-1 rounded-md border border-yellow-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> IG Posted</span>}
               </div>
 

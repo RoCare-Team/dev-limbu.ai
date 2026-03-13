@@ -558,33 +558,30 @@ export async function PUT(req) {
     let updateData = {};
 
     /* -------- REMARK UPDATE -------- */
-    if (remark) {
-      updateData.$set = { Remarks: remark };
-      
-      // Track call if this is a call-related remark
-      const callRemarks = ["Call Not Picked", "Call Back Later", "Switch Off", "Interested", "Not Interested", "Wrong Number", "Meeting Scheduled"];
-      const isCallRemark = callRemarks.some(r => remark.startsWith(r));
-      
-      const pushOperations = {
-        remarksHistory: { text: remark, createdAt: new Date() }
-      };
-      
-      if (isCallRemark) {
-        // Get agent info from request body or header
-        const agentId = body.agentId || null;
-        const agentName = body.agentName || "Admin";
-        
-        updateData.$inc = { callCount: 1 };
-        pushOperations.callHistory = {
-          agentId: agentId ? new mongoose.Types.ObjectId(agentId) : null,
-          agentName: agentName,
-          calledAt: new Date(),
-          remark: remark
-        };
-      }
-      
-      updateData.$push = pushOperations;
-    }
+  if (remark) {
+  updateData.$set = { Remarks: remark };
+
+  const pushOperations = {
+    remarksHistory: { text: remark, createdAt: new Date() }
+  };
+
+  // If agent info exists, treat it as a call
+  const agentId = body.agentId || null;
+  const agentName = body.agentName || "Admin";
+
+  if (agentId || agentName) {
+    updateData.$inc = { callCount: 1 };
+
+    pushOperations.callHistory = {
+      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : null,
+      agentName: agentName,
+      calledAt: new Date(),
+      remark: remark
+    };
+  }
+
+  updateData.$push = pushOperations;
+}
 
     /* -------- PLAN UPDATE -------- */
     if (newPlan) {

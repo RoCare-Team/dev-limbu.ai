@@ -44,7 +44,7 @@ export default function TransactionsPage() {
                 <tr>
                   <th className="px-4 py-2">User Name</th>
                   <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">Wallet</th>
+                  <th className="px-4 py-2">Total Wallet</th>
                   <th className="px-4 py-2">Amount</th>
                   <th className="px-4 py-2">Order ID</th>
                   <th className="px-4 py-2">Payment ID</th>

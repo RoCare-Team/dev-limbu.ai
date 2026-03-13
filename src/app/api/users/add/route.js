@@ -14,6 +14,7 @@ const UserSchema = new mongoose.Schema({
 
   wallet: Number,
   freeUsedCount: Number,
+  referCode: String,
 
   subscription: {
     plan: String,
@@ -46,7 +47,7 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    const { fullName, email, phone, plan } = await req.json();
+    const { fullName, email, phone, referCode, plan } = await req.json();
 
     if (!fullName || !email) {
       return NextResponse.json(
@@ -61,6 +62,7 @@ export async function POST(req) {
     const newUser = await User.create({
       userId: generatedId,
       fullName,
+      referCode,
       email,
       phone,
 

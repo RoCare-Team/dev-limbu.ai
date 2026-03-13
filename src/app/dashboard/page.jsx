@@ -2127,7 +2127,7 @@ className="w-full bg-dark text-lightPrimary text-xs font-bold py-2.5 rounded-lg 
                         </div>
                         <p className="text-xs text-gray-500">ID: {page.igId}</p>
                         <div className="pt-2 border-t border-gray-100">
-                          <button onClick={() => router.push(`/post-management?pageId=${page.igId}`)} className="w-full text-xs bg-[#525252] text-white py-1.5 rounded-md hover:bg-[#525252] font-semibold">Manage Account</button>
+                          <button onClick={() => router.push(`/post-management?pageId=${page.igId}`)} className="w-full text-xs bg-dark text-white py-1.5 rounded-md hover:bg-dark font-semibold">Manage Account</button>
                         </div>
                       </div>
                     ))}
@@ -2155,7 +2155,7 @@ className="w-full bg-dark text-lightPrimary text-xs font-bold py-2.5 rounded-lg 
                             toast.error("Logout failed");
                           }
                         }}
-                        className="w-full mt-2 flex items-center justify-center gap-2 bg-[#525252] text-white py-2 rounded-lg font-semibold hover:bg-[#525252] transition-all text-xs"
+                        className="w-full mt-2 flex items-center justify-center gap-2 bg-dark text-white py-2 rounded-lg font-semibold hover:bg-dark transition-all text-xs"
                       >
                         <LogOut className="w-4 h-4" /> Logout Instagram
                       </button>

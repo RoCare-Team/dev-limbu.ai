@@ -76,11 +76,16 @@ export default function UserManagement() {
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
   
-  // Revenue tracking state
+// Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
   const [userOnboardCount, setUserOnboardCount] = useState(0);
   const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
+  
+  // Revenue Users Modal state ✅ NEW
+  const [showRevenueUsersModal, setShowRevenueUsersModal] = useState(false);
+  const [revenueUsersList, setRevenueUsersList] = useState([]);
+  const [loadingRevenueUsers, setLoadingRevenueUsers] = useState(false);
   
   // Onboarded Client state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
@@ -562,6 +567,36 @@ export default function UserManagement() {
     } catch (error) {
       console.error("Cloudinary upload error:", error);
       throw error;
+    }
+  };
+
+  /* ---------------- FETCH REVENUE USERS LIST ✅ NEW ---------------- */
+  const fetchRevenueUsers = async () => {
+    setLoadingRevenueUsers(true);
+    const userEmail = localStorage.getItem("email");
+    const userRole = localStorage.getItem("role");
+    
+    try {
+      const params = new URLSearchParams({
+        type: 'user_onboard',
+        email: userEmail,
+        role: userRole
+      });
+      const res = await fetch(`/api/franchise-revenue?${params.toString()}`);
+      const data = await res.json();
+      
+      if (data.success && data.revenue) {
+        setRevenueUsersList(data.revenue);
+      } else {
+        setRevenueUsersList([]);
+        showToast(data.error || "No onboarded users found", "info");
+      }
+    } catch (err) {
+      console.error("Failed to fetch revenue users:", err);
+      setRevenueUsersList([]);
+      showToast("Failed to load onboarded users", "error");
+    } finally {
+      setLoadingRevenueUsers(false);
     }
   };
 
@@ -1869,10 +1904,14 @@ const handleRoundRobinAssign = (userId) => {
           
           {/* Total Revenue - Role-based visibility */}
           {(role === "superAdmin" || role === "franchiseAdmin" || role === "agent") && (
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 shadow-sm border border-emerald-200 hover:shadow-md transition-all">
+            <div 
+              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
+              onClick={() => { fetchRevenueUsers(); setShowRevenueUsersModal(true); }}
+              title="Click to view onboarded users details"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-emerald-700 font-medium">
+                  <p className="text-sm text-emerald-700 font-medium group-hover:underline">
                     {role === "superAdmin" || role === "superFranchiseAdmin" ? "User Onboard Revenue" : "My Revenue"}
                   </p>
                   <p className="text-2xl font-bold text-emerald-800 mt-1">
@@ -1884,7 +1923,7 @@ const handleRoundRobinAssign = (userId) => {
                     </span>
                   </div>
                 </div>
-                <div className="w-12 h-12 bg-emerald-200 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Wallet className="text-emerald-700" size={24} />
                 </div>
               </div>
@@ -3709,6 +3748,132 @@ const handleRoundRobinAssign = (userId) => {
         </div>
       )}
 
+      {/* User Onboard Revenue Details Modal ✅ NEW */}
+      {showRevenueUsersModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-6xl max-h-[90vh] w-full flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
+              <div>
+                <h2 className="text-2xl font-bold text-emerald-800">User Onboard Revenue Details</h2>
+                <p className="text-sm text-emerald-700 mt-1">All users with `type: user_onboard` revenue entries</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRevenueUsersModal(false);
+                  setRevenueUsersList([]);
+                }}
+                className="p-2 hover:bg-emerald-200 rounded-xl transition-all"
+              >
+                <X size={20} className="text-emerald-700" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingRevenueUsers ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="flex flex-col items-center text-center">
+                    <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-3" />
+                    <p className="text-gray-600 font-medium">Loading onboarded users...</p>
+                  </div>
+                </div>
+              ) : revenueUsersList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
+                  <Wallet className="w-16 h-16 mx-auto mb-4 opacity-40" />
+                  <h3 className="text-xl font-semibold mb-2 text-gray-600">No Onboarded Users Yet</h3>
+                  <p className="text-gray-500">No users with `user_onboard` revenue entries found for your account.</p>
+                  <p className="text-sm mt-1 text-gray-400">Onboard users using the ✅ button in the user table</p>
+                </div>
+              ) : (
+                <>
+                  {/* Table */}
+                  <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">User</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Plan</th>
+                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Amount</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Date</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Screenshot</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {revenueUsersList.map((revenue, index) => (
+                          <tr key={revenue._id || index} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-semibold text-gray-900">{revenue.leadName}</div>
+                              <div className="text-sm text-gray-500">ID: {revenue.leadId}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                UTR: {revenue.utrNumber || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
+                                {revenue.plan || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="text-xl font-bold text-emerald-700">
+                                ₹{revenue.amount?.toLocaleString() || 0}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {new Date(revenue.createdAt).toLocaleDateString('en-IN')}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(revenue.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </div>
+                            </td>
+                          <td className="px-6 py-4">
+                            {revenue.paymentScreenshot ? (
+                              <button
+                                onClick={() => setFullViewImage(revenue.paymentScreenshot)}
+                                className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
+                              >
+                                <Eye size={14} />
+                                View Proof
+                              </button>
+                            ) : (
+                              <span className="text-sm text-gray-400 italic">No screenshot</span>
+                            )}
+                          </td>
+                            <td className="px-6 py-4 max-w-xs">
+                              <div className="text-sm text-gray-900 line-clamp-2">
+                                {revenue.notes || 'No notes'}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Footer Totals */}
+                  <div className="mt-6 pt-6 border-t border-gray-200 bg-emerald-50/50 rounded-2xl p-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Total Onboarded Users:</p>
+                        <p className="text-2xl font-bold text-emerald-800">{revenueUsersList.length}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Total Revenue:</p>
+                        <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                          ₹{revenueUsersList.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Onboard Client Modal */}
       {showOnboardModal && onboardModalUser && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
@@ -3824,6 +3989,249 @@ const handleRoundRobinAssign = (userId) => {
         </div>
       )}
 
+      {/* Meeting Schedule Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={meetingData.date}
+                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <input
+                  type="text"
+                  placeholder="https://zoom.us/..."
+                  value={meetingData.link}
+                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <input
+                  type="text"
+                  placeholder="Meeting ID"
+                  value={meetingData.meetingId}
+                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="123456"
+                  value={meetingData.passcode}
+                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <button
+                onClick={handleMeetingSubmit}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
+              >
+                Schedule & Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}
+    {showRevenueUsersModal && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+
+    <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
+
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Onboarded Users Revenue</h2>
+          <p className="text-gray-600 text-sm mt-1">
+            Total: ₹{totalRevenue.toLocaleString()} from {revenueCount} users
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowRevenueUsersModal(false)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <X size={24} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+
+        {loadingRevenueUsers ? (
+          <div className="flex items-center justify-center py-12 text-gray-500">
+            <RefreshCw className="w-8 h-8 animate-spin mr-3" />
+            <span>Loading onboarded users...</span>
+          </div>
+        ) : revenueUsersList.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <Wallet className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <h3 className="text-xl font-semibold mb-2 text-gray-500">
+              No onboarded users yet
+            </h3>
+            <p className="text-gray-400">
+              Use the onboard button next to users to record revenue
+            </p>
+          </div>
+        ) : (
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Plan</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Screenshot</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Notes</th>
+                </tr>
+              </thead>
+
+              <tbody className="bg-white divide-y divide-gray-200">
+                {revenueUsersList.map((revenue, idx) => (
+
+                  <tr key={idx} className="hover:bg-gray-50">
+
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900">
+                        {revenue.leadName}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        ID: {revenue.leadId}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4 text-right">
+                      <div className="text-lg font-bold text-emerald-600">
+                        ₹{revenue.amount?.toLocaleString()}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
+                        {revenue.plan || "N/A"}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {new Date(revenue.createdAt).toLocaleDateString()}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {revenue.paymentScreenshot ? (
+
+                        <button
+                          onClick={() => setFullViewImage(revenue.paymentScreenshot)}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-all text-sm font-medium"
+                        >
+                          <Eye size={14} />
+                          View Proof
+                        </button>
+
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">
+                          No screenshot
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div
+                        className="text-sm text-gray-700 max-w-xs truncate"
+                        title={revenue.notes}
+                      >
+                        {revenue.notes || "N/A"}
+                      </div>
+                    </td>
+
+                  </tr>
+                ))}
+              </tbody>
+
+            </table>
+          </div>
+
+        )}
+
+      </div>
+
+      <div className="mt-6 pt-6 border-t border-gray-200 bg-gray-50 rounded-b-3xl p-4">
+
+        <div className="flex justify-between items-center text-sm text-gray-600">
+          <span>
+            Total Onboarded Users:
+            <span className="font-bold text-gray-900">
+              {revenueUsersList.length}
+            </span>
+          </span>
+
+          <span>
+            Total Revenue:
+            <span className="font-bold text-emerald-600">
+              ₹{totalRevenue.toLocaleString()}
+            </span>
+          </span>
+        </div>
+
+        <button
+          onClick={() => setShowRevenueUsersModal(false)}
+          className="w-full mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold"
+        >
+          Close
+        </button>
+
+      </div>
+
+    </div>
+
+    {/* 🔥 Payment Screenshot Viewer */}
+    {fullViewImage && (
+      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] p-6">
+
+        <button
+          onClick={() => setFullViewImage(null)}
+          className="absolute top-8 right-8 text-white bg-black/60 hover:bg-black/80 p-3 rounded-full"
+        >
+          <X size={28} />
+        </button>
+
+        <img
+          src={fullViewImage}
+          alt="Payment Proof"
+          className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl"
+        />
+
+      </div>
+    )}
+
+  </div>
+)}
       {/* Meeting Schedule Modal */}
       {showMeetingModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">

@@ -73,9 +73,13 @@ referCode : {type: String},
       }
     ],
     
-    remarksHistory: [
+remarksHistory: [
       {
         text: String,
+        agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+        agentName: { type: String },
+        calledAt: { type: Date, default: Date.now },
+        messageSent: { type: Boolean, default: false },
         createdAt: { type: Date, default: Date.now },
       }
     ],

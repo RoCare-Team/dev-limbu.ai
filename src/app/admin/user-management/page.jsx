@@ -1675,12 +1675,7 @@ const handleRoundRobinAssign = (userId) => {
       <div className="max-w-6xl mx-auto">
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              User Management
-            </h1>
-            <p className="text-gray-600 mt-1">Manage subscriptions and user accounts</p>
-          </div>
+        
           <div className="flex gap-3">
             <button
               onClick={() => handleRefreshMetaLeads(true)}
@@ -1717,50 +1712,25 @@ const handleRoundRobinAssign = (userId) => {
         </div>
 
         {/* Call Stats */}
-        {callStats && (role === 'superAdmin' || role === 'admin') && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Call Performance</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <p className="text-sm font-medium text-blue-700">Total Calls Today</p>
-                <p className="text-3xl font-bold text-blue-800 mt-1">{callStats.totalCallsToday}</p>
-              </div>
-                <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Today's Calls by Agent</p>
-                  {callStats.todayCallsByAgent.length > 0 ? (
-                    <ul className="space-y-2 max-h-40 overflow-y-auto">
-                      {callStats.todayCallsByAgent.map(agent => (
-                        <li key={agent.agentId || agent.agentName} className="flex justify-between items-center text-sm pr-2">
-                          <span className="font-medium text-gray-800">{agent.agentName}</span>
-                          <span className="font-bold text-gray-900 bg-gray-200 px-2 py-0.5 rounded-full text-xs">{agent.count}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-500">No calls made today.</p>
-                  )}
-                </div>
-            </div>
-          </div>
-        )}
+    
 
 
-        {/* Main Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* Main Stats Cards - Size Reduced */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {/* Total Users */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total Users</p>
-                <p className="text-2xl font-bold text-indigo-800 mt-1">{stats.total}</p>
+                <p className="text-lg font-bold text-indigo-800 mt-1">{stats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <User className="text-indigo-600" size={24} />
+              <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <User className="text-indigo-600" size={18} />
               </div>
             </div>
             {filterLabel && (
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
+              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={11} />
                 {filterLabel}
               </div>
             )}
@@ -1768,70 +1738,52 @@ const handleRoundRobinAssign = (userId) => {
 
           {/* Active Users */}
           {!isAgent && !isManager && (
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Active Users</p>
-                <p className="text-2xl font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
+                <p className="text-lg font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={24} />
+              <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="text-green-600" size={18} />
               </div>
             </div>
-            {/* {filterLabel && (
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
-                {filterLabel}
-              </div>
-            )} */}
           </div>
           )}
 
           {/* Follow Up */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Follow Up")}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">Follow Up</p>
-                <p className="text-2xl font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
+                <p className="text-lg font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="text-yellow-600" size={24} />
+              <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Clock className="text-yellow-600" size={18} />
               </div>
             </div>
-            {/* {filterLabel && (
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
-                {filterLabel}
-              </div>
-            )} */}
           </div>
           )}
 
           {/* Inactive */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Inactive")}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Inactive</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
+                <p className="text-lg font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                <UserX className="text-gray-600" size={24} />
+              <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                <UserX className="text-gray-600" size={18} />
               </div>
             </div>
-            {/* {filterLabel && (
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
-                {filterLabel}
-              </div>
-            )} */}
           </div>
           )}
           
@@ -1839,42 +1791,36 @@ const handleRoundRobinAssign = (userId) => {
           {/* Onboarded */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Onboard")}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Onboarded</p>
-                <p className="text-2xl font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
+                <p className="text-lg font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Rocket className="text-blue-600" size={24} />
+              <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Rocket className="text-blue-600" size={18} />
               </div>
             </div>
-            {/* {filterLabel && (
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
-                {filterLabel}
-              </div>
-            )} */}
           </div>
           )}
 
           {/* Total Posts */}
           {!isAgent && (
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Posts</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{totalPostsCount}</p>
+                <p className="text-xs text-gray-600 font-medium">Total Posts</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">{totalPostsCount}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <ImageIcon className="text-blue-600" size={24} />
+              <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                <ImageIcon className="text-blue-600" size={18} />
               </div>
             </div>
             {filterLabel && (
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
+              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={11} />
                 {filterLabel}
               </div>
             )}
@@ -1882,11 +1828,11 @@ const handleRoundRobinAssign = (userId) => {
           )}
 
           {/* Users Today */}
-          <div className="bg-gradient-to-br  rounded-lg p-4 shadow-sm border border-teal-200 hover:shadow-md transition-all">
+          <div className="bg-gradient-to-br  rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-teal-700 font-medium">Users Today</p>
-                <p className="text-2xl font-bold text-teal-800 mt-1">{displayTodayUsersCount}</p>
+                <p className="text-xs text-teal-700 font-medium">Users Today</p>
+                <p className="text-lg font-bold text-teal-800 mt-1">{displayTodayUsersCount}</p>
                 <div className="flex gap-2 mt-1">
                   <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
                     Meta: {todayUsersMetaLeads}
@@ -1896,8 +1842,8 @@ const handleRoundRobinAssign = (userId) => {
                   </span>
                 </div>
               </div>
-              <div className="w-12 h-12 bg-teal-200 rounded-lg flex items-center justify-center">
-                <User className="text-teal-700" size={24} />
+              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center">
+                <User className="text-teal-700" size={18} />
               </div>
             </div>
           </div>
@@ -1905,16 +1851,16 @@ const handleRoundRobinAssign = (userId) => {
           {/* Total Revenue - Role-based visibility */}
           {(role === "superAdmin" || role === "franchiseAdmin" || role === "agent") && (
             <div 
-              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
+              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
               onClick={() => { fetchRevenueUsers(); setShowRevenueUsersModal(true); }}
               title="Click to view onboarded users details"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-emerald-700 font-medium group-hover:underline">
+                  <p className="text-xs text-emerald-700 font-medium group-hover:underline">
                     {role === "superAdmin" || role === "superFranchiseAdmin" ? "User Onboard Revenue" : "My Revenue"}
                   </p>
-                  <p className="text-2xl font-bold text-emerald-800 mt-1">
+                  <p className="text-lg font-bold text-emerald-800 mt-1">
                     ₹{totalRevenue.toLocaleString()}
                   </p>
                   <div className="flex gap-2 mt-1">
@@ -1923,28 +1869,29 @@ const handleRoundRobinAssign = (userId) => {
                     </span>
                   </div>
                 </div>
-                <div className="w-12 h-12 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Wallet className="text-emerald-700" size={24} />
+                <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Wallet className="text-emerald-700" size={18} />
                 </div>
               </div>
             </div>
           )}
         </div>
 
+
         {/* Chat Stats Cards - Separate Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {/* Total Chats */}
           <div
-            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("all"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Total Chats</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
               </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="text-orange-600" size={24} />
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-orange-600" size={20} />
               </div>
             </div>
           </div>
@@ -1952,16 +1899,16 @@ const handleRoundRobinAssign = (userId) => {
           {/* Chats Today */}
           {!isAgent && (
           <div
-            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("today"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Chats Today</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{chatStats.today}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{chatStats.today}</p>
               </div>
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="text-teal-600" size={24} />
+              <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-teal-600" size={20} />
               </div>
             </div>
           </div>
@@ -1970,16 +1917,16 @@ const handleRoundRobinAssign = (userId) => {
           {/* Resolved */}
           {!isAgent && (
           <div
-            className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Resolved</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Shield className="text-green-600" size={24} />
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <Shield className="text-green-600" size={20} />
               </div>
             </div>
           </div>
@@ -2000,6 +1947,42 @@ const handleRoundRobinAssign = (userId) => {
             </div>
           </div> */}
         </div>
+        {callStats && (role === 'superAdmin' || role === 'admin') && (
+  <div className="mb-6">
+    <h2 className="text-lg font-semibold text-gray-800 mb-3">
+      Call Performance
+    </h2>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+
+      {/* Total Calls */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-col">
+        <span className="text-xs text-blue-700 font-medium">
+          Total Calls Today
+        </span>
+        <span className="text-xl font-bold text-blue-800">
+          {callStats.totalCallsToday}
+        </span>
+      </div>
+
+      {/* Agent Calls */}
+      {callStats.todayCallsByAgent.map((agent) => (
+        <div
+          key={agent.agentId || agent.agentName}
+          className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
+        >
+          <span className="text-xs text-gray-600 truncate">
+            {agent.agentName}
+          </span>
+          <span className="text-lg font-bold text-gray-900">
+            {agent.count}
+          </span>
+        </div>
+      ))}
+
+    </div>
+  </div>
+)}
 
         {/* Lead Status Stats - Only for superAdmin */}
         {/* {role === "superAdmin" && (
@@ -2222,18 +2205,18 @@ const handleRoundRobinAssign = (userId) => {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plan</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign To</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Lead Stage</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Chat</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Posts</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plan</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign To</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Lead Stage</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Chat</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Posts</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
             </table>
@@ -2245,12 +2228,12 @@ const handleRoundRobinAssign = (userId) => {
                   const postData = userPostsData[user.userId] || { total: 0, posted: 0, rejected: 0 };
                   return (
 
-                    <tr
+                    <tr 
                       key={user._id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleViewPosts(user)}
-                    >
-                      <td className="px-6 py-4">
+                    > 
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-gray-400" />
                           <div className="text-sm text-gray-700">
@@ -2276,7 +2259,7 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             {user.fullName && (
@@ -2335,7 +2318,7 @@ const handleRoundRobinAssign = (userId) => {
                       </td>
 
                       <td
-                        className="px-6 py-4 whitespace-nowrap"
+                        className="px-6 py-5 whitespace-nowrap"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" ? (
@@ -2424,7 +2407,7 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <select
                           value={user.leadStage || "Active"}
                           onChange={(e) => handleLeadStageChange(user.userId, e.target.value)}
@@ -2442,7 +2425,7 @@ const handleRoundRobinAssign = (userId) => {
                         </select>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-sm text-gray-700">
                             <Mail size={14} className="text-gray-400" />
@@ -2465,7 +2448,7 @@ const handleRoundRobinAssign = (userId) => {
 </td> */}
 
                       <td className="px-6 py-4">
-                        <button
+                        <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             handleUpgradePlan(user);
@@ -2477,7 +2460,7 @@ const handleRoundRobinAssign = (userId) => {
                         </button>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
 
                           <button
@@ -2494,7 +2477,7 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
                             <div className="flex items-center gap-3">
@@ -2517,7 +2500,7 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div onClick={(e) => e.stopPropagation()}>
                           <AddAddUserActivity userId={user.userId} />
                         </div>
@@ -2525,7 +2508,7 @@ const handleRoundRobinAssign = (userId) => {
 
                       <td className="px-6 py-4">
                         {user.businessListings && user.businessListings.length > 0 ? (
-
+                          
                           <div>
                             <div className="font-semibold text-gray-800">
                               {user.businessListings[0].title}  {user.businessListings[0].address.locality}

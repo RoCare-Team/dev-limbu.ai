@@ -1,12 +1,11 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import clientPromise from "@/lib/mongodb";
+import clientPromise from "./mongodb";
 import axios from "axios";
 
 async function refreshAccessToken(token) {
   try {
     const url = "https://oauth2.googleapis.com/token";
-
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
@@ -15,9 +14,7 @@ async function refreshAccessToken(token) {
     });
 
     const response = await axios.post(url, params.toString(), {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
     return {
@@ -28,45 +25,37 @@ async function refreshAccessToken(token) {
     };
   } catch (error) {
     console.error("Refresh Error:", error.response?.data || error.message);
-
-    return {
-      ...token,
-      error: "RefreshAccessTokenError",
-    };
+    return { ...token, error: "RefreshAccessTokenError" };
   }
 }
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-
+  // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-
       authorization: {
         params: {
-          scope:
-            "openid email profile https://www.googleapis.com/auth/business.manage",
+          scope: "openid email profile https://www.googleapis.com/auth/business.manage",
           access_type: "offline",
-          prompt: "consent",
+          prompt: "consent", // Pehli baar mein refresh_token lene ke liye zaroori hai
         },
       },
     }),
   ],
-
-  session: {
-    strategy: "jwt",
-  },
-
+  session: { strategy: "jwt" },
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
+      if (account.provider === "google") {
         try {
+          // 1. Database connection check
           const client = await clientPromise;
           const db = client.db("gmb_dashboard");
 
-          if (!user?.email) return false;
+          // 2. Data save logic with basic validation
+          if (!user.email) return false;
 
           await db.collection("users").updateOne(
             { email: user.email },
@@ -76,6 +65,7 @@ export const authOptions = {
                 image: user.image,
                 updatedAt: new Date(),
               },
+              // $addToSet tabhi kaam karega jab 'projects' ek array field ho
               $addToSet: {
                 projects: {
                   googleId: profile.sub,
@@ -87,24 +77,26 @@ export const authOptions = {
             },
             { upsert: true }
           );
-
-          return true;
+          return true; // Success
         } catch (error) {
           console.error("Database Error during Sign-In:", error);
-          return false;
+          // Agar database error aaye toh bhi sign in allow karein (optional) 
+          // ya false return karein agar DB zaroori hai
+          return true; 
         }
       }
-
       return true;
     },
 
     async jwt({ token, account, user }) {
       if (account && user) {
-        token.id = user.id;
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-        token.accessTokenExpires =
-          Date.now() + (account.expires_in || 3600) * 1000;
+        return {
+          ...token,
+          id: user.id,
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token,
+          accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
+        };
       }
 
       if (Date.now() < token.accessTokenExpires) {
@@ -119,17 +111,13 @@ export const authOptions = {
       session.accessToken = token.accessToken;
       session.refreshToken = token.refreshToken;
       session.error = token.error;
-
       return session;
     },
   },
-
   pages: {
     signIn: "/auth/signin",
-    error: "/auth/signin",
+    error: "/auth/signin", // Error hone par wapis signin page par bhejega
   },
 };
 
-const handler = NextAuth(authOptions);
-
-export { handler as GET, handler as POST };
+export default NextAuth(authOptions);

@@ -74,7 +74,9 @@ export default function UserManagement() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
-  const [callStats, setCallStats] = useState(null);
+const [callStats, setCallStats] = useState(null);
+  const [showAgentCallModal, setShowAgentCallModal] = useState(false);
+  const [agentCallHistory, setAgentCallHistory] = useState([]);
   
 // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -98,10 +100,26 @@ export default function UserManagement() {
   const [paymentModalUser, setPaymentModalUser] = useState(null);
   const [paymentData, setPaymentData] = useState({ amount: "", screenshot: null, notes: "", plan: "" });
   const [uploadingPayment, setUploadingPayment] = useState(false);
-  const [paidUsersStatus, setPaidUsersStatus] = useState({});
+const [paidUsersStatus, setPaidUsersStatus] = useState({});
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
+
+  // Agent name from localStorage for filtering their stats
+  const agentName = localStorage.getItem("adminName") || "";
+const myTodayCalls =
+  callStats?.todayCallsByAgent?.find(
+    c => c.agentName?.trim().toLowerCase() === agentName?.trim().toLowerCase()
+  )?.count || 0;
+
+  console.log("myTodayCallsmyTodayCalls",myTodayCalls);
+  
+
+const myTotalCalls =
+  callStats?.totalCallsByAgent?.find(
+    c => c.agentName?.trim().toLowerCase() === agentName?.trim().toLowerCase()
+  )?.count || 0;
+
+const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState("All");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -289,7 +307,7 @@ export default function UserManagement() {
   useEffect(() => {
     const fetchCallStats = async () => {
         const adminEmail = localStorage.getItem("email");
-        if (!adminEmail || (role !== 'superAdmin' && role !== 'admin')) return;
+        if (!adminEmail) return;
 
         try {
             const res = await fetch(`/api/admin/call-stats?email=${adminEmail}`);
@@ -1224,14 +1242,26 @@ const handleRoundRobinAssign = (userId) => {
       setUpdatingWallet(false);
     }
   };
-  const AdminPanelButton = async (userId) => {
-    const adminToken = localStorage.getItem("token"); // 👈 tumhara existing token
+const AdminPanelButton = async (userId) => {
+  try {
+    const adminToken = localStorage.getItem("token");
+
+    // 🔥 OLD USER DATA RESET
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("impersonatedUser");
+    localStorage.removeItem("isImpersonating");
+    localStorage.removeItem("userData");
+    localStorage.removeItem("gmbData");
+    localStorage.removeItem("projects");
+
+    sessionStorage.clear(); // optional
 
     const res = await fetch("/api/admin/login-as-user", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`, // 👈 MUST
+        Authorization: `Bearer ${adminToken}`,
       },
       body: JSON.stringify({ userId }),
     });
@@ -1239,13 +1269,23 @@ const handleRoundRobinAssign = (userId) => {
     const data = await res.json();
 
     if (data.token) {
+      // 🔥 NEW USER DATA SET
       localStorage.setItem("userToken", data.token);
       localStorage.setItem("impersonatedUser", userId);
       localStorage.setItem("userId", data.user.userId);
       localStorage.setItem("isImpersonating", "true");
-      window.location.href = "/dashboard";
+
+      // optional useful data
+      localStorage.setItem("userData", JSON.stringify(data.user));
+      localStorage.setItem("gmbProjects", JSON.stringify(data.user.gmbProjects || []));
+
+      // 🔥 FULL PAGE HARD RELOAD
+      window.location.replace("/dashboard");
     }
-  };
+  } catch (err) {
+    console.log("Login as user error:", err);
+  }
+};
 
 
 
@@ -1827,6 +1867,26 @@ const handleRoundRobinAssign = (userId) => {
               </div>
             </div>
           </div>
+
+          {/* 🔥 NEW: Agent Personal Call Stats Card */}
+          {isAgent && (
+            <div 
+              className="bg-gradient-to-br from-blue-500 to-orange-500 rounded-lg p-2.5 shadow-sm border border-blue-300 hover:shadow-md cursor-pointer transition-all"
+              onClick={() => setShowAgentCallModal(true)}
+              title="Click to view call history"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-white font-semibold uppercase tracking-wide">My Calls</p>
+                  <p className="text-lg font-bold text-white mt-1">{myTotalCalls}</p>
+                  <p className="text-[10px] text-blue-100 font-medium mt-0.5">Today: {myTodayCalls}</p>
+                </div>
+                <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <Phone className="text-white" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Total Revenue - Role-based visibility */}
           {(role === "superAdmin" || role === "franchiseAdmin" || role === "agent") && (
@@ -1896,6 +1956,7 @@ const handleRoundRobinAssign = (userId) => {
             className="w-50 h-15 bg-white rounded-lg p-3 pt-2 pt-2 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
+        
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Resolved</p>
@@ -1923,10 +1984,10 @@ const handleRoundRobinAssign = (userId) => {
             </div>
           </div> */}
         </div>
-        {callStats && (role === 'superAdmin' || role === 'admin') && (
+{callStats && (role === 'superAdmin' || role === 'admin') && (
   <div className="mb-6">
     <h2 className="text-lg font-semibold text-gray-800 mb-3">
-      Call Performance
+      Call Performance {isAgent && <span className="text-blue-600">(Your Stats)</span>}
     </h2>
 
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -1942,19 +2003,25 @@ const handleRoundRobinAssign = (userId) => {
       </div>
 
       {/* Agent Calls */}
-      {callStats.todayCallsByAgent.map((agent) => (
-        <div
-          key={agent.agentId || agent.agentName}
-          className="bg-gray-50 w-40 h-15 border border-gray-200 rounded-xl p-2 flex flex-col"
-        >
-          <span className="text-xs text-gray-600 truncate">
-            {agent.agentName}
-          </span>
-          <span className="text-lg font-bold text-gray-900">
-            {agent.count}
-          </span>
-        </div>
-      ))}
+      {callStats.todayCallsByAgent.map((agent) => {
+        const isMyStats = isAgent && agent.agentName === agentName;
+        return (
+          <div
+            key={agent.agentId || agent.agentName}
+            className={`bg-gray-50 border rounded-xl p-3 flex flex-col transition-all ${
+              isMyStats ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-200 ring-opacity-50 shadow-md' : 'border-gray-200'
+            }`}
+          >
+            <span className={`text-xs truncate font-semibold ${isMyStats ? 'text-blue-700' : 'text-gray-600'}`}>
+              {agent.agentName}
+              {isMyStats && <span className="ml-1 text-xs bg-blue-200 px-1 py-0.5 rounded text-blue-800">You</span>}
+            </span>
+            <span className={`text-lg font-bold ${isMyStats ? 'text-blue-900' : 'text-gray-900'}`}>
+              {agent.count}
+            </span>
+          </div>
+        );
+      })}
 
     </div>
   </div>
@@ -2017,7 +2084,7 @@ const handleRoundRobinAssign = (userId) => {
                   </select>
                 </div>
 
-                {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
+                {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" || role === "agent") && (
                   <div className="relative">
                     <select
                       value={leadStatusFilter}
@@ -2032,6 +2099,7 @@ const handleRoundRobinAssign = (userId) => {
                     </select>
                   </div>
                 )}
+
               </>
             )}
 

@@ -1289,14 +1289,26 @@ const handleRoundRobinAssign = (userId) => {
       setUpdatingWallet(false);
     }
   };
-  const AdminPanelButton = async (userId) => {
-    const adminToken = localStorage.getItem("token"); // 👈 tumhara existing token
+const AdminPanelButton = async (userId) => {
+  try {
+    const adminToken = localStorage.getItem("token");
+
+    // 🔥 OLD USER DATA RESET
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("impersonatedUser");
+    localStorage.removeItem("isImpersonating");
+    localStorage.removeItem("userData");
+    localStorage.removeItem("gmbData");
+    localStorage.removeItem("projects");
+
+    sessionStorage.clear(); // optional
 
     const res = await fetch("/api/admin/login-as-user", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`, // 👈 MUST
+        Authorization: `Bearer ${adminToken}`,
       },
       body: JSON.stringify({ userId }),
     });
@@ -1304,13 +1316,23 @@ const handleRoundRobinAssign = (userId) => {
     const data = await res.json();
 
     if (data.token) {
+      // 🔥 NEW USER DATA SET
       localStorage.setItem("userToken", data.token);
       localStorage.setItem("impersonatedUser", userId);
       localStorage.setItem("userId", data.user.userId);
       localStorage.setItem("isImpersonating", "true");
-      window.location.href = "/dashboard";
+
+      // optional useful data
+      localStorage.setItem("userData", JSON.stringify(data.user));
+      localStorage.setItem("gmbProjects", JSON.stringify(data.user.gmbProjects || []));
+
+      // 🔥 FULL PAGE HARD RELOAD
+      window.location.replace("/dashboard");
     }
-  };
+  } catch (err) {
+    console.log("Login as user error:", err);
+  }
+};
 
 
 

@@ -159,15 +159,6 @@ export default function UserManagement() {
     setRemarksInput(`${remark} - ${adminName}`);
   };
 
-  // const remarkColors = [
-  //   "bg-blue-50 border-blue-200",
-  //   "bg-purple-50 border-purple-200",
-  //   "bg-green-50 border-green-200",
-  //   "bg-amber-50 border-amber-200",
-  //   "bg-rose-50 border-rose-200",
-  //   "bg-cyan-50 border-cyan-200",
-  // ];
-
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -325,12 +316,6 @@ export default function UserManagement() {
     const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
     console.log("usersusers",users);
     
-
-    // const leadStageActive = users.filter(u => (u.leadStage || "Active") === "Active").length;
-    // const leadStageFollowUp = users.filter(u => u.leadStage === "Follow Up").length;
-    // const leadStageInactive = users.filter(u => u.leadStage === "Inactive").length;
-    // const leadStageOnboard = users.filter(u => u.leadStage === "Onboard").length;
-
     setStats({ total, basic, standard, premium, active, todayMetaLeads, todaySignups });
   }, [pagination, users, connectedBusinessUsers, role]);
 
@@ -478,38 +463,7 @@ export default function UserManagement() {
     fetchPlans();
   }, []);
 
-  // const mergeAllData = useCallback(async () => {
-  //   setLoading(true);
-  //   const initialUsers = await fetchUsers();
-  //   if (!initialUsers || initialUsers.length === 0) {
-  //     setLoading(false);
-  //     return;
-  //   }
 
-  //   const businessPromises = initialUsers.map(usr =>
-  //     fetch(`/api/admin/saveBussiness?email=${usr.email}`).then(res => res.json())
-  //   );
-
-  //   const businessResults = await Promise.all(businessPromises);
-
-  //   const finalUsers = initialUsers.map((usr, index) => {
-  //     const businessData = businessResults[index];
-  //     const business = businessData?.listings?.find(item => item?.userEmail?.toLowerCase() === usr.email.toLowerCase());
-  //     return {
-  //       ...usr,
-  //       isBusinessConnected: !!business,
-  //       businessListings: business?.listings || [],
-  //     };
-  //   });
-
-  //   setUsers(finalUsers);
-  //   setLoading(false);
-  // }, []);
-
-  // useEffect(() => {
-  //   mergeAllData();
-  //   fetchConnectedBusinessUsers();
-  // }, [mergeAllData]);
 
   useEffect(() => {
     fetchAllUserPostsCounts();
@@ -651,7 +605,6 @@ export default function UserManagement() {
       console.error("Failed to fetch revenue", err);
     }
   };
-
 
 
   const fetchAllUserPostsCounts = async () => {
@@ -1604,14 +1557,11 @@ const handleRoundRobinAssign = (userId) => {
   }, [users]);
 
 
-
   console.log("agentsagents", agents);
   console.log("agentStatsagentStatsagentStats", stageStats);
   console.log("callStats",callStats);
   
   
-
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -1624,8 +1574,6 @@ const handleRoundRobinAssign = (userId) => {
       </div>
     );
   }
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
@@ -1674,51 +1622,90 @@ const handleRoundRobinAssign = (userId) => {
 
       <div className="max-w-6xl mx-auto">
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleRefreshMetaLeads(true)}
-              disabled={isRefreshingMetaLeads}
-              className="
-                flex items-center gap-2 px-6 py-3 
-                bg-white text-indigo-600 
-                border border-indigo-200
-                hover:bg-indigo-50 
-                rounded-xl shadow-sm hover:shadow-md 
-                transition-all font-medium
-              "
-            >
-              <RefreshCw size={20} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
-              {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
-            </button>
-            <button
-              onClick={() => setAddingUser(true)}
-              className="
-    flex items-center gap-2 px-6 py-3 
-    bg-gradient-to-r from-indigo-600 to-purple-600 
-    hover:from-indigo-700 hover:to-purple-700 
-    text-white dark:text-white        /* ⭐ Always visible text */
-    rounded-xl shadow-lg 
-    hover:shadow-xl 
-    transition-all
-  "
-            >
-              <Plus size={20} className="text-white dark:text-white" />
-              Add User
-            </button>
-          </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
 
+  {/* LEFT SIDE (Assignments) */}
+  {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
+    <div className="space-y-3">
+
+      <h3 className="text-sm font-bold text-gray-700">Total Assignments</h3>
+
+      <div className="flex flex-wrap gap-3">
+
+        {/* Unassigned */}
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+        >
+          <User className="w-3 h-3" />
+          <span>Unassigned: {agentStats.unassigned || 0}</span>
         </div>
 
-        {/* Call Stats */}
-    
+        {/* Assigned Agents */}
+        {agents.map(agent => {
+          const count = agentStats[agent._id.toString()] || 0;
+          if (count === 0) return null;
 
+          return (
+            <div
+              key={agent._id}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+            >
+              <User className="w-3 h-3" />
+              <span>{agent.fullName}: {count}</span>
+            </div>
+          );
+        })}
+      </div>
+
+    </div>
+  )}
+
+  {/* RIGHT SIDE BUTTONS */}
+  <div className="flex gap-3 ml-auto">
+
+    <button
+      onClick={() => handleRefreshMetaLeads(true)}
+      disabled={isRefreshingMetaLeads}
+      className="
+        flex items-center gap-2 px-6 py-3 
+        bg-white text-indigo-600 
+        border border-indigo-200
+        hover:bg-indigo-50 
+        rounded-xl shadow-sm hover:shadow-md 
+        transition-all font-medium
+      "
+    >
+      <RefreshCw size={20} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
+      {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
+    </button>
+
+    <button
+      onClick={() => setAddingUser(true)}
+      className="
+        flex items-center gap-2 px-6 py-3 
+        bg-gradient-to-r from-indigo-600 to-purple-600 
+        hover:from-indigo-700 hover:to-purple-700 
+        text-white 
+        rounded-xl shadow-lg 
+        hover:shadow-xl 
+        transition-all
+      "
+    >
+      <Plus size={20} className="text-white" />
+      Add User
+    </button>
+
+  </div>
+
+</div>
+
+      
+        {/* Call Stats */}
 
         {/* Main Stats Cards - Size Reduced */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
           {/* Total Users */}
-          <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total Users</p>
@@ -1738,7 +1725,7 @@ const handleRoundRobinAssign = (userId) => {
 
           {/* Active Users */}
           {!isAgent && !isManager && (
-          <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Active Users</p>
@@ -1754,7 +1741,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Follow Up */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Follow Up")}
           >
             <div className="flex items-center justify-between">
@@ -1772,7 +1759,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Inactive */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Inactive")}
           >
             <div className="flex items-center justify-between">
@@ -1791,7 +1778,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Onboarded */}
           {!isAgent && (
           <div 
-            className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => setStageModal("Onboard")}
           >
             <div className="flex items-center justify-between">
@@ -1808,7 +1795,7 @@ const handleRoundRobinAssign = (userId) => {
 
           {/* Total Posts */}
           {!isAgent && (
-          <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-600 font-medium">Total Posts</p>
@@ -1828,19 +1815,12 @@ const handleRoundRobinAssign = (userId) => {
           )}
 
           {/* Users Today */}
-          <div className="bg-gradient-to-br  rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
+          <div className="bg-gradient-to-br w-50 h-15 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-teal-700 font-medium">Users Today</p>
-                <p className="text-lg font-bold text-teal-800 mt-1">{displayTodayUsersCount}</p>
-                <div className="flex gap-2 mt-1">
-                  <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
-                    Meta: {todayUsersMetaLeads}
-                  </span>
-                  <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
-                    Signups: {todayUsersSignups}
-                  </span>
-                </div>
+                <p className="text-sm text-teal-700 font-medium">Users Today</p>
+                <p className="text-lg font-bold text-teal-800 ">{displayTodayUsersCount}</p>
+                
               </div>
               <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center">
                 <User className="text-teal-700" size={18} />
@@ -1851,7 +1831,7 @@ const handleRoundRobinAssign = (userId) => {
           {/* Total Revenue - Role-based visibility */}
           {(role === "superAdmin" || role === "franchiseAdmin" || role === "agent") && (
             <div 
-              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
+              className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
               onClick={() => { fetchRevenueUsers(); setShowRevenueUsersModal(true); }}
               title="Click to view onboarded users details"
             >
@@ -1863,11 +1843,7 @@ const handleRoundRobinAssign = (userId) => {
                   <p className="text-lg font-bold text-emerald-800 mt-1">
                     ₹{totalRevenue.toLocaleString()}
                   </p>
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                      {revenueCount} Users
-                    </span>
-                  </div>
+                 
                 </div>
                 <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Wallet className="text-emerald-700" size={18} />
@@ -1879,18 +1855,18 @@ const handleRoundRobinAssign = (userId) => {
 
 
         {/* Chat Stats Cards - Separate Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5  mb-6">
           {/* Total Chats */}
           <div
-            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className=" w-50 h-15 bg-white rounded-lg p-3 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("all"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Total Chats</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
               </div>
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                 <MessageSquare className="text-orange-600" size={20} />
               </div>
             </div>
@@ -1899,15 +1875,15 @@ const handleRoundRobinAssign = (userId) => {
           {/* Chats Today */}
           {!isAgent && (
           <div
-            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="w-50 h-15  bg-white rounded-lg p-3 pt-2 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("today"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Chats Today</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{chatStats.today}</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">{chatStats.today}</p>
               </div>
-              <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
                 <MessageSquare className="text-teal-600" size={20} />
               </div>
             </div>
@@ -1917,15 +1893,15 @@ const handleRoundRobinAssign = (userId) => {
           {/* Resolved */}
           {!isAgent && (
           <div
-            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="w-50 h-15 bg-white rounded-lg p-3 pt-2 pt-2 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
             onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Resolved</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
               </div>
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <Shield className="text-green-600" size={20} />
               </div>
             </div>
@@ -1956,11 +1932,11 @@ const handleRoundRobinAssign = (userId) => {
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
 
       {/* Total Calls */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-col">
+      <div className="bg-blue-50 w-40 h-15 border border-blue-200 rounded-xl p-3 flex flex-col">
         <span className="text-xs text-blue-700 font-medium">
           Total Calls Today
         </span>
-        <span className="text-xl font-bold text-blue-800">
+        <span className="text-lg font-bold text-blue-800">
           {callStats.totalCallsToday}
         </span>
       </div>
@@ -1969,7 +1945,7 @@ const handleRoundRobinAssign = (userId) => {
       {callStats.todayCallsByAgent.map((agent) => (
         <div
           key={agent.agentId || agent.agentName}
-          className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
+          className="bg-gray-50 w-40 h-15 border border-gray-200 rounded-xl p-2 flex flex-col"
         >
           <span className="text-xs text-gray-600 truncate">
             {agent.agentName}
@@ -1982,101 +1958,9 @@ const handleRoundRobinAssign = (userId) => {
 
     </div>
   </div>
-)}
+)}   
 
-        {/* Lead Status Stats - Only for superAdmin */}
-        {/* {role === "superAdmin" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-red-50 rounded-2xl p-6 shadow-lg border border-red-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-700 text-sm font-medium">Hot Leads</p>
-                  <p className="text-3xl font-bold text-red-800 mt-1">{leadStatusStats.Hot || 0}</p>
-                </div>
-                <div className="bg-red-100 p-3 rounded-xl">
-                  <div className="w-6 h-6 bg-red-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-orange-50 rounded-2xl p-6 shadow-lg border border-orange-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-700 text-sm font-medium">Warm Leads</p>
-                  <p className="text-3xl font-bold text-orange-800 mt-1">{leadStatusStats.Warm || 0}</p>
-                </div>
-                <div className="bg-orange-100 p-3 rounded-xl">
-                  <div className="w-6 h-6 bg-orange-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 rounded-2xl p-6 shadow-lg border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-700 text-sm font-medium">Cold Leads</p>
-                  <p className="text-3xl font-bold text-blue-800 mt-1">{leadStatusStats.Cold || 0}</p>
-                </div>
-                <div className="bg-blue-100 p-3 rounded-xl">
-                  <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )} */}
-
-        {/* AGENT ASSIGNMENT SUMMARY */}
-        {/* AGENT ASSIGNMENT SUMMARY */}
-        {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
-
-          <div className="mb-6 space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-gray-700 mb-2">Total Assignments</h3>
-              <div className="flex flex-wrap gap-3">
-                {/* Unassigned */}
-                <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
-                >
-                  <User className="w-3 h-3" />
-                  <span>Unassigned: {agentStats.unassigned || 0}</span>
-                </div>
-
-                {/* Assigned Agents */}
-                {agents.map(agent => {
-                  const count = agentStats[agent._id.toString()] || 0;
-                  if (count === 0) return null;
-
-                  return (
-                    <div
-                      key={agent._id}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
-                    >
-                      <User className="w-3 h-3" />
-                      <span>{agent.fullName}: {count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {todayStats.assignments.length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-gray-700 mb-2">Today's Assignments</h3>
-                <div className="flex flex-wrap gap-3">
-                  {todayStats.assignments.map((item, idx) => (
-                    <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(item.agentName)}`}>
-                      <User className="w-3 h-3" />
-                      <span>{item.agentName}: {item.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 flex items-center gap-2">
               <div className="relative flex-grow">
@@ -2200,7 +2084,7 @@ const handleRoundRobinAssign = (userId) => {
 
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col max-h-[70vh]">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col max-h-[100vh]">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
@@ -2329,12 +2213,12 @@ const handleRoundRobinAssign = (userId) => {
                           >
                             <select
                               className="
-          appearance-none bg-transparent 
-          px-4 py-1.5 pr-8 
-          text-xs font-bold 
-          focus:outline-none 
-          cursor-pointer
-        "
+                             appearance-none bg-transparent 
+                             px-4 py-1.5 pr-8 
+                             text-xs font-bold 
+                             focus:outline-none 
+                             cursor-pointer
+                                            "
                               value={
                                 // ✅ Handle populated object, string ID, null, and undefined
                                 user.assignedAgentId?._id || 
@@ -2440,12 +2324,7 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-                      {/* 
-                    <td className="px-6 py-4">
-  <div onClick={(e) => e.stopPropagation()}>
-    <ChatModalForAdmin userId={user.userId} />
-  </div>
-</td> */}
+                 
 
                       <td className="px-6 py-4">
                         <button 
@@ -2529,39 +2408,7 @@ const handleRoundRobinAssign = (userId) => {
                           </div>
                         )}
                       </td>
-                      {/* <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          {user.gst ? (
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="w-4 h-4 text-blue-500"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M16 8a6 6 0 11-12 0 6 6 0 0112 0z"
-                                />
-                              </svg>
-
-                              <span>{user.gst}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">No GST added</span>
-                          )}
-                        </div>
-                      </td> */}
-
-                      {/* <td className="px-6 py-4">
-                        <span className="text-sm text-gray-700 font-medium">
-                          {user.source === "bulk-upload" ? "Meta Leads" : user.source || "N/A"}
-                        </span>
-                      </td> */}
+                     
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -2619,9 +2466,6 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-
-
-
                     </tr>
 
                   );
@@ -2643,7 +2487,7 @@ const handleRoundRobinAssign = (userId) => {
         </div>
         {/* Pagination Controls */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 bg-white rounded-b-2xl border-t border-gray-200">
+          <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
             <span className="text-sm text-gray-600">
               Page <span className="font-semibold">{pagination.currentPage}</span> of <span className="font-semibold">{pagination.totalPages}</span>
             </span>
@@ -3298,12 +3142,6 @@ const handleRoundRobinAssign = (userId) => {
                     {loadingPosts ? "..." : userPosts.filter(p => p.status === "rejected").length}
                   </p>
                 </div>
-                {/* <div>
-                    <p className="text-sm text-gray-600 mb-1">Plan</p>
-                    <p className="text-2xl font-bold text-pink-600">
-                      {viewingUserPosts.subscription?.plan || "Basic"}
-                    </p>
-                  </div> */}
               </div>
             </div>
 
@@ -3498,13 +3336,7 @@ const handleRoundRobinAssign = (userId) => {
                             {chat.status || 'open'}
                           </span>
                         </td>
-                        {/* <td className="px-6 py-4 text-sm">
-                          {chat.status !== 'resolved' && (
-                            <button onClick={() => handleResolveIssue(chat._id)} className="text-blue-600 hover:underline text-xs font-semibold">
-                              Mark Resolved
-                            </button>
-                          )}
-                        </td> */}
+
                       </tr>
                     ))}
                   {chatStats.data.filter(chat => {
@@ -3579,13 +3411,6 @@ const handleRoundRobinAssign = (userId) => {
                           {issue.status || 'open'}
                         </span>
                       </td>
-                      {/* <td className="px-6 py-4 text-sm">
-                          {issue.status !== 'resolved' && (
-                            <button onClick={() => handleResolveIssue(issue._id)} className="text-blue-600 hover:underline text-xs font-semibold">
-                              Mark Resolved
-                            </button>
-                          )}
-                        </td> */}
                     </tr>
                   ))}
                   {issues.length === 0 && (

@@ -37,6 +37,7 @@ import {
   DollarSign,
   Upload,
   BadgeCheck,
+  Edit3,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Lottie from "lottie-react";
@@ -159,6 +160,8 @@ export default function FranchiseLeadsPage() {
   const [leadRevenueStatus, setLeadRevenueStatus] = useState({}); // Track which leads have paid
   const [fullViewImage, setFullViewImage] = useState(null);
   const [onboardBreakdown, setOnboardBreakdown] = useState([]);
+  const [editingLeadId, setEditingLeadId] = useState(null);
+  const [editNameValue, setEditNameValue] = useState('');
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
@@ -694,6 +697,43 @@ export default function FranchiseLeadsPage() {
     }
   };
 
+  /* ---------------- NAME EDIT HANDLERS ---------------- */
+  const handleSaveName = async (leadId) => {
+    if (!editNameValue.trim()) {
+      toast.error("Name cannot be empty");
+      return;
+    }
+    try {
+      const res = await fetch("/api/franchise-leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, full_name: editNameValue.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Optimistic update already happened, but refresh to be safe
+        toast.success("Name updated successfully");
+        setLeads(prev => prev.map(lead =>
+          lead.id === leadId ? { ...lead, full_name: editNameValue.trim() } : lead
+        ));
+        handleCancelEdit();
+      } else {
+        toast.error(data.message || "Failed to update name");
+        // Revert on error
+        fetchLeads();
+      }
+    } catch (error) {
+      console.error("Error saving name:", error);
+      toast.error("Failed to update name");
+      fetchLeads(); // Revert
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLeadId(null);
+    setEditNameValue('');
+  };
+
   /* ---------------- DELETE LEAD ---------------- */
   const handleDeleteLead = async (id) => {
     if (!confirm("Are you sure you want to delete this lead?")) return;
@@ -737,6 +777,45 @@ export default function FranchiseLeadsPage() {
       setLoading(false);
     }
   };
+
+  /* ---------------- NAME EDIT HANDLERS ---------------- */
+  // const handleSaveName = async (leadId) => {
+  //   if (!editNameValue.trim()) {
+  //     toast.error("Name cannot be empty");
+  //     return;
+  //   }
+
+  //   // Optimistic update
+  //   setLeads(prev => prev.map(lead => 
+  //     lead.id === leadId ? { ...lead, full_name: editNameValue.trim() } : lead
+  //   ));
+
+  //   try {
+  //     const res = await fetch("/api/franchise-leads", {
+  //       method: "PATCH",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ leadId, full_name: editNameValue.trim() })
+  //     });
+
+  //     if (!res.ok) {
+  //       throw new Error("Failed to save name");
+  //     }
+
+  //     toast.success("Name updated successfully");
+  //   } catch (error) {
+  //     console.error("Error saving name:", error);
+  //     toast.error("Failed to update name");
+  //     // Revert optimistic update
+  //     await fetchLeads();
+  //   }
+
+  //   handleCancelEdit();
+  // };
+
+  // const handleCancelEdit = () => {
+  //   setEditingLeadId(null);
+  //   setEditNameValue('');
+  // };
 
   /* ---------------- REMARKS HANDLING ---------------- */
   const sendRemarkWhatsApp = async (lead, remarkType) => {
@@ -1136,18 +1215,29 @@ if (!executiveMobile && typeof window !== "undefined") {
           </div>
         )}
 
-        {/* STATS */}
+{/* STATS */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          {stats.map((s, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
-              <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{s.value}</p>
-              {s.subtitle && (
-                <p className="text-xs text-gray-400 mt-1">{s.subtitle}</p>
-              )}
-            </div>
-          ))}
+          {loading ? (
+            [...Array(7)].map((_, i) => (
+              <div key={`stat-skeleton-${i}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 animate-pulse">
+                <div className="w-12 h-12 bg-gray-200 rounded-xl mb-3 mx-auto" />
+                <div className="h-3 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
+                <div className="h-8 bg-gray-200 rounded w-full" />
+                <div className="h-3 bg-gray-200 rounded w-1/2 mt-2" />
+              </div>
+            ))
+          ) : (
+            stats.map((s, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+                <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{s.value}</p>
+                {s.subtitle && (
+                  <p className="text-xs text-gray-400 mt-1">{s.subtitle}</p>
+                )}
+              </div>
+            ))
+          )}
         </div>
         
         {/* Onboard Leads Breakdown */}
@@ -1377,16 +1467,44 @@ if (!executiveMobile && typeof window !== "undefined") {
                 </thead>
 
                 <tbody className="divide-y divide-gray-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="8" className="py-16 text-center">
-                        <div className="w-24 h-24 mx-auto">
-                          <Lottie animationData={animationData} loop={true} />
-                        </div>
-                        <p className="text-sm text-gray-500 mt-3">Loading leads...</p>
-                      </td>
-                    </tr>
-                  ) : paginatedLeads.length === 0 ? (
+{loading ? (
+  <>
+    {[...Array(5)].map((_, i) => (
+      <tr key={`skeleton-${i}`} className="animate-pulse">
+        {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+          <td className="px-6 py-4">
+            <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
+          </td>
+        )}
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+              <div className="h-2.5 bg-gray-200 rounded w-20 animate-pulse" />
+            </div>
+          </div>
+        </td>
+        <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded w-24 animate-pulse" /></td>
+        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded w-16 animate-pulse" /></td>
+        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded w-28 animate-pulse" /></td>
+        <td className="px-6 py-4"><div className="w-20 h-6 bg-gray-200 rounded-full animate-pulse" /></td>
+        <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded w-32 animate-pulse" /></td>
+        <td className="px-6 py-4">
+          <div className="space-y-1">
+            <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+            <div className="h-3 bg-gray-200 rounded w-20 animate-pulse" />
+          </div>
+        </td>
+        <td className="px-6 py-4"><div className="w-6 h-6 bg-gray-200 rounded-full animate-pulse ml-auto" /></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24 animate-pulse" /></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-28 animate-pulse" /></td>
+        <td className="px-6 py-4"><div className="flex items-center gap-2 h-8"><div className="h-4 bg-gray-200 rounded w-20 animate-pulse" /><Banknote className="w-3.5 h-3.5 text-transparent" /></div></td>
+      </tr>
+    ))}
+  </>
+) : paginatedLeads.length === 0 ? (
+
                     <tr>
                       <td colSpan="8" className="py-16 text-center">
                         <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -1408,18 +1526,83 @@ if (!executiveMobile && typeof window !== "undefined") {
                           </td>
                         )}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-gray-900 flex items-center gap-2">
-                            {lead.full_name || "Unknown"}
-                            {leadRevenueStatus[lead.id] && (
-                              <button
-                                onClick={(e) => { e.stopPropagation
-                                setFullViewImage(leadRevenueStatus[lead.id]); }}
-                                title="View Payment Screenshot"
-                              >
-                                <Eye size={14} className="text-gray-500" />
-                              </button>
-                            )}
+                          {editingLeadId === lead.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editNameValue}
+                                onChange={(e) => setEditNameValue(e.target.value)}
+                                className="px-2 py-1 border border-blue-400 rounded-lg text-sm"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <button onClick={(e) => { e.stopPropagation(); handleSaveName(lead.id); }} className="p-1.5 bg-green-100 text-green-600 rounded-lg"><BadgeCheck className="w-4 h-4" /></button>
+                              <button onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="w-4 h-4" /></button>
                             </div>
+                          ) : (
+                            <div className="flex items-center gap-2 relative">
+                              {editingLeadId === lead.id ? (
+                                <div className="flex items-center gap-1 min-w-0 flex-1">
+                                  <input
+                                    value={editNameValue}
+                                    onChange={(e) => setEditNameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveName(lead.id);
+                                      if (e.key === 'Escape') handleCancelEdit();
+                                    }}
+                                    onBlur={() => setTimeout(() => handleCancelEdit(), 200)}
+                                    className="flex-1 px-2 py-1 text-sm font-medium bg-transparent border-b border-blue-300 focus:border-blue-500 outline-none rounded"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleSaveName(lead.id)}
+                                    className="p-1 text-green-600 hover:text-green-700"
+                                    title="Save"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEdit}
+                                    className="p-1 text-gray-500 hover:text-gray-700"
+                                    title="Cancel"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <span className="font-medium text-gray-900 min-w-0 flex-1 truncate">
+                                    {lead.full_name || "Unknown"}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingLeadId(lead.id);
+                                      setEditNameValue(lead.full_name || '');
+                                    }}
+                                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                    title="Edit Name"
+                                  >
+                                    <Edit3 size={14} className="text-gray-400 hover:text-blue-600" />
+                                  </button>
+                                  {leadRevenueStatus[lead.id] && (
+                                    <button
+                                      onClick={(e) => { 
+                                        e.stopPropagation();
+                                        setFullViewImage(leadRevenueStatus[lead.id]); 
+                                      }}
+                                      title="View Payment Screenshot"
+                                      className="p-1 hover:bg-gray-100 rounded"
+                                    >
+                                      <Eye size={14} className="text-gray-500 hover:text-gray-700" />
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
                           {leadRevenueStatus[lead.id] && (
                             <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                               Paid

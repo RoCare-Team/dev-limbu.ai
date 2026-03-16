@@ -110,22 +110,22 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                   onChange={handleSelectAll}
                   className="h-5 w-5 rounded border-gray-300 text-dark focus:ring-dark cursor-pointer"
                 />
-                <label htmlFor="select-all-checkbox" className="ml-2 text-dark font-medium cursor-pointer">
+                <label htmlFor="select-all-checkbox" className="ml-2 text-dark accent-lightPrimary font-medium cursor-pointer">
                   {selectedLocations.length === verifiedLocations.length ? 'Deselect All' : 'Select All'}
                 </label>
               </div>
             </div>
             
             {/* Summary Card */}
-            <div className="bg-lightPrimary border-neutral-300 rounded-xl p-4 space-y-3">
+            <div className=" bg-white border-neutral-300 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
                 <div>
                   <p className="text-sm text-dark">Selected Locations</p>
-                  <p className="text-xl font-black text-primary">{selectedLocations.length}</p>
+                  <p className="text-xl font-black text-dark">{selectedLocations.length}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-dark text-right">Cost per Location</p>
-                  <p className="text-xl font-black text-primary">20 coins</p>
+                  <p className="text-xl font-black text-dark">20 coins</p>
                 </div>
               </div>
               
@@ -133,13 +133,13 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-dark">Your Wallet</p>
-                    <p className={`text-xl font-black ${insufficientFunds ? 'text-white' : 'text-primary'}`}>
+                    <p className={`text-xl font-black ${insufficientFunds ? 'text-white' : 'text-dark'}`}>
                       {walletBalance} coins
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">Total Cost</p>
-                    <p className={`text-xl font-black ${insufficientFunds ? 'text-primary' : 'text-primary'}`}>
+                    <p className="text-sm text-dark">Total Cost</p>
+                    <p className={`text-xl font-black ${insufficientFunds ? 'text-primary' : 'text-dark'}`}>
                       {totalCost} coins
                     </p>
                   </div>
@@ -161,14 +161,14 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                   key={location.id}
                   onClick={() => toggleLocation(location.id)}
                   className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedLocations.includes(location.id)
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
+                    ? 'border-lightPrimary bg-yellow-50 shadow-md'
+                    : 'border-lightPrimary bg-white hover:border-dark hover:bg-yellow-50'
                     }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedLocations.includes(location.id)
-                        ? 'border-blue-500 bg-blue-500'
+                        ? 'border-blue-500 bg-dark'
                         : 'border-gray-400'
                         }`}>
                         {selectedLocations.includes(location.id) && (

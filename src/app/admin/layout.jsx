@@ -116,11 +116,11 @@ export default function AdminLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside
-        className={`${
-          open ? "w-64" : "w-20"
-        } bg-[#0b141a] text-white transition-all duration-300 flex flex-col`}
-      >
+     <aside
+  className={`${
+    open ? "w-64" : "w-20"
+  } bg-[#0b141a] text-white transition-all duration-300 flex flex-col h-screen sticky top-0 overflow-y-auto`}
+> 
         {/* Header */}
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -176,7 +176,7 @@ export default function AdminLayout({ children }) {
             {open && "Logout"}
           </button>
         </div>
-      </aside>
+      </aside> 
 
       {/* Main Content */}
       <main className="flex-1 p-6">{children}</main>

@@ -345,7 +345,7 @@ const sizeOptions = [
               
               <div className="space-y-3">
                 {/* Color Picker */}
-                <div className="p-4 border-2 border-dark rounded-xl bg-lightPrimary">
+                <div className="p-4 border-2 border-dark rounded-xl">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Pick Colors
                   </label>

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const FranchisePanelSchema = new mongoose.Schema(
   {
     franchiseName: { type: String, required: true },
+    wallet: { type: Number, default: 500 },
     ownerName: { type: String, required: true },
     mobileNumber: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },

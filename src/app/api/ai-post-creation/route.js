@@ -65,11 +65,12 @@ export async function POST(req) {
     });
 
     const walletData = await walletRes.json();
+    console.log("walletData:", walletData);
 
-    if (!walletData?.success) {
+    if (walletData?.error) {
       return Response.json({
         success: false,
-        error: "Insufficient wallet balance",
+        error: walletData.error,
       }, { status: 400 });
     }
 
@@ -86,9 +87,10 @@ export async function POST(req) {
     );
 
     const finalData = await n8nResponse.json();
+    console.log("AI Response:", finalData);
 
     if (!finalData || !finalData.output) {
-      // 🔁 REFUND if AI fails
+      // refund
       await fetch(`${API_URL}/api/auth/signup?userId=${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -103,6 +105,14 @@ export async function POST(req) {
     }
 
     // ============================
+    // ✅ FIX: DESCRIPTION MAPPING
+    // ============================
+    const description =
+      finalData.gmb_des ||
+      finalData.description ||
+      "AI generated post";
+
+    // ============================
     // ✅ 3. SAVE POST
     // ============================
     const postRes = await fetch(`${API_URL}/api/post-status`, {
@@ -111,10 +121,10 @@ export async function POST(req) {
       body: JSON.stringify({
         userId,
         aiOutput: finalData.output,
-        description: finalData.description || "",
-        gmbDescription: finalData.gmbDesc || "",
-        fbDescription: finalData.fbDesc || "",
-        igDescription: finalData.igDesc || "",
+        description, // 🔥 FIXED
+        gmbDescription: finalData.gmb_des || "",
+        fbDescription: finalData.fb_des || "",
+        igDescription: finalData.ig_des || "",
         logoUrl: finalData.logoUrl || "",
         status: "pending",
         promat: prompt,
@@ -123,20 +133,7 @@ export async function POST(req) {
     });
 
     const savedPost = await postRes.json();
-
-    // ============================
-    // ✅ 4. INCREMENT POST COUNT
-    // ============================
-    // if (savedPost?.success) {
-    //   await fetch(`${API_URL}/api/auth/signup?userId=${userId}`, {
-    //     method: "PUT",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({
-    //       type: "increment_posts_used",
-    //       amount: 1,
-    //     }),
-    //   });
-    // }
+    console.log("savedPost:", savedPost);
 
     // ============================
     // ✅ FINAL RESPONSE

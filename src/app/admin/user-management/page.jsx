@@ -74,7 +74,10 @@ export default function UserManagement() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
-  const [callStats, setCallStats] = useState(null);
+const [callStats, setCallStats] = useState(null);
+  const [showAgentCallModal, setShowAgentCallModal] = useState(false);
+  const [agentCallHistory, setAgentCallHistory] = useState([]);
+  const [callingUserId, setCallingUserId] = useState(null);
   
 // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -1415,6 +1418,37 @@ const handleRoundRobinAssign = (userId) => {
     }
   };
 
+const handleVoiceCall = async (phone) => {
+  if (!phone) {
+    showToast("Phone number not found", "error");
+    return;
+  }
+
+  setCallingUserId(phone);
+
+  try {
+    const res = await fetch("/api/twillo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ phone }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to initiate call");
+    }
+
+    showToast("📞 Voice call initiated successfully!", "success");
+  } catch (error) {
+    console.error("Voice Call Error:", error);
+    showToast(error.message || "Error initiating call", "error");
+  } finally {
+    setCallingUserId(null);
+  }
+};
   const handleMeetingSubmit = async () => {
     if (!meetingData.date || !meetingData.link || !meetingData.meetingId) {
       showToast("Please enter Date, Meeting Link and Meeting ID", "error");
@@ -2463,6 +2497,21 @@ const handleRoundRobinAssign = (userId) => {
                               <Trash2 size={16} />
                             </button>
                           )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVoiceCall(user.phone || user.mobileNumber);
+                            }}
+                            disabled={callingUserId === user.userId}
+                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
+                            title="Voice Call"
+                          >
+                            {callingUserId === user.userId ? (
+                              <RefreshCw size={16} className="animate-spin" />
+                            ) : (
+                              <Phone size={16} />
+                            )}
+                          </button>
                         </div>
                       </td>
 

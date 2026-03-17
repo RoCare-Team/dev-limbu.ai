@@ -9,7 +9,6 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const referCode = searchParams.get("referCode");
 
-    // Agar referCode nahi hai → empty return
     if (!referCode) {
       return NextResponse.json({
         success: true,
@@ -18,13 +17,15 @@ export async function GET(req) {
       });
     }
 
+    const total = await User.countDocuments({ referCode });
+
     const users = await User.find({ referCode })
-      .select("fullName email phone referCode createdAt leadStage")
+      .select("fullName email phone referCode createdAt leadStage wallet") // ⭐ wallet add
       .sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,
-      total: users.length,
+      total,
       users,
     });
 

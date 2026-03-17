@@ -5,7 +5,7 @@ import { Search, Phone, MessageCircle, Wallet, X } from "lucide-react";
 
 import DashboardStats from "../../../../components/FranchiseLeads/DashboardStats";
 import CallPerformance from "../../../../components/FranchiseLeads/CallPerformance";
-import SearchFilters from "../../../../components/FranchiseLeads/SearchFilters";
+// import SearchFilters from "../../../../components/FranchiseLeads/SearchFilters";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);

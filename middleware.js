@@ -29,7 +29,14 @@ export function middleware(request) {
     }
 
     url.pathname = `/${slug}`;
-    return NextResponse.rewrite(url);
+
+    // Pass a request header so the root layout can skip AuthGuard server-side
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-is-subdomain-site", "1");
+
+    return NextResponse.rewrite(url, {
+      request: { headers: requestHeaders },
+    });
   }
 
   return NextResponse.next();

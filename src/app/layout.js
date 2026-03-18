@@ -4,6 +4,7 @@ import SessionProviderWrapper from "./providers/SessionProviderWrapper";
 import Script from "next/script";
 import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
+import { headers } from "next/headers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -44,7 +45,10 @@ export const metadata = {
   
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const headersList = await headers();
+  const isSubdomainSite = headersList.get("x-is-subdomain-site") === "1";
+
   return (
     <html lang="en" className={inter.variable}>
       <head>
@@ -103,7 +107,7 @@ export default function RootLayout({ children }) {
 
         <SessionProviderWrapper>
           <ClientLayout>
-            <AuthGuard>{children}</AuthGuard>
+            {isSubdomainSite ? children : <AuthGuard>{children}</AuthGuard>}
           </ClientLayout>
         </SessionProviderWrapper>
       </body>

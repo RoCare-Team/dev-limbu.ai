@@ -37,7 +37,7 @@ export async function POST(req) {
     const options = {
       amount: finalAmount,
       currency: "INR",
-  receipt: `rcpt_${userId}_${uuidv4()}`, // ✅ always unique
+  receipt: `rcpt_${uuidv4().replace(/-/g, "").slice(0, 32)}`,
       payment_capture: 1,
     };
 

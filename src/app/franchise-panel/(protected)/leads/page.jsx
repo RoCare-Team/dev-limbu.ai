@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { Search, Phone, MessageCircle, Wallet, X } from "lucide-react";
 
 import DashboardStats from "../../../../components/FranchiseLeads/DashboardStats";
-import CallPerformance from "../../../../components/FranchiseLeads/CallPerformance";
-import SearchFilters from "../../../../components/FranchiseLeads/SearchFilters";
+import RemarksModal from "../../../../components/FranchiseLeads/RemarksModal";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -17,6 +16,57 @@ export default function UserManagement() {
   const [stage, setStage] = useState("All");
   const [filteredUsers, setFilteredUsers] = useState([]);
 
+  const [agents, setAgents] = useState([]);
+
+  const [toast, setToast] = useState("");
+
+  const [remarksUser, setRemarksUser] = useState(null);
+  const [remarksHistory, setRemarksHistory] = useState([]);
+
+  const handleAssignChange = async (userId, agentId) => {
+    // UI update
+    setUsers((prev) =>
+      prev.map((u) =>
+        u._id === user._id || u.userId === user.userId
+          ? { ...u, remarksHistory: data.user.remarksHistory }
+          : u,
+      ),
+    );
+
+    try {
+      await fetch("/api/franchise-panel/franchise-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId, agentId }),
+      });
+
+      showToast("Agent assigned successfully");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const showToast = (msg) => {
+    setToast(msg);
+
+    setTimeout(() => {
+      setToast("");
+    }, 3000);
+  };
+
+  const getAgentName = (agent) => {
+    if (!agent) return "Unassigned";
+    if (typeof agent === "object") return agent.fullName;
+    return agents.find((a) => a._id === agent)?.fullName || "Unassigned";
+  };
+
+  const getAvatarColor = (name) => {
+    if (!name || name === "Unassigned") return "border-gray-300 text-gray-500";
+    return "border-green-300 text-green-600";
+  };
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -27,7 +77,16 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
+    fetchAgents();
   }, [search]);
+
+  useEffect(() => {
+    setAgents([
+      { _id: "1", fullName: "Aman" },
+      { _id: "2", fullName: "Vikas nagar" },
+      { _id: "3", fullName: "MannuBhai" },
+    ]);
+  }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -70,6 +129,23 @@ export default function UserManagement() {
     }
 
     setLoading(false);
+  };
+
+  const fetchAgents = async () => {
+    try {
+      const franchiseCode = localStorage.getItem("franchise_code"); // ⭐ ADD THIS
+
+      const res = await fetch(
+        `/api/admin/get-agents?referCode=${franchiseCode}`,
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        setAgents(data.agents);
+      }
+    } catch (error) {
+      console.error("Agents fetch error:", error);
+    }
   };
 
   const handleChange = (e) => {
@@ -117,10 +193,39 @@ export default function UserManagement() {
     }
   };
 
+  const openRemarks = async (user) => {
+    setRemarksUser(user);
+
+    const userId = user?._id || user?.userId;
+
+    if (!userId) {
+      console.error("User ID missing ❌");
+      return;
+    }
+
+    const res = await fetch(
+      `/api/franchise-panel/franchise-user?userId=${userId}`,
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      setRemarksHistory(data?.user?.remarksHistory || []);
+    }
+  };
+
   // {search logic useEffect}
 
   return (
     <div className="p-6">
+      <div>
+        {toast && (
+          <div className="fixed top-5 right-5 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center gap-2">
+            ✅ {toast}
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="flex justify-between items-start mb-6 pr-8">
         <h1 className="text-2xl font-bold">User Management</h1>
@@ -135,24 +240,30 @@ export default function UserManagement() {
           </button>
 
           <div className="relative">
-            <Search
-              className="absolute left-3 top-2.5 text-gray-400"
-              size={18}
-            />
+            <Search className="absolute left-3 top-2.5 text-dark" size={18} />
 
             <input
               type="text"
               placeholder="Search by name, email or refer code..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-black"
+              className="pl-10 pr-4 py-2 border rounded-lg text-dark focus:ring-2 focus:ring-black"
             />
           </div>
         </div>
       </div>
 
       <DashboardStats />
-      <CallPerformance />
+      <RemarksModal
+        user={remarksUser}
+        onClose={() => setRemarksUser(null)}
+        remarksHistory={remarksUser?.remarksHistory}
+        setRemarksHistory={setRemarksHistory}
+        fetchUsers={fetchUsers}
+        setUsers={setUsers}
+        setRemarksUser={setRemarksUser}
+        showToast={showToast}
+      />
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow overflow-x-auto">
@@ -162,6 +273,8 @@ export default function UserManagement() {
               <th className="px-6 py-4 text-left">Joined Date</th>
               <th className="px-6 py-4 text-left">User Name</th>
               <th className="px-6 py-4 text-left">Email</th>
+              <th className="px-6 py-3 text-left">ASSIGNED AGENT</th>
+              <th className="px-6 py-3 text-left">Remark add</th>
               <th className="px-6 py-4 text-left">Phone</th>
               <th className="px-6 py-4 text-left">Refer Code</th>
               <th className="px-6 py-4 text-left">Lead Stage</th>
@@ -178,7 +291,7 @@ export default function UserManagement() {
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="9" className="px-6 py-8 text-center text-dark">
                   No users found
                 </td>
               </tr>
@@ -189,14 +302,57 @@ export default function UserManagement() {
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
 
-                  <td className="px-6 py-4 font-medium">{user.fullName}</td>
+                  <td className="px-6 py-4 font-medium text-dark">
+                    {user.fullName}
+                  </td>
 
-                  <td className="px-6 py-4">{user.email}</td>
+                  <td className="px-6 py-4 text-dark">{user.email}</td>
+                  <td
+                    className="px-6 py-5 whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      className={`relative inline-flex items-center rounded-full border px-2 ${getAvatarColor(
+                        getAgentName(user.assignedAgentId),
+                      )}`}
+                    >
+                      <select
+                        className="appearance-none bg-transparent px-3 py-1 pr-6 text-xs font-semibold focus:outline-none cursor-pointer"
+                        value={
+                          user.assignedAgentId?._id ||
+                          (typeof user.assignedAgentId === "string" &&
+                            user.assignedAgentId) ||
+                          ""
+                        }
+                        onChange={(e) =>
+                          handleAssignChange(user.userId, e.target.value)
+                        }
+                      >
+                        <option value="">-- Unassigned --</option>
 
-                  <td className="px-6 py-4">{user.phone || "—"}</td>
+                        {agents.map((agent) => (
+                          <option key={agent._id} value={agent._id}>
+                            {agent.fullName}
+                          </option>
+                        ))}
+                      </select>
+
+                      <span className="pointer-events-none absolute right-1">
+                        ▼
+                      </span>
+                    </div>
+                  </td>
+
+                  <div className="bg-gray-200 p-1.5 flex justify-center rounded-2xl">
+                    <button onClick={() => openRemarks(user)}>
+                      <span>💬 {user?.remarksHistory?.length || 0}</span>
+                    </button>
+                  </div>
+
+                  <td className="px-6 py-4 text-dark">{user.phone || "—"}</td>
 
                   <td className="px-6 py-4">
-                    <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                    <span className="font-mono text-xs text-dark bg-gray-100 px-2 py-1 rounded">
                       {user.referCode}
                     </span>
                   </td>
@@ -208,8 +364,12 @@ export default function UserManagement() {
                   </td>
 
                   <td className="px-6 py-4 flex items-center gap-2">
-                    <Wallet size={16} className="text-purple-600" />
-                    <span>{user.wallet || 0} coins</span>
+                    <Wallet size={16} className="text-dark" />
+                    <div className="w-fit bg-gray-100 border border-gray-300 px-2 py-1 rounded-lg">
+                      <span className="text-dark whitespace-nowrap">
+                        {user.wallet || 0} coins
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -249,7 +409,7 @@ export default function UserManagement() {
                           setFormData({ ...formData, fullName: e.target.value })
                         }
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-dark 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
                        focus:border-transparent outline-none"
                       />
@@ -268,7 +428,7 @@ export default function UserManagement() {
                           setFormData({ ...formData, email: e.target.value })
                         }
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-800 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
                        focus:border-transparent outline-none"
                       />

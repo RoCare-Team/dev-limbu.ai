@@ -13,27 +13,34 @@ export default function FooterSection() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
 
           {/* Column 1 */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
-                <span className="text-black font-bold">L</span>
-              </div>
-              <h2 className="text-xl font-bold">limbu.ai</h2>
-            </div>
+        <div>
+  <div className="flex items-center gap-2 mb-4">
+    <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
+      <span className="text-black font-bold">L</span>
+    </div>
+    <h2 className="text-xl font-bold">limbu.ai</h2>
+  </div>
 
-            <p className="text-sm text-slate-300 leading-relaxed mb-4">
-              Limbu.ai is an AI marketing platform that automates Google Business Profile & Social Media activity.
-            </p>
+  <p className="text-sm text-slate-300 leading-relaxed mb-4">
+    Limbu.ai is an AI marketing platform that automates Google Business Profile & Social Media activity.
+  </p>
 
-            <p className="text-sm text-slate-300 mb-2">Get our Mobile App</p>
+  <p className="text-sm text-slate-300 mb-2">Get our Mobile App</p>
 
-            <Image
-              src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
-              alt="Google Play"
-              width={150}
-              height={45}
-            />
-          </div>
+  <a
+    href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <Image
+      src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+      alt="Google Play"
+      width={150}
+      height={45}
+      className="cursor-pointer"
+    />
+  </a>
+</div>
 
           {/* Column 2 */}
           <div>

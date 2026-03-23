@@ -1,6 +1,8 @@
 // app/api/subscribe/route.js
 import dbConnect from "@/lib/dbConnect";
 import Razorpay from "razorpay";
+import { v4 as uuidv4 } from "uuid";
+
 
 export async function POST(req) {
   await dbConnect();
@@ -35,7 +37,7 @@ export async function POST(req) {
     const options = {
       amount: finalAmount,
       currency: "INR",
-      receipt: `receipt_${userId}_${Date.now()}`,
+  receipt: `rcpt_${uuidv4().replace(/-/g, "").slice(0, 32)}`,
       payment_capture: 1,
     };
 

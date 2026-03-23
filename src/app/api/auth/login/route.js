@@ -30,7 +30,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 
 // 🔴 TEST CONFIG testing ke liye fixed otp 
-const TEST_PHONES = ["7740847114", "7740847110"];
+const TEST_PHONES = ["7740847114", "7740847110","9311587719"];
 const TEST_OTP = 1234;
 
 

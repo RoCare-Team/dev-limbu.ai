@@ -25,8 +25,8 @@ async function dbConnect() {
 /* ================= SETTING MODEL (ROUND ROBIN) ================= */
 
 const SettingSchema = new mongoose.Schema({
-  key: String,
-  value: mongoose.Schema.Types.Mixed,
+  key:   { type: String, required: true, unique: true },
+  value: { type: Number, default: -1 },
 });
 
 const Setting =
@@ -86,22 +86,23 @@ export async function POST(req) {
       // 2️⃣ Round Robin Counter
       const RR_KEY = "agentLeadRR";
 
-      let rrDoc = await Setting.findOne({ key: RR_KEY });
+      const rrDoc = await Setting.findOneAndUpdate(
+        { key: RR_KEY },
+        { $inc: { value: 1 }, $setOnInsert: { key: RR_KEY, value: -1 } },
+        { new: true, upsert: true }
+      );
 
-      if (!rrDoc) {
-        rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
-      } else {
-        rrDoc.value += 1;
-        await rrDoc.save();
-      }
-
-      // ✅ FIXED HERE
-      rrValue = parseInt(rrDoc.value, 10);
+      rrValue = parseInt(rrDoc?.value, 10);
       if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
       // 3️⃣ Round robin index
       const index = rrValue % agents.length;
       assignedAgent = agents[index];
+      console.log(
+        "[RR] activeAgents:",
+        agents.map((a) => `${a._id}:${a.fullName || a.name || a.email}`).join(" | ")
+      );
+      console.log("[RR] rrValue:", rrValue, "index:", index);
       if (assignedAgent) {
         assignedAgentId = assignedAgent._id;
       }

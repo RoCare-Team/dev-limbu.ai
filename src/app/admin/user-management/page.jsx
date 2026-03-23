@@ -2,7 +2,39 @@
 
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Filter, X, Crown, Zap, Shield, Mail, Phone, Calendar, Edit2, Trash2, Plus, User, User2Icon, Image as ImageIcon, Eye, ZoomIn, Wallet, ChevronLeft, ChevronRight, RefreshCw, MessageSquare, AlertTriangle, ChevronDown, UserX, Rocket, Clock, CheckCircle, Globe, Bell, Upload } from "lucide-react";
+import {
+  Search,
+  Filter,
+  X,
+  Crown,
+  Zap,
+  Shield,
+  Mail,
+  Phone,
+  Calendar,
+  Edit2,
+  Trash2,
+  Plus,
+  User,
+  User2Icon,
+  Image as ImageIcon,
+  Eye,
+  ZoomIn,
+  Wallet,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  MessageSquare,
+  AlertTriangle,
+  ChevronDown,
+  UserX,
+  Rocket,
+  Clock,
+  CheckCircle,
+  Globe,
+  Bell,
+  Upload,
+} from "lucide-react";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -15,7 +47,12 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [addingUser, setAddingUser] = useState(false);
-  const [newUser, setNewUser] = useState({ userId: "", email: "", phone: "", plan: "Basic" });
+  const [newUser, setNewUser] = useState({
+    userId: "",
+    email: "",
+    phone: "",
+    plan: "Basic",
+  });
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -24,7 +61,11 @@ export default function UserManagement() {
   const [connectedBusinessUsers, setConnectedBusinessUsers] = useState([]);
   const [updatingWallet, setUpdatingWallet] = useState(false);
   const [walletModalUser, setWalletModalUser] = useState(null);
-  const [walletUpdate, setWalletUpdate] = useState({ amount: "", type: "credit", reason: "" });
+  const [walletUpdate, setWalletUpdate] = useState({
+    amount: "",
+    type: "credit",
+    reason: "",
+  });
   const [toast, setToast] = useState(null);
   const [userPostsData, setUserPostsData] = useState({});
   const [mergedUsers, setMergedUsers] = useState([]);
@@ -37,11 +78,16 @@ export default function UserManagement() {
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
   const [planStartDate, setPlanStartDate] = useState("");
-  const [utrNumber,setUtrNumber] = useState("");
+  const [utrNumber, setUtrNumber] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planExpiryDate, setPlanExpiryDate] = useState("");
   const [planScreenshot, setPlanScreenshot] = useState(null);
-  const [chatStats, setChatStats] = useState({ total: 0, today: 0, resolved: 0, data: [] });
+  const [chatStats, setChatStats] = useState({
+    total: 0,
+    today: 0,
+    resolved: 0,
+    data: [],
+  });
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
   const [chatModalFilter, setChatModalFilter] = useState("all");
   const [issues, setIssues] = useState([]);
@@ -52,16 +98,21 @@ export default function UserManagement() {
   const [agents, setAgents] = useState([]);
   const [assigneeFilter, setAssigneeFilter] = useState("All");
   const [totalPostsCount, setTotalPostsCount] = useState(0);
-  const [agentStats, setAgentStats] = useState({ "Unassigned": 0 });
+  const [agentStats, setAgentStats] = useState({ Unassigned: 0 });
   const [detailedStats, setDetailedStats] = useState([]);
   const [stageModal, setStageModal] = useState(null); // { stage: "Follow Up" }
   const [stageStats, setStageStats] = useState({});
   const [showMeetingModal, setShowMeetingModal] = useState(false);
-  const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+  const [meetingData, setMeetingData] = useState({
+    date: "",
+    link: "",
+    meetingId: "",
+    passcode: "",
+  });
   const [todayStats, setTodayStats] = useState({ count: 0, assignments: [] });
   const [leadSourceStats, setLeadSourceStats] = useState({
     metaLeads: 0,
-    signupLeads: 0
+    signupLeads: 0,
   });
   const [todayUsersCount, setTodayUsersCount] = useState(0);
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
@@ -69,34 +120,44 @@ export default function UserManagement() {
   const [leadStatusStats, setLeadStatusStats] = useState({
     Hot: 0,
     Warm: 0,
-    Cold: 0
+    Cold: 0,
   });
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
-  
-// Revenue tracking state
+
+  // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
   const [userOnboardCount, setUserOnboardCount] = useState(0);
   const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
-  
+
   // Revenue Users Modal state ✅ NEW
   const [showRevenueUsersModal, setShowRevenueUsersModal] = useState(false);
   const [revenueUsersList, setRevenueUsersList] = useState([]);
   const [loadingRevenueUsers, setLoadingRevenueUsers] = useState(false);
-  
+
   // Onboarded Client state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
   const [onboardModalUser, setOnboardModalUser] = useState(null);
-  const [onboardData, setOnboardData] = useState({ plan: "", amount: "", screenshot: null, notes: "" });
+  const [onboardData, setOnboardData] = useState({
+    plan: "",
+    amount: "",
+    screenshot: null,
+    notes: "",
+  });
   const [uploadingOnboard, setUploadingOnboard] = useState(false);
-  
+
   // Payment Screenshot Upload state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentModalUser, setPaymentModalUser] = useState(null);
-  const [paymentData, setPaymentData] = useState({ amount: "", screenshot: null, notes: "", plan: "" });
+  const [paymentData, setPaymentData] = useState({
+    amount: "",
+    screenshot: null,
+    notes: "",
+    plan: "",
+  });
   const [uploadingPayment, setUploadingPayment] = useState(false);
   const [paidUsersStatus, setPaidUsersStatus] = useState({});
 
@@ -124,7 +185,9 @@ export default function UserManagement() {
 
   const displayTodayUsersCount = useMemo(() => {
     if ((isAgent || isManager) && currentAgentId) {
-      const assignment = todayStats.assignments.find(a => a._id === currentAgentId);
+      const assignment = todayStats.assignments.find(
+        (a) => a._id === currentAgentId,
+      );
       return assignment ? assignment.count : 0;
     }
     return todayUsersCount;
@@ -134,11 +197,12 @@ export default function UserManagement() {
     if (isAgent || isManager) {
       // Filter chats for agent's/users (based on loaded users for now, consistent with modal)
       // Ideally backend should provide this count
-      return chatStats.data.filter(chat => users.some(u => u.userId === chat.userId)).length;
+      return chatStats.data.filter((chat) =>
+        users.some((u) => u.userId === chat.userId),
+      ).length;
     }
     return chatStats.total;
   }, [isAgent, isManager, chatStats, users]);
-
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -147,7 +211,7 @@ export default function UserManagement() {
     "Call Back Later",
     "Wrong Number",
     "Switch Off",
-    "Meeting Scheduled"
+    "Meeting Scheduled",
   ];
 
   const handleDefaultRemarkClick = (remark) => {
@@ -185,7 +249,8 @@ export default function UserManagement() {
           fetchUsers(true);
         }
       } else {
-        if (manual) showToast(data.error || "Failed to refresh Meta Leads", "error");
+        if (manual)
+          showToast(data.error || "Failed to refresh Meta Leads", "error");
       }
     } catch (error) {
       console.error("Error refreshing Meta Leads:", error);
@@ -206,7 +271,7 @@ export default function UserManagement() {
     leadStageActive: 0,
     leadStageFollowUp: 0,
     leadStageInactive: 0,
-    leadStageOnboard: 0
+    leadStageOnboard: 0,
   });
 
   const getCalculatedDateRange = (filter) => {
@@ -228,8 +293,8 @@ export default function UserManagement() {
 
     const toLocalYMD = (d) => {
       const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
 
@@ -242,7 +307,11 @@ export default function UserManagement() {
   }, []);
 
   useEffect(() => {
-    if (role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") {
+    if (
+      role === "superAdmin" ||
+      role === "admin" ||
+      role === "superfranchiseAdmin"
+    ) {
       fetch("/api/admin/user-agent")
         .then((res) => res.json())
         .then((data) => {
@@ -258,7 +327,11 @@ export default function UserManagement() {
         // Build date filter params
         let url = "/api/post-status";
         if (filterDate !== "All") {
-          if (filterDate === "Custom Range" && customStartDate && customEndDate) {
+          if (
+            filterDate === "Custom Range" &&
+            customStartDate &&
+            customEndDate
+          ) {
             url += `?startDate=${customStartDate}&endDate=${customEndDate}`;
           } else if (filterDate !== "Custom Range") {
             const ranges = getCalculatedDateRange(filterDate);
@@ -267,7 +340,7 @@ export default function UserManagement() {
             }
           }
         }
-        
+
         const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
@@ -277,29 +350,29 @@ export default function UserManagement() {
         console.error("Error fetching total posts:", error);
       }
     };
-    
+
     // Don't fetch if custom range is selected but dates are not set
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) {
       return;
     }
-    
+
     fetchTotalPosts();
   }, [filterDate, customStartDate, customEndDate]);
 
   useEffect(() => {
     const fetchCallStats = async () => {
-        const adminEmail = localStorage.getItem("email");
-        if (!adminEmail || (role !== 'superAdmin' && role !== 'admin')) return;
+      const adminEmail = localStorage.getItem("email");
+      if (!adminEmail || (role !== "superAdmin" && role !== "admin")) return;
 
-        try {
-            const res = await fetch(`/api/admin/call-stats?email=${adminEmail}`);
-            const data = await res.json();
-            if (data.success) {
-                setCallStats(data.stats);
-            }
-        } catch (error) {
-            console.error("Failed to fetch call stats:", error);
+      try {
+        const res = await fetch(`/api/admin/call-stats?email=${adminEmail}`);
+        const data = await res.json();
+        if (data.success) {
+          setCallStats(data.stats);
         }
+      } catch (error) {
+        console.error("Failed to fetch call stats:", error);
+      }
     };
 
     fetchCallStats();
@@ -308,15 +381,33 @@ export default function UserManagement() {
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
     // Calculate basic, standard, premium from the currently loaded users
-    const basic = users.filter(u => u.subscription?.plan === "Basic").length;
-    const standard = users.filter(u => u.subscription?.plan === "Standard").length;
-    const premium = users.filter(u => u.subscription?.plan === "Premium").length;
+    const basic = users.filter((u) => u.subscription?.plan === "Basic").length;
+    const standard = users.filter(
+      (u) => u.subscription?.plan === "Standard",
+    ).length;
+    const premium = users.filter(
+      (u) => u.subscription?.plan === "Premium",
+    ).length;
     const active = connectedBusinessUsers.length;
-    const todayMetaLeads = users.filter(u => (u.source === "bulk-upload" || u.source === "Meta Leads") && new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
-    const todaySignups = users.filter(u => new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
-    console.log("usersusers",users);
-    
-    setStats({ total, basic, standard, premium, active, todayMetaLeads, todaySignups });
+    const todayMetaLeads = users.filter(
+      (u) =>
+        (u.source === "bulk-upload" || u.source === "Meta Leads") &&
+        new Date(u.createdAt).toDateString() === new Date().toDateString(),
+    ).length;
+    const todaySignups = users.filter(
+      (u) => new Date(u.createdAt).toDateString() === new Date().toDateString(),
+    ).length;
+    console.log("usersusers", users);
+
+    setStats({
+      total,
+      basic,
+      standard,
+      premium,
+      active,
+      todayMetaLeads,
+      todaySignups,
+    });
   }, [pagination, users, connectedBusinessUsers, role]);
 
   const fetchAgentStats = async () => {
@@ -325,7 +416,7 @@ export default function UserManagement() {
     try {
       const params = new URLSearchParams({
         email: adminEmail,
-        getAgentStats: "true"
+        getAgentStats: "true",
       });
 
       if (filterStatus !== "All") params.append("status", filterStatus);
@@ -343,9 +434,12 @@ export default function UserManagement() {
           }
         }
       }
-      if (assigneeFilter !== "All") params.append("assignedAgentId", assigneeFilter);
-      if (leadStatusFilter !== "All") params.append("leadStatus", leadStatusFilter);
-      if (leadStageFilter !== "All") params.append("leadStage", leadStageFilter);
+      if (assigneeFilter !== "All")
+        params.append("assignedAgentId", assigneeFilter);
+      if (leadStatusFilter !== "All")
+        params.append("leadStatus", leadStatusFilter);
+      if (leadStageFilter !== "All")
+        params.append("leadStage", leadStageFilter);
 
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
@@ -353,17 +447,17 @@ export default function UserManagement() {
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
         setDetailedStats(data.detailedStats || []);
-        
+
         if (data.todayLeads !== undefined) {
           setTodayStats({
             count: data.todayLeads,
-            assignments: data.todayAgentAssignments || []
+            assignments: data.todayAgentAssignments || [],
           });
         }
 
         setLeadSourceStats({
           metaLeads: data.metaLeadsCount || 0,
-          signupLeads: data.signupLeadsCount || 0
+          signupLeads: data.signupLeadsCount || 0,
         });
       }
     } catch (error) {
@@ -372,18 +466,27 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate))
+      return;
     fetchAgentStats();
-  }, [users, filterDate, filterStatus, assigneeFilter, customStartDate, customEndDate, leadStatusFilter, leadStageFilter]);
+  }, [
+    users,
+    filterDate,
+    filterStatus,
+    assigneeFilter,
+    customStartDate,
+    customEndDate,
+    leadStatusFilter,
+    leadStageFilter,
+  ]);
 
   const fetchUsers = async (silent = false) => {
     if (!silent) setLoading(true);
     const adminEmail = localStorage.getItem("email");
 
-
     try {
       const params = new URLSearchParams({
-        email: adminEmail,   // 🔑 REQUIRED
+        email: adminEmail, // 🔑 REQUIRED
         page: currentPage,
         search: searchQuery.trim(),
         limit: 70,
@@ -446,14 +549,24 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) return;
+    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate))
+      return;
     fetchUsers();
-  }, [currentPage, filterStatus, filterDate, assigneeFilter, customStartDate, customEndDate, leadStatusFilter, leadStageFilter]);
+  }, [
+    currentPage,
+    filterStatus,
+    filterDate,
+    assigneeFilter,
+    customStartDate,
+    customEndDate,
+    leadStatusFilter,
+    leadStageFilter,
+  ]);
 
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const res = await fetch('/api/home-data?type=subscriptionPlans');
+        const res = await fetch("/api/home-data?type=subscriptionPlans");
         const data = await res.json();
         setSubscriptionPlans(data);
       } catch (err) {
@@ -462,8 +575,6 @@ export default function UserManagement() {
     };
     fetchPlans();
   }, []);
-
-
 
   useEffect(() => {
     fetchAllUserPostsCounts();
@@ -485,14 +596,15 @@ export default function UserManagement() {
     fetchTodayUsersCount();
     fetchRevenue();
   }, []);
-  
+
   /* ---------------- UPLOAD TO CLOUDINARY ---------------- */
   const uploadToCloudinary = async (file) => {
     try {
       // Get signature from server
-      const { getCloudinarySignatureAction } = await import("@/app/actions/uploadCloudinary");
+      const { getCloudinarySignatureAction } =
+        await import("@/app/actions/uploadCloudinary");
       const signatureData = await getCloudinarySignatureAction();
-      
+
       if (!signatureData.success) {
         throw new Error("Failed to get Cloudinary signature");
       }
@@ -509,13 +621,13 @@ export default function UserManagement() {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
-      
+
       if (!response.ok) {
         throw new Error("Cloudinary upload failed");
       }
-      
+
       const data = await response.json();
       return data.secure_url;
     } catch (error) {
@@ -529,16 +641,16 @@ export default function UserManagement() {
     setLoadingRevenueUsers(true);
     const userEmail = localStorage.getItem("email");
     const userRole = localStorage.getItem("role");
-    
+
     try {
       const params = new URLSearchParams({
-        type: 'user_onboard',
+        type: "user_onboard",
         email: userEmail,
-        role: userRole
+        role: userRole,
       });
       const res = await fetch(`/api/franchise-revenue?${params.toString()}`);
       const data = await res.json();
-      
+
       if (data.success && data.revenue) {
         setRevenueUsersList(data.revenue);
       } else {
@@ -558,44 +670,44 @@ export default function UserManagement() {
   const fetchRevenue = async () => {
     const userEmail = localStorage.getItem("email");
     const userRole = localStorage.getItem("role");
-    
+
     if (!userEmail || !userRole) return;
 
-     try {
-       const res = await fetch(
-         `/api/franchise-revenue?email=${userEmail}&role=${userRole}`
-       );
-      
-       if (res.ok) {
-         const data = await res.json();
-         if (data.success) {
-           // On this page, we only care about user onboarding revenue.
-           if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
-             setTotalRevenue(data.totalUserOnboardRevenue || 0);
-             setRevenueCount(data.userOnboardCount || 0);
-           } else if (userRole === "agent") {
-             // For agents, totalRevenue from API is already just their user_onboard revenue
-             setTotalRevenue(data.totalRevenue || 0);
-             setRevenueCount(data.userOnboardCount || 0);
-           } else {
-             // For other roles like franchiseAdmin, they have no user_onboard revenue
-             setTotalRevenue(0);
-             setRevenueCount(0);
-           }
+    try {
+      const res = await fetch(
+        `/api/franchise-revenue?email=${userEmail}&role=${userRole}`,
+      );
 
-           // Create a map of paid users from 'user_onboard' type revenue entries
-           const paidStatus = {};
-           if (data.revenue) {
-             data.revenue
-               .filter(rev => rev.type === 'user_onboard')
-               .forEach(rev => {
-                 // Since data is sorted by date descending, the first one we see for a user is the latest.
-                 // Store the screenshot URL if it exists.
-                 if (!paidStatus[rev.leadId] && rev.paymentScreenshot) {
-                   paidStatus[rev.leadId] = rev.paymentScreenshot;
-                 }
-               });
-             setPaidUsersStatus(paidStatus);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          // On this page, we only care about user onboarding revenue.
+          if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
+            setTotalRevenue(data.totalUserOnboardRevenue || 0);
+            setRevenueCount(data.userOnboardCount || 0);
+          } else if (userRole === "agent") {
+            // For agents, totalRevenue from API is already just their user_onboard revenue
+            setTotalRevenue(data.totalRevenue || 0);
+            setRevenueCount(data.userOnboardCount || 0);
+          } else {
+            // For other roles like franchiseAdmin, they have no user_onboard revenue
+            setTotalRevenue(0);
+            setRevenueCount(0);
+          }
+
+          // Create a map of paid users from 'user_onboard' type revenue entries
+          const paidStatus = {};
+          if (data.revenue) {
+            data.revenue
+              .filter((rev) => rev.type === "user_onboard")
+              .forEach((rev) => {
+                // Since data is sorted by date descending, the first one we see for a user is the latest.
+                // Store the screenshot URL if it exists.
+                if (!paidStatus[rev.leadId] && rev.paymentScreenshot) {
+                  paidStatus[rev.leadId] = rev.paymentScreenshot;
+                }
+              });
+            setPaidUsersStatus(paidStatus);
           } else {
             setRevenueCount(data.userOnboardCount || 0);
           }
@@ -606,15 +718,14 @@ export default function UserManagement() {
     }
   };
 
-
   const fetchAllUserPostsCounts = async () => {
     if (users.length === 0) return;
 
     try {
-      const userIds = users.map(user => user.userId);
-      const res = await fetch('/api/post-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const userIds = users.map((user) => user.userId);
+      const res = await fetch("/api/post-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userIds }),
       });
       const result = await res.json();
@@ -623,7 +734,13 @@ export default function UserManagement() {
         const countsData = result.data;
         // Ensure all users have an entry, even if they have 0 posts
         const fullPostData = userIds.reduce((acc, userId) => {
-          acc[userId] = countsData[userId] || { total: 0, posted: 0, approved: 0, rejected: 0, pending: 0 };
+          acc[userId] = countsData[userId] || {
+            total: 0,
+            posted: 0,
+            approved: 0,
+            rejected: 0,
+            pending: 0,
+          };
           return acc;
         }, {});
 
@@ -631,7 +748,13 @@ export default function UserManagement() {
       } else {
         // Handle error case, maybe set all to 0
         const zeroData = userIds.reduce((acc, userId) => {
-          acc[userId] = { total: 0, posted: 0, approved: 0, rejected: 0, pending: 0 };
+          acc[userId] = {
+            total: 0,
+            posted: 0,
+            approved: 0,
+            rejected: 0,
+            pending: 0,
+          };
           return acc;
         }, {});
         setUserPostsData(zeroData);
@@ -644,20 +767,22 @@ export default function UserManagement() {
 
   const fetchChatStats = async () => {
     try {
-      const res = await fetch('/api/issue-check');
+      const res = await fetch("/api/issue-check");
       const result = await res.json();
       if (result.success) {
         const chats = result.data || [];
         const total = chats.length;
         const todayDate = new Date();
-        const today = chats.filter(c => {
+        const today = chats.filter((c) => {
           if (!c.createdAt) return false;
           const chatDate = new Date(c.createdAt);
-          return chatDate.getDate() === todayDate.getDate() &&
+          return (
+            chatDate.getDate() === todayDate.getDate() &&
             chatDate.getMonth() === todayDate.getMonth() &&
-            chatDate.getFullYear() === todayDate.getFullYear();
+            chatDate.getFullYear() === todayDate.getFullYear()
+          );
         }).length;
-        const resolved = chats.filter(c => c.status === 'resolved').length;
+        const resolved = chats.filter((c) => c.status === "resolved").length;
         setChatStats({ total, today, resolved, data: chats });
       }
     } catch (error) {
@@ -667,7 +792,7 @@ export default function UserManagement() {
 
   const fetchIssues = async () => {
     try {
-      const res = await fetch('/api/issue-check');
+      const res = await fetch("/api/issue-check");
       const result = await res.json();
       if (result.success) {
         setIssues(result.data || []);
@@ -683,7 +808,7 @@ export default function UserManagement() {
     try {
       const params = new URLSearchParams({
         email: adminEmail,
-        getTodayUsersCount: "true"
+        getTodayUsersCount: "true",
       });
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
@@ -699,10 +824,10 @@ export default function UserManagement() {
 
   const handleResolveIssue = async (id) => {
     try {
-      const res = await fetch('/api/issue-check', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'resolved' })
+      const res = await fetch("/api/issue-check", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "resolved" }),
       });
       const data = await res.json();
       if (data.success) {
@@ -714,117 +839,114 @@ export default function UserManagement() {
     }
   };
 
-const handleAssignChange = async (userId, newAgentId) => {
-  try {
-    console.log("🔄 Assign request started");
+  const handleAssignChange = async (userId, newAgentId) => {
+    try {
+      console.log("🔄 Assign request started");
 
-    // 1️⃣ Update Assigned Agent
-    const res = await fetch("/api/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId,
-        assignedAgentId: newAgentId || null,
-      }),
-    });
+      // 1️⃣ Update Assigned Agent
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          assignedAgentId: newAgentId || null,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok || !data.success) {
-      showToast(data.error || "Failed to assign agent", "error");
-      return;
-    }
-
-    showToast("Agent assigned successfully", "success");
-
-    const updatedAgent = data.user?.assignedAgentId || newAgentId;
-    console.log("agentsagents",agents);
-    
-
-    // 2️⃣ Send WhatsApp Notification (ONLY if agent selected)
-    if (newAgentId) {
-      const agent = agents.find((a) => a._id === newAgentId);
-      const user = users.find((u) => u.userId === userId);
-
-      if (!agent || !user) {
-        console.warn("Agent or User not found");
+      if (!res.ok || !data.success) {
+        showToast(data.error || "Failed to assign agent", "error");
         return;
       }
 
-      const payload = {
-        firstName: user.fullName || "User",
-        enquiryNo: user.userId,
-        executiveName: agent.fullName || "Executive",
-        executiveMobile: agent.mobile,
-        userMobile: user.phone || user.mobileNumber,
-      };
+      showToast("Agent assigned successfully", "success");
 
-      try {
-        const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const updatedAgent = data.user?.assignedAgentId || newAgentId;
+      console.log("agentsagents", agents);
 
-        const waData = await waRes.json();
+      // 2️⃣ Send WhatsApp Notification (ONLY if agent selected)
+      if (newAgentId) {
+        const agent = agents.find((a) => a._id === newAgentId);
+        const user = users.find((u) => u.userId === userId);
 
-        if (!waRes.ok || !waData.success) {
-          console.error("WhatsApp send failed:", waData);
-        } else {
-          console.log("✅ WhatsApp sent successfully");
+        if (!agent || !user) {
+          console.warn("Agent or User not found");
+          return;
         }
-      } catch (err) {
-        console.error("WhatsApp API error:", err);
+
+        const payload = {
+          firstName: user.fullName || "User",
+          enquiryNo: user.userId,
+          executiveName: agent.fullName || "Executive",
+          executiveMobile: agent.mobile,
+          userMobile: user.phone || user.mobileNumber,
+        };
+
+        try {
+          const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const waData = await waRes.json();
+
+          if (!waRes.ok || !waData.success) {
+            console.error("WhatsApp send failed:", waData);
+          } else {
+            console.log("✅ WhatsApp sent successfully");
+          }
+        } catch (err) {
+          console.error("WhatsApp API error:", err);
+        }
       }
+
+      // 3️⃣ Update local state immediately
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.userId === userId
+            ? { ...user, assignedAgentId: updatedAgent }
+            : user,
+        ),
+      );
+
+      // Update agent stats locally
+      if (newAgentId) {
+        setAgentStats((prev) => ({
+          ...prev,
+          [newAgentId]: (prev[newAgentId] || 0) + 1,
+          unassigned: Math.max(0, (prev.unassigned || 0) - 1),
+        }));
+      }
+
+      // fetchUsers(true); // Optional: refresh in background if needed
+    } catch (error) {
+      console.error("🚨 Assignment error:", error);
+      showToast("Something went wrong while assigning.", "error");
+    }
+  };
+
+  const handleRoundRobinAssign = (userId) => {
+    if (agents.length === 0) {
+      showToast("No agents available", "error");
+      return;
     }
 
-    // 3️⃣ Update local state immediately
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.userId === userId
-          ? { ...user, assignedAgentId: updatedAgent }
-          : user
-      )
-    );
+    // Find agent with minimum leads (Load Balancing)
+    let minLeads = Infinity;
+    let targetAgentId = agents[0]._id;
 
-    // Update agent stats locally
-    if (newAgentId) {
-      setAgentStats(prev => ({
-        ...prev,
-        [newAgentId]: (prev[newAgentId] || 0) + 1,
-        unassigned: Math.max(0, (prev.unassigned || 0) - 1)
-      }));
-    }
-
-    // fetchUsers(true); // Optional: refresh in background if needed
-
-  } catch (error) {
-    console.error("🚨 Assignment error:", error);
-    showToast("Something went wrong while assigning.", "error");
-  }
-};
-
-const handleRoundRobinAssign = (userId) => {
-  if (agents.length === 0) {
-    showToast("No agents available", "error");
-    return;
-  }
-  
-  // Find agent with minimum leads (Load Balancing)
-  let minLeads = Infinity;
-  let targetAgentId = agents[0]._id;
-  
-  agents.forEach(agent => {
+    agents.forEach((agent) => {
       const count = agentStats[agent._id] || 0;
       if (count < minLeads) {
-          minLeads = count;
-          targetAgentId = agent._id;
+        minLeads = count;
+        targetAgentId = agent._id;
       }
-  });
-  
-  handleAssignChange(userId, targetAgentId);
-};
+    });
 
+    handleAssignChange(userId, targetAgentId);
+  };
 
   const handleLeadStageChange = async (userId, newStage) => {
     try {
@@ -843,8 +965,8 @@ const handleRoundRobinAssign = (userId) => {
         showToast("Lead stage updated successfully", "success");
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
-            user.userId === userId ? { ...user, leadStage: newStage } : user
-          )
+            user.userId === userId ? { ...user, leadStage: newStage } : user,
+          ),
         );
       } else {
         showToast(data.error || "Failed to update lead stage", "error");
@@ -870,7 +992,11 @@ const handleRoundRobinAssign = (userId) => {
 
       if (data.success) {
         showToast("Lead status updated successfully", "success");
-        setUsers((prevUsers) => prevUsers.map((user) => (user.userId === userId ? { ...user, leadStatus: newStatus } : user)));
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.userId === userId ? { ...user, leadStatus: newStatus } : user,
+          ),
+        );
       } else {
         showToast(data.error || "Failed to update lead status", "error");
       }
@@ -907,21 +1033,21 @@ const handleRoundRobinAssign = (userId) => {
 
   // ✅ Helper to safely get agent name from populated object or string ID
   const getAgentName = (assignedAgentId) => {
-    console.log("assignedAgentIdassignedAgentId",assignedAgentId);
-    
+    console.log("assignedAgentIdassignedAgentId", assignedAgentId);
+
     if (!assignedAgentId) return "Unassigned";
-    
+
     // If it's a populated object with fullName
     if (typeof assignedAgentId === "object" && assignedAgentId?.fullName) {
       return assignedAgentId.fullName;
     }
-    
+
     // If it's a string ID, try to find agent name in agents array
     if (typeof assignedAgentId === "string") {
-      const agent = agents.find(a => a._id === assignedAgentId);
+      const agent = agents.find((a) => a._id === assignedAgentId);
       return agent?.fullName || "Unassigned";
     }
-    
+
     return "Unassigned";
   };
 
@@ -930,11 +1056,10 @@ const handleRoundRobinAssign = (userId) => {
     setCurrentPage(1);
   }, [searchQuery, filterStatus, filterDate, assigneeFilter]);
 
-
-
   const isUserConnected = (email) => {
     return connectedBusinessUsers.some(
-      (connectedUser) => connectedUser.email?.toLowerCase() === email?.toLowerCase()
+      (connectedUser) =>
+        connectedUser.email?.toLowerCase() === email?.toLowerCase(),
     );
   };
 
@@ -942,7 +1067,7 @@ const handleRoundRobinAssign = (userId) => {
     if (planStartDate) {
       const start = new Date(planStartDate);
       const end = new Date(start);
-      
+
       if (selectedCycle === "monthly") {
         end.setMonth(end.getMonth() + 1);
       } else if (selectedCycle === "quarterly") {
@@ -952,9 +1077,9 @@ const handleRoundRobinAssign = (userId) => {
       } else if (selectedCycle === "yearly") {
         end.setFullYear(end.getFullYear() + 1);
       }
-      
+
       if (!isNaN(end.getTime())) {
-         setPlanExpiryDate(end.toISOString().split('T')[0]);
+        setPlanExpiryDate(end.toISOString().split("T")[0]);
       }
     }
   }, [planStartDate, selectedCycle]);
@@ -963,9 +1088,9 @@ const handleRoundRobinAssign = (userId) => {
     setSelectedUser(user);
     setSelectedPlan(user.paidPackage || "Basic Plan");
     setSelectedCycle(user.planDuration || "monthly");
-    const start = user.packageStartDate 
-      ? new Date(user.packageStartDate).toISOString().split('T')[0] 
-      : new Date().toISOString().split('T')[0];
+    const start = user.packageStartDate
+      ? new Date(user.packageStartDate).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0];
     setPlanStartDate(start);
     setUtrNumber("");
     setPlanAmount(""); // Reset amount
@@ -977,7 +1102,10 @@ const handleRoundRobinAssign = (userId) => {
 
     // If amount is entered, screenshot is mandatory
     if (planAmount && parseFloat(planAmount) > 0 && !planScreenshot) {
-      showToast("Payment screenshot is required when amount is entered.", "error");
+      showToast(
+        "Payment screenshot is required when amount is entered.",
+        "error",
+      );
       return;
     }
 
@@ -1025,7 +1153,7 @@ const handleRoundRobinAssign = (userId) => {
           packageStartDate: planStartDate,
           packageExpiryDate: planExpiryDate,
           ...(screenshotUrl && { paymentScreenshot: screenshotUrl }),
-          ...(utrNumber && { utrNumber: utrNumber })
+          ...(utrNumber && { utrNumber: utrNumber }),
         }),
       });
       const userUpdateData = await userUpdateRes.json();
@@ -1083,7 +1211,7 @@ const handleRoundRobinAssign = (userId) => {
         phone = String(phone).replace(/\D/g, "");
         if (phone.length === 10) phone = "91" + phone;
       }
-      
+
       if (!phone) {
         showToast("Phone number not found for user", "error");
         return;
@@ -1093,7 +1221,9 @@ const handleRoundRobinAssign = (userId) => {
         destination: phone,
         userName: user.fullName || "User",
         enquiryId: user.userId,
-        expiryDate: user.packageExpiryDate ? new Date(user.packageExpiryDate).toLocaleDateString() : "N/A",
+        expiryDate: user.packageExpiryDate
+          ? new Date(user.packageExpiryDate).toLocaleDateString()
+          : "N/A",
         plan: user.paidPackage || user.subscription?.plan || "N/A",
       };
 
@@ -1102,14 +1232,17 @@ const handleRoundRobinAssign = (userId) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payload,
-          remark: "subscription_expired_new"
+          remark: "subscription_expired_new",
         }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        showToast("Subscription expiry notification sent via WhatsApp!", "success");
+        showToast(
+          "Subscription expiry notification sent via WhatsApp!",
+          "success",
+        );
       } else {
         showToast(`Failed: ${data.message}`, "error");
       }
@@ -1127,7 +1260,7 @@ const handleRoundRobinAssign = (userId) => {
 
     try {
       const res = await fetch("/api/users/add", {
-        method: "POST",/*  */
+        method: "POST" /*  */,
         headers: {
           "Content-Type": "application/json",
         },
@@ -1155,7 +1288,6 @@ const handleRoundRobinAssign = (userId) => {
       console.error("Add user error:", error);
     }
   };
-
 
   const handleViewPosts = async (user) => {
     setViewingUserPosts(user);
@@ -1196,21 +1328,27 @@ const handleRoundRobinAssign = (userId) => {
     setUpdatingWallet(true);
 
     try {
-      const walletRes = await fetch(`/api/auth/signup?userId=${walletModalUser.userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: amount,
-          type: walletUpdate.type === "credit" ? "add" : "deduct",
-          reason: walletUpdate.reason
-        }),
-      });
+      const walletRes = await fetch(
+        `/api/auth/signup?userId=${walletModalUser.userId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: amount,
+            type: walletUpdate.type === "credit" ? "add" : "deduct",
+            reason: walletUpdate.reason,
+          }),
+        },
+      );
 
       const walletData = await walletRes.json();
 
       if (walletData.message || walletData.success) {
         const newBalance = walletData.wallet || walletData.newBalance;
-        showToast(`${walletData.message || "Wallet updated successfully"}! New balance: ${newBalance} coins`, "success");
+        showToast(
+          `${walletData.message || "Wallet updated successfully"}! New balance: ${newBalance} coins`,
+          "success",
+        );
         setWalletModalUser(null);
         setWalletUpdate({ amount: "", type: "credit", reason: "" });
         fetchUsers();
@@ -1247,8 +1385,6 @@ const handleRoundRobinAssign = (userId) => {
     }
   };
 
-
-
   const handleOpenRemarksModal = async (user) => {
     setRemarksModalUser(user);
     setRemarksInput("");
@@ -1273,11 +1409,11 @@ const handleRoundRobinAssign = (userId) => {
     const remarkMap = {
       "Call Not Picked": "call_not_picked",
       "Not Interested": "not_interested",
-      "Interested": "interested",
+      Interested: "interested",
       "Call Back Later": "call_back",
       "Wrong Number": "wrong_number_update",
       "Switch Off": "switch_off",
-      "Meeting Scheduled": "meeting_scheduled_online"
+      "Meeting Scheduled": "meeting_scheduled_online",
     };
 
     const remark = remarkMap[remarkType];
@@ -1297,7 +1433,8 @@ const handleRoundRobinAssign = (userId) => {
       return;
     }
 
-    let executiveMobile = user.assignedAgentId?.mobile || user.assignedAgentId?.mobileNumber;
+    let executiveMobile =
+      user.assignedAgentId?.mobile || user.assignedAgentId?.mobileNumber;
 
     if (!executiveMobile && typeof window !== "undefined") {
       const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
@@ -1340,13 +1477,13 @@ const handleRoundRobinAssign = (userId) => {
         meetingTime: payload.meetingTime,
         meetingLink: payload.meetingLink,
         meetingId: payload.meetingId,
-        passcode: payload.passcode
+        passcode: payload.passcode,
       };
       fetch("/api/admin/email-send-remarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(emailPayload),
-      }).catch(err => console.error("Email send failed", err));
+      }).catch((err) => console.error("Email send failed", err));
     }
 
     try {
@@ -1359,7 +1496,10 @@ const handleRoundRobinAssign = (userId) => {
       const data = await res.json();
 
       if (data.success) {
-        showToast("Success! Remark has been successfully sent to the user via WhatsApp.", "success");
+        showToast(
+          "Success! Remark has been successfully sent to the user via WhatsApp.",
+          "success",
+        );
         return true;
       } else {
         showToast(`Failed: ${data.message}`, "error");
@@ -1371,7 +1511,6 @@ const handleRoundRobinAssign = (userId) => {
       return false;
     }
   };
-
 
   const handleAddRemark = async () => {
     if (!remarksModalUser || !remarksInput.trim()) return;
@@ -1396,8 +1535,8 @@ const handleRoundRobinAssign = (userId) => {
           remark: remarksInput,
           messageSent,
           agentId: adminId,
-          agentName: adminName
-        })
+          agentName: adminName,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1425,7 +1564,10 @@ const handleRoundRobinAssign = (userId) => {
     const remarkText = `Meeting Scheduled on ${meetingData.date} - ${adminName}`;
 
     // Send WhatsApp with meeting details
-    const messageSent = await sendRemarkWhatsApp(remarksModalUser, "Meeting Scheduled");
+    const messageSent = await sendRemarkWhatsApp(
+      remarksModalUser,
+      "Meeting Scheduled",
+    );
 
     // Get current admin info for call tracking
     const adminId = localStorage.getItem("userId");
@@ -1441,7 +1583,7 @@ const handleRoundRobinAssign = (userId) => {
           messageSent,
           agentId: adminId,
           agentName: adminNameForCall,
-        })
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1556,12 +1698,10 @@ const handleRoundRobinAssign = (userId) => {
     setFilteredUsers(users);
   }, [users]);
 
-
   console.log("agentsagents", agents);
   console.log("agentStatsagentStatsagentStats", stageStats);
-  console.log("callStats",callStats);
-  
-  
+  console.log("callStats", callStats);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -1581,14 +1721,19 @@ const handleRoundRobinAssign = (userId) => {
       {toast && (
         <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
           <div
-            className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === "success"
-              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
-              }`}
+            className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
+              toast.type === "success"
+                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+            }`}
           >
             {toast.type === "success" ? (
               <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  className="w-4 h-4"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path
                     fillRule="evenodd"
                     d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -1598,7 +1743,11 @@ const handleRoundRobinAssign = (userId) => {
               </div>
             ) : (
               <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  className="w-4 h-4"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path
                     fillRule="evenodd"
                     d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -1621,52 +1770,53 @@ const handleRoundRobinAssign = (userId) => {
       )}
 
       <div className="max-w-6xl mx-auto">
-
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+          {/* LEFT SIDE (Assignments) */}
+          {(role === "superAdmin" ||
+            role === "admin" ||
+            role === "superfranchiseAdmin") &&
+            agents.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-700">
+                  Total Assignments
+                </h3>
 
-  {/* LEFT SIDE (Assignments) */}
-  {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && agents.length > 0 && (
-    <div className="space-y-3">
+                <div className="flex flex-wrap gap-3">
+                  {/* Unassigned */}
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+                  >
+                    <User className="w-3 h-3" />
+                    <span>Unassigned: {agentStats.unassigned || 0}</span>
+                  </div>
 
-      <h3 className="text-sm font-bold text-gray-700">Total Assignments</h3>
+                  {/* Assigned Agents */}
+                  {agents.map((agent) => {
+                    const count = agentStats[agent._id.toString()] || 0;
+                    if (count === 0) return null;
 
-      <div className="flex flex-wrap gap-3">
+                    return (
+                      <div
+                        key={agent._id}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+                      >
+                        <User className="w-3 h-3" />
+                        <span>
+                          {agent.fullName}: {count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-        {/* Unassigned */}
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
-        >
-          <User className="w-3 h-3" />
-          <span>Unassigned: {agentStats.unassigned || 0}</span>
-        </div>
-
-        {/* Assigned Agents */}
-        {agents.map(agent => {
-          const count = agentStats[agent._id.toString()] || 0;
-          if (count === 0) return null;
-
-          return (
-            <div
-              key={agent._id}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
-            >
-              <User className="w-3 h-3" />
-              <span>{agent.fullName}: {count}</span>
-            </div>
-          );
-        })}
-      </div>
-
-    </div>
-  )}
-
-  {/* RIGHT SIDE BUTTONS */}
-  <div className="flex gap-3 ml-auto">
-
-    <button
-      onClick={() => handleRefreshMetaLeads(true)}
-      disabled={isRefreshingMetaLeads}
-      className="
+          {/* RIGHT SIDE BUTTONS */}
+          <div className="flex gap-3 ml-auto">
+            <button
+              onClick={() => handleRefreshMetaLeads(true)}
+              disabled={isRefreshingMetaLeads}
+              className="
         flex items-center gap-2 px-6 py-3 
         bg-white text-indigo-600 
         border border-indigo-200
@@ -1674,14 +1824,17 @@ const handleRoundRobinAssign = (userId) => {
         rounded-xl shadow-sm hover:shadow-md 
         transition-all font-medium
       "
-    >
-      <RefreshCw size={20} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
-      {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
-    </button>
+            >
+              <RefreshCw
+                size={20}
+                className={isRefreshingMetaLeads ? "animate-spin" : ""}
+              />
+              {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
+            </button>
 
-    <button
-      onClick={() => setAddingUser(true)}
-      className="
+            <button
+              onClick={() => setAddingUser(true)}
+              className="
         flex items-center gap-2 px-6 py-3 
         bg-gradient-to-r from-indigo-600 to-purple-600 
         hover:from-indigo-700 hover:to-purple-700 
@@ -1690,16 +1843,13 @@ const handleRoundRobinAssign = (userId) => {
         hover:shadow-xl 
         transition-all
       "
-    >
-      <Plus size={20} className="text-white" />
-      Add User
-    </button>
+            >
+              <Plus size={20} className="text-white" />
+              Add User
+            </button>
+          </div>
+        </div>
 
-  </div>
-
-</div>
-
-      
         {/* Call Stats */}
 
         {/* Main Stats Cards - Size Reduced */}
@@ -1708,8 +1858,12 @@ const handleRoundRobinAssign = (userId) => {
           <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total Users</p>
-                <p className="text-lg font-bold text-indigo-800 mt-1">{stats.total}</p>
+                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">
+                  Total Users
+                </p>
+                <p className="text-lg font-bold text-indigo-800 mt-1">
+                  {stats.total}
+                </p>
               </div>
               <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
                 <User className="text-indigo-600" size={18} />
@@ -1725,93 +1879,112 @@ const handleRoundRobinAssign = (userId) => {
 
           {/* Active Users */}
           {!isAgent && !isManager && (
-          <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Active Users</p>
-                <p className="text-lg font-bold text-green-800 mt-1">{stageStats["Active"] || 0}</p>
-              </div>
-              <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={18} />
+            <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
+                    Active Users
+                  </p>
+                  <p className="text-lg font-bold text-green-800 mt-1">
+                    {stageStats["Active"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={18} />
+                </div>
               </div>
             </div>
-          </div>
           )}
 
           {/* Follow Up */}
           {!isAgent && (
-          <div 
-            className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => setStageModal("Follow Up")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">Follow Up</p>
-                <p className="text-lg font-bold text-yellow-800 mt-1">{stageStats["Follow Up"] || 0}</p>
-              </div>
-              <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="text-yellow-600" size={18} />
+            <div
+              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setStageModal("Follow Up")}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">
+                    Follow Up
+                  </p>
+                  <p className="text-lg font-bold text-yellow-800 mt-1">
+                    {stageStats["Follow Up"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-yellow-600" size={18} />
+                </div>
               </div>
             </div>
-          </div>
           )}
 
           {/* Inactive */}
           {!isAgent && (
-          <div 
-            className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => setStageModal("Inactive")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Inactive</p>
-                <p className="text-lg font-bold text-gray-800 mt-1">{stageStats["Inactive"] || 0}</p>
-              </div>
-              <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                <UserX className="text-gray-600" size={18} />
+            <div
+              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setStageModal("Inactive")}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">
+                    Inactive
+                  </p>
+                  <p className="text-lg font-bold text-gray-800 mt-1">
+                    {stageStats["Inactive"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <UserX className="text-gray-600" size={18} />
+                </div>
               </div>
             </div>
-          </div>
           )}
-          
 
           {/* Onboarded */}
           {!isAgent && (
-          <div 
-            className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => setStageModal("Onboard")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Onboarded</p>
-                <p className="text-lg font-bold text-blue-800 mt-1">{stageStats["Onboard"] || 0}</p>
-              </div>
-              <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Rocket className="text-blue-600" size={18} />
+            <div
+              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setStageModal("Onboard")}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                    Onboarded
+                  </p>
+                  <p className="text-lg font-bold text-blue-800 mt-1">
+                    {stageStats["Onboard"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Rocket className="text-blue-600" size={18} />
+                </div>
               </div>
             </div>
-          </div>
           )}
 
           {/* Total Posts */}
           {!isAgent && (
-          <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Total Posts</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">{totalPostsCount}</p>
+            <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Total Posts
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 mt-1">
+                    {totalPostsCount}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <ImageIcon className="text-blue-600" size={18} />
+                </div>
               </div>
-              <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                <ImageIcon className="text-blue-600" size={18} />
-              </div>
+              {filterLabel && (
+                <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar size={11} />
+                  {filterLabel}
+                </div>
+              )}
             </div>
-            {filterLabel && (
-              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={11} />
-                {filterLabel}
-              </div>
-            )}
-          </div>
           )}
 
           {/* Users Today */}
@@ -1819,31 +1992,38 @@ const handleRoundRobinAssign = (userId) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-teal-700 font-medium">Users Today</p>
-                <p className="text-lg font-bold text-teal-800 ">{displayTodayUsersCount}</p>
-                
+                <p className="text-lg font-bold text-teal-800 ">
+                  {displayTodayUsersCount}
+                </p>
               </div>
               <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center">
                 <User className="text-teal-700" size={18} />
               </div>
             </div>
           </div>
-          
+
           {/* Total Revenue - Role-based visibility */}
-          {(role === "superAdmin" || role === "franchiseAdmin" || role === "agent") && (
-            <div 
+          {(role === "superAdmin" ||
+            role === "franchiseAdmin" ||
+            role === "agent") && (
+            <div
               className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
-              onClick={() => { fetchRevenueUsers(); setShowRevenueUsersModal(true); }}
+              onClick={() => {
+                fetchRevenueUsers();
+                setShowRevenueUsersModal(true);
+              }}
               title="Click to view onboarded users details"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-emerald-700 font-medium group-hover:underline">
-                    {role === "superAdmin" || role === "superFranchiseAdmin" ? "User Onboard Revenue" : "My Revenue"}
+                    {role === "superAdmin" || role === "superFranchiseAdmin"
+                      ? "User Onboard Revenue"
+                      : "My Revenue"}
                   </p>
                   <p className="text-lg font-bold text-emerald-800 mt-1">
                     ₹{totalRevenue.toLocaleString()}
                   </p>
-                 
                 </div>
                 <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Wallet className="text-emerald-700" size={18} />
@@ -1853,18 +2033,23 @@ const handleRoundRobinAssign = (userId) => {
           )}
         </div>
 
-
         {/* Chat Stats Cards - Separate Row */}
         <div className="grid grid-cols-2 md:grid-cols-5  mb-6">
           {/* Total Chats */}
           <div
             className=" w-50 h-15 bg-white rounded-lg p-3 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => { setChatModalFilter("all"); setShowChatStatsModal(true); fetchChatStats(); }}
+            onClick={() => {
+              setChatModalFilter("all");
+              setShowChatStatsModal(true);
+              fetchChatStats();
+            }}
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Total Chats</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">{displayTotalChatsCount}</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">
+                  {displayTotalChatsCount}
+                </p>
               </div>
               <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                 <MessageSquare className="text-orange-600" size={20} />
@@ -1874,41 +2059,53 @@ const handleRoundRobinAssign = (userId) => {
 
           {/* Chats Today */}
           {!isAgent && (
-          <div
-            className="w-50 h-15  bg-white rounded-lg p-3 pt-2 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => { setChatModalFilter("today"); setShowChatStatsModal(true); fetchChatStats(); }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Chats Today</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">{chatStats.today}</p>
-              </div>
-              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="text-teal-600" size={20} />
+            <div
+              className="w-50 h-15  bg-white rounded-lg p-3 pt-2 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => {
+                setChatModalFilter("today");
+                setShowChatStatsModal(true);
+                fetchChatStats();
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">
+                    Chats Today
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 mt-1">
+                    {chatStats.today}
+                  </p>
+                </div>
+                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+                  <MessageSquare className="text-teal-600" size={20} />
+                </div>
               </div>
             </div>
-          </div>
           )}
 
           {/* Resolved */}
           {!isAgent && (
-          <div
-            className="w-50 h-15 bg-white rounded-lg p-3 pt-2 pt-2 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => { setChatModalFilter("resolved"); setShowChatStatsModal(true); fetchChatStats(); }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Resolved</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">{chatStats.resolved}</p>
-              </div>
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <Shield className="text-green-600" size={20} />
+            <div
+              className="w-50 h-15 bg-white rounded-lg p-3 pt-2 pt-2 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => {
+                setChatModalFilter("resolved");
+                setShowChatStatsModal(true);
+                fetchChatStats();
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">Resolved</p>
+                  <p className="text-lg font-bold text-gray-900 mt-1">
+                    {chatStats.resolved}
+                  </p>
+                </div>
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Shield className="text-green-600" size={20} />
+                </div>
               </div>
             </div>
-          </div>
           )}
-
-    
 
           {/* <div 
             className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 shadow-lg border border-red-200 cursor-pointer hover:shadow-xl transition-all"
@@ -1923,55 +2120,56 @@ const handleRoundRobinAssign = (userId) => {
             </div>
           </div> */}
         </div>
-        {callStats && (role === 'superAdmin' || role === 'admin') && (
-  <div className="mb-6">
-    <h2 className="text-lg font-semibold text-gray-800 mb-3">
-      Call Performance
-    </h2>
+        {callStats && (role === "superAdmin" || role === "admin") && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">
+              Call Performance
+            </h2>
 
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {/* Total Calls */}
+              <div className="bg-blue-50 w-40 h-15 border border-blue-200 rounded-xl p-3 flex flex-col">
+                <span className="text-xs text-blue-700 font-medium">
+                  Total Calls Today
+                </span>
+                <span className="text-lg font-bold text-blue-800">
+                  {callStats.totalCallsToday}
+                </span>
+              </div>
 
-      {/* Total Calls */}
-      <div className="bg-blue-50 w-40 h-15 border border-blue-200 rounded-xl p-3 flex flex-col">
-        <span className="text-xs text-blue-700 font-medium">
-          Total Calls Today
-        </span>
-        <span className="text-lg font-bold text-blue-800">
-          {callStats.totalCallsToday}
-        </span>
-      </div>
-
-      {/* Agent Calls */}
-      {callStats.todayCallsByAgent.map((agent) => (
-        <div
-          key={agent.agentId || agent.agentName}
-          className="bg-gray-50 w-40 h-15 border border-gray-200 rounded-xl p-2 flex flex-col"
-        >
-          <span className="text-xs text-gray-600 truncate">
-            {agent.agentName}
-          </span>
-          <span className="text-lg font-bold text-gray-900">
-            {agent.count}
-          </span>
-        </div>
-      ))}
-
-    </div>
-  </div>
-)}   
+              {/* Agent Calls */}
+              {callStats.todayCallsByAgent.map((agent) => (
+                <div
+                  key={agent.agentId || agent.agentName}
+                  className="bg-gray-50 w-40 h-15 border border-gray-200 rounded-xl p-2 flex flex-col"
+                >
+                  <span className="text-xs text-gray-600 truncate">
+                    {agent.agentName}
+                  </span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {agent.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 flex items-center gap-2">
               <div className="relative flex-grow">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <Search
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
                 <input
                   type="text"
                   placeholder="Search by email, user ID, or phone number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       handleSearch();
                     }
                   }}
@@ -2001,7 +2199,9 @@ const handleRoundRobinAssign = (userId) => {
               </select>
             </div>
 
-            {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
+            {(role === "superAdmin" ||
+              role === "admin" ||
+              role === "superfranchiseAdmin") && (
               <>
                 <div className="relative">
                   <select
@@ -2012,12 +2212,16 @@ const handleRoundRobinAssign = (userId) => {
                     <option value="All">All Agents</option>
                     <option value="Unassigned">Unassigned</option>
                     {agents.map((agent) => (
-                      <option key={agent._id} value={agent._id}>{agent.fullName}</option>
+                      <option key={agent._id} value={agent._id}>
+                        {agent.fullName}
+                      </option>
                     ))}
                   </select>
                 </div>
 
-                {(role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin") && (
+                {(role === "superAdmin" ||
+                  role === "admin" ||
+                  role === "superfranchiseAdmin") && (
                   <div className="relative">
                     <select
                       value={leadStatusFilter}
@@ -2036,7 +2240,10 @@ const handleRoundRobinAssign = (userId) => {
             )}
 
             <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <Calendar
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
               <select
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
@@ -2071,7 +2278,11 @@ const handleRoundRobinAssign = (userId) => {
               </div>
             )}
 
-            {(searchQuery || filterStatus !== "All" || filterDate !== "All" || assigneeFilter !== "All" || leadStatusFilter !== "All") && (
+            {(searchQuery ||
+              filterStatus !== "All" ||
+              filterDate !== "All" ||
+              assigneeFilter !== "All" ||
+              leadStatusFilter !== "All") && (
               <button
                 onClick={clearFilters}
                 className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 whitespace-nowrap"
@@ -2081,7 +2292,6 @@ const handleRoundRobinAssign = (userId) => {
               </button>
             )}
           </div>
-
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col max-h-[100vh]">
@@ -2089,18 +2299,42 @@ const handleRoundRobinAssign = (userId) => {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined Date</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Name</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Plan</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Assign To</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Remarks</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Lead Stage</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Chat</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wallet</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Posts</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Business Name</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Joined Date
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    User Name
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Assign To
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Remarks
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Lead Stage
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Chat
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Wallet
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Posts
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Business Name
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
             </table>
@@ -2109,14 +2343,17 @@ const handleRoundRobinAssign = (userId) => {
             <table className="min-w-full">
               <tbody className="divide-y divide-gray-100">
                 {filteredUsers.map((user) => {
-                  const postData = userPostsData[user.userId] || { total: 0, posted: 0, rejected: 0 };
+                  const postData = userPostsData[user.userId] || {
+                    total: 0,
+                    posted: 0,
+                    rejected: 0,
+                  };
                   return (
-
-                    <tr 
+                    <tr
                       key={user._id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleViewPosts(user)}
-                    > 
+                    >
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-gray-400" />
@@ -2124,13 +2361,17 @@ const handleRoundRobinAssign = (userId) => {
                             {user.createdAt ? (
                               <>
                                 <div className="font-medium">
-                                  {new Date(user.createdAt).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric"
-                                  })}
+                                  {new Date(user.createdAt).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    },
+                                  )}
                                 </div>
-                                {new Date(user.createdAt).toDateString() === new Date().toDateString() && (
+                                {new Date(user.createdAt).toDateString() ===
+                                  new Date().toDateString() && (
                                   <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
                                     Today
                                   </span>
@@ -2148,7 +2389,10 @@ const handleRoundRobinAssign = (userId) => {
                           <div className="flex items-center gap-2">
                             {user.fullName && (
                               <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <User2Icon size={14} className="text-gray-400" />
+                                <User2Icon
+                                  size={14}
+                                  className="text-gray-400"
+                                />
                                 {user.fullName}
                               </div>
                             )}
@@ -2158,7 +2402,12 @@ const handleRoundRobinAssign = (userId) => {
                                   Paid
                                 </span>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setFullViewImage(paidUsersStatus[user.userId]); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFullViewImage(
+                                      paidUsersStatus[user.userId],
+                                    );
+                                  }}
                                   className="p-1 hover:bg-gray-200 rounded-full"
                                   title="View Payment Screenshot"
                                 >
@@ -2168,16 +2417,23 @@ const handleRoundRobinAssign = (userId) => {
                             )}
                           </div>
 
-
                           <div onClick={(e) => e.stopPropagation()}>
                             <select
                               value={user.leadStatus || ""}
-                              onChange={(e) => handleLeadStatusChange(user.userId, e.target.value)}
+                              onChange={(e) =>
+                                handleLeadStatusChange(
+                                  user.userId,
+                                  e.target.value,
+                                )
+                              }
                               className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                user.leadStatus === "Hot" ? "bg-red-50 text-red-700 border-red-200" :
-                                user.leadStatus === "Warm" ? "bg-orange-50 text-orange-700 border-orange-200" :
-                                user.leadStatus === "Cold" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                "bg-gray-50 text-gray-600 border-gray-200"
+                                user.leadStatus === "Hot"
+                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  : user.leadStatus === "Warm"
+                                    ? "bg-orange-50 text-orange-700 border-orange-200"
+                                    : user.leadStatus === "Cold"
+                                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                                      : "bg-gray-50 text-gray-600 border-gray-200"
                               }`}
                             >
                               <option value="">Untagged</option>
@@ -2187,7 +2443,8 @@ const handleRoundRobinAssign = (userId) => {
                             </select>
                           </div>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {(user.source === "bulk-upload" || user.source === "Meta Leads") && (
+                            {(user.source === "bulk-upload" ||
+                              user.source === "Meta Leads") && (
                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
                                 Meta Leads
                               </span>
@@ -2205,10 +2462,12 @@ const handleRoundRobinAssign = (userId) => {
                         className="px-6 py-5 whitespace-nowrap"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {role === "superAdmin" || role === "admin" || role === "superfranchiseAdmin" ? (
+                        {role === "superAdmin" ||
+                        role === "admin" ||
+                        role === "superfranchiseAdmin" ? (
                           <div
                             className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                              getAgentName(user.assignedAgentId)
+                              getAgentName(user.assignedAgentId),
                             )}`}
                           >
                             <select
@@ -2221,8 +2480,9 @@ const handleRoundRobinAssign = (userId) => {
                                             "
                               value={
                                 // ✅ Handle populated object, string ID, null, and undefined
-                                user.assignedAgentId?._id || 
-                                (typeof user.assignedAgentId === "string" && user.assignedAgentId) || 
+                                user.assignedAgentId?._id ||
+                                (typeof user.assignedAgentId === "string" &&
+                                  user.assignedAgentId) ||
                                 ""
                               }
                               onChange={(e) =>
@@ -2240,7 +2500,10 @@ const handleRoundRobinAssign = (userId) => {
 
                             {!user.assignedAgentId && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleRoundRobinAssign(user.userId); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRoundRobinAssign(user.userId);
+                                }}
                                 className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
                                 title="Auto Assign (Round Robin)"
                               >
@@ -2255,7 +2518,7 @@ const handleRoundRobinAssign = (userId) => {
                         ) : (
                           <span
                             className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                              getAgentName(user.assignedAgentId)
+                              getAgentName(user.assignedAgentId),
                             )}`}
                           >
                             {getAgentName(user.assignedAgentId)}
@@ -2273,20 +2536,33 @@ const handleRoundRobinAssign = (userId) => {
                           <div className="flex items-center gap-2">
                             <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
                               <MessageSquare size={14} className="mr-1.5" />
-                              <span className="font-bold text-xs">{user.remarksHistory?.length || 0}</span>
+                              <span className="font-bold text-xs">
+                                {user.remarksHistory?.length || 0}
+                              </span>
                             </div>
                           </div>
 
                           {user.Remarks ? (
                             <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
-                              <span className="font-semibold text-gray-800 mr-1">Latest:</span>
+                              <span className="font-semibold text-gray-800 mr-1">
+                                Latest:
+                              </span>
                               <span className="truncate">{user.Remarks}</span>
-                              {user.remarksHistory && user.remarksHistory.length > 0 && user.remarksHistory[user.remarksHistory.length - 1].messageSent && (
-                                <CheckCircle size={12} className="text-green-600 ml-1 flex-shrink-0" />
-                              )}
+                              {user.remarksHistory &&
+                                user.remarksHistory.length > 0 &&
+                                user.remarksHistory[
+                                  user.remarksHistory.length - 1
+                                ].messageSent && (
+                                  <CheckCircle
+                                    size={12}
+                                    className="text-green-600 ml-1 flex-shrink-0"
+                                  />
+                                )}
                             </div>
                           ) : (
-                            <span className="text-[10px] text-gray-400 italic pl-1">Tap to add...</span>
+                            <span className="text-[10px] text-gray-400 italic pl-1">
+                              Tap to add...
+                            </span>
                           )}
                         </div>
                       </td>
@@ -2294,13 +2570,19 @@ const handleRoundRobinAssign = (userId) => {
                       <td className="px-6 py-5">
                         <select
                           value={user.leadStage || "Active"}
-                          onChange={(e) => handleLeadStageChange(user.userId, e.target.value)}
+                          onChange={(e) =>
+                            handleLeadStageChange(user.userId, e.target.value)
+                          }
                           onClick={(e) => e.stopPropagation()}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${user.leadStage === "Active" ? "bg-green-50 text-green-700 border-green-200" :
-                            user.leadStage === "Follow Up" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                              user.leadStage === "Onboard" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                "bg-gray-50 text-gray-700 border-gray-200"
-                            }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
+                            user.leadStage === "Active"
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : user.leadStage === "Follow Up"
+                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                : user.leadStage === "Onboard"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : "bg-gray-50 text-gray-700 border-gray-200"
+                          }`}
                         >
                           <option value="Active">Active</option>
                           <option value="Follow Up">Follow Up</option>
@@ -2324,10 +2606,8 @@ const handleRoundRobinAssign = (userId) => {
                         </div>
                       </td>
 
-                 
-
                       <td className="px-6 py-4">
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleUpgradePlan(user);
@@ -2341,7 +2621,6 @@ const handleRoundRobinAssign = (userId) => {
 
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
-
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2350,7 +2629,9 @@ const handleRoundRobinAssign = (userId) => {
                             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
                           >
                             <Wallet size={16} />
-                            <span className="font-bold text-base">{user.wallet || 0}</span>
+                            <span className="font-bold text-base">
+                              {user.wallet || 0}
+                            </span>
                             <span className="text-xs font-medium">coins</span>
                           </button>
                         </div>
@@ -2362,17 +2643,23 @@ const handleRoundRobinAssign = (userId) => {
                             <div className="flex items-center gap-3">
                               <div className="text-center">
                                 <p className="text-xs text-gray-600">Total</p>
-                                <p className="text-lg font-bold text-indigo-600">{postData.total}</p>
+                                <p className="text-lg font-bold text-indigo-600">
+                                  {postData.total}
+                                </p>
                               </div>
                               <div className="w-px h-8 bg-gray-300"></div>
                               <div className="text-center">
                                 <p className="text-xs text-green-600">Posted</p>
-                                <p className="text-lg font-bold text-green-600">{postData.posted}</p>
+                                <p className="text-lg font-bold text-green-600">
+                                  {postData.posted}
+                                </p>
                               </div>
                               <div className="w-px h-8 bg-gray-300"></div>
                               <div className="text-center">
                                 <p className="text-xs text-red-600">Rejected</p>
-                                <p className="text-lg font-bold text-red-600">{postData.rejected}</p>
+                                <p className="text-lg font-bold text-red-600">
+                                  {postData.rejected}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -2386,11 +2673,12 @@ const handleRoundRobinAssign = (userId) => {
                       </td>
 
                       <td className="px-6 py-4">
-                        {user.businessListings && user.businessListings.length > 0 ? (
-                          
+                        {user.businessListings &&
+                        user.businessListings.length > 0 ? (
                           <div>
                             <div className="font-semibold text-gray-800">
-                              {user.businessListings[0].title}  {user.businessListings[0].address.locality}
+                              {user.businessListings[0].title}{" "}
+                              {user.businessListings[0].address.locality}
                             </div>
                             {user.businessListings.length > 1 && (
                               <Link
@@ -2408,7 +2696,6 @@ const handleRoundRobinAssign = (userId) => {
                           </div>
                         )}
                       </td>
-                     
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -2465,9 +2752,7 @@ const handleRoundRobinAssign = (userId) => {
                           )}
                         </div>
                       </td>
-
                     </tr>
-
                   );
                 })}
                 {filteredUsers.length === 0 && (
@@ -2476,7 +2761,9 @@ const handleRoundRobinAssign = (userId) => {
                       <div className="text-gray-400">
                         <Search size={48} className="mx-auto mb-3 opacity-50" />
                         <p className="text-lg font-medium">No users found</p>
-                        <p className="text-sm">Try adjusting your search or filters</p>
+                        <p className="text-sm">
+                          Try adjusting your search or filters
+                        </p>
                       </div>
                     </td>
                   </tr>
@@ -2489,7 +2776,9 @@ const handleRoundRobinAssign = (userId) => {
         {pagination && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
             <span className="text-sm text-gray-600">
-              Page <span className="font-semibold">{pagination.currentPage}</span> of <span className="font-semibold">{pagination.totalPages}</span>
+              Page{" "}
+              <span className="font-semibold">{pagination.currentPage}</span> of{" "}
+              <span className="font-semibold">{pagination.totalPages}</span>
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -2510,7 +2799,8 @@ const handleRoundRobinAssign = (userId) => {
               </button>
             </div>
             <span className="text-sm text-gray-600">
-              Total Users: <span className="font-semibold">{pagination.totalUsers}</span>
+              Total Users:{" "}
+              <span className="font-semibold">{pagination.totalUsers}</span>
             </span>
           </div>
         )}
@@ -2525,7 +2815,9 @@ const handleRoundRobinAssign = (userId) => {
                 <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
                   <Wallet className="text-white" size={20} />
                 </div>
-                <h2 className="text-xl font-bold text-gray-800">Update Wallet</h2>
+                <h2 className="text-xl font-bold text-gray-800">
+                  Update Wallet
+                </h2>
               </div>
               <button
                 onClick={() => setWalletModalUser(null)}
@@ -2537,55 +2829,83 @@ const handleRoundRobinAssign = (userId) => {
 
             <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
               <p className="text-xs text-gray-600 mb-0.5">User</p>
-              <p className="font-semibold text-sm text-gray-800">{walletModalUser.email}</p>
+              <p className="font-semibold text-sm text-gray-800">
+                {walletModalUser.email}
+              </p>
               <div className="mt-2 pt-2 border-t border-gray-200">
                 <p className="text-xs text-gray-600">Current Balance</p>
-                <p className="text-xl font-bold text-emerald-600">{walletModalUser.wallet || 0} coins</p>
+                <p className="text-xl font-bold text-emerald-600">
+                  {walletModalUser.wallet || 0} coins
+                </p>
               </div>
             </div>
 
             <div className="space-y-3 mb-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Transaction Type</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Transaction Type
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label
-                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "credit"
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 hover:border-gray-300"
-                      }`}
+                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      walletUpdate.type === "credit"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
                   >
                     <input
                       type="radio"
                       name="type"
                       value="credit"
                       checked={walletUpdate.type === "credit"}
-                      onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
+                      onChange={(e) =>
+                        setWalletUpdate({
+                          ...walletUpdate,
+                          type: e.target.value,
+                        })
+                      }
                       className="sr-only"
                     />
                     <div className="text-center">
-                      <Plus className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`} size={18} />
-                      <span className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}>
+                      <Plus
+                        className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`}
+                        size={18}
+                      />
+                      <span
+                        className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}
+                      >
                         Add
                       </span>
                     </div>
                   </label>
                   <label
-                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "debit"
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-200 hover:border-gray-300"
-                      }`}
+                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      walletUpdate.type === "debit"
+                        ? "border-red-500 bg-red-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
                   >
                     <input
                       type="radio"
                       name="type"
                       value="debit"
                       checked={walletUpdate.type === "debit"}
-                      onChange={(e) => setWalletUpdate({ ...walletUpdate, type: e.target.value })}
+                      onChange={(e) =>
+                        setWalletUpdate({
+                          ...walletUpdate,
+                          type: e.target.value,
+                        })
+                      }
                       className="sr-only"
                     />
                     <div className="text-center">
-                      <X className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`} size={18} />
-                      <span className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}>
+                      <X
+                        className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`}
+                        size={18}
+                      />
+                      <span
+                        className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}
+                      >
                         Deduct
                       </span>
                     </div>
@@ -2594,12 +2914,16 @@ const handleRoundRobinAssign = (userId) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (Coins)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Amount (Coins)
+                </label>
                 <input
                   type="number"
                   placeholder="Enter amount"
                   value={walletUpdate.amount}
-                  onChange={(e) => setWalletUpdate({ ...walletUpdate, amount: e.target.value })}
+                  onChange={(e) =>
+                    setWalletUpdate({ ...walletUpdate, amount: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
                   min="0"
                   step="0.01"
@@ -2607,23 +2931,35 @@ const handleRoundRobinAssign = (userId) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Reason</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Reason
+                </label>
                 <input
                   type="text"
                   placeholder="e.g., admin add by bonus"
                   value={walletUpdate.reason}
-                  onChange={(e) => setWalletUpdate({ ...walletUpdate, reason: e.target.value })}
+                  onChange={(e) =>
+                    setWalletUpdate({ ...walletUpdate, reason: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
                 />
               </div>
 
               {walletUpdate.amount && (
                 <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-0.5">New Balance Preview</p>
+                  <p className="text-xs text-gray-600 mb-0.5">
+                    New Balance Preview
+                  </p>
                   <p className="text-lg font-bold text-indigo-600">
                     {walletUpdate.type === "credit"
-                      ? (parseFloat(walletModalUser.wallet || 0) + parseFloat(walletUpdate.amount || 0)).toFixed(2)
-                      : (parseFloat(walletModalUser.wallet || 0) - parseFloat(walletUpdate.amount || 0)).toFixed(2)}{" "}
+                      ? (
+                          parseFloat(walletModalUser.wallet || 0) +
+                          parseFloat(walletUpdate.amount || 0)
+                        ).toFixed(2)
+                      : (
+                          parseFloat(walletModalUser.wallet || 0) -
+                          parseFloat(walletUpdate.amount || 0)
+                        ).toFixed(2)}{" "}
                     coins
                   </p>
                 </div>
@@ -2649,218 +2985,220 @@ const handleRoundRobinAssign = (userId) => {
         </div>
       )}
 
-    {selectedUser && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
-    
-    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
-        <button
-          onClick={() => setSelectedUser(null)}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <X size={20} />
-        </button>
-      </div>
+            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+              <p className="text-sm text-gray-600 mb-1">User</p>
+              <p className="font-semibold text-gray-800">
+                {selectedUser.email}
+              </p>
+            </div>
 
-      <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-        <p className="text-sm text-gray-600 mb-1">User</p>
-        <p className="font-semibold text-gray-800">{selectedUser.email}</p>
-      </div>
+            {subscriptionPlans && (
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+                {subscriptionPlans.billingCycles.map((cycle) => (
+                  <button
+                    key={cycle.cycle}
+                    onClick={() => setSelectedCycle(cycle.cycle)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                      selectedCycle === cycle.cycle
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {cycle.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
-      {subscriptionPlans && (
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-          {subscriptionPlans.billingCycles.map((cycle) => (
-            <button
-              key={cycle.cycle}
-              onClick={() => setSelectedCycle(cycle.cycle)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                selectedCycle === cycle.cycle
-                  ? "bg-indigo-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {cycle.label}
-            </button>
-          ))}
+            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+              {(subscriptionPlans
+                ? subscriptionPlans.billingCycles.find(
+                    (c) => c.cycle === selectedCycle,
+                  )?.plans
+                : ["Basic Plan", "Professional Plan", "Premium Plan"].map(
+                    (p) => ({
+                      title: p,
+                    }),
+                  )
+              ).map((plan) => {
+                const planName = plan.title || plan;
+                return (
+                  <label
+                    key={planName}
+                    className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      selectedPlan === planName
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <input
+                        type="radio"
+                        name="plan"
+                        value={planName}
+                        checked={selectedPlan === planName}
+                        onChange={(e) => setSelectedPlan(e.target.value)}
+                        className="w-4 h-4 text-indigo-600 shrink-0"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {planName.includes("Premium") && (
+                            <Crown size={18} className="text-purple-600" />
+                          )}
+                          {planName.includes("Professional") && (
+                            <Zap size={18} className="text-blue-600" />
+                          )}
+                          {planName.includes("Basic") && (
+                            <Shield size={18} className="text-gray-600" />
+                          )}
+                          <span className="font-semibold text-gray-800">
+                            {planName}
+                          </span>
+                        </div>
+
+                        {plan.totalAmount && (
+                          <div className="text-xs text-gray-500 mt-1 ml-7">
+                            ₹{plan.totalAmount} / {plan.duration}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Amount (₹){" "}
+                  <span className="text-gray-400">(for new revenue)</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g., 5000"
+                  value={planAmount}
+                  onChange={(e) => setPlanAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={planStartDate}
+                  onChange={(e) => setPlanStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Expiry Date
+                </label>
+                <input
+                  type="date"
+                  value={planExpiryDate}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Payment Screenshot Upload */}
+            <div className="mb-6">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                Payment Screenshot{" "}
+                <span className="text-gray-400">(if amount entered)</span>
+              </label>
+
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setPlanScreenshot(file);
+                    }
+                  }}
+                  className="hidden"
+                  id="plan-screenshot-upload"
+                />
+
+                <label
+                  htmlFor="plan-screenshot-upload"
+                  className="flex flex-col items-center cursor-pointer"
+                >
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+
+                  <span className="text-sm text-gray-600">
+                    {planScreenshot
+                      ? planScreenshot.name
+                      : "Click to upload payment screenshot"}
+                  </span>
+
+                  <span className="text-xs text-gray-400 mt-1">
+                    PNG, JPG up to 10MB
+                  </span>
+                </label>
+              </div>
+
+              {/* UTR Number Field */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  UTR Number
+                </label>
+
+                <input
+                  type="text"
+                  value={utrNumber}
+                  onChange={(e) => setUtrNumber(e.target.value)}
+                  placeholder="Enter UTR / Transaction ID"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmPlanChange}
+                disabled={updating === selectedUser.userId}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
+              >
+                {updating === selectedUser.userId ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
-        {(subscriptionPlans
-          ? subscriptionPlans.billingCycles.find(
-              (c) => c.cycle === selectedCycle
-            )?.plans
-          : ["Basic Plan", "Professional Plan", "Premium Plan"].map((p) => ({
-              title: p,
-            }))
-        ).map((plan) => {
-          const planName = plan.title || plan;
-          return (
-            <label
-              key={planName}
-              className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                selectedPlan === planName
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-center gap-3 w-full">
-                <input
-                  type="radio"
-                  name="plan"
-                  value={planName}
-                  checked={selectedPlan === planName}
-                  onChange={(e) => setSelectedPlan(e.target.value)}
-                  className="w-4 h-4 text-indigo-600 shrink-0"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    {planName.includes("Premium") && (
-                      <Crown size={18} className="text-purple-600" />
-                    )}
-                    {planName.includes("Professional") && (
-                      <Zap size={18} className="text-blue-600" />
-                    )}
-                    {planName.includes("Basic") && (
-                      <Shield size={18} className="text-gray-600" />
-                    )}
-                    <span className="font-semibold text-gray-800">
-                      {planName}
-                    </span>
-                  </div>
-
-                  {plan.totalAmount && (
-                    <div className="text-xs text-gray-500 mt-1 ml-7">
-                      ₹{plan.totalAmount} / {plan.duration}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </label>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1.5">
-            Amount (₹) <span className="text-gray-400">(for new revenue)</span>
-          </label>
-          <input
-            type="number"
-            placeholder="e.g., 5000"
-            value={planAmount}
-            onChange={(e) => setPlanAmount(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1.5">
-            Start Date
-          </label>
-          <input
-            type="date"
-            value={planStartDate}
-            onChange={(e) => setPlanStartDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1.5">
-            Expiry Date
-          </label>
-          <input
-            type="date"
-            value={planExpiryDate}
-            readOnly
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
-          />
-        </div>
-      </div>
-
-      {/* Payment Screenshot Upload */}
-    <div className="mb-6">
-  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-    Payment Screenshot <span className="text-gray-400">(if amount entered)</span>
-  </label>
-
-  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
-    <input
-      type="file"
-      accept="image/*"
-      onChange={(e) => {
-        const file = e.target.files[0];
-        if (file) {
-          setPlanScreenshot(file);
-        }
-      }}
-      className="hidden"
-      id="plan-screenshot-upload"
-    />
-
-    <label
-      htmlFor="plan-screenshot-upload"
-      className="flex flex-col items-center cursor-pointer"
-    >
-      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-
-      <span className="text-sm text-gray-600">
-        {planScreenshot
-          ? planScreenshot.name
-          : "Click to upload payment screenshot"}
-      </span>
-
-      <span className="text-xs text-gray-400 mt-1">
-        PNG, JPG up to 10MB
-      </span>
-    </label>
-  </div>
-
-  {/* UTR Number Field */}
-  <div className="mt-4">
-    <label className="block text-xs font-medium text-gray-700 mb-1">
-      UTR Number
-    </label>
-
-    <input
-      type="text"
-      value={utrNumber}
-      onChange={(e) => setUtrNumber(e.target.value)}
-      placeholder="Enter UTR / Transaction ID"
-      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-    />
-  </div>
-</div>
-      <div className="flex gap-3">
-        <button
-          onClick={() => setSelectedUser(null)}
-          className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={confirmPlanChange}
-          disabled={updating === selectedUser.userId}
-          className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
-        >
-          {updating === selectedUser.userId ? "Updating..." : "Confirm"}
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
 
       {/* Remarks Modal */}
       {remarksModalUser && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
-
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-bold text-gray-800">
@@ -2874,14 +3212,13 @@ const handleRoundRobinAssign = (userId) => {
               </button>
             </div>
 
-
             {/* Add Remark Section (Input + Button in one line) */}
             <div className="flex items-center gap-2 mb-4">
               <input
                 type="text"
                 value={remarksInput}
                 onChange={(e) => setRemarksInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddRemark()}
+                onKeyDown={(e) => e.key === "Enter" && handleAddRemark()}
                 className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 placeholder="Type a new remark..."
               />
@@ -2909,12 +3246,11 @@ const handleRoundRobinAssign = (userId) => {
 
             {/* Remarks List */}
             <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
-
               {loadingRemarks ? (
                 <div className="text-center py-6 text-gray-500 text-xs">
                   Loading history...
                 </div>
-              ) : (!remarksHistory || remarksHistory.length === 0) ? (
+              ) : !remarksHistory || remarksHistory.length === 0 ? (
                 <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
                   <MessageSquare size={20} className="mb-1 opacity-20" />
                   No remarks found
@@ -2930,10 +3266,11 @@ const handleRoundRobinAssign = (userId) => {
                       <div
                         key={idx}
                         className={`p-3 rounded-xl border transition-all shadow-sm
-                    ${isLatest
-                            ? "bg-green-50 border-green-300"
-                            : "bg-white border-gray-200"
-                          }`}
+                    ${
+                      isLatest
+                        ? "bg-green-50 border-green-300"
+                        : "bg-white border-gray-200"
+                    }`}
                       >
                         {/* Top Row */}
                         <div className="flex items-center justify-between mb-1">
@@ -2975,16 +3312,13 @@ const handleRoundRobinAssign = (userId) => {
                   })
               )}
             </div>
-
           </div>
         </div>
       )}
 
-
       {addingUser && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
-
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -3000,7 +3334,6 @@ const handleRoundRobinAssign = (userId) => {
 
             {/* Form */}
             <div className="space-y-4 mb-6">
-
               {/* Full Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -3010,7 +3343,9 @@ const handleRoundRobinAssign = (userId) => {
                   type="text"
                   placeholder="Enter full name"
                   value={newUser.fullName}
-                  onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, fullName: e.target.value })
+                  }
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
@@ -3027,7 +3362,9 @@ const handleRoundRobinAssign = (userId) => {
                   type="email"
                   placeholder="user@example.com"
                   value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, email: e.target.value })
+                  }
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
@@ -3044,7 +3381,9 @@ const handleRoundRobinAssign = (userId) => {
                   type="tel"
                   placeholder="+91 9876543210"
                   value={newUser.phone}
-                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, phone: e.target.value })
+                  }
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
@@ -3059,7 +3398,9 @@ const handleRoundRobinAssign = (userId) => {
                 </label>
                 <select
                   value={newUser.plan}
-                  onChange={(e) => setNewUser({ ...newUser, plan: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, plan: e.target.value })
+                  }
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
                        rounded-xl focus:ring-2 focus:ring-indigo-500 
@@ -3093,7 +3434,6 @@ const handleRoundRobinAssign = (userId) => {
                 Add User
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -3103,7 +3443,9 @@ const handleRoundRobinAssign = (userId) => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">User Posts</h2>
-                <p className="text-gray-600 text-sm mt-1">{viewingUserPosts.email}</p>
+                <p className="text-gray-600 text-sm mt-1">
+                  {viewingUserPosts.email}
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -3133,13 +3475,17 @@ const handleRoundRobinAssign = (userId) => {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Posted</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {loadingPosts ? "..." : userPosts.filter(p => p.status === "posted").length}
+                    {loadingPosts
+                      ? "..."
+                      : userPosts.filter((p) => p.status === "posted").length}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Rejected</p>
                   <p className="text-2xl font-bold text-red-600">
-                    {loadingPosts ? "..." : userPosts.filter(p => p.status === "rejected").length}
+                    {loadingPosts
+                      ? "..."
+                      : userPosts.filter((p) => p.status === "rejected").length}
                   </p>
                 </div>
               </div>
@@ -3154,7 +3500,9 @@ const handleRoundRobinAssign = (userId) => {
                 <div className="text-center py-12">
                   <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
                   <p className="text-gray-500 font-medium">No posts yet</p>
-                  <p className="text-gray-400 text-sm">This user hasn't created any posts</p>
+                  <p className="text-gray-400 text-sm">
+                    This user hasn't created any posts
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -3177,22 +3525,28 @@ const handleRoundRobinAssign = (userId) => {
 
                         <div className="absolute top-2 right-2">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
-                              ? "bg-green-100 text-green-700 border border-green-300"
-                              : post.status === "rejected"
-                                ? "bg-red-100 text-red-700 border border-red-300"
-                                : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                              }`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                              post.status === "posted"
+                                ? "bg-green-100 text-green-700 border border-green-300"
+                                : post.status === "rejected"
+                                  ? "bg-red-100 text-red-700 border border-red-300"
+                                  : "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                            }`}
                           >
                             <div
-                              className={`w-2 h-2 rounded-full ${post.status === "posted"
-                                ? "bg-green-500"
-                                : post.status === "rejected"
-                                  ? "bg-red-500"
-                                  : "bg-yellow-500"
-                                }`}
+                              className={`w-2 h-2 rounded-full ${
+                                post.status === "posted"
+                                  ? "bg-green-500"
+                                  : post.status === "rejected"
+                                    ? "bg-red-500"
+                                    : "bg-yellow-500"
+                              }`}
                             ></div>
-                            {post.status === "posted" ? "Posted" : post.status === "rejected" ? "Rejected" : "Pending"}
+                            {post.status === "posted"
+                              ? "Posted"
+                              : post.status === "rejected"
+                                ? "Rejected"
+                                : "Pending"}
                           </span>
                         </div>
 
@@ -3206,7 +3560,9 @@ const handleRoundRobinAssign = (userId) => {
 
                       <div className="p-4 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Post #{index + 1}</span>
+                          <span className="text-xs font-medium text-gray-500">
+                            Post #{index + 1}
+                          </span>
                           <span className="text-xs text-gray-400">
                             {new Date(post.createdAt).toLocaleDateString()}
                           </span>
@@ -3214,16 +3570,20 @@ const handleRoundRobinAssign = (userId) => {
 
                         {post.promat && (
                           <p className="text-sm text-gray-700 line-clamp-2">
-                            <span className="font-bold">Prompt:</span> {post.promat}
+                            <span className="font-bold">Prompt:</span>{" "}
+                            {post.promat}
                           </p>
                         )}
                         {post.status === "rejected" && post.rejectReason && (
                           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
-                            <p className="text-xs text-red-600">{post.rejectReason}</p>
+                            <p className="text-xs font-semibold text-red-700 mb-1">
+                              Rejection Reason:
+                            </p>
+                            <p className="text-xs text-red-600">
+                              {post.rejectReason}
+                            </p>
                           </div>
                         )}
-
                       </div>
                     </div>
                   ))}
@@ -3273,7 +3633,11 @@ const handleRoundRobinAssign = (userId) => {
           <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h2 className="text-2xl font-bold text-gray-800">
-                {chatModalFilter === 'today' ? 'Chats Today' : chatModalFilter === 'resolved' ? 'Resolved Chats' : 'All Chats'}
+                {chatModalFilter === "today"
+                  ? "Chats Today"
+                  : chatModalFilter === "resolved"
+                    ? "Resolved Chats"
+                    : "All Chats"}
               </h2>
               <button
                 onClick={() => setShowChatStatsModal(false)}
@@ -3287,32 +3651,45 @@ const handleRoundRobinAssign = (userId) => {
               <table className="min-w-full">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Issue
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {chatStats.data
-                    .filter(chat => {
+                    .filter((chat) => {
                       // Filter for agents: only show chats from their assigned users
-                      if (role === 'agent') {
-                         // Check if the chat's user is in the currently fetched users list (which is filtered for the agent)
-                         if (!users.some(u => u.userId === chat.userId)) return false;
+                      if (role === "agent") {
+                        // Check if the chat's user is in the currently fetched users list (which is filtered for the agent)
+                        if (!users.some((u) => u.userId === chat.userId))
+                          return false;
                       }
 
-                      if (chatModalFilter === 'today') {
+                      if (chatModalFilter === "today") {
                         if (!chat.createdAt) return false;
                         const chatDate = new Date(chat.createdAt);
                         const todayDate = new Date();
-                        return chatDate.getDate() === todayDate.getDate() &&
+                        return (
+                          chatDate.getDate() === todayDate.getDate() &&
                           chatDate.getMonth() === todayDate.getMonth() &&
-                          chatDate.getFullYear() === todayDate.getFullYear();
+                          chatDate.getFullYear() === todayDate.getFullYear()
+                        );
                       }
-                      if (chatModalFilter === 'resolved') {
-                        return chat.status === 'resolved';
+                      if (chatModalFilter === "resolved") {
+                        return chat.status === "resolved";
                       }
                       return true;
                     })
@@ -3323,44 +3700,60 @@ const handleRoundRobinAssign = (userId) => {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-800 font-medium">
                           <div>{chat.user?.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">{chat?.user?.fullName}</div>
+                          <div className="text-xs text-gray-500">
+                            {chat?.user?.fullName}
+                          </div>
                           <div>{chat.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">{chat.mobile}</div>
+                          <div className="text-xs text-gray-500">
+                            {chat.mobile}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
                           {chat.issue || "-"}
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${chat.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                            {chat.status || 'open'}
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              chat.status === "resolved"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {chat.status || "open"}
                           </span>
                         </td>
-
                       </tr>
                     ))}
-                  {chatStats.data.filter(chat => {
-                    if (role === 'agent') {
-                       if (!users.some(u => u.userId === chat.userId)) return false;
+                  {chatStats.data.filter((chat) => {
+                    if (role === "agent") {
+                      if (!users.some((u) => u.userId === chat.userId))
+                        return false;
                     }
 
-                    if (chatModalFilter === 'today') {
+                    if (chatModalFilter === "today") {
                       if (!chat.createdAt) return false;
                       const chatDate = new Date(chat.createdAt);
                       const todayDate = new Date();
-                      return chatDate.getDate() === todayDate.getDate() &&
+                      return (
+                        chatDate.getDate() === todayDate.getDate() &&
                         chatDate.getMonth() === todayDate.getMonth() &&
-                        chatDate.getFullYear() === todayDate.getFullYear();
+                        chatDate.getFullYear() === todayDate.getFullYear()
+                      );
                     }
-                    if (chatModalFilter === 'resolved') {
-                      return chat.status === 'resolved';
+                    if (chatModalFilter === "resolved") {
+                      return chat.status === "resolved";
                     }
                     return true;
                   }).length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No chats found</td>
-                      </tr>
-                    )}
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="px-6 py-8 text-center text-gray-500"
+                      >
+                        No chats found
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -3372,7 +3765,9 @@ const handleRoundRobinAssign = (userId) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Reported Issues</h2>
+              <h2 className="text-2xl font-bold text-gray-800">
+                Reported Issues
+              </h2>
               <button
                 onClick={() => setShowIssuesModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -3385,11 +3780,21 @@ const handleRoundRobinAssign = (userId) => {
               <table className="min-w-full">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Issue</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Issue
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -3400,22 +3805,34 @@ const handleRoundRobinAssign = (userId) => {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-800 font-medium">
                         <div>{issue.fullName || "Unknown"}</div>
-                        <div className="text-xs text-gray-500">{issue.mobile}</div>
+                        <div className="text-xs text-gray-500">
+                          {issue.mobile}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
                         {issue.issue}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${issue.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                          {issue.status || 'open'}
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            issue.status === "resolved"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {issue.status || "open"}
                         </span>
                       </td>
                     </tr>
                   ))}
                   {issues.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">No issues found</td>
+                      <td
+                        colSpan="5"
+                        className="px-6 py-8 text-center text-gray-500"
+                      >
+                        No issues found
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -3433,9 +3850,15 @@ const handleRoundRobinAssign = (userId) => {
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle className="text-red-600" size={24} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete User?</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Delete User?
+              </h3>
               <p className="text-gray-500 text-sm mb-6">
-                Are you sure you want to delete <strong>{deleteUserModal.fullName || deleteUserModal.email}</strong>? This action cannot be undone.
+                Are you sure you want to delete{" "}
+                <strong>
+                  {deleteUserModal.fullName || deleteUserModal.email}
+                </strong>
+                ? This action cannot be undone.
               </p>
               <div className="flex gap-3 w-full">
                 <button
@@ -3462,7 +3885,9 @@ const handleRoundRobinAssign = (userId) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800">{stageModal} Leads Breakdown</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                {stageModal} Leads Breakdown
+              </h2>
               <button
                 onClick={() => setStageModal(null)}
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
@@ -3473,18 +3898,22 @@ const handleRoundRobinAssign = (userId) => {
 
             <div className="max-h-[60vh] overflow-y-auto pr-2">
               <table className="w-full">
-                {role === 'agent' ? (
+                {role === "agent" ? (
                   // Agent View: Show List of Users
                   <>
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">User Name</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Phone</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                          User Name
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">
+                          Phone
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {users
-                        .filter(u => (u.leadStage || "Active") === stageModal)
+                        .filter((u) => (u.leadStage || "Active") === stageModal)
                         .map((user, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm text-gray-800 font-medium">
@@ -3495,8 +3924,17 @@ const handleRoundRobinAssign = (userId) => {
                             </td>
                           </tr>
                         ))}
-                      {users.filter(u => (u.leadStage || "Active") === stageModal).length === 0 && (
-                        <tr><td colSpan="2" className="text-center py-4 text-gray-500 text-sm">No users found on this page</td></tr>
+                      {users.filter(
+                        (u) => (u.leadStage || "Active") === stageModal,
+                      ).length === 0 && (
+                        <tr>
+                          <td
+                            colSpan="2"
+                            className="text-center py-4 text-gray-500 text-sm"
+                          >
+                            No users found on this page
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </>
@@ -3505,49 +3943,58 @@ const handleRoundRobinAssign = (userId) => {
                   <>
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                          Agent
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">
+                          Count
+                        </th>
                       </tr>
                     </thead>
-             <tbody className="divide-y divide-gray-100">
-  {Object.values(
-    detailedStats
-      .filter(item => item.stage === stageModal)
-      .reduce((acc, item) => {
-        const agentName =
-          item.agentId === "Unassigned"
-            ? "Unassigned"
-            : agents.find(a => a._id === item.agentId)?.fullName || "Unknown Agent";
+                    <tbody className="divide-y divide-gray-100">
+                      {Object.values(
+                        detailedStats
+                          .filter((item) => item.stage === stageModal)
+                          .reduce((acc, item) => {
+                            const agentName =
+                              item.agentId === "Unassigned"
+                                ? "Unassigned"
+                                : agents.find((a) => a._id === item.agentId)
+                                    ?.fullName || "Unknown Agent";
 
-        if (!acc[agentName]) {
-          acc[agentName] = { agentName, count: 0 };
-        }
+                            if (!acc[agentName]) {
+                              acc[agentName] = { agentName, count: 0 };
+                            }
 
-        acc[agentName].count += item.count;
+                            acc[agentName].count += item.count;
 
-        return acc;
-      }, {})
-  )
-    .sort((a, b) => b.count - a.count)
-    .map((item, idx) => (
-      <tr key={idx} className="hover:bg-gray-50">
-        <td className="px-4 py-3 text-sm text-gray-800 font-medium">
-          {item.agentName}
-        </td>
-        <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
-          {item.count}
-        </td>
-      </tr>
-    ))}
+                            return acc;
+                          }, {}),
+                      )
+                        .sort((a, b) => b.count - a.count)
+                        .map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                              {item.agentName}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
+                              {item.count}
+                            </td>
+                          </tr>
+                        ))}
 
-  {detailedStats.filter(item => item.stage === stageModal).length === 0 && (
-    <tr>
-      <td colSpan="2" className="text-center py-4 text-gray-500 text-sm">
-        No leads in this stage
-      </td>
-    </tr>
-  )}
-</tbody>
+                      {detailedStats.filter((item) => item.stage === stageModal)
+                        .length === 0 && (
+                        <tr>
+                          <td
+                            colSpan="2"
+                            className="text-center py-4 text-gray-500 text-sm"
+                          >
+                            No leads in this stage
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
                   </>
                 )}
               </table>
@@ -3563,8 +4010,12 @@ const handleRoundRobinAssign = (userId) => {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
               <div>
-                <h2 className="text-2xl font-bold text-emerald-800">User Onboard Revenue Details</h2>
-                <p className="text-sm text-emerald-700 mt-1">All users with `type: user_onboard` revenue entries</p>
+                <h2 className="text-2xl font-bold text-emerald-800">
+                  User Onboard Revenue Details
+                </h2>
+                <p className="text-sm text-emerald-700 mt-1">
+                  All users with `type: user_onboard` revenue entries
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -3583,15 +4034,24 @@ const handleRoundRobinAssign = (userId) => {
                 <div className="flex items-center justify-center py-12">
                   <div className="flex flex-col items-center text-center">
                     <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-3" />
-                    <p className="text-gray-600 font-medium">Loading onboarded users...</p>
+                    <p className="text-gray-600 font-medium">
+                      Loading onboarded users...
+                    </p>
                   </div>
                 </div>
               ) : revenueUsersList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
                   <Wallet className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                  <h3 className="text-xl font-semibold mb-2 text-gray-600">No Onboarded Users Yet</h3>
-                  <p className="text-gray-500">No users with `user_onboard` revenue entries found for your account.</p>
-                  <p className="text-sm mt-1 text-gray-400">Onboard users using the ✅ button in the user table</p>
+                  <h3 className="text-xl font-semibold mb-2 text-gray-600">
+                    No Onboarded Users Yet
+                  </h3>
+                  <p className="text-gray-500">
+                    No users with `user_onboard` revenue entries found for your
+                    account.
+                  </p>
+                  <p className="text-sm mt-1 text-gray-400">
+                    Onboard users using the ✅ button in the user table
+                  </p>
                 </div>
               ) : (
                 <>
@@ -3600,27 +4060,46 @@ const handleRoundRobinAssign = (userId) => {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">User</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Plan</th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Amount</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Date</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Screenshot</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Notes</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Plan
+                          </th>
+                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Screenshot
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Notes
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {revenueUsersList.map((revenue, index) => (
-                          <tr key={revenue._id || index} className="hover:bg-gray-50 transition-colors">
+                          <tr
+                            key={revenue._id || index}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
                             <td className="px-6 py-4">
-                              <div className="font-semibold text-gray-900">{revenue.leadName}</div>
-                              <div className="text-sm text-gray-500">ID: {revenue.leadId}</div>
+                              <div className="font-semibold text-gray-900">
+                                {revenue.leadName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ID: {revenue.leadId}
+                              </div>
                               <div className="text-xs text-gray-500 mt-1">
-                                UTR: {revenue.utrNumber || 'N/A'}
+                                UTR: {revenue.utrNumber || "N/A"}
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <span className="inline-flex px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                                {revenue.plan || 'N/A'}
+                                {revenue.plan || "N/A"}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
@@ -3630,28 +4109,37 @@ const handleRoundRobinAssign = (userId) => {
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-sm font-medium text-gray-900">
-                                {new Date(revenue.createdAt).toLocaleDateString('en-IN')}
+                                {new Date(revenue.createdAt).toLocaleDateString(
+                                  "en-IN",
+                                )}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {new Date(revenue.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                {new Date(revenue.createdAt).toLocaleTimeString(
+                                  [],
+                                  { hour: "2-digit", minute: "2-digit" },
+                                )}
                               </div>
                             </td>
-                          <td className="px-6 py-4">
-                            {revenue.paymentScreenshot ? (
-                              <button
-                                onClick={() => setFullViewImage(revenue.paymentScreenshot)}
-                                className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
-                              >
-                                <Eye size={14} />
-                                View Proof
-                              </button>
-                            ) : (
-                              <span className="text-sm text-gray-400 italic">No screenshot</span>
-                            )}
-                          </td>
+                            <td className="px-6 py-4">
+                              {revenue.paymentScreenshot ? (
+                                <button
+                                  onClick={() =>
+                                    setFullViewImage(revenue.paymentScreenshot)
+                                  }
+                                  className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
+                                >
+                                  <Eye size={14} />
+                                  View Proof
+                                </button>
+                              ) : (
+                                <span className="text-sm text-gray-400 italic">
+                                  No screenshot
+                                </span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 max-w-xs">
                               <div className="text-sm text-gray-900 line-clamp-2">
-                                {revenue.notes || 'No notes'}
+                                {revenue.notes || "No notes"}
                               </div>
                             </td>
                           </tr>
@@ -3664,13 +4152,20 @@ const handleRoundRobinAssign = (userId) => {
                   <div className="mt-6 pt-6 border-t border-gray-200 bg-emerald-50/50 rounded-2xl p-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Total Onboarded Users:</p>
-                        <p className="text-2xl font-bold text-emerald-800">{revenueUsersList.length}</p>
+                        <p className="text-sm text-gray-600">
+                          Total Onboarded Users:
+                        </p>
+                        <p className="text-2xl font-bold text-emerald-800">
+                          {revenueUsersList.length}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Total Revenue:</p>
                         <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                          ₹{revenueUsersList.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                          ₹
+                          {revenueUsersList
+                            .reduce((sum, r) => sum + (r.amount || 0), 0)
+                            .toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -3688,14 +4183,23 @@ const handleRoundRobinAssign = (userId) => {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">Onboard Client</h2>
-                <p className="text-sm text-gray-500 mt-1">{onboardModalUser.fullName}</p>
+                <h2 className="text-xl font-bold text-gray-800">
+                  Onboard Client
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {onboardModalUser.fullName}
+                </p>
               </div>
               <button
                 onClick={() => {
                   setShowOnboardModal(false);
                   setOnboardModalUser(null);
-                  setOnboardData({ plan: "", amount: "", screenshot: null, notes: "" });
+                  setOnboardData({
+                    plan: "",
+                    amount: "",
+                    screenshot: null,
+                    notes: "",
+                  });
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
               >
@@ -3710,7 +4214,9 @@ const handleRoundRobinAssign = (userId) => {
                 </label>
                 <select
                   value={onboardData.plan}
-                  onChange={(e) => setOnboardData({ ...onboardData, plan: e.target.value })}
+                  onChange={(e) =>
+                    setOnboardData({ ...onboardData, plan: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
                 >
                   <option value="">Select Plan</option>
@@ -3729,7 +4235,9 @@ const handleRoundRobinAssign = (userId) => {
                   type="number"
                   placeholder="Enter amount"
                   value={onboardData.amount}
-                  onChange={(e) => setOnboardData({ ...onboardData, amount: e.target.value })}
+                  onChange={(e) =>
+                    setOnboardData({ ...onboardData, amount: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
@@ -3757,19 +4265,27 @@ const handleRoundRobinAssign = (userId) => {
                   >
                     <Upload className="w-8 h-8 text-gray-400 mb-2" />
                     <span className="text-sm text-gray-600">
-                      {onboardData.screenshot ? onboardData.screenshot.name : "Click to upload screenshot"}
+                      {onboardData.screenshot
+                        ? onboardData.screenshot.name
+                        : "Click to upload screenshot"}
                     </span>
-                    <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                    <span className="text-xs text-gray-400 mt-1">
+                      PNG, JPG up to 10MB
+                    </span>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes (Optional)
+                </label>
                 <textarea
                   placeholder="Add any additional notes..."
                   value={onboardData.notes}
-                  onChange={(e) => setOnboardData({ ...onboardData, notes: e.target.value })}
+                  onChange={(e) =>
+                    setOnboardData({ ...onboardData, notes: e.target.value })
+                  }
                   rows="3"
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                 />
@@ -3777,7 +4293,12 @@ const handleRoundRobinAssign = (userId) => {
 
               <button
                 onClick={handleOnboardSubmit}
-                disabled={uploadingOnboard || !onboardData.plan || !onboardData.amount || !onboardData.screenshot}
+                disabled={
+                  uploadingOnboard ||
+                  !onboardData.plan ||
+                  !onboardData.amount ||
+                  !onboardData.screenshot
+                }
                 className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {uploadingOnboard ? (
@@ -3802,7 +4323,9 @@ const handleRoundRobinAssign = (userId) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                Schedule Meeting
+              </h2>
               <button
                 onClick={() => setShowMeetingModal(false)}
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
@@ -3813,44 +4336,63 @@ const handleRoundRobinAssign = (userId) => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting Date & Time
+                </label>
                 <input
                   type="datetime-local"
                   value={meetingData.date}
-                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, date: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting Link
+                </label>
                 <input
                   type="text"
                   placeholder="https://zoom.us/..."
                   value={meetingData.link}
-                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, link: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting ID
+                </label>
                 <input
                   type="text"
                   placeholder="Meeting ID"
                   value={meetingData.meetingId}
-                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({
+                      ...meetingData,
+                      meetingId: e.target.value,
+                    })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Passcode (Optional)
+                </label>
                 <input
                   type="text"
                   placeholder="123456"
                   value={meetingData.passcode}
-                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, passcode: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
@@ -3867,185 +4409,185 @@ const handleRoundRobinAssign = (userId) => {
       )}
 
       {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}
-    {showRevenueUsersModal && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+      {showRevenueUsersModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Onboarded Users Revenue
+                </h2>
+                <p className="text-gray-600 text-sm mt-1">
+                  Total: ₹{totalRevenue.toLocaleString()} from {revenueCount}{" "}
+                  users
+                </p>
+              </div>
 
-    <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
+              <button
+                onClick={() => setShowRevenueUsersModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
 
-      <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Onboarded Users Revenue</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Total: ₹{totalRevenue.toLocaleString()} from {revenueCount} users
-          </p>
+            <div className="flex-1 overflow-auto">
+              {loadingRevenueUsers ? (
+                <div className="flex items-center justify-center py-12 text-gray-500">
+                  <RefreshCw className="w-8 h-8 animate-spin mr-3" />
+                  <span>Loading onboarded users...</span>
+                </div>
+              ) : revenueUsersList.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <Wallet className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <h3 className="text-xl font-semibold mb-2 text-gray-500">
+                    No onboarded users yet
+                  </h3>
+                  <p className="text-gray-400">
+                    Use the onboard button next to users to record revenue
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                          User
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                          Plan
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                          Screenshot
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                          Notes
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {revenueUsersList.map((revenue, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-gray-900">
+                              {revenue.leadName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ID: {revenue.leadId}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4 text-right">
+                            <div className="text-lg font-bold text-emerald-600">
+                              ₹{revenue.amount?.toLocaleString()}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <span className="px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
+                              {revenue.plan || "N/A"}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {new Date(revenue.createdAt).toLocaleDateString()}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            {revenue.paymentScreenshot ? (
+                              <button
+                                onClick={() =>
+                                  setFullViewImage(revenue.paymentScreenshot)
+                                }
+                                className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-all text-sm font-medium"
+                              >
+                                <Eye size={14} />
+                                View Proof
+                              </button>
+                            ) : (
+                              <span className="text-sm text-gray-400 italic">
+                                No screenshot
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div
+                              className="text-sm text-gray-700 max-w-xs truncate"
+                              title={revenue.notes}
+                            >
+                              {revenue.notes || "N/A"}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-gray-200 bg-gray-50 rounded-b-3xl p-4">
+              <div className="flex justify-between items-center text-sm text-gray-600">
+                <span>
+                  Total Onboarded Users:
+                  <span className="font-bold text-gray-900">
+                    {revenueUsersList.length}
+                  </span>
+                </span>
+
+                <span>
+                  Total Revenue:
+                  <span className="font-bold text-emerald-600">
+                    ₹{totalRevenue.toLocaleString()}
+                  </span>
+                </span>
+              </div>
+
+              <button
+                onClick={() => setShowRevenueUsersModal(false)}
+                className="w-full mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* 🔥 Payment Screenshot Viewer */}
+          {fullViewImage && (
+            <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] p-6">
+              <button
+                onClick={() => setFullViewImage(null)}
+                className="absolute top-8 right-8 text-white bg-black/60 hover:bg-black/80 p-3 rounded-full"
+              >
+                <X size={28} />
+              </button>
+
+              <img
+                src={fullViewImage}
+                alt="Payment Proof"
+                className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl"
+              />
+            </div>
+          )}
         </div>
-
-        <button
-          onClick={() => setShowRevenueUsersModal(false)}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-auto">
-
-        {loadingRevenueUsers ? (
-          <div className="flex items-center justify-center py-12 text-gray-500">
-            <RefreshCw className="w-8 h-8 animate-spin mr-3" />
-            <span>Loading onboarded users...</span>
-          </div>
-        ) : revenueUsersList.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <Wallet className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <h3 className="text-xl font-semibold mb-2 text-gray-500">
-              No onboarded users yet
-            </h3>
-            <p className="text-gray-400">
-              Use the onboard button next to users to record revenue
-            </p>
-          </div>
-        ) : (
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Plan</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Screenshot</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Notes</th>
-                </tr>
-              </thead>
-
-              <tbody className="bg-white divide-y divide-gray-200">
-                {revenueUsersList.map((revenue, idx) => (
-
-                  <tr key={idx} className="hover:bg-gray-50">
-
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-900">
-                        {revenue.leadName}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        ID: {revenue.leadId}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      <div className="text-lg font-bold text-emerald-600">
-                        ₹{revenue.amount?.toLocaleString()}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                        {revenue.plan || "N/A"}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(revenue.createdAt).toLocaleDateString()}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {revenue.paymentScreenshot ? (
-
-                        <button
-                          onClick={() => setFullViewImage(revenue.paymentScreenshot)}
-                          className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-all text-sm font-medium"
-                        >
-                          <Eye size={14} />
-                          View Proof
-                        </button>
-
-                      ) : (
-                        <span className="text-sm text-gray-400 italic">
-                          No screenshot
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div
-                        className="text-sm text-gray-700 max-w-xs truncate"
-                        title={revenue.notes}
-                      >
-                        {revenue.notes || "N/A"}
-                      </div>
-                    </td>
-
-                  </tr>
-                ))}
-              </tbody>
-
-            </table>
-          </div>
-
-        )}
-
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-gray-200 bg-gray-50 rounded-b-3xl p-4">
-
-        <div className="flex justify-between items-center text-sm text-gray-600">
-          <span>
-            Total Onboarded Users:
-            <span className="font-bold text-gray-900">
-              {revenueUsersList.length}
-            </span>
-          </span>
-
-          <span>
-            Total Revenue:
-            <span className="font-bold text-emerald-600">
-              ₹{totalRevenue.toLocaleString()}
-            </span>
-          </span>
-        </div>
-
-        <button
-          onClick={() => setShowRevenueUsersModal(false)}
-          className="w-full mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold"
-        >
-          Close
-        </button>
-
-      </div>
-
-    </div>
-
-    {/* 🔥 Payment Screenshot Viewer */}
-    {fullViewImage && (
-      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] p-6">
-
-        <button
-          onClick={() => setFullViewImage(null)}
-          className="absolute top-8 right-8 text-white bg-black/60 hover:bg-black/80 p-3 rounded-full"
-        >
-          <X size={28} />
-        </button>
-
-        <img
-          src={fullViewImage}
-          alt="Payment Proof"
-          className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl"
-        />
-
-      </div>
-    )}
-
-  </div>
-)}
+      )}
       {/* Meeting Schedule Modal */}
       {showMeetingModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                Schedule Meeting
+              </h2>
               <button
                 onClick={() => setShowMeetingModal(false)}
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
@@ -4056,44 +4598,63 @@ const handleRoundRobinAssign = (userId) => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting Date & Time
+                </label>
                 <input
                   type="datetime-local"
                   value={meetingData.date}
-                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, date: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting Link
+                </label>
                 <input
                   type="text"
                   placeholder="https://zoom.us/..."
                   value={meetingData.link}
-                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, link: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting ID
+                </label>
                 <input
                   type="text"
                   placeholder="Meeting ID"
                   value={meetingData.meetingId}
-                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({
+                      ...meetingData,
+                      meetingId: e.target.value,
+                    })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Passcode (Optional)
+                </label>
                 <input
                   type="text"
                   placeholder="123456"
                   value={meetingData.passcode}
-                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, passcode: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>

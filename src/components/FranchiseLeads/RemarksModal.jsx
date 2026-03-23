@@ -117,8 +117,8 @@ export default function RemarksModal({
       <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-xl">
         {/* Header */}
         <div className="flex justify-between mb-3">
-          <h2 className="font-bold">Remarks History</h2>
-          <button onClick={onClose}>
+          <h2 className="font-bold text-dark">Remarks History</h2>
+          <button className="text-dark" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
@@ -128,7 +128,7 @@ export default function RemarksModal({
           <input
             value={remarksInput}
             onChange={(e) => setRemarksInput(e.target.value)}
-            className="flex-1 border p-2 rounded-md"
+            className="flex-1 border p-2 rounded-md text-dark"
             placeholder="Type remark..."
           />
           <button
@@ -137,7 +137,7 @@ export default function RemarksModal({
               // console.log("BUTTON CLICKED");
               handleAddRemark();
             }}
-            className="bg-dark text-white px-4 py-2 rounded-md hover:gray-300"
+            className="bg-dark text-white px-4 py-2 rounded-md hover:gray-300 cursor-pointer hover:bg-neutral-800"
           >
             Submit
           </button>
@@ -149,7 +149,7 @@ export default function RemarksModal({
             <button
               key={i}
               onClick={() => setRemarksInput(r)}
-              className="text-xs bg-gray-100 px-2 py-2 rounded-md border border-gray-400"
+              className="text-xs text-dark bg-gray-100 px-2 py-2 rounded-md border border-gray-400"
             >
               {r}
             </button>
@@ -159,7 +159,7 @@ export default function RemarksModal({
         {/* History */}
         <div className="max-h-[250px] overflow-y-auto">
           {remarksHistory.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm">
+            <p className="text-center text-gray-400 text-sm text-dark">
               No remarks found
             </p>
           ) : (
@@ -169,7 +169,7 @@ export default function RemarksModal({
               .map((item) => (
                 <div
                   key={item._id}
-                  className="border p-4  bg-gray-100 rounded-xl mb-2 flex justify-between items-start"
+                  className="border p-4  bg-gray-100 rounded-xl mb-2 flex justify-between items-start text-dark"
                 >
                   <div>
                     <p className="text-md   font-medium">{item.text}</p>
@@ -180,7 +180,7 @@ export default function RemarksModal({
 
                   <button
                     onClick={() => handleDeleteRemark(item._id, item.text)}
-                    className="text-red-500 text-xs hover:underline"
+                    className="bg-red-200 p-2 pl-3 pr-3 rounded-xl  text-red-500 text-xs hover:underline mt-1 cursor-pointer"
                   >
                     Delete
                   </button>

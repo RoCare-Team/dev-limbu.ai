@@ -573,7 +573,7 @@ export async function PUT(req) {
     updateData.$inc = { callCount: 1 };
 
     pushOperations.callHistory = {
-      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : null,
+      agentId: agentId && mongoose.Types.ObjectId.isValid(agentId) ? new mongoose.Types.ObjectId(agentId) : null,
       agentName: agentName,
       calledAt: new Date(),
       remark: remark

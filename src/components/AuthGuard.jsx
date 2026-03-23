@@ -12,6 +12,18 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Business websites on subdomains (e.g. doctorfresh.limbu.ai) are always public
+    const hostname = window.location.hostname;
+    const isSubdomainSite =
+      hostname !== "limbu.ai" &&
+      hostname !== "www.limbu.ai" &&
+      hostname.endsWith(".limbu.ai");
+
+    if (isSubdomainSite) {
+      setIsChecking(false);
+      return;
+    }
+
     const userId = localStorage.getItem("userId");  
     const role = localStorage.getItem("role");  // admin | franchiseAdmin
 

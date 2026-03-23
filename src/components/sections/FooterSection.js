@@ -95,10 +95,10 @@ export default function FooterSection() {
           
             {/* Social Icons */}
             <div className="flex justify-end  gap-5 mb-6 ">
-              <Facebook className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
-              <Instagram className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
-              <Youtube className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
-              <Linkedin className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" />
+              <a href="https://www.facebook.com/limbuai"><Facebook className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" /></a>
+              <a href="https://www.linkedin.com/company/limbuai/"> <Instagram className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" /></a>
+              <a href="https://www.youtube.com/@limbuai"> <Youtube className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" /></a>
+              <a href="https://www.pinterest.com/limbuaiofficial/"> <Linkedin className="w-8 h-8 text-slate-300 hover:text-primary cursor-pointer" /></a>
             </div>
 
         {/* Divider */}

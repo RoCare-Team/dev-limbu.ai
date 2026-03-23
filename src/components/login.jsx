@@ -398,6 +398,7 @@ useEffect(() => {
                           type="text"
                           placeholder="Enter your full name"
                           value={name}
+                          maxLength={30}
                           onChange={(e) => setName(e.target.value)}
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
                             isDark

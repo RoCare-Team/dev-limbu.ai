@@ -1,11 +1,10 @@
-"use client";
+  "use client";
 
   import { useEffect, useState } from "react";
   import { Search, Phone, MessageCircle, Wallet, X } from "lucide-react";
 
 import DashboardStats from "../../../../components/FranchiseLeads/DashboardStats";
 import RemarksModal  from "../../../../components/FranchiseLeads/RemarksModal";
-
 
   export default function UserManagement() {
     const [users, setUsers] = useState([]);

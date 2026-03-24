@@ -29,6 +29,7 @@ export default function Login() {
     localStorage.setItem("permissions", JSON.stringify(data.permissions));
     localStorage.setItem("adminName", data.fullName);
     localStorage.setItem("email", data.email);
+    localStorage.setItem("adminId", data.adminId);
 
     if (["superFranchiseAdmin", "franchiseAdmin"].includes(data.role)) {
       router.push("/admin/franchise/franchise-lead");

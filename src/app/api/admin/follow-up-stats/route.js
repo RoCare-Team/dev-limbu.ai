@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import mongoose from "mongoose";
 
 export async function GET(req) {
   try {
@@ -9,14 +10,10 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const adminEmail = searchParams.get("email");
-    // filter: "today" | "tomorrow" | "next7days" | "thisMonth" | "all"
-    const filter = searchParams.get("filter") || "all";
+    const filter     = searchParams.get("filter") || "all";
 
     if (!adminEmail) {
-      return NextResponse.json(
-        { success: false, error: "Admin email is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Admin email required" }, { status: 400 });
     }
 
     const admin = await Admin.findOne({ email: adminEmail }).select("fullName role _id");
@@ -25,9 +22,6 @@ export async function GET(req) {
     }
 
     const isAgent = admin.role === "agent";
-    const agentNameRegex = isAgent
-      ? new RegExp(`^${admin.fullName?.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")
-      : null;
 
     /* ── Date buckets ── */
     const todayStart = new Date();
@@ -35,32 +29,45 @@ export async function GET(req) {
 
     const tomorrowStart = new Date(todayStart);
     tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
     const tomorrowEnd = new Date(tomorrowStart);
     tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
 
-    const next7DaysStart = new Date(todayStart);
     const next7DaysEnd = new Date(todayStart);
     next7DaysEnd.setDate(next7DaysEnd.getDate() + 7);
 
     const thisMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
-    const thisMonthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
+    const thisMonthEnd   = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
 
-    /* ── Build date range from filter ── */
-    let dateFilter = { $ne: null, $exists: true };
-    if (filter === "today")     dateFilter = { $gte: todayStart,       $lt: tomorrowStart  };
-    if (filter === "tomorrow")  dateFilter = { $gte: tomorrowStart,    $lt: tomorrowEnd    };
-    if (filter === "next7days") dateFilter = { $gte: todayStart,       $lt: next7DaysEnd   };
-    if (filter === "thisMonth") dateFilter = { $gte: thisMonthStart,   $lt: thisMonthEnd   };
+    /* ── Agent scope filter (applied to ALL pipelines) ── */
+    // Match by agentId (ObjectId) — stored since last fix
+    // Also allow fallback via agentName for legacy data
+    const agentScope = isAgent
+      ? {
+          $or: [
+            { "remarksHistory.agentId": new mongoose.Types.ObjectId(admin._id) },
+            { "remarksHistory.agentName": { $regex: new RegExp(`^${admin.fullName?.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+          ]
+        }
+      : {};
 
-    const agentMatch = isAgent ? { "remarksHistory.agentName": { $regex: agentNameRegex } } : {};
+    /* ── Filter → date range for leads list ── */
+    let leadsDateFilter;
+    switch (filter) {
+      case "today":     leadsDateFilter = { $gte: todayStart,     $lt: tomorrowStart  }; break;
+      case "tomorrow":  leadsDateFilter = { $gte: tomorrowStart,  $lt: tomorrowEnd    }; break;
+      case "next7days": leadsDateFilter = { $gte: todayStart,     $lt: next7DaysEnd   }; break;
+      case "thisMonth": leadsDateFilter = { $gte: thisMonthStart, $lt: thisMonthEnd   }; break;
+      default:          leadsDateFilter = { $exists: true, $ne: null };
+    }
 
-    /* ── Leads pipeline (paginated) ── */
+    /* ── Leads list pipeline ── */
     const leadsPipeline = [
       { $unwind: "$remarksHistory" },
       {
         $match: {
-          "remarksHistory.followUpDate": dateFilter,
-          ...agentMatch,
+          "remarksHistory.followUpDate": leadsDateFilter,
+          ...agentScope,
         }
       },
       { $sort: { "remarksHistory.followUpDate": 1 } },
@@ -72,63 +79,89 @@ export async function GET(req) {
           phone: 1,
           leadStatus: 1,
           leadStage: 1,
-          assignedAgentId: 1,
-          remark: "$remarksHistory.text",
-          followUpDate: "$remarksHistory.followUpDate",
-          agentName: "$remarksHistory.agentName",
-          createdAt: "$remarksHistory.createdAt",
+          remark:      "$remarksHistory.text",
+          followUpDate:"$remarksHistory.followUpDate",
+          agentName:   "$remarksHistory.agentName",
+          agentId:     "$remarksHistory.agentId",
+          remarkDate:  "$remarksHistory.createdAt",
         }
       }
     ];
 
-    /* ── Count buckets (always returned regardless of filter) ── */
-    const makeBucketCount = (start, end) => [
+    /* ── Single-pass bucket count pipeline ── */
+    // Groups every follow-up remark by agentId, counting into date buckets in one aggregation
+    const countPipeline = [
       { $unwind: "$remarksHistory" },
       {
         $match: {
-          "remarksHistory.followUpDate": { $gte: start, $lt: end },
-          ...agentMatch,
+          "remarksHistory.followUpDate": { $exists: true, $ne: null },
+          ...agentScope,
         }
       },
-      { $count: "total" }
-    ];
-
-    const makeTotalCount = () => [
-      { $unwind: "$remarksHistory" },
       {
-        $match: {
-          "remarksHistory.followUpDate": { $ne: null, $exists: true },
-          ...agentMatch,
+        $group: {
+          _id: "$remarksHistory.agentId",
+          agentName: { $first: "$remarksHistory.agentName" },
+          total:     { $sum: 1 },
+          today: {
+            $sum: {
+              $cond: [{ $and: [
+                { $gte: ["$remarksHistory.followUpDate", todayStart] },
+                { $lt:  ["$remarksHistory.followUpDate", tomorrowStart] }
+              ]}, 1, 0]
+            }
+          },
+          tomorrow: {
+            $sum: {
+              $cond: [{ $and: [
+                { $gte: ["$remarksHistory.followUpDate", tomorrowStart] },
+                { $lt:  ["$remarksHistory.followUpDate", tomorrowEnd] }
+              ]}, 1, 0]
+            }
+          },
+          next7days: {
+            $sum: {
+              $cond: [{ $and: [
+                { $gte: ["$remarksHistory.followUpDate", todayStart] },
+                { $lt:  ["$remarksHistory.followUpDate", next7DaysEnd] }
+              ]}, 1, 0]
+            }
+          },
+          thisMonth: {
+            $sum: {
+              $cond: [{ $and: [
+                { $gte: ["$remarksHistory.followUpDate", thisMonthStart] },
+                { $lt:  ["$remarksHistory.followUpDate", thisMonthEnd] }
+              ]}, 1, 0]
+            }
+          },
         }
       },
-      { $count: "total" }
+      { $sort: { total: -1 } }
     ];
 
-    const [
-      leadsResult,
-      todayResult,
-      tomorrowResult,
-      next7Result,
-      thisMonthResult,
-      totalResult,
-    ] = await Promise.all([
+    const [leadsResult, byAgentResult] = await Promise.all([
       User.aggregate(leadsPipeline),
-      User.aggregate(makeBucketCount(todayStart, tomorrowStart)),
-      User.aggregate(makeBucketCount(tomorrowStart, tomorrowEnd)),
-      User.aggregate(makeBucketCount(todayStart, next7DaysEnd)),
-      User.aggregate(makeBucketCount(thisMonthStart, thisMonthEnd)),
-      User.aggregate(makeTotalCount()),
+      User.aggregate(countPipeline),
     ]);
+
+    /* ── Roll up totals from per-agent data ── */
+    const totalFollowUps    = byAgentResult.reduce((s, a) => s + (a.total    || 0), 0);
+    const todayFollowUps    = byAgentResult.reduce((s, a) => s + (a.today    || 0), 0);
+    const tomorrowFollowUps = byAgentResult.reduce((s, a) => s + (a.tomorrow || 0), 0);
+    const next7DaysFollowUps= byAgentResult.reduce((s, a) => s + (a.next7days|| 0), 0);
+    const thisMonthFollowUps= byAgentResult.reduce((s, a) => s + (a.thisMonth|| 0), 0);
 
     return NextResponse.json({
       success: true,
       stats: {
-        totalFollowUps:    totalResult[0]?.total    || 0,
-        todayFollowUps:    todayResult[0]?.total    || 0,
-        tomorrowFollowUps: tomorrowResult[0]?.total || 0,
-        next7DaysFollowUps: next7Result[0]?.total   || 0,
-        thisMonthFollowUps: thisMonthResult[0]?.total || 0,
-        leads: leadsResult,
+        totalFollowUps,
+        todayFollowUps,
+        tomorrowFollowUps,
+        next7DaysFollowUps,
+        thisMonthFollowUps,
+        byAgent: byAgentResult,   // per-agent breakdown for super admin table
+        leads:   leadsResult,
       }
     });
 

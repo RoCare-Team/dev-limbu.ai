@@ -43,6 +43,7 @@ export async function POST(req) {
 
     // 4️⃣ Success response
     return NextResponse.json({
+      adminId: admin._id,
       email: admin.email,
       fullName: admin.fullName,
       token,

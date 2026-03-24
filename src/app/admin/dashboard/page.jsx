@@ -13,7 +13,7 @@ export default function AdminDashboard() {
   const [loading, setLoading]         = useState(true);
   const [role, setRole]               = useState("");
   const [callStats, setCallStats]     = useState(null);
-  const [followUpStats, setFollowUpStats] = useState({ totalFollowUps: 0, todayFollowUps: 0, tomorrowFollowUps: 0, next7DaysFollowUps: 0, thisMonthFollowUps: 0 });
+  const [followUpStats, setFollowUpStats] = useState({ totalFollowUps: 0, todayFollowUps: 0, tomorrowFollowUps: 0, next7DaysFollowUps: 0, thisMonthFollowUps: 0, byAgent: [] });
 
   useEffect(() => {
     const storedRole = localStorage.getItem("role") || "";
@@ -236,6 +236,92 @@ export default function AdminDashboard() {
                       </tr>
                     );
                   })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Per-agent follow-up breakdown (superAdmin/admin only) ── */}
+      {(role === "superAdmin" || role === "admin") && (followUpStats.byAgent || []).length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
+              <CalendarClock size={18} className="text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Follow-up Tracking — By Agent</h2>
+              <p className="text-xs text-gray-500">Live follow-up schedule for each agent</p>
+            </div>
+            <span className="ml-auto text-sm font-semibold bg-amber-50 text-amber-700 px-3 py-1 rounded-full">
+              Total: {followUpStats.totalFollowUps}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left rounded-l-lg">#</th>
+                  <th className="px-4 py-3 text-left">Agent</th>
+                  <th className="px-4 py-3 text-center text-sky-600">Today</th>
+                  <th className="px-4 py-3 text-center text-rose-600">Tomorrow</th>
+                  <th className="px-4 py-3 text-center text-violet-600">Next 7 Days</th>
+                  <th className="px-4 py-3 text-center text-green-600">This Month</th>
+                  <th className="px-4 py-3 text-center rounded-r-lg text-amber-600">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(followUpStats.byAgent || []).map((agent, idx) => {
+                  const colors = ["bg-violet-500","bg-indigo-500","bg-blue-500","bg-teal-500","bg-emerald-500","bg-rose-500"];
+                  const color  = colors[idx % colors.length];
+                  const name   = agent.agentName || "Unknown";
+                  return (
+                    <tr key={agent._id || idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-gray-400 font-medium">{idx + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold`}>
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-gray-800 capitalize">{name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-xs font-bold ${agent.today > 0 ? "bg-sky-100 text-sky-700" : "text-gray-300"}`}>
+                          {agent.today || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-xs font-bold ${agent.tomorrow > 0 ? "bg-rose-100 text-rose-700" : "text-gray-300"}`}>
+                          {agent.tomorrow || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-xs font-bold ${agent.next7days > 0 ? "bg-violet-100 text-violet-700" : "text-gray-300"}`}>
+                          {agent.next7days || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-xs font-bold ${agent.thisMonth > 0 ? "bg-green-100 text-green-700" : "text-gray-300"}`}>
+                          {agent.thisMonth || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                          {agent.total || 0}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-gray-50 font-bold border-t-2 border-gray-200 text-sm">
+                  <td colSpan={2} className="px-4 py-3 text-gray-600">All Agents</td>
+                  <td className="px-4 py-3 text-center text-sky-700">{followUpStats.todayFollowUps}</td>
+                  <td className="px-4 py-3 text-center text-rose-700">{followUpStats.tomorrowFollowUps}</td>
+                  <td className="px-4 py-3 text-center text-violet-700">{followUpStats.next7DaysFollowUps}</td>
+                  <td className="px-4 py-3 text-center text-green-700">{followUpStats.thisMonthFollowUps}</td>
+                  <td className="px-4 py-3 text-center text-amber-700">{followUpStats.totalFollowUps}</td>
+                </tr>
               </tbody>
             </table>
           </div>

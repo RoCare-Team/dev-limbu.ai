@@ -41,10 +41,21 @@ async function exchangeAuthCode(authCode) {
     body: params.toString(),
   });
 
-  const data = await res.json();
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error("Google token exchange returned invalid JSON");
+  }
 
   if (!res.ok) {
-    throw new Error(data.error_description || "Google token exchange failed");
+    const msg =
+      data.error_description ||
+      data.error ||
+      (typeof data === "string" ? data : null) ||
+      "Google token exchange failed";
+    throw new Error(msg);
   }
 
   if (!data.refresh_token) {
@@ -58,7 +69,16 @@ async function exchangeAuthCode(authCode) {
 
 export async function POST(req) {
   try {
-    const { email, authCode } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid or empty JSON body" },
+        { status: 400 }
+      );
+    }
+    const { email, authCode } = body || {};
 
     if (!email) {
       return NextResponse.json(
@@ -147,10 +167,15 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error("❌ GetRefreshToken API Error:", err);
+    const msg = err?.message || "Server error";
+    console.error("❌ GetRefreshToken API Error:", msg);
+    const clientError =
+      /invalid_grant|expired|malformed|redirect_uri|invalid_client|Bad Request|authCode required|not connected|already connected|invalid JSON/i.test(
+        msg
+      );
     return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
+      { success: false, error: msg },
+      { status: clientError ? 400 : 500 }
     );
   }
 }

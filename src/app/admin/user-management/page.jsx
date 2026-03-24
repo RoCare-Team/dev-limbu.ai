@@ -144,6 +144,9 @@ const [callStats, setCallStats] = useState(null);
   const [followUpFilter, setFollowUpFilter] = useState("tomorrow");
   const [followUpLeads, setFollowUpLeads] = useState([]);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+  const [byAgentOpen, setByAgentOpen] = useState(false);
+  const [followUpLeadsOpen, setFollowUpLeadsOpen] = useState(true);
+  const [adminFollowUpLeadsOpen, setAdminFollowUpLeadsOpen] = useState(false);
 
 // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -1969,10 +1972,207 @@ const handleVoiceCall = async (phone) => {
           </div>
         </div>
 
-        {/* Call Stats */}
+        {/* Main Stats Cards — hidden for agents (they have their own performance panel below) */}
+        {!isAgent && <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
+          {/* Total Users */}
+          <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">
+                  Total Users
+                </p>
+                <p className="text-lg font-bold text-indigo-800 mt-1">
+                  {stats.total}
+                </p>
+              </div>
+              <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <User className="text-indigo-600" size={18} />
+              </div>
+            </div>
+            {filterLabel && (
+              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={11} />
+                {filterLabel}
+              </div>
+            )}
+          </div>
 
-        {/* Main Stats Cards - Size Reduced */}
-       
+          {/* Active Users */}
+          {!isAgent && !isManager && (
+            <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
+                    Active Users
+                  </p>
+                  <p className="text-lg font-bold text-green-800 mt-1">
+                    {stageStats["Active"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Follow Up */}
+          {!isAgent && (
+            <div
+              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setStageModal("Follow Up")}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">
+                    Follow Up
+                  </p>
+                  <p className="text-lg font-bold text-yellow-800 mt-1">
+                    {stageStats["Follow Up"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-yellow-600" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Inactive */}
+          {!isAgent && (
+            <div
+              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setStageModal("Inactive")}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">
+                    Inactive
+                  </p>
+                  <p className="text-lg font-bold text-gray-800 mt-1">
+                    {stageStats["Inactive"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <UserX className="text-gray-600" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Onboarded */}
+          {!isAgent && (
+            <div
+              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setStageModal("Onboard")}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                    Onboarded
+                  </p>
+                  <p className="text-lg font-bold text-blue-800 mt-1">
+                    {stageStats["Onboard"] || 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Rocket className="text-blue-600" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Total Posts */}
+          {!isAgent && (
+            <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Total Posts
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 mt-1">
+                    {totalPostsCount}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <ImageIcon className="text-blue-600" size={18} />
+                </div>
+              </div>
+              {filterLabel && (
+                <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar size={11} />
+                  {filterLabel}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Users Today */}
+          <div className="bg-gradient-to-br w-50 h-15 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-teal-700 font-medium">
+                  {isAgent ? "Calls Today" : "Users Today"}
+                </p>
+                <p className="text-lg font-bold text-teal-800 ">
+                  {displayTodayUsersCount}
+                </p>
+              </div>
+              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center">
+                <User className="text-teal-700" size={18} />
+              </div>
+            </div>
+          </div>
+
+          {/* Total Calls Assigned — Agent only */}
+          {isAgent && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
+                    Total Assigned
+                  </p>
+                  <p className="text-lg font-bold text-indigo-800 mt-1">
+                    {stats.total ?? 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
+                  <UserCheck className="text-indigo-700" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Total Revenue - Role-based visibility */}
+          {(role === "superAdmin" ||
+            role === "franchiseAdmin" ||
+            role === "agent") && (
+            <div
+              className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
+              onClick={() => {
+                fetchRevenueUsers();
+                setShowRevenueUsersModal(true);
+              }}
+              title="Click to view onboarded users details"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-emerald-700 font-medium group-hover:underline">
+                    {role === "superAdmin" || role === "superFranchiseAdmin"
+                      ? "User Onboard Revenue"
+                      : "My Revenue"}
+                  </p>
+                  <p className="text-lg font-bold text-emerald-800 mt-1">
+                    ₹{totalRevenue.toLocaleString()}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Wallet className="text-emerald-700" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>}
 
         {/* ── Agent Performance Dashboard ──────────────────────────────── */}
         {isAgent && (
@@ -2035,66 +2235,87 @@ const handleVoiceCall = async (phone) => {
               })}
             </div>
 
-            {/* ── Follow-up Leads List ── */}
+            {/* ── Follow-up Leads List (collapsible) ── */}
             <div className="rounded-xl border border-gray-200 overflow-hidden">
-              {/* Tab header */}
-              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Calendar size={13} className="text-indigo-500" />
-                  <span className="text-xs font-bold text-gray-700">
+              <button
+                type="button"
+                onClick={() => setFollowUpLeadsOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar size={13} className="text-indigo-500 shrink-0" />
+                  <span className="text-xs font-bold text-gray-700 truncate">
                     Follow-up Leads —{" "}
                     <span className="text-indigo-600">
                       {{ today: "Today", tomorrow: "Tomorrow", next7days: "Next 7 Days", thisMonth: "This Month", all: "All" }[followUpFilter]}
                     </span>
                   </span>
+                  <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
+                    {followUpLeads.length} leads
+                  </span>
                 </div>
-                <span className="text-[10px] font-semibold text-gray-400 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                  {followUpLeads.length} leads
-                </span>
-              </div>
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 shrink-0 ml-2">
+                  <span>{followUpLeadsOpen ? "Hide" : "Show"}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${followUpLeadsOpen ? "rotate-180" : ""}`}
+                  />
+                </div>
+              </button>
 
-              <div className="max-h-72 overflow-y-auto">
-                {loadingFollowUps ? (
-                  <div className="flex items-center justify-center py-10 text-gray-400 text-xs gap-2">
-                    <Clock size={14} className="animate-spin" /> Loading...
-                  </div>
-                ) : followUpLeads.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                    <CheckCircle size={22} className="mb-2 opacity-20" />
-                    <p className="text-xs font-medium">No follow-ups for this period</p>
-                  </div>
-                ) : (
-                  followUpLeads.map((lead, idx) => {
-                    const fDate    = new Date(lead.followUpDate);
-                    const nowDay   = new Date(); nowDay.setHours(0,0,0,0);
-                    const diffDays = Math.round((fDate - nowDay) / 86400000);
-                    const isOverdue  = diffDays < 0;
-                    const isToday    = diffDays === 0;
-                    const isTomorrow = diffDays === 1;
-                    const badge = isOverdue  ? { label: `${Math.abs(diffDays)}d overdue`, cls: "bg-red-100 text-red-700" }
-                                : isToday    ? { label: "Today",    cls: "bg-amber-100 text-amber-700" }
-                                : isTomorrow ? { label: "Tomorrow", cls: "bg-blue-100 text-blue-700" }
-                                :              { label: `${diffDays}d left`, cls: "bg-green-100 text-green-700" };
-                    return (
-                      <div key={idx} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-0">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 font-bold text-indigo-700 text-xs">
-                          {(lead.fullName || lead.userId || "?").charAt(0).toUpperCase()}
+              {followUpLeadsOpen && (
+                <div className="max-h-72 overflow-y-auto">
+                  {loadingFollowUps ? (
+                    <div className="flex items-center justify-center py-10 text-gray-400 text-xs gap-2">
+                      <Clock size={14} className="animate-spin" /> Loading...
+                    </div>
+                  ) : followUpLeads.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                      <CheckCircle size={22} className="mb-2 opacity-20" />
+                      <p className="text-xs font-medium">No follow-ups for this period</p>
+                    </div>
+                  ) : (
+                    followUpLeads.map((lead, idx) => {
+                      const fDate = new Date(lead.followUpDate);
+                      const nowDay = new Date();
+                      nowDay.setHours(0, 0, 0, 0);
+                      const diffDays = Math.round((fDate - nowDay) / 86400000);
+                      const isOverdue = diffDays < 0;
+                      const isToday = diffDays === 0;
+                      const isTomorrow = diffDays === 1;
+                      const badge = isOverdue
+                        ? { label: `${Math.abs(diffDays)}d overdue`, cls: "bg-red-100 text-red-700" }
+                        : isToday
+                          ? { label: "Today", cls: "bg-amber-100 text-amber-700" }
+                          : isTomorrow
+                            ? { label: "Tomorrow", cls: "bg-blue-100 text-blue-700" }
+                            : { label: `${diffDays}d left`, cls: "bg-green-100 text-green-700" };
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-0"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 font-bold text-indigo-700 text-xs">
+                            {(lead.fullName || lead.userId || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-800 truncate">{lead.fullName || lead.userId}</p>
+                            <p className="text-[10px] text-gray-400 truncate">
+                              {lead.phone} &middot; <span className="italic">{lead.remark}</span>
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                            <p className="text-[9px] text-gray-400 mt-0.5">
+                              {fDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-800 truncate">{lead.fullName || lead.userId}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{lead.phone} &middot; <span className="italic">{lead.remark}</span></p>
-                        </div>
-                        <div className="flex-shrink-0 text-right">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
-                          <p className="text-[9px] text-gray-400 mt-0.5">
-                            {fDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Row 3: Stage + Temperature breakdown ── */}
@@ -2146,52 +2367,11 @@ const handleVoiceCall = async (phone) => {
           </div>
         )}
 
-      <div>
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
-          {/* Total Users */}
-     
-
-        
-
-          {/* Users Today */}
-       
-
-          {/* Total Revenue - Role-based visibility */}
-          {(role === "superAdmin" ||
-            role === "franchiseAdmin" ||
-            role === "agent") && (
-            <div
-              className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
-              onClick={() => {
-                fetchRevenueUsers();
-                setShowRevenueUsersModal(true);
-              }}
-              title="Click to view onboarded users details"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-emerald-700 font-medium group-hover:underline">
-                    {role === "superAdmin" || role === "superFranchiseAdmin"
-                      ? "User Onboard Revenue"
-                      : "My Revenue"}
-                  </p>
-                  <p className="text-lg font-bold text-emerald-800 mt-1">
-                    ₹{totalRevenue.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Wallet className="text-emerald-700" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Chat Stats Cards - Separate Row */}
-        <div className="grid grid-cols-2 md:grid-cols-5  mb-6">
+        {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {/* Total Chats */}
           <div
-            className=" w-50 h-15 bg-white rounded-lg p-3 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
             onClick={() => {
               setChatModalFilter("all");
               setShowChatStatsModal(true);
@@ -2200,21 +2380,48 @@ const handleVoiceCall = async (phone) => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Chats</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Chats</p>
+                <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {displayTotalChatsCount}
                 </p>
               </div>
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                 <MessageSquare className="text-orange-600" size={20} />
               </div>
             </div>
           </div>
 
+          {isAgent && (
+            <div
+              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-3 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer min-h-[72px] group"
+              onClick={() => {
+                fetchRevenueUsers();
+                setShowRevenueUsersModal(true);
+              }}
+              title="Click to view onboarded users"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide group-hover:underline">
+                    My Revenue
+                  </p>
+                  <p className="text-lg font-bold text-emerald-800 mt-0.5">
+                    ₹{totalRevenue.toLocaleString()}
+                  </p>
+                </div>
+                <div className="w-8 h-8 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0">
+                  <Wallet className="text-emerald-700" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+        
+
           {/* Chats Today */}
           {!isAgent && (
             <div
-              className="w-50 h-15  bg-white rounded-lg p-3 pt-2 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
               onClick={() => {
                 setChatModalFilter("today");
                 setShowChatStatsModal(true);
@@ -2240,7 +2447,7 @@ const handleVoiceCall = async (phone) => {
           {/* Resolved */}
           {!isAgent && (
             <div
-              className="w-50 h-15 bg-white rounded-lg p-3 pt-2 pt-2 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
               onClick={() => {
                 setChatModalFilter("resolved");
                 setShowChatStatsModal(true);
@@ -2274,7 +2481,6 @@ const handleVoiceCall = async (phone) => {
             </div>
           </div> */}
         </div>
-      </div>
         {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
       {(role === "superAdmin" || role === "admin") && todayStats.assignments.length > 0 && (
   <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-2">
@@ -2338,41 +2544,50 @@ const handleVoiceCall = async (phone) => {
 )}
 
         {callStats && (role === "superAdmin" || role === "admin") && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Call Performance
-            </h2>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
-              {/* Total Calls */}
-              <div className="bg-blue-50 w-40 h-15 border border-blue-200 rounded-xl p-3 flex flex-col">
-                <span className="text-xs text-blue-700 font-medium">
-                  Total Calls Today
-                </span>
-                <span className="text-lg font-bold text-blue-800">
-                  {callStats.totalCallsToday}
-                </span>
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 md:px-5 md:py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <Phone className="text-indigo-600" size={18} />
               </div>
-
-              {/* Agent Calls */}
-              {callStats.todayCallsByAgent.map((agent) => (
-                <div
-                  key={agent.agentId || agent.agentName}
-                  className="bg-gray-50 w-40 h-15 border border-gray-200 rounded-xl p-2 flex flex-col"
-                >
-                  <span className="text-xs text-gray-600 truncate">
-                    {agent.agentName}
-                  </span>
-                  <span className="text-lg font-bold text-gray-900">
-                    {agent.count}
-                  </span>
-                </div>
-              ))}
+              <div>
+                <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
+                <p className="text-[11px] text-gray-500">Today&apos;s call volume and scheduled follow-ups across agents</p>
+              </div>
             </div>
 
-            {/* Follow-up summary for superAdmin */}
-            {/* ── Summary buckets row ── */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2">
+            <div className="p-4 md:p-5 space-y-5">
+            {/* Calls today: summary + per-agent scroll */}
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls today</p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
+                <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-xl p-4 min-w-[140px] flex flex-col justify-center">
+                  <span className="text-[11px] text-blue-700 font-semibold uppercase">Total</span>
+                  <span className="text-2xl font-bold text-blue-900 tabular-nums">{callStats.totalCallsToday}</span>
+                  <span className="text-[10px] text-blue-600/80">all agents</span>
+                </div>
+                <div className="flex-1 min-w-0 overflow-x-auto pb-1 -mx-1 px-1">
+                  <div className="flex gap-2 min-w-min">
+                    {(callStats.todayCallsByAgent || []).map((agent) => (
+                      <div
+                        key={agent.agentId || agent.agentName}
+                        className="min-w-[112px] max-w-[140px] bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
+                      >
+                        <span className="text-[10px] text-gray-500 truncate capitalize" title={agent.agentName}>
+                          {agent.agentName || "—"}
+                        </span>
+                        <span className="text-xl font-bold text-gray-900 tabular-nums">{agent.count}</span>
+                        <span className="text-[9px] text-gray-400">calls</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Follow-up buckets */}
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Follow-up schedule</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {[
                 { label: "Total",      value: followUpStats.totalFollowUps,     bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  bold: "text-amber-800",  sub: "text-amber-500",  note: "all follow-ups"  },
                 { label: "Today",      value: followUpStats.todayFollowUps,     bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    bold: "text-sky-800",    sub: "text-sky-500",    note: "due today"       },
@@ -2380,80 +2595,204 @@ const handleVoiceCall = async (phone) => {
                 { label: "Next 7 Days",value: followUpStats.next7DaysFollowUps, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", bold: "text-violet-800", sub: "text-violet-500", note: "upcoming"        },
                 { label: "This Month", value: followUpStats.thisMonthFollowUps, bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  bold: "text-green-800",  sub: "text-green-500",  note: "this month"      },
               ].map(({ label, value, bg, border, text, bold, sub, note }) => (
-                <div key={label} className={`${bg} border ${border} rounded-xl p-3 flex flex-col`}>
-                  <span className={`text-xs font-medium ${text}`}>{label}</span>
-                  <span className={`text-lg font-bold ${bold}`}>{value}</span>
-                  <span className={`text-[10px] ${sub}`}>{note}</span>
+                <div key={label} className={`${bg} border ${border} rounded-xl p-3 flex flex-col min-h-[88px] justify-center`}>
+                  <span className={`text-[11px] font-semibold ${text}`}>{label}</span>
+                  <span className={`text-xl font-bold ${bold} tabular-nums mt-0.5`}>{value}</span>
+                  <span className={`text-[10px] ${sub} mt-auto`}>{note}</span>
                 </div>
               ))}
             </div>
+            </div>
 
-            {/* ── Per-agent follow-up breakdown table ── */}
+            {/* ── Per-agent follow-up breakdown table (collapsible) ── */}
             {(followUpStats.byAgent || []).length > 0 && (
               <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
-                  <UserCheck size={13} className="text-indigo-500" />
-                  <span className="text-xs font-bold text-gray-700">Follow-ups by Agent</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-gray-400 text-[10px] uppercase tracking-wide border-b border-gray-100 bg-gray-50">
-                        <th className="px-4 py-2 text-left">Agent</th>
-                        <th className="px-3 py-2 text-center text-sky-600">Today</th>
-                        <th className="px-3 py-2 text-center text-rose-600">Tomorrow</th>
-                        <th className="px-3 py-2 text-center text-violet-600">7 Days</th>
-                        <th className="px-3 py-2 text-center text-green-600">Month</th>
-                        <th className="px-3 py-2 text-center text-amber-600">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {(followUpStats.byAgent || []).map((agent, idx) => {
-                        const colors = ["bg-indigo-500","bg-teal-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-blue-500"];
-                        const c = colors[idx % colors.length];
-                        const name = agent.agentName || "Unknown";
-                        return (
-                          <tr key={agent._id || idx} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
-                                  {name.charAt(0).toUpperCase()}
+                {/* Toggle header */}
+                <button
+                  onClick={() => setByAgentOpen(prev => !prev)}
+                  className="w-full bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserCheck size={13} className="text-indigo-500" />
+                    <span className="text-xs font-bold text-gray-700">Follow-ups by Agent</span>
+                    <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
+                      {(followUpStats.byAgent || []).length} agents
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
+                    <span>{byAgentOpen ? "Hide" : "Show"}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${byAgentOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
+
+                {/* Collapsible content */}
+                {byAgentOpen && (
+                  <div className="overflow-x-auto max-h-[min(70vh,520px)] border-t border-gray-100">
+                    <table className="w-full text-xs min-w-[640px]">
+                      <thead className="sticky top-0 z-10 shadow-sm">
+                        <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
+                          <th className="px-4 py-2.5 text-left">Agent</th>
+                          <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
+                          <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
+                          <th className="px-3 py-2.5 text-center text-violet-600">7 Days</th>
+                          <th className="px-3 py-2.5 text-center text-green-600">Month</th>
+                          <th className="px-3 py-2.5 text-center text-amber-600">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {(followUpStats.byAgent || []).map((agent, idx) => {
+                          const colors = ["bg-indigo-500","bg-teal-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-blue-500"];
+                          const c = colors[idx % colors.length];
+                          const name = agent.agentName || "Unknown";
+                          return (
+                            <tr key={agent._id || idx} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
+                                    {name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="font-medium text-gray-800 capitalize truncate max-w-[100px]">{name}</span>
                                 </div>
-                                <span className="font-medium text-gray-800 capitalize truncate max-w-[80px]">{name}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.today || 0}</span>
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.tomorrow || 0}</span>
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.next7days || 0}</span>
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.thisMonth || 0}</span>
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full`}>{agent.total || 0}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {/* Totals row */}
-                      <tr className="bg-gray-50 font-bold border-t border-gray-200">
-                        <td className="px-4 py-2 text-xs text-gray-600">ALL AGENTS</td>
-                        <td className="px-3 py-2 text-center text-sky-700">{followUpStats.todayFollowUps}</td>
-                        <td className="px-3 py-2 text-center text-rose-700">{followUpStats.tomorrowFollowUps}</td>
-                        <td className="px-3 py-2 text-center text-violet-700">{followUpStats.next7DaysFollowUps}</td>
-                        <td className="px-3 py-2 text-center text-green-700">{followUpStats.thisMonthFollowUps}</td>
-                        <td className="px-3 py-2 text-center text-amber-700">{followUpStats.totalFollowUps}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.today || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.tomorrow || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.next7days || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.thisMonth || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{agent.total || 0}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
+                          <td className="px-4 py-2 text-xs text-gray-600 font-bold">ALL AGENTS</td>
+                          <td className="px-3 py-2 text-center text-sky-700 font-black">{followUpStats.todayFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-rose-700 font-black">{followUpStats.tomorrowFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-violet-700 font-black">{followUpStats.next7DaysFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-green-700 font-black">{followUpStats.thisMonthFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-amber-700 font-black">{followUpStats.totalFollowUps}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Follow-up leads (all agents) — collapsible */}
+            <div className="mt-1 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAdminFollowUpLeadsOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar size={13} className="text-violet-500 shrink-0" />
+                  <span className="text-xs font-bold text-gray-700">Follow-up Leads</span>
+                  <span className="text-[10px] text-gray-500 truncate">
+                    (
+                    {{ today: "Today", tomorrow: "Tomorrow", next7days: "Next 7 Days", thisMonth: "This Month", all: "All" }[followUpFilter]}
+                    )
+                  </span>
+                  <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
+                    {followUpLeads.length} leads
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-violet-600 shrink-0 ml-2">
+                  <span>{adminFollowUpLeadsOpen ? "Hide" : "Show"}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${adminFollowUpLeadsOpen ? "rotate-180" : ""}`}
+                  />
+                </div>
+              </button>
+              {adminFollowUpLeadsOpen && (
+                <>
+                  <div className="flex flex-wrap gap-1.5 px-3 py-2 bg-white border-b border-gray-100">
+                    {[
+                      { key: "today", label: "Today" },
+                      { key: "tomorrow", label: "Tomorrow" },
+                      { key: "next7days", label: "7 days" },
+                      { key: "thisMonth", label: "Month" },
+                      { key: "all", label: "All" },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFollowUpFilter(key)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                          followUpFilter === key
+                            ? "bg-violet-600 text-white border-violet-600"
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-auto">
+                    {loadingFollowUps ? (
+                      <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+                        <Clock size={14} className="animate-spin" /> Loading…
+                      </div>
+                    ) : followUpLeads.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
+                        No leads for this filter
+                      </div>
+                    ) : (
+                      <table className="w-full text-xs min-w-[720px]">
+                        <thead className="sticky top-0 bg-gray-100 border-b border-gray-200 z-[1]">
+                          <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500">
+                            <th className="px-3 py-2 font-semibold">Lead</th>
+                            <th className="px-3 py-2 font-semibold">Phone</th>
+                            <th className="px-3 py-2 font-semibold">Agent</th>
+                            <th className="px-3 py-2 font-semibold">Remark</th>
+                            <th className="px-3 py-2 font-semibold text-right">Follow-up</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {followUpLeads.map((lead, idx) => (
+                            <tr key={idx} className="hover:bg-violet-50/40">
+                              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                                {lead.fullName || lead.userId || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
+                              <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
+                                {lead.agentName || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate" title={lead.remark}>
+                                {lead.remark || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
+                                {lead.followUpDate
+                                  ? new Date(lead.followUpDate).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "2-digit",
+                                    })
+                                  : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
           </div>
         )}
 

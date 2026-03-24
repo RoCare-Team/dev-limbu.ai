@@ -81,6 +81,7 @@ remarksHistory: [
         calledAt: { type: Date, default: Date.now },
         messageSent: { type: Boolean, default: false },
         createdAt: { type: Date, default: Date.now },
+        followUpDate: { type: Date, default: null },
       }
     ],
     
@@ -108,12 +109,76 @@ remarksHistory: [
     },
 
     connectedBusinessEmail: { type: String, default: null },
-  isBusinessConnected: { type: Boolean, default: false },
-  isServiceBooked: { type: Boolean, default: false },
+    selectedBusiness: { 
+      type: {
+        name: String,
+        email: String,
+        projectId: String,
+        googleId: String
+      }, 
+      default: null 
+    },
+    gmbProjectId: { type: String, default: null },
+    isBusinessConnected: { type: Boolean, default: false },
+    isServiceBooked: { type: Boolean, default: false },
 
     // Store OTP temporarily for verification
     otp: { type: String },
     otpExpiresAt: { type: Date },
+
+    /* DEPRECATED: automationSettings (migrated to AutomationPlan model 2024)
+       Keep for legacy data during transition. Remove after migration complete.
+    automationSettings: {
+      automationEnabled: { type: Boolean, default: false },
+      // Posting frequency for schedule generation
+      frequency: {
+        type: String,
+        enum: ['daily', 'alternate', 'weekly', 'custom'],
+        default: 'daily',
+      },
+      // Master keyword pool for this automation plan
+      keywords: [{ type: String }],
+      // Human-friendly topic label (derived from keywords on the UI side)
+      topic: { type: String },
+      // Image generation configuration
+      imageConfig: {
+        colourPalette: { type: String, default: 'none' },
+        size: { type: String, default: '3:4' },
+        characterImage: { type: String, default: null },
+        uniformImage: { type: String, default: null },
+        productImage: { type: String, default: null },
+        backgroundImage: { type: String, default: null },
+        logoImage: { type: String, default: null },
+      },
+      // Platforms to post to (e.g. ['gmb', 'fb', 'ig'])
+      platforms: [{ type: String, enum: ['gmb', 'fb', 'ig'] }],
+      // Scheduling configuration
+      startDate: { type: Date },
+      // Explicit schedule of dates when cron should run for this user
+      schedule: [{ type: Date }],
+      lastPostDate: { type: Date },
+      // Tracks which keyword index to use next; increments after each successful post
+      postIndex: { type: Number, default: 0 },
+    },
+    */
+
+    profileData: {
+      name: { type: String },
+      description: { type: String },
+      categories: [{ name: String }],
+      phone: { type: String },
+      website: { type: String },
+      address: { type: String },
+      hours: {
+        Monday: { open: Boolean, from: String, to: String },
+        Tuesday: { open: Boolean, from: String, to: String },
+        Wednesday: { open: Boolean, from: String, to: String },
+        Thursday: { open: Boolean, from: String, to: String },
+        Friday: { open: Boolean, from: String, to: String },
+        Saturday: { open: Boolean, from: String, to: String },
+        Sunday: { open: Boolean, from: String, to: String }
+      }
+    },
   },
   { timestamps: true }
 );

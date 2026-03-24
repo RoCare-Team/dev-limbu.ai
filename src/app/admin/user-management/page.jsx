@@ -31,6 +31,7 @@ import {
   Rocket,
   Clock,
   CheckCircle,
+  UserCheck,
   Globe,
   Bell,
   Upload,
@@ -110,6 +111,7 @@ export default function UserManagement() {
     passcode: "",
   });
   const [todayStats, setTodayStats] = useState({ count: 0, assignments: [] });
+  const [agentTodayLeads, setAgentTodayLeads] = useState(0);
   const [leadSourceStats, setLeadSourceStats] = useState({
     metaLeads: 0,
     signupLeads: 0,
@@ -129,7 +131,19 @@ const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
   const [agentCallHistory, setAgentCallHistory] = useState([]);
   const [callingUserId, setCallingUserId] = useState(null);
-  
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpStats, setFollowUpStats] = useState({
+    totalFollowUps: 0,
+    todayFollowUps: 0,
+    tomorrowFollowUps: 0,
+    next7DaysFollowUps: 0,
+    thisMonthFollowUps: 0,
+    leads: [],
+  });
+  const [followUpFilter, setFollowUpFilter] = useState("tomorrow");
+  const [followUpLeads, setFollowUpLeads] = useState([]);
+  const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+
 // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
@@ -187,14 +201,16 @@ const [callStats, setCallStats] = useState(null);
   const isManager = role === "manager";
 
   const displayTodayUsersCount = useMemo(() => {
-    if ((isAgent || isManager) && currentAgentId) {
+    // For agents the API now returns todayLeads scoped to that agent directly
+    if (isAgent) return agentTodayLeads;
+    if (isManager && currentAgentId) {
       const assignment = todayStats.assignments.find(
-        (a) => a._id === currentAgentId,
+        (a) => String(a._id) === String(currentAgentId),
       );
       return assignment ? assignment.count : 0;
     }
     return todayUsersCount;
-  }, [isAgent, isManager, currentAgentId, todayStats, todayUsersCount]);
+  }, [isAgent, isManager, currentAgentId, agentTodayLeads, todayStats, todayUsersCount]);
 
   const displayTotalChatsCount = useMemo(() => {
     if (isAgent || isManager) {
@@ -217,6 +233,8 @@ const [callStats, setCallStats] = useState(null);
     "Meeting Scheduled",
   ];
 
+  const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+
   const handleDefaultRemarkClick = (remark) => {
     if (remark === "Meeting Scheduled") {
       setShowMeetingModal(true);
@@ -224,6 +242,9 @@ const [callStats, setCallStats] = useState(null);
     }
     const adminName = localStorage.getItem("adminName") || "Admin";
     setRemarksInput(`${remark} - ${adminName}`);
+    if (!FOLLOW_UP_REMARKS.some(r => remark.startsWith(r))) {
+      setFollowUpDate("");
+    }
   };
 
   const showToast = (message, type = "success") => {
@@ -365,21 +386,52 @@ const [callStats, setCallStats] = useState(null);
   useEffect(() => {
     const fetchCallStats = async () => {
       const adminEmail = localStorage.getItem("email");
-      if (!adminEmail || (role !== "superAdmin" && role !== "admin")) return;
+      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
 
       try {
-        const res = await fetch(`/api/admin/call-stats?email=${adminEmail}`);
-        const data = await res.json();
-        if (data.success) {
-          setCallStats(data.stats);
-        }
+        const [callRes, followUpRes] = await Promise.all([
+          fetch(`/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`),
+          fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`),
+        ]);
+        const callData = await callRes.json();
+        const followUpData = await followUpRes.json();
+
+        if (callData.success) setCallStats(callData.stats);
+        if (followUpData.success) setFollowUpStats(followUpData.stats);
       } catch (error) {
-        console.error("Failed to fetch call stats:", error);
+        console.error("Failed to fetch call/follow-up stats:", error);
       }
     };
 
     fetchCallStats();
-  }, [role, users]); // Refetch on role change or when user data updates
+  }, [role, users]);
+
+  // Fetch follow-up leads when filter tab changes
+  useEffect(() => {
+    const fetchFollowUpLeads = async () => {
+      const adminEmail = localStorage.getItem("email");
+      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
+
+      setLoadingFollowUps(true);
+      try {
+        const res = await fetch(
+          `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`
+        );
+        const data = await res.json();
+        if (data.success) {
+          setFollowUpLeads(data.stats.leads || []);
+          // Update bucket counts without overwriting leads
+          setFollowUpStats(prev => ({ ...prev, ...data.stats }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch follow-up leads:", err);
+      } finally {
+        setLoadingFollowUps(false);
+      }
+    };
+
+    fetchFollowUpLeads();
+  }, [role, followUpFilter]);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -450,12 +502,15 @@ const [callStats, setCallStats] = useState(null);
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
         setDetailedStats(data.detailedStats || []);
+        setLeadStatusStats(data.leadStatusStats || { Hot: 0, Warm: 0, Cold: 0 });
 
         if (data.todayLeads !== undefined) {
           setTodayStats({
             count: data.todayLeads,
             assignments: data.todayAgentAssignments || [],
           });
+          // For agents, API returns todayLeads scoped to their own assignments
+          if (isAgent) setAgentTodayLeads(data.todayLeads);
         }
 
         setLeadSourceStats({
@@ -1539,15 +1594,33 @@ const [callStats, setCallStats] = useState(null);
           messageSent,
           agentId: adminId,
           agentName: adminName,
+          ...(followUpDate && { followUpDate }),
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setRemarksHistory(data.user.remarksHistory || []);
-
+        const updatedUser = data.user;
+        // Update in-memory list without full refetch
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
+          ),
+        );
+        setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
+        setFollowUpDate("");
         showToast("Remark added successfully", "success");
-        fetchUsers();
+        setRemarksModalUser(null);
+        // Refresh follow-up leads if a follow-up date was set
+        if (followUpDate) {
+          const adminEmail = localStorage.getItem("email");
+          if (adminEmail) {
+            fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`)
+              .then(r => r.json())
+              .then(d => { if (d.success) { setFollowUpLeads(d.stats.leads || []); setFollowUpStats(prev => ({ ...prev, ...d.stats })); } })
+              .catch(() => {});
+          }
+        }
       } else {
         showToast(data.error || "Failed to add remark", "error");
       }
@@ -1621,10 +1694,15 @@ const handleVoiceCall = async (phone) => {
       });
       const data = await res.json();
       if (data.success) {
-        setRemarksHistory(data.user.remarksHistory || []);
+        const updatedUser = data.user;
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
+          ),
+        );
+        setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
         showToast("Meeting scheduled successfully", "success");
-        fetchUsers();
         setShowMeetingModal(false);
         setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
       } else {
@@ -1698,9 +1776,15 @@ const handleVoiceCall = async (phone) => {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.user) {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.userId === data.user.userId ? { ...u, ...data.user } : u,
+            ),
+          );
+        }
         showToast("Remarks updated successfully", "success");
         setRemarksModalUser(null);
-        fetchUsers();
       } else {
         showToast(data.error || "Failed to update remarks", "error");
       }
@@ -2025,7 +2109,9 @@ const handleVoiceCall = async (phone) => {
           <div className="bg-gradient-to-br w-50 h-15 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-teal-700 font-medium">Users Today</p>
+                <p className="text-sm text-teal-700 font-medium">
+                  {isAgent ? "Calls Today" : "Users Today"}
+                </p>
                 <p className="text-lg font-bold text-teal-800 ">
                   {displayTodayUsersCount}
                 </p>
@@ -2035,6 +2121,25 @@ const handleVoiceCall = async (phone) => {
               </div>
             </div>
           </div>
+
+          {/* Total Calls Assigned — Agent only */}
+          {isAgent && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
+                    Total Assigned
+                  </p>
+                  <p className="text-lg font-bold text-indigo-800 mt-1">
+                    {stats.total ?? 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
+                  <UserCheck className="text-indigo-700" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Total Revenue - Role-based visibility */}
           {(role === "superAdmin" ||
@@ -2066,6 +2171,215 @@ const handleVoiceCall = async (phone) => {
             </div>
           )}
         </div>
+
+        {/* ── Agent Call Performance Panel ─────────────────────────────── */}
+        {isAgent && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <Phone className="text-indigo-600" size={16} />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">My  Performance</h3>
+              </div>
+              <span className="text-xs text-gray-400">{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</span>
+            </div>
+
+            {/* Summary row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-3 border border-teal-100">
+                <p className="text-xs text-teal-600 font-semibold uppercase tracking-wide">Today</p>
+                <p className="text-2xl font-bold text-teal-800 mt-1">{agentTodayLeads}</p>
+                <p className="text-xs text-teal-500 mt-0.5">leads assigned</p>
+              </div>
+              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl p-3 border border-indigo-100">
+                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Total</p>
+                <p className="text-2xl font-bold text-indigo-800 mt-1">{stats.total ?? 0}</p>
+                <p className="text-xs text-indigo-500 mt-0.5">all-time assigned</p>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-3 border border-orange-100">
+                <p className="text-xs text-orange-600 font-semibold uppercase tracking-wide">Hot Leads</p>
+                <p className="text-2xl font-bold text-orange-800 mt-1">{leadStatusStats.Hot ?? 0}</p>
+                <p className="text-xs text-orange-500 mt-0.5">high priority</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border border-green-100">
+                <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Onboarded</p>
+                <p className="text-2xl font-bold text-green-800 mt-1">{stageStats["Onboard"] ?? 0}</p>
+                <p className="text-xs text-green-500 mt-0.5">converted</p>
+              </div>
+            </div>
+
+            {/* Call & Follow-up stats row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-3 border border-violet-100">
+                <p className="text-xs text-violet-600 font-semibold uppercase tracking-wide">Calls Today</p>
+                <p className="text-2xl font-bold text-violet-800 mt-1">{callStats?.myCallsToday ?? 0}</p>
+                <p className="text-xs text-violet-500 mt-0.5">handled today</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-3 border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Total Calls</p>
+                <p className="text-2xl font-bold text-blue-800 mt-1">{callStats?.myCallsTotal ?? 0}</p>
+                <p className="text-xs text-blue-500 mt-0.5">all-time calls</p>
+              </div>
+              <div
+                className={`rounded-xl p-3 border cursor-pointer transition-all ${followUpFilter === "today" ? "bg-amber-400 border-amber-400 text-white" : "bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-100 hover:border-amber-300"}`}
+                onClick={() => setFollowUpFilter("today")}
+              >
+                <p className={`text-xs font-semibold uppercase tracking-wide ${followUpFilter === "today" ? "text-white" : "text-amber-600"}`}>Today</p>
+                <p className={`text-2xl font-bold mt-1 ${followUpFilter === "today" ? "text-white" : "text-amber-800"}`}>{followUpStats.todayFollowUps}</p>
+                <p className={`text-xs mt-0.5 ${followUpFilter === "today" ? "text-amber-100" : "text-amber-500"}`}>follow-ups</p>
+              </div>
+              <div
+                className={`rounded-xl p-3 border cursor-pointer transition-all ${followUpFilter === "tomorrow" ? "bg-rose-500 border-rose-500 text-white" : "bg-gradient-to-br from-rose-50 to-pink-50 border-rose-100 hover:border-rose-300"}`}
+                onClick={() => setFollowUpFilter("tomorrow")}
+              >
+                <p className={`text-xs font-semibold uppercase tracking-wide ${followUpFilter === "tomorrow" ? "text-white" : "text-rose-600"}`}>Tomorrow</p>
+                <p className={`text-2xl font-bold mt-1 ${followUpFilter === "tomorrow" ? "text-white" : "text-rose-800"}`}>{followUpStats.tomorrowFollowUps}</p>
+                <p className={`text-xs mt-0.5 ${followUpFilter === "tomorrow" ? "text-rose-100" : "text-rose-500"}`}>follow-ups due</p>
+              </div>
+            </div>
+
+            {/* Follow-up Leads Panel */}
+            <div className="mt-4 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              {/* Filter tabs */}
+              <div className="flex items-center gap-1 px-3 pt-3 pb-2 border-b border-gray-100 flex-wrap">
+                <span className="text-xs font-bold text-gray-500 mr-1">Follow-ups:</span>
+                {[
+                  { key: "today",     label: "Today",       count: followUpStats.todayFollowUps },
+                  { key: "tomorrow",  label: "Tomorrow",    count: followUpStats.tomorrowFollowUps },
+                  { key: "next7days", label: "Next 7 Days", count: followUpStats.next7DaysFollowUps },
+                  { key: "thisMonth", label: "This Month",  count: followUpStats.thisMonthFollowUps },
+                  { key: "all",       label: "All",         count: followUpStats.totalFollowUps },
+                ].map(({ key, label, count }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFollowUpFilter(key)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border ${
+                      followUpFilter === key
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-indigo-50 hover:text-indigo-600"
+                    }`}
+                  >
+                    {label}
+                    <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold ${followUpFilter === key ? "bg-white text-indigo-600" : "bg-gray-200 text-gray-600"}`}>
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Leads list */}
+              <div className="max-h-64 overflow-y-auto">
+                {loadingFollowUps ? (
+                  <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+                    <Clock size={14} className="animate-spin" /> Loading follow-ups...
+                  </div>
+                ) : followUpLeads.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                    <CheckCircle size={20} className="mb-1 opacity-30" />
+                    <p className="text-xs">No follow-ups for this period</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {followUpLeads.map((lead, idx) => {
+                      const fDate = new Date(lead.followUpDate);
+                      const now = new Date();
+                      now.setHours(0,0,0,0);
+                      const diffDays = Math.round((fDate - now) / 86400000);
+                      const isOverdue = diffDays < 0;
+                      const isToday = diffDays === 0;
+                      const isTomorrow = diffDays === 1;
+                      return (
+                        <div key={idx} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+                          {/* Avatar */}
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-indigo-700">
+                              {(lead.fullName || lead.userId || "?").charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-800 truncate">{lead.fullName || lead.userId}</p>
+                            <p className="text-[10px] text-gray-500 truncate">{lead.phone} · {lead.remark}</p>
+                          </div>
+                          {/* Follow-up date badge */}
+                          <div className={`flex-shrink-0 text-right`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isOverdue  ? "bg-red-100 text-red-700" :
+                              isToday    ? "bg-amber-100 text-amber-700" :
+                              isTomorrow ? "bg-blue-100 text-blue-700" :
+                                           "bg-green-100 text-green-700"
+                            }`}>
+                              {isOverdue  ? `${Math.abs(diffDays)}d overdue` :
+                               isToday    ? "Today" :
+                               isTomorrow ? "Tomorrow" :
+                                            `${diffDays}d left`}
+                            </span>
+                            <p className="text-[9px] text-gray-400 mt-0.5 text-right">
+                              {fDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stage + Status breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Stage breakdown */}
+              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lead Stages</p>
+                <div className="space-y-2">
+                  {[
+                    { label: "Active",    value: stageStats["Active"]    ?? 0, color: "bg-green-500",  light: "bg-green-100",  text: "text-green-700"  },
+                    { label: "Follow Up", value: stageStats["Follow Up"] ?? 0, color: "bg-yellow-500", light: "bg-yellow-100", text: "text-yellow-700" },
+                    { label: "Inactive",  value: stageStats["Inactive"]  ?? 0, color: "bg-gray-400",   light: "bg-gray-100",   text: "text-gray-600"   },
+                    { label: "Onboard",   value: stageStats["Onboard"]   ?? 0, color: "bg-blue-500",   light: "bg-blue-100",   text: "text-blue-700"   },
+                  ].map(({ label, value, color, light, text }) => {
+                    const total = (stats.total ?? 0) || 1;
+                    const pct   = Math.round((value / total) * 100);
+                    return (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className={`text-xs font-medium w-16 ${text}`}>{label}</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={`text-xs font-bold w-6 text-right ${text}`}>{value}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Lead status breakdown */}
+              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lead Temperature</p>
+                <div className="space-y-2">
+                  {[
+                    { label: "Hot",  value: leadStatusStats.Hot  ?? 0, color: "bg-red-500",    light: "bg-red-100",    text: "text-red-700"    },
+                    { label: "Warm", value: leadStatusStats.Warm ?? 0, color: "bg-orange-400", light: "bg-orange-100", text: "text-orange-700" },
+                    { label: "Cold", value: leadStatusStats.Cold ?? 0, color: "bg-blue-400",   light: "bg-blue-100",   text: "text-blue-700"   },
+                  ].map(({ label, value, color, text }) => {
+                    const total = (stats.total ?? 0) || 1;
+                    const pct   = Math.round((value / total) * 100);
+                    return (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className={`text-xs font-medium w-10 ${text}`}>{label}</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={`text-xs font-bold w-6 text-right ${text}`}>{value}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chat Stats Cards - Separate Row */}
         <div className="grid grid-cols-2 md:grid-cols-5  mb-6">
@@ -2154,13 +2468,61 @@ const handleVoiceCall = async (phone) => {
             </div>
           </div> */}
         </div>
+        {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
+        {(role === "superAdmin" || role === "admin") && todayStats.assignments.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+                  <UserCheck className="text-teal-600" size={16} />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Today&apos;s Lead Assignments</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
+                <span className="bg-teal-50 text-teal-700 text-xs font-bold px-3 py-1 rounded-full border border-teal-200">
+                  Total: {todayStats.assignments.reduce((s, a) => s + (a.count || 0), 0)}
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {todayStats.assignments
+                .slice()
+                .sort((a, b) => (b.count || 0) - (a.count || 0))
+                .map((agent, idx) => {
+                  const colors = [
+                    ["bg-indigo-100 border-indigo-200", "text-indigo-800", "bg-indigo-500"],
+                    ["bg-teal-100 border-teal-200",     "text-teal-800",   "bg-teal-500"],
+                    ["bg-blue-100 border-blue-200",     "text-blue-800",   "bg-blue-500"],
+                    ["bg-purple-100 border-purple-200", "text-purple-800", "bg-purple-500"],
+                    ["bg-emerald-100 border-emerald-200","text-emerald-800","bg-emerald-500"],
+                    ["bg-amber-100 border-amber-200",   "text-amber-800",  "bg-amber-500"],
+                  ];
+                  const [bg, text, badge] = colors[idx % colors.length];
+                  return (
+                    <div key={agent._id || idx} className={`rounded-xl p-3 border ${bg} flex flex-col gap-1`}>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-6 h-6 rounded-full ${badge} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                          {(agent.agentName || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <span className={`text-xs font-semibold truncate ${text}`}>{agent.agentName || "Unknown"}</span>
+                      </div>
+                      <span className={`text-2xl font-bold ${text}`}>{agent.count || 0}</span>
+                      <span className="text-xs text-gray-400">leads today</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
         {callStats && (role === "superAdmin" || role === "admin") && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
               Call Performance
             </h2>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
               {/* Total Calls */}
               <div className="bg-blue-50 w-40 h-15 border border-blue-200 rounded-xl p-3 flex flex-col">
                 <span className="text-xs text-blue-700 font-medium">
@@ -2185,6 +2547,35 @@ const handleVoiceCall = async (phone) => {
                   </span>
                 </div>
               ))}
+            </div>
+
+            {/* Follow-up summary for superAdmin */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col">
+                <span className="text-xs text-amber-700 font-medium">Total</span>
+                <span className="text-lg font-bold text-amber-800">{followUpStats.totalFollowUps}</span>
+                <span className="text-[10px] text-amber-500">all follow-ups</span>
+              </div>
+              <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex flex-col">
+                <span className="text-xs text-sky-700 font-medium">Today</span>
+                <span className="text-lg font-bold text-sky-800">{followUpStats.todayFollowUps}</span>
+                <span className="text-[10px] text-sky-500">due today</span>
+              </div>
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex flex-col">
+                <span className="text-xs text-rose-700 font-medium">Tomorrow</span>
+                <span className="text-lg font-bold text-rose-800">{followUpStats.tomorrowFollowUps}</span>
+                <span className="text-[10px] text-rose-500">due tomorrow</span>
+              </div>
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 flex flex-col">
+                <span className="text-xs text-violet-700 font-medium">Next 7 Days</span>
+                <span className="text-lg font-bold text-violet-800">{followUpStats.next7DaysFollowUps}</span>
+                <span className="text-[10px] text-violet-500">upcoming</span>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex flex-col">
+                <span className="text-xs text-green-700 font-medium">This Month</span>
+                <span className="text-lg font-bold text-green-800">{followUpStats.thisMonthFollowUps}</span>
+                <span className="text-[10px] text-green-500">this month</span>
+              </div>
             </div>
           </div>
         )}
@@ -3262,7 +3653,7 @@ const handleVoiceCall = async (phone) => {
             </div>
 
             {/* Add Remark Section (Input + Button in one line) */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <input
                 type="text"
                 value={remarksInput}
@@ -3279,6 +3670,76 @@ const handleVoiceCall = async (phone) => {
                 Submit
               </button>
             </div>
+
+            {/* Follow-up date picker — shown when remark requires a callback */}
+            {FOLLOW_UP_REMARKS.some(r => remarksInput.startsWith(r)) && (
+              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Calendar size={13} className="text-amber-600" />
+                  <span className="text-xs font-bold text-amber-700">Schedule Follow-up</span>
+                  {followUpDate && (
+                    <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold">
+                      {new Date(followUpDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                  )}
+                </div>
+                {/* Quick date buttons */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { label: "Today",        days: 0 },
+                    { label: "Tomorrow",     days: 1 },
+                    { label: "Next 7 Days",  days: 7 },
+                    { label: "This Month",   days: null },
+                  ].map(({ label, days }) => {
+                    const getDate = () => {
+                      const d = new Date();
+                      if (days === null) {
+                        // last day of this month
+                        d.setMonth(d.getMonth() + 1, 0);
+                      } else {
+                        d.setDate(d.getDate() + days);
+                      }
+                      return d.toISOString().split("T")[0];
+                    };
+                    const val = getDate();
+                    const isActive = followUpDate === val;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setFollowUpDate(isActive ? "" : val)}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                          isActive
+                            ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                            : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Custom date input */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    className="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                  />
+                  {followUpDate && (
+                    <button
+                      type="button"
+                      onClick={() => setFollowUpDate("")}
+                      className="text-amber-500 hover:text-red-500 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Default Remarks */}
             <div className="flex flex-wrap gap-2 mb-3">
@@ -3344,6 +3805,15 @@ const handleVoiceCall = async (phone) => {
                             <CheckCircle size={12} className="text-green-500" />
                             <span className="text-[10px] text-green-600 font-medium">
                               Message Sent
+                            </span>
+                          </div>
+                        )}
+
+                        {r.followUpDate && (
+                          <div className="flex items-center gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-0.5 w-fit">
+                            <Calendar size={10} className="text-amber-500" />
+                            <span className="text-[10px] text-amber-700 font-semibold">
+                              Follow-up: {new Date(r.followUpDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                             </span>
                           </div>
                         )}

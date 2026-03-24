@@ -9,13 +9,13 @@ export const dynamic = "force-dynamic";
 
 const LIMIT = 3000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
-const TATA_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMyMTIxOSwiaXNzIjoiaHR0cHM6XC9cL2Nsb3VkcGhvbmUudGF0YXRlbGVzZXJ2aWNlcy5jb21cL3Rva2VuXC9nZW5lcmF0ZSIsImlhdCI6MTY3NDA0MjI4MSwiZXhwIjoxOTc0MDQyMjgxLCJuYmYiOjE2NzQwNDIyODEsImp0aSI6IkZ3Z2l4b003TE9jRjh6TTIifQ.ZJmlobL9nuBMHYYgGji-cmKIFU0cDsqIKhkMIc4a4Uc";
+const TATA_TOKEN = process.env.TATA_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // Define Setting Schema for Round Robin
 const SettingSchema = new mongoose.Schema({
-  key: String,
-  value: mongoose.Schema.Types.Mixed,
+  key:   { type: String, required: true, unique: true },
+  value: { type: Number, default: -1 },
 });
 const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
@@ -151,15 +151,13 @@ export async function GET(req) {
         let assignedAgentId = null;
         if (activeAgents && activeAgents.length > 0) {
           const RR_KEY = "agentLeadRR";
-          let rrDoc = await Setting.findOne({ key: RR_KEY });
-          if (!rrDoc) {
-            rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
-          } else {
-            rrDoc.value += 1;
-            await rrDoc.save();
-          }
+          const rrDoc = await Setting.findOneAndUpdate(
+            { key: RR_KEY },
+            { $inc: { value: 1 }, $setOnInsert: { key: RR_KEY, value: -1 } },
+            { new: true, upsert: true }
+          );
 
-          let rrValue = parseInt(rrDoc.value, 10);
+          let rrValue = parseInt(rrDoc?.value, 10);
           if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
           assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;

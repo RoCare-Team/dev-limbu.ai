@@ -279,8 +279,8 @@ useEffect(() => {
                           className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all duration-300 ${
                             step === "details"
                               ? isDark
-                                ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50"
-                                : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/50"
+                                ? "bg-dark text-white shadow-lg"
+                                : "bg-neutral-600 text-white shadow-lg shadow-indigo-500/50"
                               : isDark
                               ? "bg-slate-700 text-slate-400"
                               : "bg-slate-200 text-slate-500"
@@ -397,6 +397,7 @@ useEffect(() => {
                         <input
                           type="text"
                           placeholder="Enter your full name"
+                          maxLength={30}
                           value={name}
                           maxLength={30}
                           onChange={(e) => setName(e.target.value)}
@@ -451,8 +452,8 @@ useEffect(() => {
                       disabled={isLoading}
                       className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
                         isDark
-                          ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
-                          : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+                          ? "bg-dark  hover:to-purple-500"
+                          : "bg-yellow-400 text-black hover:bg-yellow-300"
                       }`}
                     >
                       {isLoading ? "Processing..." : "Complete Registration"}

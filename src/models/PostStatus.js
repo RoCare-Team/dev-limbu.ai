@@ -37,7 +37,7 @@ scheduledDateSource: {
     rejectReason: { type: String, default: "" },
     accessToken: { type: String }, // Store token at schedule time
     refreshToken: { type: String }, // Store refresh token for cron jobs
-    checkmark: { type: String, default: "post" }, // ✅ Added checkmark field
+    checkmark: { type: String, default: "both" }, // ✅ Added checkmark field
     
     locations: [
       {

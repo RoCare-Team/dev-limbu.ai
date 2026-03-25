@@ -193,7 +193,7 @@ const handleRecharge = async () => {
 
       prefill: {
         name: "Auto GMB User",
-        email: "user@example.com",
+        email: "info@limbu.ai",
       },
     };
 

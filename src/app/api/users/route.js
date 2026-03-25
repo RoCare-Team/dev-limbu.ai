@@ -227,6 +227,53 @@ export async function GET(req) {
       );
     }
 
+    /* Batch fetch by userId list (follow-up table / avoids paginated page missing leads) */
+    const byUserIdsParam = searchParams.get("byUserIds");
+    if (byUserIdsParam && byUserIdsParam.trim()) {
+      const idList = byUserIdsParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (idList.length === 0) {
+        return NextResponse.json({
+          success: true,
+          users: [],
+          totalUsers: 0,
+          currentPage: 1,
+          totalPages: 1,
+          limit: 0,
+        });
+      }
+      let idQuery = { userId: { $in: idList } };
+      if (admin.role === "agent") {
+        idQuery = {
+          $and: [{ userId: { $in: idList } }, { assignedAgentId: admin._id }],
+        };
+      } else if (admin.role === "manager") {
+        idQuery = {
+          $and: [{ userId: { $in: idList } }, { accountManager: admin._id }],
+        };
+      }
+      const fetched = await User.find(idQuery)
+        .populate("assignedAgentId", "fullName email role mobileNumber")
+        .populate("accountManager", "fullName email role mobileNumber")
+        .sort({ createdAt: -1 });
+      const order = new Map(idList.map((id, i) => [String(id), i]));
+      const usersOrdered = [...fetched].sort(
+        (a, b) =>
+          (order.get(String(a.userId)) ?? 9999) -
+          (order.get(String(b.userId)) ?? 9999),
+      );
+      return NextResponse.json({
+        success: true,
+        users: usersOrdered,
+        totalUsers: usersOrdered.length,
+        currentPage: 1,
+        totalPages: 1,
+        limit: usersOrdered.length,
+      });
+    }
+
     /* 🔍 Fetch Agent Stats (Total Counts) */
     if (searchParams.get("getAgentStats") === "true") {
       const matchStage = {};
@@ -317,7 +364,8 @@ export async function GET(req) {
         detailedStats.push({ stage, agentId, leadStatus, count });
       });
 
-      let superAdminStats = {};
+      let extraStats = {};
+
       if (admin.role === "superAdmin") {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
@@ -330,20 +378,24 @@ export async function GET(req) {
             { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
             { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
             { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
-            { $unwind: "$agent" },
-            { $project: { agentName: "$agent.fullName", count: 1 } }
+            { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
+            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } }
           ])
         ]);
 
-        superAdminStats = {
-          totalSignups,
-          totalMetaLeads,
-          todayLeads,
-          todayAgentAssignments
-        };
+        extraStats = { totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments };
+      } else if (admin.role === "agent") {
+        // Return today's count scoped to this agent so the frontend can display it directly
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const todayLeads = await User.countDocuments({
+          assignedAgentId: admin._id,
+          createdAt: { $gte: startOfDay },
+        });
+        extraStats = { todayLeads };
       }
 
-      return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...superAdminStats });
+      return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...extraStats });
     }
 
     /* 🔍 Fetch Today's Users Count */
@@ -480,8 +532,8 @@ export async function GET(req) {
           { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
           { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
           { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
-          { $unwind: "$agent" },
-          { $project: { agentName: "$agent.fullName", count: 1 } }
+          { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
+          { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } }
         ])
       ]);
 
@@ -533,6 +585,9 @@ export async function PUT(req) {
     } = body;
 
     const remark = body.remark || body.remarks;
+    let followUpDate = body.followUpDate ? new Date(body.followUpDate) : null;
+
+    const FOLLOW_UP_REMARK_PREFIXES = ["Call Not Picked", "Call Back Later"];
 
     if (!userId) {
       return NextResponse.json(
@@ -562,22 +617,48 @@ export async function PUT(req) {
   if (remark) {
   updateData.$set = { Remarks: remark };
 
+  const agentId   = body.agentId   || null;
+  const agentName = body.agentName || "Admin";
+  const agentObjId = agentId && mongoose.Types.ObjectId.isValid(agentId)
+    ? new mongoose.Types.ObjectId(agentId)
+    : null;
+
+  let resolvedFollowUp = followUpDate;
+  const needsFuCarry =
+    remark &&
+    (!resolvedFollowUp || Number.isNaN(resolvedFollowUp.getTime())) &&
+    FOLLOW_UP_REMARK_PREFIXES.some((p) => String(remark).trim().startsWith(p));
+  if (needsFuCarry) {
+    const u = await User.findOne({ userId }).select("remarksHistory").lean();
+    const prev = [...(u?.remarksHistory || [])]
+      .reverse()
+      .find((r) => r.followUpDate);
+    if (prev?.followUpDate) {
+      resolvedFollowUp = new Date(prev.followUpDate);
+    } else {
+      resolvedFollowUp = new Date(Date.now() + 60 * 60 * 1000);
+    }
+  }
+
   const pushOperations = {
-    remarksHistory: { text: remark, createdAt: new Date() }
+    remarksHistory: {
+      text: remark,
+      createdAt: new Date(),
+      agentId: agentObjId,
+      agentName,
+      ...(resolvedFollowUp &&
+      !Number.isNaN(resolvedFollowUp.getTime()) && { followUpDate: resolvedFollowUp }),
+    }
   };
 
-  // If agent info exists, treat it as a call
-  const agentId = body.agentId || null;
-  const agentName = body.agentName || "Admin";
-
-  if (agentId || agentName) {
+  // Every remark is treated as a call interaction
+  if (agentObjId || agentName) {
     updateData.$inc = { callCount: 1 };
-
     pushOperations.callHistory = {
-      agentId: agentId && mongoose.Types.ObjectId.isValid(agentId) ? new mongoose.Types.ObjectId(agentId) : null,
-      agentName: agentName,
+      agentId: agentObjId,
+      agentName,
       calledAt: new Date(),
-      remark: remark
+      remark,
     };
   }
 

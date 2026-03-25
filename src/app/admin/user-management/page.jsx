@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, useMemo } from "react";
+import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
+/* user-management */
 import {
   Search,
   Filter,
@@ -36,13 +38,14 @@ import {
   Bell,
   Upload,
 } from "lucide-react";
+import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
+import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -132,6 +135,8 @@ const [callStats, setCallStats] = useState(null);
   const [agentCallHistory, setAgentCallHistory] = useState([]);
   const [callingUserId, setCallingUserId] = useState(null);
   const [followUpDate, setFollowUpDate] = useState("");
+  /** HH:mm — combined with followUpDate when saving follow-up */
+  const [followUpTime, setFollowUpTime] = useState("09:00");
   const [followUpStats, setFollowUpStats] = useState({
     totalFollowUps: 0,
     todayFollowUps: 0,
@@ -141,11 +146,13 @@ const [callStats, setCallStats] = useState(null);
     byAgent: [],
     leads: [],
   });
-  const [followUpFilter, setFollowUpFilter] = useState("tomorrow");
+  const [followUpFilter, setFollowUpFilter] = useState("all");
   const [followUpLeads, setFollowUpLeads] = useState([]);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+  const [followUpTableUsers, setFollowUpTableUsers] = useState([]);
+  const [loadingFollowUpTable, setLoadingFollowUpTable] = useState(false);
+  const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
   const [byAgentOpen, setByAgentOpen] = useState(false);
-  const [followUpLeadsOpen, setFollowUpLeadsOpen] = useState(true);
   const [adminFollowUpLeadsOpen, setAdminFollowUpLeadsOpen] = useState(false);
 
 // Revenue tracking state
@@ -218,14 +225,72 @@ const [callStats, setCallStats] = useState(null);
 
   const displayTotalChatsCount = useMemo(() => {
     if (isAgent || isManager) {
-      // Filter chats for agent's/users (based on loaded users for now, consistent with modal)
-      // Ideally backend should provide this count
+      const scopeUsers =
+        isAgent && followUpFilter !== "all" ? followUpTableUsers : users;
       return chatStats.data.filter((chat) =>
-        users.some((u) => u.userId === chat.userId),
+        scopeUsers.some((u) => u.userId === chat.userId),
       ).length;
     }
     return chatStats.total;
-  }, [isAgent, isManager, chatStats, users]);
+  }, [isAgent, isManager, chatStats, users, followUpFilter, followUpTableUsers]);
+
+  /** Agent: table rows loaded via byUserIds (paginated `users` often omits follow-up leads) */
+  const filteredUsers = useMemo(() => {
+    let list =
+      !isAgent || followUpFilter === "all" ? users : followUpTableUsers;
+    if (isAgent && followUpFilter !== "all" && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((u) => {
+        const hay = `${u.email || ""} ${u.userId || ""} ${u.phone || ""} ${u.mobileNumber || ""} ${u.fullName || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    return list;
+  }, [
+    users,
+    isAgent,
+    followUpFilter,
+    followUpTableUsers,
+    searchQuery,
+  ]);
+
+  const followUpMetaByUserId = useMemo(() => {
+    const m = new Map();
+    for (const l of followUpLeads) {
+      if (!l?.userId) continue;
+      const k = String(l.userId);
+      if (!m.has(k)) m.set(k, l.followUpDate);
+    }
+    return m;
+  }, [followUpLeads]);
+
+  const agentFollowUpFilterLabel = useMemo(() => {
+    const labels = {
+      today: "Today",
+      tomorrow: "Tomorrow",
+      next7days: "Next 7 days",
+      thisMonth: "This month",
+      all: "All time",
+    };
+    return labels[followUpFilter] || followUpFilter;
+  }, [followUpFilter]);
+
+  const followUpVoiceItems = useMemo(
+    () =>
+      (followUpLeads || []).map((l, idx) => ({
+        kind: "user",
+        id: `${l.userId}-${idx}`,
+        name: l.fullName || l.phone || String(l.userId || "") || "User",
+        phone: l.phone || "",
+        userId: l.userId,
+        followUpDate: l.followUpDate,
+      })),
+    [followUpLeads],
+  );
+  useFollowUpVoiceAlerts(followUpVoiceItems, {
+    enabled: Boolean(isAgent),
+    onDueAlert: setFollowUpDueAlert,
+  });
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -246,8 +311,9 @@ const [callStats, setCallStats] = useState(null);
     }
     const adminName = localStorage.getItem("adminName") || "Admin";
     setRemarksInput(`${remark} - ${adminName}`);
-    if (!FOLLOW_UP_REMARKS.some(r => remark.startsWith(r))) {
+    if (!FOLLOW_UP_REMARKS.some((r) => remark.startsWith(r))) {
       setFollowUpDate("");
+      setFollowUpTime("09:00");
     }
   };
 
@@ -436,6 +502,43 @@ const [callStats, setCallStats] = useState(null);
 
     fetchFollowUpLeads();
   }, [role, followUpFilter]);
+
+  useEffect(() => {
+    if (!isAgent || followUpFilter === "all") {
+      setFollowUpTableUsers([]);
+      setLoadingFollowUpTable(false);
+      return;
+    }
+    const adminEmail = localStorage.getItem("email");
+    const uniqueIds = [
+      ...new Set(
+        followUpLeads.map((l) => l?.userId).filter(Boolean).map(String),
+      ),
+    ];
+    if (!adminEmail || uniqueIds.length === 0) {
+      setFollowUpTableUsers([]);
+      setLoadingFollowUpTable(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingFollowUpTable(true);
+    fetchFollowUpTableUsersByIds(adminEmail, uniqueIds)
+      .then((merged) => {
+        if (!cancelled) setFollowUpTableUsers(merged);
+      })
+      .catch((e) => {
+        console.error("Follow-up table users fetch failed:", e);
+        if (!cancelled) setFollowUpTableUsers([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingFollowUpTable(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAgent, followUpFilter, followUpLeads]);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -1588,6 +1691,36 @@ const [callStats, setCallStats] = useState(null);
     const adminId = localStorage.getItem("adminId");
     const adminName = localStorage.getItem("adminName") || "Admin";
 
+    let followUpIso = null;
+    if (followUpDate) {
+      const rawT = followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim())
+        ? followUpTime.trim()
+        : "09:00";
+      const [hh, mm] = rawT.split(":");
+      const d = new Date(
+        `${followUpDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`,
+      );
+      if (!Number.isNaN(d.getTime())) followUpIso = d.toISOString();
+    }
+    const hasValidPickerFu =
+      Boolean(followUpIso) && !Number.isNaN(new Date(followUpIso).getTime());
+    if (!hasValidPickerFu) {
+      const trimmed = String(remarksInput).trim();
+      const isFu = FOLLOW_UP_REMARKS.some((r) => trimmed.startsWith(r));
+      if (isFu) {
+        const prev = [...(remarksModalUser.remarksHistory || [])]
+          .reverse()
+          .find((r) => r.followUpDate);
+        if (prev?.followUpDate) {
+          followUpIso = new Date(prev.followUpDate).toISOString();
+        } else {
+          followUpIso = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        }
+      } else {
+        followUpIso = null;
+      }
+    }
+
     try {
       const res = await fetch("/api/users", {
         method: "PUT",
@@ -1598,7 +1731,10 @@ const [callStats, setCallStats] = useState(null);
           messageSent,
           agentId: adminId,
           agentName: adminName,
-          ...(followUpDate && { followUpDate }),
+          ...(followUpIso &&
+            !Number.isNaN(new Date(followUpIso).getTime()) && {
+              followUpDate: followUpIso,
+            }),
         }),
       });
       const data = await res.json();
@@ -1613,10 +1749,15 @@ const [callStats, setCallStats] = useState(null);
         setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
         setFollowUpDate("");
+        setFollowUpTime("09:00");
         showToast("Remark added successfully", "success");
         setRemarksModalUser(null);
-        // Refresh follow-up leads if a follow-up date was set
-        if (followUpDate) {
+        const trimmedR = remarksInput.trim();
+        const refreshFu =
+          (followUpIso &&
+            !Number.isNaN(new Date(followUpIso).getTime())) ||
+          FOLLOW_UP_REMARKS.some((r) => trimmedR.startsWith(r));
+        if (refreshFu) {
           const adminEmail = localStorage.getItem("email");
           if (adminEmail) {
             fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`)
@@ -1815,11 +1956,6 @@ const handleVoiceCall = async (phone) => {
     }
   };
 
-  // Since we are doing server-side filtering, filteredUsers is just users.
-  useEffect(() => {
-    setFilteredUsers(users);
-  }, [users]);
-
   console.log("agentsagents", agents);
   console.log("agentStatsagentStatsagentStats", stageStats);
   console.log("callStats", callStats);
@@ -1892,35 +2028,54 @@ const handleVoiceCall = async (phone) => {
       )}
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-          {/* LEFT SIDE (Assignments) */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+            User Management
+          </h1>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              title={isRefreshingMetaLeads ? "Refreshing…" : "Refresh Meta Leads"}
+              onClick={() => handleRefreshMetaLeads(true)}
+              disabled={isRefreshingMetaLeads}
+              className="p-2 rounded-lg border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 shadow-sm transition-all disabled:opacity-50"
+            >
+              <RefreshCw size={18} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
+            </button>
+            <button
+              type="button"
+              title="Add User"
+              onClick={() => setAddingUser(true)}
+              className="p-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-sm transition-all"
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           {(role === "superAdmin" ||
             role === "admin" ||
             role === "superfranchiseAdmin") &&
             agents.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-bold text-gray-700">
+              <div className="space-y-2 w-full">
+                <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">
                   Total Assignments
                 </h3>
-
-                <div className="flex flex-wrap gap-3">
-                  {/* Unassigned */}
+                <div className="flex flex-wrap gap-2">
                   <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+                    className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-medium ${getAvatarColor("Unassigned")}`}
                   >
                     <User className="w-3 h-3" />
                     <span>Unassigned: {agentStats.unassigned || 0}</span>
                   </div>
-
-                  {/* Assigned Agents */}
                   {agents.map((agent) => {
                     const count = agentStats[agent._id.toString()] || 0;
                     if (count === 0) return null;
-
                     return (
                       <div
                         key={agent._id}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+                        className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-medium ${getAvatarColor(agent.fullName)}`}
                       >
                         <User className="w-3 h-3" />
                         <span>
@@ -1932,44 +2087,6 @@ const handleVoiceCall = async (phone) => {
                 </div>
               </div>
             )}
-
-          {/* RIGHT SIDE BUTTONS */}
-          <div className="flex gap-3 ml-auto">
-            <button
-              onClick={() => handleRefreshMetaLeads(true)}
-              disabled={isRefreshingMetaLeads}
-              className="
-        flex items-center gap-2 px-6 py-3 
-        bg-white text-indigo-600 
-        border border-indigo-200
-        hover:bg-indigo-50 
-        rounded-xl shadow-sm hover:shadow-md 
-        transition-all font-medium
-      "
-            >
-              <RefreshCw
-                size={20}
-                className={isRefreshingMetaLeads ? "animate-spin" : ""}
-              />
-              {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
-            </button>
-
-            <button
-              onClick={() => setAddingUser(true)}
-              className="
-        flex items-center gap-2 px-6 py-3 
-        bg-gradient-to-r from-indigo-600 to-purple-600 
-        hover:from-indigo-700 hover:to-purple-700 
-        text-white 
-        rounded-xl shadow-lg 
-        hover:shadow-xl 
-        transition-all
-      "
-            >
-              <Plus size={20} className="text-white" />
-              Add User
-            </button>
-          </div>
         </div>
 
         {/* Main Stats Cards — hidden for agents (they have their own performance panel below) */}
@@ -2176,7 +2293,7 @@ const handleVoiceCall = async (phone) => {
 
         {/* ── Agent Performance Dashboard ──────────────────────────────── */}
         {isAgent && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 space-y-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4 space-y-3">
 
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -2192,17 +2309,17 @@ const handleVoiceCall = async (phone) => {
             </div>
 
             {/* ── Row 1: Leads & Calls ── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {[
                 { label: "Today's Leads",  value: agentTodayLeads,              sub: "assigned today",   from: "from-teal-50",   to: "to-cyan-50",   border: "border-teal-100",   text: "text-teal-600",   bold: "text-teal-800"   },
                 { label: "Total Leads",    value: stats.total ?? 0,             sub: "all-time assigned", from: "from-indigo-50", to: "to-blue-50",   border: "border-indigo-100", text: "text-indigo-600", bold: "text-indigo-800" },
                 { label: "Calls Today",    value: callStats?.myCallsToday ?? 0, sub: "handled today",    from: "from-violet-50", to: "to-purple-50", border: "border-violet-100", text: "text-violet-600", bold: "text-violet-800" },
                 { label: "Total Calls",    value: callStats?.myCallsTotal ?? 0, sub: "all-time calls",   from: "from-blue-50",   to: "to-sky-50",    border: "border-blue-100",   text: "text-blue-600",   bold: "text-blue-800"   },
               ].map(({ label, value, sub, from, to, border, text, bold }) => (
-                <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-xl p-3 border ${border}`}>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${text}`}>{label}</p>
-                  <p className={`text-2xl font-bold mt-1 ${bold}`}>{value}</p>
-                  <p className={`text-xs mt-0.5 ${text} opacity-70`}>{sub}</p>
+                <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}>{label}</p>
+                  <p className={`text-lg font-bold mt-0.5 ${bold}`}>{value}</p>
+                  <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>{sub}</p>
                 </div>
               ))}
             </div>
@@ -2212,7 +2329,7 @@ const handleVoiceCall = async (phone) => {
               {[
                 { key: "today",     label: "Today",        count: followUpStats.todayFollowUps,     bg: "bg-amber-500",  ring: "ring-amber-400"  },
                 { key: "tomorrow",  label: "Tomorrow",     count: followUpStats.tomorrowFollowUps,  bg: "bg-rose-500",   ring: "ring-rose-400"   },
-                { key: "next7days", label: "Next 7 Days",  count: followUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
+                { key: "next7days", label: "Next 7 days",  count: followUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
                 { key: "thisMonth", label: "This Month",   count: followUpStats.thisMonthFollowUps, bg: "bg-emerald-500",ring: "ring-emerald-400"},
                 { key: "all",       label: "All Time",     count: followUpStats.totalFollowUps,     bg: "bg-gray-600",   ring: "ring-gray-400"   },
               ].map(({ key, label, count, bg, ring }) => {
@@ -2221,147 +2338,40 @@ const handleVoiceCall = async (phone) => {
                   <button
                     key={key}
                     onClick={() => setFollowUpFilter(key)}
-                    className={`rounded-xl p-3 border-2 text-left transition-all ${
+                    className={`rounded-lg p-2 border-2 text-left transition-all ${
                       active
                         ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
                         : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
                     }`}
                   >
-                    <p className={`text-[10px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}>Follow-ups</p>
-                    <p className={`text-xl font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}>{count}</p>
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}>Follow-ups</p>
+                    <p className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}>{count}</p>
                     <p className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}>{label}</p>
                   </button>
                 );
               })}
             </div>
 
-            {/* ── Follow-up Leads List (collapsible) ── */}
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setFollowUpLeadsOpen((o) => !o)}
-                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Calendar size={13} className="text-indigo-500 shrink-0" />
-                  <span className="text-xs font-bold text-gray-700 truncate">
-                    Follow-up Leads —{" "}
-                    <span className="text-indigo-600">
-                      {{ today: "Today", tomorrow: "Tomorrow", next7days: "Next 7 Days", thisMonth: "This Month", all: "All" }[followUpFilter]}
-                    </span>
-                  </span>
-                  <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
-                    {followUpLeads.length} leads
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 shrink-0 ml-2">
-                  <span>{followUpLeadsOpen ? "Hide" : "Show"}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${followUpLeadsOpen ? "rotate-180" : ""}`}
-                  />
-                </div>
-              </button>
+            {/* Pending follow-ups — same bucket as the table filter */}
+           
 
-              {followUpLeadsOpen && (
-                <div className="max-h-72 overflow-y-auto">
-                  {loadingFollowUps ? (
-                    <div className="flex items-center justify-center py-10 text-gray-400 text-xs gap-2">
-                      <Clock size={14} className="animate-spin" /> Loading...
-                    </div>
-                  ) : followUpLeads.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                      <CheckCircle size={22} className="mb-2 opacity-20" />
-                      <p className="text-xs font-medium">No follow-ups for this period</p>
-                    </div>
-                  ) : (
-                    followUpLeads.map((lead, idx) => {
-                      const fDate = new Date(lead.followUpDate);
-                      const nowDay = new Date();
-                      nowDay.setHours(0, 0, 0, 0);
-                      const diffDays = Math.round((fDate - nowDay) / 86400000);
-                      const isOverdue = diffDays < 0;
-                      const isToday = diffDays === 0;
-                      const isTomorrow = diffDays === 1;
-                      const badge = isOverdue
-                        ? { label: `${Math.abs(diffDays)}d overdue`, cls: "bg-red-100 text-red-700" }
-                        : isToday
-                          ? { label: "Today", cls: "bg-amber-100 text-amber-700" }
-                          : isTomorrow
-                            ? { label: "Tomorrow", cls: "bg-blue-100 text-blue-700" }
-                            : { label: `${diffDays}d left`, cls: "bg-green-100 text-green-700" };
-                      return (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors last:border-0"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 font-bold text-indigo-700 text-xs">
-                            {(lead.fullName || lead.userId || "?").charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-800 truncate">{lead.fullName || lead.userId}</p>
-                            <p className="text-[10px] text-gray-400 truncate">
-                              {lead.phone} &middot; <span className="italic">{lead.remark}</span>
-                            </p>
-                          </div>
-                          <div className="flex-shrink-0 text-right">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
-                            <p className="text-[9px] text-gray-400 mt-0.5">
-                              {fDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ── Row 3: Stage + Temperature breakdown ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lead Stages</p>
-                <div className="space-y-2">
-                  {[
-                    { label: "Active",    value: stageStats["Active"]    ?? 0, color: "bg-green-500",  text: "text-green-700"  },
-                    { label: "Follow Up", value: stageStats["Follow Up"] ?? 0, color: "bg-yellow-500", text: "text-yellow-700" },
-                    { label: "Inactive",  value: stageStats["Inactive"]  ?? 0, color: "bg-gray-400",   text: "text-gray-600"   },
-                    { label: "Onboard",   value: stageStats["Onboard"]   ?? 0, color: "bg-blue-500",   text: "text-blue-700"   },
-                  ].map(({ label, value, color, text }) => {
-                    const pct = Math.round((value / ((stats.total ?? 0) || 1)) * 100);
-                    return (
-                      <div key={label} className="flex items-center gap-2">
-                        <span className={`text-xs font-medium w-16 ${text}`}>{label}</span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                          <div className={`h-1.5 ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className={`text-xs font-bold w-6 text-right ${text}`}>{value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lead Temperature</p>
-                <div className="space-y-2">
-                  {[
-                    { label: "Hot",  value: leadStatusStats.Hot  ?? 0, color: "bg-red-500",    text: "text-red-700"    },
-                    { label: "Warm", value: leadStatusStats.Warm ?? 0, color: "bg-orange-400", text: "text-orange-700" },
-                    { label: "Cold", value: leadStatusStats.Cold ?? 0, color: "bg-blue-400",   text: "text-blue-700"   },
-                  ].map(({ label, value, color, text }) => {
-                    const pct = Math.round((value / ((stats.total ?? 0) || 1)) * 100);
-                    return (
-                      <div key={label} className="flex items-center gap-2">
-                        <span className={`text-xs font-medium w-10 ${text}`}>{label}</span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                          <div className={`h-1.5 ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className={`text-xs font-bold w-6 text-right ${text}`}>{value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Stages &amp; temperature</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: "Active", v: stageStats["Active"] ?? 0, cls: "bg-green-50 text-green-800 border-green-200" },
+                  { label: "Follow Up", v: stageStats["Follow Up"] ?? 0, cls: "bg-amber-50 text-amber-900 border-amber-200" },
+                  { label: "Inactive", v: stageStats["Inactive"] ?? 0, cls: "bg-gray-50 text-gray-800 border-gray-200" },
+                  { label: "Onboard", v: stageStats["Onboard"] ?? 0, cls: "bg-blue-50 text-blue-800 border-blue-200" },
+                  { label: "Hot", v: leadStatusStats.Hot ?? 0, cls: "bg-red-50 text-red-800 border-red-200" },
+                  { label: "Warm", v: leadStatusStats.Warm ?? 0, cls: "bg-orange-50 text-orange-800 border-orange-200" },
+                  { label: "Cold", v: leadStatusStats.Cold ?? 0, cls: "bg-sky-50 text-sky-800 border-sky-200" },
+                ].map(({ label, v, cls }) => (
+                  <div key={label} className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}>
+                    <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">{label}</p>
+                    <p className="text-sm font-black leading-tight tabular-nums">{v}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -2544,39 +2554,39 @@ const handleVoiceCall = async (phone) => {
 )}
 
         {callStats && (role === "superAdmin" || role === "admin") && (
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 md:px-5 md:py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                <Phone className="text-indigo-600" size={18} />
+          <div className="mb-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-3 py-2 md:px-4 md:py-2.5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-1.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                <Phone className="text-indigo-600" size={16} />
               </div>
               <div>
-                <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
-                <p className="text-[11px] text-gray-500">Today&apos;s call volume and scheduled follow-ups across agents</p>
+                <h2 className="text-sm md:text-base font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
+                <p className="text-[10px] text-gray-500 leading-snug">Today&apos;s call volume and scheduled follow-ups across agents</p>
               </div>
             </div>
 
-            <div className="p-4 md:p-5 space-y-5">
+            <div className="p-3 md:p-3.5 space-y-3">
             {/* Calls today: summary + per-agent scroll */}
             <div>
-              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls today</p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
-                <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-xl p-4 min-w-[140px] flex flex-col justify-center">
-                  <span className="text-[11px] text-blue-700 font-semibold uppercase">Total</span>
-                  <span className="text-2xl font-bold text-blue-900 tabular-nums">{callStats.totalCallsToday}</span>
-                  <span className="text-[10px] text-blue-600/80">all agents</span>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Calls today</p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
+                <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-lg p-2.5 min-w-[120px] flex flex-col justify-center">
+                  <span className="text-[10px] text-blue-700 font-semibold uppercase">Total</span>
+                  <span className="text-xl font-bold text-blue-900 tabular-nums leading-tight">{callStats.totalCallsToday}</span>
+                  <span className="text-[9px] text-blue-600/80">all agents</span>
                 </div>
-                <div className="flex-1 min-w-0 overflow-x-auto pb-1 -mx-1 px-1">
-                  <div className="flex gap-2 min-w-min">
+                <div className="flex-1 min-w-0 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+                  <div className="flex gap-1.5 min-w-min">
                     {(callStats.todayCallsByAgent || []).map((agent) => (
                       <div
                         key={agent.agentId || agent.agentName}
-                        className="min-w-[112px] max-w-[140px] bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
+                        className="min-w-[100px] max-w-[128px] bg-gray-50 border border-gray-200 rounded-lg p-2 flex flex-col"
                       >
-                        <span className="text-[10px] text-gray-500 truncate capitalize" title={agent.agentName}>
+                        <span className="text-[9px] text-gray-500 truncate capitalize" title={agent.agentName}>
                           {agent.agentName || "—"}
                         </span>
-                        <span className="text-xl font-bold text-gray-900 tabular-nums">{agent.count}</span>
-                        <span className="text-[9px] text-gray-400">calls</span>
+                        <span className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{agent.count}</span>
+                        <span className="text-[8px] text-gray-400">calls</span>
                       </div>
                     ))}
                   </div>
@@ -2586,8 +2596,8 @@ const handleVoiceCall = async (phone) => {
 
             {/* Follow-up buckets */}
             <div>
-              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Follow-up schedule</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Follow-up schedule</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {[
                 { label: "Total",      value: followUpStats.totalFollowUps,     bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  bold: "text-amber-800",  sub: "text-amber-500",  note: "all follow-ups"  },
                 { label: "Today",      value: followUpStats.todayFollowUps,     bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    bold: "text-sky-800",    sub: "text-sky-500",    note: "due today"       },
@@ -2595,10 +2605,10 @@ const handleVoiceCall = async (phone) => {
                 { label: "Next 7 Days",value: followUpStats.next7DaysFollowUps, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", bold: "text-violet-800", sub: "text-violet-500", note: "upcoming"        },
                 { label: "This Month", value: followUpStats.thisMonthFollowUps, bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  bold: "text-green-800",  sub: "text-green-500",  note: "this month"      },
               ].map(({ label, value, bg, border, text, bold, sub, note }) => (
-                <div key={label} className={`${bg} border ${border} rounded-xl p-3 flex flex-col min-h-[88px] justify-center`}>
-                  <span className={`text-[11px] font-semibold ${text}`}>{label}</span>
-                  <span className={`text-xl font-bold ${bold} tabular-nums mt-0.5`}>{value}</span>
-                  <span className={`text-[10px] ${sub} mt-auto`}>{note}</span>
+                <div key={label} className={`${bg} border ${border} rounded-lg p-2 flex flex-col min-h-[72px] justify-center`}>
+                  <span className={`text-[10px] font-semibold ${text}`}>{label}</span>
+                  <span className={`text-lg font-bold ${bold} tabular-nums mt-0.5 leading-tight`}>{value}</span>
+                  <span className={`text-[9px] ${sub} mt-auto leading-tight`}>{note}</span>
                 </div>
               ))}
             </div>
@@ -2797,6 +2807,14 @@ const handleVoiceCall = async (phone) => {
         )}
 
         <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
+          {isAgent && followUpFilter !== "all" && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
+                <span className="text-indigo-600/90">Table filter:</span>
+                <span className="text-rose-700">{agentFollowUpFilterLabel}</span>
+              </span>
+            </div>
+          )}
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 flex items-center gap-2">
               <div className="relative flex-grow">
@@ -2941,7 +2959,7 @@ const handleVoiceCall = async (phone) => {
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Joined Date
+                    {isAgent && followUpFilter !== "all" ? "Follow-up" : "Joined Date"}
                   </th>
                   <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     User Name
@@ -2983,6 +3001,24 @@ const handleVoiceCall = async (phone) => {
           <div className="overflow-y-auto flex-grow">
             <table className="min-w-full">
               <tbody className="divide-y divide-gray-100">
+                {loadingFollowUpTable &&
+                isAgent &&
+                followUpFilter !== "all" ? (
+                  <tr>
+                    <td colSpan={12} className="text-center py-14">
+                      <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
+                        <RefreshCw
+                          size={28}
+                          className="animate-spin opacity-80"
+                        />
+                        <p className="text-sm font-semibold text-gray-700">
+                          Loading follow-ups ({agentFollowUpFilterLabel})…
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <>
                 {filteredUsers.map((user) => {
                   const postData = userPostsData[user.userId] || {
                     total: 0,
@@ -2996,6 +3032,65 @@ const handleVoiceCall = async (phone) => {
                       onClick={() => handleViewPosts(user)}
                     >
                       <td className="px-6 py-5">
+                        {isAgent && followUpFilter !== "all" ? (
+                          (() => {
+                            const raw = followUpMetaByUserId.get(
+                              String(user.userId),
+                            );
+                            const d = raw ? new Date(raw) : null;
+                            const valid = d && !Number.isNaN(d.getTime());
+                            const now = new Date();
+                            const tmr = new Date(now);
+                            tmr.setDate(tmr.getDate() + 1);
+                            const sameDay = (a, b) =>
+                              valid &&
+                              a.getFullYear() === b.getFullYear() &&
+                              a.getMonth() === b.getMonth() &&
+                              a.getDate() === b.getDate();
+                            const isFuToday = sameDay(d, now);
+                            const isFuTomorrow = sameDay(d, tmr);
+                            return (
+                              <div className="flex items-center gap-2">
+                                <Clock
+                                  size={14}
+                                  className="text-gray-400 shrink-0"
+                                />
+                                <div className="text-sm text-gray-700">
+                                  {valid ? (
+                                    <>
+                                      <div className="font-medium">
+                                        {d.toLocaleString("en-IN", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          hour12: true,
+                                        })}
+                                      </div>
+                                      <div className="flex flex-wrap gap-1 mt-0.5">
+                                        {isFuToday && (
+                                          <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
+                                            Today
+                                          </span>
+                                        )}
+                                        {isFuTomorrow && (
+                                          <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
+                                            Tomorrow
+                                          </span>
+                                        )}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400 italic">
+                                      N/A
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : (
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-gray-400" />
                           <div className="text-sm text-gray-700">
@@ -3023,6 +3118,7 @@ const handleVoiceCall = async (phone) => {
                             )}
                           </div>
                         </div>
+                        )}
                       </td>
 
                       <td className="px-6 py-5">
@@ -3411,9 +3507,10 @@ const handleVoiceCall = async (phone) => {
                     </tr>
                   );
                 })}
-                {filteredUsers.length === 0 && (
+                {!loadingFollowUpTable &&
+                  filteredUsers.length === 0 && (
                   <tr>
-                    <td colSpan="10" className="text-center py-12">
+                    <td colSpan={12} className="text-center py-12">
                       <div className="text-gray-400">
                         <Search size={48} className="mx-auto mb-3 opacity-50" />
                         <p className="text-lg font-medium">No users found</p>
@@ -3424,41 +3521,59 @@ const handleVoiceCall = async (phone) => {
                     </td>
                   </tr>
                 )}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
         </div>
         {/* Pagination Controls */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
-            <span className="text-sm text-gray-600">
-              Page{" "}
-              <span className="font-semibold">{pagination.currentPage}</span> of{" "}
-              <span className="font-semibold">{pagination.totalPages}</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-              >
-                <ChevronLeft size={16} />
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === pagination.totalPages}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-              >
-                Next
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            <span className="text-sm text-gray-600">
-              Total Users:{" "}
-              <span className="font-semibold">{pagination.totalUsers}</span>
-            </span>
+        {isAgent && followUpFilter !== "all" ? (
+          <div className="flex items-center justify-center sm:justify-between gap-2 px-3 py-2 bg-white rounded-b-2xl border-t border-gray-200">
+            <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+              <span className="font-semibold text-gray-800">
+                Showing {filteredUsers.length} users
+              </span>
+              <span className="text-gray-400"> · </span>
+              <span className="text-indigo-700 font-medium">
+                follow-up: {agentFollowUpFilterLabel}
+              </span>
+            </p>
           </div>
+        ) : (
+          pagination &&
+          pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
+              <span className="text-sm text-gray-600">
+                Page{" "}
+                <span className="font-semibold">{pagination.currentPage}</span>{" "}
+                of{" "}
+                <span className="font-semibold">{pagination.totalPages}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pagination.totalPages}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <span className="text-sm text-gray-600">
+                Total Users:{" "}
+                <span className="font-semibold">{pagination.totalUsers}</span>
+              </span>
+            </div>
+          )
         )}
       </div>
 
@@ -3894,8 +4009,16 @@ const handleVoiceCall = async (phone) => {
                   <Calendar size={13} className="text-amber-600" />
                   <span className="text-xs font-bold text-amber-700">Schedule Follow-up</span>
                   {followUpDate && (
-                    <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold">
-                      {new Date(followUpDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold tabular-nums">
+                      {new Date(
+                        `${followUpDate}T${(followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim()) ? followUpTime.trim() : "09:00").padStart(5, "0")}:00`,
+                      ).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   )}
                 </div>
@@ -3935,19 +4058,29 @@ const handleVoiceCall = async (phone) => {
                     );
                   })}
                 </div>
-                {/* Custom date input */}
-                <div className="flex items-center gap-2">
+                {/* Custom date + time */}
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="date"
                     value={followUpDate}
                     min={new Date().toISOString().split("T")[0]}
                     onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                    className="flex-1 min-w-[8rem] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                  />
+                  <input
+                    type="time"
+                    value={followUpTime}
+                    onChange={(e) => setFollowUpTime(e.target.value)}
+                    disabled={!followUpDate}
+                    className="text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white disabled:opacity-40"
                   />
                   {followUpDate && (
                     <button
                       type="button"
-                      onClick={() => setFollowUpDate("")}
+                      onClick={() => {
+                        setFollowUpDate("");
+                        setFollowUpTime("09:00");
+                      }}
                       className="text-amber-500 hover:text-red-500 transition-colors"
                     >
                       <X size={13} />
@@ -4029,7 +4162,14 @@ const handleVoiceCall = async (phone) => {
                           <div className="flex items-center gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-0.5 w-fit">
                             <Calendar size={10} className="text-amber-500" />
                             <span className="text-[10px] text-amber-700 font-semibold">
-                              Follow-up: {new Date(r.followUpDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              Follow-up:{" "}
+                              {new Date(r.followUpDate).toLocaleString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </span>
                           </div>
                         )}
@@ -5404,6 +5544,14 @@ const handleVoiceCall = async (phone) => {
           </div>
         </div>
       )}
+
+      <FollowUpDueAlertModal
+        alert={followUpDueAlert}
+        onDismiss={() => setFollowUpDueAlert(null)}
+        onVoiceCall={
+          followUpDueAlert?.kind === "user" ? handleVoiceCall : undefined
+        }
+      />
     </div>
   );
 }

@@ -4,6 +4,65 @@ import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
 import Lead from "@/models/MetaLeadFranchises";
 
+const FU_TEXT_OR = [
+  { "latest.text": { $regex: "^Call Not Picked", $options: "i" } },
+  { "latest.text": { $regex: "^Call Back Later", $options: "i" } },
+];
+
+/** Day boundaries in Asia/Kolkata as UTC Date values (India has no DST). */
+function getISTCalendarRanges() {
+  const tz = "Asia/Kolkata";
+  const now = new Date();
+  const parts = {};
+  for (const { type, value } of new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now)) {
+    if (type !== "literal") parts[type] = value;
+  }
+  const y = parts.year;
+  const mo = parts.month;
+  const da = parts.day;
+
+  const ist = (yy, mm, dd, hh = 0, mi = 0) =>
+    new Date(
+      `${yy}-${mm}-${dd}T${String(hh).padStart(2, "0")}:${String(mi).padStart(2, "0")}:00+05:30`,
+    );
+
+  const todayStart = ist(y, mo, da, 0, 0);
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  const tomorrowEnd = new Date(tomorrowStart.getTime() + 86400000);
+  const next7DaysEnd = new Date(todayStart.getTime() + 7 * 86400000);
+
+  const yNum = parseInt(y, 10);
+  const mNum = parseInt(mo, 10);
+  let nextM = mNum + 1;
+  let nextY = yNum;
+  if (nextM > 12) {
+    nextM = 1;
+    nextY += 1;
+  }
+  const thisMonthStart = ist(y, mo, "01", 0, 0);
+  const thisMonthEnd = ist(
+    String(nextY),
+    String(nextM).padStart(2, "0"),
+    "01",
+    0,
+    0,
+  );
+
+  return {
+    todayStart,
+    tomorrowStart,
+    tomorrowEnd,
+    next7DaysEnd,
+    thisMonthStart,
+    thisMonthEnd,
+  };
+}
+
 export async function GET(req) {
   try {
     await dbConnect();
@@ -26,40 +85,39 @@ export async function GET(req) {
 
     const isScopedFranchiseAdmin = admin.role === "franchiseAdmin";
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-    const tomorrowEnd = new Date(tomorrowStart);
-    tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-    const next7DaysEnd = new Date(todayStart);
-    next7DaysEnd.setDate(next7DaysEnd.getDate() + 7);
-    const thisMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
-    const thisMonthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
+    const {
+      todayStart,
+      tomorrowStart,
+      tomorrowEnd,
+      next7DaysEnd,
+      thisMonthStart,
+      thisMonthEnd,
+    } = getISTCalendarRanges();
 
     const escaped = admin.fullName?.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const agentScope = isScopedFranchiseAdmin
-      ? escaped
-        ? {
+    const idStr = admin._id.toString();
+
+    const latestAgentMatch = isScopedFranchiseAdmin
+      ? {
+          $match: {
             $or: [
-              { "remarks.agentId": new mongoose.Types.ObjectId(admin._id) },
-              {
-                $and: [
-                  {
-                    $or: [
-                      { "remarks.agentId": null },
-                      { "remarks.agentId": { $exists: false } },
-                    ],
-                  },
-                  {
-                    "remarks.agentName": { $regex: `^${escaped}$`, $options: "i" },
-                  },
-                ],
-              },
+              { assignedFranchiseAdminId: admin._id },
+              { "latest.agentId": admin._id },
+              { "latest.agentId": idStr },
+              ...(escaped
+                ? [
+                    {
+                      "latest.agentName": {
+                        $regex: `^${escaped}$`,
+                        $options: "i",
+                      },
+                    },
+                  ]
+                : []),
             ],
-          }
-        : { "remarks.agentId": new mongoose.Types.ObjectId(admin._id) }
-      : {};
+          },
+        }
+      : null;
 
     let leadsDateFilter;
     switch (filter) {
@@ -79,49 +137,61 @@ export async function GET(req) {
         leadsDateFilter = { $exists: true, $ne: null };
     }
 
-    const leadsPipeline = [
+    const latestRemarkBase = [
+      { $match: { remarks: { $exists: true, $ne: [], $type: "array" } } },
       { $unwind: "$remarks" },
+      { $sort: { leadId: 1, "remarks.addedAt": -1 } },
       {
-        $match: {
-          "remarks.followUpDate": leadsDateFilter,
-          ...agentScope,
+        $group: {
+          _id: "$leadId",
+          fullName: { $first: "$fullName" },
+          phone: { $first: "$phone" },
+          assignedFranchiseAdminId: { $first: "$assignedFranchiseAdminId" },
+          latest: { $first: "$remarks" },
         },
       },
-      { $sort: { "remarks.followUpDate": 1 } },
+      {
+        $match: {
+          "latest.followUpDate": { $exists: true, $ne: null },
+          $or: FU_TEXT_OR,
+        },
+      },
+    ];
+
+    if (latestAgentMatch) latestRemarkBase.push(latestAgentMatch);
+
+    const leadsPipeline = [
+      ...latestRemarkBase,
+      { $match: { "latest.followUpDate": leadsDateFilter } },
+      { $sort: { "latest.followUpDate": 1 } },
       {
         $project: {
           _id: 0,
-          leadId: 1,
-          fullName: "$fullName",
-          phone: "$phone",
-          remark: "$remarks.text",
-          followUpDate: "$remarks.followUpDate",
-          agentName: "$remarks.agentName",
-          agentId: "$remarks.agentId",
+          leadId: "$_id",
+          fullName: 1,
+          phone: 1,
+          remark: "$latest.text",
+          followUpDate: "$latest.followUpDate",
+          agentName: "$latest.agentName",
+          agentId: "$latest.agentId",
         },
       },
     ];
 
     const countPipeline = [
-      { $unwind: "$remarks" },
-      {
-        $match: {
-          "remarks.followUpDate": { $exists: true, $ne: null },
-          ...agentScope,
-        },
-      },
+      ...latestRemarkBase,
       {
         $group: {
-          _id: "$remarks.agentId",
-          agentName: { $first: "$remarks.agentName" },
+          _id: "$latest.agentId",
+          agentName: { $first: "$latest.agentName" },
           total: { $sum: 1 },
           today: {
             $sum: {
               $cond: [
                 {
                   $and: [
-                    { $gte: ["$remarks.followUpDate", todayStart] },
-                    { $lt: ["$remarks.followUpDate", tomorrowStart] },
+                    { $gte: ["$latest.followUpDate", todayStart] },
+                    { $lt: ["$latest.followUpDate", tomorrowStart] },
                   ],
                 },
                 1,
@@ -134,8 +204,8 @@ export async function GET(req) {
               $cond: [
                 {
                   $and: [
-                    { $gte: ["$remarks.followUpDate", tomorrowStart] },
-                    { $lt: ["$remarks.followUpDate", tomorrowEnd] },
+                    { $gte: ["$latest.followUpDate", tomorrowStart] },
+                    { $lt: ["$latest.followUpDate", tomorrowEnd] },
                   ],
                 },
                 1,
@@ -148,8 +218,8 @@ export async function GET(req) {
               $cond: [
                 {
                   $and: [
-                    { $gte: ["$remarks.followUpDate", todayStart] },
-                    { $lt: ["$remarks.followUpDate", next7DaysEnd] },
+                    { $gte: ["$latest.followUpDate", todayStart] },
+                    { $lt: ["$latest.followUpDate", next7DaysEnd] },
                   ],
                 },
                 1,
@@ -162,8 +232,8 @@ export async function GET(req) {
               $cond: [
                 {
                   $and: [
-                    { $gte: ["$remarks.followUpDate", thisMonthStart] },
-                    { $lt: ["$remarks.followUpDate", thisMonthEnd] },
+                    { $gte: ["$latest.followUpDate", thisMonthStart] },
+                    { $lt: ["$latest.followUpDate", thisMonthEnd] },
                   ],
                 },
                 1,

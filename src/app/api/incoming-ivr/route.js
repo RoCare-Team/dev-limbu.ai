@@ -53,57 +53,96 @@ const CallSchema = new mongoose.Schema(
 
 const Call =
   mongoose.models.Call ||
-  mongoose.model("Call", CallSchema, "franchiseIVRData");
+  mongoose.model("Call", CallSchema, "dialer_call_status_tatas");
+
 /* ================= AISENSY CONFIG ================= */
 
 const AISENSY_URL =
   "https://backend.aisensy.com/campaign/t1/api/v2";
 
-const MEDIA = {
-  session4pm:
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
-  session530pm:
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.21+PM.jpeg",
+const CAMPAIGN_CONFIG = {
+  session4pm_new: {
+    mediaUrl:
+      "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
+  },
+  session530pm_new: {
+    mediaUrl:
+      "https://limbuai.s3.ap-south-1.amazonaws.com/2WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
+  },
 };
+
+/* ================= HELPERS ================= */
 
 const normalizeNumber = (num) => {
   if (!num) return null;
-  let n = num.replace(/\D/g, "");
+
+  let n = num.toString().replace(/\D/g, "");
+
   if (n.startsWith("0")) n = n.slice(1);
   if (n.length === 10) n = "91" + n;
+
   return n.length === 12 ? n : null;
 };
 
-// async function sendWhatsApp(number, campaignName) {
-//   const destination = normalizeNumber(number);
-//   if (!destination) return false;
+async function sendWhatsApp(number, campaignName, userName = "User") {
+  const destination = normalizeNumber(number);
+  if (!destination) return false;
 
-//   const res = await fetch(AISENSY_URL, {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify({
-//       apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzZhOWFjMTNhNjFmMGQ3YjExYmQ1NCIsIm5hbWUiOiJMaW1idUFJIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY2NjhhNWZmYTNhMzhjNTJhMDVmZDYzOCIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NjUxOTAwNjB9.Xps-oRJ5QqgkCs5BaBuPd1KS9Yxnv4D2PCYB-g5zgr4",
-//       campaignName,
-//       destination,
-//       userName: "LimbuAI",
-//       templateParams: [],
-//       source: "incoming-ivr",
-//       media: {
-//         url: MEDIA[campaignName],
-//         filename: "session",
-//       },
-//     }),
-//   });
+  if (!CAMPAIGN_CONFIG[campaignName]) return false;
 
-//   const json = await res.json();
-//   return json?.success === "true";
-// }
+  try {
+    const payload = {
+      apiKey: process.env.AISENSY_API_KEY,
+      campaignName,
+      destination,
+      userName: "LimbuAI",
+
+      templateParams: [
+        "https://us06web.zoom.us/meeting/register/GdVk9iYlRgWL4Y1wC721_A",
+        "883 7574 4050",
+        "916645",
+      ],
+
+      source: "incoming-ivr",
+
+      media: {
+        url: CAMPAIGN_CONFIG[campaignName].mediaUrl,
+        filename: "session_image",
+      },
+
+      buttons: [],
+      carouselCards: [],
+      location: {},
+      attributes: {},
+
+      paramsFallbackValue: {
+        FirstName: userName,
+      },
+    };
+
+    const res = await fetch(AISENSY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await res.json();
+
+    return json?.success === true || json?.success === "true";
+  } catch (error) {
+    console.error("WhatsApp Error:", error);
+    return false;
+  }
+}
 
 /* ================= POST WEBHOOK ================= */
 
 export async function POST(req) {
   try {
     await dbConnect();
+
     const body = await req.json();
 
     const {
@@ -122,6 +161,7 @@ export async function POST(req) {
       billing_circle = "",
       campaign_id = "",
       campaign_name = "",
+      userName = "User", // ✅ frontend se aayega
     } = body;
 
     let did_number = "";
@@ -139,10 +179,14 @@ export async function POST(req) {
     }
 
     const now = new Date();
-    const action_date_time = now.toISOString().slice(0, 19).replace("T", " ");
+    const action_date_time = now
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
     const call_date = now.toISOString().split("T")[0];
 
-    // ✅ SAVE DATA
+    /* ================= SAVE DATA ================= */
+
     const savedCall = await Call.create({
       mobile_no: customer_number,
       agent_mobile,
@@ -166,31 +210,36 @@ export async function POST(req) {
       campaign_name,
     });
 
-    // ✅ REAL-TIME WHATSAPP TRIGGER
-    // if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
-    //   const sent = await sendWhatsApp(
-    //     customer_no_with_prefix,
-    //     "session4pm"
-    //   );
+    /* ================= WHATSAPP TRIGGER ================= */
 
-    //   if (sent) {
-    //     savedCall.whatsapp_sent = true;
-    //     await savedCall.save();
-    //   }
-    // }
+    if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
+      const sent = await sendWhatsApp(
+        customer_no_with_prefix,
+        "session4pm_new",
+        userName // ✅ frontend name
+      );
+
+      if (sent) {
+        savedCall.whatsapp_sent = true;
+        await savedCall.save();
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Call stored",
+      message: "Call stored & WhatsApp triggered",
     });
   } catch (error) {
     console.error("Webhook Error:", error);
+
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
   }
 }
+
+/* ================= GET API ================= */
 
 export async function GET(req) {
   try {
@@ -204,18 +253,15 @@ export async function GET(req) {
     const campaign_name = searchParams.get("campaign_name");
     const direction = searchParams.get("direction");
 
-    // ✅ DATE RANGE
-    const start_date = searchParams.get("start_date"); // yyyy-mm-dd
-    const end_date = searchParams.get("end_date");     // yyyy-mm-dd
+    const start_date = searchParams.get("start_date");
+    const end_date = searchParams.get("end_date");
 
-    // Pagination
     const page = Number(searchParams.get("page")) || 1;
     const limit = Number(searchParams.get("limit")) || 20;
     const skip = (page - 1) * limit;
 
     const query = {};
 
-    /* ================= MAIN SEARCH (searches across multiple fields) ================= */
     if (search) {
       query.$or = [
         { customer_no_with_prefix: { $regex: search, $options: "i" } },
@@ -243,7 +289,6 @@ export async function GET(req) {
       query.direction = direction;
     }
 
-    /* ================= DATE RANGE FILTER (FIX) ================= */
     if (start_date && end_date) {
       const start = new Date(start_date);
       start.setHours(0, 0, 0, 0);

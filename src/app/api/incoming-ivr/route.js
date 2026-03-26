@@ -247,31 +247,34 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
 
-    const search = searchParams.get("search");
-    const mobile_no = searchParams.get("mobile_no");
-    const digit_pressed = searchParams.get("digit_pressed");
-    const campaign_name = searchParams.get("campaign_name");
-    const direction = searchParams.get("direction");
-
-    const start_date = searchParams.get("start_date");
-    const end_date = searchParams.get("end_date");
-
     const page = Number(searchParams.get("page")) || 1;
     const limit = Number(searchParams.get("limit")) || 20;
     const skip = (page - 1) * limit;
 
     const query = {};
 
+    // ✅ FILTERS
+    const search = searchParams.get("search");
+    const mobile_no = searchParams.get("mobile_no");
+    const digit_pressed = searchParams.get("digit_pressed");
+    const campaign_name = searchParams.get("campaign_name");
+    const direction = searchParams.get("direction");
+    const start_date = searchParams.get("start_date");
+    const end_date = searchParams.get("end_date");
+
+    // ✅ GLOBAL SEARCH
     if (search) {
       query.$or = [
-        { customer_no_with_prefix: { $regex: search, $options: "i" } },
         { mobile_no: { $regex: search, $options: "i" } },
+        { customer_no_with_prefix: { $regex: search, $options: "i" } },
         { campaign_name: { $regex: search, $options: "i" } },
+        { call_id: { $regex: search, $options: "i" } },
       ];
     }
 
+    // ✅ INDIVIDUAL FILTERS
     if (mobile_no) {
-      query.mobile_no = { $regex: mobile_no, $options: "i" };
+      query.mobile_no = mobile_no;
     }
 
     if (digit_pressed) {
@@ -279,35 +282,29 @@ export async function GET(req) {
     }
 
     if (campaign_name) {
-      query.campaign_name = {
-        $regex: campaign_name,
-        $options: "i",
-      };
+      query.campaign_name = campaign_name;
     }
 
     if (direction) {
       query.direction = direction;
     }
 
+    // ✅ DATE FILTER (IMPORTANT FIX 🔥)
     if (start_date && end_date) {
-      const start = new Date(start_date);
-      start.setHours(0, 0, 0, 0);
-
-      const end = new Date(end_date);
-      end.setHours(23, 59, 59, 999);
-
       query.createdAt = {
-        $gte: start,
-        $lte: end,
+        $gte: new Date(start_date),
+        $lte: new Date(end_date),
       };
     }
 
+    // ✅ FETCH DATA
     const total = await Call.countDocuments(query);
 
     const data = await Call.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // 🔥 performance boost
 
     return NextResponse.json({
       success: true,
@@ -316,7 +313,10 @@ export async function GET(req) {
       limit,
       data,
     });
+
   } catch (error) {
+    console.error("GET API ERROR:", error);
+
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

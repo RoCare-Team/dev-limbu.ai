@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
 import Lead from "@/models/MetaLeadFranchises";
+import { syncFranchiseLeadsIvrInterestFromCalls } from "@/lib/syncFranchiseIvrInterest";
 
 const FOLLOW_UP_PREFIXES = ["Call Not Picked", "Call Back Later"];
 
@@ -47,6 +48,7 @@ function formatLeadForResponse(leadDoc) {
     lead_quality: leadDoc.lead_quality || "None",
     remarks: leadDoc.remarks || [],
     assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
+    ivrMeInterested: leadDoc.ivrMeInterested === true,
   };
 }
 
@@ -92,6 +94,7 @@ export async function GET(req) {
           createdTime: lead.createdTime,
           remarks: lead.remarks || [],
           assignedFranchiseAdmin: lead.assignedFranchiseAdminId,
+          ivrMeInterested: lead.ivrMeInterested === true,
         },
       });
     }
@@ -121,6 +124,8 @@ export async function GET(req) {
         filterAdminId = admin._id.toString();
       }
     }
+
+    await syncFranchiseLeadsIvrInterestFromCalls(Lead);
 
     const metaRes = await fetch(
       `https://graph.facebook.com/v19.0/${formId}/leads?limit=${limit}&access_token=${META_TOKEN}`

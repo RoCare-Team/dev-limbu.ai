@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import FranchiseIvrCall from "@/models/FranchiseIvrCall";
+import Lead from "@/models/MetaLeadFranchises";
+import { markLeadsIvrInterestedForPhone } from "@/lib/syncFranchiseIvrInterest";
 
 /* ================= MONGODB CONNECTION ================= */
 
@@ -21,39 +24,6 @@ async function dbConnect() {
   global.mongoose.conn = await global.mongoose.promise;
   return global.mongoose.conn;
 }
-
-/* ================= SCHEMA ================= */
-
-const CallSchema = new mongoose.Schema(
-  {
-    mobile_no: String,
-    agent_mobile: String,
-    answered_agent_number: String,
-    did_number: String,
-    call_status: String,
-    uuid: String,
-    caller_id_number: String,
-    duration: String,
-    recording_url: String,
-    customer_no_with_prefix: String,
-    hangup_cause: String,
-    direction: String,
-    action_date_time: String,
-    call_id: String,
-    call_date: String,
-    api_page_name: String,
-    digit_pressed: String,
-    billing_circle: Object,
-    campaign_id: String,
-    campaign_name: String,
-    whatsapp_sent: { type: Boolean, default: false },
-  },
-  { timestamps: true }
-);
-
-const Call =
-  mongoose.models.Call ||
-  mongoose.model("Call", CallSchema, "franchise_ivr_calls");
 /* ================= AISENSY CONFIG ================= */
 
 const AISENSY_URL =
@@ -143,7 +113,7 @@ export async function POST(req) {
     const call_date = now.toISOString().split("T")[0];
 
     // ✅ SAVE DATA
-    const savedCall = await Call.create({
+    const savedCall = await FranchiseIvrCall.create({
       mobile_no: customer_number,
       agent_mobile,
       answered_agent_number,
@@ -165,6 +135,9 @@ export async function POST(req) {
       campaign_id,
       campaign_name,
     });
+
+    await markLeadsIvrInterestedForPhone(did_number, Lead);
+    await markLeadsIvrInterestedForPhone(customer_number, Lead);
 
     // ✅ REAL-TIME WHATSAPP TRIGGER
     // if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
@@ -257,9 +230,9 @@ export async function GET(req) {
       };
     }
 
-    const total = await Call.countDocuments(query);
+    const total = await FranchiseIvrCall.countDocuments(query);
 
-    const data = await Call.find(query)
+    const data = await FranchiseIvrCall.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

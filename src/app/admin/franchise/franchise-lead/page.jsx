@@ -116,6 +116,7 @@ const normalizeLead = (lead) => {
     assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
     whatsapp_count: lead.whatsapp_count || 0,
     source: lead.source || "meta",
+    ivrMeInterested: lead.ivrMeInterested === true,
   };
 
   if (lead.field_data) {
@@ -389,6 +390,7 @@ export default function FranchiseLeadsPage() {
             remarks: L.remarks || [],
             lead_quality: L.lead_quality,
             assignedFranchiseAdmin: L.assignedFranchiseAdmin,
+            ivrMeInterested: L.ivrMeInterested,
             source: "meta",
             field_data: [
               { name: "full_name", values: [L.fullName || ""] },
@@ -2327,10 +2329,15 @@ if (!executiveMobile && typeof window !== "undefined") {
                               </p>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2 relative">
+                            <div className="flex items-center gap-2 relative flex-wrap">
                               <span className="font-medium text-gray-900 min-w-0 flex-1 truncate">
                                 {lead.full_name || lead.fullName || ""}
                               </span>
+                              {lead.ivrMeInterested && (
+                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200">
+                                  IVR interested
+                                </span>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2615,7 +2622,14 @@ if (!executiveMobile && typeof window !== "undefined") {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 flex justify-between items-start">
               <div>
-                <h2 className="text-2xl font-bold">{selectedLead.full_name}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-bold">{selectedLead.full_name}</h2>
+                  {selectedLead.ivrMeInterested && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/40">
+                      IVR interested
+                    </span>
+                  )}
+                </div>
                 <p className="text-blue-100 mt-1">Lead Details</p>
               </div>
               <button

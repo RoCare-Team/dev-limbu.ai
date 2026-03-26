@@ -18,16 +18,16 @@ export default async function dbConnect() {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGO_URI, {
-      bufferCommands: false,
-    });
+    cached.promise = mongoose.connect(MONGO_URI);
   }
 
   try {
     cached.conn = await cached.promise;
   } catch (error) {
+    // Reset so the next request retries instead of replaying a failed promise
+    cached.promise = null;
     console.error("MongoDB connection error:", error);
-    return null;
+    throw error;
   }
 
   return cached.conn;

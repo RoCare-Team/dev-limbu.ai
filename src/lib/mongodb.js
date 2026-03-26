@@ -46,19 +46,20 @@ export default async function dbConnect() {
 export const clientPromise = (async () => {
   const MONGODB_URI = process.env.MONGODB_URI;
   
+  const fallbackClient = {
+    db: () => ({
+      collection: () => ({
+        updateOne: async () => ({ acknowledged: false }),
+        findOne: async () => null,
+        insertOne: async () => ({ insertedId: null }),
+      }),
+    }),
+  };
+
   if (!MONGODB_URI) {
-    // Return a valid client-like object that will fail gracefully when used
-    // This allows the app to continue working even without DB
+    // Gracefully handle missing DB URI so app/auth can still work
     console.warn("MONGODB_URI environment variable is not defined. Database connection will not be available.");
-    return {
-      db: () => ({
-        collection: () => ({
-          updateOne: async () => ({ acknowledged: false }),
-          findOne: async () => null,
-          insertOne: async () => ({ insertedId: null }),
-        })
-      })
-    };
+    return fallbackClient;
   }
 
   if (clientPromiseCached.client) {
@@ -75,7 +76,7 @@ export const clientPromise = (async () => {
   } catch (e) {
     clientPromiseCached.promise = null;
     console.error("MongoDB client connection error:", e.message);
-    return null;
+    return fallbackClient;
   }
 
   return clientPromiseCached.client;

@@ -123,6 +123,9 @@ export default function PostManagementPage() {
   const [assetId, setAssetId] = useState(null);
   const [selectedAssets, setSelectedAssets] = useState([]);
   const previewRef = useRef(null);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [availableBusinesses, setAvailableBusinesses] = useState([]);
+  const [loadingBusinesses, setLoadingBusinesses] = useState(false);
   const [bussinessTitle, setBussinessTitle] = useState("")
   const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb",'fb', 'ig']);
   const [keywordError, setKeywordError] = useState("");
@@ -351,6 +354,12 @@ export default function PostManagementPage() {
     });
 
   const handleGenerateClick = async (selectedAssets, useAssetsFlow, businessName, keywords) => {
+    // Business validation
+    if (!selectedBusiness) {
+      showToast("Please select a business first", "error");
+      return;
+    }
+
     // Auto-scroll to preview section on mobile
     if (typeof window !== 'undefined' && window.innerWidth < 1024 && previewRef.current) {
       previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -384,7 +393,7 @@ export default function PostManagementPage() {
 
     setLastUsedAssetsFlow(useAssetsFlow);
     if (useAssetsFlow) {
-      await handleImageGenerateWithAssets(selectedAssets, businessName, processedKeywords);
+      await handleImageGenerateWithAssets(selectedAssets, selectedBusiness.name, processedKeywords);
     } else {
       await handleAiAgent(selectedAssets);
     }
@@ -1672,33 +1681,57 @@ export default function PostManagementPage() {
   };
 
 
-  useEffect(() => {
-    const locationDetailsData = localStorage.getItem("locationDetails");
-
-    if (!locationDetailsData) return;
-
+  // Load user settings including businesses
+  const loadUserSettings = useCallback(async () => {
     try {
-      const parsedData = JSON.parse(locationDetailsData);
-
-      if (!Array.isArray(parsedData)) return;
-
-      // Get unique business titles
-      const uniqueBusinesses = [];
-      const seenTitles = new Set();
-
-      parsedData.forEach((item) => {
-        if (item?.title && !seenTitles.has(item.title)) {
-          seenTitles.add(item.title);
-          uniqueBusinesses.push(item);
+      setLoadingBusinesses(true);
+      const res = await fetch('/api/user-settings');
+      const data = await res.json();
+      
+      if (data.gmbProjects && data.gmbProjects.length > 0) {
+        setAvailableBusinesses(data.gmbProjects);
+        if (!selectedBusiness && data.gmbProjects[0]) {
+          setSelectedBusiness(data.gmbProjects[0]);
         }
-      });
-
-      // Use first unique business title
-      if (uniqueBusinesses.length > 0) {
-        setBussinessTitle(uniqueBusinesses[0].title);
+      }
+      
+      if (data.selectedBusiness) {
+        setSelectedBusiness(data.selectedBusiness);
       }
     } catch (error) {
-      console.error("Failed to parse locationDetails:", error);
+      console.error('Failed to load businesses:', error);
+      showToast('Failed to load businesses. Please connect GMB first.', 'error');
+    } finally {
+      setLoadingBusinesses(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    loadUserSettings();
+  }, [loadUserSettings]);
+
+  // Load locations from localStorage (fallback)
+  useEffect(() => {
+    const locationDetailsData = localStorage.getItem("locationDetails");
+    if (locationDetailsData) {
+      try {
+        const parsedData = JSON.parse(locationDetailsData);
+        if (Array.isArray(parsedData)) {
+          const uniqueBusinesses = [];
+          const seenTitles = new Set();
+          parsedData.forEach((item) => {
+            if (item?.title && !seenTitles.has(item.title)) {
+              seenTitles.add(item.title);
+              uniqueBusinesses.push(item);
+            }
+          });
+          if (uniqueBusinesses.length > 0) {
+            setBussinessTitle(uniqueBusinesses[0].title);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse locationDetails:", error);
+      }
     }
   }, []);
 

@@ -95,6 +95,7 @@ export async function GET(req) {
           pageId: page.id,
           pageName: page.name,
           pageAccessToken: page.access_token, // ye Page manage karne ke liye
+          pageTokenExpiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // ~60 days
           userAccessToken,                   // ye User long-lived token
           userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
           platform: "facebook", // ye Identify karne ke liye

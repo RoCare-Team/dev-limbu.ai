@@ -8,41 +8,31 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 let clientPromise;
 
-/* ================= SAFE ENV ================= */
-function getEnv(name, required = true) {
+function getRequiredEnv(name) {
   const value = process.env[name];
-  if (!value && required) {
-    throw new Error(`${name} not defined`);
-  }
-  return value || "";
+  if (!value) throw new Error(`${name} not defined`);
+  return value;
 }
 
-/* ================= MONGO ================= */
 function getMongoClientPromise() {
   if (!clientPromise) {
-    const mongoUri = getEnv("MONGODB_URI");
+    const mongoUri = getRequiredEnv("MONGODB_URI");
     const client = new MongoClient(mongoUri);
     clientPromise = client.connect();
   }
   return clientPromise;
 }
 
-/* ================= AUTH CODE → REFRESH TOKEN ================= */
+/**
+ * 🔁 AUTH CODE → REFRESH TOKEN
+ */
 async function exchangeAuthCode(authCode) {
-  const redirectUri = getEnv("GOOGLE_REDIRECT_URI", false);
-
-  if (!redirectUri) {
-    throw new Error(
-      "GOOGLE_REDIRECT_URI missing. Please add it in .env"
-    );
-  }
-
   const params = new URLSearchParams({
-    client_id: getEnv("GOOGLE_CLIENT_ID"),
-    client_secret: getEnv("GOOGLE_CLIENT_SECRET"),
+    client_id: getRequiredEnv("GOOGLE_CLIENT_ID"),
+    client_secret: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
     code: authCode,
     grant_type: "authorization_code",
-    redirect_uri: redirectUri,
+    redirect_uri: getRequiredEnv("GOOGLE_REDIRECT_URI"), // MUST MATCH FLUTTER
   });
 
   const res = await fetch(GOOGLE_TOKEN_URL, {
@@ -51,30 +41,43 @@ async function exchangeAuthCode(authCode) {
     body: params.toString(),
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(
-      data.error_description ||
-        data.error ||
-        "Google token exchange failed"
-    );
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error("Google token exchange returned invalid JSON");
   }
 
-  // ⚠️ IMPORTANT: Google kabhi refresh token nahi deta agar pehle connect ho chuka hai
+  if (!res.ok) {
+    const msg =
+      data.error_description ||
+      data.error ||
+      (typeof data === "string" ? data : null) ||
+      "Google token exchange failed";
+    throw new Error(msg);
+  }
+
   if (!data.refresh_token) {
     throw new Error(
-      "No refresh token returned. Revoke access & try again OR use prompt=consent"
+      "Refresh token not returned. Google already connected earlier."
     );
   }
 
   return data.refresh_token;
 }
 
-/* ================= MAIN API ================= */
 export async function POST(req) {
   try {
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid or empty JSON body" },
+        { status: 400 }
+      );
+    }
     const { email, authCode } = body || {};
 
     if (!email) {
@@ -84,19 +87,23 @@ export async function POST(req) {
       );
     }
 
-    /* ================= DB CONNECT ================= */
+    // 🔗 CONNECT DB
     const mongoClient = await getMongoClientPromise();
     const db = mongoClient.db(DB_NAME);
     const usersCol = db.collection(COLLECTION);
 
-    /* ================= FIND USER ================= */
+    // 🔍 FIND USER (CASE-INSENSITIVE EMAIL)
     const user = await usersCol.findOne({
       email: { $regex: `^${email}$`, $options: "i" },
     });
 
-    /* ================= CASE 1: TOKEN ALREADY EXISTS ================= */
+    /**
+     * ===============================
+     * CASE 1️⃣ : USER EXISTS → RETURN DB TOKEN
+     * ===============================
+     */
     if (user?.projects?.length > 0) {
-      const project = user.projects[user.projects.length - 1];
+      const project = user.projects[user.projects.length - 1]; // 👈 LAST PROJECT
 
       if (project?.refreshToken) {
         return NextResponse.json({
@@ -108,18 +115,22 @@ export async function POST(req) {
       }
     }
 
-    /* ================= CASE 2: FIRST TIME ================= */
+    /**
+     * ===============================
+     * CASE 2️⃣ : FIRST TIME (FLUTTER)
+     * ===============================
+     */
     if (!authCode) {
       return NextResponse.json(
         {
           success: false,
-          error: "authCode required for first-time Google connection",
+          error: "Google not connected. authCode required.",
         },
         { status: 400 }
       );
     }
 
-    /* ================= EXCHANGE TOKEN ================= */
+    // 🔁 EXCHANGE AUTH CODE → REFRESH TOKEN
     const refreshToken = await exchangeAuthCode(authCode);
 
     const newProject = {
@@ -129,6 +140,7 @@ export async function POST(req) {
     };
 
     if (!user) {
+      // 🆕 NEW USER
       await usersCol.insertOne({
         email: email.toLowerCase(),
         projects: [newProject],
@@ -136,6 +148,7 @@ export async function POST(req) {
         updatedAt: new Date(),
       });
     } else {
+      // 🔁 EXISTING USER (NO TOKEN BEFORE)
       await usersCol.updateOne(
         { _id: user._id },
         {
@@ -150,17 +163,19 @@ export async function POST(req) {
       email,
       refreshToken,
       source: "google-auth-code",
+      message: "Google connected successfully",
     });
 
   } catch (err) {
-    console.error("❌ API Error:", err.message);
-
+    const msg = err?.message || "Server error";
+    console.error("❌ GetRefreshToken API Error:", msg);
+    const clientError =
+      /invalid_grant|expired|malformed|redirect_uri|invalid_client|Bad Request|authCode required|not connected|already connected|invalid JSON/i.test(
+        msg
+      );
     return NextResponse.json(
-      {
-        success: false,
-        error: err.message,
-      },
-      { status: 400 }
+      { success: false, error: msg },
+      { status: clientError ? 400 : 500 }
     );
   }
 }

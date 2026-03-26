@@ -108,14 +108,14 @@ export async function PUT(req) {
   await dbConnect();
 
   try {
-    const { searchParams } = new URL(req.url); // Query parameters read kar raha hai.
-    const userId = searchParams.get("userId"); // URL se userId nikaal raha hai.
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
 
-    const { amount, type, reason, metadata } = await req.json(); // Body se data read kar raha hai.
+    const { amount, type, reason, metadata } = await req.json();
 
-    if (!userId || typeof amount !== "number") {
+    if (!userId) {
       return new Response(
-        JSON.stringify({ error: "userId and numeric amount required" }),
+        JSON.stringify({ error: "userId required" }),
         { status: 400 }
       );
     }
@@ -125,30 +125,36 @@ export async function PUT(req) {
       return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
     }
 
-    let transactionType = type === "add" ? "credit" : "debit"; // Agar add → credit || Warna debit
+    if (type === "increment_posts_used") {
+      user.postsUsed = (user.postsUsed || 0) + 1;
+      await user.save();
+      return new Response(JSON.stringify({ 
+        message: "postsUsed incremented", 
+        postsUsed: user.postsUsed 
+      }), { status: 200 });
+    }
+
+    // Existing wallet logic...
+    let transactionType = type === "add" ? "credit" : "debit";
     let finalReason = reason || (type === "deduct" ? "wallet_deduct" : "wallet_add");
 
-    // WALLET UPDATE
     if (type === "add") {
-      user.wallet += amount; // Balance increase.
-
+      user.wallet += amount;
     } else if (type === "deduct") {
-      if (user.wallet < amount) { // Negative balance prevent karta hai.
+      if (user.wallet < amount) {
         return new Response(
           JSON.stringify({ error: "Insufficient balance" }),
           { status: 400 }
         );
       }
       user.wallet -= amount;
-
     } else {
       return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400 });
     }
 
     await user.save();
 
-    // SAVE TRANSACTION
-    await Transaction.create({ // Har wallet change ka record store karta hai.|| Ye bahut important hai audit ke liye.
+    await Transaction.create({
       userId,
       type: transactionType,
       amount,

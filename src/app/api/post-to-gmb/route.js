@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const N8N_GMB_WEBHOOK = "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0";
 
 export async function POST(req) {
   try {
@@ -11,91 +11,55 @@ export async function POST(req) {
       );
     }
 
-    // ✅ Handle array payload
-    const requestData = Array.isArray(body) ? body[0] : body;
+    console.log('[post-to-gmb] ▶ Incoming payload:', JSON.stringify({
+      account:        body.account,
+      locationDataCount: Array.isArray(body.locationData) ? body.locationData.length : 0,
+      locationData:   body.locationData,
+      hasOutput:      !!body.output,
+      outputUrl:      typeof body.output === 'string' ? body.output.slice(0, 100) : null,
+      description:    body.description?.slice(0, 80),
+      checkmark:      body.checkmark,
+      accessTokenLen: body.accessToken?.length || 0,
+      userId:         body.userId,
+    }, null, 2));
 
-    const {
-      userId,
-      locations = [],
-      prompt,
-      logo,
-    } = requestData;
+    console.log('[GMB-POST] 🔍 FULL INCOMING PAYLOAD TO GMB:', JSON.stringify(body, null, 2));
+    console.log('[GMB-POST] 📍 FULL LOCATIONS ARRAY:', JSON.stringify(body.locations || body.locationData || [], null, 2));
 
-    // =========================
-    // ✅ STEP 1: CALL N8N
-    // =========================
-    const response = await fetch(
-      "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(body), // same payload forward
-      }
-    );
+    console.log('[post-to-gmb] ▶ Calling n8n webhook:', N8N_GMB_WEBHOOK);
+
+    console.log('[GMB-POST] 🚀 FULL PAYLOAD SENT TO N8N:', JSON.stringify(body, null, 2));
+
+    const response = await fetch(N8N_GMB_WEBHOOK, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    console.log('[post-to-gmb] n8n HTTP status:', response.status, response.statusText);
 
     const text = await response.text();
+    console.log('[post-to-gmb] n8n raw response:', text.slice(0, 800));
 
     let data;
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
-      data = text;
+      data = { raw: text };
     }
 
-    // =========================
-    // ❌ IF FAILED → RETURN
-    // =========================
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "GMB post failed", data }),
-        { status: response.status }
-      );
-    }
+    console.log('[post-to-gmb] ✅ Parsed n8n response:', JSON.stringify(data).slice(0, 400));
+    console.log('[post-to-gmb] Final ok:', response.ok, '| status:', response.status);
 
-    // =========================
-    // ✅ STEP 2: COIN CALCULATION
-    // =========================
-    const totalPostCost = locations.length * 20;
-
-    // =========================
-    // ✅ STEP 3: WALLET CALL (ONLY AFTER SUCCESS)
-    // =========================
-    const walletRes = await fetch(
-      `${API_URL}/api/auth/signup?userId=${userId}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: totalPostCost,
-          type: "deduct",
-          reason: "Post-on-GMB",
-          metadata: {
-            prompt,
-            logoUsed: !!logo,
-            locationsCount: locations.length,
-          },
-        }),
-      }
-    );
-
-    const walletData = await walletRes.json();
-
-    // =========================
-    // ✅ FINAL RESPONSE
-    // =========================
     return new Response(
-      JSON.stringify({
-        ok: true,
-        gmb: data,
-        wallet: walletData,
-        coinsDeducted: totalPostCost,
-      }),
-      { status: 200 }
+      JSON.stringify({ ok: response.ok, data }),
+      { status: response.status }
     );
   } catch (error) {
+    console.error('[post-to-gmb] ❌ EXCEPTION:', error.message, error.stack?.slice(0, 300));
     return new Response(
       JSON.stringify({ ok: false, error: error.message }),
       { status: 500 }

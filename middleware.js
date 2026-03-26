@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 
-export function middleware(request) {
+/** Vercel / proxies often send the public host here first */
+function getCleanHostname(request) {
+  const forwarded = request.headers.get("x-forwarded-host");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first.split(":")[0].toLowerCase();
+  }
   const host = request.headers.get("host") || "";
-  const url = request.nextUrl.clone();
+  return host.split(":")[0].toLowerCase();
+}
 
-  const cleanHost = host.split(":")[0];
+export function middleware(request) {
+  const cleanHost = getCleanHostname(request);
+  const url = request.nextUrl.clone();
 
   // 🔒 NEVER touch main domain
   if (
@@ -19,20 +28,20 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // ✅ Only rewrite real subdomains
+  // ✅ Only rewrite real *.limbu.ai tenant hosts
   if (cleanHost.endsWith(".limbu.ai")) {
-    const slug = cleanHost.replace(".limbu.ai", "");
+    const slug = cleanHost.replace(/\.limbu\.ai$/i, "");
 
-    // extra safety
     if (!slug || slug === "www" || slug === "crm") {
       return NextResponse.next();
     }
 
+    // Single-segment [slug] route: tenant microsite (see src/app/[slug]/page.jsx)
     url.pathname = `/${slug}`;
 
-    // Pass a request header so the root layout can skip AuthGuard server-side
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-is-subdomain-site", "1");
+    requestHeaders.set("x-tenant-slug", slug);
 
     return NextResponse.rewrite(url, {
       request: { headers: requestHeaders },
@@ -42,6 +51,14 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
+/**
+ * Include "/" explicitly — without it, requests to https://tenant.limbu.ai/
+ * never hit middleware, so the marketing home page was served instead of the
+ * rewritten /[slug] tenant site.
+ */
 export const config = {
-  matcher: ["/((?!api|_next|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|_next/webpack-hmr|favicon.ico|.*\\..*).*)",
+    "/",
+  ],
 };

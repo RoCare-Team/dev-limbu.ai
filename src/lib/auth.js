@@ -34,6 +34,8 @@ async function refreshAccessToken(token) {
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  /** Behind HTTPS (e.g. nginx → Node), force Secure cookies so __Host- / __Secure- state cookies match the browser. */
+  useSecureCookies: process.env.NODE_ENV === "production",
   // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
   providers: [
     GoogleProvider({

@@ -51,13 +51,16 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
-import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp, User, Sparkles } from 'lucide-react';
 import logoDash from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
 import { CassetteTape } from 'lucide-react';
 
 const drawerWidth = 260;
+
+/** Only these localStorage `userId` values see Settings in the sidebar / account menu. */
+const SETTINGS_NAV_USER_IDS = new Set(['USR1761994068831']);
 
 const openedMixin = (theme) => ({
   width: drawerWidth,
@@ -165,6 +168,27 @@ export default function Sidebar({ children, user }) {
   const [notificationCount, setNotificationCount] = React.useState(0);
   const [notifAnchorEl, setNotifAnchorEl] = React.useState(null); // renamed ✅
 
+  // Sync userId from localStorage for nav (e.g. Settings visibility).
+  React.useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = localStorage.getItem('userId');
+    if (id) setUserId(id);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onStorage = (e) => {
+      if (e.key === 'userId') setUserId(e.newValue || null);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = localStorage.getItem('userId');
+    setUserId(id || null);
+  }, [pathname]);
 
   // Get user info from props or localStorage
   React.useEffect(() => {
@@ -505,10 +529,16 @@ export default function Sidebar({ children, user }) {
     // { text: 'Build Website', icon: <Activity size={20} />, path: '/build-website' },
     // { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
     { text: 'User Profile', icon: <User size={20} />, path: '/profile' },
+    // { text: 'Optimization', icon: <Sparkles size={20} />, path: '/user-settings/optimization' },
     { text: 'Settings', icon: <SettingsIcon size={20} />, path: '/user-settings' },
   ];
 
-  
+  const SETTINGS_RELATED_PATHS = new Set(['/user-settings', '/user-settings/optimization']);
+  const navUserId = typeof userId === 'string' ? userId.trim() : '';
+  const showSettingsNav = SETTINGS_NAV_USER_IDS.has(navUserId);
+  const visibleMenuItems = showSettingsNav
+    ? menuItems
+    : menuItems.filter((item) => !SETTINGS_RELATED_PATHS.has(item.path));
 
   // const getPlanConfig = (plan) => {
   //   const planLower = plan?.toLowerCase() || 'free';
@@ -585,7 +615,7 @@ export default function Sidebar({ children, user }) {
       <Divider sx={{ borderColor: 'rgba(102, 126, 234, 0.1)' }} />
 
      <List sx={{ flex: 1, overflowY: 'auto', px: 1.5, pt: 2 }}>
-  {menuItems.map((item, index) => {
+  {visibleMenuItems.map((item, index) => {
     const isDropdown = !!item.children;
     const isOpen = openDropdown === index;
 
@@ -1232,14 +1262,19 @@ export default function Sidebar({ children, user }) {
                 : 'Manage Subscription'}
             </ListItemText>
           </MenuItem> */}
-          <MenuItem
-            onClick={() => {
-              handleMenuClose();
-              router.push('/settings');
-            }}
-          >
-
-          </MenuItem>
+          {showSettingsNav && (
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                router.push('/user-settings');
+              }}
+            >
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Settings</ListItemText>
+            </MenuItem>
+          )}
           <Divider />
           <MenuItem
             onClick={handleSignOut}

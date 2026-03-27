@@ -15,9 +15,8 @@
  *   ?phase=prefetch — only pre-generate image+copy for *tomorrow* (run 1–2h after
  *                    today’s publish). Publish phase uses it when dates match.
  *
- * Schedule suggestion (Vercel UTC): publish `0 9 * * *`, prefetch `0 11 * * *`
- * (adjust to your timezone). Production also has /api/cron/auto-post — use one
- * publish path only to avoid double posting.
+ * ?phase=dailyAutomation — runs publish then prefetch in one call (e.g. 11:00 IST via cron).
+ * postingHour / postingTimezone on the plan gate prefetch + publish to that local window.
  */
 
 import { NextResponse } from 'next/server';
@@ -26,6 +25,7 @@ import User             from '@/models/User';
 import Post             from '@/models/PostStatus';
 import AutomationPlan   from '@/models/AutomationPlan';
 import { getFrequencyStep, getPlanPostLimit } from '@/utils/userSettingsHelpers';
+import { matchesPostingWindow } from '@/utils/postingScheduleWindow';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -335,14 +335,30 @@ export async function GET(request) {
   console.log('[CRON] automation-plans cron START —', new Date().toISOString());
   console.log('[CRON] BASE_URL:', BASE_URL);
 
-  await dbConnect();
-  console.log('[CRON] ✓ DB connected');
-
   const { searchParams } = new URL(request.url);
   const forceRun = searchParams.get('force')  === '1';
   const dryRun   = searchParams.get('dryRun') === '1';
   const phase    = searchParams.get('phase')  || 'publish';
   console.log(`[CRON] Params — force=${forceRun}  dryRun=${dryRun}  phase=${phase}`);
+
+  if (phase === 'dailyAutomation') {
+    const origin = new URL(request.url);
+    origin.searchParams.set('phase', 'publish');
+    const publishRes = await GET(new Request(origin.toString(), { headers: request.headers }));
+    origin.searchParams.set('phase', 'prefetch');
+    const prefetchRes = await GET(new Request(origin.toString(), { headers: request.headers }));
+    const publishJson = await publishRes.json();
+    const prefetchJson = await prefetchRes.json();
+    return NextResponse.json({
+      timestamp: new Date().toISOString(),
+      phase: 'dailyAutomation',
+      publish: publishJson,
+      prefetch: prefetchJson,
+    });
+  }
+
+  await dbConnect();
+  console.log('[CRON] ✓ DB connected');
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -370,6 +386,7 @@ export async function GET(request) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const prefetchNow = new Date();
     for (const plan of activePlans) {
       prefetchStats.processed++;
       const planId = plan._id;
@@ -377,6 +394,12 @@ export async function GET(request) {
       const postIndex = plan.postIndex ?? 0;
 
       log(`[prefetch] Plan ${planId} (userId=${plan.userId})`);
+
+      if (!forceRun && !matchesPostingWindow(plan, prefetchNow)) {
+        log('[prefetch] Skip — outside posting time window for this plan');
+        prefetchStats.skipped++;
+        continue;
+      }
 
       if ((plan.frequency || 'daily') === 'custom') {
         log('Prefetch skip — custom frequency');
@@ -423,7 +446,7 @@ export async function GET(request) {
 
       const keyword  = keywords[postIndex];
       const loc0     = (plan.locations || [])[0];
-      const cityName = loc0?.locality || loc0?.name || '';
+      const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
 
       try {
         const imagePrompt = await generateImagePrompt({ keyword, businessName: plan.businessName || '', cityName });
@@ -514,6 +537,9 @@ export async function GET(request) {
     }
 
     const platformsSafe = Array.isArray(platforms) && platforms.length ? platforms : ['gmb'];
+    const wantGmb = platformsSafe.includes('gmb');
+    const wantFb  = platformsSafe.includes('fb') && Array.isArray(fbPages) && fbPages.some((p) => p.pageId && p.pageAccessToken);
+    const wantIg  = platformsSafe.includes('ig') && Array.isArray(igPages) && igPages.some((a) => a.igId && a.pageAccessToken);
 
     results.processed++;
 
@@ -539,6 +565,13 @@ export async function GET(request) {
     }, null, 2));
 
     log(`── Plan ${planId} (userId=${userId}) ──`);
+
+    const runNow = new Date();
+    if (!forceRun && !matchesPostingWindow(plan, runNow)) {
+      log(`Skip — outside posting time window (postingHour=${plan.postingHour ?? 'any'} ${plan.postingTimezone || 'Asia/Kolkata'})`);
+      results.skipped++;
+      continue;
+    }
 
     // ── 1. Guards ────────────────────────────────────────────────────────────
 
@@ -587,9 +620,15 @@ export async function GET(request) {
       results.skipped++; continue;
     }
 
-    if (!locations.length) {
-      log(`FAIL — no locations in AutomationPlan (save user-settings again to set locations)`);
-      results.errors.push({ planId: planId.toString(), userId, error: 'No locations configured' });
+    if (wantGmb && !locations.length) {
+      log(`FAIL — GMB enabled but no locations in AutomationPlan`);
+      results.errors.push({ planId: planId.toString(), userId, error: 'No locations configured for GMB' });
+      results.failed++; continue;
+    }
+
+    if (!wantGmb && !wantFb && !wantIg) {
+      log(`FAIL — no platforms enabled (platforms=${JSON.stringify(platformsSafe)})`);
+      results.errors.push({ planId: planId.toString(), userId, error: 'No platforms enabled' });
       results.failed++; continue;
     }
 
@@ -609,24 +648,26 @@ export async function GET(request) {
     console.log('[CRON] 🔑 Stored accessToken length:', storedAccessToken?.length || 0);
     console.log('[CRON] 🔑 Stored refreshToken length:', storedRefreshToken?.length || 0);
 
-    if (!accessToken && storedRefreshToken) {
-      log('No accessToken stored — refreshing using refreshToken…');
-      try {
-        accessToken = await refreshGoogleToken(storedRefreshToken, planId);
-        log(`✓ Access token obtained via refresh (length=${accessToken.length})`);
-      } catch (tokenErr) {
-        log(`⚠ Token refresh failed: ${tokenErr.message} — will attempt post without token`);
+    if (wantGmb) {
+      if (!accessToken && storedRefreshToken) {
+        log('No accessToken stored — refreshing using refreshToken…');
+        try {
+          accessToken = await refreshGoogleToken(storedRefreshToken, planId);
+          log(`✓ Access token obtained via refresh (length=${accessToken.length})`);
+        } catch (tokenErr) {
+          log(`⚠ Token refresh failed: ${tokenErr.message} — will attempt post without token`);
+        }
+      } else if (accessToken) {
+        log(`✓ Using stored accessToken (length=${accessToken.length})`);
+      } else {
+        log(`⚠ No accessToken and no refreshToken — re-save user-settings to fix`);
       }
-    } else if (accessToken) {
-      log(`✓ Using stored accessToken (length=${accessToken.length})`);
-    } else {
-      log(`⚠ No accessToken and no refreshToken — re-save user-settings to fix`);
     }
 
     // ── 4. Pick keyword + city ────────────────────────────────────────────────
     const keyword  = keywords[postIndex];
     const loc0     = locations[0];
-    const cityName = loc0?.locality || loc0?.name || '';
+    const cityName = loc0?.locality || loc0?.name || businessName || '';
     log(`Keyword #${postIndex + 1}/${keywords.length}: "${keyword}"  city: "${cityName}"`);
 
     let imageUrl;
@@ -658,15 +699,17 @@ export async function GET(request) {
 
     // ── 8. Save to DB as "pending" ────────────────────────────────────────────
     // Payload mirrors savePostAction so the post appears in the dashboard.
-    const locationsForDB = locations.map((loc) => ({
-      locationId: loc.locationId || '',
-      accountId:  loc.accountId  || '',
-      name:       loc.name       || loc.locality || '',
-      address:    loc.address    || '',
-      locality:   loc.locality   || '',
-      websiteUrl: loc.websiteUrl || '',
-      isPosted:   false,
-    }));
+    const locationsForDB = wantGmb
+      ? locations.map((loc) => ({
+          locationId: loc.locationId || '',
+          accountId:  loc.accountId  || '',
+          name:       loc.name       || loc.locality || '',
+          address:    loc.address    || '',
+          locality:   loc.locality   || '',
+          websiteUrl: loc.websiteUrl || '',
+          isPosted:   false,
+        }))
+      : [];
 
     const savePayload = {
       userId:              resolvedUserId,  // matches localStorage → shows in dashboard
@@ -677,7 +720,7 @@ export async function GET(request) {
       igDescription:       postText,
       promat:              usedPrefetch && prefetchPost?.keyword ? prefetchPost.keyword : keyword,
       status:              'pending',
-      scheduledDateSource: ['gmb'],
+      scheduledDateSource: [...platformsSafe],
       scheduledDate:       new Date(),
       accessToken,
       checkmark:           'post',
@@ -719,62 +762,63 @@ export async function GET(request) {
     }));
 
     if (dryRun) {
-      log(`⏭ dryRun=1 — GMB post SKIPPED. Post saved as "pending" _id=${savedPostId}`);
+      log(`⏭ dryRun=1 — live posts SKIPPED. Post saved as "pending" _id=${savedPostId}`);
       results.successful++;
       continue;
     }
 
-    log(`Posting to GMB — account=${account}  locations=${locations.length}  tokenLen=${accessToken?.length || 0}`);
+    let gmbResult = { ok: !wantGmb, httpStatus: 200, data: {} };
 
-    // ── First attempt ─────────────────────────────────────────────────────────
-    let gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
+    if (wantGmb) {
+      log(`Posting to GMB — account=${account}  locations=${locations.length}  tokenLen=${accessToken?.length || 0}`);
 
-    console.log('[CRON] 📮 gmbResult attempt-1:', JSON.stringify(gmbResult));
-    log(`GMB attempt 1 — ok=${gmbResult.ok}  httpStatus=${gmbResult.httpStatus}  data=${JSON.stringify(gmbResult.data).slice(0, 300)}`);
+      gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
 
-    // ── 9a. Token expired (401/403) → refresh → retry once ───────────────────
-    if (!gmbResult.ok && [401, 403].includes(gmbResult.httpStatus) && storedRefreshToken) {
-      log(`⚠ Token expired (HTTP ${gmbResult.httpStatus}) — refreshing using refreshToken and retrying…`);
-      try {
-        accessToken = await refreshGoogleToken(storedRefreshToken, planId);
-        log(`✓ New accessToken obtained (length=${accessToken.length}) — retrying GMB post`);
+      console.log('[CRON] 📮 gmbResult attempt-1:', JSON.stringify(gmbResult));
+      log(`GMB attempt 1 — ok=${gmbResult.ok}  httpStatus=${gmbResult.httpStatus}  data=${JSON.stringify(gmbResult.data).slice(0, 300)}`);
 
-        gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
-
-        console.log('[CRON] 📮 gmbResult retry:', JSON.stringify(gmbResult));
-        log(`GMB retry — ok=${gmbResult.ok}  httpStatus=${gmbResult.httpStatus}  data=${JSON.stringify(gmbResult.data).slice(0, 300)}`);
-      } catch (refreshErr) {
-        log(`✗ Token refresh for retry failed: ${refreshErr.message}`);
-      }
-    }
-
-    if (!gmbResult.ok) {
-      log(`✗ GMB post FAILED after all attempts`);
-      if (savedPostId) {
+      if (!gmbResult.ok && [401, 403].includes(gmbResult.httpStatus) && storedRefreshToken) {
+        log(`⚠ Token expired (HTTP ${gmbResult.httpStatus}) — refreshing using refreshToken and retrying…`);
         try {
-          await Post.findByIdAndUpdate(savedPostId, { $set: { status: 'failed' } });
-          log(`PostStatus marked as "failed" — _id=${savedPostId}`);
-        } catch (e) {
-          console.error('[CRON] ❌ Could not mark post as failed:', e.message);
+          accessToken = await refreshGoogleToken(storedRefreshToken, planId);
+          log(`✓ New accessToken obtained (length=${accessToken.length}) — retrying GMB post`);
+
+          gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
+
+          console.log('[CRON] 📮 gmbResult retry:', JSON.stringify(gmbResult));
+          log(`GMB retry — ok=${gmbResult.ok}  httpStatus=${gmbResult.httpStatus}  data=${JSON.stringify(gmbResult.data).slice(0, 300)}`);
+        } catch (refreshErr) {
+          log(`✗ Token refresh for retry failed: ${refreshErr.message}`);
         }
       }
-      results.errors.push({
-        planId:       planId.toString(),
-        userId,
-        resolvedUserId,
-        savedPostId:  savedPostId?.toString(),
-        httpStatus:   gmbResult.httpStatus,
-        error:        `GMB post failed: ${JSON.stringify(gmbResult.data).slice(0, 300)}`,
-      });
-      results.failed++;
-      continue;
+
+      if (!gmbResult.ok) {
+        log(`✗ GMB post FAILED after all attempts`);
+        if (savedPostId) {
+          try {
+            await Post.findByIdAndUpdate(savedPostId, { $set: { status: 'failed' } });
+            log(`PostStatus marked as "failed" — _id=${savedPostId}`);
+          } catch (e) {
+            console.error('[CRON] ❌ Could not mark post as failed:', e.message);
+          }
+        }
+        results.errors.push({
+          planId:       planId.toString(),
+          userId,
+          resolvedUserId,
+          savedPostId:  savedPostId?.toString(),
+          httpStatus:   gmbResult.httpStatus,
+          error:        `GMB post failed: ${JSON.stringify(gmbResult.data).slice(0, 300)}`,
+        });
+        results.failed++;
+        continue;
+      }
+
+      log(`✓ GMB post SUCCESSFUL`);
+    } else {
+      log('GMB skipped — not selected in platforms');
     }
 
-    log(`✓ GMB post SUCCESSFUL`);
-
-    // Post to Meta whenever pages are stored with tokens (not only when `platforms` includes fb/ig).
-    const wantFb = Array.isArray(fbPages) && fbPages.some((p) => p.pageId && p.pageAccessToken);
-    const wantIg = Array.isArray(igPages) && igPages.some((a) => a.igId && a.pageAccessToken);
     let fbResults = [];
     let igResults = [];
 
@@ -797,16 +841,44 @@ export async function GET(request) {
       log(`Instagram: ${JSON.stringify(igResults)}`);
     }
 
+    const gmbPosted = wantGmb && gmbResult.ok;
+    const fbPosted  = wantFb && fbResults.some((r) => r.success);
+    const igPosted  = wantIg && igResults.some((r) => r.success);
+
     const platformsPosted = [
-      'gmb',
-      ...(fbResults.some((r) => r.success) ? ['fb'] : []),
-      ...(igResults.some((r) => r.success) ? ['ig'] : []),
+      ...(gmbPosted ? ['gmb'] : []),
+      ...(fbPosted ? ['fb'] : []),
+      ...(igPosted ? ['ig'] : []),
     ];
 
+    const overallOk =
+      (!wantGmb || gmbPosted) &&
+      (!wantFb  || fbPosted) &&
+      (!wantIg  || igPosted);
+
+    if (!overallOk) {
+      log(`✗ One or more selected platforms did not post — platformsPosted=${JSON.stringify(platformsPosted)}`);
+      if (savedPostId) {
+        try {
+          await Post.findByIdAndUpdate(savedPostId, { $set: { status: 'failed' } });
+        } catch (e) {
+          console.error('[CRON] ❌ Could not mark post as failed:', e.message);
+        }
+      }
+      results.errors.push({
+        planId: planId.toString(),
+        userId,
+        error: 'Partial or full platform failure',
+        platformsPosted,
+      });
+      results.failed++;
+      continue;
+    }
+
     const whenPosted = {
-      gmb: new Date().toISOString(),
-      ...(fbResults.some((r) => r.success) ? { fb: new Date().toISOString() } : {}),
-      ...(igResults.some((r) => r.success) ? { ig: new Date().toISOString() } : {}),
+      ...(gmbPosted ? { gmb: new Date().toISOString() } : {}),
+      ...(fbPosted ? { fb: new Date().toISOString() } : {}),
+      ...(igPosted ? { ig: new Date().toISOString() } : {}),
     };
 
     const fbPagesForDb = (fbPages || []).map((p) => ({
@@ -830,11 +902,13 @@ export async function GET(request) {
             whenPosted,
             fbPages:             wantFb ? fbPagesForDb : [],
             igPages:             wantIg ? igPagesForDb : [],
-            locations: locationsForDB.map((loc) => ({
-              ...loc,
-              isPosted: true,
-              postedAt: new Date(),
-            })),
+            locations: wantGmb
+              ? locationsForDB.map((loc) => ({
+                  ...loc,
+                  isPosted: true,
+                  postedAt: new Date(),
+                }))
+              : locationsForDB,
           },
         });
         log(`✓ PostStatus updated to "posted" — _id=${savedPostId} platforms=${JSON.stringify(platformsPosted)}`);

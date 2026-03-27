@@ -11,6 +11,7 @@ import {
   updatePostStatusAction, postToGmbAction,
 } from "@/app/actions/postActions";
 import { deleteAssetAction, loadAssetsFromServerAction } from "@/app/actions/assetActions";
+import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
@@ -530,9 +531,9 @@ export default function PostManagementPage() {
 
       console.log("datadata", data);
 
-      const gmbDesc = data.gmb_des;
-      const fbDesc = data.fb_des;
-      const igDesc = data.ig_des;
+      const { gmb_des: gmbDesc, fb_des: fbDesc, ig_des: igDesc } = normalizePlatformDescriptions(
+        Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
+      );
 
       // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
@@ -664,9 +665,9 @@ export default function PostManagementPage() {
 
       const data = apiResponse.success ? apiResponse.data : apiResponse;
 
-      const gmbDesc = data.gmb_des;
-      const fbDesc = data.fb_des;
-      const igDesc = data.ig_des;
+      const { gmb_des: gmbDesc, fb_des: fbDesc, ig_des: igDesc } = normalizePlatformDescriptions(
+        Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
+      );
 
       // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {

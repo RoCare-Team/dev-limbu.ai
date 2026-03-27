@@ -26,6 +26,8 @@ const automationPlanSchema = new mongoose.Schema(
     },
     keywords: [{ type: String }],
     topic: { type: String, default: '' },
+    /** GMB-style business description (automation / AI optimization UI). */
+    businessProfileDescription: { type: String, default: '' },
     imageConfig: {
       colourPalette: { type: String, default: 'none' },
       size: { type: String, default: '3:4' },
@@ -57,6 +59,11 @@ const automationPlanSchema = new mongoose.Schema(
       enum: ['gmb', 'fb', 'ig'],
       default: ['gmb']
     }],
+
+    /** When set (0–23), crons only act in this local window. Unset = no hour gate (legacy). */
+    postingHour:     { type: Number },
+    postingMinute: { type: Number, default: 0 },
+    postingTimezone: { type: String, default: 'Asia/Kolkata' },
     startDate: { type: Date },
     endDate: { type: Date },
     skippedDates: [{ type: String }],

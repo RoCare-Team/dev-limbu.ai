@@ -7,7 +7,7 @@ import Admin from "@/models/Admin";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 3000;
+const LIMIT = 5000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const TATA_TOKEN = process.env.TATA_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;

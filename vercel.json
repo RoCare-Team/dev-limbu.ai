@@ -10,12 +10,8 @@
       "schedule": "*/20 * * * *"
     },
     {
-      "path": "/api/cron/auto-post",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/automation-plans?phase=prefetch",
-      "schedule": "0 11 * * *"
+      "path": "/api/cron/automation-plans?phase=dailyAutomation",
+      "schedule": "30 5 * * *"
     },
     {
       "path": "/api/meta-leads-import?formId=1393275835835157",

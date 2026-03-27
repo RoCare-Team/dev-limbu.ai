@@ -3,6 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json";
 import { getValidFrequencies, getRecommendedFrequency } from "@/utils/userSettingsHelpers";
 
 const ASSET_IMAGE_FIELDS = ["characterImage", "uniformImage", "productImage", "backgroundImage", "logoImage"];
@@ -641,11 +643,10 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [savedKws,   setSavedKws]   = useState([]);
   const [planLimit,  setPlanLimit]  = useState(0);
 
-  // Business (Step 1 — mandatory)
+  // GMB locations (selected under Google toggle in Step 1)
   const [selectedBusiness,  setSelectedBusiness]  = useState(null);
   const [gmbLocations,      setGmbLocations]      = useState([]); // all locations from localStorage
   const [selectedLocations, setSelectedLocations] = useState([]); // checked locations to post to
-  const [locOpen,           setLocOpen]           = useState(true); // collapse/expand location list
 
   // Posts used as tracked by the AutomationPlan (more accurate than User model)
   const [planPostsUsed,     setPlanPostsUsed]     = useState(null);
@@ -668,6 +669,16 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [selectedFbPages,  setSelectedFbPages]  = useState([]); // pageIds
   const [selectedIgPages,  setSelectedIgPages]  = useState([]); // igIds
 
+  const [platformGmb, setPlatformGmb] = useState(true);
+  const [platformFb, setPlatformFb] = useState(false);
+  const [platformIg, setPlatformIg] = useState(false);
+
+  useEffect(() => {
+    if (platformGmb) setGmbLocationsExpanded(true);
+  }, [platformGmb]);
+  const [postingHour, setPostingHour] = useState(11);
+  const [postingMinute, setPostingMinute] = useState(0);
+
   const [latestAssets,     setLatestAssets]     = useState([]);
   const [savedImageConfig, setSavedImageConfig] = useState(null);
   const [assetInclude,     setAssetInclude]     = useState(defaultAssetInclude);
@@ -677,16 +688,22 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [showModal,    setShowModal]    = useState(false);
   const [savedSummary, setSavedSummary] = useState(null);
 
+  const [gmbLocationsExpanded, setGmbLocationsExpanded] = useState(true);
+  const [metaSyncing, setMetaSyncing] = useState(false);
+
   const refreshSocialPages = useCallback(() => {
     const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    if (!userId) return;
-    Promise.allSettled([
+    if (!userId) return Promise.resolve();
+    setMetaSyncing(true);
+    return Promise.allSettled([
       fetch(`/api/facebook/pages?userId=${encodeURIComponent(userId)}`).then((r) => (r.ok ? r.json() : null)),
       fetch(`/api/instagram/pages?userId=${encodeURIComponent(userId)}`).then((r) => (r.ok ? r.json() : null)),
-    ]).then(([fbR, igR]) => {
-      if (fbR.status === "fulfilled" && Array.isArray(fbR.value?.pages)) setFacebookPages(fbR.value.pages);
-      if (igR.status === "fulfilled" && Array.isArray(igR.value?.pages)) setInstagramPages(igR.value.pages);
-    });
+    ])
+      .then(([fbR, igR]) => {
+        if (fbR.status === "fulfilled" && Array.isArray(fbR.value?.pages)) setFacebookPages(fbR.value.pages);
+        if (igR.status === "fulfilled" && Array.isArray(igR.value?.pages)) setInstagramPages(igR.value.pages);
+      })
+      .finally(() => setMetaSyncing(false));
   }, []);
 
   useEffect(() => {
@@ -697,16 +714,6 @@ export default function AutomationSettings({ onNavigateBack }) {
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [refreshSocialPages]);
-
-  useEffect(() => {
-    const maxFb = Math.max(0, 2 - selectedIgPages.length);
-    setSelectedFbPages((prev) => (prev.length > maxFb ? prev.slice(0, maxFb) : prev));
-  }, [selectedIgPages.length]);
-
-  useEffect(() => {
-    const maxIg = Math.max(0, 2 - selectedFbPages.length);
-    setSelectedIgPages((prev) => (prev.length > maxIg ? prev.slice(0, maxIg) : prev));
-  }, [selectedFbPages.length]);
 
   useEffect(() => {
     if (!assetPreview) return undefined;
@@ -825,6 +832,16 @@ export default function AutomationSettings({ onNavigateBack }) {
           if (Array.isArray(as?.igPages) && as.igPages.length > 0) {
             setSelectedIgPages(as.igPages.map(p => p.igId));
           }
+          const plats = Array.isArray(as?.platforms) ? as.platforms : ["gmb"];
+          setPlatformGmb(plats.includes("gmb"));
+          setPlatformFb(plats.includes("fb"));
+          setPlatformIg(plats.includes("ig"));
+          if (typeof as.postingHour === "number" && !Number.isNaN(as.postingHour)) {
+            setPostingHour(as.postingHour);
+          }
+          if (typeof as.postingMinute === "number" && !Number.isNaN(as.postingMinute)) {
+            setPostingMinute(as.postingMinute);
+          }
         }
 
         if (kwR.status === "fulfilled" && kwR.value.ok) {
@@ -907,6 +924,14 @@ export default function AutomationSettings({ onNavigateBack }) {
   // When plan limit is not yet loaded from API, derive from planDetail
   const effectivePlanLimit = planLimit > 0 ? planLimit : totalPosts;
 
+  const canEnableAutomation =
+    planLive &&
+    (
+      (platformGmb && selectedLocations.length > 0) ||
+      (platformFb && selectedFbPages.length > 0) ||
+      (platformIg && selectedIgPages.length > 0)
+    );
+
   // ── Auto-calculate end date ────────────────────────────────────────────────
   // When start date or frequency changes (and no manual end date is set),
   // automatically compute end date so ALL remaining posts fit in the window.
@@ -956,6 +981,34 @@ export default function AutomationSettings({ onNavigateBack }) {
       return;
     }
 
+    const platformsPayload = [
+      ...(platformGmb ? ["gmb"] : []),
+      ...(platformFb ? ["fb"] : []),
+      ...(platformIg ? ["ig"] : []),
+    ];
+    if (automationEnabled) {
+      if (platformsPayload.length === 0) {
+        setError("Select at least one platform to post to.");
+        setSaving(false);
+        return;
+      }
+      if (platformGmb && selectedLocations.length === 0) {
+        setError("Select at least one Google Business location when Google is enabled.");
+        setSaving(false);
+        return;
+      }
+      if (platformFb && selectedFbPages.length === 0) {
+        setError("Select at least one Facebook page when Facebook is enabled.");
+        setSaving(false);
+        return;
+      }
+      if (platformIg && selectedIgPages.length === 0) {
+        setError("Select at least one Instagram account when Instagram is enabled.");
+        setSaving(false);
+        return;
+      }
+    }
+
     // Client-side validation
     // if (automationEnabled) {
     //   if (selectedLocations.length === 0) {
@@ -984,11 +1037,10 @@ export default function AutomationSettings({ onNavigateBack }) {
           skippedDates,
           customDates: frequency === "custom" ? customDates : [],
           keywords: selectedKeywords,
-          platforms: [
-            "gmb",
-            ...(selectedFbPages.length > 0 ? ["fb"] : []),
-            ...(selectedIgPages.length > 0 ? ["ig"] : []),
-          ],
+          platforms: platformsPayload.length ? platformsPayload : ["gmb"],
+          postingHour,
+          postingMinute,
+          postingTimezone: "Asia/Kolkata",
           // FB pages selected for automation (full objects for token lookup)
           fbPages: facebookPages
             .filter(p => selectedFbPages.includes(p.pageId))
@@ -1049,19 +1101,20 @@ export default function AutomationSettings({ onNavigateBack }) {
   // ── Styles ─────────────────────────────────────────────────────────────────
 
   const S = {
-    page: { minHeight: "100vh", background: "#f8f7f4", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 14, color: "#111" },
-    card: { background: "#fff", border: "1px solid #f3f4f6", borderRadius: 20, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.06)" },
-    wrap: { maxWidth: 860, margin: "0 auto", padding: "24px 20px 80px", display: "flex", flexDirection: "column", gap: 16 },
+    page: { minHeight: "100vh", background: "linear-gradient(180deg, #f4f6fb 0%, #f8f7f4 32%, #f8f7f4 100%)", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 14, color: "#111" },
+    card: { background: "#fff", border: "1px solid #e8ecf4", borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 24px rgba(15,23,42,.06)" },
+    wrap: { maxWidth: 960, margin: "0 auto", padding: "20px 20px 80px", display: "flex", flexDirection: "column", gap: 18 },
     label: { fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 6 },
     input: { width: "100%", padding: "9px 12px", border: "2px solid #e5e7eb", borderRadius: 12, fontSize: 14, outline: "none", fontFamily: "inherit", color: "#374151", background: "#fff", transition: "border-color .15s", boxSizing: "border-box" },
   };
 
   if (pageLoading) {
     return (
-      <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "#9ca3af" }}>
-        <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b", display: "inline-block", animation: "pulse 1s ease-in-out infinite" }} />
-        Loading…
-        <style>{`@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}`}</style>
+      <div style={{ ...S.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, minHeight: "100vh" }}>
+        <div style={{ width: 128, height: 128 }}>
+          <Lottie animationData={animationData} loop style={{ width: "100%", height: "100%" }} />
+        </div>
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#64748b", letterSpacing: "-0.02em" }}>Loading settings…</p>
       </div>
     );
   }
@@ -1075,7 +1128,36 @@ export default function AutomationSettings({ onNavigateBack }) {
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:4px}
         input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6}
+        .us-meta-fb-chip{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease;}
+        .us-meta-fb-chip:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(37,99,235,.14);}
+        .us-meta-ig-chip{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease;}
+        .us-meta-ig-chip:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(219,39,119,.14);}
+        .us-meta-select{transition:border-color .2s ease, box-shadow .2s ease;}
+        .us-meta-select:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2);}
+        .us-meta-select-ig:focus{outline:none;border-color:#ec4899;box-shadow:0 0 0 3px rgba(236,72,153,.2);}
       `}</style>
+
+      {saving && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            background: "rgba(255,255,255,.78)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ width: 100, height: 100 }}>
+            <Lottie animationData={animationData} loop style={{ width: "100%", height: "100%" }} />
+          </div>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#475569" }}>Saving settings…</span>
+        </div>
+      )}
 
       {/* ── Success Modal ── */}
       {showModal && <SuccessModal summary={savedSummary} onClose={() => setShowModal(false)} />}
@@ -1123,18 +1205,36 @@ export default function AutomationSettings({ onNavigateBack }) {
       )}
 
       {/* ── Sticky header ── */}
-      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,.92)", backdropFilter: "blur(10px)", borderBottom: "1px solid #e5e7eb", boxShadow: "0 1px 6px rgba(0,0,0,.06)" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(255,255,255,.88)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e5e7eb", boxShadow: "0 4px 20px rgba(15,23,42,.06)" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <BackButton onClick={onNavigateBack || (() => window.history.back?.())} />
             <span style={{ color: "#e5e7eb" }}>|</span>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{userData?.fullName || "Automation Settings"}</div>
-              <div style={{ fontSize: 12, color: "#9ca3af" }}>{userData?.email || "GMB Dashboard"}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>{userData?.fullName || "Automation Settings"}</div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{userData?.email || "Google Business Profile"}</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4, fontWeight: 500 }}>Set up once — saved settings load automatically when you return.</div>
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => router.push("/user-settings/optimization")}
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                padding: "8px 16px",
+                borderRadius: 12,
+                border: "1px solid #c7d2fe",
+                background: "#eef2ff",
+                color: "#4338ca",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Optimization
+            </button>
             {saveStatus === "success" && <span style={{ fontSize: 12, background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", padding: "4px 12px", borderRadius: 20, fontWeight: 600 }}>✓ Saved</span>}
             {saveStatus === "error"   && <span style={{ fontSize: 12, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", padding: "4px 12px", borderRadius: 20, fontWeight: 600 }}>✗ Failed</span>}
             <button onClick={handleSave} disabled={saving || !planLive}
@@ -1292,124 +1392,570 @@ export default function AutomationSettings({ onNavigateBack }) {
           </div>
         )}
 
-        {/* ── STEP 1: Select Locations to post to ── */}
-        <div style={{ ...S.card, border: selectedLocations.length > 0 ? "1px solid #bbf7d0" : "2px solid #fde68a" }}>
-          {/* Collapsible header — click to toggle */}
-          <button onClick={() => setLocOpen(p => !p)} style={{
-            width: "100%", display: "flex", alignItems: "center", gap: 10,
-            padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
-            borderBottom: locOpen ? "1px solid #f3f4f6" : "none", fontFamily: "inherit",
-          }}>
-            <StepBadge n={1} label="Select Posting Locations" done={selectedLocations.length > 0} active={selectedLocations.length === 0} />
-
-            {/* Pills showing selected location names when collapsed */}
-            {!locOpen && selectedLocations.length > 0 && (
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flex: 1, marginLeft: 4 }}>
-                {selectedLocations.slice(0, 3).map((loc, i) => (
-                  <span key={i} style={{ fontSize: 10, background: "#f0fdf4", color: "#065f46", border: "1px solid #bbf7d0", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>
-                    📍{loc.name || loc.locality}
-                  </span>
-                ))}
-                {selectedLocations.length > 3 && <span style={{ fontSize: 10, color: "#6b7280", alignSelf: "center" }}>+{selectedLocations.length - 3} more</span>}
-              </div>
-            )}
-
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: selectedLocations.length > 0 ? "#059669" : "#b91c1c" }}>
-                {selectedLocations.length > 0 ? `${selectedLocations.length} selected` : "Required"}
-              </span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5"
-                style={{ transform: locOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}>
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+        {/* ── Step 1: Platforms & publish time (before enabling automation) ── */}
+        <div style={{ border: "1px solid #e8ecf4", borderRadius: 16, padding: "18px 18px 20px", background: "linear-gradient(145deg,#ffffff 0%,#f8fafc 100%)", boxShadow: "0 4px 20px rgba(15,23,42,.04)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Step 1</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>Post to platforms</div>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "8px 0 0", maxWidth: 560, lineHeight: 1.55 }}>
+                Choose where automation should publish. Turn on each channel, then pick pages or accounts. One save stores your plan: remaining posts follow your frequency. A daily job pre-builds the next post, then publishes at the time you pick (IST).
+              </p>
             </div>
-          </button>
+            <button
+              type="button"
+              disabled={metaSyncing}
+              onClick={() => refreshSocialPages()}
+              style={{
+                fontSize: 12,
+                padding: "8px 14px",
+                borderRadius: 10,
+                border: "1px solid #e2e8f0",
+                background: metaSyncing ? "#f1f5f9" : "#fff",
+                color: "#475569",
+                cursor: metaSyncing ? "wait" : "pointer",
+                fontWeight: 700,
+                fontFamily: "inherit",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                opacity: metaSyncing ? 0.9 : 1,
+              }}
+            >
+              {metaSyncing ? (
+                <>
+                  <span style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Lottie animationData={animationData} loop style={{ width: 22, height: 22 }} />
+                  </span>
+                  Syncing…
+                </>
+              ) : (
+                "↻ Sync Meta pages"
+              )}
+            </button>
+          </div>
 
-          {locOpen && <div style={{ padding: "16px 20px" }}>
-            {gmbLocations.length > 0 ? (
-              <>
-                {/* Select / Deselect all */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <p style={{ fontSize: 13, color: "#374151", fontWeight: 600, margin: 0 }}>
-                    Choose which locations to post to automatically:
-                  </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => setSelectedLocations(gmbLocations.map(loc => ({
-                      locationId: loc.locationId || "", accountId: loc.accountId || "",
-                      name: loc.title || loc.name || "", address: loc.address || "",
-                      locality: loc.locality || "", websiteUrl: loc.websiteUrl || "", isVerified: loc.isVerified || false,
-                    })))} style={{ fontSize: 11, color: "#059669", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
-                      All
-                    </button>
-                    <button onClick={() => setSelectedLocations([])}
-                      style={{ fontSize: 11, color: "#6b7280", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
-                      None
-                    </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", padding: "14px 16px", background: "#fff", borderRadius: 14, marginBottom: 16, border: "1px solid #e2e8f0" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Daily publish time (IST)</span>
+            <select
+              value={postingHour}
+              onChange={(e) => setPostingHour(Number(e.target.value))}
+              style={{ ...S.input, width: "auto", minWidth: 140, borderRadius: 10 }}
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 11, color: "#64748b", maxWidth: 280, lineHeight: 1.4 }}>
+              Default Vercel cron is 11:00 IST (<code style={{ fontSize: 10 }}>dailyAutomation</code>). Adjust cron if you change this hour.
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: platformGmb ? 12 : 16 }}>
+            <div style={{ border: platformGmb ? "2px solid #4285f4" : "2px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: platformGmb ? "#f0f4ff" : "#fff", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 22 }}>🗺</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1d4ed8" }}>Google Business</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Maps &amp; Search posts</div>
+              </div>
+              <Toggle checked={platformGmb} onChange={setPlatformGmb} />
+            </div>
+            <div style={{ border: platformFb ? "2px solid #1877f2" : "2px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: platformFb ? "#eff6ff" : "#fff", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 22 }}>📘</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1877f2" }}>Facebook</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Pages you manage</div>
+              </div>
+              <Toggle checked={platformFb} onChange={setPlatformFb} />
+            </div>
+            <div style={{ border: platformIg ? "2px solid #e1306c" : "2px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: platformIg ? "#fdf2f8" : "#fff", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 22 }}>📸</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#db2777" }}>Instagram</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Business / creator accounts</div>
+              </div>
+              <Toggle checked={platformIg} onChange={setPlatformIg} />
+            </div>
+          </div>
+
+          {platformGmb && (
+            <div
+              style={{
+                marginBottom: 16,
+                background: "#fff",
+                borderRadius: 14,
+                border: "1px solid #bfdbfe",
+                overflow: "hidden",
+                boxShadow: "0 2px 14px rgba(37,99,235,.07)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setGmbLocationsExpanded((v) => !v)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "14px 16px",
+                  border: "none",
+                  background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 55%)",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  textAlign: "left",
+                  transition: "background .2s ease",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#1d4ed8" }}>Google Business — select locations</div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, lineHeight: 1.4 }}>
+                    {gmbLocations.length > 0
+                      ? `${selectedLocations.length} of ${gmbLocations.length} selected · ${gmbLocationsExpanded ? "Tap to hide" : "Tap to expand"}`
+                      : "No locations loaded · tap to expand"}
                   </div>
                 </div>
-
-                {/* Location cards with checkboxes */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {gmbLocations.map((loc, i) => {
-                    const locId    = loc.locationId || "";
-                    const isChecked = selectedLocations.some(l => l.locationId === locId);
-                    const toggle = () => {
-                      if (isChecked) {
-                        setSelectedLocations(prev => prev.filter(l => l.locationId !== locId));
-                      } else {
-                        setSelectedLocations(prev => [...prev, {
-                          locationId: locId, accountId: loc.accountId || "",
-                          name: loc.title || loc.name || "", address: loc.address || "",
-                          locality: loc.locality || "", websiteUrl: loc.websiteUrl || "",
-                          isVerified: loc.isVerified || false,
-                        }]);
-                      }
-                    };
-                    return (
-                      <div key={i} onClick={toggle} style={{
-                        display: "flex", alignItems: "center", gap: 12,
-                        padding: "12px 14px",
-                        border: isChecked ? "2px solid #f59e0b" : "1.5px solid #e5e7eb",
-                        borderRadius: 12, cursor: "pointer",
-                        background: isChecked ? "#fffbeb" : "#fff",
-                        transition: "all .15s",
-                      }}>
-                        {/* Checkbox */}
-                        <div style={{
-                          width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                          border: isChecked ? "2px solid #f59e0b" : "2px solid #d1d5db",
-                          background: isChecked ? "#f59e0b" : "#fff",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          {isChecked && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        {/* Icon */}
-                        <span style={{ fontSize: 18 }}>📍</span>
-                        {/* Info */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {loc.title || loc.name || "Unnamed Location"}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2.5"
+                  style={{
+                    flexShrink: 0,
+                    transform: gmbLocationsExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <div
+                style={{
+                  maxHeight: gmbLocationsExpanded ? 6000 : 0,
+                  opacity: gmbLocationsExpanded ? 1 : 0,
+                  overflow: "hidden",
+                  transition: "max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease",
+                }}
+              >
+                <div style={{ padding: "0 16px 16px" }}>
+              {gmbLocations.length > 0 ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                    <p style={{ fontSize: 13, color: "#374151", fontWeight: 600, margin: 0 }}>
+                      Choose which locations receive automated posts:
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedLocations(
+                            gmbLocations.map((loc) => ({
+                              locationId: loc.locationId || "",
+                              accountId: loc.accountId || "",
+                              name: loc.title || loc.name || "",
+                              address: loc.address || "",
+                              locality: loc.locality || "",
+                              websiteUrl: loc.websiteUrl || "",
+                              isVerified: loc.isVerified || false,
+                            }))
+                          )
+                        }
+                        style={{
+                          fontSize: 11,
+                          color: "#059669",
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: 6,
+                          padding: "4px 10px",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLocations([])}
+                        style={{
+                          fontSize: 11,
+                          color: "#6b7280",
+                          background: "#f9fafb",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 6,
+                          padding: "4px 10px",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        None
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {gmbLocations.map((loc, i) => {
+                      const locId = loc.locationId || "";
+                      const isChecked = selectedLocations.some((l) => l.locationId === locId);
+                      const toggle = () => {
+                        if (isChecked) {
+                          setSelectedLocations((prev) => prev.filter((l) => l.locationId !== locId));
+                        } else {
+                          setSelectedLocations((prev) => [
+                            ...prev,
+                            {
+                              locationId: locId,
+                              accountId: loc.accountId || "",
+                              name: loc.title || loc.name || "",
+                              address: loc.address || "",
+                              locality: loc.locality || "",
+                              websiteUrl: loc.websiteUrl || "",
+                              isVerified: loc.isVerified || false,
+                            },
+                          ]);
+                        }
+                      };
+                      return (
+                        <div
+                          key={i}
+                          onClick={toggle}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "12px 14px",
+                            border: isChecked ? "2px solid #f59e0b" : "1.5px solid #e5e7eb",
+                            borderRadius: 12,
+                            cursor: "pointer",
+                            background: isChecked ? "#fffbeb" : "#fff",
+                            transition: "all .15s",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 20,
+                              height: 20,
+                              borderRadius: 6,
+                              flexShrink: 0,
+                              border: isChecked ? "2px solid #f59e0b" : "2px solid #d1d5db",
+                              background: isChecked ? "#f59e0b" : "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {isChecked && (
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <polyline
+                                  points="2,6 5,9 10,3"
+                                  stroke="#fff"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
                           </div>
-                          <div style={{ fontSize: 12, color: "#6b7280" }}>
-                            {[loc.address, loc.locality].filter(Boolean).join(", ") || loc.locationId}
+                          <span style={{ fontSize: 18 }}>📍</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                color: "#111",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {loc.title || loc.name || "Unnamed Location"}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>
+                              {[loc.address, loc.locality].filter(Boolean).join(", ") || loc.locationId}
+                            </div>
                           </div>
+                          {isChecked && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                background: "#fef3c7",
+                                color: "#92400e",
+                                borderRadius: 6,
+                                padding: "2px 8px",
+                                fontWeight: 700,
+                                flexShrink: 0,
+                              }}
+                            >
+                              Will post
+                            </span>
+                          )}
                         </div>
-                        {isChecked && (
-                          <span style={{ fontSize: 11, background: "#fef3c7", color: "#92400e", borderRadius: 6, padding: "2px 8px", fontWeight: 700, flexShrink: 0 }}>
-                            Will post
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    background: "#fffbeb",
+                    border: "1px solid #fde68a",
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    fontSize: 13,
+                    color: "#92400e",
+                  }}
+                >
+                  No GMB locations found. Connect Google Business from the dashboard, then reload this page.
                 </div>
-              </>
-            ) : (
-              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#92400e" }}>
-                ⚠️ No GMB locations found. Please connect your Google My Business account from the dashboard, then reload this page.
+              )}
+                </div>
               </div>
-            )}
-          </div>}
+            </div>
+          )}
+
+          {platformFb && (
+            <div
+              style={{
+                marginBottom: platformIg ? 18 : 0,
+                borderRadius: 16,
+                padding: 16,
+                background: "linear-gradient(160deg, rgba(239,246,255,.92) 0%, #ffffff 50%, #fafbff 100%)",
+                border: "1px solid rgba(59,130,246,.22)",
+                boxShadow: "0 4px 24px rgba(37,99,235,.06)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg,#1877f2,#3b82f6)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 22,
+                    boxShadow: "0 4px 12px rgba(24,119,242,.35)",
+                  }}
+                >
+                  📘
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#1e40af", letterSpacing: "-0.02em" }}>Facebook pages</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Pick where automated posts should publish</div>
+                </div>
+              </div>
+              {facebookPages.length > 0 ? (
+                facebookPages.length > 1 ? (
+                  <div
+                    style={{
+                      borderRadius: 14,
+                      padding: 14,
+                      background: "rgba(255,255,255,.85)",
+                      border: "1px solid rgba(147,197,253,.65)",
+                      backdropFilter: "blur(8px)",
+                    }}
+                  >
+                    <select
+                      className="us-meta-select"
+                      multiple
+                      size={Math.min(facebookPages.length, 6)}
+                      value={selectedFbPages}
+                      onChange={(e) => setSelectedFbPages([...e.target.selectedOptions].map((o) => o.value))}
+                      style={{
+                        width: "100%",
+                        borderRadius: 12,
+                        padding: 10,
+                        border: "1px solid #bfdbfe",
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        background: "#f8fafc",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {facebookPages.map((page) => (
+                        <option key={page.pageId} value={page.pageId}>{page.pageName || page.pageId}</option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 8, fontWeight: 500 }}>Hold Ctrl / ⌘ and click to select multiple pages.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {facebookPages.map((page) => {
+                      const selected = selectedFbPages.includes(page.pageId);
+                      return (
+                        <button
+                          key={page.pageId}
+                          type="button"
+                          className="us-meta-fb-chip"
+                          onClick={() => {
+                            if (selected) setSelectedFbPages((p) => p.filter((id) => id !== page.pageId));
+                            else setSelectedFbPages((p) => [...p, page.pageId]);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            border: selected ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                            borderRadius: 14,
+                            padding: "12px 18px",
+                            cursor: "pointer",
+                            background: selected ? "linear-gradient(135deg,#dbeafe,#eff6ff)" : "#fff",
+                            fontFamily: "inherit",
+                            textAlign: "left",
+                            boxShadow: selected ? "0 6px 20px rgba(37,99,235,.18)" : "0 1px 3px rgba(15,23,42,.06)",
+                          }}
+                        >
+                          <span style={{ fontSize: 20 }}>📘</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: selected ? "#1d4ed8" : "#334155" }}>{page.pageName}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#64748b",
+                    padding: "16px 18px",
+                    border: "1px dashed rgba(59,130,246,.45)",
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,.6)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  No Facebook pages linked.{" "}
+                  <button type="button" onClick={() => router.push("/dashboard")} style={{ fontWeight: 700, color: "#2563eb", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>
+                    Connect on dashboard
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {platformIg && (
+            <div
+              style={{
+                borderRadius: 16,
+                padding: 16,
+                background: "linear-gradient(160deg, rgba(253,242,248,.95) 0%, #ffffff 50%, #fffafc 100%)",
+                border: "1px solid rgba(244,114,182,.28)",
+                boxShadow: "0 4px 24px rgba(219,39,119,.07)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg,#e1306c,#ec4899)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 22,
+                    boxShadow: "0 4px 12px rgba(225,48,108,.35)",
+                  }}
+                >
+                  📸
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#9d174d", letterSpacing: "-0.02em" }}>Instagram accounts</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Business or creator profiles you manage</div>
+                </div>
+              </div>
+              {instagramPages.length > 0 ? (
+                instagramPages.length > 1 ? (
+                  <div
+                    style={{
+                      borderRadius: 14,
+                      padding: 14,
+                      background: "rgba(255,255,255,.85)",
+                      border: "1px solid rgba(249,168,212,.65)",
+                      backdropFilter: "blur(8px)",
+                    }}
+                  >
+                    <select
+                      className="us-meta-select-ig"
+                      multiple
+                      size={Math.min(instagramPages.length, 6)}
+                      value={selectedIgPages}
+                      onChange={(e) => setSelectedIgPages([...e.target.selectedOptions].map((o) => o.value))}
+                      style={{
+                        width: "100%",
+                        borderRadius: 12,
+                        padding: 10,
+                        border: "1px solid #fbcfe8",
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        background: "#fdf2f8",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {instagramPages.map((acc) => (
+                        <option key={acc.igId} value={acc.igId}>@{acc.igUsername || acc.igId}</option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 8, fontWeight: 500 }}>Hold Ctrl / ⌘ and click to select multiple accounts.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {instagramPages.map((acc) => {
+                      const selected = selectedIgPages.includes(acc.igId);
+                      return (
+                        <button
+                          key={acc.igId}
+                          type="button"
+                          className="us-meta-ig-chip"
+                          onClick={() => {
+                            if (selected) setSelectedIgPages((p) => p.filter((id) => id !== acc.igId));
+                            else setSelectedIgPages((p) => [...p, acc.igId]);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            border: selected ? "2px solid #db2777" : "1px solid #e2e8f0",
+                            borderRadius: 14,
+                            padding: "12px 18px",
+                            cursor: "pointer",
+                            background: selected ? "linear-gradient(135deg,#fce7f3,#fdf2f8)" : "#fff",
+                            fontFamily: "inherit",
+                            textAlign: "left",
+                            boxShadow: selected ? "0 6px 20px rgba(219,39,119,.2)" : "0 1px 3px rgba(15,23,42,.06)",
+                          }}
+                        >
+                          <span style={{ fontSize: 20 }}>📸</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: selected ? "#be185d" : "#334155" }}>@{acc.igUsername}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#64748b",
+                    padding: "16px 18px",
+                    border: "1px dashed rgba(236,72,153,.45)",
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,.6)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  No Instagram accounts linked.{" "}
+                  <button type="button" onClick={() => router.push("/dashboard")} style={{ fontWeight: 700, color: "#db2777", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>
+                    Connect on dashboard
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Automation Toggle ── */}
@@ -1419,20 +1965,24 @@ export default function AutomationSettings({ onNavigateBack }) {
               <div style={{ width: 36, height: 36, borderRadius: 12, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤖</div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Post Automation</div>
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>Auto-generate & post to GMB using AI every day</div>
+                <div style={{ fontSize: 12, color: "#9ca3af" }}>AI images &amp; copy on your schedule — Google, Facebook, and/or Instagram</div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: automationEnabled ? "#f59e0b" : "#9ca3af" }}>
                 {automationEnabled ? "Enabled" : "Disabled"}
               </span>
-              <Toggle checked={automationEnabled} onChange={setAutomationEnabled} disabled={!planLive || selectedLocations.length === 0} />
+              <Toggle checked={automationEnabled} onChange={setAutomationEnabled} disabled={!canEnableAutomation} />
             </div>
           </div>
 
           {!planLive && hasPlan && <div style={{ margin: "0 20px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "10px 14px", fontSize: 13, color: "#b91c1c", fontWeight: 500 }}>⚠️ Your plan has expired. Renew to enable automation.</div>}
           {!hasPlan && !pageLoading && <div style={{ margin: "0 20px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "10px 14px", fontSize: 13, color: "#92400e", fontWeight: 500 }}>No paid plan found. Purchase a plan to enable automation.</div>}
-          {planLive && selectedLocations.length === 0 && <div style={{ margin: "0 20px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "10px 14px", fontSize: 13, color: "#92400e", fontWeight: 500 }}>Select at least one location (Step 1) to enable automation.</div>}
+          {planLive && !canEnableAutomation && (
+            <div style={{ margin: "0 20px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "10px 14px", fontSize: 13, color: "#92400e", fontWeight: 500 }}>
+              Finish Step 1 (above): turn on at least one platform and complete Google locations or Meta selections.
+            </div>
+          )}
         </div>
 
         {automationEnabled && (
@@ -1643,145 +2193,6 @@ export default function AutomationSettings({ onNavigateBack }) {
                     </div>
                   </div>
                 </div>}
-
-                {/* Step 2b: Platform Selection */}
-                <div>
-                  <div style={{ ...S.label, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <span>Step 2b — Post To Platforms (max 3)</span>
-                    <button
-                      type="button"
-                      onClick={() => refreshSocialPages()}
-                      style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}
-                    >
-                      ↻ Sync from dashboard
-                    </button>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "stretch" }}>
-
-                    {/* GMB — always on */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, border: "2px solid #4285F4", borderRadius: 12, padding: "10px 16px", background: "#f0f4ff", minWidth: 120 }}>
-                      <span style={{ fontSize: 20 }}>🗺</span>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#1d4ed8" }}>Google My Business</div>
-                        <div style={{ fontSize: 11, color: "#6b7280" }}>Always included</div>
-                      </div>
-                      <span style={{ marginLeft: "auto", fontSize: 11, background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: 8, fontWeight: 700 }}>✓</span>
-                    </div>
-
-                    {/* Facebook pages — all pages from dashboard; dropdown if more than one */}
-                    {facebookPages.length > 0 ? (
-                      facebookPages.length > 1 ? (
-                        <div style={{ flex: "1 1 260px", maxWidth: 440, border: "2px solid #bfdbfe", borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
-                          <div style={{ fontSize: 12, fontWeight: 800, color: "#1877f2", marginBottom: 8 }}>Facebook pages ({facebookPages.length})</div>
-                          <select
-                            multiple
-                            size={Math.min(facebookPages.length, 6)}
-                            value={selectedFbPages}
-                            onChange={(e) => {
-                              const next = [...e.target.selectedOptions].map((o) => o.value);
-                              const maxFb = Math.max(0, 2 - selectedIgPages.length);
-                              setSelectedFbPages(next.slice(0, maxFb));
-                            }}
-                            style={{ width: "100%", borderRadius: 8, padding: 6, border: "1px solid #93c5fd", fontSize: 13, fontFamily: "inherit", background: "#f8fafc" }}
-                          >
-                            {facebookPages.map((page) => (
-                              <option key={page.pageId} value={page.pageId}>{page.pageName || page.pageId}</option>
-                            ))}
-                          </select>
-                          <div style={{ fontSize: 10, color: "#64748b", marginTop: 6, lineHeight: 1.4 }}>
-                            Use Ctrl (Windows) or ⌘ (Mac) to select multiple. Max {Math.max(0, 2 - selectedIgPages.length)} with your Instagram picks.
-                          </div>
-                        </div>
-                      ) : (
-                        facebookPages.map((page) => {
-                          const selected = selectedFbPages.includes(page.pageId);
-                          const totalSelected = selectedFbPages.length + selectedIgPages.length;
-                          return (
-                            <button key={page.pageId} type="button"
-                              onClick={() => {
-                                if (selected) setSelectedFbPages((p) => p.filter((id) => id !== page.pageId));
-                                else if (totalSelected < 2) setSelectedFbPages((p) => [...p, page.pageId]);
-                              }}
-                              style={{ display: "flex", alignItems: "center", gap: 8, border: selected ? "2px solid #1877f2" : "2px solid #e5e7eb", borderRadius: 12, padding: "10px 16px", cursor: "pointer", background: selected ? "#eff6ff" : "#fff", transition: "all .15s", fontFamily: "inherit", minWidth: 120, textAlign: "left" }}
-                            >
-                              <span style={{ fontSize: 20 }}>📘</span>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: selected ? "#1877f2" : "#374151" }}>{page.pageName}</div>
-                                <div style={{ fontSize: 11, color: "#6b7280" }}>Facebook Page</div>
-                              </div>
-                              {selected && <span style={{ marginLeft: "auto", fontSize: 11, background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: 8, fontWeight: 700 }}>✓</span>}
-                            </button>
-                          );
-                        })
-                      )
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#64748b", padding: "12px 14px", border: "1px dashed #cbd5e1", borderRadius: 12, flex: "1 1 220px", display: "flex", flexDirection: "column", gap: 8 }}>
-                        <span>No Facebook pages connected.</span>
-                        <button type="button" onClick={() => router.push("/dashboard")} style={{ alignSelf: "flex-start", fontSize: 12, fontWeight: 700, background: "#1877f2", color: "#fff", border: "none", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>
-                          Open dashboard to connect Facebook
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Instagram — dropdown if more than one account */}
-                    {instagramPages.length > 0 ? (
-                      instagramPages.length > 1 ? (
-                        <div style={{ flex: "1 1 260px", maxWidth: 440, border: "2px solid #fbcfe8", borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
-                          <div style={{ fontSize: 12, fontWeight: 800, color: "#db2777", marginBottom: 8 }}>Instagram accounts ({instagramPages.length})</div>
-                          <select
-                            multiple
-                            size={Math.min(instagramPages.length, 6)}
-                            value={selectedIgPages}
-                            onChange={(e) => {
-                              const next = [...e.target.selectedOptions].map((o) => o.value);
-                              const maxIg = Math.max(0, 2 - selectedFbPages.length);
-                              setSelectedIgPages(next.slice(0, maxIg));
-                            }}
-                            style={{ width: "100%", borderRadius: 8, padding: 6, border: "1px solid #f9a8d4", fontSize: 13, fontFamily: "inherit", background: "#fdf2f8" }}
-                          >
-                            {instagramPages.map((acc) => (
-                              <option key={acc.igId} value={acc.igId}>@{acc.igUsername || acc.igId}</option>
-                            ))}
-                          </select>
-                          <div style={{ fontSize: 10, color: "#64748b", marginTop: 6, lineHeight: 1.4 }}>
-                            Ctrl/⌘+click to select multiple. Max {Math.max(0, 2 - selectedFbPages.length)} with Facebook selections.
-                          </div>
-                        </div>
-                      ) : (
-                        instagramPages.map((acc) => {
-                          const selected = selectedIgPages.includes(acc.igId);
-                          const totalSelected = selectedFbPages.length + selectedIgPages.length;
-                          return (
-                            <button key={acc.igId} type="button"
-                              onClick={() => {
-                                if (selected) setSelectedIgPages((p) => p.filter((id) => id !== acc.igId));
-                                else if (totalSelected < 2) setSelectedIgPages((p) => [...p, acc.igId]);
-                              }}
-                              style={{ display: "flex", alignItems: "center", gap: 8, border: selected ? "2px solid #e1306c" : "2px solid #e5e7eb", borderRadius: 12, padding: "10px 16px", cursor: "pointer", background: selected ? "#fdf2f8" : "#fff", transition: "all .15s", fontFamily: "inherit", minWidth: 120, textAlign: "left" }}
-                            >
-                              <span style={{ fontSize: 20 }}>📸</span>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: selected ? "#e1306c" : "#374151" }}>@{acc.igUsername}</div>
-                                <div style={{ fontSize: 11, color: "#6b7280" }}>Instagram</div>
-                              </div>
-                              {selected && <span style={{ marginLeft: "auto", fontSize: 11, background: "#fce7f3", color: "#e1306c", padding: "2px 8px", borderRadius: 8, fontWeight: 700 }}>✓</span>}
-                            </button>
-                          );
-                        })
-                      )
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#64748b", padding: "12px 14px", border: "1px dashed #cbd5e1", borderRadius: 12, flex: "1 1 220px", display: "flex", flexDirection: "column", gap: 8 }}>
-                        <span>No Instagram accounts connected.</span>
-                        <button type="button" onClick={() => router.push("/dashboard")} style={{ alignSelf: "flex-start", fontSize: 12, fontWeight: 700, background: "linear-gradient(90deg,#f09433,#e1306c)", color: "#fff", border: "none", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>
-                          Open dashboard to connect Instagram
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {(selectedFbPages.length + selectedIgPages.length) >= 2 && (
-                    <div style={{ fontSize: 11, color: "#d97706", marginTop: 6, fontWeight: 600 }}>⚠ Maximum 2 additional platforms selected (GMB + 2 = 3 total)</div>
-                  )}
-                </div>
 
                 {/* Step 5: Skip dates (hidden for custom frequency) */}
                 {frequency !== "custom" && 

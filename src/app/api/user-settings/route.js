@@ -149,6 +149,7 @@ export async function POST(request) {
       igPages,               // Instagram accounts selected for automation
       userId,
       topic,
+      businessProfileDescription,
       colourPalette,
       size,
       characterImage,
@@ -157,6 +158,9 @@ export async function POST(request) {
       backgroundImage,
       logoImage,
       includeInGeneration,
+      postingHour,
+      postingMinute,
+      postingTimezone,
     } = body;
 
     let user = await User.findOne({ email: session.user.email });
@@ -173,7 +177,17 @@ export async function POST(request) {
 
     const safeFrequency    = frequency || 'daily';
     const safeKeywords     = Array.isArray(keywords) ? keywords.filter(Boolean) : [];
-    const safePlatforms    = Array.isArray(platforms) && platforms.length > 0 ? platforms : ['gmb'];
+    const ALLOWED_PLATFORMS = new Set(['gmb', 'fb', 'ig']);
+    let safePlatforms = Array.isArray(platforms)
+      ? [...new Set(platforms.filter((p) => ALLOWED_PLATFORMS.has(p)))]
+      : [];
+    if (!safePlatforms.length) safePlatforms = ['gmb'];
+
+    const fbList = Array.isArray(fbPages) ? fbPages.filter((p) => p?.pageId) : [];
+    const igList = Array.isArray(igPages) ? igPages.filter((a) => a?.igId) : [];
+    const hasGmb = safePlatforms.includes('gmb');
+    const hasFb  = safePlatforms.includes('fb');
+    const hasIg  = safePlatforms.includes('ig');
     const safeSkippedDates = Array.isArray(skippedDates) ? skippedDates.filter(Boolean) : [];
     // Normalise locations: accept an array from the UI, fallback to deriving from selectedBusiness
     const safeLocations = Array.isArray(selectedLocations) && selectedLocations.length > 0
@@ -232,10 +246,9 @@ export async function POST(request) {
 
     // ── Validation ────────────────────────────────────────────────────────────
     if (automationEnabled) {
-      // Business must be connected
-      if (!user.isBusinessConnected && !resolvedBusiness) {
+      if (hasGmb && !user.isBusinessConnected && !resolvedBusiness) {
         return NextResponse.json(
-          { error: 'Please select a business location before enabling automation.' },
+          { error: 'Connect Google Business and select locations when Google is enabled.' },
           { status: 400 }
         );
       }
@@ -244,6 +257,31 @@ export async function POST(request) {
       if (!startDate) {
         return NextResponse.json(
           { error: 'Start date is required when automation is enabled.' },
+          { status: 400 }
+        );
+      }
+
+      if (!hasGmb && !hasFb && !hasIg) {
+        return NextResponse.json(
+          { error: 'Select at least one platform (Google, Facebook, or Instagram).' },
+          { status: 400 }
+        );
+      }
+      if (hasGmb && !safeLocations.length) {
+        return NextResponse.json(
+          { error: 'Select at least one Google Business location when Google is enabled.' },
+          { status: 400 }
+        );
+      }
+      if (hasFb && !fbList.length) {
+        return NextResponse.json(
+          { error: 'Select at least one Facebook page when Facebook is enabled.' },
+          { status: 400 }
+        );
+      }
+      if (hasIg && !igList.length) {
+        return NextResponse.json(
+          { error: 'Select at least one Instagram account when Instagram is enabled.' },
           { status: 400 }
         );
       }
@@ -270,6 +308,21 @@ export async function POST(request) {
         { userRef: user._id },
       ],
     }).lean();
+
+    const postingHourNum =
+      postingHour === null || postingHour === undefined || postingHour === ''
+        ? (existingPlan?.postingHour !== undefined && existingPlan?.postingHour !== null
+            ? existingPlan.postingHour
+            : 11)
+        : Math.min(23, Math.max(0, Number(postingHour)));
+    const postingMinuteNum =
+      postingMinute === null || postingMinute === undefined || postingMinute === ''
+        ? (existingPlan?.postingMinute ?? 0)
+        : Math.min(59, Math.max(0, Number(postingMinute)));
+    const postingTz =
+      typeof postingTimezone === 'string' && postingTimezone.trim()
+        ? postingTimezone.trim()
+        : (existingPlan?.postingTimezone || 'Asia/Kolkata');
 
     const prevKeywords    = existingPlan?.keywords || [];
     const keywordsChanged =
@@ -370,6 +423,11 @@ export async function POST(request) {
       logoImage:       Object.prototype.hasOwnProperty.call(incIn, 'logoImage')       ? incIn.logoImage !== false       : prevInc.logoImage !== false,
     };
 
+    const safeProfileDesc =
+      typeof businessProfileDescription === 'string'
+        ? businessProfileDescription.slice(0, 20000)
+        : (existingPlan?.businessProfileDescription ?? '');
+
     const automationPlanData = {
       userId:           finalUserId,
       userRef:          user._id,
@@ -378,6 +436,7 @@ export async function POST(request) {
       frequency:        safeFrequency,
       keywords:         safeKeywords,
       topic:            topic || '',
+      businessProfileDescription: safeProfileDesc,
       imageConfig: {
         colourPalette:   colourPalette   || 'none',
         size:            size            || '3:4',
@@ -389,6 +448,9 @@ export async function POST(request) {
         includeInGeneration: mergedInclude,
       },
       platforms:        safePlatforms,
+      postingHour:        postingHourNum,
+      postingMinute:      postingMinuteNum,
+      postingTimezone:    postingTz,
       startDate:        scheduleStartDate,
       endDate:          scheduleEndDate,
       skippedDates:     safeSkippedDates,
@@ -404,13 +466,13 @@ export async function POST(request) {
       accessToken:      planAccessToken,
       refreshToken:     planRefreshToken,
       // Facebook pages selected for multi-platform automation
-      fbPages: Array.isArray(fbPages) ? fbPages.filter(p => p.pageId).map(p => ({
+      fbPages: hasFb && Array.isArray(fbPages) ? fbPages.filter(p => p.pageId).map(p => ({
         pageId:          p.pageId          || '',
         pageName:        p.pageName        || '',
         pageAccessToken: p.pageAccessToken || '',
       })) : [],
       // Instagram accounts selected for multi-platform automation
-      igPages: Array.isArray(igPages) ? igPages.filter(a => a.igId).map(a => ({
+      igPages: hasIg && Array.isArray(igPages) ? igPages.filter(a => a.igId).map(a => ({
         igId:            a.igId            || '',
         igUsername:      a.igUsername      || '',
         pageAccessToken: a.pageAccessToken || '',
@@ -476,14 +538,21 @@ export async function POST(request) {
             ? [{ locationId: resolvedBusiness.locationId, accountId: resolvedBusiness.accountId, name: businessName, address: resolvedBusiness.address || '', isPosted: false }]
             : [];
 
+        const scheduledPlatforms = safePlatforms.filter((p) => ['gmb', 'fb', 'ig'].includes(p));
+        const platformsForPost = scheduledPlatforms.length > 0 ? scheduledPlatforms : ['gmb'];
+        const postUserIds = [...new Set([finalUserId, user.userId, user._id.toString()].filter(Boolean))];
+
         const postsData = schedule.map((scheduledDate, idx) => {
           const keyword = safeKeywords[idx] || safeKeywords[idx % safeKeywords.length];
+          const line = `${keyword} — ${businessName || 'your business'}`;
           return {
-            userId:              user.userId || user._id.toString(),
+            userId:              finalUserId,
             promat:              keyword,
             description:         `Automated post about ${keyword}`,
-            gmbDescription:      `${keyword} — ${businessName || 'your business'}`,
-            scheduledDateSource: ['gmb'],
+            gmbDescription:      line,
+            fbDescription:       line,
+            igDescription:       line,
+            scheduledDateSource:   [...platformsForPost],
             status:              'scheduled',
             scheduledDate,
             accessToken:         project.accessToken || '',
@@ -495,12 +564,12 @@ export async function POST(request) {
 
         // Remove any existing unprocessed scheduled posts for this user before inserting new ones
         await Post.deleteMany({
-          userId: user.userId || user._id.toString(),
+          userId: { $in: postUserIds },
           status: 'scheduled',
         });
 
         await Post.insertMany(postsData, { ordered: false });
-        console.log(`✅ Created ${postsData.length} scheduled Posts for userId=${user.userId}`);
+        console.log(`✅ Created ${postsData.length} scheduled Posts for userId=${finalUserId}`);
       } else {
         console.warn('[user-settings] No GmbUser project found for bulk post creation');
       }

@@ -2282,7 +2282,7 @@ const handleVoiceCall = async (phone) => {
                     </p>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
                       <span title="Meta instant form + imports tagged bulk-upload">
-                        Meta (bulk-upload):{" "}
+                        Meta Leads:{" "}
                         <b className="text-base text-teal-950 tabular-nums">
                           {todayUsersMetaLeads}
                         </b>

@@ -2051,7 +2051,7 @@ export default function PostManagementPage() {
 
         </div>
 
-        {!loadingBusinesses && availableBusinesses.length === 0 && (
+        {/* {!loadingBusinesses && availableBusinesses.length === 0 && (
           <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-2">
             <span>
               Google Business Profile is not connected. Connect GMB in Settings to load
@@ -2064,7 +2064,7 @@ export default function PostManagementPage() {
               Open Settings
             </Link>
           </div>
-        )}
+        )} */}
 
         {/* Main Content Area - Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start ">

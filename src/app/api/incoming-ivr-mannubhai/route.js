@@ -62,7 +62,7 @@ const AISENSY_URL =
 const MEDIA = {
   session4pm:
     "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
-  session530pm:
+  session5pm_new:
     "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.21+PM.jpeg",
 };
 

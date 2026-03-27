@@ -65,7 +65,7 @@ const CAMPAIGN_CONFIG = {
     mediaUrl:
       "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
   },
-  session530pm_new: {
+  session5pm_new: {
     mediaUrl:
       "https://limbuai.s3.ap-south-1.amazonaws.com/2WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
   },

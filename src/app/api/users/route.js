@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import { getAppDayBounds } from "@/lib/appDayBounds";
+
+/** User.source values that count as Meta / instant-form leads (not site signup). */
+const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
 
 /* ================= DB CONNECT ================= */
 
@@ -31,6 +35,21 @@ const SettingSchema = new mongoose.Schema({
 
 const Setting =
   mongoose.models.settings || mongoose.model("settings", SettingSchema);
+
+async function bumpAgentRoundRobin(rrKey) {
+  return Setting.findOneAndUpdate(
+    { key: rrKey },
+    [
+      {
+        $set: {
+          key: rrKey,
+          value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
+        },
+      },
+    ],
+    { new: true, upsert: true }
+  );
+}
 
 /* ============================================================
    POST → CREATE USER + ROUND ROBIN ASSIGNMENT
@@ -86,11 +105,7 @@ export async function POST(req) {
       // 2️⃣ Round Robin Counter
       const RR_KEY = "agentLeadRR";
 
-      const rrDoc = await Setting.findOneAndUpdate(
-        { key: RR_KEY },
-        { $inc: { value: 1 }, $setOnInsert: { key: RR_KEY, value: -1 } },
-        { new: true, upsert: true }
-      );
+      const rrDoc = await bumpAgentRoundRobin(RR_KEY);
 
       rrValue = parseInt(rrDoc?.value, 10);
       if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
@@ -367,30 +382,50 @@ export async function GET(req) {
       let extraStats = {};
 
       if (admin.role === "superAdmin") {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        const { start: startOfDay, end: endOfDay } = getAppDayBounds();
+        const todayCreated = {
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        };
 
-        const [totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments] = await Promise.all([
+        const [
+          totalUsers,
+          totalSignupUsers,
+          totalMetaLeadUsers,
+          todayLeads,
+          todayAgentAssignments,
+        ] = await Promise.all([
           User.countDocuments({}),
-          User.countDocuments({ source: "Meta" }),
-          User.countDocuments({ createdAt: { $gte: startOfDay } }),
+          User.countDocuments({ source: "signup" }),
+          User.countDocuments({ source: { $in: META_LEAD_SOURCES } }),
+          User.countDocuments(todayCreated),
           User.aggregate([
-            { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
+            {
+              $match: {
+                ...todayCreated,
+                assignedAgentId: { $ne: null },
+              },
+            },
             { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
             { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
             { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
-            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } }
-          ])
+            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+          ]),
         ]);
 
-        extraStats = { totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments };
+        extraStats = {
+          totalUsers,
+          totalSignupUsers,
+          totalMetaLeadUsers,
+          totalSignups: totalSignupUsers,
+          totalMetaLeads: totalMetaLeadUsers,
+          todayLeads,
+          todayAgentAssignments,
+        };
       } else if (admin.role === "agent") {
-        // Return today's count scoped to this agent so the frontend can display it directly
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        const { start: startOfDay, end: endOfDay } = getAppDayBounds();
         const todayLeads = await User.countDocuments({
           assignedAgentId: admin._id,
-          createdAt: { $gte: startOfDay },
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
         });
         extraStats = { todayLeads };
       }
@@ -398,47 +433,51 @@ export async function GET(req) {
       return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...extraStats });
     }
 
-    /* 🔍 Fetch Today's Users Count */
+    /* 🔍 Fetch Today's Users Count (calendar day in APP_TIMEZONE, default Asia/Kolkata) */
     if (searchParams.get("getTodayUsersCount") === "true") {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
+      const {
+        start: startOfDay,
+        end: endOfDay,
+        calendarDate,
+        timeZone,
+        displayLabel,
+      } = getAppDayBounds();
 
-      const todayUsersCount = await User.countDocuments({
-        createdAt: { $gte: startOfDay, $lte: endOfDay }
-      });
+      const todayMatch = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
 
-      // Get breakdown by source for today
+      const todayUsersCount = await User.countDocuments(todayMatch);
+
       const todayBySource = await User.aggregate([
-        { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay } } },
-        { $group: { _id: "$source", count: { $sum: 1 } } }
+        { $match: todayMatch },
+        { $group: { _id: "$source", count: { $sum: 1 } } },
       ]);
 
       const sourceBreakdown = {};
-      todayBySource.forEach(item => {
+      todayBySource.forEach((item) => {
         sourceBreakdown[item._id || "unknown"] = item.count;
       });
 
-      // Get today's meta leads count
       const todayMetaLeads = await User.countDocuments({
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-        source: { $in: ["bulk-upload", "Meta Leads", "Meta"] }
+        ...todayMatch,
+        source: { $in: META_LEAD_SOURCES },
       });
 
-      // Get today's signups count
       const todaySignups = await User.countDocuments({
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-        source: { $nin: ["bulk-upload", "Meta Leads", "Meta"] }
+        ...todayMatch,
+        source: "signup",
       });
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         todayUsersCount,
         todayMetaLeads,
         todaySignups,
-        sourceBreakdown
+        sourceBreakdown,
+        todayWindow: {
+          calendarDate,
+          timeZone,
+          displayLabel,
+        },
       });
     }
 
@@ -521,27 +560,44 @@ export async function GET(req) {
 
     let superAdminData = {};
     if (admin.role === "superAdmin") {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
+      const { start: startOfDay, end: endOfDay } = getAppDayBounds();
+      const todayCreated = {
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      };
 
-      const [totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments] = await Promise.all([
+      const [
+        totalUsers,
+        totalSignupUsers,
+        totalMetaLeadUsers,
+        todayLeads,
+        todayAgentAssignments,
+      ] = await Promise.all([
         User.countDocuments({}),
-        User.countDocuments({ source: "Meta" }),
-        User.countDocuments({ createdAt: { $gte: startOfDay } }),
+        User.countDocuments({ source: "signup" }),
+        User.countDocuments({ source: { $in: META_LEAD_SOURCES } }),
+        User.countDocuments(todayCreated),
         User.aggregate([
-          { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
+          {
+            $match: {
+              ...todayCreated,
+              assignedAgentId: { $ne: null },
+            },
+          },
           { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
           { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
           { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
-          { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } }
-        ])
+          { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+        ]),
       ]);
 
       superAdminData = {
-        totalSignups,
-        totalMetaLeads,
+        totalUsers,
+        totalSignupUsers,
+        totalMetaLeadUsers,
+        totalSignups: totalSignupUsers,
+        totalMetaLeads: totalMetaLeadUsers,
         todayLeads,
-        todayAgentAssignments
+        todayAgentAssignments,
       };
     }
 

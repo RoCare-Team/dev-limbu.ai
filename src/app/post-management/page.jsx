@@ -259,10 +259,10 @@ export default function PostManagementPage() {
   }, [selectedPlatforms]);
 
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   const [allCounts, setAllCounts] = useState({
     total: 0,
@@ -1682,30 +1682,42 @@ export default function PostManagementPage() {
   };
 
 
-  // Load user settings including businesses
+  // Load user settings including businesses (no error toast when GMB simply not linked — expected)
   const loadUserSettings = useCallback(async () => {
     try {
       setLoadingBusinesses(true);
-      const res = await fetch('/api/user-settings');
-      const data = await res.json();
-      
-      if (data.gmbProjects && data.gmbProjects.length > 0) {
-        setAvailableBusinesses(data.gmbProjects);
-        if (!selectedBusiness && data.gmbProjects[0]) {
-          setSelectedBusiness(data.gmbProjects[0]);
-        }
+      const res = await fetch("/api/user-settings");
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
       }
-      
-      if (data.selectedBusiness) {
+
+      if (!res.ok) {
+        setAvailableBusinesses([]);
+        setSelectedBusiness(null);
+        return;
+      }
+
+      const projects = Array.isArray(data.gmbProjects) ? data.gmbProjects : [];
+      setAvailableBusinesses(projects);
+
+      if (projects.length === 0) {
+        setSelectedBusiness(null);
+      } else if (data.selectedBusiness) {
         setSelectedBusiness(data.selectedBusiness);
+      } else {
+        setSelectedBusiness((prev) => prev ?? projects[0]);
       }
     } catch (error) {
-      console.error('Failed to load businesses:', error);
-      showToast('Failed to load businesses. Please connect GMB first.', 'error');
+      console.error("Failed to load businesses:", error);
+      setAvailableBusinesses([]);
+      setSelectedBusiness(null);
     } finally {
       setLoadingBusinesses(false);
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     loadUserSettings();
@@ -2038,6 +2050,21 @@ export default function PostManagementPage() {
   </p> */}
 
         </div>
+
+        {!loadingBusinesses && availableBusinesses.length === 0 && (
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Google Business Profile is not connected. Connect GMB in Settings to load
+              locations and post to Google.
+            </span>
+            <Link
+              href="/user-settings"
+              className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:no-underline"
+            >
+              Open Settings
+            </Link>
+          </div>
+        )}
 
         {/* Main Content Area - Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start ">

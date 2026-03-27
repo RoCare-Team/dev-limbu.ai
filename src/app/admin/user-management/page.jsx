@@ -122,6 +122,8 @@ export default function UserManagement() {
   const [todayUsersCount, setTodayUsersCount] = useState(0);
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
   const [todayUsersSignups, setTodayUsersSignups] = useState(0);
+  /** Matches API getTodayUsersCount (Asia/Kolkata / APP_TIMEZONE calendar day). */
+  const [todayLeadWindowLabel, setTodayLeadWindowLabel] = useState("");
   const [leadStatusStats, setLeadStatusStats] = useState({
     Hot: 0,
     Warm: 0,
@@ -551,14 +553,29 @@ const [callStats, setCallStats] = useState(null);
       (u) => u.subscription?.plan === "Premium",
     ).length;
     const active = connectedBusinessUsers.length;
-    const todayMetaLeads = users.filter(
-      (u) =>
-        (u.source === "bulk-upload" || u.source === "Meta Leads") &&
-        new Date(u.createdAt).toDateString() === new Date().toDateString(),
-    ).length;
-    const todaySignups = users.filter(
-      (u) => new Date(u.createdAt).toDateString() === new Date().toDateString(),
-    ).length;
+    const isMetaLeadSource = (src) =>
+      src === "bulk-upload" ||
+      src === "Meta Leads" ||
+      src === "Meta";
+    const isTodayLocalBrowser = (createdAt) =>
+      new Date(createdAt).toDateString() === new Date().toDateString();
+    const useApiTodayBreakdown =
+      (role === "superAdmin" ||
+        role === "admin" ||
+        role === "superfranchiseAdmin") &&
+      !isAgent &&
+      !isManager;
+    const todayMetaLeads = useApiTodayBreakdown
+      ? todayUsersMetaLeads
+      : users.filter(
+          (u) => isMetaLeadSource(u.source) && isTodayLocalBrowser(u.createdAt),
+        ).length;
+    const todaySignups = useApiTodayBreakdown
+      ? todayUsersSignups
+      : users.filter(
+          (u) =>
+            u.source === "signup" && isTodayLocalBrowser(u.createdAt),
+        ).length;
     console.log("usersusers", users);
 
     setStats({
@@ -570,7 +587,16 @@ const [callStats, setCallStats] = useState(null);
       todayMetaLeads,
       todaySignups,
     });
-  }, [pagination, users, connectedBusinessUsers, role]);
+  }, [
+    pagination,
+    users,
+    connectedBusinessUsers,
+    role,
+    isAgent,
+    isManager,
+    todayUsersMetaLeads,
+    todayUsersSignups,
+  ]);
 
   const fetchAgentStats = async () => {
     const adminEmail = localStorage.getItem("email");
@@ -981,6 +1007,7 @@ const [callStats, setCallStats] = useState(null);
         setTodayUsersCount(data.todayUsersCount || 0);
         setTodayUsersMetaLeads(data.todayMetaLeads || 0);
         setTodayUsersSignups(data.todaySignups || 0);
+        setTodayLeadWindowLabel(data.todayWindow?.displayLabel || "");
       }
     } catch (error) {
       console.error("Error fetching today's users count:", error);
@@ -2224,18 +2251,63 @@ const handleVoiceCall = async (phone) => {
             </div>
           )}
 
-          {/* Users Today */}
-          <div className="bg-gradient-to-br w-50 h-15 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
+          {/* Users Today — Meta (bulk-upload) vs Signup vs total (IST / APP_TIMEZONE via API) */}
+          <div
+            className={`bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all ${
+              (role === "superAdmin" ||
+                role === "admin" ||
+                role === "superfranchiseAdmin") &&
+              !isManager
+                ? "md:col-span-2"
+                : ""
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm text-teal-700 font-medium">
                   {isAgent ? "Calls Today" : "Users Today"}
                 </p>
-                <p className="text-lg font-bold text-teal-800 ">
-                  {displayTodayUsersCount}
-                </p>
+                {(role === "superAdmin" ||
+                  role === "admin" ||
+                  role === "superfranchiseAdmin") &&
+                !isAgent &&
+                !isManager ? (
+                  <>
+                    <p
+                      className="text-[10px] text-teal-600/90 leading-tight mt-0.5 line-clamp-2"
+                      title={todayLeadWindowLabel}
+                    >
+                      {todayLeadWindowLabel ||
+                        "Calendar day (Asia/Kolkata / app timezone)"}
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
+                      <span title="Meta instant form + imports tagged bulk-upload">
+                        Meta (bulk-upload):{" "}
+                        <b className="text-base text-teal-950 tabular-nums">
+                          {todayUsersMetaLeads}
+                        </b>
+                      </span>
+                      <span>
+                        Signup:{" "}
+                        <b className="text-base text-teal-950 tabular-nums">
+                          {todayUsersSignups}
+                        </b>
+                      </span>
+                      <span>
+                        Total:{" "}
+                        <b className="text-base text-teal-950 tabular-nums">
+                          {todayUsersCount}
+                        </b>
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-lg font-bold text-teal-800 ">
+                    {displayTodayUsersCount}
+                  </p>
+                )}
               </div>
-              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
                 <User className="text-teal-700" size={18} />
               </div>
             </div>

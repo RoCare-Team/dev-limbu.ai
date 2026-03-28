@@ -79,7 +79,7 @@ export default function AdminLayout({ children }) {
     { name: "Demo Leads", icon: <LeaderboardSharp />, href: "/admin/demoBook", key: "manageLeads" },
 
     { name: "Franchise Lead", icon: <LucideHeadset />, href: "/admin/franchise/franchise-lead", key: "manageFranchise" },
-    { name: "Tata Dialer Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
+    { name: "Tata Dialer User Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
     { name: "Create Franchise", icon: <LeaderboardSharp />, href: "/admin/create-franchise" },
         { name: "Account Manager", icon: <UserSquare size={18} />, href: "/admin/manager-assignment" },
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, useMemo } from "react";
+import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
+/* user-management */
 import {
   Search,
   Filter,
@@ -31,17 +33,19 @@ import {
   Rocket,
   Clock,
   CheckCircle,
+  UserCheck,
   Globe,
   Bell,
   Upload,
 } from "lucide-react";
+import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
+import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -110,6 +114,7 @@ export default function UserManagement() {
     passcode: "",
   });
   const [todayStats, setTodayStats] = useState({ count: 0, assignments: [] });
+  const [agentTodayLeads, setAgentTodayLeads] = useState(0);
   const [leadSourceStats, setLeadSourceStats] = useState({
     metaLeads: 0,
     signupLeads: 0,
@@ -117,6 +122,8 @@ export default function UserManagement() {
   const [todayUsersCount, setTodayUsersCount] = useState(0);
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
   const [todayUsersSignups, setTodayUsersSignups] = useState(0);
+  /** Matches API getTodayUsersCount (Asia/Kolkata / APP_TIMEZONE calendar day). */
+  const [todayLeadWindowLabel, setTodayLeadWindowLabel] = useState("");
   const [leadStatusStats, setLeadStatusStats] = useState({
     Hot: 0,
     Warm: 0,
@@ -129,7 +136,27 @@ const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
   const [agentCallHistory, setAgentCallHistory] = useState([]);
   const [callingUserId, setCallingUserId] = useState(null);
-  
+  const [followUpDate, setFollowUpDate] = useState("");
+  /** HH:mm — combined with followUpDate when saving follow-up */
+  const [followUpTime, setFollowUpTime] = useState("09:00");
+  const [followUpStats, setFollowUpStats] = useState({
+    totalFollowUps: 0,
+    todayFollowUps: 0,
+    tomorrowFollowUps: 0,
+    next7DaysFollowUps: 0,
+    thisMonthFollowUps: 0,
+    byAgent: [],
+    leads: [],
+  });
+  const [followUpFilter, setFollowUpFilter] = useState("all");
+  const [followUpLeads, setFollowUpLeads] = useState([]);
+  const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+  const [followUpTableUsers, setFollowUpTableUsers] = useState([]);
+  const [loadingFollowUpTable, setLoadingFollowUpTable] = useState(false);
+  const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
+  const [byAgentOpen, setByAgentOpen] = useState(false);
+  const [adminFollowUpLeadsOpen, setAdminFollowUpLeadsOpen] = useState(false);
+
 // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
@@ -187,25 +214,85 @@ const [callStats, setCallStats] = useState(null);
   const isManager = role === "manager";
 
   const displayTodayUsersCount = useMemo(() => {
-    if ((isAgent || isManager) && currentAgentId) {
+    // For agents the API now returns todayLeads scoped to that agent directly
+    if (isAgent) return agentTodayLeads;
+    if (isManager && currentAgentId) {
       const assignment = todayStats.assignments.find(
-        (a) => a._id === currentAgentId,
+        (a) => String(a._id) === String(currentAgentId),
       );
       return assignment ? assignment.count : 0;
     }
     return todayUsersCount;
-  }, [isAgent, isManager, currentAgentId, todayStats, todayUsersCount]);
+  }, [isAgent, isManager, currentAgentId, agentTodayLeads, todayStats, todayUsersCount]);
 
   const displayTotalChatsCount = useMemo(() => {
     if (isAgent || isManager) {
-      // Filter chats for agent's/users (based on loaded users for now, consistent with modal)
-      // Ideally backend should provide this count
+      const scopeUsers =
+        isAgent && followUpFilter !== "all" ? followUpTableUsers : users;
       return chatStats.data.filter((chat) =>
-        users.some((u) => u.userId === chat.userId),
+        scopeUsers.some((u) => u.userId === chat.userId),
       ).length;
     }
     return chatStats.total;
-  }, [isAgent, isManager, chatStats, users]);
+  }, [isAgent, isManager, chatStats, users, followUpFilter, followUpTableUsers]);
+
+  /** Agent: table rows loaded via byUserIds (paginated `users` often omits follow-up leads) */
+  const filteredUsers = useMemo(() => {
+    let list =
+      !isAgent || followUpFilter === "all" ? users : followUpTableUsers;
+    if (isAgent && followUpFilter !== "all" && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((u) => {
+        const hay = `${u.email || ""} ${u.userId || ""} ${u.phone || ""} ${u.mobileNumber || ""} ${u.fullName || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    return list;
+  }, [
+    users,
+    isAgent,
+    followUpFilter,
+    followUpTableUsers,
+    searchQuery,
+  ]);
+
+  const followUpMetaByUserId = useMemo(() => {
+    const m = new Map();
+    for (const l of followUpLeads) {
+      if (!l?.userId) continue;
+      const k = String(l.userId);
+      if (!m.has(k)) m.set(k, l.followUpDate);
+    }
+    return m;
+  }, [followUpLeads]);
+
+  const agentFollowUpFilterLabel = useMemo(() => {
+    const labels = {
+      today: "Today",
+      tomorrow: "Tomorrow",
+      next7days: "Next 7 days",
+      thisMonth: "This month",
+      all: "All time",
+    };
+    return labels[followUpFilter] || followUpFilter;
+  }, [followUpFilter]);
+
+  const followUpVoiceItems = useMemo(
+    () =>
+      (followUpLeads || []).map((l, idx) => ({
+        kind: "user",
+        id: `${l.userId}-${idx}`,
+        name: l.fullName || l.phone || String(l.userId || "") || "User",
+        phone: l.phone || "",
+        userId: l.userId,
+        followUpDate: l.followUpDate,
+      })),
+    [followUpLeads],
+  );
+  useFollowUpVoiceAlerts(followUpVoiceItems, {
+    enabled: Boolean(isAgent),
+    onDueAlert: setFollowUpDueAlert,
+  });
 
   const defaultRemarks = [
     "Call Not Picked",
@@ -217,6 +304,8 @@ const [callStats, setCallStats] = useState(null);
     "Meeting Scheduled",
   ];
 
+  const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+
   const handleDefaultRemarkClick = (remark) => {
     if (remark === "Meeting Scheduled") {
       setShowMeetingModal(true);
@@ -224,6 +313,10 @@ const [callStats, setCallStats] = useState(null);
     }
     const adminName = localStorage.getItem("adminName") || "Admin";
     setRemarksInput(`${remark} - ${adminName}`);
+    if (!FOLLOW_UP_REMARKS.some((r) => remark.startsWith(r))) {
+      setFollowUpDate("");
+      setFollowUpTime("09:00");
+    }
   };
 
   const showToast = (message, type = "success") => {
@@ -306,7 +399,7 @@ const [callStats, setCallStats] = useState(null);
 
   useEffect(() => {
     setRole(localStorage.getItem("role"));
-    setCurrentAgentId(localStorage.getItem("userId"));
+    setCurrentAgentId(localStorage.getItem("adminId") || localStorage.getItem("userId"));
   }, []);
 
   useEffect(() => {
@@ -365,21 +458,89 @@ const [callStats, setCallStats] = useState(null);
   useEffect(() => {
     const fetchCallStats = async () => {
       const adminEmail = localStorage.getItem("email");
-      if (!adminEmail || (role !== "superAdmin" && role !== "admin")) return;
+      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
 
       try {
-        const res = await fetch(`/api/admin/call-stats?email=${adminEmail}`);
-        const data = await res.json();
-        if (data.success) {
-          setCallStats(data.stats);
-        }
+        const [callRes, followUpRes] = await Promise.all([
+          fetch(`/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`),
+          fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`),
+        ]);
+        const callData = await callRes.json();
+        const followUpData = await followUpRes.json();
+
+        if (callData.success) setCallStats(callData.stats);
+        if (followUpData.success) setFollowUpStats(followUpData.stats);
       } catch (error) {
-        console.error("Failed to fetch call stats:", error);
+        console.error("Failed to fetch call/follow-up stats:", error);
       }
     };
 
     fetchCallStats();
-  }, [role, users]); // Refetch on role change or when user data updates
+  }, [role, users]);
+
+  // Fetch follow-up leads when filter tab changes
+  useEffect(() => {
+    const fetchFollowUpLeads = async () => {
+      const adminEmail = localStorage.getItem("email");
+      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
+
+      setLoadingFollowUps(true);
+      try {
+        const res = await fetch(
+          `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`
+        );
+        const data = await res.json();
+        if (data.success) {
+          setFollowUpLeads(data.stats.leads || []);
+          // Update bucket counts without overwriting leads
+          setFollowUpStats(prev => ({ ...prev, ...data.stats }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch follow-up leads:", err);
+      } finally {
+        setLoadingFollowUps(false);
+      }
+    };
+
+    fetchFollowUpLeads();
+  }, [role, followUpFilter]);
+
+  useEffect(() => {
+    if (!isAgent || followUpFilter === "all") {
+      setFollowUpTableUsers([]);
+      setLoadingFollowUpTable(false);
+      return;
+    }
+    const adminEmail = localStorage.getItem("email");
+    const uniqueIds = [
+      ...new Set(
+        followUpLeads.map((l) => l?.userId).filter(Boolean).map(String),
+      ),
+    ];
+    if (!adminEmail || uniqueIds.length === 0) {
+      setFollowUpTableUsers([]);
+      setLoadingFollowUpTable(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingFollowUpTable(true);
+    fetchFollowUpTableUsersByIds(adminEmail, uniqueIds)
+      .then((merged) => {
+        if (!cancelled) setFollowUpTableUsers(merged);
+      })
+      .catch((e) => {
+        console.error("Follow-up table users fetch failed:", e);
+        if (!cancelled) setFollowUpTableUsers([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingFollowUpTable(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAgent, followUpFilter, followUpLeads]);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -392,14 +553,29 @@ const [callStats, setCallStats] = useState(null);
       (u) => u.subscription?.plan === "Premium",
     ).length;
     const active = connectedBusinessUsers.length;
-    const todayMetaLeads = users.filter(
-      (u) =>
-        (u.source === "bulk-upload" || u.source === "Meta Leads") &&
-        new Date(u.createdAt).toDateString() === new Date().toDateString(),
-    ).length;
-    const todaySignups = users.filter(
-      (u) => new Date(u.createdAt).toDateString() === new Date().toDateString(),
-    ).length;
+    const isMetaLeadSource = (src) =>
+      src === "bulk-upload" ||
+      src === "Meta Leads" ||
+      src === "Meta";
+    const isTodayLocalBrowser = (createdAt) =>
+      new Date(createdAt).toDateString() === new Date().toDateString();
+    const useApiTodayBreakdown =
+      (role === "superAdmin" ||
+        role === "admin" ||
+        role === "superfranchiseAdmin") &&
+      !isAgent &&
+      !isManager;
+    const todayMetaLeads = useApiTodayBreakdown
+      ? todayUsersMetaLeads
+      : users.filter(
+          (u) => isMetaLeadSource(u.source) && isTodayLocalBrowser(u.createdAt),
+        ).length;
+    const todaySignups = useApiTodayBreakdown
+      ? todayUsersSignups
+      : users.filter(
+          (u) =>
+            u.source === "signup" && isTodayLocalBrowser(u.createdAt),
+        ).length;
     console.log("usersusers", users);
 
     setStats({
@@ -411,7 +587,16 @@ const [callStats, setCallStats] = useState(null);
       todayMetaLeads,
       todaySignups,
     });
-  }, [pagination, users, connectedBusinessUsers, role]);
+  }, [
+    pagination,
+    users,
+    connectedBusinessUsers,
+    role,
+    isAgent,
+    isManager,
+    todayUsersMetaLeads,
+    todayUsersSignups,
+  ]);
 
   const fetchAgentStats = async () => {
     const adminEmail = localStorage.getItem("email");
@@ -450,12 +635,15 @@ const [callStats, setCallStats] = useState(null);
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
         setDetailedStats(data.detailedStats || []);
+        setLeadStatusStats(data.leadStatusStats || { Hot: 0, Warm: 0, Cold: 0 });
 
         if (data.todayLeads !== undefined) {
           setTodayStats({
             count: data.todayLeads,
             assignments: data.todayAgentAssignments || [],
           });
+          // For agents, API returns todayLeads scoped to their own assignments
+          if (isAgent) setAgentTodayLeads(data.todayLeads);
         }
 
         setLeadSourceStats({
@@ -819,6 +1007,7 @@ const [callStats, setCallStats] = useState(null);
         setTodayUsersCount(data.todayUsersCount || 0);
         setTodayUsersMetaLeads(data.todayMetaLeads || 0);
         setTodayUsersSignups(data.todaySignups || 0);
+        setTodayLeadWindowLabel(data.todayWindow?.displayLabel || "");
       }
     } catch (error) {
       console.error("Error fetching today's users count:", error);
@@ -1526,8 +1715,38 @@ const [callStats, setCallStats] = useState(null);
     }
 
     // Get current admin info for call tracking
-    const adminId = localStorage.getItem("userId");
+    const adminId = localStorage.getItem("adminId");
     const adminName = localStorage.getItem("adminName") || "Admin";
+
+    let followUpIso = null;
+    if (followUpDate) {
+      const rawT = followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim())
+        ? followUpTime.trim()
+        : "09:00";
+      const [hh, mm] = rawT.split(":");
+      const d = new Date(
+        `${followUpDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`,
+      );
+      if (!Number.isNaN(d.getTime())) followUpIso = d.toISOString();
+    }
+    const hasValidPickerFu =
+      Boolean(followUpIso) && !Number.isNaN(new Date(followUpIso).getTime());
+    if (!hasValidPickerFu) {
+      const trimmed = String(remarksInput).trim();
+      const isFu = FOLLOW_UP_REMARKS.some((r) => trimmed.startsWith(r));
+      if (isFu) {
+        const prev = [...(remarksModalUser.remarksHistory || [])]
+          .reverse()
+          .find((r) => r.followUpDate);
+        if (prev?.followUpDate) {
+          followUpIso = new Date(prev.followUpDate).toISOString();
+        } else {
+          followUpIso = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        }
+      } else {
+        followUpIso = null;
+      }
+    }
 
     try {
       const res = await fetch("/api/users", {
@@ -1539,15 +1758,41 @@ const [callStats, setCallStats] = useState(null);
           messageSent,
           agentId: adminId,
           agentName: adminName,
+          ...(followUpIso &&
+            !Number.isNaN(new Date(followUpIso).getTime()) && {
+              followUpDate: followUpIso,
+            }),
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setRemarksHistory(data.user.remarksHistory || []);
-
+        const updatedUser = data.user;
+        // Update in-memory list without full refetch
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
+          ),
+        );
+        setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
+        setFollowUpDate("");
+        setFollowUpTime("09:00");
         showToast("Remark added successfully", "success");
-        fetchUsers();
+        setRemarksModalUser(null);
+        const trimmedR = remarksInput.trim();
+        const refreshFu =
+          (followUpIso &&
+            !Number.isNaN(new Date(followUpIso).getTime())) ||
+          FOLLOW_UP_REMARKS.some((r) => trimmedR.startsWith(r));
+        if (refreshFu) {
+          const adminEmail = localStorage.getItem("email");
+          if (adminEmail) {
+            fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`)
+              .then(r => r.json())
+              .then(d => { if (d.success) { setFollowUpLeads(d.stats.leads || []); setFollowUpStats(prev => ({ ...prev, ...d.stats })); } })
+              .catch(() => {});
+          }
+        }
       } else {
         showToast(data.error || "Failed to add remark", "error");
       }
@@ -1621,10 +1866,15 @@ const handleVoiceCall = async (phone) => {
       });
       const data = await res.json();
       if (data.success) {
-        setRemarksHistory(data.user.remarksHistory || []);
+        const updatedUser = data.user;
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
+          ),
+        );
+        setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
         showToast("Meeting scheduled successfully", "success");
-        fetchUsers();
         setShowMeetingModal(false);
         setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
       } else {
@@ -1698,9 +1948,15 @@ const handleVoiceCall = async (phone) => {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.user) {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.userId === data.user.userId ? { ...u, ...data.user } : u,
+            ),
+          );
+        }
         showToast("Remarks updated successfully", "success");
         setRemarksModalUser(null);
-        fetchUsers();
       } else {
         showToast(data.error || "Failed to update remarks", "error");
       }
@@ -1726,11 +1982,6 @@ const handleVoiceCall = async (phone) => {
       setCurrentPage(newPage);
     }
   };
-
-  // Since we are doing server-side filtering, filteredUsers is just users.
-  useEffect(() => {
-    setFilteredUsers(users);
-  }, [users]);
 
   console.log("agentsagents", agents);
   console.log("agentStatsagentStatsagentStats", stageStats);
@@ -1804,35 +2055,54 @@ const handleVoiceCall = async (phone) => {
       )}
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-          {/* LEFT SIDE (Assignments) */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+            User Management
+          </h1>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              title={isRefreshingMetaLeads ? "Refreshing…" : "Refresh Meta Leads"}
+              onClick={() => handleRefreshMetaLeads(true)}
+              disabled={isRefreshingMetaLeads}
+              className="p-2 rounded-lg border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 shadow-sm transition-all disabled:opacity-50"
+            >
+              <RefreshCw size={18} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
+            </button>
+            <button
+              type="button"
+              title="Add User"
+              onClick={() => setAddingUser(true)}
+              className="p-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-sm transition-all"
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           {(role === "superAdmin" ||
             role === "admin" ||
             role === "superfranchiseAdmin") &&
             agents.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-bold text-gray-700">
+              <div className="space-y-2 w-full">
+                <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">
                   Total Assignments
                 </h3>
-
-                <div className="flex flex-wrap gap-3">
-                  {/* Unassigned */}
+                <div className="flex flex-wrap gap-2">
                   <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+                    className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-medium ${getAvatarColor("Unassigned")}`}
                   >
                     <User className="w-3 h-3" />
                     <span>Unassigned: {agentStats.unassigned || 0}</span>
                   </div>
-
-                  {/* Assigned Agents */}
                   {agents.map((agent) => {
                     const count = agentStats[agent._id.toString()] || 0;
                     if (count === 0) return null;
-
                     return (
                       <div
                         key={agent._id}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor(agent.fullName)}`}
+                        className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-medium ${getAvatarColor(agent.fullName)}`}
                       >
                         <User className="w-3 h-3" />
                         <span>
@@ -1844,50 +2114,10 @@ const handleVoiceCall = async (phone) => {
                 </div>
               </div>
             )}
-
-          {/* RIGHT SIDE BUTTONS */}
-          <div className="flex gap-3 ml-auto">
-            <button
-              onClick={() => handleRefreshMetaLeads(true)}
-              disabled={isRefreshingMetaLeads}
-              className="
-        flex items-center gap-2 px-6 py-3 
-        bg-white text-indigo-600 
-        border border-indigo-200
-        hover:bg-indigo-50 
-        rounded-xl shadow-sm hover:shadow-md 
-        transition-all font-medium
-      "
-            >
-              <RefreshCw
-                size={20}
-                className={isRefreshingMetaLeads ? "animate-spin" : ""}
-              />
-              {isRefreshingMetaLeads ? "Refreshing..." : "Refresh Leads"}
-            </button>
-
-            <button
-              onClick={() => setAddingUser(true)}
-              className="
-        flex items-center gap-2 px-6 py-3 
-        bg-gradient-to-r from-indigo-600 to-purple-600 
-        hover:from-indigo-700 hover:to-purple-700 
-        text-white 
-        rounded-xl shadow-lg 
-        hover:shadow-xl 
-        transition-all
-      "
-            >
-              <Plus size={20} className="text-white" />
-              Add User
-            </button>
-          </div>
         </div>
 
-        {/* Call Stats */}
-
-        {/* Main Stats Cards - Size Reduced */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
+        {/* Main Stats Cards — hidden for agents (they have their own performance panel below) */}
+        {!isAgent && <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
           {/* Total Users */}
           <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
@@ -2021,20 +2251,86 @@ const handleVoiceCall = async (phone) => {
             </div>
           )}
 
-          {/* Users Today */}
-          <div className="bg-gradient-to-br w-50 h-15 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-teal-700 font-medium">Users Today</p>
-                <p className="text-lg font-bold text-teal-800 ">
-                  {displayTodayUsersCount}
+          {/* Users Today — Meta (bulk-upload) vs Signup vs total (IST / APP_TIMEZONE via API) */}
+          <div
+            className={`bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all ${
+              (role === "superAdmin" ||
+                role === "admin" ||
+                role === "superfranchiseAdmin") &&
+              !isManager
+                ? "md:col-span-2"
+                : ""
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-teal-700 font-medium">
+                  {isAgent ? "Calls Today" : "Users Today"}
                 </p>
+                {(role === "superAdmin" ||
+                  role === "admin" ||
+                  role === "superfranchiseAdmin") &&
+                !isAgent &&
+                !isManager ? (
+                  <>
+                    <p
+                      className="text-[10px] text-teal-600/90 leading-tight mt-0.5 line-clamp-2"
+                      title={todayLeadWindowLabel}
+                    >
+                      {todayLeadWindowLabel ||
+                        "Calendar day (Asia/Kolkata / app timezone)"}
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
+                      <span title="Meta instant form + imports tagged bulk-upload">
+                        Meta Leads:{" "}
+                        <b className="text-base text-teal-950 tabular-nums">
+                          {todayUsersMetaLeads}
+                        </b>
+                      </span>
+                      <span>
+                        Signup:{" "}
+                        <b className="text-base text-teal-950 tabular-nums">
+                          {todayUsersSignups}
+                        </b>
+                      </span>
+                      <span>
+                        Total:{" "}
+                        <b className="text-base text-teal-950 tabular-nums">
+                          {todayUsersCount}
+                        </b>
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-lg font-bold text-teal-800 ">
+                    {displayTodayUsersCount}
+                  </p>
+                )}
               </div>
-              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
                 <User className="text-teal-700" size={18} />
               </div>
             </div>
           </div>
+
+          {/* Total Calls Assigned — Agent only */}
+          {isAgent && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
+                    Total Assigned
+                  </p>
+                  <p className="text-lg font-bold text-indigo-800 mt-1">
+                    {stats.total ?? 0}
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
+                  <UserCheck className="text-indigo-700" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Total Revenue - Role-based visibility */}
           {(role === "superAdmin" ||
@@ -2065,13 +2361,99 @@ const handleVoiceCall = async (phone) => {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
-        {/* Chat Stats Cards - Separate Row */}
-        <div className="grid grid-cols-2 md:grid-cols-5  mb-6">
+        {/* ── Agent Performance Dashboard ──────────────────────────────── */}
+        {isAgent && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4 space-y-3">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <Phone className="text-indigo-600" size={16} />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">My Performance</h3>
+              </div>
+              <span className="text-xs text-gray-400">
+                {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            </div>
+
+            {/* ── Row 1: Leads & Calls ── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[
+                { label: "Today's Leads",  value: agentTodayLeads,              sub: "assigned today",   from: "from-teal-50",   to: "to-cyan-50",   border: "border-teal-100",   text: "text-teal-600",   bold: "text-teal-800"   },
+                { label: "Total Leads",    value: stats.total ?? 0,             sub: "all-time assigned", from: "from-indigo-50", to: "to-blue-50",   border: "border-indigo-100", text: "text-indigo-600", bold: "text-indigo-800" },
+                { label: "Calls Today",    value: callStats?.myCallsToday ?? 0, sub: "handled today",    from: "from-violet-50", to: "to-purple-50", border: "border-violet-100", text: "text-violet-600", bold: "text-violet-800" },
+                { label: "Total Calls",    value: callStats?.myCallsTotal ?? 0, sub: "all-time calls",   from: "from-blue-50",   to: "to-sky-50",    border: "border-blue-100",   text: "text-blue-600",   bold: "text-blue-800"   },
+              ].map(({ label, value, sub, from, to, border, text, bold }) => (
+                <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}>{label}</p>
+                  <p className={`text-lg font-bold mt-0.5 ${bold}`}>{value}</p>
+                  <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>{sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Row 2: Follow-up quick stats (clickable → filter leads below) ── */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {[
+                { key: "today",     label: "Today",        count: followUpStats.todayFollowUps,     bg: "bg-amber-500",  ring: "ring-amber-400"  },
+                { key: "tomorrow",  label: "Tomorrow",     count: followUpStats.tomorrowFollowUps,  bg: "bg-rose-500",   ring: "ring-rose-400"   },
+                { key: "next7days", label: "Next 7 days",  count: followUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
+                { key: "thisMonth", label: "This Month",   count: followUpStats.thisMonthFollowUps, bg: "bg-emerald-500",ring: "ring-emerald-400"},
+                { key: "all",       label: "All Time",     count: followUpStats.totalFollowUps,     bg: "bg-gray-600",   ring: "ring-gray-400"   },
+              ].map(({ key, label, count, bg, ring }) => {
+                const active = followUpFilter === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFollowUpFilter(key)}
+                    className={`rounded-lg p-2 border-2 text-left transition-all ${
+                      active
+                        ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}>Follow-ups</p>
+                    <p className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}>{count}</p>
+                    <p className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}>{label}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Pending follow-ups — same bucket as the table filter */}
+           
+
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Stages &amp; temperature</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: "Active", v: stageStats["Active"] ?? 0, cls: "bg-green-50 text-green-800 border-green-200" },
+                  { label: "Follow Up", v: stageStats["Follow Up"] ?? 0, cls: "bg-amber-50 text-amber-900 border-amber-200" },
+                  { label: "Inactive", v: stageStats["Inactive"] ?? 0, cls: "bg-gray-50 text-gray-800 border-gray-200" },
+                  { label: "Onboard", v: stageStats["Onboard"] ?? 0, cls: "bg-blue-50 text-blue-800 border-blue-200" },
+                  { label: "Hot", v: leadStatusStats.Hot ?? 0, cls: "bg-red-50 text-red-800 border-red-200" },
+                  { label: "Warm", v: leadStatusStats.Warm ?? 0, cls: "bg-orange-50 text-orange-800 border-orange-200" },
+                  { label: "Cold", v: leadStatusStats.Cold ?? 0, cls: "bg-sky-50 text-sky-800 border-sky-200" },
+                ].map(({ label, v, cls }) => (
+                  <div key={label} className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}>
+                    <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">{label}</p>
+                    <p className="text-sm font-black leading-tight tabular-nums">{v}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {/* Total Chats */}
           <div
-            className=" w-50 h-15 bg-white rounded-lg p-3 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
             onClick={() => {
               setChatModalFilter("all");
               setShowChatStatsModal(true);
@@ -2080,21 +2462,48 @@ const handleVoiceCall = async (phone) => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Chats</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Chats</p>
+                <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {displayTotalChatsCount}
                 </p>
               </div>
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                 <MessageSquare className="text-orange-600" size={20} />
               </div>
             </div>
           </div>
 
+          {isAgent && (
+            <div
+              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-3 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer min-h-[72px] group"
+              onClick={() => {
+                fetchRevenueUsers();
+                setShowRevenueUsersModal(true);
+              }}
+              title="Click to view onboarded users"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide group-hover:underline">
+                    My Revenue
+                  </p>
+                  <p className="text-lg font-bold text-emerald-800 mt-0.5">
+                    ₹{totalRevenue.toLocaleString()}
+                  </p>
+                </div>
+                <div className="w-8 h-8 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0">
+                  <Wallet className="text-emerald-700" size={18} />
+                </div>
+              </div>
+            </div>
+          )}
+
+        
+
           {/* Chats Today */}
           {!isAgent && (
             <div
-              className="w-50 h-15  bg-white rounded-lg p-3 pt-2 pt-2  shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
               onClick={() => {
                 setChatModalFilter("today");
                 setShowChatStatsModal(true);
@@ -2120,7 +2529,7 @@ const handleVoiceCall = async (phone) => {
           {/* Resolved */}
           {!isAgent && (
             <div
-              className="w-50 h-15 bg-white rounded-lg p-3 pt-2 pt-2 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+              className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
               onClick={() => {
                 setChatModalFilter("resolved");
                 setShowChatStatsModal(true);
@@ -2154,42 +2563,330 @@ const handleVoiceCall = async (phone) => {
             </div>
           </div> */}
         </div>
-        {callStats && (role === "superAdmin" || role === "admin") && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Call Performance
-            </h2>
+        {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
+      {(role === "superAdmin" || role === "admin") && todayStats.assignments.length > 0 && (
+  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-2">
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {/* Total Calls */}
-              <div className="bg-blue-50 w-40 h-15 border border-blue-200 rounded-xl p-3 flex flex-col">
-                <span className="text-xs text-blue-700 font-medium">
-                  Total Calls Today
-                </span>
-                <span className="text-lg font-bold text-blue-800">
-                  {callStats.totalCallsToday}
+    {/* Header */}
+    <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center gap-1">
+        <div className="w-6 h-6 bg-teal-100 rounded-md flex items-center justify-center">
+          <UserCheck className="text-teal-600" size={12} />
+        </div>
+        <h3 className="text-[11px] font-semibold text-gray-700 uppercase">
+        Today  Lead Assignments
+        </h3>
+      </div>
+
+      <span className="bg-teal-50 text-teal-700 text-[10px] font-medium px-2 py-[2px] rounded-full border border-teal-200">
+        {todayStats.assignments.reduce((s, a) => s + (a.count || 0), 0)}
+      </span>
+    </div>
+
+    {/* Cards */}
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+      {todayStats.assignments
+        .slice()
+        .sort((a, b) => (b.count || 0) - (a.count || 0))
+        .map((agent, idx) => {
+          const colors = [
+            ["bg-indigo-100", "text-indigo-800", "bg-indigo-500"],
+            ["bg-teal-100", "text-teal-800", "bg-teal-500"],
+            ["bg-blue-100", "text-blue-800", "bg-blue-500"],
+            ["bg-purple-100", "text-purple-800", "bg-purple-500"],
+          ];
+          const [bg, text, badge] = colors[idx % colors.length];
+
+          return (
+            <div
+              key={agent._id || idx}
+              className={`min-w-[110px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
+            >
+              <div className="flex items-center gap-1">
+                <div className={`w-4 h-4 rounded-full ${badge} flex items-center justify-center text-white text-[9px]`}>
+                  {(agent.agentName || "?")[0]}
+                </div>
+                <span className={`text-[10px] truncate ${text}`}>
+                  {agent.agentName}
                 </span>
               </div>
 
-              {/* Agent Calls */}
-              {callStats.todayCallsByAgent.map((agent) => (
-                <div
-                  key={agent.agentId || agent.agentName}
-                  className="bg-gray-50 w-40 h-15 border border-gray-200 rounded-xl p-2 flex flex-col"
-                >
-                  <span className="text-xs text-gray-600 truncate">
-                    {agent.agentName}
-                  </span>
-                  <span className="text-lg font-bold text-gray-900">
-                    {agent.count}
-                  </span>
+              <span className={`text-sm font-bold leading-tight ${text}`}>
+                {agent.count || 0}
+              </span>
+
+              <span className="text-[9px] text-gray-400 leading-none">
+                leads
+              </span>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+)}
+
+        {callStats && (role === "superAdmin" || role === "admin") && (
+          <div className="mb-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-3 py-2 md:px-4 md:py-2.5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-1.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                <Phone className="text-indigo-600" size={16} />
+              </div>
+              <div>
+                <h2 className="text-sm md:text-base font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
+                <p className="text-[10px] text-gray-500 leading-snug">Today&apos;s call volume and scheduled follow-ups across agents</p>
+              </div>
+            </div>
+
+            <div className="p-3 md:p-3.5 space-y-3">
+            {/* Calls today: summary + per-agent scroll */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Calls today</p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
+                <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-lg p-2.5 min-w-[120px] flex flex-col justify-center">
+                  <span className="text-[10px] text-blue-700 font-semibold uppercase">Total</span>
+                  <span className="text-xl font-bold text-blue-900 tabular-nums leading-tight">{callStats.totalCallsToday}</span>
+                  <span className="text-[9px] text-blue-600/80">all agents</span>
+                </div>
+                <div className="flex-1 min-w-0 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+                  <div className="flex gap-1.5 min-w-min">
+                    {(callStats.todayCallsByAgent || []).map((agent) => (
+                      <div
+                        key={agent.agentId || agent.agentName}
+                        className="min-w-[100px] max-w-[128px] bg-gray-50 border border-gray-200 rounded-lg p-2 flex flex-col"
+                      >
+                        <span className="text-[9px] text-gray-500 truncate capitalize" title={agent.agentName}>
+                          {agent.agentName || "—"}
+                        </span>
+                        <span className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{agent.count}</span>
+                        <span className="text-[8px] text-gray-400">calls</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Follow-up buckets */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Follow-up schedule</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {[
+                { label: "Total",      value: followUpStats.totalFollowUps,     bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  bold: "text-amber-800",  sub: "text-amber-500",  note: "all follow-ups"  },
+                { label: "Today",      value: followUpStats.todayFollowUps,     bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    bold: "text-sky-800",    sub: "text-sky-500",    note: "due today"       },
+                { label: "Tomorrow",   value: followUpStats.tomorrowFollowUps,  bg: "bg-rose-50",   border: "border-rose-200",   text: "text-rose-700",   bold: "text-rose-800",   sub: "text-rose-500",   note: "due tomorrow"    },
+                { label: "Next 7 Days",value: followUpStats.next7DaysFollowUps, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", bold: "text-violet-800", sub: "text-violet-500", note: "upcoming"        },
+                { label: "This Month", value: followUpStats.thisMonthFollowUps, bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  bold: "text-green-800",  sub: "text-green-500",  note: "this month"      },
+              ].map(({ label, value, bg, border, text, bold, sub, note }) => (
+                <div key={label} className={`${bg} border ${border} rounded-lg p-2 flex flex-col min-h-[72px] justify-center`}>
+                  <span className={`text-[10px] font-semibold ${text}`}>{label}</span>
+                  <span className={`text-lg font-bold ${bold} tabular-nums mt-0.5 leading-tight`}>{value}</span>
+                  <span className={`text-[9px] ${sub} mt-auto leading-tight`}>{note}</span>
                 </div>
               ))}
             </div>
+            </div>
+
+            {/* ── Per-agent follow-up breakdown table (collapsible) ── */}
+            {(followUpStats.byAgent || []).length > 0 && (
+              <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
+                {/* Toggle header */}
+                <button
+                  onClick={() => setByAgentOpen(prev => !prev)}
+                  className="w-full bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserCheck size={13} className="text-indigo-500" />
+                    <span className="text-xs font-bold text-gray-700">Follow-ups by Agent</span>
+                    <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
+                      {(followUpStats.byAgent || []).length} agents
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
+                    <span>{byAgentOpen ? "Hide" : "Show"}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${byAgentOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
+
+                {/* Collapsible content */}
+                {byAgentOpen && (
+                  <div className="overflow-x-auto max-h-[min(70vh,520px)] border-t border-gray-100">
+                    <table className="w-full text-xs min-w-[640px]">
+                      <thead className="sticky top-0 z-10 shadow-sm">
+                        <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
+                          <th className="px-4 py-2.5 text-left">Agent</th>
+                          <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
+                          <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
+                          <th className="px-3 py-2.5 text-center text-violet-600">7 Days</th>
+                          <th className="px-3 py-2.5 text-center text-green-600">Month</th>
+                          <th className="px-3 py-2.5 text-center text-amber-600">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {(followUpStats.byAgent || []).map((agent, idx) => {
+                          const colors = ["bg-indigo-500","bg-teal-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-blue-500"];
+                          const c = colors[idx % colors.length];
+                          const name = agent.agentName || "Unknown";
+                          return (
+                            <tr key={agent._id || idx} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
+                                    {name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="font-medium text-gray-800 capitalize truncate max-w-[100px]">{name}</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.today || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.tomorrow || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.next7days || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.thisMonth || 0}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{agent.total || 0}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
+                          <td className="px-4 py-2 text-xs text-gray-600 font-bold">ALL AGENTS</td>
+                          <td className="px-3 py-2 text-center text-sky-700 font-black">{followUpStats.todayFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-rose-700 font-black">{followUpStats.tomorrowFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-violet-700 font-black">{followUpStats.next7DaysFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-green-700 font-black">{followUpStats.thisMonthFollowUps}</td>
+                          <td className="px-3 py-2 text-center text-amber-700 font-black">{followUpStats.totalFollowUps}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Follow-up leads (all agents) — collapsible */}
+            <div className="mt-1 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAdminFollowUpLeadsOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar size={13} className="text-violet-500 shrink-0" />
+                  <span className="text-xs font-bold text-gray-700">Follow-up Leads</span>
+                  <span className="text-[10px] text-gray-500 truncate">
+                    (
+                    {{ today: "Today", tomorrow: "Tomorrow", next7days: "Next 7 Days", thisMonth: "This Month", all: "All" }[followUpFilter]}
+                    )
+                  </span>
+                  <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
+                    {followUpLeads.length} leads
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-violet-600 shrink-0 ml-2">
+                  <span>{adminFollowUpLeadsOpen ? "Hide" : "Show"}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${adminFollowUpLeadsOpen ? "rotate-180" : ""}`}
+                  />
+                </div>
+              </button>
+              {adminFollowUpLeadsOpen && (
+                <>
+                  <div className="flex flex-wrap gap-1.5 px-3 py-2 bg-white border-b border-gray-100">
+                    {[
+                      { key: "today", label: "Today" },
+                      { key: "tomorrow", label: "Tomorrow" },
+                      { key: "next7days", label: "7 days" },
+                      { key: "thisMonth", label: "Month" },
+                      { key: "all", label: "All" },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFollowUpFilter(key)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                          followUpFilter === key
+                            ? "bg-violet-600 text-white border-violet-600"
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-auto">
+                    {loadingFollowUps ? (
+                      <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+                        <Clock size={14} className="animate-spin" /> Loading…
+                      </div>
+                    ) : followUpLeads.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
+                        No leads for this filter
+                      </div>
+                    ) : (
+                      <table className="w-full text-xs min-w-[720px]">
+                        <thead className="sticky top-0 bg-gray-100 border-b border-gray-200 z-[1]">
+                          <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500">
+                            <th className="px-3 py-2 font-semibold">Lead</th>
+                            <th className="px-3 py-2 font-semibold">Phone</th>
+                            <th className="px-3 py-2 font-semibold">Agent</th>
+                            <th className="px-3 py-2 font-semibold">Remark</th>
+                            <th className="px-3 py-2 font-semibold text-right">Follow-up</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {followUpLeads.map((lead, idx) => (
+                            <tr key={idx} className="hover:bg-violet-50/40">
+                              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                                {lead.fullName || lead.userId || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
+                              <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
+                                {lead.agentName || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate" title={lead.remark}>
+                                {lead.remark || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
+                                {lead.followUpDate
+                                  ? new Date(lead.followUpDate).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "2-digit",
+                                    })
+                                  : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
           </div>
         )}
 
         <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
+          {isAgent && followUpFilter !== "all" && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
+                <span className="text-indigo-600/90">Table filter:</span>
+                <span className="text-rose-700">{agentFollowUpFilterLabel}</span>
+              </span>
+            </div>
+          )}
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 flex items-center gap-2">
               <div className="relative flex-grow">
@@ -2334,7 +3031,7 @@ const handleVoiceCall = async (phone) => {
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Joined Date
+                    {isAgent && followUpFilter !== "all" ? "Follow-up" : "Joined Date"}
                   </th>
                   <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     User Name
@@ -2376,6 +3073,24 @@ const handleVoiceCall = async (phone) => {
           <div className="overflow-y-auto flex-grow">
             <table className="min-w-full">
               <tbody className="divide-y divide-gray-100">
+                {loadingFollowUpTable &&
+                isAgent &&
+                followUpFilter !== "all" ? (
+                  <tr>
+                    <td colSpan={12} className="text-center py-14">
+                      <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
+                        <RefreshCw
+                          size={28}
+                          className="animate-spin opacity-80"
+                        />
+                        <p className="text-sm font-semibold text-gray-700">
+                          Loading follow-ups ({agentFollowUpFilterLabel})…
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <>
                 {filteredUsers.map((user) => {
                   const postData = userPostsData[user.userId] || {
                     total: 0,
@@ -2389,6 +3104,65 @@ const handleVoiceCall = async (phone) => {
                       onClick={() => handleViewPosts(user)}
                     >
                       <td className="px-6 py-5">
+                        {isAgent && followUpFilter !== "all" ? (
+                          (() => {
+                            const raw = followUpMetaByUserId.get(
+                              String(user.userId),
+                            );
+                            const d = raw ? new Date(raw) : null;
+                            const valid = d && !Number.isNaN(d.getTime());
+                            const now = new Date();
+                            const tmr = new Date(now);
+                            tmr.setDate(tmr.getDate() + 1);
+                            const sameDay = (a, b) =>
+                              valid &&
+                              a.getFullYear() === b.getFullYear() &&
+                              a.getMonth() === b.getMonth() &&
+                              a.getDate() === b.getDate();
+                            const isFuToday = sameDay(d, now);
+                            const isFuTomorrow = sameDay(d, tmr);
+                            return (
+                              <div className="flex items-center gap-2">
+                                <Clock
+                                  size={14}
+                                  className="text-gray-400 shrink-0"
+                                />
+                                <div className="text-sm text-gray-700">
+                                  {valid ? (
+                                    <>
+                                      <div className="font-medium">
+                                        {d.toLocaleString("en-IN", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          hour12: true,
+                                        })}
+                                      </div>
+                                      <div className="flex flex-wrap gap-1 mt-0.5">
+                                        {isFuToday && (
+                                          <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
+                                            Today
+                                          </span>
+                                        )}
+                                        {isFuTomorrow && (
+                                          <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
+                                            Tomorrow
+                                          </span>
+                                        )}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400 italic">
+                                      N/A
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : (
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-gray-400" />
                           <div className="text-sm text-gray-700">
@@ -2416,6 +3190,7 @@ const handleVoiceCall = async (phone) => {
                             )}
                           </div>
                         </div>
+                        )}
                       </td>
 
                       <td className="px-6 py-5">
@@ -2804,9 +3579,10 @@ const handleVoiceCall = async (phone) => {
                     </tr>
                   );
                 })}
-                {filteredUsers.length === 0 && (
+                {!loadingFollowUpTable &&
+                  filteredUsers.length === 0 && (
                   <tr>
-                    <td colSpan="10" className="text-center py-12">
+                    <td colSpan={12} className="text-center py-12">
                       <div className="text-gray-400">
                         <Search size={48} className="mx-auto mb-3 opacity-50" />
                         <p className="text-lg font-medium">No users found</p>
@@ -2817,41 +3593,59 @@ const handleVoiceCall = async (phone) => {
                     </td>
                   </tr>
                 )}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
         </div>
         {/* Pagination Controls */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
-            <span className="text-sm text-gray-600">
-              Page{" "}
-              <span className="font-semibold">{pagination.currentPage}</span> of{" "}
-              <span className="font-semibold">{pagination.totalPages}</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-              >
-                <ChevronLeft size={16} />
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === pagination.totalPages}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-              >
-                Next
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            <span className="text-sm text-gray-600">
-              Total Users:{" "}
-              <span className="font-semibold">{pagination.totalUsers}</span>
-            </span>
+        {isAgent && followUpFilter !== "all" ? (
+          <div className="flex items-center justify-center sm:justify-between gap-2 px-3 py-2 bg-white rounded-b-2xl border-t border-gray-200">
+            <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+              <span className="font-semibold text-gray-800">
+                Showing {filteredUsers.length} users
+              </span>
+              <span className="text-gray-400"> · </span>
+              <span className="text-indigo-700 font-medium">
+                follow-up: {agentFollowUpFilterLabel}
+              </span>
+            </p>
           </div>
+        ) : (
+          pagination &&
+          pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
+              <span className="text-sm text-gray-600">
+                Page{" "}
+                <span className="font-semibold">{pagination.currentPage}</span>{" "}
+                of{" "}
+                <span className="font-semibold">{pagination.totalPages}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pagination.totalPages}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <span className="text-sm text-gray-600">
+                Total Users:{" "}
+                <span className="font-semibold">{pagination.totalUsers}</span>
+              </span>
+            </div>
+          )
         )}
       </div>
 
@@ -3262,7 +4056,7 @@ const handleVoiceCall = async (phone) => {
             </div>
 
             {/* Add Remark Section (Input + Button in one line) */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <input
                 type="text"
                 value={remarksInput}
@@ -3279,6 +4073,94 @@ const handleVoiceCall = async (phone) => {
                 Submit
               </button>
             </div>
+
+            {/* Follow-up date picker — shown when remark requires a callback */}
+            {FOLLOW_UP_REMARKS.some(r => remarksInput.startsWith(r)) && (
+              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Calendar size={13} className="text-amber-600" />
+                  <span className="text-xs font-bold text-amber-700">Schedule Follow-up</span>
+                  {followUpDate && (
+                    <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold tabular-nums">
+                      {new Date(
+                        `${followUpDate}T${(followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim()) ? followUpTime.trim() : "09:00").padStart(5, "0")}:00`,
+                      ).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                </div>
+                {/* Quick date buttons */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { label: "Today",        days: 0 },
+                    { label: "Tomorrow",     days: 1 },
+                    { label: "Next 7 Days",  days: 7 },
+                    { label: "This Month",   days: null },
+                  ].map(({ label, days }) => {
+                    const getDate = () => {
+                      const d = new Date();
+                      if (days === null) {
+                        // last day of this month
+                        d.setMonth(d.getMonth() + 1, 0);
+                      } else {
+                        d.setDate(d.getDate() + days);
+                      }
+                      return d.toISOString().split("T")[0];
+                    };
+                    const val = getDate();
+                    const isActive = followUpDate === val;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setFollowUpDate(isActive ? "" : val)}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                          isActive
+                            ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                            : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Custom date + time */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    className="flex-1 min-w-[8rem] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                  />
+                  <input
+                    type="time"
+                    value={followUpTime}
+                    onChange={(e) => setFollowUpTime(e.target.value)}
+                    disabled={!followUpDate}
+                    className="text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white disabled:opacity-40"
+                  />
+                  {followUpDate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFollowUpDate("");
+                        setFollowUpTime("09:00");
+                      }}
+                      className="text-amber-500 hover:text-red-500 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Default Remarks */}
             <div className="flex flex-wrap gap-2 mb-3">
@@ -3344,6 +4226,22 @@ const handleVoiceCall = async (phone) => {
                             <CheckCircle size={12} className="text-green-500" />
                             <span className="text-[10px] text-green-600 font-medium">
                               Message Sent
+                            </span>
+                          </div>
+                        )}
+
+                        {r.followUpDate && (
+                          <div className="flex items-center gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-0.5 w-fit">
+                            <Calendar size={10} className="text-amber-500" />
+                            <span className="text-[10px] text-amber-700 font-semibold">
+                              Follow-up:{" "}
+                              {new Date(r.followUpDate).toLocaleString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </span>
                           </div>
                         )}
@@ -4718,6 +5616,14 @@ const handleVoiceCall = async (phone) => {
           </div>
         </div>
       )}
+
+      <FollowUpDueAlertModal
+        alert={followUpDueAlert}
+        onDismiss={() => setFollowUpDueAlert(null)}
+        onVoiceCall={
+          followUpDueAlert?.kind === "user" ? handleVoiceCall : undefined
+        }
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { X, Calendar, CheckCircle, MessageSquare } from "lucide-react";
 export default function RemarksModal({
   user,
   onClose,
-  remarksHistory,
+  remarksHistory = [],
   setRemarksHistory,
   fetchUsers,
   setUsers, // 👈 ADD THIS

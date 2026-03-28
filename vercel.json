@@ -10,8 +10,13 @@
       "schedule": "*/20 * * * *"
     },
     {
+      "path": "/api/cron/automation-plans?phase=dailyAutomation",
+      "schedule": "30 5 * * *"
+    },
+    {
       "path": "/api/meta-leads-import?formId=1393275835835157",
       "schedule": "*/10 * * * *"
     }
   ]
 }
+

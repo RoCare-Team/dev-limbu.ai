@@ -42,6 +42,8 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
+import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
+import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 
 /* ---------------- CONFIG ---------------- */
 const PAGE_SIZE = 50;
@@ -97,6 +99,9 @@ const QUICK_REMARKS = [
   "Meeting Scheduled"
 ];
 
+/** Same as user-management: these open the follow-up date picker */
+const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+
 /* ---------------- NORMALIZE LEAD ---------------- */
 const normalizeLead = (lead) => {
   // Treat "Cold" as "None" for backward compatibility
@@ -111,6 +116,7 @@ const normalizeLead = (lead) => {
     assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
     whatsapp_count: lead.whatsapp_count || 0,
     source: lead.source || "meta",
+    ivrMeInterested: lead.ivrMeInterested === true,
   };
 
   if (lead.field_data) {
@@ -118,6 +124,9 @@ const normalizeLead = (lead) => {
       obj[f.name] = f.values?.[0] || "";
     });
   }
+
+  obj.full_name =
+    (obj.full_name || "").trim() || (lead.fullName || "").trim() || "";
 
   return obj;
 };
@@ -149,6 +158,33 @@ export default function FranchiseLeadsPage() {
   const [newLead, setNewLead] = useState({ lead_quality: "None" });
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+
+  const [followUpDateFranchise, setFollowUpDateFranchise] = useState("");
+  const [followUpTimeFranchise, setFollowUpTimeFranchise] = useState("10:00");
+  const [franchiseCallStats, setFranchiseCallStats] = useState(null);
+  const [franchiseFollowUpStats, setFranchiseFollowUpStats] = useState({
+    totalFollowUps: 0,
+    todayFollowUps: 0,
+    tomorrowFollowUps: 0,
+    next7DaysFollowUps: 0,
+    thisMonthFollowUps: 0,
+    byAgent: [],
+    leads: [],
+  });
+  const [franchiseFollowUpFilter, setFranchiseFollowUpFilter] = useState("all");
+  /** All scheduled follow-ups (filter=all) for voice alerts + pending strip */
+  const [franchiseFollowUpLeadsAll, setFranchiseFollowUpLeadsAll] = useState([]);
+  const [franchiseFollowUpLeadsAllLoaded, setFranchiseFollowUpLeadsAllLoaded] =
+    useState(false);
+
+  /** Franchise admins always use a date bucket (no "All time"); supers may use "all". */
+  const franchiseFollowUpTableActive = useMemo(
+    () => role === "franchiseAdmin" || franchiseFollowUpFilter !== "all",
+    [role, franchiseFollowUpFilter],
+  );
+  const [franchiseFollowUpsLoading, setFranchiseFollowUpsLoading] = useState(false);
+  const [franchiseByAgentOpen, setFranchiseByAgentOpen] = useState(false);
+  const [franchiseFollowLeadsOpen, setFranchiseFollowLeadsOpen] = useState(false);
   
   // Revenue state
   const [showRevenueModal, setShowRevenueModal] = useState(false);
@@ -162,6 +198,59 @@ export default function FranchiseLeadsPage() {
   const [onboardBreakdown, setOnboardBreakdown] = useState([]);
   const [editingLeadId, setEditingLeadId] = useState(null);
   const [editNameValue, setEditNameValue] = useState('');
+  const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
+
+  const franchiseFollowUpFilterLabel = useMemo(() => {
+    const labels = {
+      today: "Today",
+      tomorrow: "Tomorrow",
+      next7days: "Next 7 days",
+      thisMonth: "This month",
+      all: "All time",
+    };
+    return labels[franchiseFollowUpFilter] || franchiseFollowUpFilter;
+  }, [franchiseFollowUpFilter]);
+
+  const franchiseVoiceItems = useMemo(() => {
+    const source = franchiseFollowUpLeadsAllLoaded
+      ? franchiseFollowUpLeadsAll
+      : franchiseFollowUpStats.leads || [];
+    return source.map((l, idx) => ({
+      kind: "franchise",
+      id: `${l.leadId}-${idx}`,
+      name: l.fullName || l.phone || String(l.leadId || "") || "Lead",
+      phone: l.phone || "",
+      leadId: l.leadId,
+      followUpDate: l.followUpDate,
+    }));
+  }, [
+    franchiseFollowUpLeadsAllLoaded,
+    franchiseFollowUpLeadsAll,
+    franchiseFollowUpStats.leads,
+  ]);
+
+  const franchisePendingFollowUps = useMemo(() => {
+    if (role !== "franchiseAdmin") return [];
+    const now = Date.now();
+    return (franchiseFollowUpLeadsAll || [])
+      .filter(
+        (l) =>
+          l.followUpDate && new Date(l.followUpDate).getTime() <= now,
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.followUpDate).getTime() -
+          new Date(b.followUpDate).getTime(),
+      );
+  }, [role, franchiseFollowUpLeadsAll]);
+  const franchiseVoiceAlertsEnabled =
+    role === "superAdmin" ||
+    role === "superFranchiseAdmin" ||
+    role === "franchiseAdmin";
+  useFollowUpVoiceAlerts(franchiseVoiceItems, {
+    enabled: franchiseVoiceAlertsEnabled,
+    onDueAlert: setFollowUpDueAlert,
+  });
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
@@ -258,7 +347,8 @@ export default function FranchiseLeadsPage() {
             history[lead.id] = lead.remarks.map(r => ({
               text: r.text,
               timestamp: new Date(r.addedAt).toLocaleString(),
-              user: r.addedBy
+              user: r.addedBy,
+              followUpDate: r.followUpDate,
             })).reverse(); // Show newest first
           }
         });
@@ -273,6 +363,54 @@ export default function FranchiseLeadsPage() {
 
     setLoading(false);
   };
+
+  const openFranchiseRemarkForLeadId = useCallback(
+    async (leadId) => {
+      const idStr = String(leadId);
+      const found = leads.find((l) => String(l.id) === idStr);
+      if (found) {
+        setRemarkModalLead(found);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/franchise-leads?leadId=${encodeURIComponent(idStr)}`,
+        );
+        const data = await res.json();
+        if (!data.success || !data.lead) {
+          toast.error("Lead not found");
+          return;
+        }
+        const L = data.lead;
+        setRemarkModalLead(
+          normalizeLead({
+            id: L.id,
+            created_time: L.createdTime,
+            status: L.status,
+            remarks: L.remarks || [],
+            lead_quality: L.lead_quality,
+            assignedFranchiseAdmin: L.assignedFranchiseAdmin,
+            ivrMeInterested: L.ivrMeInterested,
+            source: "meta",
+            field_data: [
+              { name: "full_name", values: [L.fullName || ""] },
+              { name: "email", values: [L.email || ""] },
+              { name: "phone_number", values: [L.phone || ""] },
+              { name: "city", values: [L.city || ""] },
+              {
+                name: "what_is_your_current_occupation?",
+                values: [L.occupation || ""],
+              },
+              { name: "mention_investment_rang", values: [L.investment || ""] },
+            ],
+          }),
+        );
+      } catch {
+        toast.error("Could not open lead");
+      }
+    },
+    [leads],
+  );
 
   const fetchFranchiseAdmins = useCallback(() => {
     const userRole = localStorage.getItem("role");
@@ -301,6 +439,96 @@ export default function FranchiseLeadsPage() {
     setRole(userRole);
     fetchFranchiseAdmins();
   }, []);
+
+  useEffect(() => {
+    if (role === "franchiseAdmin") {
+      setFranchiseFollowUpFilter((f) => (f === "all" ? "today" : f));
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (remarkModalLead) {
+      setFollowUpDateFranchise("");
+      setFollowUpTimeFranchise("10:00");
+    }
+  }, [remarkModalLead]);
+
+  useEffect(() => {
+    if (!FOLLOW_UP_REMARKS.some((r) => newRemark.startsWith(r))) {
+      setFollowUpDateFranchise("");
+      setFollowUpTimeFranchise("10:00");
+    }
+  }, [newRemark]);
+
+  useEffect(() => {
+    const email = localStorage.getItem("email");
+    const r = localStorage.getItem("role");
+    if (!email || !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")) return;
+    (async () => {
+      try {
+        const cRes = await fetch(`/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`);
+        const cData = await cRes.json();
+        if (cData.success) setFranchiseCallStats(cData.stats);
+      } catch (e) {
+        console.error("Franchise call stats fetch failed", e);
+      }
+    })();
+  }, [leads.length, formId]);
+
+  useEffect(() => {
+    const email = localStorage.getItem("email");
+    const r = localStorage.getItem("role");
+    if (!email || !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")) return;
+    let cancelled = false;
+    (async () => {
+      setFranchiseFollowUpsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`
+        );
+        const data = await res.json();
+        if (!cancelled && data.success) {
+          setFranchiseFollowUpStats((prev) => ({ ...prev, ...data.stats }));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setFranchiseFollowUpsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [franchiseFollowUpFilter, leads.length]);
+
+  useEffect(() => {
+    const email = localStorage.getItem("email");
+    const r = localStorage.getItem("role");
+    if (
+      !email ||
+      !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
+    ) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=all`,
+        );
+        const data = await res.json();
+        if (!cancelled && data.success) {
+          setFranchiseFollowUpLeadsAll(data.stats.leads || []);
+          setFranchiseFollowUpLeadsAllLoaded(true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [leads.length, role]);
 
   /* ---------------- HELPER: COLOR GENERATOR ---------------- */
   const getAvatarColor = (name) => {
@@ -412,8 +640,39 @@ export default function FranchiseLeadsPage() {
       result = result.filter(lead => lead.lead_quality === qualityFilter);
     }
 
+  // Follow-up bucket (tabs) — narrow main table to leads in the selected window (same as agent dashboard)
+    // DISABLED FOR franchiseAdmin: tabs/stats only, no table filter
+    if (franchiseFollowUpTableActive && role !== "franchiseAdmin") {
+      const fuList = franchiseFollowUpStats.leads || [];
+      const seen = new Set();
+      const orderedIds = [];
+      for (const l of fuList) {
+        const id = l?.leadId != null ? String(l.leadId) : "";
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        orderedIds.push(id);
+      }
+      const order = new Map(orderedIds.map((id, i) => [id, i]));
+      result = result.filter((lead) => order.has(String(lead.id)));
+      result.sort(
+        (a, b) =>
+          (order.get(String(a.id)) ?? 999999) -
+          (order.get(String(b.id)) ?? 999999),
+      );
+    }
+
     return result;
-  }, [dateFilteredLeads, search, statusFilter, assigneeFilter, remarkFilter, qualityFilter]);
+  }, [
+    dateFilteredLeads,
+    search,
+    statusFilter,
+    assigneeFilter,
+    remarkFilter,
+    qualityFilter,
+    franchiseFollowUpFilter,
+    franchiseFollowUpTableActive,
+    franchiseFollowUpStats.leads,
+  ]);
 
   /* ---------------- ADMIN COUNTS ---------------- */
   const adminCounts = useMemo(() => {
@@ -435,7 +694,17 @@ export default function FranchiseLeadsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, dateRange, customStartDate, customEndDate, assigneeFilter, remarkFilter, qualityFilter]);
+  }, [
+    search,
+    statusFilter,
+    dateRange,
+    customStartDate,
+    customEndDate,
+    assigneeFilter,
+    remarkFilter,
+    qualityFilter,
+    franchiseFollowUpFilter,
+  ]);
 
   /* ---------------- STATS ---------------- */
   const stats = useMemo(() => {
@@ -935,8 +1204,55 @@ if (!executiveMobile && typeof window !== "undefined") {
       await sendRemarkWhatsApp(remarkModalLead, remarkType);
     }
 
-    const agentId = remarkModalLead.assignedFranchiseAdmin?._id || localStorage.getItem("userId");
-    const agentName = remarkModalLead.assignedFranchiseAdmin?.fullName || localStorage.getItem("adminName") || "Admin";
+    const agentId =
+      remarkModalLead.assignedFranchiseAdmin?._id ||
+      localStorage.getItem("adminId") ||
+      localStorage.getItem("userId");
+    const agentName =
+      remarkModalLead.assignedFranchiseAdmin?.fullName ||
+      localStorage.getItem("adminName") ||
+      "Admin";
+
+    let effectiveFollowUpIso = null;
+    const trimmedNewRemark = newRemark.trim();
+    const isFuFranchise = FOLLOW_UP_REMARKS.some((p) =>
+      trimmedNewRemark.startsWith(p),
+    );
+
+    if (followUpDateFranchise) {
+      const rawT =
+        followUpTimeFranchise &&
+        /^\d{1,2}:\d{2}$/.test(followUpTimeFranchise.trim())
+          ? followUpTimeFranchise.trim()
+          : "10:00";
+      const [hh, mm] = rawT.split(":");
+      const d = new Date(
+        `${followUpDateFranchise}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`,
+      );
+      if (!Number.isNaN(d.getTime())) effectiveFollowUpIso = d.toISOString();
+    }
+
+    if (isFuFranchise && role === "franchiseAdmin") {
+      if (!followUpDateFranchise || !effectiveFollowUpIso) {
+        toast.error(
+          "Select follow-up date and time for Call Not Picked / Call Back Later",
+        );
+        return;
+      }
+    }
+
+    if (!effectiveFollowUpIso && isFuFranchise && role !== "franchiseAdmin") {
+      const prev = [...(remarkModalLead.remarks || [])]
+        .reverse()
+        .find((r) => r.followUpDate);
+      if (prev?.followUpDate) {
+        effectiveFollowUpIso = new Date(prev.followUpDate).toISOString();
+      } else {
+        effectiveFollowUpIso = new Date(
+          Date.now() + 60 * 60 * 1000,
+        ).toISOString();
+      }
+    }
 
     try {
       const res = await fetch(`/api/franchise-leads`, {
@@ -947,7 +1263,9 @@ if (!executiveMobile && typeof window !== "undefined") {
           text: newRemark,
           addedBy: "Admin",
           agentId: agentId,
-          agentName: agentName
+          agentName: agentName,
+          adminEmail: localStorage.getItem("email") || undefined,
+          ...(effectiveFollowUpIso ? { followUpDate: effectiveFollowUpIso } : {}),
         })
       });
 
@@ -957,7 +1275,8 @@ if (!executiveMobile && typeof window !== "undefined") {
         const updatedRemarks = data.remarks.map(r => ({
           text: r.text,
           timestamp: new Date(r.addedAt).toLocaleString(),
-          user: r.addedBy
+          user: r.addedBy,
+          followUpDate: r.followUpDate,
         })).reverse();
 
         setRemarkHistory(prev => ({
@@ -965,6 +1284,36 @@ if (!executiveMobile && typeof window !== "undefined") {
           [remarkModalLead.id]: updatedRemarks
         }));
         setNewRemark("");
+        setFollowUpDateFranchise("");
+        setFollowUpTimeFranchise("10:00");
+        const email = localStorage.getItem("email");
+        if (email) {
+          fetch(
+            `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`
+          )
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) setFranchiseFollowUpStats((prev) => ({ ...prev, ...d.stats }));
+            })
+            .catch(() => {});
+          fetch(
+            `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=all`
+          )
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) {
+                setFranchiseFollowUpLeadsAll(d.stats.leads || []);
+                setFranchiseFollowUpLeadsAllLoaded(true);
+              }
+            })
+            .catch(() => {});
+          fetch(`/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`)
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) setFranchiseCallStats(d.stats);
+            })
+            .catch(() => {});
+        }
       }
     } catch (error) {
       console.error("Error adding remark:", error);
@@ -983,8 +1332,14 @@ if (!executiveMobile && typeof window !== "undefined") {
     // Save Remark
     const remarkText = `Meeting Scheduled on ${meetingData.date}`;
     
-    const agentId = remarkModalLead.assignedFranchiseAdmin?._id || localStorage.getItem("userId");
-    const agentName = remarkModalLead.assignedFranchiseAdmin?.fullName || localStorage.getItem("adminName") || "Admin";
+    const agentId =
+      remarkModalLead.assignedFranchiseAdmin?._id ||
+      localStorage.getItem("adminId") ||
+      localStorage.getItem("userId");
+    const agentName =
+      remarkModalLead.assignedFranchiseAdmin?.fullName ||
+      localStorage.getItem("adminName") ||
+      "Admin";
 
     try {
       const res = await fetch(`/api/franchise-leads`, {
@@ -1003,11 +1358,21 @@ if (!executiveMobile && typeof window !== "undefined") {
         const updatedRemarks = data.remarks.map(r => ({
           text: r.text,
           timestamp: new Date(r.addedAt).toLocaleString(),
-          user: r.addedBy
+          user: r.addedBy,
+          followUpDate: r.followUpDate,
         })).reverse();
         setRemarkHistory(prev => ({ ...prev, [remarkModalLead.id]: updatedRemarks }));
         setShowMeetingModal(false);
         setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
+        const email = localStorage.getItem("email");
+        if (email) {
+          fetch(`/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`)
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) setFranchiseCallStats(d.stats);
+            })
+            .catch(() => {});
+        }
       }
     } catch (error) {
       console.error("Error adding meeting remark:", error);
@@ -1239,6 +1604,379 @@ if (!executiveMobile && typeof window !== "undefined") {
             ))
           )}
         </div>
+
+        {["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(role) && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 md:px-5 md:py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <Phone className="text-indigo-600" size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
+                <p className="text-[11px] text-gray-500">
+                  Franchise lead calls and scheduled follow-ups
+                  {role === "franchiseAdmin" ? " (your activity)" : " (all agents)"}
+                </p>
+              </div>
+              {(role === "superAdmin" || role === "superFranchiseAdmin") && (
+                <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wide">
+                    Total follow-ups
+                  </span>
+                  <span className="text-lg font-black tabular-nums text-amber-900">
+                    {franchiseFollowUpStats.totalFollowUps ?? 0}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 md:p-5 space-y-5">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls</p>
+                {role === "franchiseAdmin" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-3 border border-violet-100">
+                      <p className="text-[10px] font-semibold uppercase text-violet-600">Calls today</p>
+                      <p className="text-2xl font-bold text-violet-800 mt-1 tabular-nums">
+                        {franchiseCallStats?.myCallsToday ?? "—"}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-3 border border-blue-100">
+                      <p className="text-[10px] font-semibold uppercase text-blue-600">Total calls</p>
+                      <p className="text-2xl font-bold text-blue-800 mt-1 tabular-nums">
+                        {franchiseCallStats?.myCallsTotal ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
+                    <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-xl p-4 min-w-[140px] flex flex-col justify-center">
+                      <span className="text-[11px] text-blue-700 font-semibold uppercase">Total today</span>
+                      <span className="text-2xl font-bold text-blue-900 tabular-nums">
+                        {franchiseCallStats?.totalCallsToday ?? "—"}
+                      </span>
+                      <span className="text-[10px] text-blue-600/80">all agents</span>
+                    </div>
+                    <div className="flex-1 min-w-0 overflow-x-auto pb-1 -mx-1 px-1">
+                      <div className="flex gap-2 min-w-min">
+                        {(franchiseCallStats?.todayCallsByAgent || []).map((agent) => (
+                          <div
+                            key={agent.agentName || agent._id}
+                            className="min-w-[112px] max-w-[140px] bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
+                          >
+                            <span
+                              className="text-[10px] text-gray-500 truncate capitalize"
+                              title={agent.agentName}
+                            >
+                              {agent.agentName || "—"}
+                            </span>
+                            <span className="text-xl font-bold text-gray-900 tabular-nums">{agent.count}</span>
+                            <span className="text-[9px] text-gray-400">calls</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Follow-ups (tap to filter main table)
+                </p>
+                <div
+                  className={`grid grid-cols-2 gap-2 ${
+                    role === "franchiseAdmin" ? "md:grid-cols-4" : "md:grid-cols-5"
+                  }`}
+                >
+                  {(
+                    role === "franchiseAdmin"
+                      ? [
+                          { key: "today", label: "Today", count: franchiseFollowUpStats.todayFollowUps, bg: "bg-amber-500", ring: "ring-amber-400" },
+                          { key: "tomorrow", label: "Tomorrow", count: franchiseFollowUpStats.tomorrowFollowUps, bg: "bg-rose-500", ring: "ring-rose-400" },
+                          { key: "next7days", label: "Next 7 Days", count: franchiseFollowUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
+                          { key: "thisMonth", label: "This Month", count: franchiseFollowUpStats.thisMonthFollowUps, bg: "bg-emerald-500", ring: "ring-emerald-400" },
+                        ]
+                      : [
+                          { key: "today", label: "Today", count: franchiseFollowUpStats.todayFollowUps, bg: "bg-amber-500", ring: "ring-amber-400" },
+                          { key: "tomorrow", label: "Tomorrow", count: franchiseFollowUpStats.tomorrowFollowUps, bg: "bg-rose-500", ring: "ring-rose-400" },
+                          { key: "next7days", label: "Next 7 Days", count: franchiseFollowUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
+                          { key: "thisMonth", label: "This Month", count: franchiseFollowUpStats.thisMonthFollowUps, bg: "bg-emerald-500", ring: "ring-emerald-400" },
+                          { key: "all", label: "All Time", count: franchiseFollowUpStats.totalFollowUps, bg: "bg-gray-600", ring: "ring-gray-400" },
+                        ]
+                  ).map(({ key, label, count, bg, ring }) => {
+                    const active = franchiseFollowUpFilter === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFranchiseFollowUpFilter(key)}
+                        className={`rounded-xl p-3 border-2 text-left transition-all ${
+                          active
+                            ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
+                            : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        <p className={`text-[10px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}>
+                          Follow-ups
+                        </p>
+                        <p className={`text-xl font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}>{count}</p>
+                        <p className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}>{label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {role === "franchiseAdmin" && franchisePendingFollowUps.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/90 to-orange-50/50 p-3 md:p-4">
+                  <p className="text-[11px] font-bold text-amber-900 uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <AlertCircle size={14} className="text-amber-600" />
+                    Pending follow-ups (due or overdue)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {franchisePendingFollowUps.map((l) => (
+                      <button
+                        key={String(l.leadId)}
+                        type="button"
+                        onClick={() => openFranchiseRemarkForLeadId(l.leadId)}
+                        className="inline-flex flex-col items-start gap-0.5 rounded-lg border border-amber-300/80 bg-white/90 px-3 py-2 text-left text-xs shadow-sm hover:border-amber-500 hover:bg-amber-50/80 transition-colors max-w-[220px]"
+                      >
+                        <span className="font-semibold text-gray-900 truncate w-full">
+                          {l.fullName || l.phone || l.leadId}
+                        </span>
+                        <span className="text-[10px] text-amber-800 font-medium tabular-nums">
+                          {l.followUpDate
+                            ? new Date(l.followUpDate).toLocaleString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              })
+                            : "—"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(role === "superAdmin" || role === "superFranchiseAdmin") &&
+                (franchiseFollowUpStats.byAgent || []).length > 0 && (
+                  <div className="rounded-xl border border-gray-200 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setFranchiseByAgentOpen((o) => !o)}
+                      className="w-full bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserCheck size={13} className="text-indigo-500" />
+                        <span className="text-xs font-bold text-gray-700">Follow-ups by agent</span>
+                        <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
+                          {(franchiseFollowUpStats.byAgent || []).length} agents
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600">
+                        <span>{franchiseByAgentOpen ? "Hide" : "Show"}</span>
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform duration-200 ${franchiseByAgentOpen ? "rotate-180" : ""}`}
+                        />
+                      </div>
+                    </button>
+                    {franchiseByAgentOpen && (
+                      <div className="overflow-x-auto max-h-[min(70vh,520px)] border-t border-gray-100">
+                        <table className="w-full text-xs min-w-[640px]">
+                          <thead className="sticky top-0 z-10 shadow-sm">
+                            <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
+                              <th className="px-4 py-2.5 text-left">Agent</th>
+                              <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
+                              <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
+                              <th className="px-3 py-2.5 text-center text-violet-600">7 Days</th>
+                              <th className="px-3 py-2.5 text-center text-green-600">Month</th>
+                              <th className="px-3 py-2.5 text-center text-amber-600">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {(franchiseFollowUpStats.byAgent || []).map((agent, idx) => {
+                              const colors = [
+                                "bg-indigo-500",
+                                "bg-teal-500",
+                                "bg-violet-500",
+                                "bg-rose-500",
+                                "bg-amber-500",
+                                "bg-blue-500",
+                              ];
+                              const c = colors[idx % colors.length];
+                              const name = agent.agentName || "Unknown";
+                              return (
+                                <tr key={`franchise-fu-agent-${idx}`} className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-4 py-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}
+                                      >
+                                        {String(name).charAt(0).toUpperCase()}
+                                      </div>
+                                      <span className="font-medium text-gray-800 capitalize truncate max-w-[140px]">
+                                        {name}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    <span
+                                      className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                    >
+                                      {agent.today || 0}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    <span
+                                      className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                    >
+                                      {agent.tomorrow || 0}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    <span
+                                      className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                    >
+                                      {agent.next7days || 0}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    <span
+                                      className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                    >
+                                      {agent.thisMonth || 0}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                                      {agent.total || 0}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
+                              <td className="px-4 py-2 text-xs text-gray-600 font-bold">ALL AGENTS</td>
+                              <td className="px-3 py-2 text-center text-sky-700 font-black">
+                                {franchiseFollowUpStats.todayFollowUps}
+                              </td>
+                              <td className="px-3 py-2 text-center text-rose-700 font-black">
+                                {franchiseFollowUpStats.tomorrowFollowUps}
+                              </td>
+                              <td className="px-3 py-2 text-center text-violet-700 font-black">
+                                {franchiseFollowUpStats.next7DaysFollowUps}
+                              </td>
+                              <td className="px-3 py-2 text-center text-green-700 font-black">
+                                {franchiseFollowUpStats.thisMonthFollowUps}
+                              </td>
+                              <td className="px-3 py-2 text-center text-amber-700 font-black">
+                                {franchiseFollowUpStats.totalFollowUps}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setFranchiseFollowLeadsOpen((o) => !o)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Calendar size={13} className="text-violet-500 shrink-0" />
+                    <span className="text-xs font-bold text-gray-700 truncate">
+                      Follow-up leads —{" "}
+                      <span className="text-violet-600">
+                        {
+                          {
+                            today: "Today",
+                            tomorrow: "Tomorrow",
+                            next7days: "Next 7 Days",
+                            thisMonth: "This Month",
+                            all: "All",
+                          }[franchiseFollowUpFilter]
+                        }
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
+                      {(franchiseFollowUpStats.leads || []).length} leads
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-violet-600 shrink-0 ml-2">
+                    <span>{franchiseFollowLeadsOpen ? "Hide" : "Show"}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${franchiseFollowLeadsOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
+                {franchiseFollowLeadsOpen && (
+                  <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-auto">
+                    {franchiseFollowUpsLoading ? (
+                      <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+                        <Clock size={14} className="animate-spin" /> Loading…
+                      </div>
+                    ) : (franchiseFollowUpStats.leads || []).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
+                        <MessageSquare size={22} className="mb-2 opacity-20" />
+                        <p className="font-medium">No leads for this period</p>
+                      </div>
+                    ) : (
+                      <table className="w-full text-xs min-w-[720px]">
+                        <thead className="sticky top-0 bg-gray-100 border-b border-gray-200 z-[1]">
+                          <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500">
+                            <th className="px-3 py-2 font-semibold">Lead</th>
+                            <th className="px-3 py-2 font-semibold">Phone</th>
+                            <th className="px-3 py-2 font-semibold">Agent</th>
+                            <th className="px-3 py-2 font-semibold">Remark</th>
+                            <th className="px-3 py-2 font-semibold text-right">Follow-up</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {(franchiseFollowUpStats.leads || []).map((lead, idx) => (
+                            <tr key={idx} className="hover:bg-violet-50/40">
+                              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                                {lead.fullName || lead.leadId || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
+                              <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
+                                {lead.agentName || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate" title={lead.remark}>
+                                {lead.remark || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
+                                {lead.followUpDate
+                                  ? new Date(lead.followUpDate).toLocaleString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    })
+                                  : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Onboard Leads Breakdown */}
         {/* {(role === "superAdmin" || role === "superFranchiseAdmin") && onboardBreakdown.length > 0 && (
@@ -1343,6 +2081,14 @@ if (!executiveMobile && typeof window !== "undefined") {
 
           {/* SEARCH BAR */}
           <div className="mt-6 mb-2">
+{franchiseFollowUpTableActive && role !== "franchiseAdmin" && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
+                  <span className="text-indigo-600/90">Table filter:</span>
+                  <span className="text-rose-700">{franchiseFollowUpFilterLabel}</span>
+                </span>
+              </div>
+            )}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -1467,7 +2213,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 </thead>
 
                 <tbody className="divide-y divide-gray-100">
-{loading ? (
+{loading || (franchiseFollowUpTableActive && franchiseFollowUpsLoading) ? (
   <>
     {[...Array(5)].map((_, i) => (
       <tr key={`skeleton-${i}`} className="animate-pulse">
@@ -1525,81 +2271,107 @@ if (!executiveMobile && typeof window !== "undefined") {
                             />
                           </td>
                         )}
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td
+                          className={`px-6 py-4 ${
+                            editingLeadId === lead.id ? "" : "whitespace-nowrap"
+                          }`}
+                        >
                           {editingLeadId === lead.id ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={editNameValue}
-                                onChange={(e) => setEditNameValue(e.target.value)}
-                                className="px-2 py-1 border border-blue-400 rounded-lg text-sm"
-                                autoFocus
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <button onClick={(e) => { e.stopPropagation(); handleSaveName(lead.id); }} className="p-1.5 bg-green-100 text-green-600 rounded-lg"><BadgeCheck className="w-4 h-4" /></button>
-                              <button onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="w-4 h-4" /></button>
+                            <div className="flex flex-col gap-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editNameValue}
+                                  onChange={(e) =>
+                                    setEditNameValue(e.target.value)
+                                  }
+                                  className="flex-1 min-w-0 px-2 py-1 border border-blue-400 rounded-lg text-sm"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      handleSaveName(lead.id);
+                                    if (e.key === "Escape") handleCancelEdit();
+                                  }}
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaveName(lead.id);
+                                  }}
+                                  className="p-1.5 shrink-0 bg-green-100 text-green-600 rounded-lg"
+                                  type="button"
+                                >
+                                  <BadgeCheck className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCancelEdit();
+                                  }}
+                                  className="p-1.5 shrink-0 bg-red-100 text-red-600 rounded-lg"
+                                  type="button"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                Joined:{" "}
+                                {lead.created_time
+                                  ? new Date(
+                                      lead.created_time,
+                                    ).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
+                                  : "—"}
+                              </p>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2 relative">
-                              {editingLeadId === lead.id ? (
-                                <div className="flex items-center gap-1 min-w-0 flex-1">
-                                  <input
-                                    value={editNameValue}
-                                    onChange={(e) => setEditNameValue(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveName(lead.id);
-                                      if (e.key === 'Escape') handleCancelEdit();
-                                    }}
-                                    onBlur={() => setTimeout(() => handleCancelEdit(), 200)}
-                                    className="flex-1 px-2 py-1 text-sm font-medium bg-transparent border-b border-blue-300 focus:border-blue-500 outline-none rounded"
-                                    autoFocus
+                            <div className="flex items-center gap-2 relative flex-wrap">
+                              <span className="font-medium text-gray-900 min-w-0 flex-1 truncate">
+                                {lead.full_name || lead.fullName || ""}
+                              </span>
+                              {lead.ivrMeInterested && (
+                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200">
+                                  IVR interested
+                                </span>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingLeadId(lead.id);
+                                  setEditNameValue(
+                                    lead.full_name || lead.fullName || "",
+                                  );
+                                }}
+                                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                title="Edit Name"
+                                type="button"
+                              >
+                                <Edit3
+                                  size={14}
+                                  className="text-gray-400 hover:text-blue-600"
+                                />
+                              </button>
+                              {leadRevenueStatus[lead.id] && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFullViewImage(
+                                      leadRevenueStatus[lead.id],
+                                    );
+                                  }}
+                                  title="View Payment Screenshot"
+                                  className="p-1 hover:bg-gray-100 rounded"
+                                  type="button"
+                                >
+                                  <Eye
+                                    size={14}
+                                    className="text-gray-500 hover:text-gray-700"
                                   />
-                                  <button
-                                    onClick={() => handleSaveName(lead.id)}
-                                    className="p-1 text-green-600 hover:text-green-700"
-                                    title="Save"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={handleCancelEdit}
-                                    className="p-1 text-gray-500 hover:text-gray-700"
-                                    title="Cancel"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <span className="font-medium text-gray-900 min-w-0 flex-1 truncate">
-                                    {lead.full_name || "Unknown"}
-                                  </span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingLeadId(lead.id);
-                                      setEditNameValue(lead.full_name || '');
-                                    }}
-                                    className="p-1 hover:bg-gray-100 rounded transition-colors"
-                                    title="Edit Name"
-                                  >
-                                    <Edit3 size={14} className="text-gray-400 hover:text-blue-600" />
-                                  </button>
-                                  {leadRevenueStatus[lead.id] && (
-                                    <button
-                                      onClick={(e) => { 
-                                        e.stopPropagation();
-                                        setFullViewImage(leadRevenueStatus[lead.id]); 
-                                      }}
-                                      title="View Payment Screenshot"
-                                      className="p-1 hover:bg-gray-100 rounded"
-                                    >
-                                      <Eye size={14} className="text-gray-500 hover:text-gray-700" />
-                                    </button>
-                                  )}
-                                </>
+                                </button>
                               )}
                             </div>
                           )}
@@ -1782,10 +2554,15 @@ if (!executiveMobile && typeof window !== "undefined") {
           {/* PAGINATION */}
           {!loading && paginatedLeads.length > 0 && (
             <div className="px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50 border-t border-gray-100">
-              <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600">
                 Showing <span className="font-medium">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
                 <span className="font-medium">{Math.min(currentPage * PAGE_SIZE, filteredLeads.length)}</span> of{" "}
                 <span className="font-medium">{filteredLeads.length}</span> leads
+                {franchiseFollowUpTableActive && role !== "franchiseAdmin" && (
+                  <span className="block text-xs text-indigo-600 font-medium mt-1">
+                    Follow-up window: {franchiseFollowUpFilterLabel}
+                  </span>
+                )}
               </p>
 
               <div className="flex items-center gap-2">
@@ -1845,7 +2622,14 @@ if (!executiveMobile && typeof window !== "undefined") {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 flex justify-between items-start">
               <div>
-                <h2 className="text-2xl font-bold">{selectedLead.full_name}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-bold">{selectedLead.full_name}</h2>
+                  {selectedLead.ivrMeInterested && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/40">
+                      IVR interested
+                    </span>
+                  )}
+                </div>
                 <p className="text-blue-100 mt-1">Lead Details</p>
               </div>
               <button
@@ -1971,6 +2755,107 @@ if (!executiveMobile && typeof window !== "undefined") {
                   ))}
                 </div>
 
+                {FOLLOW_UP_REMARKS.some((r) => newRemark.startsWith(r)) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Calendar size={13} className="text-amber-600" />
+                      <span className="text-xs font-bold text-amber-700">Schedule Follow-up</span>
+                      {followUpDateFranchise && (
+                        <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold max-w-[55%] truncate text-right">
+                          {(() => {
+                            const rawT =
+                              followUpTimeFranchise &&
+                              /^\d{1,2}:\d{2}$/.test(followUpTimeFranchise.trim())
+                                ? followUpTimeFranchise.trim()
+                                : "10:00";
+                            const [hh, mm] = rawT.split(":");
+                            const d = new Date(
+                              `${followUpDateFranchise}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`,
+                            );
+                            return Number.isNaN(d.getTime())
+                              ? followUpDateFranchise
+                              : d.toLocaleString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                });
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {[
+                        { label: "Today", days: 0 },
+                        { label: "Tomorrow", days: 1 },
+                        { label: "Next 7 Days", days: 7 },
+                        { label: "This Month", days: null },
+                      ].map(({ label, days }) => {
+                        const getDate = () => {
+                          const d = new Date();
+                          if (days === null) {
+                            d.setMonth(d.getMonth() + 1, 0);
+                          } else {
+                            d.setDate(d.getDate() + days);
+                          }
+                          return d.toISOString().split("T")[0];
+                        };
+                        const val = getDate();
+                        const isActive = followUpDateFranchise === val;
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => setFollowUpDateFranchise(isActive ? "" : val)}
+                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                              isActive
+                                ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                                : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="date"
+                        value={followUpDateFranchise}
+                        min={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setFollowUpDateFranchise(e.target.value)}
+                        className="flex-1 min-w-[140px] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                      />
+                      <input
+                        type="time"
+                        value={followUpTimeFranchise}
+                        onChange={(e) => setFollowUpTimeFranchise(e.target.value)}
+                        className="w-[120px] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                        title="Follow-up time"
+                      />
+                      {followUpDateFranchise && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFollowUpDateFranchise("");
+                            setFollowUpTimeFranchise("10:00");
+                          }}
+                          className="text-amber-500 hover:text-red-500 transition-colors"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                    {role === "franchiseAdmin" && (
+                      <p className="text-[10px] text-amber-800/90 mt-1">
+                        Date and time are required when using Call Not Picked or Call Back Later.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={handleRemarkSubmit}
                   disabled={!newRemark.trim()}
@@ -2003,6 +2888,20 @@ if (!executiveMobile && typeof window !== "undefined") {
                           )}
                         </div>
                         <p className="text-gray-900 font-medium mb-2">{remark.text}</p>
+                        {remark.followUpDate && (
+                          <p className="text-[11px] text-amber-700 font-semibold mb-1.5 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 shrink-0" />
+                            Follow-up:{" "}
+                            {new Date(remark.followUpDate).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {remark.timestamp}
@@ -2299,6 +3198,12 @@ if (!executiveMobile && typeof window !== "undefined") {
           </div>
         </div>
       )}
+
+      <FollowUpDueAlertModal
+        alert={followUpDueAlert}
+        onDismiss={() => setFollowUpDueAlert(null)}
+        onVoiceCall={undefined}
+      />
     </div>
   );
 }

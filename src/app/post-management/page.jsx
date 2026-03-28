@@ -11,6 +11,8 @@ import {
   updatePostStatusAction, postToGmbAction,
 } from "@/app/actions/postActions";
 import { deleteAssetAction, loadAssetsFromServerAction } from "@/app/actions/assetActions";
+import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
+import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
@@ -123,6 +125,9 @@ export default function PostManagementPage() {
   const [assetId, setAssetId] = useState(null);
   const [selectedAssets, setSelectedAssets] = useState([]);
   const previewRef = useRef(null);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [availableBusinesses, setAvailableBusinesses] = useState([]);
+  const [loadingBusinesses, setLoadingBusinesses] = useState(false);
   const [bussinessTitle, setBussinessTitle] = useState("")
   const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb",'fb', 'ig']);
   const [keywordError, setKeywordError] = useState("");
@@ -255,10 +260,10 @@ export default function PostManagementPage() {
   }, [selectedPlatforms]);
 
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   const [allCounts, setAllCounts] = useState({
     total: 0,
@@ -351,6 +356,14 @@ export default function PostManagementPage() {
     });
 
   const handleGenerateClick = async (selectedAssets, useAssetsFlow, businessName, keywords) => {
+    const resolvedBusinessName = resolveBusinessNameForGeneration({
+      fromInput: typeof businessName === "string" ? businessName : "",
+      selectedBusinessName: selectedBusiness?.name,
+      bussinessTitle,
+      availableLocations,
+      prompt,
+    });
+
     // Auto-scroll to preview section on mobile
     if (typeof window !== 'undefined' && window.innerWidth < 1024 && previewRef.current) {
       previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -384,7 +397,11 @@ export default function PostManagementPage() {
 
     setLastUsedAssetsFlow(useAssetsFlow);
     if (useAssetsFlow) {
-      await handleImageGenerateWithAssets(selectedAssets, businessName, processedKeywords);
+      await handleImageGenerateWithAssets(
+        selectedAssets,
+        resolvedBusinessName,
+        processedKeywords
+      );
     } else {
       await handleAiAgent(selectedAssets);
     }
@@ -521,9 +538,9 @@ export default function PostManagementPage() {
 
       console.log("datadata", data);
 
-      const gmbDesc = data.gmb_des;
-      const fbDesc = data.fb_des;
-      const igDesc = data.ig_des;
+      const { gmb_des: gmbDesc, fb_des: fbDesc, ig_des: igDesc } = normalizePlatformDescriptions(
+        Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
+      );
 
       // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
@@ -628,10 +645,18 @@ export default function PostManagementPage() {
         logoBase64 = await fileToBase64(logo);
       }
 
-      // Call the asset generation API
+      const effectiveBussinessName = resolveBusinessNameForGeneration({
+        fromInput: businessName,
+        selectedBusinessName: selectedBusiness?.name,
+        bussinessTitle,
+        availableLocations,
+        prompt,
+      });
+
+      // Call the asset generation API (bussiness_name must match /api/aiAssetsGenerate)
       const apiResponse = await generateWithAssetsAction({
         topic: prompt,
-        bussines_name: businessName || "",
+        bussiness_name: effectiveBussinessName,
         keywords: keywords || "",
         colourPalette: userAssets.find(a => a.name === 'Color')?.url || "none",
         size: userAssets.find(a => a.name === 'Size')?.url || "1:1",
@@ -655,9 +680,9 @@ export default function PostManagementPage() {
 
       const data = apiResponse.success ? apiResponse.data : apiResponse;
 
-      const gmbDesc = data.gmb_des;
-      const fbDesc = data.fb_des;
-      const igDesc = data.ig_des;
+      const { gmb_des: gmbDesc, fb_des: fbDesc, ig_des: igDesc } = normalizePlatformDescriptions(
+        Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
+      );
 
       // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
@@ -1672,33 +1697,69 @@ export default function PostManagementPage() {
   };
 
 
-  useEffect(() => {
-    const locationDetailsData = localStorage.getItem("locationDetails");
-
-    if (!locationDetailsData) return;
-
+  // Load user settings including businesses (no error toast when GMB simply not linked — expected)
+  const loadUserSettings = useCallback(async () => {
     try {
-      const parsedData = JSON.parse(locationDetailsData);
+      setLoadingBusinesses(true);
+      const res = await fetch("/api/user-settings");
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
 
-      if (!Array.isArray(parsedData)) return;
+      if (!res.ok) {
+        setAvailableBusinesses([]);
+        setSelectedBusiness(null);
+        return;
+      }
 
-      // Get unique business titles
-      const uniqueBusinesses = [];
-      const seenTitles = new Set();
+      const projects = Array.isArray(data.gmbProjects) ? data.gmbProjects : [];
+      setAvailableBusinesses(projects);
 
-      parsedData.forEach((item) => {
-        if (item?.title && !seenTitles.has(item.title)) {
-          seenTitles.add(item.title);
-          uniqueBusinesses.push(item);
-        }
-      });
-
-      // Use first unique business title
-      if (uniqueBusinesses.length > 0) {
-        setBussinessTitle(uniqueBusinesses[0].title);
+      if (projects.length === 0) {
+        setSelectedBusiness(null);
+      } else if (data.selectedBusiness) {
+        setSelectedBusiness(data.selectedBusiness);
+      } else {
+        setSelectedBusiness((prev) => prev ?? projects[0]);
       }
     } catch (error) {
-      console.error("Failed to parse locationDetails:", error);
+      console.error("Failed to load businesses:", error);
+      setAvailableBusinesses([]);
+      setSelectedBusiness(null);
+    } finally {
+      setLoadingBusinesses(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUserSettings();
+  }, [loadUserSettings]);
+
+  // Load locations from localStorage (fallback)
+  useEffect(() => {
+    const locationDetailsData = localStorage.getItem("locationDetails");
+    if (locationDetailsData) {
+      try {
+        const parsedData = JSON.parse(locationDetailsData);
+        if (Array.isArray(parsedData)) {
+          const uniqueBusinesses = [];
+          const seenTitles = new Set();
+          parsedData.forEach((item) => {
+            if (item?.title && !seenTitles.has(item.title)) {
+              seenTitles.add(item.title);
+              uniqueBusinesses.push(item);
+            }
+          });
+          if (uniqueBusinesses.length > 0) {
+            setBussinessTitle(uniqueBusinesses[0].title);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse locationDetails:", error);
+      }
     }
   }, []);
 
@@ -2004,6 +2065,21 @@ export default function PostManagementPage() {
   </p> */}
 
         </div>
+
+        {/* {!loadingBusinesses && availableBusinesses.length === 0 && (
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Google Business Profile is not connected. Connect GMB in Settings to load
+              locations and post to Google.
+            </span>
+            <Link
+              href="/user-settings"
+              className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:no-underline"
+            >
+              Open Settings
+            </Link>
+          </div>
+        )} */}
 
         {/* Main Content Area - Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start ">

@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import clientPromise from "./mongodb";
+import { clientPromise } from "./mongodb";
 import axios from "axios";
+
+const GMB_DASHBOARD_DB = "gmb_dashboard";
+const USERS_COLLECTION = "users";
 
 async function refreshAccessToken(token) {
   try {
@@ -31,6 +34,8 @@ async function refreshAccessToken(token) {
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  /** Behind HTTPS (e.g. nginx → Node), force Secure cookies so __Host- / __Secure- state cookies match the browser. */
+  useSecureCookies: process.env.NODE_ENV === "production",
   // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
   providers: [
     GoogleProvider({
@@ -50,39 +55,66 @@ export const authOptions = {
     async signIn({ user, account, profile }) {
       if (account.provider === "google") {
         try {
-          // 1. Database connection check
           const client = await clientPromise;
-          const db = client.db("gmb_dashboard");
+          if (!client || typeof client.db !== "function") {
+            console.error(
+              "Sign-In DB: MongoDB client unavailable (check MONGODB_URI and lib/mongodb clientPromise)."
+            );
+            return false;
+          }
 
-          // 2. Data save logic with basic validation
           if (!user.email) return false;
 
-          await db.collection("users").updateOne(
-            { email: user.email },
+          const db = client.db(GMB_DASHBOARD_DB);
+          const col = db.collection(USERS_COLLECTION);
+          const googleId = profile?.sub;
+          if (!googleId) return false;
+
+          const now = new Date();
+          const existing = await col.findOne({
+            email: { $regex: `^${user.email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+          });
+
+          const prevProjects = Array.isArray(existing?.projects) ? existing.projects : [];
+          const prev = prevProjects.find((p) => p.googleId === googleId);
+          const mergedProject = {
+            googleId,
+            accessToken: account.access_token,
+            refreshToken: account.refresh_token ?? prev?.refreshToken ?? null,
+            createdAt: prev?.createdAt ?? now,
+            updatedAt: now,
+          };
+          const projects = [
+            ...prevProjects.filter((p) => p.googleId !== googleId),
+            mergedProject,
+          ];
+
+          const writeResult = await col.updateOne(
+            { email: existing?.email ?? user.email },
             {
               $set: {
+                email: user.email,
                 name: user.name,
+                fullName: user.name,
                 image: user.image,
-                updatedAt: new Date(),
+                projects,
+                updatedAt: now,
               },
-              // $addToSet tabhi kaam karega jab 'projects' ek array field ho
-              $addToSet: {
-                projects: {
-                  googleId: profile.sub,
-                  accessToken: account.access_token,
-                  refreshToken: account.refresh_token,
-                  createdAt: new Date(),
-                },
+              $setOnInsert: {
+                userId: `GGL-${googleId}`,
+                createdAt: now,
               },
             },
             { upsert: true }
           );
-          return true; // Success
+          if (!writeResult.acknowledged) {
+            console.error("Sign-In DB: users write not acknowledged (check MONGODB_URI / connection).");
+            return false;
+          }
+          return true;
         } catch (error) {
           console.error("Database Error during Sign-In:", error);
-          // Agar database error aaye toh bhi sign in allow karein (optional) 
-          // ya false return karein agar DB zaroori hai
-          return true; 
+          return false;
         }
       }
       return true;

@@ -22,11 +22,18 @@ async function getFreshAccessToken(refreshToken) {
     }),
   });
 
-  const data = await res.json();
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    console.error("❌ Token refresh: non-JSON response", raw?.slice(0, 200));
+    throw new Error("Token refresh failed: invalid response from Google");
+  }
 
   if (!res.ok) {
     console.error("❌ Token refresh failed for cron auto-reply", data);
-    throw new Error(data.error_description || "Token refresh failed");
+    throw new Error(data.error_description || data.error || "Token refresh failed");
   }
 
   console.log("✅ Access token refreshed for cron auto-reply");
@@ -104,7 +111,17 @@ export async function GET() {
               continue;
             }
 
-            const data = await res.json();
+            const rawBody = await res.text();
+            let data = {};
+            try {
+              data = rawBody ? JSON.parse(rawBody) : {};
+            } catch (parseErr) {
+              console.error(
+                `[CRON] n8n webhook returned non-JSON for user ${userIdentifier}, account ${acc_id}:`,
+                rawBody?.slice(0, 300)
+              );
+              continue;
+            }
             if (!data?.reviews || !Array.isArray(data.reviews)) {
               console.log(`[CRON] No reviews array for user ${userIdentifier}, account ${acc_id}`);
               continue;

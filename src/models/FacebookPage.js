@@ -7,6 +7,7 @@ const FacebookPageSchema = new mongoose.Schema(
     pageId: String,
     pageName: String,
     pageAccessToken: String,
+    pageTokenExpiresAt: Date,
     platform: { type: String, default: "facebook" },
   },
   { timestamps: true }

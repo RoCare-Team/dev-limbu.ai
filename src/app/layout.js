@@ -45,9 +45,27 @@ export const metadata = {
   
 };
 
+function isTenantSubdomainHost(host) {
+  if (!host) return false;
+  const h = host.split(":")[0].toLowerCase();
+  return (
+    h.endsWith(".limbu.ai") &&
+    h !== "limbu.ai" &&
+    h !== "www.limbu.ai" &&
+    h !== "crm.limbu.ai"
+  );
+}
+
 export default async function RootLayout({ children }) {
   const headersList = await headers();
-  const isSubdomainSite = headersList.get("x-is-subdomain-site") === "1";
+  const forwarded = headersList.get("x-forwarded-host");
+  const host =
+    forwarded?.split(",")[0]?.trim()?.split(":")[0] ||
+    headersList.get("host")?.split(":")[0] ||
+    "";
+  const isSubdomainSite =
+    headersList.get("x-is-subdomain-site") === "1" ||
+    isTenantSubdomainHost(host);
 
   return (
     <html lang="en" className={inter.variable}>

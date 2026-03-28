@@ -2,15 +2,23 @@
 
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useState } from "react";
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const [oauthStarting, setOauthStarting] = useState(false);
 
   const handleGoogleLogin = async () => {
-    await signIn("google", {
-      callbackUrl: "/dashboard",
-    });
+    if (oauthStarting) return;
+    setOauthStarting(true);
+    try {
+      await signIn("google", {
+        callbackUrl: "/dashboard",
+      });
+    } finally {
+      setOauthStarting(false);
+    }
   };
 
   const getErrorMessage = () => {
@@ -39,10 +47,12 @@ export default function SignInPage() {
         )}
 
         <button
+          type="button"
+          disabled={oauthStarting}
           onClick={handleGoogleLogin}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:pointer-events-none"
         >
-          Continue with Google
+          {oauthStarting ? "Redirecting…" : "Continue with Google"}
         </button>
       </div>
     </div>

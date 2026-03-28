@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import { getAppDayBounds } from "@/lib/appDayBounds";
+
+/** User.source values that count as Meta / instant-form leads (not site signup). */
+const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
 
 /* ================= DB CONNECT ================= */
 
@@ -25,12 +29,27 @@ async function dbConnect() {
 /* ================= SETTING MODEL (ROUND ROBIN) ================= */
 
 const SettingSchema = new mongoose.Schema({
-  key: String,
-  value: mongoose.Schema.Types.Mixed,
+  key:   { type: String, required: true, unique: true },
+  value: { type: Number, default: -1 },
 });
 
 const Setting =
   mongoose.models.settings || mongoose.model("settings", SettingSchema);
+
+async function bumpAgentRoundRobin(rrKey) {
+  return Setting.findOneAndUpdate(
+    { key: rrKey },
+    [
+      {
+        $set: {
+          key: rrKey,
+          value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
+        },
+      },
+    ],
+    { new: true, upsert: true }
+  );
+}
 
 /* ============================================================
    POST → CREATE USER + ROUND ROBIN ASSIGNMENT
@@ -86,22 +105,19 @@ export async function POST(req) {
       // 2️⃣ Round Robin Counter
       const RR_KEY = "agentLeadRR";
 
-      let rrDoc = await Setting.findOne({ key: RR_KEY });
+      const rrDoc = await bumpAgentRoundRobin(RR_KEY);
 
-      if (!rrDoc) {
-        rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
-      } else {
-        rrDoc.value += 1;
-        await rrDoc.save();
-      }
-
-      // ✅ FIXED HERE
-      rrValue = parseInt(rrDoc.value, 10);
+      rrValue = parseInt(rrDoc?.value, 10);
       if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
       // 3️⃣ Round robin index
       const index = rrValue % agents.length;
       assignedAgent = agents[index];
+      console.log(
+        "[RR] activeAgents:",
+        agents.map((a) => `${a._id}:${a.fullName || a.name || a.email}`).join(" | ")
+      );
+      console.log("[RR] rrValue:", rrValue, "index:", index);
       if (assignedAgent) {
         assignedAgentId = assignedAgent._id;
       }
@@ -226,6 +242,53 @@ export async function GET(req) {
       );
     }
 
+    /* Batch fetch by userId list (follow-up table / avoids paginated page missing leads) */
+    const byUserIdsParam = searchParams.get("byUserIds");
+    if (byUserIdsParam && byUserIdsParam.trim()) {
+      const idList = byUserIdsParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (idList.length === 0) {
+        return NextResponse.json({
+          success: true,
+          users: [],
+          totalUsers: 0,
+          currentPage: 1,
+          totalPages: 1,
+          limit: 0,
+        });
+      }
+      let idQuery = { userId: { $in: idList } };
+      if (admin.role === "agent") {
+        idQuery = {
+          $and: [{ userId: { $in: idList } }, { assignedAgentId: admin._id }],
+        };
+      } else if (admin.role === "manager") {
+        idQuery = {
+          $and: [{ userId: { $in: idList } }, { accountManager: admin._id }],
+        };
+      }
+      const fetched = await User.find(idQuery)
+        .populate("assignedAgentId", "fullName email role mobileNumber")
+        .populate("accountManager", "fullName email role mobileNumber")
+        .sort({ createdAt: -1 });
+      const order = new Map(idList.map((id, i) => [String(id), i]));
+      const usersOrdered = [...fetched].sort(
+        (a, b) =>
+          (order.get(String(a.userId)) ?? 9999) -
+          (order.get(String(b.userId)) ?? 9999),
+      );
+      return NextResponse.json({
+        success: true,
+        users: usersOrdered,
+        totalUsers: usersOrdered.length,
+        currentPage: 1,
+        totalPages: 1,
+        limit: usersOrdered.length,
+      });
+    }
+
     /* 🔍 Fetch Agent Stats (Total Counts) */
     if (searchParams.get("getAgentStats") === "true") {
       const matchStage = {};
@@ -316,76 +379,105 @@ export async function GET(req) {
         detailedStats.push({ stage, agentId, leadStatus, count });
       });
 
-      let superAdminStats = {};
-      if (admin.role === "superAdmin") {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+      let extraStats = {};
 
-        const [totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments] = await Promise.all([
+      if (admin.role === "superAdmin") {
+        const { start: startOfDay, end: endOfDay } = getAppDayBounds();
+        const todayCreated = {
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        };
+
+        const [
+          totalUsers,
+          totalSignupUsers,
+          totalMetaLeadUsers,
+          todayLeads,
+          todayAgentAssignments,
+        ] = await Promise.all([
           User.countDocuments({}),
-          User.countDocuments({ source: "Meta" }),
-          User.countDocuments({ createdAt: { $gte: startOfDay } }),
+          User.countDocuments({ source: "signup" }),
+          User.countDocuments({ source: { $in: META_LEAD_SOURCES } }),
+          User.countDocuments(todayCreated),
           User.aggregate([
-            { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
+            {
+              $match: {
+                ...todayCreated,
+                assignedAgentId: { $ne: null },
+              },
+            },
             { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
             { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
-            { $unwind: "$agent" },
-            { $project: { agentName: "$agent.fullName", count: 1 } }
-          ])
+            { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
+            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+          ]),
         ]);
 
-        superAdminStats = {
-          totalSignups,
-          totalMetaLeads,
+        extraStats = {
+          totalUsers,
+          totalSignupUsers,
+          totalMetaLeadUsers,
+          totalSignups: totalSignupUsers,
+          totalMetaLeads: totalMetaLeadUsers,
           todayLeads,
-          todayAgentAssignments
+          todayAgentAssignments,
         };
+      } else if (admin.role === "agent") {
+        const { start: startOfDay, end: endOfDay } = getAppDayBounds();
+        const todayLeads = await User.countDocuments({
+          assignedAgentId: admin._id,
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        });
+        extraStats = { todayLeads };
       }
 
-      return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...superAdminStats });
+      return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...extraStats });
     }
 
-    /* 🔍 Fetch Today's Users Count */
+    /* 🔍 Fetch Today's Users Count (calendar day in APP_TIMEZONE, default Asia/Kolkata) */
     if (searchParams.get("getTodayUsersCount") === "true") {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
+      const {
+        start: startOfDay,
+        end: endOfDay,
+        calendarDate,
+        timeZone,
+        displayLabel,
+      } = getAppDayBounds();
 
-      const todayUsersCount = await User.countDocuments({
-        createdAt: { $gte: startOfDay, $lte: endOfDay }
-      });
+      const todayMatch = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
 
-      // Get breakdown by source for today
+      const todayUsersCount = await User.countDocuments(todayMatch);
+
       const todayBySource = await User.aggregate([
-        { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay } } },
-        { $group: { _id: "$source", count: { $sum: 1 } } }
+        { $match: todayMatch },
+        { $group: { _id: "$source", count: { $sum: 1 } } },
       ]);
 
       const sourceBreakdown = {};
-      todayBySource.forEach(item => {
+      todayBySource.forEach((item) => {
         sourceBreakdown[item._id || "unknown"] = item.count;
       });
 
-      // Get today's meta leads count
       const todayMetaLeads = await User.countDocuments({
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-        source: { $in: ["bulk-upload", "Meta Leads", "Meta"] }
+        ...todayMatch,
+        source: { $in: META_LEAD_SOURCES },
       });
 
-      // Get today's signups count
       const todaySignups = await User.countDocuments({
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-        source: { $nin: ["bulk-upload", "Meta Leads", "Meta"] }
+        ...todayMatch,
+        source: "signup",
       });
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         todayUsersCount,
         todayMetaLeads,
         todaySignups,
-        sourceBreakdown
+        sourceBreakdown,
+        todayWindow: {
+          calendarDate,
+          timeZone,
+          displayLabel,
+        },
       });
     }
 
@@ -468,27 +560,44 @@ export async function GET(req) {
 
     let superAdminData = {};
     if (admin.role === "superAdmin") {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
+      const { start: startOfDay, end: endOfDay } = getAppDayBounds();
+      const todayCreated = {
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      };
 
-      const [totalSignups, totalMetaLeads, todayLeads, todayAgentAssignments] = await Promise.all([
+      const [
+        totalUsers,
+        totalSignupUsers,
+        totalMetaLeadUsers,
+        todayLeads,
+        todayAgentAssignments,
+      ] = await Promise.all([
         User.countDocuments({}),
-        User.countDocuments({ source: "Meta" }),
-        User.countDocuments({ createdAt: { $gte: startOfDay } }),
+        User.countDocuments({ source: "signup" }),
+        User.countDocuments({ source: { $in: META_LEAD_SOURCES } }),
+        User.countDocuments(todayCreated),
         User.aggregate([
-          { $match: { createdAt: { $gte: startOfDay }, assignedAgentId: { $ne: null } } },
+          {
+            $match: {
+              ...todayCreated,
+              assignedAgentId: { $ne: null },
+            },
+          },
           { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
           { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
-          { $unwind: "$agent" },
-          { $project: { agentName: "$agent.fullName", count: 1 } }
-        ])
+          { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
+          { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+        ]),
       ]);
 
       superAdminData = {
-        totalSignups,
-        totalMetaLeads,
+        totalUsers,
+        totalSignupUsers,
+        totalMetaLeadUsers,
+        totalSignups: totalSignupUsers,
+        totalMetaLeads: totalMetaLeadUsers,
         todayLeads,
-        todayAgentAssignments
+        todayAgentAssignments,
       };
     }
 
@@ -532,6 +641,9 @@ export async function PUT(req) {
     } = body;
 
     const remark = body.remark || body.remarks;
+    let followUpDate = body.followUpDate ? new Date(body.followUpDate) : null;
+
+    const FOLLOW_UP_REMARK_PREFIXES = ["Call Not Picked", "Call Back Later"];
 
     if (!userId) {
       return NextResponse.json(
@@ -561,22 +673,48 @@ export async function PUT(req) {
   if (remark) {
   updateData.$set = { Remarks: remark };
 
+  const agentId   = body.agentId   || null;
+  const agentName = body.agentName || "Admin";
+  const agentObjId = agentId && mongoose.Types.ObjectId.isValid(agentId)
+    ? new mongoose.Types.ObjectId(agentId)
+    : null;
+
+  let resolvedFollowUp = followUpDate;
+  const needsFuCarry =
+    remark &&
+    (!resolvedFollowUp || Number.isNaN(resolvedFollowUp.getTime())) &&
+    FOLLOW_UP_REMARK_PREFIXES.some((p) => String(remark).trim().startsWith(p));
+  if (needsFuCarry) {
+    const u = await User.findOne({ userId }).select("remarksHistory").lean();
+    const prev = [...(u?.remarksHistory || [])]
+      .reverse()
+      .find((r) => r.followUpDate);
+    if (prev?.followUpDate) {
+      resolvedFollowUp = new Date(prev.followUpDate);
+    } else {
+      resolvedFollowUp = new Date(Date.now() + 60 * 60 * 1000);
+    }
+  }
+
   const pushOperations = {
-    remarksHistory: { text: remark, createdAt: new Date() }
+    remarksHistory: {
+      text: remark,
+      createdAt: new Date(),
+      agentId: agentObjId,
+      agentName,
+      ...(resolvedFollowUp &&
+      !Number.isNaN(resolvedFollowUp.getTime()) && { followUpDate: resolvedFollowUp }),
+    }
   };
 
-  // If agent info exists, treat it as a call
-  const agentId = body.agentId || null;
-  const agentName = body.agentName || "Admin";
-
-  if (agentId || agentName) {
+  // Every remark is treated as a call interaction
+  if (agentObjId || agentName) {
     updateData.$inc = { callCount: 1 };
-
     pushOperations.callHistory = {
-      agentId: agentId && mongoose.Types.ObjectId.isValid(agentId) ? new mongoose.Types.ObjectId(agentId) : null,
-      agentName: agentName,
+      agentId: agentObjId,
+      agentName,
       calledAt: new Date(),
-      remark: remark
+      remark,
     };
   }
 

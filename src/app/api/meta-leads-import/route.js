@@ -7,15 +7,15 @@ import Admin from "@/models/Admin";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 3000;
+const LIMIT = 5000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
-const TATA_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMyMTIxOSwiaXNzIjoiaHR0cHM6XC9cL2Nsb3VkcGhvbmUudGF0YXRlbGVzZXJ2aWNlcy5jb21cL3Rva2VuXC9nZW5lcmF0ZSIsImlhdCI6MTY3NDA0MjI4MSwiZXhwIjoxOTc0MDQyMjgxLCJuYmYiOjE2NzQwNDIyODEsImp0aSI6IkZ3Z2l4b003TE9jRjh6TTIifQ.ZJmlobL9nuBMHYYgGji-cmKIFU0cDsqIKhkMIc4a4Uc";
+const TATA_TOKEN = process.env.TATA_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // Define Setting Schema for Round Robin
 const SettingSchema = new mongoose.Schema({
-  key: String,
-  value: mongoose.Schema.Types.Mixed,
+  key:   { type: String, required: true, unique: true },
+  value: { type: Number, default: -1 },
 });
 const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
@@ -35,6 +35,23 @@ function cleanPhone(phone) {
   phone = String(phone).replace(/\D/g, "");
   if (phone.startsWith("91") && phone.length === 12) phone = phone.slice(2);
   return phone.length === 10 ? phone : "";
+}
+
+/** Atomic round-robin counter. Avoids $inc + $setOnInsert on same path (MongoDB conflict on `value`). */
+async function bumpAgentRoundRobin(SettingModel, rrKey) {
+  const doc = await SettingModel.findOneAndUpdate(
+    { key: rrKey },
+    [
+      {
+        $set: {
+          key: rrKey,
+          value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
+        },
+      },
+    ],
+    { new: true, upsert: true }
+  );
+  return doc;
 }
 
 /* ================= WHATSAPP ================= */
@@ -109,24 +126,41 @@ export async function GET(req) {
       );
     }
 
-    let sync = await MetaSync.findOne({ formId });
-    let after = sync?.lastAfterCursor || null;
-
     let inserted = 0;
     let skipped = 0;
     let totalFetched = 0;
-    let lastCursor = after;
+    let pagesFetched = 0;
+    let lastCursor = null;
 
-    do {
-      let url = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${LIMIT}&access_token=${META_ACCESS_TOKEN}`;
+    // Follow Meta's paging.next so every page is fetched (previously only page 1 loaded; after cursor was never sent).
+    let nextUrl = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${LIMIT}&access_token=${META_ACCESS_TOKEN}`;
 
-      const res = await fetch(url);
+    while (nextUrl) {
+      const res = await fetch(nextUrl);
       const json = await res.json();
 
-      if (!res.ok) break;
+      if (!res.ok) {
+        const msg =
+          json?.error?.message ||
+          json?.error?.error_user_msg ||
+          `Graph API error (${res.status})`;
+        return NextResponse.json(
+          {
+            success: false,
+            error: msg,
+            graphError: json?.error || null,
+          },
+          { status: 502 }
+        );
+      }
 
+      pagesFetched++;
       const leads = json.data || [];
       totalFetched += leads.length;
+
+      if (json.paging?.cursors?.after) {
+        lastCursor = json.paging.cursors.after;
+      }
 
       for (const lead of leads) {
         const fields = lead.field_data || [];
@@ -151,15 +185,9 @@ export async function GET(req) {
         let assignedAgentId = null;
         if (activeAgents && activeAgents.length > 0) {
           const RR_KEY = "agentLeadRR";
-          let rrDoc = await Setting.findOne({ key: RR_KEY });
-          if (!rrDoc) {
-            rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
-          } else {
-            rrDoc.value += 1;
-            await rrDoc.save();
-          }
+          const rrDoc = await bumpAgentRoundRobin(Setting, RR_KEY);
 
-          let rrValue = parseInt(rrDoc.value, 10);
+          let rrValue = parseInt(rrDoc?.value, 10);
           if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
           assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
@@ -190,12 +218,8 @@ export async function GET(req) {
         await sendToTataDialer(phone, fullName);
       }
 
-      after = json.paging?.cursors?.after;
-      lastCursor = after;
-
-      if (!json.paging?.next) break;
-
-    } while (after);
+      nextUrl = json.paging?.next || null;
+    }
 
     await MetaSync.updateOne(
       { formId },
@@ -203,10 +227,22 @@ export async function GET(req) {
       { upsert: true }
     );
 
+    const [usersSignup, usersBulkUpload] = await Promise.all([
+      User.countDocuments({ source: "signup" }),
+      User.countDocuments({ source: "bulk-upload" }),
+    ]);
+
     return NextResponse.json({
       success: true,
       message: "Leads synced, WhatsApp + Tata AutoDial done",
-      stats: { totalFetched, inserted, skipped },
+      stats: {
+        pagesFetched,
+        totalFetched,
+        inserted,
+        skipped,
+        usersInDbSignup: usersSignup,
+        usersInDbBulkUpload: usersBulkUpload,
+      },
     });
 
   } catch (err) {

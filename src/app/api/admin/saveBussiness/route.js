@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
 
-let isConnected = false;
+const DB_NAME = "gmb_dashboard";
 
 function getRequiredEnv(name) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} not defined in environment`);
   return value;
-}
-
-async function connectDB() {
-  if (isConnected) return;
-  const mongoUri = getRequiredEnv("MONGODB_URI");
-  await mongoose.connect(mongoUri);
-  isConnected = true;
 }
 
 const AdminBusinessSchema = new mongoose.Schema({
@@ -23,13 +15,27 @@ const AdminBusinessSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
-const AdminBusiness =
-  mongoose.models.AdminBusiness ||
-  mongoose.model("AdminBusiness", AdminBusinessSchema);
+/** Dedicated connection so listings always land in gmb_dashboard (same as users collection). */
+let dashboardConn = null;
+
+async function getDashboardConnection() {
+  if (dashboardConn && dashboardConn.readyState === 1) {
+    return dashboardConn;
+  }
+  const mongoUri = getRequiredEnv("MONGODB_URI");
+  dashboardConn = mongoose.createConnection(mongoUri, { dbName: DB_NAME });
+  await dashboardConn.asPromise();
+  return dashboardConn;
+}
+
+async function getAdminBusinessModel() {
+  const conn = await getDashboardConnection();
+  return conn.models.AdminBusiness || conn.model("AdminBusiness", AdminBusinessSchema);
+}
 
 export async function POST(req) {
   try {
-    await connectDB();
+    const AdminBusiness = await getAdminBusinessModel();
 
     const body = await req.json();
     const { userEmail, listings } = body;
@@ -62,7 +68,6 @@ export async function POST(req) {
       success: true,
       listings: updatedBusiness.listings,
     });
-
   } catch (err) {
     console.error("Save listings error:", err);
     return NextResponse.json(

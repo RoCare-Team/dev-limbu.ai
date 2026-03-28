@@ -2,59 +2,10 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
+import Lead from "@/models/MetaLeadFranchises";
+import { syncFranchiseLeadsIvrInterestFromCalls } from "@/lib/syncFranchiseIvrInterest";
 
-// ==================
-// SCHEMA
-// ==================
-const LeadSchema = new mongoose.Schema(
-  {
-    leadId: { type: String, unique: true, required: true },
-    formId: String,
-    fullName: String,
-    email: String,
-    phone: String,
-    city: String,
-    occupation: String,
-    startTime: String,
-    investment: String,
-    verified: Boolean,
-    createdTime: Date,
-    source: { type: String, default: "meta" },
-    status: { 
-      type: String, 
-      default: "Active",
-      enum: ["Active", "Follow Up", "Inactive", "Onboard"]
-    },
-    lead_quality: {
-      type: String,
-      default: "None",
-      enum: ["None", "Hot", "Warm", "Cold"]
-    },
-
-    // ⭐ Assigned Admin
-    assignedFranchiseAdminId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
-      default: null,
-    },
-    // ⭐ MULTIPLE REMARKS (HISTORY SAFE)
-    remarks: [
-      {
-        text: { type: String, required: true },
-        addedBy: { type: String, default: "Admin" },
-        addedAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
-  },
-  { timestamps: true }
-);
-
-const Lead =
-  mongoose.models.MetaLeadFranchises || 
-  mongoose.model("MetaLeadFranchises", LeadSchema);
+const FOLLOW_UP_PREFIXES = ["Call Not Picked", "Call Back Later"];
 
 // ==================
 // SETTING MODEL (ROUND ROBIN)
@@ -97,6 +48,7 @@ function formatLeadForResponse(leadDoc) {
     lead_quality: leadDoc.lead_quality || "None",
     remarks: leadDoc.remarks || [],
     assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
+    ivrMeInterested: leadDoc.ivrMeInterested === true,
   };
 }
 
@@ -142,6 +94,7 @@ export async function GET(req) {
           createdTime: lead.createdTime,
           remarks: lead.remarks || [],
           assignedFranchiseAdmin: lead.assignedFranchiseAdminId,
+          ivrMeInterested: lead.ivrMeInterested === true,
         },
       });
     }
@@ -172,24 +125,19 @@ export async function GET(req) {
       }
     }
 
+    await syncFranchiseLeadsIvrInterestFromCalls(Lead);
+
     const metaRes = await fetch(
       `https://graph.facebook.com/v19.0/${formId}/leads?limit=${limit}&access_token=${META_TOKEN}`
     );
 
-    if (!metaRes.ok) {
-      throw new Error(`Meta API error: ${metaRes.status}`);
+    let metaLeads = [];
+    if (metaRes.ok) {
+      const metaData = await metaRes.json();
+      metaLeads = metaData.data || [];
+    } else {
+      console.warn(`Meta API error: ${metaRes.status} — continuing with DB/manual leads only`);
     }
-
-    const metaData = await metaRes.json();
-
-    if (!metaData.data || metaData.data.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "No leads found from Meta" },
-        { status: 404 }
-      );
-    }
-
-    const metaLeads = metaData.data;
     const metaLeadIds = metaLeads.map((l) => l.id);
 
     // 🚀 OPTIMIZATION: Fetch all existing leads in ONE query
@@ -309,26 +257,74 @@ export async function POST(req) {
     // CASE 1: ADD REMARK (If leadId is present)
     // ---------------------------------------------------------
     if (body.leadId) {
-      const { leadId, text, addedBy } = body;
+      const { leadId, text, addedBy, followUpDate, agentId, agentName, adminEmail } = body;
 
-      if (!text) {
+      if (!text?.trim()) {
         return NextResponse.json(
           { success: false, message: "text is required for remarks" },
           { status: 400 }
         );
       }
 
+      const trimmed = text.trim();
+
+      let agentObjId =
+        agentId && mongoose.Types.ObjectId.isValid(String(agentId))
+          ? new mongoose.Types.ObjectId(String(agentId))
+          : null;
+      let resolvedName = (agentName && String(agentName).trim()) || "Admin";
+
+      const emailForLookup = adminEmail || body.email;
+      if (emailForLookup && !agentObjId) {
+        const adm = await Admin.findOne({ email: emailForLookup })
+          .select("_id fullName")
+          .lean();
+        if (adm) {
+          agentObjId = adm._id;
+          resolvedName = adm.fullName || resolvedName;
+        }
+      }
+
+      let fu = followUpDate ? new Date(followUpDate) : null;
+      const needsFuCarry =
+        FOLLOW_UP_PREFIXES.some((p) => trimmed.startsWith(p)) &&
+        (!fu || Number.isNaN(fu.getTime()));
+
+      if (needsFuCarry) {
+        const existing = await Lead.findOne({ leadId }).select("remarks").lean();
+        const prev = [...(existing?.remarks || [])]
+          .reverse()
+          .find((r) => r.followUpDate);
+        if (prev?.followUpDate) {
+          fu = new Date(prev.followUpDate);
+        } else {
+          fu = new Date(Date.now() + 60 * 60 * 1000);
+        }
+      }
+
+      const remarkEntry = {
+        text: trimmed,
+        addedBy: addedBy || "Admin",
+        addedAt: new Date(),
+        ...(fu && !Number.isNaN(fu.getTime()) ? { followUpDate: fu } : {}),
+        ...(agentObjId
+          ? { agentId: agentObjId, agentName: resolvedName }
+          : { agentName: resolvedName }),
+      };
+
+      const pushOps = { remarks: remarkEntry };
+      if (agentObjId || resolvedName) {
+        pushOps.callHistory = {
+          agentId: agentObjId || null,
+          agentName: resolvedName,
+          calledAt: new Date(),
+          remark: trimmed,
+        };
+      }
+
       const updatedLead = await Lead.findOneAndUpdate(
         { leadId },
-        {
-          $push: {
-            remarks: {
-              text: text.trim(),
-              addedBy: addedBy || "Admin",
-              addedAt: new Date(),
-            },
-          },
-        },
+        { $push: pushOps },
         { new: true }
       ).lean();
 

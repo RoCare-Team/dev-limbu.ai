@@ -63,9 +63,9 @@ export async function savePostAction(postPayload) {
     const userRes = await fetch(`${API_URL}/api/auth/signup?userId=${userId}`);
     const userData = await userRes.json();
     
-    if (!userData.paidPackage || !userData.planDuration) {
-      return { success: false, error: "No active plan found. Please upgrade." };
-    }
+    // if (!userData.paidPackage || !userData.planDuration) {
+    //   return { success: false, error: "No active plan found. Please upgrade." };
+    // }
     
     const { getPlanPostLimit } = await import('@/utils/userSettingsHelpers');
     const limit = getPlanPostLimit(userData.paidPackage, userData.planDuration);

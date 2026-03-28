@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/postActions";
 import { deleteAssetAction, loadAssetsFromServerAction } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
+import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
@@ -355,11 +356,13 @@ export default function PostManagementPage() {
     });
 
   const handleGenerateClick = async (selectedAssets, useAssetsFlow, businessName, keywords) => {
-    // Business validation
-    if (!selectedBusiness) {
-      showToast("Please select a business first", "error");
-      return;
-    }
+    const resolvedBusinessName = resolveBusinessNameForGeneration({
+      fromInput: typeof businessName === "string" ? businessName : "",
+      selectedBusinessName: selectedBusiness?.name,
+      bussinessTitle,
+      availableLocations,
+      prompt,
+    });
 
     // Auto-scroll to preview section on mobile
     if (typeof window !== 'undefined' && window.innerWidth < 1024 && previewRef.current) {
@@ -394,7 +397,11 @@ export default function PostManagementPage() {
 
     setLastUsedAssetsFlow(useAssetsFlow);
     if (useAssetsFlow) {
-      await handleImageGenerateWithAssets(selectedAssets, selectedBusiness.name, processedKeywords);
+      await handleImageGenerateWithAssets(
+        selectedAssets,
+        resolvedBusinessName,
+        processedKeywords
+      );
     } else {
       await handleAiAgent(selectedAssets);
     }
@@ -638,10 +645,18 @@ export default function PostManagementPage() {
         logoBase64 = await fileToBase64(logo);
       }
 
-      // Call the asset generation API
+      const effectiveBussinessName = resolveBusinessNameForGeneration({
+        fromInput: businessName,
+        selectedBusinessName: selectedBusiness?.name,
+        bussinessTitle,
+        availableLocations,
+        prompt,
+      });
+
+      // Call the asset generation API (bussiness_name must match /api/aiAssetsGenerate)
       const apiResponse = await generateWithAssetsAction({
         topic: prompt,
-        bussines_name: businessName || "",
+        bussiness_name: effectiveBussinessName,
         keywords: keywords || "",
         colourPalette: userAssets.find(a => a.name === 'Color')?.url || "none",
         size: userAssets.find(a => a.name === 'Size')?.url || "1:1",

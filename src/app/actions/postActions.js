@@ -58,47 +58,12 @@ export async function generateWithAiAgentAction(prompt, logoBase64, selectedAsse
 }
 
 export async function savePostAction(postPayload) {
-    // Get user plan limit before saving
-    const userId = postPayload.userId;
-    const userRes = await fetch(`${API_URL}/api/auth/signup?userId=${userId}`);
-    const userData = await userRes.json();
-    
-    // if (!userData.paidPackage || !userData.planDuration) {
-    //   return { success: false, error: "No active plan found. Please upgrade." };
-    // }
-    
-    const { getPlanPostLimit } = await import('@/utils/userSettingsHelpers');
-    const limit = getPlanPostLimit(userData.paidPackage, userData.planDuration);
-    const postsUsed = userData.postsUsed || 0;
-    const remaining = limit - postsUsed;
-    
-    if (remaining <= 0) {
-      return { 
-        success: false, 
-        error: `Post limit reached (${limit}/${limit}). Please upgrade your plan.` 
-      };
-    }
-    
     const postRes = await fetch(`${API_URL}/api/post-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(postPayload),
     });
-    const result = await postRes.json();
-    
-    if (result.success) {
-      // Update user's postsUsed counter
-      await fetch(`${API_URL}/api/auth/signup?userId=${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "increment_posts_used",
-          amount: 1
-        }),
-      });
-    }
-    
-    return result;
+    return await postRes.json();
 }
 
 export async function deductFromWalletAction(userId, payload) {
@@ -116,6 +81,7 @@ export async function generateWithAssetsAction(payload) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
+    console.log("reeeeeeeeeeeeeeeeeee",res);
     
     return await res.json();
 }
@@ -131,17 +97,21 @@ export async function updatePostStatusAction(payload) {
 }
 
 export async function postToGmbAction(payload) {
-  const response = await fetch(`${API_URL}/api/post-to-gmb`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  return data;
+    const response = await fetch(
+        "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0",
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(payload),
+        }
+    );
+    const text = await response.text();
+    try {
+        const data = text ? JSON.parse(text) : {};
+        return { ok: response.ok, data };
+    } catch (error) {
+        return { ok: response.ok, data: text };
+    }
 }
 
 export async function deletePostFromGmbAction(payload) {

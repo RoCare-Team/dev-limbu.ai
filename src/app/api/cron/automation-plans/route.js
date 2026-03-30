@@ -15,8 +15,12 @@
  *   ?phase=prefetch — only pre-generate image+copy for *tomorrow* (run 1–2h after
  *                    today’s publish). Publish phase uses it when dates match.
  *
- * ?phase=dailyAutomation — runs publish then prefetch in one call (e.g. 11:00 IST via cron).
- * postingHour / postingTimezone on the plan gate prefetch + publish to that local window.
+ * ?phase=dailyAutomation — runs publish then prefetch in one call (legacy single cron).
+ * ?phase=tick — publish then prefetch; use with a cron every 10 minutes so chosen hour:minute (IST) is honored.
+ * ?phase=manual&userId=USR_… — Postman/on-demand: same publish pipeline (image + GMB post) for one user.
+ *   Requires Authorization: Bearer CRON_SECRET when env CRON_SECRET is set.
+ *   Validates start/end, frequency/schedule day, quota, locations — skips clock window only.
+ * postingHour / postingMinute gate scheduled cron; prefetch runs 24h before (prefetchOffsetMinutes, default 1440).
  */
 
 import { NextResponse } from 'next/server';
@@ -24,24 +28,29 @@ import dbConnect        from '@/lib/dbConnect';
 import User             from '@/models/User';
 import Post             from '@/models/PostStatus';
 import AutomationPlan   from '@/models/AutomationPlan';
-import { getFrequencyStep, getPlanPostLimit } from '@/utils/userSettingsHelpers';
-import { matchesPostingWindow } from '@/utils/postingScheduleWindow';
+import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
+import {
+  matchesPostingWindow,
+  matchesAbsoluteWindow,
+  matchesPrefetchAbsoluteWindow,
+  zonedYmdString,
+} from '@/utils/postingScheduleWindow';
+import {
+  getNextPublishDateRef,
+  isPostingDayTodayZoned,
+  getPublishUtcMsForDateRef,
+  sameZonedDay,
+} from '@/utils/automationPlanSchedule';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-function startOfLocalDay(d) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x.getTime();
-}
-
-function sameLocalDay(a, b) {
-  if (!a || !b) return false;
-  return startOfLocalDay(a) === startOfLocalDay(b);
-}
+const CRON_TIME_TOLERANCE_MIN = Math.min(
+  60,
+  Math.max(5, Number(process.env.AUTOMATION_CRON_TOLERANCE_MINUTES) || 15)
+);
 
 /** Strip disabled asset slots before calling aiAssetsGenerate */
 function applyIncludeInGeneration(imageConfig = {}) {
@@ -51,15 +60,6 @@ function applyIncludeInGeneration(imageConfig = {}) {
     if (inc[k] === false) next[k] = null;
   }
   return next;
-}
-
-function nextPostingDayAfterLastPost(plan) {
-  const step = getFrequencyStep(plan.frequency || 'daily');
-  if (!plan.lastPostDate) return null;
-  const d = new Date(plan.lastPostDate);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + step);
-  return d;
 }
 
 // ─── Token helper ─────────────────────────────────────────────────────────────
@@ -338,10 +338,10 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const forceRun = searchParams.get('force')  === '1';
   const dryRun   = searchParams.get('dryRun') === '1';
-  const phase    = searchParams.get('phase')  || 'publish';
+  let phase      = searchParams.get('phase')  || 'publish';
   console.log(`[CRON] Params — force=${forceRun}  dryRun=${dryRun}  phase=${phase}`);
 
-  if (phase === 'dailyAutomation') {
+  if (phase === 'dailyAutomation' || phase === 'tick') {
     const origin = new URL(request.url);
     origin.searchParams.set('phase', 'publish');
     const publishRes = await GET(new Request(origin.toString(), { headers: request.headers }));
@@ -351,7 +351,7 @@ export async function GET(request) {
     const prefetchJson = await prefetchRes.json();
     return NextResponse.json({
       timestamp: new Date().toISOString(),
-      phase: 'dailyAutomation',
+      phase,
       publish: publishJson,
       prefetch: prefetchJson,
     });
@@ -360,9 +360,6 @@ export async function GET(request) {
   await dbConnect();
   console.log('[CRON] ✓ DB connected');
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const logs = [];
   const log  = (msg, extra) => {
     const line = extra !== undefined ? `${msg} | ${JSON.stringify(extra)}` : msg;
@@ -370,21 +367,57 @@ export async function GET(request) {
     console.log('[CRON]', line);
   };
 
-  log(`Starting — phase=${phase} force=${forceRun} dryRun=${dryRun} — ${today.toDateString()}`);
+  log(`Starting — phase=${phase} force=${forceRun} dryRun=${dryRun} — ${new Date().toISOString()}`);
 
-  const activePlans = await AutomationPlan.find({
-    active:            true,
-    automationEnabled: true,
-  }).lean();
+  let skipPublishClockWindow = false;
+  let activePlans;
+
+  if (phase === 'manual') {
+    const manualUserId = searchParams.get('userId')?.trim();
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret) {
+      const auth = request.headers.get('authorization');
+      if (auth !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: 'Unauthorized — set Authorization: Bearer CRON_SECRET' }, { status: 401 });
+      }
+    }
+    if (!manualUserId) {
+      return NextResponse.json(
+        {
+          error: 'Missing userId',
+          hint: 'GET /api/cron/automation-plans?phase=manual&userId=YOUR_USR_ID (optional &dryRun=1)',
+        },
+        { status: 400 }
+      );
+    }
+    const one = await AutomationPlan.findOne({
+      userId:              manualUserId,
+      active:              true,
+      automationEnabled:   true,
+    }).lean();
+    if (!one) {
+      return NextResponse.json(
+        { error: 'No active automation plan for this userId', userId: manualUserId },
+        { status: 404 }
+      );
+    }
+    activePlans = [one];
+    skipPublishClockWindow = true;
+    phase = 'publish';
+    log(`Manual trigger for userId=${manualUserId} — schedule/frequency/start/end enforced; clock window skipped`);
+  } else {
+    activePlans = await AutomationPlan.find({
+      active:            true,
+      automationEnabled: true,
+    }).lean();
+  }
 
   log(`Found ${activePlans.length} active plan(s)`);
   console.log('[CRON] Plan IDs:', activePlans.map(p => p._id.toString()));
 
-  // ── PREFETCH PHASE: generate image+copy for *tomorrow* after today’s publish has run ──
+  // ── PREFETCH PHASE: generate image+copy prefetchOffsetMinutes before publish (default 24h) ──
   if (phase === 'prefetch') {
     const prefetchStats = { processed: 0, prefetched: 0, skipped: 0, failed: 0, errors: [] };
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
     const prefetchNow = new Date();
     for (const plan of activePlans) {
@@ -392,23 +425,21 @@ export async function GET(request) {
       const planId = plan._id;
       const keywords = plan.keywords || [];
       const postIndex = plan.postIndex ?? 0;
+      const tz = plan.postingTimezone || 'Asia/Kolkata';
 
       log(`[prefetch] Plan ${planId} (userId=${plan.userId})`);
 
-      if (!forceRun && !matchesPostingWindow(plan, prefetchNow)) {
-        log('[prefetch] Skip — outside posting time window for this plan');
+      const nextRef = getNextPublishDateRef(plan, prefetchNow);
+      if (!nextRef) {
+        log('[prefetch] Skip — no upcoming publish date in schedule/frequency');
         prefetchStats.skipped++;
         continue;
       }
 
-      if ((plan.frequency || 'daily') === 'custom') {
-        log('Prefetch skip — custom frequency');
-        prefetchStats.skipped++; continue;
-      }
-
-      if (!plan.lastPostDate) {
-        log('Prefetch skip — no lastPostDate (first post still uses inline generation)');
-        prefetchStats.skipped++; continue;
+      if (!forceRun && !matchesPrefetchAbsoluteWindow(plan, nextRef, prefetchNow, CRON_TIME_TOLERANCE_MIN)) {
+        log(`[prefetch] Skip — outside prefetch window (offset=${plan.prefetchOffsetMinutes ?? 1440}m, tol=${CRON_TIME_TOLERANCE_MIN}m)`);
+        prefetchStats.skipped++;
+        continue;
       }
 
       let limit = plan.planDetails?.limit ?? 0;
@@ -427,19 +458,13 @@ export async function GET(request) {
         prefetchStats.skipped++; continue;
       }
 
-      if (plan.endDate && new Date(plan.endDate) < tomorrow) {
-        log('Prefetch skip — plan ends before tomorrow');
-        prefetchStats.skipped++; continue;
-      }
-
-      const nextDay = nextPostingDayAfterLastPost(plan);
-      if (!nextDay || startOfLocalDay(nextDay) !== startOfLocalDay(tomorrow)) {
-        log(`Prefetch skip — next posting day ${nextDay ? new Date(nextDay).toDateString() : 'n/a'} ≠ tomorrow ${tomorrow.toDateString()}`);
+      if (plan.endDate && zonedYmdString(nextRef, tz) > zonedYmdString(plan.endDate, tz)) {
+        log('Prefetch skip — next publish after plan end date');
         prefetchStats.skipped++; continue;
       }
 
       const pf = plan.prefetchPost;
-      if (pf?.imageUrl && pf?.postText && pf.publishOn && sameLocalDay(pf.publishOn, nextDay)) {
+      if (pf?.imageUrl && pf?.postText && pf?.publishOn && sameZonedDay(pf.publishOn, nextRef, tz)) {
         log('Prefetch skip — bundle already stored for that publish day');
         prefetchStats.skipped++; continue;
       }
@@ -462,7 +487,7 @@ export async function GET(request) {
           {
             $set: {
               prefetchPost: {
-                publishOn:   nextDay,
+                publishOn:   nextRef,
                 imageUrl,
                 postText,
                 keyword,
@@ -471,7 +496,7 @@ export async function GET(request) {
             },
           }
         );
-        log(`Prefetch OK — for ${tomorrow.toDateString()} keyword="${keyword}"`);
+        log(`Prefetch OK — publishOn=${zonedYmdString(nextRef, tz)} keyword="${keyword}"`);
         prefetchStats.prefetched++;
       } catch (e) {
         log(`Prefetch ERROR — ${e.message}`);
@@ -567,40 +592,43 @@ export async function GET(request) {
     log(`── Plan ${planId} (userId=${userId}) ──`);
 
     const runNow = new Date();
-    if (!forceRun && !matchesPostingWindow(plan, runNow)) {
-      log(`Skip — outside posting time window (postingHour=${plan.postingHour ?? 'any'} ${plan.postingTimezone || 'Asia/Kolkata'})`);
-      results.skipped++;
-      continue;
-    }
+    const tz = plan.postingTimezone || 'Asia/Kolkata';
 
-    // ── 1. Guards ────────────────────────────────────────────────────────────
-
-    if (endDate && new Date(endDate) < today) {
+    if (endDate && zonedYmdString(runNow, tz) > zonedYmdString(endDate, tz)) {
       log(`Skip — end date passed: ${endDate}`);
       await AutomationPlan.updateOne({ _id: planId }, { $set: { active: false, automationEnabled: false } });
       results.skipped++; continue;
     }
 
-    if (startDate && new Date(startDate) > today) {
-      log(`Skip — start date not reached yet: ${startDate}`);
-      results.skipped++; continue;
-    }
-
-    if (!forceRun && lastPostDate &&
-        new Date(lastPostDate).toDateString() === today.toDateString()) {
-      log(`Skip — already posted today. lastPostDate=${lastPostDate}  (add ?force=1 to override)`);
-      results.skipped++; continue;
-    }
-
-    // Enforce frequency gap: don't post again until enough days have passed
-    // e.g. alternate = every 2 days, weekly = every 7 days
-    if (!forceRun && lastPostDate) {
-      const freqStep    = getFrequencyStep(plan.frequency || 'daily');
-      const lastMs      = new Date(lastPostDate).setHours(0, 0, 0, 0);
-      const daysSinceLast = Math.floor((today.getTime() - lastMs) / 86_400_000);
-      if (daysSinceLast < freqStep) {
-        log(`Skip — frequency="${plan.frequency}" needs ${freqStep} day(s) between posts, only ${daysSinceLast} day(s) since last post`);
+    if (!forceRun) {
+      if (startDate && zonedYmdString(runNow, tz) < zonedYmdString(startDate, tz)) {
+        log(`Skip — start date not reached yet: ${startDate}`);
         results.skipped++; continue;
+      }
+
+      if (!isPostingDayTodayZoned(plan, runNow)) {
+        log(`Skip — not a scheduled posting day (frequency/schedule/start/end in ${tz})`);
+        results.skipped++; continue;
+      }
+
+      if (lastPostDate && zonedYmdString(lastPostDate, tz) === zonedYmdString(runNow, tz)) {
+        log(`Skip — already posted today. lastPostDate=${lastPostDate}  (add ?force=1 to override)`);
+        results.skipped++; continue;
+      }
+
+      if (!skipPublishClockWindow) {
+        const ph = plan.postingHour;
+        const hasHour = ph != null && ph !== '' && !Number.isNaN(Number(ph));
+        if (hasHour) {
+          const publishMs = getPublishUtcMsForDateRef(plan, runNow);
+          if (publishMs == null || !matchesAbsoluteWindow(runNow, publishMs, CRON_TIME_TOLERANCE_MIN)) {
+            log(`Skip — outside publish clock window (${plan.postingHour}:${String(plan.postingMinute ?? 0).padStart(2, '0')} ${tz}, tol=${CRON_TIME_TOLERANCE_MIN}m)`);
+            results.skipped++; continue;
+          }
+        } else if (!matchesPostingWindow(plan, runNow)) {
+          log(`Skip — outside posting time window (legacy)`);
+          results.skipped++; continue;
+        }
       }
     }
 
@@ -678,14 +706,17 @@ export async function GET(request) {
       prefetchPost?.imageUrl &&
       prefetchPost?.postText &&
       prefetchPost?.publishOn &&
-      sameLocalDay(prefetchPost.publishOn, today)
+      sameZonedDay(prefetchPost.publishOn, runNow, tz)
     ) {
       usedPrefetch = true;
       imageUrl = prefetchPost.imageUrl;
       postText = prefetchPost.postText;
       log('Using prefetched image + copy for today’s publish');
     } else {
-      if (prefetchPost?.publishOn && startOfLocalDay(prefetchPost.publishOn) < startOfLocalDay(today)) {
+      if (
+        prefetchPost?.publishOn &&
+        zonedYmdString(prefetchPost.publishOn, tz) < zonedYmdString(runNow, tz)
+      ) {
         await AutomationPlan.updateOne({ _id: planId }, { $unset: { prefetchPost: 1 } });
         log('Removed stale prefetch (missed publish day)');
       }
@@ -959,5 +990,6 @@ export async function GET(request) {
     baseUrl:   BASE_URL,
     ...results,
     logs,
+    manualTrigger: skipPublishClockWindow,
   });
 }

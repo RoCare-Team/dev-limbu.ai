@@ -64,6 +64,8 @@ const automationPlanSchema = new mongoose.Schema(
     postingHour:     { type: Number },
     postingMinute: { type: Number, default: 0 },
     postingTimezone: { type: String, default: 'Asia/Kolkata' },
+    /** Minutes before publish to generate image+copy (1440 = same time previous day; 5 = test mode). */
+    prefetchOffsetMinutes: { type: Number, default: 1440 },
     startDate: { type: Date },
     endDate: { type: Date },
     skippedDates: [{ type: String }],

@@ -77,9 +77,9 @@ export async function POST(req) {
 
         // ✅ FIXED TEMPLATE PARAMS
         templateParams: [
-          "https://us06web.zoom.us/meeting/register/GdVk9iYlRgWL4Y1wC721_A",
-          "883 7574 4050",
-          "916645",
+          "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w",
+          "864 3594 1427",
+          " 800770",
         ],
 
         source: "new-landing-page form",

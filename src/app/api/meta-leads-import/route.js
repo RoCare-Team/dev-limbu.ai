@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import User from "@/models/User";
 import MetaSync from "@/models/MetaSync";
 import Admin from "@/models/Admin";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const Setting = mongoose.models.settings || mongoose.model("settings", SettingSc
 /* ================= DB ================= */
 async function connectDB() {
   if (mongoose.connection.readyState >= 1) return;
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(mongooseConnectionUri(MONGODB_URI));
 }
 
 /* ================= HELPERS ================= */
@@ -55,20 +56,20 @@ async function bumpAgentRoundRobin(SettingModel, rrKey) {
 }
 
 /* ================= WHATSAPP ================= */
-async function sendWhatsApp(phone, fullName) {
-  try {
-    await fetch("https://limbu.ai/api/whatsapp-message", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        destination: phone,
-        templateParams: [fullName, "https://limbu.ai"],
-      }),
-    });
-  } catch (err) {
-    console.error("WhatsApp Error:", err.message);
-  }
-}
+// async function sendWhatsApp(phone, fullName) {
+//   try {
+//     await fetch("https://limbu.ai/api/whatsapp-message", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         destination: phone,
+//         templateParams: [fullName, "https://limbu.ai"],
+//       }),
+//     });
+//   } catch (err) {
+//     console.error("WhatsApp Error:", err.message);
+//   }
+// }
 
 /* ================= TATA AUTODIAL ================= */
 async function sendToTataDialer(phone, fullName) {
@@ -214,7 +215,7 @@ export async function GET(req) {
         inserted++;
 
         // 🔥 AUTOMATION
-        await sendWhatsApp(phone, fullName);
+        // await sendWhatsApp(phone, fullName);
         await sendToTataDialer(phone, fullName);
       }
 

@@ -53,27 +53,27 @@ useEffect(() => {
   };
 
 
-  const sendToWhastappMessage = async (destination, templateParams) => {
-    try {
-      const response = await fetch("/api/whatsapp-message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          destination,
-          templateParams,
-        }),
-      });
+  // const sendToWhastappMessage = async (destination, templateParams) => {
+  //   try {
+  //     const response = await fetch("/api/whatsapp-message", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         destination,
+  //         templateParams,
+  //       }),
+  //     });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("WhatsApp message sent:", data);
-      }
-    } catch (error) {
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       console.log("WhatsApp message sent:", data);
+  //     }
+  //   } catch (error) {
       
-    }
-  }
+  //   }
+  // }
 
   const sendOtp = async () => {
     if (!phone || phone.length < 10) {
@@ -146,7 +146,7 @@ useEffect(() => {
         showMessage("Registration complete! Redirecting...", "success");
 
         const formattedPhone = phone.length === 10 ? `91${phone}` : phone;
-        await sendToWhastappMessage(formattedPhone, [name, "https://limbu.ai"]);
+        // await sendToWhastappMessage(formattedPhone, [name, "https://limbu.ai"]);
 
         if (data.token) {
           router.push("/dashboard");
@@ -399,7 +399,6 @@ useEffect(() => {
                           placeholder="Enter your full name"
                           maxLength={30}
                           value={name}
-                          maxLength={30}
                           onChange={(e) => setName(e.target.value)}
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
                             isDark

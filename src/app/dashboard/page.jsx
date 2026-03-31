@@ -1193,6 +1193,7 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
         saveToCache(userEmail, [], true);
         setCacheStatus("No listings found");
       }
+      
     } catch (error) {
       console.error("❌ Error fetching data:", error);
       if (error.message.includes("401") || error.message.includes("UNAUTHENTICATED") || error.message.includes("403")) {
@@ -1568,8 +1569,25 @@ const fetchInstagramPages = useCallback(async () => {
         const websiteUrl = item.websiteUri || "";
         const reviewUri = item.metadata?.newReviewUri || "";
         const businessProfileId = item.name || "";
-    
-        return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified, businessProfileId };
+
+        return {
+          locationId,
+          accountId,
+          locality,
+          address,
+          title,
+          websiteUrl,
+          reviewUri,
+          isVerified,
+          businessProfileId,
+          name: item.name,
+          websiteUri: item.websiteUri,
+          storefrontAddress: item.storefrontAddress,
+          phoneNumbers: item.phoneNumbers,
+          categories: item.categories,
+          openInfo: item.openInfo,
+          metadata: item.metadata,
+        };
       });
       localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
       if (listings.length > 0) {
@@ -1592,7 +1610,24 @@ const fetchInstagramPages = useCallback(async () => {
     const reviewUri = item.metadata?.newReviewUri || "";
     const businessProfileId = item.name || "";
 
-    return { locationId, accountId, locality, address, title, websiteUrl, reviewUri, isVerified, businessProfileId };
+    return {
+      locationId,
+      accountId,
+      locality,
+      address,
+      title,
+      websiteUrl,
+      reviewUri,
+      isVerified,
+      businessProfileId,
+      name: item.name,
+      websiteUri: item.websiteUri,
+      storefrontAddress: item.storefrontAddress,
+      phoneNumbers: item.phoneNumbers,
+      categories: item.categories,
+      openInfo: item.openInfo,
+      metadata: item.metadata,
+    };
   });
 
   if (allListings.length > 0) {

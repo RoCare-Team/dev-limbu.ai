@@ -16,13 +16,35 @@ import {
   CheckCircle,
   XCircle,
   Pencil,
-  Loader2
+  Loader2,
+  Video,
+  Image as ImageIconLucide,
 } from "lucide-react";
+import { isPostVideoMedia } from "./ImageToVideoModal";
+import { postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
 
-const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject, handleDownload, handleShare, handlePost, onEditDescription, handleDeleteFromGMB, onToggleCheckmark, handleFacebookPost, handleInstagramPost }) => {
+const PostCard = ({
+  post,
+  scheduleDates,
+  onDateChange,
+  onUpdateStatus,
+  onReject,
+  handleDownload,
+  handleShare,
+  handlePost,
+  onEditDescription,
+  handleDeleteFromGMB,
+  onToggleCheckmark,
+  handleFacebookPost,
+  handleInstagramPost,
+  onConvertToVideo,
+  convertingVideoPostId = null,
+  videoGenerationCoins = 200,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showFull, setShowFull] = useState(false);
   const [activeDesc, setActiveDesc] = useState('gmb');
+  const [cardMediaTab, setCardMediaTab] = useState("image");
 
   const isPostedGmb = post.locations?.some(l => l.isPosted) || post.whenPosted?.gmb;
   const isPostedFb = !!post.facebookPostId || post.whenPosted?.facebook || post.fbPages?.some(p => p.isPosted);
@@ -58,6 +80,10 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
   };
 
   useEffect(() => {
+    setCardMediaTab("image");
+  }, [post._id]);
+
+  useEffect(() => {
     const fetchFbStats = async () => {
       if (post.status === 'posted' && post.facebookPostId && post.facebookPageAccessToken) {
         try {
@@ -81,16 +107,111 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
     fetchFbStats();
   }, [post]);
 
+  const imgUrl = postImageUrl(post);
+  const vidUrl = postVideoUrl(post);
+  const dualCardMedia = Boolean(imgUrl && vidUrl);
+  const displayMediaUrl = dualCardMedia
+    ? cardMediaTab === "video"
+      ? vidUrl
+      : imgUrl
+    : vidUrl || post?.aiOutput || "";
+  const cardShowVideo =
+    dualCardMedia && cardMediaTab === "video"
+      ? true
+      : !dualCardMedia && isPostVideoMedia(post);
+
+  const postForDownloadShare = () => ({
+    ...post,
+    aiOutput: displayMediaUrl || post.aiOutput,
+  });
+
+  const canConvertImageToVideo = Boolean(
+    onConvertToVideo &&
+      imgUrl &&
+      !post?.videoOutput &&
+      !isPostVideoMedia(post) &&
+      post.status !== "rejected" &&
+      post.status !== "processing"
+  );
+  const isConvertingThisPost =
+    convertingVideoPostId != null &&
+    String(convertingVideoPostId) === String(post._id);
+
+  const convertToVideoButton = canConvertImageToVideo ? (
+    <button
+      type="button"
+      disabled={isConvertingThisPost}
+      onClick={() => onConvertToVideo(post)}
+      className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 px-4 py-2.5 text-sm font-bold text-amber-950 shadow-sm transition-all disabled:opacity-70 disabled:cursor-wait"
+    >
+      {isConvertingThisPost ? (
+        <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+      ) : (
+        <Video className="w-4 h-4 shrink-0" />
+      )}
+      {isConvertingThisPost
+        ? "Generating video…"
+        : `Convert to video (${videoGenerationCoins} coins)`}
+    </button>
+  ) : null;
+
   return (
     <div className="group bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-neutral-200 overflow-hidden hover:scale-[1.02] transition-all duration-300 flex flex-col">
-      {/* Image Section */}
+      {/* Image | Video tabs — top of card (above media, same card as APPROVED badge) */}
+      {dualCardMedia && (
+        <div className="flex gap-1.5 p-2 bg-gradient-to-r from-slate-50 via-violet-50/50 to-amber-50/40 border-b border-gray-100 shrink-0">
+          <button
+            type="button"
+            onClick={() => setCardMediaTab("image")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all ${
+              cardMediaTab === "image"
+                ? "bg-white text-gray-900 shadow-md ring-1 ring-gray-200/90"
+                : "text-gray-500 hover:text-gray-800 hover:bg-white/70"
+            }`}
+          >
+            <ImageIconLucide className="w-4 h-4" />
+            Image
+          </button>
+          <button
+            type="button"
+            onClick={() => setCardMediaTab("video")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all ${
+              cardMediaTab === "video"
+                ? "bg-white text-violet-900 shadow-md ring-1 ring-violet-200"
+                : "text-gray-500 hover:text-violet-800 hover:bg-white/70"
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            Video
+          </button>
+        </div>
+      )}
+
+      {/* Image / Video preview */}
       <div className="relative w-full h-52 overflow-hidden bg-gray-100 aspect-[4/3]">
-        <a href={post.aiOutput} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-          <img
-            src={post?.aiOutput || "https://via.placeholder.com/400"}
-            alt="Post content"
-            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
-          />
+        <a
+          href={displayMediaUrl || post.aiOutput}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full h-full"
+        >
+          {cardShowVideo ? (
+            <video
+              src={displayMediaUrl}
+              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 bg-black"
+              controls
+              playsInline
+              muted
+              preload="metadata"
+            />
+          ) : (
+            <img
+              src={displayMediaUrl || "https://via.placeholder.com/400"}
+              alt="Post content"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+            />
+          )}
         </a>
 
         {/* Status Badge */}
@@ -124,14 +245,20 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
         {/* Overlay Actions (Download/Share) */}
         <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
           <button
-            onClick={(e) => { e.preventDefault(); handleDownload(post); }}
+            onClick={(e) => {
+              e.preventDefault();
+              handleDownload(postForDownloadShare());
+            }}
             className="p-2 bg-white/90 hover:bg-white text-gray-700 rounded-full shadow-md backdrop-blur-sm transition-transform hover:scale-110"
             title="Download"
           >
             <Download className="w-4 h-4" />
           </button>
           <button
-            onClick={(e) => { e.preventDefault(); handleShare(post); }}
+            onClick={(e) => {
+              e.preventDefault();
+              handleShare(postForDownloadShare());
+            }}
             className="p-2 bg-white/90 hover:bg-white text-gray-700 rounded-full shadow-md backdrop-blur-sm transition-transform hover:scale-110"
             title="Share"
           >
@@ -276,7 +403,9 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           )}
 
           {post.status === "pending" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              {convertToVideoButton}
+              <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => onUpdateStatus(post._id, "approved")}
                 className="flex items-center justify-center gap-2 bg-lightPrimary text-dark border border-yellow-200 hover:bg-yellow-300 hover:border-neutral-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
@@ -292,9 +421,12 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 Reject
               </button>
             </div>
+            </div>
           )}
 
           {post.status === "approved" && (
+  <div className="space-y-2">
+    {convertToVideoButton}
   <div className="grid grid-cols-2 gap-2">
 
     <button
@@ -329,6 +461,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
       Schedule
     </button>
 
+  </div>
   </div>
 )}
 
@@ -439,6 +572,8 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
                 </div>
               </div>
 
+              {convertToVideoButton}
+
               {/* Post Now Button */}
               <button
                 onClick={() => handlePost(post)}
@@ -460,6 +595,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
 
           {post.status === "failed" && (
             <div className="space-y-3">
+              {convertToVideoButton}
               <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3">
                 <p className="text-xs text-neutral-600 font-bold uppercase flex items-center gap-1">
                   <XCircle className="w-3 h-3" /> Posting Failed
@@ -514,6 +650,7 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
           
           {post.status === "posted" && (
             <div className="space-y-3">
+              {convertToVideoButton}
               {/* Status Indicators */}
               <div className="flex flex-wrap gap-2 mb-1">
                   {isPostedGmb && <span className="text-[10px] bg-neutral-100 text-neutral-700 px-2 py-1 rounded-md border border-neutral-100 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3"/> GMB Posted</span>}
@@ -556,7 +693,6 @@ const PostCard = ({ post, scheduleDates, onDateChange, onUpdateStatus, onReject,
               </div>
             </div>
           )}
-
 
         </div>
       </div>

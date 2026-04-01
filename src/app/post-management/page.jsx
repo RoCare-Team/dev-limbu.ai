@@ -14,7 +14,7 @@ import { deleteAssetAction, loadAssetsFromServerAction } from "@/app/actions/ass
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
   Loader2,
   CheckCircle,
@@ -42,6 +42,8 @@ import {
   ThumbsUp,
   MessageCircle,
   Wallet,
+  Video,
+  Film,
 } from "lucide-react";
 
 import ScheduleModal from "../../components/post-management/ScheduleModal";
@@ -64,13 +66,40 @@ import SuccessOverlay from "../../components/SuccessOverlay"; // Corrected impor
 import SupportModal from "@/components/SupportModal";
 import FirstPostModal from "../../components/FirstPostModal";
 import PostInput from "@/components/PostInput";
+import ImageToVideoModal from "@/components/post-management/ImageToVideoModal";
 import TabButton from "@/components/TabButton";
 import RejectReasonModal from "../../components/RejectReasonModal";
+import {
+  postHasVideoAsset,
+  metaPublishMedia,
+  looksLikeVideoUrl,
+  postImageUrl,
+} from "@/lib/postMediaUrls";
 import "./PostManagement.module.css";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 
+/** Wallet cost per AI image generation (Auto Post / assets flow). */
+const AI_IMAGE_GENERATION_COINS = 80;
+/** Wallet cost per image → video conversion (auto + modal). */
+const VIDEO_GENERATION_COINS = 200;
 
+async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 120000) {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    const u = new URL(`https://graph.facebook.com/v24.0/${creationId}`);
+    u.searchParams.set("fields", "status_code");
+    u.searchParams.set("access_token", accessToken);
+    const r = await fetch(u.toString());
+    const j = await r.json();
+    if (j.status_code === "FINISHED") return;
+    if (j.status_code === "ERROR" || j.status_code === "EXPIRED") {
+      throw new Error(j.error?.message || `Instagram processing: ${j.status_code}`);
+    }
+    await new Promise((res) => setTimeout(res, 4000));
+  }
+  throw new Error("Instagram video processing timed out.");
+}
 
 export default function PostManagementPage() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -131,6 +160,10 @@ export default function PostManagementPage() {
   const [bussinessTitle, setBussinessTitle] = useState("")
   const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb",'fb', 'ig']);
   const [keywordError, setKeywordError] = useState("");
+  const [imageToVideoOpen, setImageToVideoOpen] = useState(false);
+  const [imageToVideoInitialPost, setImageToVideoInitialPost] = useState(null);
+  /** Post _id currently running one-click / card video conversion (loading UI). */
+  const [convertingVideoPostId, setConvertingVideoPostId] = useState(null);
 
   // Helper to strip base64 prefix
   const stripBase64 = (str) => {
@@ -272,6 +305,7 @@ export default function PostManagementPage() {
     scheduled: 0,
     posted: 0,
     rejected: 0,
+    videos: 0,
   });
 
   const tabs = [
@@ -281,6 +315,7 @@ export default function PostManagementPage() {
     { id: "rejected", label: "Rejected", shortLabel: "Rejected", icon: XCircle, count: allCounts.rejected },
     { id: "scheduled", label: "Scheduled", shortLabel: "Scheduled", icon: Calendar, count: allCounts.scheduled },
     { id: "posted", label: "Posted", shortLabel: "Posted", icon: Send, count: allCounts.posted },
+    { id: "videos", label: "Videos", shortLabel: "Videos", icon: Film, count: allCounts.videos },
   ];
 
   const fetchPosts = async (isBackground = false) => {
@@ -330,6 +365,7 @@ export default function PostManagementPage() {
           scheduled: allPosts.filter((p) => p.status === "scheduled").length,
           posted: allPosts.filter((p) => p.status === "posted").length,
           rejected: allPosts.filter((p) => p.status === "rejected").length,
+          videos: allPosts.filter((p) => postHasVideoAsset(p)).length,
         });
 
         // Show magic modal if no posts exist
@@ -484,14 +520,12 @@ export default function PostManagementPage() {
     const userId = localStorage.getItem("userId");
 
     try {
-      // Check wallet balance for AI generation (150 coins)
       const userData = await getUserWalletAction(userId);
       const walletBalance = userData.wallet || 0;
       setUserWallet(walletBalance);
 
-      // Check if user has sufficient balance for AI generation (80 coins)
-      if (walletBalance < 80) {
-        setRequiredCoins(80);
+      if (walletBalance < AI_IMAGE_GENERATION_COINS) {
+        setRequiredCoins(AI_IMAGE_GENERATION_COINS);
         setShowInsufficientBalance(true);
         return;
       }
@@ -542,9 +576,8 @@ export default function PostManagementPage() {
         Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
       );
 
-      // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
-        amount: 80,
+        amount: AI_IMAGE_GENERATION_COINS,
         type: "deduct",
         reason: "image_generated",
         metadata: {
@@ -557,8 +590,8 @@ export default function PostManagementPage() {
         console.warn("Wallet deduction failed:", walletData.error);
         showToast(walletData.error, "error");
       } else {
-        showToast("80 coins deducted for AI generation ✅", "success");
-        setUserWallet((prev) => Math.max(0, prev - 80));
+        showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted for AI image generation ✅`, "success");
+        setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
       }
 
       let finalDescription = data.description;
@@ -612,14 +645,12 @@ export default function PostManagementPage() {
 
     const userId = localStorage.getItem("userId");
     try {
-      // Check wallet balance for AI generation (150 coins)
       const userData = await getUserWalletAction(userId);
       const walletBalance = userData.wallet || 0;
       setUserWallet(walletBalance);
 
-      // Check if user has sufficient balance for AI generation (80 coins)
-      if (walletBalance < 80) {
-        setRequiredCoins(80);
+      if (walletBalance < AI_IMAGE_GENERATION_COINS) {
+        setRequiredCoins(AI_IMAGE_GENERATION_COINS);
         setShowInsufficientBalance(true);
         return;
       }
@@ -684,9 +715,8 @@ export default function PostManagementPage() {
         Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
       );
 
-      // Deduct 80 coins for AI generation
       const walletData = await deductFromWalletAction(userId, {
-        amount: 80,
+        amount: AI_IMAGE_GENERATION_COINS,
         type: "deduct",
         reason: "image_generated",
         metadata: {
@@ -699,8 +729,8 @@ export default function PostManagementPage() {
         console.warn("Wallet deduction failed:", walletData.error);
         showToast(walletData.error, "error");
       } else {
-        showToast("80 coins deducted for AI generation ✅", "success");
-        setUserWallet((prev) => Math.max(0, prev - 80));
+        showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted for AI image generation ✅`, "success");
+        setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
       }
 
       let finalDescription = data.description;
@@ -993,7 +1023,8 @@ export default function PostManagementPage() {
   const submitFacebookPost = async (post, pageData, caption) => {
     setShowFacebookModal(false);
 
-    if (!caption && !post.aiOutput) {
+    const media = metaPublishMedia(post);
+    if (!caption?.trim() && !media.url) {
       showToast("Post content is empty.", "error");
       return;
     }
@@ -1001,13 +1032,62 @@ export default function PostManagementPage() {
     try {
       showToast("Publishing to Facebook...", "success");
 
-      const imageUrl = post.aiOutput;
       const pageId = pageData.pageId;
       const accessToken = pageData.pageAccessToken;
 
       let facebookPostId;
 
-      if (imageUrl) {
+      if (media.type === "video" && media.url) {
+        let videoId = null;
+        const isHttpVideo =
+          typeof media.url === "string" &&
+          /^https?:\/\//i.test(media.url.trim());
+
+        if (isHttpVideo) {
+          try {
+            const proxyRes = await fetch("/api/facebook/upload-video", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                videoUrl: media.url.trim(),
+                pageId,
+                accessToken,
+                description: caption || "",
+              }),
+            });
+            const proxyJson = await proxyRes.json().catch(() => ({}));
+            if (proxyRes.ok && proxyJson.success && proxyJson.id) {
+              videoId = proxyJson.id;
+            }
+          } catch {
+            /* fall through to file_url */
+          }
+        }
+
+        if (!videoId) {
+          const videoRes = await fetch(
+            `https://graph.facebook.com/v24.0/${pageId}/videos`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                file_url: media.url,
+                description: caption || "",
+                access_token: accessToken,
+              }),
+            }
+          );
+          const videoData = await videoRes.json();
+          if (!videoData.id) {
+            throw new Error(
+              videoData.error?.message || "Failed to publish video to Facebook"
+            );
+          }
+          videoId = videoData.id;
+        }
+        facebookPostId = videoId;
+      } else if (media.type === "image" && media.url) {
+        const imageUrl = media.url;
         // 1. Upload photo without publishing (published=false)
         const photoUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
         const photoPayload = {
@@ -1088,7 +1168,7 @@ export default function PostManagementPage() {
             platform: "Facebook",
             businessName: pageName,
             locationName: pageName,
-            postUrl: post.aiOutput,
+            postUrl: metaPublishMedia(post).url || post.aiOutput,
           }),
         });
         
@@ -1149,22 +1229,38 @@ export default function PostManagementPage() {
   const submitInstagramPost = async (post, accountData, caption) => {
     setShowInstagramModal(false);
 
-    if (!post.aiOutput) {
-      showToast("Post has no image to share.", "error");
+    const media = metaPublishMedia(post);
+    if (!media.url) {
+      showToast("Post has no media to share.", "error");
       return;
     }
 
     try {
       showToast("Publishing to Instagram...", "success");
 
-      const imageUrl = post.aiOutput;
       const igUserId = accountData.igId;
       const accessToken = accountData.pageAccessToken;
 
       // Step 1: Create Media Container
       const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
-      const mediaContainerPayload = { image_url: imageUrl, caption: caption || "", access_token: accessToken };
-      const mediaRes = await fetch(mediaContainerUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mediaContainerPayload) });
+      const mediaContainerPayload =
+        media.type === "video"
+          ? {
+              video_url: media.url,
+              caption: caption || "",
+              media_type: "REELS",
+              access_token: accessToken,
+            }
+          : {
+              image_url: media.url,
+              caption: caption || "",
+              access_token: accessToken,
+            };
+      const mediaRes = await fetch(mediaContainerUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mediaContainerPayload),
+      });
       const mediaData = await mediaRes.json();
 
       if (!mediaData.id) {
@@ -1172,8 +1268,12 @@ export default function PostManagementPage() {
         throw new Error(mediaData.error?.message || "Failed to create Instagram media container.");
       }
 
-      // Step 2: Publish Media Container
-      await new Promise(resolve => setTimeout(resolve, 4000)); // Delay for processing
+      // Step 2: Wait for processing (longer for video)
+      if (media.type === "video") {
+        await waitForInstagramVideoContainer(mediaData.id, accessToken);
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+      }
 
       const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
       const publishPayload = { creation_id: mediaData.id, access_token: accessToken };
@@ -1195,7 +1295,7 @@ export default function PostManagementPage() {
               platform: "Instagram",
               businessName: igUsername,
               locationName: igUsername,
-            postUrl: post.aiOutput,
+            postUrl: media.url || post.aiOutput,
             }),
           });
           
@@ -1220,6 +1320,144 @@ export default function PostManagementPage() {
     } catch (err) {
       console.error("Instagram post error:", err);
       showToast(err.message, "error");
+    }
+  };
+
+  /** One-click: OpenAI video prompt from post.promat → /api/image-to-video → attach MP4 on same post (Image | Video tabs). */
+  const handleAutoConvertToVideo = async (post) => {
+    const userId = localStorage.getItem("userId");
+    if (!userId || !post?._id) return;
+
+    const source = postImageUrl(post);
+    if (!source) {
+      showToast("No still image on this post to convert.", "error");
+      return;
+    }
+
+    const promptBase =
+      (post.promat && String(post.promat).trim()) ||
+      prompt.trim() ||
+      (post.description && String(post.description).trim()) ||
+      "";
+    if (!promptBase) {
+      showToast("No saved prompt on this post — use Customize below.", "error");
+      return;
+    }
+
+    const userWalletData = await getUserWalletAction(userId);
+    const balance = userWalletData.wallet || 0;
+    setUserWallet(balance);
+    if (balance < VIDEO_GENERATION_COINS) {
+      setRequiredCoins(VIDEO_GENERATION_COINS);
+      setShowInsufficientBalance(true);
+      return;
+    }
+
+    setConvertingVideoPostId(String(post._id));
+    try {
+      const prRes = await fetch("/api/ai/image-prompt-to-video-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imagePrompt: promptBase }),
+      });
+      const prData = await prRes.json().catch(() => ({}));
+      if (!prRes.ok || !prData.success || !prData.videoPrompt) {
+        throw new Error(prData.error || "Could not build video prompt");
+      }
+      const videoPrompt = String(prData.videoPrompt).trim();
+
+      const businessName =
+        resolveBusinessNameForGeneration({
+          fromInput: "",
+          selectedBusinessName: selectedBusiness?.name,
+          bussinessTitle,
+          availableLocations,
+          prompt: promptBase,
+        }) || "Business";
+
+      const body = {
+        prompt: videoPrompt,
+        business_name: businessName,
+        duration: 8,
+        audio_folder: "basic",
+        platform: "both",
+      };
+      if (source.startsWith("http://") || source.startsWith("https://")) {
+        body.image_url = source;
+      } else {
+        body.image = source.startsWith("data:")
+          ? source
+          : `data:image/png;base64,${source}`;
+      }
+
+      const ivRes = await fetch("/api/image-to-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const ivData = await ivRes.json().catch(() => ({}));
+      if (!ivRes.ok || (ivData.success === false && !ivData.drive_link)) {
+        throw new Error(
+          typeof ivData.error === "string"
+            ? ivData.error
+            : ivData.error?.message ||
+                ivData.message ||
+                "Video generation failed"
+        );
+      }
+      if (!ivData.drive_link) {
+        throw new Error("No video URL returned from generator");
+      }
+
+      const walletDeduct = await deductFromWalletAction(userId, {
+        amount: VIDEO_GENERATION_COINS,
+        type: "deduct",
+        reason: "video_generated",
+        metadata: { postId: post._id, source: "image_to_video_auto" },
+      });
+      if (walletDeduct.error) {
+        showToast(walletDeduct.error, "error");
+      } else {
+        showToast(`${VIDEO_GENERATION_COINS} coins deducted for video generation ✅`, "success");
+        setUserWallet((prev) => Math.max(0, prev - VIDEO_GENERATION_COINS));
+      }
+
+      const ig =
+        typeof ivData.instagram_caption === "string"
+          ? ivData.instagram_caption.trim()
+          : "";
+      const fb =
+        typeof ivData.facebook_caption === "string"
+          ? ivData.facebook_caption.trim()
+          : "";
+
+      const upd = await updatePostStatusAction({
+        id: post._id,
+        userId,
+        status: post.status || "pending",
+        videoOutput: ivData.drive_link,
+        videoPrompt,
+        ...(fb ? { fbDescription: fb } : {}),
+        ...(ig ? { igDescription: ig } : {}),
+      });
+
+      if (!upd.success) {
+        throw new Error(upd.error || "Could not save video on this post");
+      }
+
+      const merged = { ...post, ...upd.data };
+      setPosts((prev) =>
+        prev.map((p) => (p._id === post._id ? merged : p))
+      );
+      setPreviewData((prev) =>
+        prev?._id === post._id ? { ...prev, ...upd.data } : prev
+      );
+      showToast("Video ready — tap the Video tab");
+      await fetchPosts(true);
+    } catch (e) {
+      showToast(e.message || "Video conversion failed", "error");
+    } finally {
+      setConvertingVideoPostId(null);
     }
   };
 
@@ -1650,18 +1888,19 @@ export default function PostManagementPage() {
 
 
   const handleDownload = async (post) => {
-    if (!post.aiOutput) {
-      showToast("No image available to download.", "error");
-      return
+    const mediaUrl = post?.aiOutput;
+    if (!mediaUrl) {
+      showToast("No media available to download.", "error");
+      return;
     }
 
     try {
-      const apiUrl = `/api/downloadImage?url=${encodeURIComponent(post.aiOutput)}`;
+      const apiUrl = `/api/downloadImage?url=${encodeURIComponent(mediaUrl)}`;
 
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
-        showToast("Failed to download image", "error");
+        showToast("Failed to download file", "error");
         return;
       }
 
@@ -1669,14 +1908,15 @@ export default function PostManagementPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `post-${Date.now()}.jpg`;
+      const ext = looksLikeVideoUrl(mediaUrl) ? "mp4" : "jpg";
+      link.download = `post-${Date.now()}.${ext}`;
       document.body.appendChild(link);
       link.click();
       URL.revokeObjectURL(url);
       document.body.removeChild(link);
-      showToast("Image downloaded successfully! 📥");
+      showToast(looksLikeVideoUrl(mediaUrl) ? "Video downloaded! 📥" : "Image downloaded successfully! 📥");
     } catch (err) {
-      showToast("Failed to download image", "error");
+      showToast("Failed to download file", "error");
     }
   };
   const handleShare = async (post) => {
@@ -1795,7 +2035,14 @@ export default function PostManagementPage() {
   useEffect(() => {
     fetchPosts();
   }, []);
-  const filteredPosts = activeTab === "total" ? posts : posts.filter((post) => post.status === activeTab);
+
+  const filteredPosts = useMemo(() => {
+    if (activeTab === "videos") {
+      return posts.filter((p) => postHasVideoAsset(p));
+    }
+    if (activeTab === "total") return posts;
+    return posts.filter((post) => post.status === activeTab);
+  }, [posts, activeTab]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50  mt-[-8px]">
@@ -1902,6 +2149,42 @@ export default function PostManagementPage() {
             loading={loadingIgAccounts}
           />
         )}
+        <ImageToVideoModal
+          isOpen={imageToVideoOpen}
+          onClose={() => {
+            setImageToVideoOpen(false);
+            setImageToVideoInitialPost(null);
+          }}
+          initialPost={imageToVideoInitialPost}
+          posts={posts}
+          selectedBusiness={selectedBusiness}
+          bussinessTitle={bussinessTitle}
+          availableLocations={availableLocations}
+          postPrompt={prompt}
+          showToast={showToast}
+          videoGenerationCoins={VIDEO_GENERATION_COINS}
+          onVideoChargeApplied={() =>
+            setUserWallet((prev) => Math.max(0, prev - VIDEO_GENERATION_COINS))
+          }
+          onVideoInsufficientBalance={() => {
+            setRequiredCoins(VIDEO_GENERATION_COINS);
+            setShowInsufficientBalance(true);
+          }}
+          onVideoSaved={(saved) => {
+            if (!saved) return;
+            setPosts((prev) => {
+              const exists = prev.some((p) => p._id === saved._id);
+              if (exists) {
+                return prev.map((p) =>
+                  p._id === saved._id ? { ...p, ...saved } : p
+                );
+              }
+              return [saved, ...prev];
+            });
+            setPreviewData(saved);
+            fetchPosts(true);
+          }}
+        />
         {showFirstPostModal && (
           <FirstPostModal onClose={() => setShowFirstPostModal(false)} />
         )}
@@ -2104,6 +2387,18 @@ export default function PostManagementPage() {
               keywordError={keywordError}
             />
 
+            <button
+              type="button"
+              onClick={() => {
+                setImageToVideoInitialPost(null);
+                setImageToVideoOpen(true);
+              }}
+              className="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm transition-all"
+            >
+              <Video className="w-5 h-5" />
+              Image to Video
+            </button>
+
           </div>
 
           {/* Right Column: Live Preview */}
@@ -2121,12 +2416,26 @@ export default function PostManagementPage() {
               handlePost={handlePost}
               onToggleCheckmark={handleToggleCheckmark}
               onEditDescription={handleEditDescription}
+              isConvertingToVideo={
+                !!previewData?._id &&
+                String(convertingVideoPostId) === String(previewData._id)
+              }
+              videoConvertCoins={VIDEO_GENERATION_COINS}
+              onAutoConvertToVideo={handleAutoConvertToVideo}
+              onRequestImageToVideo={() => {
+                if (previewData) {
+                  setImageToVideoInitialPost(previewData);
+                  setImageToVideoOpen(true);
+                }
+              }}
+              handleFacebookPost={handleFacebookPost}
+              handleInstagramPost={handleInstagramPost}
             />
           </div>
         </div>
 
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5 ">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 sm:gap-5 ">
           {tabs.map((tab) => (
             <TabButton
               key={tab.id}
@@ -2161,6 +2470,9 @@ export default function PostManagementPage() {
                 onToggleCheckmark={handleToggleCheckmark}
                 handleFacebookPost={handleFacebookPost}
                 handleInstagramPost={handleInstagramPost}
+                onConvertToVideo={handleAutoConvertToVideo}
+                convertingVideoPostId={convertingVideoPostId}
+                videoGenerationCoins={VIDEO_GENERATION_COINS}
               />
             ))}
           </div>
@@ -2171,7 +2483,9 @@ export default function PostManagementPage() {
             <p className="text-gray-600 text-base">
               {activeTab === "total"
                 ? "Create your first AI-powered post above!"
-                : `No ${activeTab} posts yet`}
+                : activeTab === "videos"
+                  ? "No videos yet — convert an image in Live Preview (Image → Video) or use Image to Video below."
+                  : `No ${activeTab} posts yet`}
             </p>
           </div>
         )}

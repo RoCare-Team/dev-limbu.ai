@@ -451,6 +451,7 @@ export async function POST(request) {
       postingHour:        postingHourNum,
       postingMinute:      postingMinuteNum,
       postingTimezone:    postingTz,
+      prefetchOffsetMinutes: 1440,
       startDate:        scheduleStartDate,
       endDate:          scheduleEndDate,
       skippedDates:     safeSkippedDates,

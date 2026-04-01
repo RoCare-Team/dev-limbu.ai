@@ -117,6 +117,9 @@ export async function POST(req) {
       fbDescription,
       igDescription,
       whenPosted,   // 👈 OPTIONAL
+      mediaType,
+      videoOutput,
+      videoPrompt,
     } = body;
 
     if (!userId || !aiOutput || !description) {
@@ -126,9 +129,13 @@ export async function POST(req) {
       );
     }
 
+    const mt =
+      mediaType === "video" || mediaType === "image" ? mediaType : "image";
+
     const newPost = await Post.create({
       userId,
       aiOutput,
+      mediaType: mt,
       description,
       gmbDescription,
       fbDescription,
@@ -136,6 +143,12 @@ export async function POST(req) {
       promat,
       whenPosted: whenPosted || {}, // 👈 Default to empty object instead of null
       status: status || "pending",
+      ...(typeof videoOutput === "string" && videoOutput.trim()
+        ? { videoOutput: videoOutput.trim() }
+        : {}),
+      ...(typeof videoPrompt === "string" && videoPrompt.trim()
+        ? { videoPrompt: videoPrompt.trim() }
+        : {}),
     });
 
     return json({ success: true, data: newPost }, 201);
@@ -170,6 +183,11 @@ export async function PUT(req) {
       scheduledDateSource,
       fbPages,
       igPages,
+      videoOutput,
+      videoPrompt,
+      facebookPostId,
+      facebookPageAccessToken,
+      error: postError,
     } = await req.json();
 
     console.log("📦 PUT Payload:", {
@@ -267,6 +285,22 @@ export async function PUT(req) {
 
     if (checkmark !== undefined && checkmark !== null) {
       updateData.checkmark = checkmark;
+    }
+
+    if (typeof videoOutput === "string" && videoOutput.trim()) {
+      updateData.videoOutput = videoOutput.trim();
+    }
+    if (typeof videoPrompt === "string") {
+      updateData.videoPrompt = videoPrompt.trim();
+    }
+    if (typeof facebookPostId === "string" && facebookPostId.trim()) {
+      updateData.facebookPostId = facebookPostId.trim();
+    }
+    if (typeof facebookPageAccessToken === "string" && facebookPageAccessToken.trim()) {
+      updateData.facebookPageAccessToken = facebookPageAccessToken.trim();
+    }
+    if (typeof postError === "string") {
+      updateData.error = postError;
     }
 
     if (whenPosted !== undefined && whenPosted !== null) {

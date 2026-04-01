@@ -3,7 +3,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Facebook, X, Loader2, Send } from "lucide-react";
+import { Facebook, X, Loader2, Send, Video } from "lucide-react";
+import { metaPublishMedia } from "@/lib/postMediaUrls";
 
 const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }) => {
   const [caption, setCaption] = useState("");
@@ -23,6 +24,8 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
 
   if (!isOpen) return null;
 
+  const publishAsVideo = metaPublishMedia(post).type === "video";
+
   const handleSubmit = () => {
     const page = pages.find(p => p.pageId === selectedPageId);
     if (page) {
@@ -31,9 +34,6 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
       onConfirm(post, pages[0], caption);
     }
   };
-
-  console.log("captioncaption", caption);
-
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -74,6 +74,17 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
                 ))}
               </select>
             </div>
+
+            {publishAsVideo && (
+              <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-900">
+                <Video className="w-4 h-4 shrink-0" />
+                <span>
+                  Video is sent as a <strong>multipart</strong> upload (form field{" "}
+                  <code className="text-[10px]">source</code>) to the Page videos
+                  endpoint; if that fails we retry with <code className="text-[10px]">file_url</code>.
+                </span>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>

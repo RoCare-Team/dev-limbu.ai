@@ -975,11 +975,11 @@ export default function AutomationSettings({ onNavigateBack }) {
     const row = Array.isArray(latestAssets) && latestAssets[0] ? latestAssets[0] : null;
     const pickImg = (k) => pickFirstNonEmpty(userData?.[k], savedImageConfig?.[k], row?.[k]);
 
-    if (automationEnabled && !hasUsableAssetImages({ userData, savedImageConfig, latestAssetRow: row, include: assetInclude })) {
-      setError("Add at least one brand image in Asset Management. Automation uses your assets for 3:4 posts.");
-      setSaving(false);
-      return;
-    }
+    // if (automationEnabled && !hasUsableAssetImages({ userData, savedImageConfig, latestAssetRow: row, include: assetInclude })) {
+    //   setError("Add at least one brand image in Asset Management. Automation uses your assets for 3:4 posts.");
+    //   setSaving(false);
+    //   return;
+    // }
 
     const platformsPayload = [
       ...(platformGmb ? ["gmb"] : []),
@@ -1399,7 +1399,7 @@ export default function AutomationSettings({ onNavigateBack }) {
               <div style={{ fontSize: 12, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Step 1</div>
               <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>Post to platforms</div>
               <p style={{ fontSize: 12, color: "#64748b", margin: "8px 0 0", maxWidth: 560, lineHeight: 1.55 }}>
-                Choose where automation should publish. Turn on each channel, then pick pages or accounts. One save stores your plan: remaining posts follow your frequency. A daily job pre-builds the next post, then publishes at the time you pick (IST).
+                Choose where automation should publish. Turn on each channel, then pick pages or accounts. One save stores your plan: remaining posts follow your frequency and start/end dates. The system prepares the image about 24 hours before your publish time, then publishes at the hour and minute you set (IST).
               </p>
             </div>
             <button
@@ -1437,18 +1437,30 @@ export default function AutomationSettings({ onNavigateBack }) {
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", padding: "14px 16px", background: "#fff", borderRadius: 14, marginBottom: 16, border: "1px solid #e2e8f0" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Daily publish time (IST)</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Publish time (IST)</span>
             <select
               value={postingHour}
               onChange={(e) => setPostingHour(Number(e.target.value))}
               style={{ ...S.input, width: "auto", minWidth: 140, borderRadius: 10 }}
+              aria-label="Publish hour"
             >
               {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
               ))}
             </select>
-            <span style={{ fontSize: 11, color: "#64748b", maxWidth: 280, lineHeight: 1.4 }}>
-              Default Vercel cron is 11:00 IST (<code style={{ fontSize: 10 }}>dailyAutomation</code>). Adjust cron if you change this hour.
+            <span style={{ fontSize: 13, color: "#64748b" }}>:</span>
+            <select
+              value={postingMinute}
+              onChange={(e) => setPostingMinute(Number(e.target.value))}
+              style={{ ...S.input, width: "auto", minWidth: 72, borderRadius: 10 }}
+              aria-label="Publish minute"
+            >
+              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+                <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 11, color: "#64748b", maxWidth: 320, lineHeight: 1.4 }}>
+              Automation runs about every 10 minutes around this time. Image generation for the next post happens ~24 hours earlier.
             </span>
           </div>
 

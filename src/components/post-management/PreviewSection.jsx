@@ -2,9 +2,8 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  Loader2,
   CheckCircle,
   Calendar,
   Send,
@@ -13,10 +12,21 @@ import {
   Edit3,
   RefreshCw,
   Eye,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Video,
+  Sparkles,
+  Facebook,
+  Instagram,
+  Loader2,
 } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
+import { isPostVideoMedia } from "./ImageToVideoModal";
+import {
+  postHasVideoAsset,
+  postImageUrl,
+  postVideoUrl,
+} from "@/lib/postMediaUrls";
 
 const PreviewSection = ({
   isGenerating,
@@ -27,16 +37,39 @@ const PreviewSection = ({
   onReject,
   handlePost,
   onToggleCheckmark,
-  onEditDescription
+  onEditDescription,
+  onRequestImageToVideo,
+  onAutoConvertToVideo,
+  isConvertingToVideo = false,
+  videoConvertCoins = 200,
+  handleFacebookPost,
+  handleInstagramPost,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedDesc, setEditedDesc] = useState("");
+  const [mediaTab, setMediaTab] = useState("image");
+  const lastVideoOutputRef = useRef("");
 
   useEffect(() => {
     if (previewData) {
       setEditedDesc(previewData.description || "");
     }
   }, [previewData]);
+
+  useEffect(() => {
+    setMediaTab("image");
+    lastVideoOutputRef.current = "";
+  }, [previewData?._id]);
+
+  /** When a video is first attached to this post, open the Video tab. */
+  useEffect(() => {
+    const vo = previewData?.videoOutput || "";
+    const img = postImageUrl(previewData);
+    if (vo && img && vo !== lastVideoOutputRef.current) {
+      lastVideoOutputRef.current = vo;
+      setMediaTab("video");
+    }
+  }, [previewData?.videoOutput, previewData?._id]);
 
   if (isGenerating) {
     return (
@@ -80,6 +113,27 @@ const PreviewSection = ({
     setIsEditing(false);
   };
 
+  const imgUrl = postImageUrl(previewData);
+  const vidUrl = postVideoUrl(previewData);
+  const dualMedia = Boolean(imgUrl && vidUrl);
+  const showVideoOffer =
+    Boolean(
+      imgUrl &&
+        !previewData?.videoOutput &&
+        !isPostVideoMedia(previewData) &&
+        typeof onRequestImageToVideo === "function"
+    );
+
+  const activeMediaUrl = dualMedia
+    ? mediaTab === "video"
+      ? vidUrl
+      : imgUrl
+    : vidUrl || imgUrl || previewData.aiOutput;
+  const activeIsVideo =
+    dualMedia && mediaTab === "video"
+      ? true
+      : !dualMedia && postHasVideoAsset(previewData) && !imgUrl;
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-sm">
@@ -99,30 +153,134 @@ const PreviewSection = ({
 
 
       <div className="w-full bg-white rounded-lg overflow-hidden border border-gray-200">
+        {dualMedia && (
+          <div className="flex gap-1 p-1.5 bg-gradient-to-r from-slate-50 via-violet-50/40 to-amber-50/50 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setMediaTab("image")}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                mediaTab === "image"
+                  ? "bg-white text-gray-900 shadow-md ring-1 ring-gray-200/80"
+                  : "text-gray-500 hover:text-gray-800 hover:bg-white/60"
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              Image
+            </button>
+            <button
+              type="button"
+              onClick={() => setMediaTab("video")}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                mediaTab === "video"
+                  ? "bg-white text-violet-900 shadow-md ring-1 ring-violet-200"
+                  : "text-gray-500 hover:text-violet-800 hover:bg-white/60"
+              }`}
+            >
+              <Video className="w-3.5 h-3.5" />
+              Video
+            </button>
+          </div>
+        )}
 
-        {/* IMAGE PREVIEW */}
-        <a href={previewData.aiOutput} target="_blank" rel="noopener noreferrer">
+        {showVideoOffer && (
+          <div className="mx-2 mt-2 mb-1 rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-violet-50 p-3 shadow-sm">
+            <div className="flex items-start gap-2">
+              <div className="shrink-0 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 p-2 text-white shadow">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-gray-900 leading-tight">
+                  Turn this into a short video?
+                </p>
+                <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">
+                  One tap: AI motion prompt + MP4 on this card (<strong>Image</strong> / <strong>Video</strong> tabs).{" "}
+                  <span className="text-amber-900 font-semibold">{videoConvertCoins} coins</span> when the video is generated successfully.
+                </p>
+                <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={isConvertingToVideo}
+                    onClick={() => onAutoConvertToVideo?.(previewData)}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-xs font-bold text-white shadow hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isConvertingToVideo ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Creating video…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Convert to video (auto)
+                      </>
+                    )}
+                  </button>
+                  {typeof onRequestImageToVideo === "function" && (
+                    <button
+                      type="button"
+                      disabled={isConvertingToVideo}
+                      onClick={() => onRequestImageToVideo()}
+                      className="w-full sm:w-auto text-xs font-semibold text-violet-700 hover:text-violet-900 py-2 px-2 rounded-lg border border-violet-200 bg-violet-50/80 hover:bg-violet-100 transition-colors disabled:opacity-50"
+                    >
+                      Customize in modal
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Media preview */}
+        <a
+          href={activeMediaUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`block ${isConvertingToVideo ? "pointer-events-none" : ""}`}
+        >
           <div className="relative h-36 sm:h-44 lg:h-48 w-full bg-gray-100 group overflow-hidden cursor-pointer">
+            {isConvertingToVideo && (
+              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-white/85 backdrop-blur-sm">
+                <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
+                <p className="text-xs font-bold text-gray-800 px-2 text-center">
+                  AI prompt + video render…
+                </p>
+              </div>
+            )}
+            {!activeIsVideo && imgUrl && (
+              <div
+                className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110"
+                style={{ backgroundImage: `url(${imgUrl})` }}
+              />
+            )}
 
-            {/* Blurred BG */}
-            <div
-              className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110"
-              style={{ backgroundImage: `url(${previewData.aiOutput})` }}
-            />
+            {activeIsVideo ? (
+              <video
+                src={activeMediaUrl}
+                className="relative w-full h-full object-contain z-10 bg-black"
+                controls
+                playsInline
+                muted
+                preload="metadata"
+              />
+            ) : (
+              <img
+                src={activeMediaUrl}
+                alt="Preview"
+                referrerPolicy="no-referrer"
+                className="relative w-full h-full object-contain z-10 transition-transform duration-300 group-hover:scale-[1.015]"
+              />
+            )}
 
-            {/* Image */}
-            <img
-              src={previewData.aiOutput}
-              alt="Preview"
-              className="relative w-full h-full object-contain z-10 transition-transform duration-300 group-hover:scale-[1.015]"
-            />
-
-            {/* Download */}
-            <div className="absolute top-1.5 right-1.5 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-1.5 right-1.5 z-30 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
               <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  onDownload(previewData);
+                  onDownload({
+                    ...previewData,
+                    aiOutput: activeMediaUrl,
+                  });
                 }}
                 className="p-1.5 bg-white/90 rounded-full shadow hover:scale-105 transition"
               >
@@ -131,6 +289,33 @@ const PreviewSection = ({
             </div>
           </div>
         </a>
+
+        {status === "approved" &&
+          (handleFacebookPost || handleInstagramPost) &&
+          postHasVideoAsset(previewData) && (
+            <div className="flex gap-1.5 px-2 py-2 border-t border-gray-100 bg-gray-50/90">
+              {handleFacebookPost && (
+                <button
+                  type="button"
+                  onClick={() => handleFacebookPost(previewData)}
+                  className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-[#1877F2]/10 text-[#1877F2] py-2 text-[11px] font-bold hover:bg-[#1877F2]/15 transition-colors"
+                >
+                  <Facebook className="w-3.5 h-3.5 fill-current" />
+                  FB video
+                </button>
+              )}
+              {handleInstagramPost && (
+                <button
+                  type="button"
+                  onClick={() => handleInstagramPost(previewData)}
+                  className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-pink-50 text-pink-700 py-2 text-[11px] font-bold hover:bg-pink-100 transition-colors"
+                >
+                  <Instagram className="w-3.5 h-3.5" />
+                  Insta video
+                </button>
+              )}
+            </div>
+          )}
 
         {/* DESCRIPTION */}
         <div className="px-2.5 py-2 border-t border-gray-200 relative group/desc ">

@@ -3,8 +3,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Instagram, X, Loader2, Send } from "lucide-react";
+import { Instagram, X, Loader2, Send, Video } from "lucide-react";
 import Link from "next/link";
+import { metaPublishMedia } from "@/lib/postMediaUrls";
 
 const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loading }) => {
   const [caption, setCaption] = useState("");
@@ -23,6 +24,8 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
   }, [accounts, selectedAccountId]);
 
   if (!isOpen) return null;
+
+  const publishAsVideo = metaPublishMedia(post).type === "video";
 
   const handleSubmit = () => {
     const account = accounts.find(p => p.igId === selectedAccountId);
@@ -74,6 +77,13 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
                 ))}
               </select>
             </div>
+
+            {publishAsVideo && (
+              <div className="flex items-center gap-2 rounded-lg bg-pink-50 border border-pink-100 px-3 py-2 text-xs text-pink-950">
+                <Video className="w-4 h-4 shrink-0" />
+                <span>Posting as an Instagram <strong>Reel</strong> (Graph: media → media_publish); processing may take a moment.</span>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>

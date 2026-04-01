@@ -28,6 +28,8 @@ export async function GET(req) {
         detailMessage = `Deducted ${tx.amount} coins`;
       } else if (tx.reason === "image_generated") {
         detailMessage = `Generated AI Post (Used ${tx.amount} coins)`;
+      } else if (tx.reason === "video_generated") {
+        detailMessage = `Image → video (Used ${tx.amount} coins)`;
       } else if (tx.reason === "subscription_purchase") {
         detailMessage = `Subscription purchased (${tx.amount} coins)`;
       }

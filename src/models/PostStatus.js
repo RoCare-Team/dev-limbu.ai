@@ -3,7 +3,15 @@ import mongoose from "mongoose";
 const PostSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true }, // ✅ remove unique:true
-    aiOutput: { type: String }, // AI image URL
+    aiOutput: { type: String }, // AI image or video URL
+    /** When set with a still image in aiOutput, both image + video tabs are shown. */
+    videoOutput: { type: String, default: "" },
+    videoPrompt: { type: String, default: "" },
+    mediaType: {
+      type: String,
+      enum: ["image", "video"],
+      default: "image",
+    },
     description:{type: String},
     promat:{type:String},
     gmbDescription:{type:String},
@@ -35,6 +43,9 @@ scheduledDateSource: {
     
     scheduledDate: { type: Date },
     rejectReason: { type: String, default: "" },
+    error: { type: String, default: "" },
+    facebookPostId: { type: String, default: "" },
+    facebookPageAccessToken: { type: String, default: "" },
     accessToken: { type: String }, // Store token at schedule time
     refreshToken: { type: String }, // Store refresh token for cron jobs
     checkmark: { type: String, default: "both" }, // ✅ Added checkmark field

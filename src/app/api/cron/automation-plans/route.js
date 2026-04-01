@@ -140,7 +140,6 @@ async function generateImagePrompt({ keyword, businessName, cityName }) {
     'You are a creative director for an AI image generation tool. Return ONLY compact JSON.',
     `Business: "${businessName}"
 Keyword: "${keyword}"
-City: "${cityName || ''}"
 Create a vivid, specific image-generation prompt (max 120 chars) for a professional GMB post image.
 Return ONLY: {"prompt":"..."}`,
     200
@@ -453,8 +452,8 @@ export async function GET(request) {
         prefetchStats.skipped++; continue;
       }
 
-      if (!keywords.length || postIndex >= keywords.length) {
-        log('Prefetch skip — no keyword slot');
+      if (!keywords.length) {
+        log('Prefetch skip — no keywords');
         prefetchStats.skipped++; continue;
       }
 
@@ -469,7 +468,7 @@ export async function GET(request) {
         prefetchStats.skipped++; continue;
       }
 
-      const keyword  = keywords[postIndex];
+      const keyword  = keywords[postIndex % keywords.length];
       const loc0     = (plan.locations || [])[0];
       const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
 
@@ -642,11 +641,7 @@ export async function GET(request) {
       results.skipped++; continue;
     }
 
-    if (postIndex >= keywords.length) {
-      log(`Skip — all keywords used: postIndex=${postIndex} >= keywords.length=${keywords.length}`);
-      await AutomationPlan.updateOne({ _id: planId }, { $set: { active: false } });
-      results.skipped++; continue;
-    }
+    // Keywords rotate: keywords[postIndex % length] (same as docstring). Quota is planDetails.limit + postsUsed.
 
     if (wantGmb && !locations.length) {
       log(`FAIL — GMB enabled but no locations in AutomationPlan`);
@@ -693,10 +688,11 @@ export async function GET(request) {
     }
 
     // ── 4. Pick keyword + city ────────────────────────────────────────────────
-    const keyword  = keywords[postIndex];
-    const loc0     = locations[0];
-    const cityName = loc0?.locality || loc0?.name || businessName || '';
-    log(`Keyword #${postIndex + 1}/${keywords.length}: "${keyword}"  city: "${cityName}"`);
+    const keywordSlot = postIndex % keywords.length;
+    const keyword     = keywords[keywordSlot];
+    const loc0        = locations[0];
+    const cityName    = loc0?.locality || loc0?.name || businessName || '';
+    log(`Keyword slot ${keywordSlot + 1}/${keywords.length} (postIndex=${postIndex}): "${keyword}"  city: "${cityName}"`);
 
     let imageUrl;
     let postText;

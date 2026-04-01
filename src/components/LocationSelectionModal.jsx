@@ -176,7 +176,7 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 text-sm sm:text-base">{location.name}</p>
+                        <p className="font-bold text-gray-900 text-sm sm:text-base">{location.title}</p>
                         <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
                           {location.address}

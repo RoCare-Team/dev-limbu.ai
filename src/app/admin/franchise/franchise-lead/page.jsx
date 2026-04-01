@@ -48,6 +48,11 @@ import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 /* ---------------- CONFIG ---------------- */
 const PAGE_SIZE = 50;
 
+/** Stable string id for checkboxes + bulk actions (avoids ObjectId vs string mismatch). */
+function franchiseLeadIdKey(id) {
+  return id == null ? "" : String(id);
+}
+
 const FORMS = [
   {
     id: "1213106820766164",
@@ -143,6 +148,8 @@ export default function FranchiseLeadsPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("All");
   const [remarkFilter, setRemarkFilter] = useState("All");
   const [qualityFilter, setQualityFilter] = useState("All");
+  /** Table view: all leads vs only IVR “Me interested” (mutually exclusive tabs). */
+  const [ivrLeadTab, setIvrLeadTab] = useState("all");
   const [dateRange, setDateRange] = useState("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -154,6 +161,7 @@ export default function FranchiseLeadsPage() {
   const [role, setRole] = useState("");
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [bulkAssignee, setBulkAssignee] = useState("");
+  const [sendingFranchiseMsg, setSendingFranchiseMsg] = useState(false);
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [newLead, setNewLead] = useState({ lead_quality: "None" });
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -210,6 +218,20 @@ export default function FranchiseLeadsPage() {
     };
     return labels[franchiseFollowUpFilter] || franchiseFollowUpFilter;
   }, [franchiseFollowUpFilter]);
+
+  const canSelectFranchiseLeads = useMemo(
+    () =>
+      ["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(role),
+    [role],
+  );
+
+  const canBulkAssignLeads =
+    role === "superFranchiseAdmin" || role === "superAdmin";
+
+  const selectedLeadIdSet = useMemo(
+    () => new Set(selectedLeads.map(franchiseLeadIdKey)),
+    [selectedLeads],
+  );
 
   const franchiseVoiceItems = useMemo(() => {
     const source = franchiseFollowUpLeadsAllLoaded
@@ -593,7 +615,7 @@ export default function FranchiseLeadsPage() {
     return result;
   }, [leads, dateRange, customStartDate, customEndDate]);
 
-  const filteredLeads = useMemo(() => {
+  const { baseFilteredLeads, filteredLeads } = useMemo(() => {
     let result = dateFilteredLeads;
 
     // Search filter
@@ -640,7 +662,7 @@ export default function FranchiseLeadsPage() {
       result = result.filter(lead => lead.lead_quality === qualityFilter);
     }
 
-  // Follow-up bucket (tabs) — narrow main table to leads in the selected window (same as agent dashboard)
+    // Follow-up bucket (tabs) — narrow main table to leads in the selected window (same as agent dashboard)
     // DISABLED FOR franchiseAdmin: tabs/stats only, no table filter
     if (franchiseFollowUpTableActive && role !== "franchiseAdmin") {
       const fuList = franchiseFollowUpStats.leads || [];
@@ -661,7 +683,12 @@ export default function FranchiseLeadsPage() {
       );
     }
 
-    return result;
+    const baseFilteredLeads = result;
+    if (ivrLeadTab === "ivr") {
+      result = result.filter((lead) => lead.ivrMeInterested === true);
+    }
+
+    return { baseFilteredLeads, filteredLeads: result };
   }, [
     dateFilteredLeads,
     search,
@@ -672,7 +699,14 @@ export default function FranchiseLeadsPage() {
     franchiseFollowUpFilter,
     franchiseFollowUpTableActive,
     franchiseFollowUpStats.leads,
+    ivrLeadTab,
+    role,
   ]);
+
+  const ivrInterestedInBaseCount = useMemo(
+    () => baseFilteredLeads.filter((l) => l.ivrMeInterested === true).length,
+    [baseFilteredLeads],
+  );
 
   /* ---------------- ADMIN COUNTS ---------------- */
   const adminCounts = useMemo(() => {
@@ -704,6 +738,7 @@ export default function FranchiseLeadsPage() {
     remarkFilter,
     qualityFilter,
     franchiseFollowUpFilter,
+    ivrLeadTab,
   ]);
 
   /* ---------------- STATS ---------------- */
@@ -814,19 +849,35 @@ export default function FranchiseLeadsPage() {
 
   /* ---------------- BULK SELECTION HANDLERS ---------------- */
   const handleSelectAll = (e) => {
+    const pageIds = paginatedLeads.map((l) => franchiseLeadIdKey(l.id));
+    const pageIdSet = new Set(pageIds);
     if (e.target.checked) {
-      const ids = paginatedLeads.map((l) => l.id);
-      setSelectedLeads((prev) => [...new Set([...prev, ...ids])]);
+      setSelectedLeads((prev) => {
+        const next = new Set(prev.map(franchiseLeadIdKey));
+        pageIds.forEach((id) => next.add(id));
+        return [...next];
+      });
     } else {
-      const ids = paginatedLeads.map((l) => l.id);
-      setSelectedLeads((prev) => prev.filter((id) => !ids.includes(id)));
+      setSelectedLeads((prev) =>
+        prev.filter((id) => !pageIdSet.has(franchiseLeadIdKey(id))),
+      );
     }
   };
 
   const handleSelectOne = (id) => {
-    setSelectedLeads((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    const key = franchiseLeadIdKey(id);
+    setSelectedLeads((prev) => {
+      const normalized = prev.map(franchiseLeadIdKey);
+      return normalized.includes(key)
+        ? normalized.filter((i) => i !== key)
+        : [...normalized, key];
+    });
+  };
+
+  /** One-click: all leads matching current filters (all pages), not only this page. */
+  const handleSelectAllFiltered = () => {
+    const ids = filteredLeads.map((l) => franchiseLeadIdKey(l.id));
+    setSelectedLeads([...new Set(ids)]);
   };
 
   const handleBulkAssign = async () => {
@@ -850,6 +901,97 @@ export default function FranchiseLeadsPage() {
       setError("Bulk assignment failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBulkSendFranchiseMsg = async () => {
+    if (selectedLeads.length === 0) return;
+
+    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
+    const picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+    if (picked.length === 0) {
+      toast.error("Could not resolve selected leads");
+      return;
+    }
+
+    const eligible = picked.filter((l) => l.status !== "Onboard");
+    const skippedOnboard = picked.length - eligible.length;
+
+    if (eligible.length === 0) {
+      toast.error(
+        skippedOnboard > 0
+          ? "No recipients: Onboard leads are not sent this WhatsApp. Select other statuses or adjust filters."
+          : "No eligible leads in selection",
+      );
+      return;
+    }
+
+    let confirmText = `Send franchise WhatsApp (franchise_msg) to ${eligible.length} lead(s)?`;
+    if (skippedOnboard > 0) {
+      confirmText += ` (${skippedOnboard} Onboard lead(s) will be skipped.)`;
+    }
+    if (!confirm(confirmText)) {
+      return;
+    }
+
+    const recipients = [];
+    for (const lead of eligible) {
+      let phone = lead.phone_number;
+      if (phone) {
+        phone = String(phone).replace(/\D/g, "");
+        if (phone.length === 10) phone = "91" + phone;
+      }
+      if (!phone || phone.length !== 12 || !phone.startsWith("91")) {
+        continue;
+      }
+      recipients.push({
+        phone,
+        name: (lead.full_name || lead.fullName || "User").slice(0, 120),
+      });
+    }
+
+    if (recipients.length === 0) {
+      toast.error("No valid Indian mobile numbers in selection");
+      return;
+    }
+
+    const chunkSize = 100;
+    setSendingFranchiseMsg(true);
+    try {
+      let totalSent = 0;
+      let totalFailed = 0;
+      for (let i = 0; i < recipients.length; i += chunkSize) {
+        const chunk = recipients.slice(i, i + chunkSize);
+        const res = await fetch("/api/franchise-leads/send-franchise-msg", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recipients: chunk }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.message || "Request failed");
+          return;
+        }
+        totalSent += data.sent ?? 0;
+        totalFailed += data.failed ?? 0;
+      }
+      if (totalFailed === 0) {
+        let msg = `WhatsApp sent to ${totalSent} recipient(s)`;
+        if (skippedOnboard > 0) {
+          msg += ` (${skippedOnboard} Onboard skipped)`;
+        }
+        toast.success(msg);
+        setSelectedLeads([]);
+      } else {
+        toast.error(
+          `Sent ${totalSent}, failed ${totalFailed}. Check numbers or AiSensy response.`,
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("WhatsApp send failed");
+    } finally {
+      setSendingFranchiseMsg(false);
     }
   };
 
@@ -1015,7 +1157,9 @@ export default function FranchiseLeadsPage() {
 
       if (data.success) {
         setLeads((prev) => prev.filter((l) => l.id !== id));
-        setSelectedLeads((prev) => prev.filter((i) => i !== id));
+        setSelectedLeads((prev) =>
+          prev.filter((i) => franchiseLeadIdKey(i) !== franchiseLeadIdKey(id)),
+        );
         setTotalLeads((prev) => prev - 1);
       } else {
         alert(data.message || "Failed to delete lead");
@@ -1542,7 +1686,7 @@ if (!executiveMobile && typeof window !== "undefined") {
               </div>
             )}
 
-            {(search || statusFilter !== "All" || dateRange !== "all" || remarkFilter !== "All" || qualityFilter !== "All") && (
+            {(search || statusFilter !== "All" || dateRange !== "all" || remarkFilter !== "All" || qualityFilter !== "All" || ivrLeadTab !== "all" || assigneeFilter !== "All") && (
               <button
                 onClick={() => {
                   setSearch("");
@@ -1550,6 +1694,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                   setRemarkFilter("All");
                   setQualityFilter("All");
                   setAssigneeFilter("All");
+                  setIvrLeadTab("all");
                   setDateRange("all");
                   setCustomStartDate("");
                   setCustomEndDate("");
@@ -1559,6 +1704,58 @@ if (!executiveMobile && typeof window !== "undefined") {
                 <X className="w-3 h-3" />
                 Clear Filters
               </button>
+            )}
+          </div>
+
+          {/* All leads vs IVR interested — one active at a time */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-4 mt-2 border-t border-gray-100">
+            <span className="text-sm font-medium text-gray-600 shrink-0">Lead list</span>
+            <div
+              className="inline-flex flex-wrap p-1 bg-slate-100/90 rounded-xl gap-1 border border-slate-200/80"
+              role="tablist"
+              aria-label="Lead source"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={ivrLeadTab === "all"}
+                onClick={() => setIvrLeadTab("all")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  ivrLeadTab === "all"
+                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
+              >
+                All leads
+                <span className="ml-1.5 tabular-nums text-slate-500 font-bold">
+                  ({baseFilteredLeads.length})
+                </span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={ivrLeadTab === "ivr"}
+                onClick={() => setIvrLeadTab("ivr")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all inline-flex items-center gap-1.5 ${
+                  ivrLeadTab === "ivr"
+                    ? "bg-violet-600 text-white shadow-md ring-2 ring-violet-300"
+                    : "text-violet-800 bg-violet-50/80 hover:bg-violet-100 border border-violet-200/80"
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5 shrink-0 opacity-90" />
+                IVR interested
+                <span
+                  className={`tabular-nums font-bold ${ivrLeadTab === "ivr" ? "text-violet-100" : "text-violet-700"}`}
+                >
+                  ({ivrInterestedInBaseCount})
+                </span>
+              </button>
+            </div>
+            {ivrLeadTab === "ivr" && (
+              <p className="text-xs text-violet-700/90 sm:ml-auto max-w-md leading-snug">
+                Showing only leads marked IVR interested (press keys during IVR). Use{" "}
+                <strong>All leads</strong> to see everyone with your current filters.
+              </p>
             )}
           </div>
         </div>
@@ -2101,8 +2298,22 @@ if (!executiveMobile && typeof window !== "undefined") {
             </div>
           </div>
 
+        {canSelectFranchiseLeads && filteredLeads.length > 0 && (
+          <div className="mt-2 mb-1 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAllFiltered}
+              disabled={loading}
+              className="text-sm font-medium text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              Select all {filteredLeads.length} filtered lead
+              {filteredLeads.length === 1 ? "" : "s"} (all pages)
+            </button>
+          </div>
+        )}
+
         {/* BULK ACTIONS */}
-        {(role === "superFranchiseAdmin" || role === "superAdmin") && selectedLeads.length > 0 && (
+        {canSelectFranchiseLeads && selectedLeads.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
               <span className="font-semibold text-blue-800">{selectedLeads.length} leads selected</span>
@@ -2113,23 +2324,41 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Clear Selection
               </button>
             </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={bulkAssignee}
-                onChange={(e) => setBulkAssignee(e.target.value)}
-                className="px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="">Select Admin to Assign</option>
-                {franchiseAdmins.map((admin) => (
-                  <option key={admin._id} value={admin._id}>{admin.fullName}</option>
-                ))}
-              </select>
+            <div className="flex flex-wrap items-center gap-3">
+              {canBulkAssignLeads && (
+                <>
+                  <select
+                    value={bulkAssignee}
+                    onChange={(e) => setBulkAssignee(e.target.value)}
+                    className="px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select Admin to Assign</option>
+                    {franchiseAdmins.map((admin) => (
+                      <option key={admin._id} value={admin._id}>{admin.fullName}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleBulkAssign}
+                    disabled={!bulkAssignee || loading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "Assigning..." : "Assign Leads"}
+                  </button>
+                </>
+              )}
               <button
-                onClick={handleBulkAssign}
-                disabled={!bulkAssignee || loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={handleBulkSendFranchiseMsg}
+                disabled={loading || sendingFranchiseMsg}
+                title="Onboard leads are never included in this send."
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                {loading ? "Assigning..." : "Assign Leads"}
+                {sendingFranchiseMsg ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Send to WhatsApp
               </button>
               {role === "superAdmin" && (
               <button
@@ -2150,12 +2379,18 @@ if (!executiveMobile && typeof window !== "undefined") {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10 shadow-sm">
                   <tr>
-                    {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+                    {canSelectFranchiseLeads && (
                       <th className="px-6 py-4 text-left">
                         <input 
                           type="checkbox" 
+                          title="Select all on this page"
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                          checked={paginatedLeads.length > 0 && paginatedLeads.every(l => selectedLeads.includes(l.id))}
+                          checked={
+                            paginatedLeads.length > 0 &&
+                            paginatedLeads.every((l) =>
+                              selectedLeadIdSet.has(franchiseLeadIdKey(l.id)),
+                            )
+                          }
                           onChange={handleSelectAll}
                         />
                       </th>
@@ -2217,7 +2452,7 @@ if (!executiveMobile && typeof window !== "undefined") {
   <>
     {[...Array(5)].map((_, i) => (
       <tr key={`skeleton-${i}`} className="animate-pulse">
-        {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+        {canSelectFranchiseLeads && (
           <td className="px-6 py-4">
             <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
           </td>
@@ -2261,13 +2496,19 @@ if (!executiveMobile && typeof window !== "undefined") {
                   ) : (
                     paginatedLeads.map((lead, idx) => (
                       <tr key={lead.id} className="hover:bg-blue-50/50 transition-colors">
-                        {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+                        {canSelectFranchiseLeads && (
                           <td className="px-6 py-4 whitespace-nowrap">
                             <input 
                               type="checkbox" 
+                              title="Select lead"
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                              checked={selectedLeads.includes(lead.id)}
-                              onChange={() => handleSelectOne(lead.id)}
+                              checked={selectedLeadIdSet.has(
+                                franchiseLeadIdKey(lead.id),
+                              )}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleSelectOne(lead.id);
+                              }}
                             />
                           </td>
                         )}

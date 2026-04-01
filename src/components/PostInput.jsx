@@ -122,7 +122,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   // Extract unique business names for the dropdown
   const uniqueBusinessNames = React.useMemo(() => {
     if (!availableLocations) return [];
-    return [...new Set(availableLocations.map(loc => loc.name || loc.title).filter(Boolean))];
+    return [...new Set(availableLocations.map(loc => loc.title || loc.title).filter(Boolean))];
   }, [availableLocations]);
 
   const fetchSavedKeywords = async () => {

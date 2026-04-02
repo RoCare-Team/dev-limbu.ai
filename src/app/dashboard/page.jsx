@@ -7,7 +7,6 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
 
-
 import {
   MapPin,
   Phone,
@@ -68,6 +67,7 @@ import SocialConnectCard from "../../components/SocialConnectCard";
 import SupportModal from "../../components/SupportModal";
 import FirstPostModal from "@/components/FirstPostModal";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
+import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -1180,7 +1180,7 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
         saveToCache(userEmail, newAccounts, false);
         
         // Store for admin
-        console.log("📤 Storing listings for admin dashboard...");
+        console.log("📤 Storing listings for admin dashboard...",allListings);
         await storeUserListingsForAdmin(userEmail, allListings);
         
         setCacheStatus(`${allListings.length} listings loaded and cached`);
@@ -1456,9 +1456,12 @@ const fetchInstagramPages = useCallback(async () => {
 
     const startDate = customStartDate || performanceInsightsDateRange.startDate;
     const endDate = customEndDate || performanceInsightsDateRange.endDate;
+    const reportStart = startDate instanceof Date ? startDate : new Date(startDate);
+    const reportEnd = endDate instanceof Date ? endDate : new Date(endDate);
+    const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(reportStart, reportEnd);
 
     try {
-      const insights = await fetchLocationInsights(session.accessToken, locationId, startDate, endDate);
+      const insights = await fetchLocationInsights(session.accessToken, locationId, fetchStart, insightSeriesEnd);
       setPerformanceInsightsData(insights);
 
       const currentDate = new Date();

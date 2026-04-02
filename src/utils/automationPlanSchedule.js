@@ -6,6 +6,17 @@
 import { zonedYmdString, getUtcInstantForZonedDateAndTime } from '@/utils/postingScheduleWindow';
 import { getFrequencyStep } from '@/utils/userSettingsHelpers';
 
+/** When offset ≥ 1440, first local startDate is prefetch-only; publish from the next calendar day (IST, etc.). */
+export function usesPrefetchLeadDay(plan) {
+  return Number(plan?.prefetchOffsetMinutes) >= 1440;
+}
+
+function shouldSkipPublishYmdForPrefetchLead(plan, ymd, tz) {
+  if (!usesPrefetchLeadDay(plan)) return false;
+  const startYmd = plan.startDate ? zonedYmdString(plan.startDate, tz) : null;
+  return !!(startYmd && ymd === startYmd);
+}
+
 export function sameZonedDay(a, b, timeZone) {
   if (!a || !b) return false;
   return zonedYmdString(a, timeZone) === zonedYmdString(b, timeZone);
@@ -82,9 +93,11 @@ export function getNextPublishDateRef(plan, now = new Date()) {
     if (skipped.has(ymd)) continue;
 
     if (!lastYmd) {
+      if (shouldSkipPublishYmdForPrefetchLead(plan, ymd, tz)) continue;
       return probe;
     }
     if (daysBetweenYmd(lastYmd, ymd) >= step) {
+      if (shouldSkipPublishYmdForPrefetchLead(plan, ymd, tz)) continue;
       return probe;
     }
   }
@@ -124,6 +137,11 @@ export function isPostingDayTodayZoned(plan, now = new Date()) {
 
   const skipped = new Set(Array.isArray(plan.skippedDates) ? plan.skippedDates : []);
   if (skipped.has(todayYmd)) return false;
+
+  // 24h prefetch: local startDate = generate assets only; GMB/FB/IG publish next day.
+  if (usesPrefetchLeadDay(plan) && startYmd && todayYmd === startYmd) {
+    return false;
+  }
 
   if (!plan.lastPostDate) {
     return !startYmd || todayYmd >= startYmd;

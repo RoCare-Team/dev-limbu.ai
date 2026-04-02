@@ -24,6 +24,7 @@ import {
 import { CircularProgress } from "@mui/material";
 import { toast, Toaster } from "react-hot-toast";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
+import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
 
 
 // --- Fetch Insights API ---
@@ -176,8 +177,8 @@ export default function GmbInsightsPage() {
     setSearchKeywordsData(null);
 
     try {
-      // Fetch insights with default 1 month date range
-      const insights = await fetchLocationInsights(session.accessToken, location.locationId, defaultStartDate, defaultEndDate);
+      const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(defaultStartDate, defaultEndDate);
+      const insights = await fetchLocationInsights(session.accessToken, location.locationId, fetchStart, insightSeriesEnd);
       setInsightsData(insights);
 
       // Fetch search keywords
@@ -237,11 +238,12 @@ export default function GmbInsightsPage() {
     
     setInsightsLoading(true);
     try {
+      const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(parsedStartDate, parsedEndDate);
       const insights = await fetchLocationInsights(
-        session.accessToken, 
-        locationId, 
-        parsedStartDate, 
-        parsedEndDate
+        session.accessToken,
+        locationId,
+        fetchStart,
+        insightSeriesEnd
       );
       setInsightsData(insights);
     } catch (error) {

@@ -5,7 +5,7 @@ import { X, Download, Calendar, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "react-hot-toast";
 import PerformanceInsightsReport from "./PerformanceInsightsReport";
 import { generatePerformanceInsightsPDF } from "@/lib/performancePdfGenerator";
-import { savePerformanceInsights, calculateMetrics } from "@/lib/performanceInsightsUtils";
+import { savePerformanceInsights, calculateMetricsInRange } from "@/lib/performanceInsightsUtils";
 import CircularProgress from "@mui/material/CircularProgress";
 
 const PerformanceInsightsModal = ({
@@ -61,27 +61,27 @@ const PerformanceInsightsModal = ({
   useEffect(() => {
     if (insightsData && isOpen) {
       console.log("Fresh data received from parent, updating display...");
-      
-      // Calculate metrics from fresh data
-      const metrics = calculateMetrics(insightsData);
-      
-      // Update display with fresh data directly
-      setDisplayData(prev => ({
+
+      const rs = dateRange?.startDate ? new Date(dateRange.startDate) : localStartDate;
+      const re = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
+      const metrics = calculateMetricsInRange(insightsData, rs, re);
+
+      setDisplayData((prev) => ({
         ...prev,
         insightsData: insightsData,
         searchKeywords: searchKeywords,
         metrics: metrics,
         dateRange: {
-          startDate: localStartDate.toISOString(),
-          endDate: localEndDate.toISOString(),
+          startDate: rs.toISOString(),
+          endDate: re.toISOString(),
         },
         businessName: businessName,
         locationName: locationName,
       }));
-      
+
       setLastUpdated(new Date());
     }
-  }, [insightsData, isOpen]);
+  }, [insightsData, isOpen, dateRange?.startDate, dateRange?.endDate, searchKeywords, businessName, locationName, localStartDate, localEndDate]);
 
   // Auto-save insights to DB when component mounts with data, then fetch from DB
   useEffect(() => {
@@ -121,7 +121,9 @@ const PerformanceInsightsModal = ({
         } else {
           // Record doesn't exist - save new one from parent data
           console.log("✓ No existing record - creating new one");
-          const metrics = calculateMetrics(insightsData);
+          const rs = dateRange?.startDate ? new Date(dateRange.startDate) : localStartDate;
+          const re = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
+          const metrics = calculateMetricsInRange(insightsData, rs, re);
 
           const insightsPayload = {
             locationId,
@@ -133,8 +135,8 @@ const PerformanceInsightsModal = ({
             insightsData,
             searchKeywords,
             dateRange: {
-              startDate: localStartDate.toISOString(),
-              endDate: localEndDate.toISOString(),
+              startDate: rs.toISOString(),
+              endDate: re.toISOString(),
             },
             reportMonth: month,
             reportYear: year,
@@ -181,7 +183,7 @@ const PerformanceInsightsModal = ({
     };
 
     autoSaveAndFetchInsights();
-  }, [isOpen, insightsData, loading, locationId, businessName, locationName, businessProfileId, searchKeywords, hasAutoSavedThisSession]);
+  }, [isOpen, insightsData, loading, locationId, businessName, locationName, businessProfileId, searchKeywords, hasAutoSavedThisSession, dateRange?.startDate, dateRange?.endDate]);
 
   const handleDownloadPDF = async () => {
     try {

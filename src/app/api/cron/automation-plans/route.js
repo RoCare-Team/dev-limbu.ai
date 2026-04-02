@@ -12,15 +12,20 @@
  * Query params:
  *   ?force=1     — bypass "already posted today" guard
  *   ?dryRun=1    — generate image + text, save as "pending", skip actual GMB post
- *   ?phase=prefetch — only pre-generate image+copy for *tomorrow* (run 1–2h after
- *                    today’s publish). Publish phase uses it when dates match.
+ *   ?phase=prefetch — deprecated; returns JSON pointing to GET /api/cron/auto-post (image+copy 24h ahead).
  *
- * ?phase=dailyAutomation — runs publish then prefetch in one call (legacy single cron).
- * ?phase=tick — publish then prefetch; use with a cron every 10 minutes so chosen hour:minute (IST) is honored.
+ * Prefetch (image prompt, Cloudinary/aiAssets URL, post text) lives in /api/cron/auto-post.
+ * This route’s publish phase posts to GMB, Facebook, Instagram using plan.prefetchPost when
+ * prefetchOffsetMinutes ≥ 1440, or generates inline when not in 24h-prefetch mode.
+ *
+ * ?phase=dailyAutomation — publish only (same as tick).
+ * ?phase=tick — publish only; use with a frequent cron so postingHour:postingMinute (IST) is honored.
  * ?phase=manual&userId=USR_… — Postman/on-demand: same publish pipeline (image + GMB post) for one user.
  *   Requires Authorization: Bearer CRON_SECRET when env CRON_SECRET is set.
  *   Validates start/end, frequency/schedule day, quota, locations — skips clock window only.
  * postingHour / postingMinute gate scheduled cron; prefetch runs 24h before (prefetchOffsetMinutes, default 1440).
+ * With prefetchOffsetMinutes >= 1440: local startDate is prefetch-only; first publish is next IST day using the
+ * same prefetched image+copy for GMB, Facebook, and Instagram in one publish run.
  */
 
 import { NextResponse } from 'next/server';
@@ -32,15 +37,18 @@ import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
 import {
   matchesPostingWindow,
   matchesAbsoluteWindow,
-  matchesPrefetchAbsoluteWindow,
   zonedYmdString,
 } from '@/utils/postingScheduleWindow';
 import {
-  getNextPublishDateRef,
   isPostingDayTodayZoned,
   getPublishUtcMsForDateRef,
   sameZonedDay,
 } from '@/utils/automationPlanSchedule';
+import {
+  generateImagePrompt,
+  generateImage,
+  generatePostText,
+} from '@/lib/automationPlanContentGeneration';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -51,16 +59,6 @@ const CRON_TIME_TOLERANCE_MIN = Math.min(
   60,
   Math.max(5, Number(process.env.AUTOMATION_CRON_TOLERANCE_MINUTES) || 15)
 );
-
-/** Strip disabled asset slots before calling aiAssetsGenerate */
-function applyIncludeInGeneration(imageConfig = {}) {
-  const inc = imageConfig.includeInGeneration || {};
-  const next = { ...imageConfig };
-  for (const k of ['characterImage', 'uniformImage', 'productImage', 'backgroundImage', 'logoImage']) {
-    if (inc[k] === false) next[k] = null;
-  }
-  return next;
-}
 
 // ─── Token helper ─────────────────────────────────────────────────────────────
 
@@ -98,131 +96,6 @@ async function refreshGoogleToken(refreshToken, planId) {
   console.log('[CRON] 🔑 New accessToken saved to AutomationPlan');
 
   return newAccessToken;
-}
-
-// ─── GPT helper ───────────────────────────────────────────────────────────────
-
-async function callGpt(systemPrompt, userPrompt, maxTokens = 400) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    console.warn('[CRON] ⚠ OPENAI_API_KEY not set — GPT call skipped');
-    return null;
-  }
-  try {
-    const res  = await fetch('https://api.openai.com/v1/chat/completions', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userPrompt },
-        ],
-        temperature: 0.8,
-        max_tokens:  maxTokens,
-      }),
-    });
-    const data = await res.json();
-    const raw  = data.choices?.[0]?.message?.content?.trim() || '';
-    console.log('[CRON] 🤖 GPT raw:', raw.slice(0, 250));
-    return JSON.parse(raw.replace(/^```(?:json)?|```$/gm, '').trim());
-  } catch (err) {
-    console.error('[CRON] ❌ GPT error:', err.message);
-    return null;
-  }
-}
-
-// ─── Image generation ─────────────────────────────────────────────────────────
-
-async function generateImagePrompt({ keyword, businessName, cityName }) {
-  const fallback = `${keyword} — ${businessName}${cityName ? ', ' + cityName : ''}`;
-  const result = await callGpt(
-    'You are a creative director for an AI image generation tool. Return ONLY compact JSON.',
-    `Business: "${businessName}"
-Keyword: "${keyword}"
-Create a vivid, specific image-generation prompt (max 120 chars) for a professional GMB post image.
-Return ONLY: {"prompt":"..."}`,
-    200
-  );
-  const prompt = result?.prompt || fallback;
-  console.log('[CRON] 📝 Image prompt:', prompt);
-  return prompt;
-}
-
-async function generateImage({ imagePrompt, keyword, businessName, imageConfig = {} }) {
-  const cfg = applyIncludeInGeneration(imageConfig);
-  const cleanB64 = (s) =>
-    typeof s === 'string' && s.startsWith('data:image') ? s.split(',')[1] : s || '';
-
-  const payload = {
-    topic:           imagePrompt || keyword || '',
-    bussiness_name:  businessName || '',
-    keywords:        keyword || '',
-    colourPalette:   cfg.colourPalette || '',
-    size:            cfg.size || '3:4',
-    characterImage:  cleanB64(cfg.characterImage),
-    uniformImage:    cleanB64(cfg.uniformImage),
-    productImage:    cleanB64(cfg.productImage),
-    backgroundImage: cleanB64(cfg.backgroundImage),
-    logoImage:       cleanB64(cfg.logoImage),
-    platform:        'gmb',
-  };
-
-  console.log('[CRON] 🖼  Calling aiAssetsGenerate —', BASE_URL + '/api/aiAssetsGenerate');
-  console.log('[CRON] 🖼  Payload:', JSON.stringify({
-    topic: payload.topic,
-    bussiness_name: payload.bussiness_name,
-    keywords: payload.keywords,
-    colourPalette: payload.colourPalette,
-    size: payload.size,
-  }));
-
-  try {
-    const res  = await fetch(`${BASE_URL}/api/aiAssetsGenerate`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    });
-    console.log('[CRON] 🖼  aiAssetsGenerate HTTP status:', res.status);
-
-    const json = await res.json();
-    console.log('[CRON] 🖼  aiAssetsGenerate full response:', JSON.stringify(json).slice(0, 600));
-
-    // Response shape: { success: true, data: { imageUrl/url/image/output/... } }
-    const d = json?.data;
-    const imageUrl =
-      d?.imageUrl || d?.url || d?.image || d?.output ||
-      (Array.isArray(d) ? (d[0]?.imageUrl || d[0]?.url || d[0]?.image) : null) ||
-      null;
-
-    console.log('[CRON] 🖼  Extracted imageUrl:', imageUrl);
-    return imageUrl;
-  } catch (err) {
-    console.error('[CRON] ❌ generateImage EXCEPTION:', err.message);
-    return null;
-  }
-}
-
-// ─── Post text generation ─────────────────────────────────────────────────────
-
-async function generatePostText({ businessName, keyword, cityName }) {
-  const fallback = `${keyword} | ${businessName}${cityName ? ' — ' + cityName : ''}`;
-  const result = await callGpt(
-    'Expert GMB copywriter. Respond with ONLY compact JSON.',
-    `Write a Google My Business post for:
-Business: "${businessName}"
-Keyword: "${keyword}"
-City: "${cityName || ''}"
-Rules: max 150 chars total, use actual city name (never {{city}}), energetic, 1-2 emojis, 2-3 hashtags.
-Return ONLY: {"text":"...","hashtags":["#a","#b"]}`,
-    300
-  );
-
-  if (!result?.text) return fallback;
-  const hashtags = Array.isArray(result.hashtags) ? result.hashtags : [];
-  const postText = `${result.text} ${hashtags.join(' ')}`.trim();
-  console.log('[CRON] ✍️  Post text:', postText);
-  return postText;
 }
 
 // ─── GMB posting ──────────────────────────────────────────────────────────────
@@ -344,15 +217,23 @@ export async function GET(request) {
     const origin = new URL(request.url);
     origin.searchParams.set('phase', 'publish');
     const publishRes = await GET(new Request(origin.toString(), { headers: request.headers }));
-    origin.searchParams.set('phase', 'prefetch');
-    const prefetchRes = await GET(new Request(origin.toString(), { headers: request.headers }));
     const publishJson = await publishRes.json();
-    const prefetchJson = await prefetchRes.json();
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       phase,
       publish: publishJson,
-      prefetch: prefetchJson,
+      note: 'Prefetch (image + copy) runs at GET /api/cron/auto-post — schedule it prefetchOffsetMinutes before publish (default 1440 = 24h).',
+    });
+  }
+
+  if (phase === 'prefetch') {
+    return NextResponse.json({
+      timestamp: new Date().toISOString(),
+      phase: 'prefetch',
+      deprecated: true,
+      message:
+        'Image and caption prefetch moved to GET /api/cron/auto-post. This route only publishes to GMB / Facebook / Instagram.',
+      hint: 'Schedule /api/cron/auto-post so it hits the prefetch window (posting time minus prefetchOffsetMinutes, default 24h). Use phase=publish or phase=tick here for posting.',
     });
   }
 
@@ -413,106 +294,6 @@ export async function GET(request) {
 
   log(`Found ${activePlans.length} active plan(s)`);
   console.log('[CRON] Plan IDs:', activePlans.map(p => p._id.toString()));
-
-  // ── PREFETCH PHASE: generate image+copy prefetchOffsetMinutes before publish (default 24h) ──
-  if (phase === 'prefetch') {
-    const prefetchStats = { processed: 0, prefetched: 0, skipped: 0, failed: 0, errors: [] };
-
-    const prefetchNow = new Date();
-    for (const plan of activePlans) {
-      prefetchStats.processed++;
-      const planId = plan._id;
-      const keywords = plan.keywords || [];
-      const postIndex = plan.postIndex ?? 0;
-      const tz = plan.postingTimezone || 'Asia/Kolkata';
-
-      log(`[prefetch] Plan ${planId} (userId=${plan.userId})`);
-
-      const nextRef = getNextPublishDateRef(plan, prefetchNow);
-      if (!nextRef) {
-        log('[prefetch] Skip — no upcoming publish date in schedule/frequency');
-        prefetchStats.skipped++;
-        continue;
-      }
-
-      if (!forceRun && !matchesPrefetchAbsoluteWindow(plan, nextRef, prefetchNow, CRON_TIME_TOLERANCE_MIN)) {
-        log(`[prefetch] Skip — outside prefetch window (offset=${plan.prefetchOffsetMinutes ?? 1440}m, tol=${CRON_TIME_TOLERANCE_MIN}m)`);
-        prefetchStats.skipped++;
-        continue;
-      }
-
-      let limit = plan.planDetails?.limit ?? 0;
-      if (!limit && plan.userRef) {
-        const u = await User.findById(plan.userRef).select('paidPackage planDuration').lean();
-        if (u) limit = getPlanPostLimit(u.paidPackage, u.planDuration);
-      }
-      const postsUsed = plan.planDetails?.postsUsed ?? 0;
-      if (limit > 0 && postsUsed >= limit) {
-        log('Prefetch skip — quota exhausted');
-        prefetchStats.skipped++; continue;
-      }
-
-      if (!keywords.length) {
-        log('Prefetch skip — no keywords');
-        prefetchStats.skipped++; continue;
-      }
-
-      if (plan.endDate && zonedYmdString(nextRef, tz) > zonedYmdString(plan.endDate, tz)) {
-        log('Prefetch skip — next publish after plan end date');
-        prefetchStats.skipped++; continue;
-      }
-
-      const pf = plan.prefetchPost;
-      if (pf?.imageUrl && pf?.postText && pf?.publishOn && sameZonedDay(pf.publishOn, nextRef, tz)) {
-        log('Prefetch skip — bundle already stored for that publish day');
-        prefetchStats.skipped++; continue;
-      }
-
-      const keyword  = keywords[postIndex % keywords.length];
-      const loc0     = (plan.locations || [])[0];
-      const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
-
-      try {
-        const imagePrompt = await generateImagePrompt({ keyword, businessName: plan.businessName || '', cityName });
-        const imageUrl    = await generateImage({ imagePrompt, keyword, businessName: plan.businessName || '', imageConfig: plan.imageConfig || {} });
-        const postText    = await generatePostText({ businessName: plan.businessName || '', keyword, cityName });
-        if (!imageUrl || !postText) {
-          log('Prefetch FAIL — missing imageUrl or postText');
-          prefetchStats.failed++;
-          continue;
-        }
-        await AutomationPlan.updateOne(
-          { _id: planId },
-          {
-            $set: {
-              prefetchPost: {
-                publishOn:   nextRef,
-                imageUrl,
-                postText,
-                keyword,
-                generatedAt: new Date(),
-              },
-            },
-          }
-        );
-        log(`Prefetch OK — publishOn=${zonedYmdString(nextRef, tz)} keyword="${keyword}"`);
-        prefetchStats.prefetched++;
-      } catch (e) {
-        log(`Prefetch ERROR — ${e.message}`);
-        prefetchStats.errors.push({ planId: planId.toString(), error: e.message });
-        prefetchStats.failed++;
-      }
-    }
-
-    log('Prefetch phase complete', prefetchStats);
-    return NextResponse.json({
-      timestamp: new Date().toISOString(),
-      baseUrl:   BASE_URL,
-      phase:     'prefetch',
-      ...prefetchStats,
-      logs,
-    });
-  }
 
   const results = { processed: 0, successful: 0, skipped: 0, failed: 0, errors: [] };
 
@@ -643,6 +424,31 @@ export async function GET(request) {
 
     // Keywords rotate: keywords[postIndex % length] (same as docstring). Quota is planDetails.limit + postsUsed.
 
+    const prefetchLead =
+      Number(plan.prefetchOffsetMinutes) >= 1440;
+    const hasPrefetchForToday =
+      !!prefetchPost?.imageUrl &&
+      !!prefetchPost?.postText &&
+      prefetchPost?.publishOn &&
+      sameZonedDay(prefetchPost.publishOn, runNow, tz);
+
+    if (prefetchLead) {
+      if (
+        prefetchPost?.publishOn &&
+        zonedYmdString(prefetchPost.publishOn, tz) < zonedYmdString(runNow, tz)
+      ) {
+        await AutomationPlan.updateOne({ _id: planId }, { $unset: { prefetchPost: 1 } });
+        log('Removed stale prefetch (missed publish day)');
+      }
+      if (!forceRun && !dryRun && !hasPrefetchForToday) {
+        log(
+          'Skip publish — 24h prefetch mode: need prefetched image+copy for today (run GET /api/cron/auto-post in the prefetch window; GMB/FB/IG use the same bundle)'
+        );
+        results.skipped++;
+        continue;
+      }
+    }
+
     if (wantGmb && !locations.length) {
       log(`FAIL — GMB enabled but no locations in AutomationPlan`);
       results.errors.push({ planId: planId.toString(), userId, error: 'No locations configured for GMB' });
@@ -698,16 +504,11 @@ export async function GET(request) {
     let postText;
     let usedPrefetch = false;
 
-    if (
-      prefetchPost?.imageUrl &&
-      prefetchPost?.postText &&
-      prefetchPost?.publishOn &&
-      sameZonedDay(prefetchPost.publishOn, runNow, tz)
-    ) {
+    if (hasPrefetchForToday) {
       usedPrefetch = true;
       imageUrl = prefetchPost.imageUrl;
       postText = prefetchPost.postText;
-      log('Using prefetched image + copy for today’s publish');
+      log('Using prefetched image + copy for today’s publish (GMB / FB / IG)');
     } else {
       if (
         prefetchPost?.publishOn &&

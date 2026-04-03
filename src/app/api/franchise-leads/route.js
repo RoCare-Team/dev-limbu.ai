@@ -24,6 +24,13 @@ function extractField(fieldData, name) {
   return field?.values?.[0] || "";
 }
 
+function isoOrNull(d) {
+  if (d == null) return null;
+  const t = new Date(d).getTime();
+  if (Number.isNaN(t)) return null;
+  return new Date(t).toISOString();
+}
+
 function formatLeadForResponse(leadDoc) {
   return {
     id: leadDoc.leadId,
@@ -49,6 +56,7 @@ function formatLeadForResponse(leadDoc) {
     remarks: leadDoc.remarks || [],
     assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
     ivrMeInterested: leadDoc.ivrMeInterested === true,
+    ivrMeInterestedAt: isoOrNull(leadDoc.ivrMeInterestedAt),
   };
 }
 
@@ -95,6 +103,7 @@ export async function GET(req) {
           remarks: lead.remarks || [],
           assignedFranchiseAdmin: lead.assignedFranchiseAdminId,
           ivrMeInterested: lead.ivrMeInterested === true,
+          ivrMeInterestedAt: isoOrNull(lead.ivrMeInterestedAt),
         },
       });
     }

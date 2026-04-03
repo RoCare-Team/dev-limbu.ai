@@ -107,6 +107,73 @@ const QUICK_REMARKS = [
 /** Same as user-management: these open the follow-up date picker */
 const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
 
+/** IVR interest timestamp from API (ISO string) → readable India locale. */
+function formatIvrInterestedAtDisplay(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Match `/api/admin/franchise-follow-up-stats` (Asia/Kolkata, no DST). */
+function getFranchiseFuBucketBounds(filter) {
+  if (filter === "all") return null;
+  const parts = {};
+  for (const { type, value } of new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date())) {
+    if (type !== "literal") parts[type] = value;
+  }
+  const y = parts.year;
+  const mo = parts.month;
+  const da = parts.day;
+  const ist = (yy, mm, dd, hh = 0, mi = 0) =>
+    new Date(
+      `${yy}-${mm}-${dd}T${String(hh).padStart(2, "0")}:${String(mi).padStart(2, "0")}:00+05:30`,
+    );
+  const todayStart = ist(y, mo, da, 0, 0);
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  const tomorrowEnd = new Date(tomorrowStart.getTime() + 86400000);
+  const next7DaysEnd = new Date(todayStart.getTime() + 7 * 86400000);
+  const yNum = parseInt(y, 10);
+  const mNum = parseInt(mo, 10);
+  let nextM = mNum + 1;
+  let nextY = yNum;
+  if (nextM > 12) {
+    nextM = 1;
+    nextY += 1;
+  }
+  const thisMonthStart = ist(y, mo, "01", 0, 0);
+  const thisMonthEnd = ist(
+    String(nextY),
+    String(nextM).padStart(2, "0"),
+    "01",
+    0,
+    0,
+  );
+  switch (filter) {
+    case "today":
+      return { start: todayStart, end: tomorrowStart };
+    case "tomorrow":
+      return { start: tomorrowStart, end: tomorrowEnd };
+    case "next7days":
+      return { start: todayStart, end: next7DaysEnd };
+    case "thisMonth":
+      return { start: thisMonthStart, end: thisMonthEnd };
+    default:
+      return null;
+  }
+}
+
 /* ---------------- NORMALIZE LEAD ---------------- */
 const normalizeLead = (lead) => {
   // Treat "Cold" as "None" for backward compatibility
@@ -122,6 +189,7 @@ const normalizeLead = (lead) => {
     whatsapp_count: lead.whatsapp_count || 0,
     source: lead.source || "meta",
     ivrMeInterested: lead.ivrMeInterested === true,
+    ivrMeInterestedAt: lead.ivrMeInterestedAt || null,
   };
 
   if (lead.field_data) {
@@ -193,6 +261,10 @@ export default function FranchiseLeadsPage() {
   const [franchiseFollowUpsLoading, setFranchiseFollowUpsLoading] = useState(false);
   const [franchiseByAgentOpen, setFranchiseByAgentOpen] = useState(false);
   const [franchiseFollowLeadsOpen, setFranchiseFollowLeadsOpen] = useState(false);
+  /** franchiseAdmin: pending strip — Call Not Picked vs Call Back Later */
+  const [franchisePendingRemarkTab, setFranchisePendingRemarkTab] = useState(
+    "call_not_picked",
+  );
   
   // Revenue state
   const [showRevenueModal, setShowRevenueModal] = useState(false);
@@ -251,20 +323,43 @@ export default function FranchiseLeadsPage() {
     franchiseFollowUpStats.leads,
   ]);
 
-  const franchisePendingFollowUps = useMemo(() => {
+  /** Due/overdue only, scoped to selected follow-up period (same buckets as summary cards). */
+  const franchisePendingFollowUpsInView = useMemo(() => {
     if (role !== "franchiseAdmin") return [];
     const now = Date.now();
+    const bounds = getFranchiseFuBucketBounds(franchiseFollowUpFilter);
     return (franchiseFollowUpLeadsAll || [])
-      .filter(
-        (l) =>
-          l.followUpDate && new Date(l.followUpDate).getTime() <= now,
-      )
+      .filter((l) => {
+        if (!l.followUpDate || new Date(l.followUpDate).getTime() > now)
+          return false;
+        if (!bounds) return true;
+        const t = new Date(l.followUpDate).getTime();
+        return t >= bounds.start.getTime() && t < bounds.end.getTime();
+      })
       .sort(
         (a, b) =>
           new Date(a.followUpDate).getTime() -
           new Date(b.followUpDate).getTime(),
       );
-  }, [role, franchiseFollowUpLeadsAll]);
+  }, [role, franchiseFollowUpLeadsAll, franchiseFollowUpFilter]);
+
+  const franchisePendingByRemark = useMemo(() => {
+    const src = franchisePendingFollowUpsInView;
+    return {
+      call_not_picked: src.filter((l) =>
+        /^Call Not Picked/i.test(l.remark || ""),
+      ),
+      call_back_later: src.filter((l) =>
+        /^Call Back Later/i.test(l.remark || ""),
+      ),
+      other: src.filter(
+        (l) =>
+          !/^Call Not Picked/i.test(l.remark || "") &&
+          !/^Call Back Later/i.test(l.remark || ""),
+      ),
+    };
+  }, [franchisePendingFollowUpsInView]);
+
   const franchiseVoiceAlertsEnabled =
     role === "superAdmin" ||
     role === "superFranchiseAdmin" ||
@@ -413,6 +508,7 @@ export default function FranchiseLeadsPage() {
             lead_quality: L.lead_quality,
             assignedFranchiseAdmin: L.assignedFranchiseAdmin,
             ivrMeInterested: L.ivrMeInterested,
+            ivrMeInterestedAt: L.ivrMeInterestedAt || null,
             source: "meta",
             field_data: [
               { name: "full_name", values: [L.fullName || ""] },
@@ -467,6 +563,15 @@ export default function FranchiseLeadsPage() {
       setFranchiseFollowUpFilter((f) => (f === "all" ? "today" : f));
     }
   }, [role]);
+
+  useEffect(() => {
+    if (
+      (role === "superAdmin" || role === "superFranchiseAdmin") &&
+      franchiseFollowUpFilter === "next7days"
+    ) {
+      setFranchiseFollowUpFilter("all");
+    }
+  }, [role, franchiseFollowUpFilter]);
 
   useEffect(() => {
     if (remarkModalLead) {
@@ -662,9 +767,8 @@ export default function FranchiseLeadsPage() {
       result = result.filter(lead => lead.lead_quality === qualityFilter);
     }
 
-    // Follow-up bucket (tabs) — narrow main table to leads in the selected window (same as agent dashboard)
-    // DISABLED FOR franchiseAdmin: tabs/stats only, no table filter
-    if (franchiseFollowUpTableActive && role !== "franchiseAdmin") {
+    // Follow-up bucket cards — narrow main table to leads in the selected window
+    if (franchiseFollowUpTableActive) {
       const fuList = franchiseFollowUpStats.leads || [];
       const seen = new Set();
       const orderedIds = [];
@@ -1550,6 +1654,10 @@ if (!executiveMobile && typeof window !== "undefined") {
 
   const totalPages = Math.ceil(filteredLeads.length / PAGE_SIZE);
 
+  const selectedIvrAtLabel = selectedLead
+    ? formatIvrInterestedAtDisplay(selectedLead.ivrMeInterestedAt)
+    : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
       <Toaster position="top-right" />
@@ -1879,11 +1987,13 @@ if (!executiveMobile && typeof window !== "undefined") {
 
               <div>
                 <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Follow-ups (tap to filter main table)
+                  {role === "franchiseAdmin"
+                    ? "Follow-ups — tap a period (table + pending cards match this window)"
+                    : "Follow-ups (tap to filter main table)"}
                 </p>
                 <div
                   className={`grid grid-cols-2 gap-2 ${
-                    role === "franchiseAdmin" ? "md:grid-cols-4" : "md:grid-cols-5"
+                    role === "franchiseAdmin" ? "md:grid-cols-4" : "md:grid-cols-4"
                   }`}
                 >
                   {(
@@ -1897,7 +2007,6 @@ if (!executiveMobile && typeof window !== "undefined") {
                       : [
                           { key: "today", label: "Today", count: franchiseFollowUpStats.todayFollowUps, bg: "bg-amber-500", ring: "ring-amber-400" },
                           { key: "tomorrow", label: "Tomorrow", count: franchiseFollowUpStats.tomorrowFollowUps, bg: "bg-rose-500", ring: "ring-rose-400" },
-                          { key: "next7days", label: "Next 7 Days", count: franchiseFollowUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
                           { key: "thisMonth", label: "This Month", count: franchiseFollowUpStats.thisMonthFollowUps, bg: "bg-emerald-500", ring: "ring-emerald-400" },
                           { key: "all", label: "All Time", count: franchiseFollowUpStats.totalFollowUps, bg: "bg-gray-600", ring: "ring-gray-400" },
                         ]
@@ -1925,39 +2034,161 @@ if (!executiveMobile && typeof window !== "undefined") {
                 </div>
               </div>
 
-              {role === "franchiseAdmin" && franchisePendingFollowUps.length > 0 && (
-                <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/90 to-orange-50/50 p-3 md:p-4">
-                  <p className="text-[11px] font-bold text-amber-900 uppercase tracking-wide mb-2 flex items-center gap-2">
-                    <AlertCircle size={14} className="text-amber-600" />
-                    Pending follow-ups (due or overdue)
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {franchisePendingFollowUps.map((l) => (
-                      <button
-                        key={String(l.leadId)}
-                        type="button"
-                        onClick={() => openFranchiseRemarkForLeadId(l.leadId)}
-                        className="inline-flex flex-col items-start gap-0.5 rounded-lg border border-amber-300/80 bg-white/90 px-3 py-2 text-left text-xs shadow-sm hover:border-amber-500 hover:bg-amber-50/80 transition-colors max-w-[220px]"
-                      >
-                        <span className="font-semibold text-gray-900 truncate w-full">
-                          {l.fullName || l.phone || l.leadId}
+              {role === "franchiseAdmin" &&
+                franchisePendingFollowUpsInView.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50/80 p-3 md:p-4 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                      <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                        <AlertCircle size={14} className="text-orange-500 shrink-0" />
+                        Pending follow-ups (due or overdue)
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        Period:{" "}
+                        <span className="text-slate-800">
+                          {franchiseFollowUpFilterLabel}
                         </span>
-                        <span className="text-[10px] text-amber-800 font-medium tabular-nums">
-                          {l.followUpDate
-                            ? new Date(l.followUpDate).toLocaleString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              })
-                            : "—"}
-                        </span>
-                      </button>
-                    ))}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/80 mb-3">
+                      {[
+                        {
+                          id: "call_not_picked",
+                          label: "Call Not Picked",
+                          count: franchisePendingByRemark.call_not_picked.length,
+                          activeClass:
+                            "bg-orange-500 text-white shadow-md ring-2 ring-orange-300",
+                          idleClass:
+                            "bg-white text-orange-800 border-orange-200 hover:bg-orange-50",
+                        },
+                        {
+                          id: "call_back_later",
+                          label: "Call Back Later",
+                          count: franchisePendingByRemark.call_back_later.length,
+                          activeClass:
+                            "bg-teal-600 text-white shadow-md ring-2 ring-teal-300",
+                          idleClass:
+                            "bg-white text-teal-800 border-teal-200 hover:bg-teal-50",
+                        },
+                        ...(franchisePendingByRemark.other.length > 0
+                          ? [
+                              {
+                                id: "other",
+                                label: "Other",
+                                count: franchisePendingByRemark.other.length,
+                                activeClass:
+                                  "bg-slate-600 text-white shadow-md ring-2 ring-slate-400",
+                                idleClass:
+                                  "bg-white text-slate-700 border-slate-200 hover:bg-slate-50",
+                              },
+                            ]
+                          : []),
+                      ].map((tab) => {
+                        const active = franchisePendingRemarkTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setFranchisePendingRemarkTab(tab.id)}
+                            className={`flex-1 min-w-[130px] sm:flex-none rounded-lg px-3 py-2 text-left border-2 transition-all ${
+                              active ? tab.activeClass : tab.idleClass
+                            }`}
+                          >
+                            <span
+                              className={`block text-[10px] font-bold uppercase tracking-wide ${active ? "text-white/90" : ""}`}
+                            >
+                              {tab.label}
+                            </span>
+                            <span
+                              className={`text-lg font-black tabular-nums ${active ? "text-white" : "text-gray-900"}`}
+                            >
+                              {tab.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(() => {
+                      const tabLeads =
+                        franchisePendingRemarkTab === "call_not_picked"
+                          ? franchisePendingByRemark.call_not_picked
+                          : franchisePendingRemarkTab === "call_back_later"
+                            ? franchisePendingByRemark.call_back_later
+                            : franchisePendingByRemark.other;
+                      const isCnp = franchisePendingRemarkTab === "call_not_picked";
+                      const isCbl = franchisePendingRemarkTab === "call_back_later";
+                      const cardBorder = isCnp
+                        ? "border-orange-200 hover:border-orange-400 hover:bg-orange-50/50"
+                        : isCbl
+                          ? "border-teal-200 hover:border-teal-400 hover:bg-teal-50/50"
+                          : "border-slate-200 hover:border-slate-400 hover:bg-slate-50";
+                      const badgeBg = isCnp
+                        ? "bg-orange-500"
+                        : isCbl
+                          ? "bg-teal-600"
+                          : "bg-slate-500";
+                      const dateCls = isCnp
+                        ? "text-orange-800"
+                        : isCbl
+                          ? "text-teal-800"
+                          : "text-slate-700";
+
+                      if (tabLeads.length === 0) {
+                        return (
+                          <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-xl">
+                            No leads in this tab for{" "}
+                            <span className="font-semibold text-slate-600">
+                              {franchiseFollowUpFilterLabel}
+                            </span>
+                            .
+                          </p>
+                        );
+                      }
+
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          {tabLeads.map((l) => (
+                            <button
+                              key={String(l.leadId)}
+                              type="button"
+                              onClick={() =>
+                                openFranchiseRemarkForLeadId(l.leadId)
+                              }
+                              className={`relative inline-flex flex-col items-start gap-1 rounded-xl border-2 bg-white px-3 py-2.5 text-left text-xs shadow-sm hover:shadow-md transition-all max-w-[240px] ${cardBorder}`}
+                            >
+                              <span
+                                className={`absolute top-0 right-2 -translate-y-1/2 text-[9px] font-semibold ${badgeBg} text-white px-2 py-0.5 rounded-full shadow-sm max-w-[120px] truncate`}
+                                title={l.remark}
+                              >
+                                {l.remark || "—"}
+                              </span>
+                              <span className="font-semibold text-gray-900 truncate w-full pr-16">
+                                {l.fullName || l.phone || l.leadId}
+                              </span>
+                              <span
+                                className={`text-[10px] font-semibold tabular-nums ${dateCls}`}
+                              >
+                                {l.followUpDate
+                                  ? new Date(l.followUpDate).toLocaleString(
+                                      "en-IN",
+                                      {
+                                        day: "numeric",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      },
+                                    )
+                                  : "—"}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
-                </div>
-              )}
+                )}
 
               {(role === "superAdmin" || role === "superFranchiseAdmin") &&
                 (franchiseFollowUpStats.byAgent || []).length > 0 && (
@@ -2284,6 +2515,16 @@ if (!executiveMobile && typeof window !== "undefined") {
                   <span className="text-indigo-600/90">Table filter:</span>
                   <span className="text-rose-700">{franchiseFollowUpFilterLabel}</span>
                 </span>
+                {franchiseFollowUpFilter !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setFranchiseFollowUpFilter("all")}
+                    className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Clear — all leads
+                  </button>
+                )}
               </div>
             )}
             <div className="relative">
@@ -2494,7 +2735,11 @@ if (!executiveMobile && typeof window !== "undefined") {
                       </td>
                     </tr>
                   ) : (
-                    paginatedLeads.map((lead, idx) => (
+                    paginatedLeads.map((lead, idx) => {
+                      const ivrAtLabel = formatIvrInterestedAtDisplay(
+                        lead.ivrMeInterestedAt,
+                      );
+                      return (
                       <tr key={lead.id} className="hover:bg-blue-50/50 transition-colors">
                         {canSelectFranchiseLeads && (
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -2575,8 +2820,24 @@ if (!executiveMobile && typeof window !== "undefined") {
                                 {lead.full_name || lead.fullName || ""}
                               </span>
                               {lead.ivrMeInterested && (
-                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200">
-                                  IVR interested
+                                <span
+                                  className="shrink-0 inline-flex flex-col items-start gap-0 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200 leading-tight"
+                                  title={
+                                    ivrAtLabel
+                                      ? `IVR interest: ${ivrAtLabel}`
+                                      : "IVR interested (date will appear after sync or next call)"
+                                  }
+                                >
+                                  <span>IVR interested</span>
+                                  {ivrAtLabel ? (
+                                    <span className="text-[9px] font-medium text-violet-600/95 tabular-nums font-mono">
+                                      {ivrAtLabel}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-normal text-violet-600/70">
+                                      date pending
+                                    </span>
+                                  )}
                                 </span>
                               )}
                               <button
@@ -2786,7 +3047,8 @@ if (!executiveMobile && typeof window !== "undefined") {
                         </td>
                     
                       </tr>
-                    ))
+                    );
+                  })
                   )}
                 </tbody>
               </table>
@@ -2866,8 +3128,17 @@ if (!executiveMobile && typeof window !== "undefined") {
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-2xl font-bold">{selectedLead.full_name}</h2>
                   {selectedLead.ivrMeInterested && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/40">
-                      IVR interested
+                    <span className="inline-flex flex-col items-start gap-0.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/20 text-white border border-white/40">
+                      <span>IVR interested</span>
+                      {selectedIvrAtLabel ? (
+                        <span className="text-[10px] font-medium text-white/90 tabular-nums">
+                          {selectedIvrAtLabel}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-normal text-white/75">
+                          Date pending — refresh leads
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>

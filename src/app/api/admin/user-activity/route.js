@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 // ------------------
 // DB Connection
@@ -14,7 +15,7 @@ async function dbConnect() {
   if (global.mongoose.conn) return global.mongoose.conn;
 
   if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(MONGODB_URI, {
+    global.mongoose.promise = mongoose.connect(mongooseConnectionUri(MONGODB_URI), {
       bufferCommands: false,
     });
   }

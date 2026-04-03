@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import FranchiseIvrCall from "@/models/FranchiseIvrCall";
 import Lead from "@/models/MetaLeadFranchises";
 import { markLeadsIvrInterestedForPhone } from "@/lib/syncFranchiseIvrInterest";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 /* ================= MONGODB CONNECTION ================= */
 
@@ -16,7 +17,7 @@ async function dbConnect() {
   if (global.mongoose.conn) return global.mongoose.conn;
 
   if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(MONGODB_URI, {
+    global.mongoose.promise = mongoose.connect(mongooseConnectionUri(MONGODB_URI), {
       bufferCommands: false,
     });
   }
@@ -136,8 +137,8 @@ export async function POST(req) {
       campaign_name,
     });
 
-    await markLeadsIvrInterestedForPhone(did_number, Lead);
-    await markLeadsIvrInterestedForPhone(customer_number, Lead);
+    await markLeadsIvrInterestedForPhone(did_number, Lead, now);
+    await markLeadsIvrInterestedForPhone(customer_number, Lead, now);
 
     // ✅ REAL-TIME WHATSAPP TRIGGER
     // if (digit_pressed === "1" && !savedCall.whatsapp_sent) {

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 // MongoDB ke saath kaam karne ki library. || Kya kaam?  Schema define karne, model banane, DB connect karne ke liye.
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 // ye Environment variable se database URL le raha hai. || Kabhi bhi database URL code mein hardcode nahi karte.
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -26,7 +27,7 @@ const Notification = // Next.js development mode mein hot reload hota hai.
 // 🔗 Connect to MongoDB
 async function connectDB() { // Custom DB connect function.
   if (mongoose.connection.readyState === 0) { // Agar connection already open nahi hai to hi connect karo. || Agar ye check hata do: || Har request pe naya connection banega → performance issue.
-    await mongoose.connect(MONGODB_URI, {
+    await mongoose.connect(mongooseConnectionUri(MONGODB_URI), {
       bufferCommands: false,
     });
   }

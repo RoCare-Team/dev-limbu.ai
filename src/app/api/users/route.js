@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
 import { getAppDayBounds } from "@/lib/appDayBounds";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
@@ -19,7 +20,7 @@ async function dbConnect() {
   if (global.mongoose.conn) return global.mongoose.conn;
 
   if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(MONGODB_URI);
+    global.mongoose.promise = mongoose.connect(mongooseConnectionUri(MONGODB_URI));
   }
 
   global.mongoose.conn = await global.mongoose.promise;

@@ -1,6 +1,7 @@
 // app/api/webhook/route.js
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 // =============================
 // 🔗 MONGODB CONNECT (lazy — only on first request)
@@ -9,8 +10,8 @@ function ensureMongoConnection() {
   if (!global._mongooseConnection) {
     const MONGODB_URI = process.env.MONGODB_URI;
     if (!MONGODB_URI) throw new Error("MONGODB_URI not defined");
-    global._mongooseConnection = mongoose.connect(MONGODB_URI, {
-      dbName: "test",
+    global._mongooseConnection = mongoose.connect(mongooseConnectionUri(MONGODB_URI), {
+      bufferCommands: false,
     });
   }
   return global._mongooseConnection;

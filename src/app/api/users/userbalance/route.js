@@ -1,12 +1,12 @@
 import User from "@/models/User";
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
-
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 // ✅ GET: Fetch all users or single user by userId
 async function connectDB() {
   if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(mongooseConnectionUri(process.env.MONGODB_URI), {
       bufferCommands: false,
     });
   }

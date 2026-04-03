@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 // -------------------------
 // DB CONNECT
 // -------------------------
 async function dbConnect() {
   if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI, {
+  await mongoose.connect(mongooseConnectionUri(process.env.MONGODB_URI), {
     dbName: "demoBookingDB",
   });
 }

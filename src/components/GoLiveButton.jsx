@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { generateSlug } from "../../utils/generateSlug";
 import { X } from "lucide-react";
@@ -16,16 +16,27 @@ export default function GoLiveButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   const ROOT_DOMAIN =
     process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedUserId = window.localStorage.getItem("userId");
+      if (storedUserId) {
+        setUserId(storedUserId);
+      }
+    } catch {
+      // ignore localStorage errors
+    }
+  }, []);
+
   const generateSlugFromBusiness = () => {
     return generateSlug(
       business?.title,
-      business?.locality,
-      business?.address ||
-        business?.storefrontAddress?.addressLines?.[0]
+      business?.locality
     );
   };
 
@@ -34,6 +45,11 @@ export default function GoLiveButton({
   const handleGoLive = async () => {
     if (!session) {
       setError("You must be logged in to publish a website.");
+      return;
+    }
+
+    if (!userId) {
+      setError("User ID missing. Please log in again.");
       return;
     }
 
@@ -53,6 +69,7 @@ export default function GoLiveButton({
           business,
           aiContent,
           mediaImages,
+          userId,
         }),
       });
 

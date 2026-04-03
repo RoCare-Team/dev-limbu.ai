@@ -2,12 +2,12 @@
   "name": "gmb-app",
   "version": "0.1.0",
   "private": true,
- "scripts": {
-  "dev": "next dev --webpack",
-  "build": "next build --webpack",
-  "start": "next start",
-  "lint": "eslint ."
-},
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint ."
+  },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.0",
     "@emotion/react": "^11.14.0",
@@ -16,11 +16,13 @@
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
     "@mui/styled-engine-sc": "^7.3.2",
+    "axios": "^1.14.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "dotenv": "^17.2.3",
     "formidable": "^3.5.4",
     "framer-motion": "^12.23.24",
+    "fs": "^0.0.1-security",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.3",
@@ -34,6 +36,7 @@
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "openai": "^6.17.0",
+    "pdfkit": "^0.18.0",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "react": "19.1.0",

@@ -1,5 +1,7 @@
 // Google My Business API helper functions
 
+import { GMB_BUSINESS_INFORMATION_READ_MASK } from '@/lib/gmbLocationDataset'
+
 export async function fetchGoogleAccounts(accessToken) {
   try {
     const accountsRes = await fetch("https://mybusinessbusinessinformation.googleapis.com/v1/accounts", {
@@ -25,7 +27,7 @@ export async function fetchGoogleAccounts(accessToken) {
 export async function fetchLocationsByAccount(accessToken, accountId) {
   try {
     const locationsRes = await fetch(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations?readMask=name,title,storefrontAddress,websiteUri,phoneNumbers,categories,openInfo,metadata`,
+      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations?readMask=${encodeURIComponent(GMB_BUSINESS_INFORMATION_READ_MASK)}`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       },

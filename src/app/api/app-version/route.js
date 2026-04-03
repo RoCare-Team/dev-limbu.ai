@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 /* ----------------- DB CONNECTION ----------------- */
 let isConnected = false;
@@ -13,7 +14,7 @@ function getRequiredEnv(name) {
 async function connectDB() {
   if (isConnected) return;
 
-  const mongoUri = getRequiredEnv("MONGODB_URI");
+  const mongoUri = mongooseConnectionUri(getRequiredEnv("MONGODB_URI"));
   const db = await mongoose.connect(mongoUri);
   isConnected = db.connections[0].readyState;
   console.log("MongoDB Connected");

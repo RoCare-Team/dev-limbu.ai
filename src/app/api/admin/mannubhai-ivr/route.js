@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 const AISENSY_URL =
   "https://backend.aisensy.com/campaign/t1/api/v2";
@@ -11,7 +12,7 @@ let isConnected = false;
 
 async function connectDB() {
   if (isConnected) return;
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(mongooseConnectionUri(MONGODB_URI));
   isConnected = true;
 }
 

@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import toast, { Toaster } from "react-hot-toast";
 import BusinessInformationPanel from "@/components/user-settings/BusinessInformationModal";
 
 function BackRow({ onClick }) {
@@ -34,6 +36,7 @@ function BackRow({ onClick }) {
 
 export default function OptimizationPage() {
   const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userData, setUserData] = useState(null);
@@ -43,9 +46,48 @@ export default function OptimizationPage() {
   const [automationKeywords, setAutomationKeywords] = useState([]);
   const [profileDescription, setProfileDescription] = useState("");
   const [savePending, setSavePending] = useState(false);
-  const [saveOk, setSaveOk] = useState("");
+  const [gmbRefreshPending, setGmbRefreshPending] = useState(false);
+  const [syncToGmbPending, setSyncToGmbPending] = useState(false);
 
   const noop = useCallback(() => {}, []);
+
+  const accountId =
+    selectedBusiness?.projectId ||
+    selectedBusiness?.googleId ||
+    selectedBusiness?.email ||
+    "";
+
+  const refreshGmbLocations = useCallback(async () => {
+    if (!accountId) return null;
+    setGmbRefreshPending(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/gmb/location-optimization?accountId=${encodeURIComponent(accountId)}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.error || "Could not refresh locations from Google.";
+        setError((prev) => prev || msg);
+        return null;
+      }
+      if (Array.isArray(data.locations) && data.locations.length > 0) {
+        setGmbLocations(data.locations);
+        try {
+          localStorage.setItem("locationDetails", JSON.stringify(data.locations));
+        } catch {
+          /* ignore */
+        }
+        return data.locations;
+      }
+      return [];
+    } catch (e) {
+      setError((prev) => prev || e.message || "GMB refresh failed");
+      return null;
+    } finally {
+      setGmbRefreshPending(false);
+    }
+  }, [accountId]);
 
   useEffect(() => {
     (async () => {
@@ -105,49 +147,151 @@ export default function OptimizationPage() {
     })();
   }, []);
 
-  const handleSaveDescription = useCallback(
-    async (text) => {
-      const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-      if (!userId) {
-        setError("User ID not found.");
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || !accountId) return;
+    void refreshGmbLocations();
+  }, [sessionStatus, accountId, refreshGmbLocations]);
+
+  const handleSaveOptimization = useCallback(
+    async ({ locationId, description, serviceAreaPlaces }) => {
+      const locId =
+        String(locationId || "").trim() ||
+        selectedLocations[0]?.locationId ||
+        gmbLocations[0]?.locationId ||
+        "";
+      const desc = typeof description === "string" ? description.trim() : "";
+      const places = Array.isArray(serviceAreaPlaces) ? serviceAreaPlaces.map((s) => String(s).trim()).filter(Boolean) : [];
+
+      if (!accountId || !locId) {
+        toast.error("Select a Google location, then try again.");
         return;
       }
+      if (!desc && places.length === 0) {
+        toast.error("Add a description or at least one service area to save.");
+        return;
+      }
+
       setSavePending(true);
-      setSaveOk("");
       setError("");
       try {
-        const res = await fetch("/api/user-settings/business-description", {
+        const patchBody = { accountId, locationId: locId };
+        if (desc) patchBody.description = desc;
+        if (places.length > 0) patchBody.serviceAreaPlaces = places;
+        const gRes = await fetch("/api/gmb/patch-location", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, businessProfileDescription: text }),
+          body: JSON.stringify(patchBody),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "Save failed");
-        setProfileDescription(data.businessProfileDescription ?? text);
-        setSaveOk("Description saved.");
-        setTimeout(() => setSaveOk(""), 4000);
+        const gData = await gRes.json().catch(() => ({}));
+        if (!gRes.ok) {
+          const detailMsg =
+            gData.detail?.error?.message ||
+            (Array.isArray(gData.results) && gData.results.find((r) => !r.ok)?.data?.error?.message);
+          throw new Error(gData.error || detailMsg || "Google update failed");
+        }
+
+        const refreshed = await refreshGmbLocations();
+        const loc = Array.isArray(refreshed) ? refreshed.find((l) => l.locationId === locId) : null;
+        const liveDesc =
+          loc && typeof loc.profileDescription === "string" && loc.profileDescription.trim()
+            ? loc.profileDescription.trim()
+            : desc;
+        setProfileDescription(liveDesc);
+
+        toast.success("Updated on Google. Listing refreshed from Google.");
       } catch (e) {
-        setError(e.message || "Save failed");
+        const msg = e.message || "Save failed";
+        setError(msg);
+        toast.error(msg);
       } finally {
         setSavePending(false);
       }
     },
-    []
+    [accountId, selectedLocations, gmbLocations, refreshGmbLocations]
+  );
+
+  const handleSyncToGmb = useCallback(
+    async (payload) => {
+      const locId =
+        selectedLocations[0]?.locationId ||
+        gmbLocations[0]?.locationId ||
+        "";
+      if (!accountId || !locId) {
+        const msg = "Select a business with a Google location, then try again.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      setSyncToGmbPending(true);
+      setError("");
+      try {
+        const res = await fetch("/api/gmb/patch-location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accountId,
+            locationId: locId,
+            description: payload?.description,
+            primaryPhone: payload?.primaryPhone,
+            websiteUri: payload?.websiteUri,
+            chatUrl: payload?.chatUrl,
+            serviceAreaText: payload?.serviceAreaText,
+            serviceAreaPlaces: Array.isArray(payload?.serviceAreaPlaces) ? payload.serviceAreaPlaces : undefined,
+            latlng: payload?.latlng,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detailMsg =
+            data.detail?.error?.message ||
+            (Array.isArray(data.results) && data.results.find((r) => !r.ok)?.data?.error?.message);
+          throw new Error(data.error || detailMsg || "Google sync failed");
+        }
+        const n = Array.isArray(data.results) ? data.results.length : 0;
+        const refreshed = await refreshGmbLocations();
+        const locId = selectedLocations[0]?.locationId || gmbLocations[0]?.locationId;
+        const loc = Array.isArray(refreshed) && locId ? refreshed.find((l) => l.locationId === locId) : null;
+        if (loc && typeof loc.profileDescription === "string") {
+          setProfileDescription(loc.profileDescription.trim());
+        }
+        toast.success(
+          n > 0
+            ? `Synced ${n} field${n === 1 ? "" : "s"} to Google. Data reloaded from Google.`
+            : "Synced to Google. Data reloaded from Google."
+        );
+      } catch (e) {
+        const msg = e.message || "Google sync failed";
+        setError(msg);
+        toast.error(msg);
+      } finally {
+        setSyncToGmbPending(false);
+      }
+    },
+    [accountId, selectedLocations, gmbLocations, refreshGmbLocations]
   );
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 48px" }}>
+    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 20px 48px" }}>
+      <Toaster position="top-right" />
       <BackRow onClick={() => router.push("/user-settings")} />
 
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
           Business optimization
         </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#64748b", lineHeight: 1.55, maxWidth: 560 }}>
-          Google-style business information editor: review contact details, locations (read-only from Settings), and generate or edit your description with AI.
+        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#64748b", lineHeight: 1.55, maxWidth: 720 }}>
+          Data loads from the Google Business Information API (<code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>GET …/locations/&#123;id&#125;</code>
+          ) and attributes for WhatsApp. Updates use the official PATCH masks (<code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>title</code>,{" "}
+          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>profile</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>phoneNumbers</code>,{" "}
+          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>websiteUri</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>storefrontAddress</code>,{" "}
+          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>latlng</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>serviceArea</code>).{" "}
+          <strong>Save changes</strong> PATCHes only description and service area (no DB write), then refetches live data.{" "}
+          <strong style={{ color: "#0f766e" }}>Sync to Google</strong> sends the other fields, then refetches.
         </p>
-        {saveOk && (
-          <p style={{ margin: "10px 0 0", fontSize: 13, fontWeight: 600, color: "#15803d" }}>{saveOk}</p>
+        {gmbRefreshPending && (
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: "#6366f1", fontWeight: 600 }}>
+            Refreshing locations from Google…
+          </p>
         )}
         {error && (
           <p style={{ margin: "10px 0 0", fontSize: 13, fontWeight: 600, color: "#b91c1c" }}>{error}</p>
@@ -166,11 +310,14 @@ export default function OptimizationPage() {
           selectedLocations={selectedLocations}
           setSelectedLocations={noop}
           gmbLocations={gmbLocations}
+          preselectedLocationId={selectedLocations[0]?.locationId}
           selectedBusiness={selectedBusiness}
           userData={userData}
           automationKeywords={automationKeywords}
           profileDescription={profileDescription}
-          onConfirmProfileDescription={handleSaveDescription}
+          onSaveOptimization={handleSaveOptimization}
+          onSyncToGmb={handleSyncToGmb}
+          syncToGmbPending={syncToGmbPending}
           onBack={() => router.push("/user-settings")}
         />
       )}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -36,7 +37,7 @@ const User = mongoose.models.users || mongoose.model("users", UserSchema);
 // --------------------
 async function connectDB() {
   if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(mongooseConnectionUri(MONGODB_URI));
   }
 }
 

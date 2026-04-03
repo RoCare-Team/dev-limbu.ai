@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import toast from "react-hot-toast";
+import { normalizeGmbLocationRecord } from "@/lib/gmbLocationDataset";
+import { GMB_PROFILE_DESCRIPTION_MAX, clampGmbDescription } from "@/lib/gmbConstants";
+import { getNearbyServiceAreaSuggestions, parseServiceAreaPlacesFromText } from "@/lib/gmbServiceAreaSuggestions";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_BUSINESS = {
@@ -50,53 +54,13 @@ const TABS = [
 /** Slim `locationDetails` rows or full Business Information API `locations[]` items. */
 function enrichGmbLocation(loc) {
   if (!loc) return null;
-  const resourceName = typeof loc.name === "string" ? loc.name : "";
-  let locationId = String(loc.locationId || loc.googleId || "");
-  if (!locationId && resourceName.includes("/")) {
-    locationId = resourceName.split("/").pop() || "";
-  }
-  const sa = loc.storefrontAddress;
-  const addressLines = sa?.addressLines?.length
-    ? sa.addressLines.map(String).join(", ")
-    : String(loc.address || "");
-  const locality = sa?.locality || loc.locality || "";
-  const administrativeArea = sa?.administrativeArea || "";
-  const postalCode = sa?.postalCode || "";
-  const regionCode = sa?.regionCode || "";
-  const address = addressLines;
-  const fullAddress = [addressLines, locality, administrativeArea, postalCode, regionCode].filter(Boolean).join(", ");
-  const phone = loc.phoneNumbers?.primaryPhone || loc.phone || "";
-  const websiteUrl = loc.websiteUri || loc.websiteUrl || "";
-  const primaryCategory = loc.categories?.primaryCategory?.displayName || "";
-  const openStatus = loc.openInfo?.status || "";
-  const mapsUri = loc.metadata?.mapsUri || "";
-  const placeId = loc.metadata?.placeId || "";
-  const newReviewUri = loc.metadata?.newReviewUri || loc.reviewUri || "";
-  const isVerified = Boolean(loc.metadata?.hasVoiceOfMerchant ?? loc.isVerified);
   const accountId = loc.accountId || "";
-  const title = loc.title || loc.name || "";
-  if (!locationId) locationId = resourceName || title;
-  if (!locationId) return null;
-  return {
-    locationId,
-    resourceName,
-    title,
-    address,
-    locality,
-    administrativeArea,
-    postalCode,
-    regionCode,
-    fullAddress: fullAddress || [address, locality].filter(Boolean).join(", "),
-    websiteUrl,
-    phone,
-    primaryCategory,
-    openStatus,
-    mapsUri,
-    placeId,
-    newReviewUri,
-    isVerified,
-    accountId,
-  };
+  const normalized = normalizeGmbLocationRecord(loc, accountId);
+  if (!normalized) return null;
+  if (Object.prototype.hasOwnProperty.call(loc, "whatsappUri")) {
+    return { ...normalized, whatsappUri: typeof loc.whatsappUri === "string" ? loc.whatsappUri.trim() : "" };
+  }
+  return normalized;
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -314,7 +278,7 @@ function EditChooser({ fieldLabel, onAiClick, onManualClick }) {
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 800, color: "#4338ca" }}>AI Generated</div>
-            <div style={{ fontSize: 11, color: "#818cf8" }}>Write with Claude AI</div>
+            <div style={{ fontSize: 11, color: "#818cf8" }}>OpenAI (server) + live GMB facts</div>
           </div>
         </button>
 
@@ -345,7 +309,24 @@ function EditChooser({ fieldLabel, onAiClick, onManualClick }) {
 }
 
 // ─── Editable Field Row ───────────────────────────────────────────────────────
-function FieldRow({ label, fieldId, value, onChange, multiline = false, businessName, categoryHint, userData, primaryLoc, noBottomRule = false }) {
+function FieldRow({
+  label,
+  fieldId,
+  value,
+  onChange,
+  multiline = false,
+  businessName,
+  categoryHint,
+  userData,
+  primaryLoc,
+  aiContext = {},
+  noBottomRule = false,
+  aiLoaderSubtitle = "OpenAI is writing this field…",
+  maxLength = null,
+  /** No AI / Edit menu — always type directly (e.g. description + WhatsApp per Google API). */
+  manualOnly = false,
+  manualHint = "",
+}) {
   const [showChooser, setShowChooser] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [aiPending, setAiPending] = useState(null);
@@ -354,51 +335,52 @@ function FieldRow({ label, fieldId, value, onChange, multiline = false, business
   const wrapRef = useRef(null);
 
   useEffect(() => {
+    if (manualOnly) return;
     const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setShowChooser(false); };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [manualOnly]);
 
   const generateAI = async () => {
     setShowChooser(false);
     setLoading(true);
     try {
-      const prompts = {
-        businessName: `Return a clean professional business name for a company in: ${categoryHint.join(", ")}. Return ONLY the name.`,
-        tagline: `Write a punchy 8-12 word tagline for "${businessName}", a ${categoryHint[0] || "technology"} company. Return ONLY the tagline.`,
-        description: `Write a 150-200 word Google Business Profile description for "${businessName}", a ${categoryHint.join(", ")} company in ${primaryLoc?.locality || "India"}. SEO-optimized with a call to action. Return ONLY the description.`,
-        services: `List 5 specific services for "${businessName}" (${categoryHint.join(", ")}). Return ONLY a JSON array like ["Service 1","Service 2","Service 3","Service 4","Service 5"].`,
-        phone: `Return a sample Indian business phone number in format +91 XXXXX XXXXX. Return ONLY the number.`,
-        website: `Return ${userData?.website || "https://example.com"} — just the URL.`,
-        bookingUrl: `Suggest one short booking or appointment URL (https://...) for "${businessName}". Return ONLY the URL.`,
-        serviceArea: `List 4–6 cities or areas this business serves near ${primaryLoc?.locality || "India"} for "${businessName}". Return as comma-separated text only.`,
-        hoursSummary: `Write concise Google Business style opening hours text (e.g. Mon–Fri 9–6, Sat 10–4, Sun closed) for "${businessName}". Return ONLY that text.`,
-        specialHours: `List special hours or holiday notes (plain text, one line per item) for "${businessName}". Return plain text only.`,
-        yearEstablished: `Return a plausible year established (four digits) or short phrase like "Est. 2015" for "${businessName}". Return ONLY that.`,
-        accessibility: `List 3–5 accessibility or amenity labels (e.g. Wheelchair accessible entrance, Free Wi‑Fi) for "${businessName}". Return comma-separated only.`,
-        additionalInfo: `Write 2 short sentences of extra business highlights (parking, payment methods, specialties) for "${businessName}". Return plain text only.`,
-        primaryCategory: `Return a short Google Business style primary category name for "${businessName}" (${categoryHint.join(", ") || "local services"}). Return ONLY the category name.`,
-        chatUrl: `Return a single messaging URL (WhatsApp web, or https URL) for "${businessName}", or the word NONE if unknown. Return ONLY the URL or NONE.`,
+      const ctx = {
+        ...aiContext,
+        businessNameHint: businessName,
+        categoryHints: categoryHint,
+        websiteHint: userData?.website || primaryLoc?.websiteUrl,
+        localityHint: primaryLoc?.locality,
       };
-      const prompt = prompts[fieldId] || `Generate a value for the "${label}" field of a business called "${businessName}". Return ONLY the value.`;
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 700,
-          messages: [{ role: "user", content: prompt }],
+          mode: "field",
+          fieldId,
+          fieldLabel: label,
+          context: ctx,
+          currentValue: value,
         }),
       });
-      const data = await res.json();
-      let text = data.content?.find(b => b.type === "text")?.text?.trim() || "";
-      if (fieldId === "services") {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAiPending(data.error || "Generation failed. Check OPENAI_API_KEY and try again.");
+        return;
+      }
+      if (fieldId === "services" && Array.isArray(data.value)) {
+        setAiPending(data.value);
+      } else if (fieldId === "services") {
         try {
-          const arr = JSON.parse(text.replace(/```json|```/g, "").trim());
-          setAiPending(arr);
-        } catch { setAiPending(text); }
+          const arr = JSON.parse(String(data.value || "").replace(/```json|```/g, "").trim());
+          setAiPending(Array.isArray(arr) ? arr : data.value);
+        } catch {
+          setAiPending(data.value || "");
+        }
       } else {
-        setAiPending(text);
+        let out = String(data.value ?? "").trim() || "No output.";
+        if (maxLength != null && fieldId === "description") out = clampGmbDescription(out);
+        setAiPending(out);
       }
     } catch {
       setAiPending("Generation failed. Please try again.");
@@ -408,10 +390,83 @@ function FieldRow({ label, fieldId, value, onChange, multiline = false, business
   };
 
   const confirmInsert = (content) => {
-    onChange(Array.isArray(content) ? content.join(", ") : content);
+    let v = Array.isArray(content) ? content.join(", ") : content;
+    if (maxLength != null && typeof v === "string" && v.length > maxLength) v = v.slice(0, maxLength);
+    onChange(v);
     setAiSource(true);
     setAiPending(null);
   };
+
+  const len = String(value || "").length;
+
+  if (manualOnly) {
+    return (
+      <div style={{
+        marginBottom: noBottomRule ? 0 : 20,
+        paddingBottom: noBottomRule ? 0 : 20,
+        borderBottom: noBottomRule ? "none" : "1px solid #eef2f6",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
+            {label}
+          </span>
+          <span style={{
+            fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em",
+            color: "#475569", background: "#f1f5f9", border: "1px solid #e2e8f0",
+            padding: "3px 8px", borderRadius: 20,
+          }}>
+            Manual
+          </span>
+        </div>
+        {manualHint ? (
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{manualHint}</p>
+        ) : null}
+        {multiline ? (
+          <textarea
+            value={value}
+            onChange={(e) => {
+              let v = e.target.value;
+              if (maxLength != null) v = v.slice(0, maxLength);
+              onChange(v);
+            }}
+            rows={5}
+            maxLength={maxLength != null ? maxLength : undefined}
+            placeholder={`Enter ${label.toLowerCase()}…`}
+            style={{
+              width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
+              color: "#334155", border: "1.5px solid #e2e8f0", borderRadius: 10,
+              padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
+              outline: "none", background: "#fff",
+            }}
+          />
+        ) : (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => {
+              let v = e.target.value;
+              if (maxLength != null) v = v.slice(0, maxLength);
+              onChange(v);
+            }}
+            maxLength={maxLength != null ? maxLength : undefined}
+            placeholder={`Enter ${label.toLowerCase()}…`}
+            style={{
+              width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
+              border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "11px 14px",
+              fontFamily: "inherit", outline: "none", background: "#fff",
+            }}
+          />
+        )}
+        {multiline && maxLength != null ? (
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: "#94a3b8", textAlign: "right", marginTop: 8,
+          }}>
+            {len} / {maxLength} (Google limit)
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -460,32 +515,48 @@ function FieldRow({ label, fieldId, value, onChange, multiline = false, business
 
       {/* Loading state */}
       {loading && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 9, padding: "12px 16px",
-          background: "linear-gradient(135deg, #fafbff, #eef2ff)",
-          borderRadius: 10, border: "1.5px solid #c7d2fe",
-          fontSize: 13, color: "#6366f1", fontWeight: 600,
-        }}>
-          <span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: 16 }}>⟳</span>
-          Claude is writing…
-        </div>
+        <MagicAiLoader marginTop={18} subtitle={aiLoaderSubtitle} />
       )}
 
       {/* Value display */}
       {!loading && (manualMode ? (
         multiline ? (
-          <textarea autoFocus value={value} onChange={e => onChange(e.target.value)} onBlur={() => setManualMode(false)} rows={5} style={{
-            width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
-            color: "#334155", border: "1.5px solid #6366f1", borderRadius: 10,
-            padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
-            outline: "none", background: "#fafbff",
-          }} />
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(e) => {
+              let v = e.target.value;
+              if (maxLength != null) v = v.slice(0, maxLength);
+              onChange(v);
+            }}
+            onBlur={() => setManualMode(false)}
+            rows={5}
+            maxLength={maxLength != null ? maxLength : undefined}
+            style={{
+              width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
+              color: "#334155", border: "1.5px solid #6366f1", borderRadius: 10,
+              padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
+              outline: "none", background: "#fafbff",
+            }}
+          />
         ) : (
-          <input autoFocus type="text" value={value} onChange={e => onChange(e.target.value)} onBlur={() => setManualMode(false)} style={{
-            width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
-            border: "1.5px solid #6366f1", borderRadius: 10, padding: "11px 14px",
-            fontFamily: "inherit", outline: "none", background: "#fafbff",
-          }} />
+          <input
+            autoFocus
+            type="text"
+            value={value}
+            onChange={(e) => {
+              let v = e.target.value;
+              if (maxLength != null) v = v.slice(0, maxLength);
+              onChange(v);
+            }}
+            onBlur={() => setManualMode(false)}
+            maxLength={maxLength != null ? maxLength : undefined}
+            style={{
+              width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
+              border: "1.5px solid #6366f1", borderRadius: 10, padding: "11px 14px",
+              fontFamily: "inherit", outline: "none", background: "#fafbff",
+            }}
+          />
         )
       ) : (
         <div style={{
@@ -502,6 +573,18 @@ function FieldRow({ label, fieldId, value, onChange, multiline = false, business
           {value || `Click Edit to add ${label.toLowerCase()}`}
         </div>
       ))}
+
+      {multiline && maxLength != null ? (
+        <div style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: len > maxLength ? "#b91c1c" : "#94a3b8",
+          textAlign: "right",
+          marginTop: 8,
+        }}>
+          {len} / {maxLength} (Google limit)
+        </div>
+      ) : null}
 
       {aiPending !== null && (
         <ConfirmModal field={label} aiContent={aiPending} onConfirm={confirmInsert} onCancel={() => setAiPending(null)} />
@@ -544,16 +627,30 @@ function SectionBlock({ title, hint, children }) {
   );
 }
 
-function ReadOnlyAddressRow({ label, value, hint }) {
+function ReadOnlyAddressRow({ label, value, hint, pendingReviewWarning }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
         {label}
       </div>
+      {pendingReviewWarning ? (
+        <div style={{
+          fontSize: 12,
+          color: "#92400e",
+          background: "#fffbeb",
+          border: "1px solid #fde68a",
+          borderRadius: 10,
+          padding: "10px 12px",
+          marginBottom: 10,
+          lineHeight: 1.5,
+        }}>
+          {pendingReviewWarning}
+        </div>
+      ) : null}
       <div style={{
         fontSize: 14, color: value ? "#334155" : "#94a3b8",
         padding: "12px 14px",
-        background: "#fff",
+        background: "#f8fafc",
         borderRadius: 10,
         border: "1px solid #e8edf5",
         lineHeight: 1.65,
@@ -561,6 +658,42 @@ function ReadOnlyAddressRow({ label, value, hint }) {
         {value || "—"}
       </div>
       {hint ? <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, lineHeight: 1.45 }}>{hint}</div> : null}
+    </div>
+  );
+}
+
+/** GMB optimization: fields we do not PATCH from this app (pending-review risk). */
+function LockedGmbFieldRow({ label, value, reason }) {
+  return (
+    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
+          {label}
+        </span>
+        <span style={{
+          fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em",
+          color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a",
+          padding: "4px 10px", borderRadius: 20,
+        }}>
+          View only
+        </span>
+      </div>
+      <div style={{
+        fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
+        borderRadius: 10, padding: "10px 12px", marginBottom: 10, lineHeight: 1.5,
+      }}>
+        {reason}
+      </div>
+      <div style={{
+        fontSize: 14, color: value ? "#334155" : "#94a3b8",
+        padding: "11px 14px",
+        background: "#f1f5f9",
+        borderRadius: 10,
+        border: "1px solid #e2e8f0",
+        lineHeight: 1.65,
+      }}>
+        {value || "—"}
+      </div>
     </div>
   );
 }
@@ -595,236 +728,563 @@ function ReadOnlyLinkRow({ label, href, hint }) {
   );
 }
 
-// ─── Shimmer ─────────────────────────────────────────────────────────────────
-function Shimmer({ h = 11, w = "100%", delay = 0 }) {
-  return (
-    <div style={{
-      height: h, width: w, borderRadius: 6,
-      background: "linear-gradient(90deg, #f1f5f9 25%, #e0e7ff 50%, #f1f5f9 75%)",
-      backgroundSize: "200% 100%",
-      animation: `shimmer 1.4s ${delay}s infinite`,
-    }} />
-  );
+function buildGeocodePayloadFromPrimaryLoc(primaryLoc) {
+  if (!primaryLoc || typeof primaryLoc !== "object") return null;
+  return {
+    fullAddress: typeof primaryLoc.fullAddress === "string" ? primaryLoc.fullAddress.trim() : "",
+    address: typeof primaryLoc.address === "string" ? primaryLoc.address.trim() : "",
+    locality: typeof primaryLoc.locality === "string" ? primaryLoc.locality.trim() : "",
+    administrativeArea: typeof primaryLoc.administrativeArea === "string" ? primaryLoc.administrativeArea.trim() : "",
+    postalCode: typeof primaryLoc.postalCode === "string" ? primaryLoc.postalCode.trim() : "",
+    regionCode: typeof primaryLoc.regionCode === "string" ? primaryLoc.regionCode.trim() : "",
+    businessTitle: typeof primaryLoc.title === "string" ? primaryLoc.title.trim() : "",
+  };
 }
 
-// ─── AI Studio Panel ──────────────────────────────────────────────────────────
-function AIStudioPanel({ businessName, categoryHint, userData, primaryLoc, selectedBusiness, onApplyField }) {
-  const [loading, setLoading] = useState(false);
-  const [generated, setGenerated] = useState(null);
-  const [error, setError] = useState("");
-  const [activeSection, setActiveSection] = useState("description");
-  const [confirmed, setConfirmed] = useState({});
+function hasEnoughAddressForGeocode(payload) {
+  if (!payload) return false;
+  if (payload.fullAddress && payload.fullAddress.length >= 5) return true;
+  if (payload.address && payload.address.length >= 5) return true;
+  if (payload.locality && payload.locality.trim().length >= 2) return true;
+  return false;
+}
 
-  const sections = [
-    { id: "description", label: "Description", icon: "📝" },
-    { id: "tagline", label: "Tagline", icon: "✨" },
-    { id: "services", label: "Services", icon: "🔧" },
-  ];
+/** Google-style service area: OSM-based radius search + curated presets + custom lines. */
+function ServiceAreaMultiSelect({
+  primaryLoc,
+  anchorLat,
+  anchorLng,
+  selectedPlaces,
+  onChange,
+  onAnchorResolved,
+  noBottomRule = false,
+  enableRadiusSearch = false,
+}) {
+  const staticSuggestions = useMemo(
+    () =>
+      getNearbyServiceAreaSuggestions({
+        locality: primaryLoc?.locality,
+        administrativeArea: primaryLoc?.administrativeArea,
+        regionCode: primaryLoc?.regionCode,
+        fullAddress: primaryLoc?.fullAddress,
+      }),
+    [primaryLoc?.locality, primaryLoc?.administrativeArea, primaryLoc?.regionCode, primaryLoc?.fullAddress]
+  );
 
-  const generate = async () => {
-    setLoading(true);
-    setError("");
-    setGenerated(null);
-    setConfirmed({});
+  const [radiusKm, setRadiusKm] = useState(4);
+  const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
+  const [fetchingNearby, setFetchingNearby] = useState(false);
+  const [nearbyError, setNearbyError] = useState("");
+  const [customLine, setCustomLine] = useState("");
+  const [geocodedLat, setGeocodedLat] = useState(null);
+  const [geocodedLng, setGeocodedLng] = useState(null);
+
+  const geocodePayload = useMemo(() => buildGeocodePayloadFromPrimaryLoc(primaryLoc), [primaryLoc]);
+  const canGeocodeFromAddress = hasEnoughAddressForGeocode(geocodePayload);
+
+  const anchorFromProps =
+    anchorLat != null &&
+    anchorLng != null &&
+    Number.isFinite(Number(anchorLat)) &&
+    Number.isFinite(Number(anchorLng));
+
+  useEffect(() => {
+    if (anchorFromProps) {
+      setGeocodedLat(null);
+      setGeocodedLng(null);
+    }
+  }, [anchorFromProps, anchorLat, anchorLng]);
+
+  useEffect(() => {
+    setDynamicSuggestions([]);
+    setNearbyError("");
+  }, [anchorLat, anchorLng]);
+
+  const mergedSuggestions = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const p of dynamicSuggestions) {
+      const k = String(p).toLowerCase();
+      if (!seen.has(k)) {
+        seen.add(k);
+        out.push(String(p));
+      }
+    }
+    for (const p of staticSuggestions) {
+      const k = String(p).toLowerCase();
+      if (!seen.has(k)) {
+        seen.add(k);
+        out.push(String(p));
+      }
+    }
+    return out;
+  }, [dynamicSuggestions, staticSuggestions]);
+
+  const fetchNearby = async () => {
+    if (!enableRadiusSearch) return;
+    setFetchingNearby(true);
+    setNearbyError("");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      let lat = anchorFromProps ? Number(anchorLat) : null;
+      let lng = anchorFromProps ? Number(anchorLng) : null;
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (Number.isFinite(geocodedLat) && Number.isFinite(geocodedLng)) {
+          lat = geocodedLat;
+          lng = geocodedLng;
+        }
+      }
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (!canGeocodeFromAddress || !geocodePayload) {
+          setNearbyError(
+            "Your listing has no map coordinates. Add a full storefront address in Google Business Profile, or type latitude/longitude above."
+          );
+          return;
+        }
+        const gRes = await fetch("/api/gmb/geocode-address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geocodePayload),
+        });
+        const gData = await gRes.json().catch(() => ({}));
+        if (!gRes.ok || !Number.isFinite(Number(gData.lat)) || !Number.isFinite(Number(gData.lng))) {
+          throw new Error(gData.error || "Could not place your business on the map from this address.");
+        }
+        lat = Number(gData.lat);
+        lng = Number(gData.lng);
+        setGeocodedLat(lat);
+        setGeocodedLng(lng);
+        onAnchorResolved?.(lat, lng);
+        toast.success("Located your business from address — searching nearby areas…", { duration: 3500 });
+      }
+
+      const res = await fetch("/api/gmb/nearby-service-areas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `You are a Google Business Profile expert. Generate content for this business.
-Business: ${businessName}
-Location: ${primaryLoc?.locality || selectedBusiness?.locality || "India"}
-Categories: ${categoryHint.join(", ") || "Technology"}
-Website: ${userData?.website || ""}
-Return ONLY a JSON object (no markdown, no backticks):
-{"description":"150-200 word SEO-optimized Google Business description with CTA","tagline":"8-12 word punchy tagline","services":["Service 1","Service 2","Service 3","Service 4","Service 5"]}`,
-          }],
+          latitude: lat,
+          longitude: lng,
+          radiusKm,
+          locality: primaryLoc?.locality,
+          administrativeArea: primaryLoc?.administrativeArea,
+          regionCode: primaryLoc?.regionCode,
         }),
       });
-      const data = await res.json();
-      const text = data.content?.find(b => b.type === "text")?.text || "";
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-      setGenerated(parsed);
-    } catch {
-      setError("Generation failed. Please try again.");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not load nearby areas");
+      setDynamicSuggestions(Array.isArray(data.places) ? data.places : []);
+    } catch (e) {
+      setNearbyError(e.message || "Nearby search failed");
+      toast.error(e.message || "Nearby search failed");
     } finally {
-      setLoading(false);
+      setFetchingNearby(false);
     }
   };
 
-  const applySection = (sec) => {
-    const val = generated?.[sec];
-    if (!val) return;
-    onApplyField?.(sec, val);
-    setConfirmed(p => ({ ...p, [sec]: true }));
-    setTimeout(() => setConfirmed(p => ({ ...p, [sec]: false })), 3000);
+  const toggle = (place) => {
+    if (!place) return;
+    if (selectedPlaces.includes(place)) onChange(selectedPlaces.filter((p) => p !== place));
+    else onChange([...selectedPlaces, place]);
   };
 
+  const addCustom = () => {
+    const t = customLine.trim();
+    if (!t) return;
+    if (selectedPlaces.includes(t)) {
+      setCustomLine("");
+      return;
+    }
+    onChange([...selectedPlaces, t]);
+    setCustomLine("");
+  };
+
+  const cityLabel = [primaryLoc?.locality, primaryLoc?.administrativeArea].filter(Boolean).join(", ") || "your storefront";
+  const hasPinFromGoogle = anchorFromProps;
+  const hasResolvedPin = Number.isFinite(geocodedLat) && Number.isFinite(geocodedLng);
+  const findButtonEnabled =
+    enableRadiusSearch && (hasPinFromGoogle || canGeocodeFromAddress || hasResolvedPin);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <div style={{
-        padding: "18px 22px 14px", borderBottom: "1px solid #e8edf5",
-        background: "linear-gradient(135deg, #fafbff 0%, #f0f3ff 100%)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 12,
-            background: "linear-gradient(135deg, #6366f1, #818cf8)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(99,102,241,.3)",
-          }}>
-            <SparkIcon size={16} />
-          </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#1e1b4b" }}>AI Content Studio</div>
-            <div style={{ fontSize: 11, color: "#818cf8", fontWeight: 600 }}>Powered by Claude Sonnet</div>
-          </div>
-        </div>
-        <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 10, lineHeight: 1.6 }}>
-          Generate all content at once, or use the Edit button on each field for field-specific AI generation.
-        </p>
+    <div
+      style={{
+        marginBottom: noBottomRule ? 0 : 20,
+        paddingBottom: noBottomRule ? 0 : 20,
+        borderBottom: noBottomRule ? "none" : "1px solid #eef2f6",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
+          Service area
+        </span>
       </div>
+      <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.55 }}>
+        Uses your <strong>business address / map pin</strong> ({cityLabel}). Pick areas, then <strong style={{ color: "#6366f1" }}>Save changes</strong> to update Google (
+        <code style={{ fontSize: 11, background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>serviceArea</code>).
+      </p>
 
-      <div style={{ display: "flex", gap: 0, padding: "12px 16px 0", borderBottom: "1px solid #e8edf5" }}>
-        {sections.map(sec => {
-          const active = activeSection === sec.id;
-          return (
-            <button key={sec.id} type="button" onClick={() => setActiveSection(sec.id)} style={{
-              flex: 1, padding: "9px 6px", fontSize: 12, fontWeight: 800,
-              borderRadius: "9px 9px 0 0",
-              border: "1px solid", borderColor: active ? "#c7d2fe" : "#e2e8f0",
-              borderBottom: active ? "1px solid #fff" : "1px solid #e2e8f0",
-              background: active ? "#fff" : "#f8fafc",
-              color: active ? "#6366f1" : "#94a3b8",
-              cursor: "pointer", fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-              marginBottom: -1, transition: "all .15s",
-            }}>
-              <span style={{ fontSize: 13 }}>{sec.icon}</span> {sec.label}
-              {confirmed[sec.id] && <span style={{ fontSize: 8, background: "#dcfce7", color: "#166534", borderRadius: 20, padding: "1px 5px", fontWeight: 800 }}>✓</span>}
+      {enableRadiusSearch ? (
+        <div style={{
+          marginBottom: 14,
+          padding: "12px 14px",
+          background: "#f8fafc",
+          borderRadius: 12,
+          border: "1px solid #e8edf5",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginBottom: 8 }}>Nearby search (OpenStreetMap, ~km from pin)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155" }}>
+              <span style={{ fontWeight: 600 }}>Radius</span>
+              <select
+                value={radiusKm}
+                onChange={(e) => setRadiusKm(Number(e.target.value))}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontFamily: "inherit",
+                  fontSize: 13,
+                  background: "#fff",
+                }}
+              >
+                {[2, 3, 4, 5, 6, 8, 10, 12].map((k) => (
+                  <option key={k} value={k}>{k} km</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void fetchNearby()}
+              disabled={fetchingNearby || !findButtonEnabled}
+              style={{
+                padding: "9px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: fetchingNearby || !findButtonEnabled ? "#e2e8f0" : "#1a73e8",
+                color: fetchingNearby || !findButtonEnabled ? "#94a3b8" : "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: fetchingNearby || !findButtonEnabled ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {fetchingNearby ? "Loading…" : "Find nearby areas"}
             </button>
-          );
-        })}
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px" }}>
-        {!generated && !loading && !error && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center", gap: 16, paddingBottom: 32 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: 20,
-              background: "linear-gradient(135deg, #eef2ff, #ede9fe)",
-              border: "1.5px solid #c7d2fe",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28,
-            }}>✨</div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#1e1b4b", marginBottom: 6 }}>Generate All Content</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.65, maxWidth: 210 }}>
-                Click Generate below to create an SEO-optimized description, tagline, and services list.
-              </div>
-            </div>
           </div>
-        )}
+          {!hasPinFromGoogle && canGeocodeFromAddress ? (
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "#b45309", lineHeight: 1.5 }}>
+              Google did not return map coordinates for this listing. Click <strong>Find nearby areas</strong> — we geocode your{" "}
+              <strong>storefront address</strong> (OpenStreetMap), save the pin in the form, then load suburbs within the radius.
+            </p>
+          ) : null}
+          {!hasPinFromGoogle && !canGeocodeFromAddress ? (
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "#b45309", lineHeight: 1.5 }}>
+              Coordinates required — add a complete address on Google or enter latitude / longitude above.
+            </p>
+          ) : null}
+          {hasPinFromGoogle ? (
+            <p style={{ margin: "8px 0 0", fontSize: 11, color: "#047857" }}>Using map pin from your Google listing.</p>
+          ) : null}
+          {nearbyError ? (
+            <p style={{ margin: "10px 0 0", fontSize: 12, color: "#b91c1c" }}>{nearbyError}</p>
+          ) : null}
+          {dynamicSuggestions.length > 0 ? (
+            <p style={{ margin: "8px 0 0", fontSize: 11, color: "#059669", fontWeight: 600 }}>
+              Found {dynamicSuggestions.length} areas within ~{radiusKm} km (approximate).
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
-        {loading && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 800, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span> Claude is crafting…
-            </div>
-            {[100, 88, 100, 72, 94, 65, 82, 78].map((w, i) => (
-              <Shimmer key={i} h={11} w={`${w}%`} delay={i * 0.07} />
+      {selectedPlaces.length > 0 ? (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
+            Selected ({selectedPlaces.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {selectedPlaces.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => toggle(p)}
+                title="Remove"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#1e40af",
+                  background: "#eef2ff",
+                  border: "1px solid #c7d2fe",
+                  borderRadius: 20,
+                  padding: "7px 12px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  textAlign: "left",
+                  maxWidth: "100%",
+                  lineHeight: 1.4,
+                }}
+              >
+                {p}
+                <span style={{ marginLeft: 8, opacity: 0.7 }}>×</span>
+              </button>
             ))}
           </div>
-        )}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14, padding: "10px 12px", background: "#f8fafc", borderRadius: 10, border: "1px dashed #e2e8f0" }}>
+          No areas selected yet. Run nearby search (if enabled), use the list below, or add custom lines.
+        </div>
+      )}
 
-        {error && (
-          <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: 10, padding: 14, fontSize: 13, color: "#e11d48" }}>
-            {error}
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
+        Suggested areas {dynamicSuggestions.length ? "(map + presets)" : "(presets)"}
+      </div>
+      <div
+        style={{
+          maxHeight: 280,
+          overflowY: "auto",
+          border: "1px solid #e8edf5",
+          borderRadius: 12,
+          background: "#fff",
+          marginBottom: 14,
+        }}
+      >
+        {mergedSuggestions.length === 0 ? (
+          <div style={{ padding: 16, fontSize: 13, color: "#94a3b8" }}>
+            {enableRadiusSearch ? "Choose a radius and tap “Find nearby areas”, or add custom lines." : "No preset list — use custom area below."}
           </div>
-        )}
-
-        {generated && !loading && (
-          <div style={{ animation: "slideIn .25s ease" }}>
-            <div style={{
-              background: "#f8fafc", border: "1.5px solid #e0e7ff",
-              borderRadius: 12, padding: 16, marginBottom: 14,
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>
-                {sections.find(s => s.id === activeSection)?.icon} {sections.find(s => s.id === activeSection)?.label}
-              </div>
-              {activeSection === "services" && Array.isArray(generated.services) ? (
-                <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {generated.services.map((s, i) => (
-                    <li key={i} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "#334155" }}>
-                      <span style={{
-                        width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                        background: "#eef2ff", border: "1px solid #c7d2fe",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 10, fontWeight: 800, color: "#6366f1",
-                      }}>{i + 1}</span>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p style={{ margin: 0, fontSize: 13, color: "#334155", lineHeight: 1.75 }}>
-                  {generated[activeSection]}
-                </p>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-              {["SEO-optimized", "Local keywords", "CTA included"].map(b => (
-                <span key={b} style={{
-                  fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-                  background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534",
-                }}>✓ {b}</span>
-              ))}
-            </div>
-
-            <button type="button" onClick={() => applySection(activeSection)} style={{
-              width: "100%", padding: "12px 16px", borderRadius: 10, border: "none",
-              background: confirmed[activeSection]
-                ? "linear-gradient(135deg, #10b981, #059669)"
-                : "linear-gradient(135deg, #6366f1, #818cf8)",
-              color: "#fff", fontSize: 13, fontWeight: 800,
-              cursor: "pointer", fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              boxShadow: "0 4px 16px rgba(99,102,241,.3)", transition: "all .3s",
-            }}>
-              {confirmed[activeSection]
-                ? <><CheckIcon size={14} color="#fff" /> Applied to Field!</>
-                : <><CheckIcon size={14} color="#fff" /> Apply to Business Info</>}
-            </button>
-          </div>
+        ) : (
+          mergedSuggestions.map((line, idx) => {
+            const sel = selectedPlaces.includes(line);
+            return (
+              <button
+                key={`${line}-${idx}`}
+                type="button"
+                onClick={() => toggle(line)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  textAlign: "left",
+                  padding: "12px 14px",
+                  border: "none",
+                  borderBottom: idx < mergedSuggestions.length - 1 ? "1px solid #f1f5f9" : "none",
+                  background: sel ? "#eef2ff" : "#fff",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: 13,
+                  color: "#334155",
+                  lineHeight: 1.45,
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>{line}</span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: sel ? "#4338ca" : "#64748b",
+                  }}
+                >
+                  {sel ? "✓ Added" : "+ Add"}
+                </span>
+              </button>
+            );
+          })
         )}
       </div>
 
-      <div style={{ padding: "12px 20px 18px", borderTop: "1px solid #e8edf5" }}>
-        <button type="button" onClick={generate} disabled={loading} style={{
-          width: "100%", padding: "13px 16px", borderRadius: 10, border: "none",
-          background: loading ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
-          color: loading ? "#a5b4fc" : "#fff",
-          fontSize: 13, fontWeight: 800,
-          cursor: loading ? "not-allowed" : "pointer",
-          fontFamily: "inherit",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          boxShadow: loading ? "none" : "0 4px 20px rgba(99,102,241,.35)",
-          transition: "all .2s",
-        }}>
-          {loading
-            ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span> Generating…</>
-            : <><SparkIcon /> {generated ? "✦ Regenerate All" : "✦ Generate All Content"}</>}
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
+        Add custom area
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          value={customLine}
+          onChange={(e) => setCustomLine(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustom())}
+          placeholder='e.g. Boring Road, Patna, Bihar, India'
+          style={{
+            flex: "1 1 200px",
+            fontSize: 14,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1.5px solid #e2e8f0",
+            fontFamily: "inherit",
+            minWidth: 0,
+            boxSizing: "border-box",
+          }}
+        />
+        <button
+          type="button"
+          onClick={addCustom}
+          style={{
+            padding: "10px 18px",
+            borderRadius: 10,
+            border: "none",
+            background: "linear-gradient(135deg, #6366f1, #7c3aed)",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Add
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Main panel (GMB-style fields + AI) ─────────────────────────────────────
+// ─── AI loading: top margin, “magic” motion, elapsed time ────────────────────
+function MagicAiLoader({ marginTop = 20, subtitle = "OpenAI is crafting…" }) {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(null);
+
+  useEffect(() => {
+    startRef.current = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 200);
+    return () => clearInterval(id);
+  }, []);
+
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  const timeStr = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+  return (
+    <>
+      <style>{`
+        @keyframes magic-ai-glow {
+          0%, 100% { box-shadow: 0 0 20px rgba(167, 139, 250, 0.45), 0 0 48px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255,255,255,0.12); }
+          50% { box-shadow: 0 0 32px rgba(192, 132, 252, 0.55), 0 0 64px rgba(99, 102, 241, 0.35), inset 0 1px 0 rgba(255,255,255,0.18); }
+        }
+        @keyframes magic-ai-ring {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes magic-ai-spark {
+          0%, 100% { transform: translateY(0) scale(1); opacity: 0.85; }
+          50% { transform: translateY(-5px) scale(1.12); opacity: 1; }
+        }
+        @keyframes magic-ai-shimmer-bg {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+      `}</style>
+      <div
+        style={{
+          marginTop,
+          position: "relative",
+          borderRadius: 16,
+          padding: "20px 22px 18px",
+          overflow: "hidden",
+          background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 42%, #5b21b6 100%)",
+          animation: "magic-ai-glow 2.4s ease-in-out infinite",
+          border: "1px solid rgba(199, 210, 254, 0.35)",
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0.35,
+            background: "linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.07) 45%, transparent 90%)",
+            backgroundSize: "200% 100%",
+            animation: "magic-ai-shimmer-bg 2.8s ease infinite",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(167,139,250,0.5) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative", zIndex: 1 }}>
+          <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
+            <div
+              style={{
+                position: "absolute",
+                inset: -4,
+                borderRadius: "50%",
+                border: "2px dashed rgba(196, 181, 253, 0.55)",
+                animation: "magic-ai-ring 8s linear infinite",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: 14,
+                background: "linear-gradient(145deg, rgba(255,255,255,0.18), rgba(129, 140, 248, 0.25))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "magic-ai-spark 1.8s ease-in-out infinite",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+              }}
+            >
+              <SparkIcon size={22} />
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "rgba(224, 231, 255, 0.85)",
+                marginBottom: 6,
+              }}
+            >
+              ✦ Creating magic
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1.45, marginBottom: 10 }}>
+              {subtitle}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontSize: 20,
+                  fontWeight: 800,
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "0.06em",
+                  color: "#e9d5ff",
+                  textShadow: "0 0 20px rgba(216, 180, 254, 0.7)",
+                  padding: "6px 12px",
+                  borderRadius: 10,
+                  background: "rgba(15, 23, 42, 0.35)",
+                  border: "1px solid rgba(167, 139, 250, 0.4)",
+                }}
+              >
+                {timeStr}
+              </span>
+              <span style={{ fontSize: 11, color: "rgba(199, 210, 254, 0.75)", fontWeight: 600 }}>
+                elapsed
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main panel (GMB-style fields) ────────────────────────────────────────────
 export default function BusinessInformationPanel({
   layout = "page",
   manageLocations = true,
@@ -839,11 +1299,23 @@ export default function BusinessInformationPanel({
   automationKeywords: automationKeywordsProp,
   profileDescription: profileDescriptionProp = "",
   onConfirmProfileDescription,
+  /**
+   * Optimization: Save changes → local automation + Google PATCH for description & serviceArea (Business Information API).
+   */
+  onSaveOptimization,
+  /**
+   * Optimization page: sync editable fields (description, phone, website, WhatsApp attribute, service area, lat/lng) to Google.
+   * When set, business name / categories / storefront address are read-only (pending-review risk).
+   */
+  onSyncToGmb,
+  syncToGmbPending = false,
   onBack,
   requireLocationPick,
   preselectedLocationId,
 } = {}) {
   const embedded = layout === "embedded";
+  const gmbSyncMode = typeof onSyncToGmb === "function";
+  const savePushesDescriptionAndServiceArea = Boolean(gmbSyncMode && typeof onSaveOptimization === "function");
   const [tab, setTab] = useState("all");
   const [editorPhase, setEditorPhase] = useState("edit");
   const [activeEditorLocationId, setActiveEditorLocationId] = useState(null);
@@ -939,6 +1411,9 @@ export default function BusinessInformationPanel({
         regionCode: activeEnriched.regionCode,
         openStatus: activeEnriched.openStatus,
         newReviewUri: activeEnriched.newReviewUri,
+        profileDescription: activeEnriched.profileDescription,
+        serviceAreaText: activeEnriched.serviceAreaText,
+        hoursSummaryText: activeEnriched.hoursSummaryText,
       };
     }
     const s0 = selectedLocations[0];
@@ -953,6 +1428,9 @@ export default function BusinessInformationPanel({
         placeId: "",
         openStatus: "",
         newReviewUri: "",
+        administrativeArea: s0.administrativeArea || "",
+        postalCode: s0.postalCode || "",
+        regionCode: s0.regionCode || "",
       };
     }
     const g0 = gmbLocations[0];
@@ -967,6 +1445,9 @@ export default function BusinessInformationPanel({
         placeId: g0.placeId || "",
         openStatus: g0.openStatus || "",
         newReviewUri: g0.newReviewUri || "",
+        administrativeArea: g0.administrativeArea || "",
+        postalCode: g0.postalCode || "",
+        regionCode: g0.regionCode || "",
       };
     }
     return { fullAddress: "", mapsUri: "", placeId: "", openStatus: "", newReviewUri: "" };
@@ -990,7 +1471,7 @@ export default function BusinessInformationPanel({
     website: "",
     services: "",
     bookingUrl: "",
-    serviceArea: "",
+    serviceAreaPlaces: [],
     hoursSummary: "",
     specialHours: "",
     yearEstablished: "",
@@ -999,14 +1480,29 @@ export default function BusinessInformationPanel({
     primaryCategory: "",
     chatUrl: "",
     googleOpenStatus: "",
+    mapLat: "",
+    mapLng: "",
   });
+  const [aiDescriptionPending, setAiDescriptionPending] = useState(false);
 
   const setField = useCallback((key) => (val) => setFields((p) => ({ ...p, [key]: val })), []);
 
+  const optimizationContext = useMemo(() => {
+    const base = activeEnriched?.aiContext || {};
+    const kw = Array.isArray(automationKeywordsProp) ? automationKeywordsProp.filter(Boolean) : [];
+    const draft =
+      Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length
+        ? { serviceAreaPlacesDraft: fields.serviceAreaPlaces }
+        : {};
+    if (!kw.length) return { ...base, ...draft };
+    return { ...base, automationKeywords: kw, ...draft };
+  }, [activeEnriched, automationKeywordsProp, fields.serviceAreaPlaces]);
+
   useEffect(() => {
     if (profileDescriptionProp === undefined || profileDescriptionProp === null) return;
-    setFields((f) => ({ ...f, description: String(profileDescriptionProp) }));
-  }, [profileDescriptionProp]);
+    if (gmbSyncMode && activeEditorLocationId) return;
+    setFields((f) => ({ ...f, description: clampGmbDescription(profileDescriptionProp) }));
+  }, [profileDescriptionProp, gmbSyncMode, activeEditorLocationId]);
 
   useEffect(() => {
     if (activeEditorLocationId) return;
@@ -1030,6 +1526,23 @@ export default function BusinessInformationPanel({
     if (!activeEditorLocationId) return;
     const loc = gmbLocations.find((l) => l.locationId === activeEditorLocationId);
     if (!loc) return;
+    const saList =
+      Array.isArray(loc.serviceAreaPlaces) && loc.serviceAreaPlaces.length > 0
+        ? [...loc.serviceAreaPlaces]
+        : parseServiceAreaPlacesFromText(loc.serviceAreaText || "");
+    const googleDesc =
+      loc.profileDescription != null && String(loc.profileDescription).trim() !== ""
+        ? clampGmbDescription(loc.profileDescription)
+        : null;
+    const descFromSettings =
+      profileDescriptionProp != null && String(profileDescriptionProp).trim() !== ""
+        ? clampGmbDescription(profileDescriptionProp)
+        : null;
+    const nextDescription = googleDesc != null ? googleDesc : descFromSettings;
+    const wa =
+      Object.prototype.hasOwnProperty.call(loc, "whatsappUri") && typeof loc.whatsappUri === "string"
+        ? loc.whatsappUri.trim()
+        : null;
     setFields((f) => ({
       ...f,
       businessName: loc.title || f.businessName,
@@ -1037,31 +1550,160 @@ export default function BusinessInformationPanel({
       website: loc.websiteUrl || f.website,
       primaryCategory: loc.primaryCategory || f.primaryCategory,
       googleOpenStatus: loc.openStatus || f.googleOpenStatus,
+      ...(nextDescription != null ? { description: nextDescription } : {}),
+      ...(wa !== null ? { chatUrl: wa } : {}),
+      serviceAreaPlaces: saList,
+      hoursSummary: loc.hoursSummaryText || f.hoursSummary,
+      mapLat: loc.lat != null && loc.lat !== "" ? String(loc.lat) : f.mapLat,
+      mapLng: loc.lng != null && loc.lng !== "" ? String(loc.lng) : f.mapLng,
     }));
-  }, [activeEditorLocationId, gmbLocations]);
+  }, [activeEditorLocationId, gmbLocations, profileDescriptionProp]);
+
+  const serviceAreaAnchor = useMemo(() => {
+    const la = parseFloat(String(fields.mapLat ?? "").replace(",", "."));
+    const ln = parseFloat(String(fields.mapLng ?? "").replace(",", "."));
+    if (Number.isFinite(la) && Number.isFinite(ln)) return { lat: la, lng: ln };
+    if (activeEnriched?.lat != null && activeEnriched?.lng != null) {
+      const la2 = Number(activeEnriched.lat);
+      const ln2 = Number(activeEnriched.lng);
+      if (Number.isFinite(la2) && Number.isFinite(ln2)) return { lat: la2, lng: ln2 };
+    }
+    return null;
+  }, [fields.mapLat, fields.mapLng, activeEnriched?.lat, activeEnriched?.lng]);
 
   const businessName = fields.businessName || selectedBusiness.title || "";
 
-  const handleStudioApply = useCallback((section, content) => {
-    if (section === "description") setFields((p) => ({ ...p, description: typeof content === "string" ? content : "" }));
-    if (section === "tagline") setFields((p) => ({ ...p, tagline: typeof content === "string" ? content : "" }));
-    if (section === "services") setFields((p) => ({ ...p, services: Array.isArray(content) ? content.join(", ") : String(content || "") }));
+  const handleSave = useCallback(async () => {
+    const desc = clampGmbDescription((fields.description || "").trim());
+    const places = Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [];
+    if (savePushesDescriptionAndServiceArea && typeof onSaveOptimization === "function") {
+      await onSaveOptimization({
+        locationId: activeEditorLocationId,
+        description: desc,
+        serviceAreaPlaces: places,
+      });
+      return;
+    }
+    if (onConfirmProfileDescription) await Promise.resolve(onConfirmProfileDescription(desc));
+  }, [
+    savePushesDescriptionAndServiceArea,
+    onSaveOptimization,
+    activeEditorLocationId,
+    onConfirmProfileDescription,
+    fields.description,
+    fields.serviceAreaPlaces,
+  ]);
+
+  const handleSyncToGmbClick = useCallback(async () => {
+    if (!onSyncToGmb || !activeEditorLocationId) return;
+    const lat = parseFloat(String(fields.mapLat).replace(",", "."));
+    const lng = parseFloat(String(fields.mapLng).replace(",", "."));
+    const latlng =
+      Number.isFinite(lat) && Number.isFinite(lng) ? { latitude: lat, longitude: lng } : undefined;
+    await onSyncToGmb({
+      description: clampGmbDescription((fields.description || "").trim()),
+      primaryPhone: (fields.phone || "").trim(),
+      websiteUri: (fields.website || "").trim(),
+      chatUrl: (fields.chatUrl || "").trim(),
+      serviceAreaPlaces: Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [],
+      latlng,
+    });
+  }, [onSyncToGmb, activeEditorLocationId, fields]);
+
+  const canSyncGmb =
+    Boolean(activeEditorLocationId) &&
+    Boolean(
+      (fields.description || "").trim() ||
+        (fields.phone || "").trim() ||
+        (fields.website || "").trim() ||
+        (fields.chatUrl || "").trim() ||
+        (Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length > 0) ||
+        (Number.isFinite(parseFloat(String(fields.mapLat).replace(",", "."))) &&
+          Number.isFinite(parseFloat(String(fields.mapLng).replace(",", "."))))
+    );
+
+  const handleServiceAreaAnchorResolved = useCallback((lat, lng) => {
+    setFields((f) => ({ ...f, mapLat: String(lat), mapLng: String(lng) }));
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (onConfirmProfileDescription) onConfirmProfileDescription(fields.description || "");
-  }, [onConfirmProfileDescription, fields.description]);
+  const handleAiGenerateDescription = useCallback(async () => {
+    setAiDescriptionPending(true);
+    try {
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "field",
+          fieldId: "description",
+          fieldLabel: "Business description",
+          context: optimizationContext,
+          currentValue: fields.description,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Could not generate description");
+        return;
+      }
+      if (typeof data.value === "string" && data.value.trim()) {
+        setFields((f) => ({ ...f, description: clampGmbDescription(data.value) }));
+        toast.success("AI description added — review and Save changes.");
+      }
+    } catch (e) {
+      toast.error(e.message || "AI request failed");
+    } finally {
+      setAiDescriptionPending(false);
+    }
+  }, [optimizationContext, fields.description]);
 
-  const sharedFieldProps = { businessName, categoryHint, userData, primaryLoc };
-
-  const categoryBlock = (
-    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
-      <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 10 }}>
-        Business categories
+  const descriptionAiToolbar =
+    savePushesDescriptionAndServiceArea && activeEditorLocationId ? (
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => void handleAiGenerateDescription()}
+          disabled={aiDescriptionPending}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 8,
+            border: "none",
+            background: aiDescriptionPending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
+            color: aiDescriptionPending ? "#a5b4fc" : "#fff",
+            fontSize: 12,
+            fontWeight: 800,
+            cursor: aiDescriptionPending ? "not-allowed" : "pointer",
+            fontFamily: "inherit",
+            boxShadow: aiDescriptionPending ? "none" : "0 2px 12px rgba(99,102,241,.3)",
+          }}
+        >
+          {aiDescriptionPending ? "Generating…" : "✨ Generate description with AI"}
+        </button>
+        <span style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, maxWidth: 420 }}>
+          Uses listing + categories (max {GMB_PROFILE_DESCRIPTION_MAX} chars). Edit if needed, then Save changes.
+        </span>
       </div>
-      {categoryHint.length ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-          {categoryHint.map((c, i) => (
+    ) : null;
+
+  const sharedFieldProps = { businessName, categoryHint, userData, primaryLoc, aiContext: optimizationContext };
+
+  const categoryBlock = useMemo(
+    () => (
+      <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 10 }}>
+          Business categories
+        </div>
+        {gmbSyncMode ? (
+          <div style={{
+            fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
+            borderRadius: 10, padding: "10px 12px", marginBottom: 12, lineHeight: 1.5,
+          }}>
+            Categories cannot be updated from this screen. Editing categories in Google can send your profile into{" "}
+            <strong>pending verification</strong>. Change them in Google Business Profile if needed.
+          </div>
+        ) : null}
+        {categoryHint.length ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            {categoryHint.map((c, i) => (
               <span
                 key={`${c}-${i}`}
                 style={{
@@ -1079,12 +1721,14 @@ export default function BusinessInformationPanel({
                   <span style={{ fontSize: 9, marginLeft: 6, opacity: 0.75, textTransform: "uppercase" }}>Primary</span>
                 )}
               </span>
-          ))}
-        </div>
-      ) : (
-        <div style={{ fontSize: 13, color: "#94a3b8" }}>Connect a location or add keywords in Settings to improve AI suggestions.</div>
-      )}
-    </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>Connect a location or add keywords in Settings to improve AI suggestions.</div>
+        )}
+      </div>
+    ),
+    [categoryHint, gmbSyncMode]
   );
 
   const handleContinuePick = useCallback(() => {
@@ -1259,7 +1903,7 @@ export default function BusinessInformationPanel({
 
   const shellPad = embedded ? "0" : "28px 40px 0";
   const gridPad = embedded ? "0 0 24px" : "0 40px 40px";
-  const gridColumns = embedded ? "1fr" : "minmax(0,1fr) 420px";
+  const gridColumns = "minmax(0, 1fr)";
   const gridMinHeight = embedded ? "auto" : "calc(100vh - 148px)";
 
   return (
@@ -1320,7 +1964,7 @@ export default function BusinessInformationPanel({
                 Business Optimization
               </h1>
               <p style={{ fontSize: 13, color: "#64748b", maxWidth: 640, lineHeight: 1.55 }}>
-                Google Business Profile style editor — use <strong style={{ color: "#6366f1" }}>Edit</strong> on any field for AI or manual input, or bulk-generate in AI Content Studio.
+                Google Business Profile style editor — use <strong style={{ color: "#6366f1" }}>Edit</strong> on supported fields for drafts, then save or sync.
               </p>
             </div>
           </div>
@@ -1330,7 +1974,8 @@ export default function BusinessInformationPanel({
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", letterSpacing: "-.02em" }}>Profile fields</div>
             <p style={{ fontSize: 12, color: "#64748b", marginTop: 6, lineHeight: 1.5 }}>
-              Choose a location first (if you have several), then use <strong style={{ color: "#6366f1" }}>Edit</strong> on each field for AI or manual updates.
+              Choose a location if you have several. Edits use the Business Information API; after <strong style={{ color: "#6366f1" }}>Save changes</strong> or{" "}
+              <strong style={{ color: "#0f766e" }}>Sync to Google</strong>, the app refetches live data from Google.
             </p>
           </div>
         )}
@@ -1565,30 +2210,111 @@ export default function BusinessInformationPanel({
             <div style={{ flex: 1, overflowY: "auto", padding: "22px 26px" }}>
               {tab === "all" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
-                  <SectionBlock title="About your business" hint="Name, positioning, services, and long description — like the GMB About section.">
-                    <FieldRow label="Business name" fieldId="businessName" value={fields.businessName} onChange={setField("businessName")} {...sharedFieldProps} />
-                    <FieldRow label="Primary category" fieldId="primaryCategory" value={fields.primaryCategory} onChange={setField("primaryCategory")} {...sharedFieldProps} />
-                    <FieldRow label="Tagline" fieldId="tagline" value={fields.tagline} onChange={setField("tagline")} {...sharedFieldProps} />
+                  <SectionBlock title="About your business" hint={`Business description is limited to ${GMB_PROFILE_DESCRIPTION_MAX} characters on Google (enforced here).`}>
+                    {gmbSyncMode ? (
+                      <LockedGmbFieldRow
+                        label="Business name"
+                        value={fields.businessName}
+                        reason="Business title is not edited here: Google can put your profile into pending review. Change the name in Google Business Profile."
+                      />
+                    ) : (
+                      <FieldRow label="Business name" fieldId="businessName" value={fields.businessName} onChange={setField("businessName")} {...sharedFieldProps} />
+                    )}
                     {categoryBlock}
-                    <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} />
-                    <FieldRow label="Description" fieldId="description" value={fields.description} onChange={setField("description")} multiline {...sharedFieldProps} noBottomRule />
+                    {/* <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} /> */}
+                    {descriptionAiToolbar}
+                    <FieldRow
+                      label="Description"
+                      fieldId="description"
+                      value={fields.description}
+                      onChange={setField("description")}
+                      multiline
+                      maxLength={GMB_PROFILE_DESCRIPTION_MAX}
+                      manualOnly
+                      manualHint={
+                        savePushesDescriptionAndServiceArea
+                          ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Type here, then Save changes to PATCH Google and refetch live data.`
+                          : "From the business: Google field profile.description (Business Information API v1, updateMask profile.description). Hard limit 750 characters — type here, then Save / Sync."
+                      }
+                      noBottomRule
+                    />
                   </SectionBlock>
 
                   <SectionBlock title="Contact" hint="Shown on Google; keep consistent with your live profile.">
                     <FieldRow label="Phone number" fieldId="phone" value={fields.phone} onChange={setField("phone")} {...sharedFieldProps} />
-                    <FieldRow label="Chat" fieldId="chatUrl" value={fields.chatUrl} onChange={setField("chatUrl")} {...sharedFieldProps} />
+                    <FieldRow
+                      label="Chat / WhatsApp"
+                      fieldId="chatUrl"
+                      value={fields.chatUrl}
+                      onChange={setField("chatUrl")}
+                      manualOnly
+                      manualHint="Google attribute attributes/url_whatsapp — PATCH .../locations/{locationId}/attributes?attributeMask=attributes/url_whatsapp. Example: https://wa.me/919876543210"
+                    />
                     <FieldRow label="Website" fieldId="website" value={fields.website} onChange={setField("website")} {...sharedFieldProps} />
                     <FieldRow label="Booking / appointment link" fieldId="bookingUrl" value={fields.bookingUrl} onChange={setField("bookingUrl")} {...sharedFieldProps} noBottomRule />
                   </SectionBlock>
 
-                  <SectionBlock title="Location and areas" hint="Business location from Google; service area is for drafts and AI.">
+                  <SectionBlock title="Location and areas" hint="Storefront address is from Google. Pick service areas from nearby suggestions (like Google Business Profile) or add custom lines.">
                     <ReadOnlyAddressRow
-                      label="Business location"
+                      label="Business address (storefront)"
                       value={primaryLoc.fullAddress || [primaryLoc.address, primaryLoc.locality].filter(Boolean).join(", ")}
-                      hint="To change the pin or address, update the listing in Google Business Profile."
+                      hint="To change the address or map pin in Google, use Google Business Profile."
+                      pendingReviewWarning={
+                        gmbSyncMode
+                          ? "Address and storefront location are not updated from this app — Google may flag changes and move your profile to pending verification."
+                          : undefined
+                      }
                     />
                     <ReadOnlyLinkRow label="Google Maps" href={primaryLoc.mapsUri} hint="Opens your business on Google Maps." />
-                    <FieldRow label="Service area" fieldId="serviceArea" value={fields.serviceArea} onChange={setField("serviceArea")} {...sharedFieldProps} noBottomRule />
+                    {gmbSyncMode ? (
+                      <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
+                          Latitude / longitude
+                        </div>
+                        <div style={{
+                          fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
+                          borderRadius: 10, padding: "10px 12px", marginBottom: 12, lineHeight: 1.5,
+                        }}>
+                          Coordinates are sent to Google only when you sync. Incorrect pins can trigger review — use values that match your real location.
+                        </div>
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Latitude</span>
+                            <input
+                              value={fields.mapLat}
+                              onChange={(e) => setField("mapLat")(e.target.value)}
+                              placeholder="e.g. 25.5941"
+                              style={{
+                                fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                                fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+                              }}
+                            />
+                          </label>
+                          <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Longitude</span>
+                            <input
+                              value={fields.mapLng}
+                              onChange={(e) => setField("mapLng")(e.target.value)}
+                              placeholder="e.g. 85.1376"
+                              style={{
+                                fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                                fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    ) : null}
+                    <ServiceAreaMultiSelect
+                      primaryLoc={primaryLoc}
+                      anchorLat={serviceAreaAnchor?.lat}
+                      anchorLng={serviceAreaAnchor?.lng}
+                      enableRadiusSearch={gmbSyncMode}
+                      onAnchorResolved={handleServiceAreaAnchorResolved}
+                      selectedPlaces={fields.serviceAreaPlaces}
+                      onChange={setField("serviceAreaPlaces")}
+                      noBottomRule
+                    />
                   </SectionBlock>
 
                   <SectionBlock title="Opening hours" hint="Summary and special hours for drafts; official hours are edited in Google.">
@@ -1613,19 +2339,57 @@ export default function BusinessInformationPanel({
 
               {tab === "about" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
-                  <FieldRow label="Business name" fieldId="businessName" value={fields.businessName} onChange={setField("businessName")} {...sharedFieldProps} />
-                  <FieldRow label="Primary category" fieldId="primaryCategory" value={fields.primaryCategory} onChange={setField("primaryCategory")} {...sharedFieldProps} />
+                  {gmbSyncMode ? (
+                    <LockedGmbFieldRow
+                      label="Business name"
+                      value={fields.businessName}
+                      reason="Business title is not edited here: Google can put your profile into pending review. Change the name in Google Business Profile."
+                    />
+                  ) : (
+                    <FieldRow label="Business name" fieldId="businessName" value={fields.businessName} onChange={setField("businessName")} {...sharedFieldProps} />
+                  )}
+                  {gmbSyncMode ? (
+                    <LockedGmbFieldRow
+                      label="Primary category"
+                      value={fields.primaryCategory || categoryHint[0] || ""}
+                      reason="Categories are not updated from this screen; changes in Google can send your profile to pending verification."
+                    />
+                  ) : (
+                    <FieldRow label="Primary category" fieldId="primaryCategory" value={fields.primaryCategory} onChange={setField("primaryCategory")} {...sharedFieldProps} />
+                  )}
                   <FieldRow label="Tagline" fieldId="tagline" value={fields.tagline} onChange={setField("tagline")} {...sharedFieldProps} />
                   {categoryBlock}
                   <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} />
-                  <FieldRow label="Description" fieldId="description" value={fields.description} onChange={setField("description")} multiline {...sharedFieldProps} noBottomRule />
+                  {descriptionAiToolbar}
+                  <FieldRow
+                    label="Description"
+                    fieldId="description"
+                    value={fields.description}
+                    onChange={setField("description")}
+                    multiline
+                    maxLength={GMB_PROFILE_DESCRIPTION_MAX}
+                    manualOnly
+                    manualHint={
+                      savePushesDescriptionAndServiceArea
+                        ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Save changes PATCHes Google and refetches.`
+                        : "Google profile.description (max 750 characters). Manual entry only — no AI."
+                    }
+                    noBottomRule
+                  />
                 </div>
               )}
 
               {tab === "contact" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
                   <FieldRow label="Phone number" fieldId="phone" value={fields.phone} onChange={setField("phone")} {...sharedFieldProps} />
-                  <FieldRow label="Chat" fieldId="chatUrl" value={fields.chatUrl} onChange={setField("chatUrl")} {...sharedFieldProps} />
+                  <FieldRow
+                    label="Chat / WhatsApp"
+                    fieldId="chatUrl"
+                    value={fields.chatUrl}
+                    onChange={setField("chatUrl")}
+                    manualOnly
+                    manualHint="Google attributes/url_whatsapp — full https URL only. Manual entry only."
+                  />
                   <FieldRow label="Website" fieldId="website" value={fields.website} onChange={setField("website")} {...sharedFieldProps} />
                   <FieldRow label="Booking / appointment link" fieldId="bookingUrl" value={fields.bookingUrl} onChange={setField("bookingUrl")} {...sharedFieldProps} noBottomRule />
                   <div
@@ -1649,12 +2413,59 @@ export default function BusinessInformationPanel({
                 <div style={{ animation: "slideIn .25s ease" }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#202124", marginBottom: 16 }}>Location and areas</div>
                   <ReadOnlyAddressRow
-                    label="Business location"
+                    label="Business address (storefront)"
                     value={primaryLoc.fullAddress || [primaryLoc.address, primaryLoc.locality].filter(Boolean).join(", ")}
-                    hint="Update in Google Business Profile to change the map pin."
+                    hint="Update in Google Business Profile to change the address or map pin."
+                    pendingReviewWarning={
+                      gmbSyncMode
+                        ? "Address is not updated from this app — risky edits can move your profile to pending verification."
+                        : undefined
+                    }
                   />
                   <ReadOnlyLinkRow label="View on Google Maps" href={primaryLoc.mapsUri} />
-                  <FieldRow label="Service area" fieldId="serviceArea" value={fields.serviceArea} onChange={setField("serviceArea")} {...sharedFieldProps} noBottomRule />
+                  {gmbSyncMode ? (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
+                        Latitude / longitude
+                      </div>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Latitude</span>
+                          <input
+                            value={fields.mapLat}
+                            onChange={(e) => setField("mapLat")(e.target.value)}
+                            placeholder="e.g. 25.5941"
+                            style={{
+                              fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                              fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+                            }}
+                          />
+                        </label>
+                        <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Longitude</span>
+                          <input
+                            value={fields.mapLng}
+                            onChange={(e) => setField("mapLng")(e.target.value)}
+                            placeholder="e.g. 85.1376"
+                            style={{
+                              fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                              fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
+                  <ServiceAreaMultiSelect
+                    primaryLoc={primaryLoc}
+                    anchorLat={serviceAreaAnchor?.lat}
+                    anchorLng={serviceAreaAnchor?.lng}
+                    enableRadiusSearch={gmbSyncMode}
+                    onAnchorResolved={handleServiceAreaAnchorResolved}
+                    selectedPlaces={fields.serviceAreaPlaces}
+                    onChange={setField("serviceAreaPlaces")}
+                    noBottomRule
+                  />
                   <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #eef2f6" }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b", marginBottom: 12 }}>Automation</div>
                     {locationPicker}
@@ -1697,52 +2508,67 @@ export default function BusinessInformationPanel({
               }}
             >
               <div style={{ flex: 1, fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
-                <strong style={{ color: "#6366f1" }}>Save</strong> writes your description to automation settings.
+                {savePushesDescriptionAndServiceArea && activeEditorLocationId ? (
+                  <span>
+                    <strong style={{ color: "#6366f1" }}>Save changes</strong> PATCHes Google (<strong style={{ color: "#334155" }}>profile</strong> / description and{" "}
+                    <strong style={{ color: "#334155" }}>serviceArea</strong>), then refetches the location — nothing is written to automation DB from this screen.
+                  </span>
+                ) : (
+                  <span>
+                    <strong style={{ color: "#6366f1" }}>Save</strong> stores the description in automation settings.
+                    {gmbSyncMode && activeEditorLocationId ? (
+                      <span>
+                        {" "}
+                        <strong style={{ color: "#0f766e" }}>Sync to Google</strong> pushes description, phone, website, WhatsApp link (if set), service areas, and coordinates to the Business Profile API.
+                      </span>
+                    ) : null}
+                  </span>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={Boolean(savePending)}
-                style={{
-                  flexShrink: 0,
-                  background: savePending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
-                  color: savePending ? "#a5b4fc" : "#fff",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "11px 28px",
-                  fontSize: 13,
-                  fontWeight: 800,
-                  cursor: savePending ? "not-allowed" : "pointer",
-                  fontFamily: "inherit",
-                  boxShadow: savePending ? "none" : "0 4px 18px rgba(99,102,241,.35)",
-                }}
-              >
-                {savePending ? "Saving…" : "Save changes"}
-              </button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                {gmbSyncMode && activeEditorLocationId ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleSyncToGmbClick()}
+                    disabled={Boolean(syncToGmbPending) || !canSyncGmb}
+                    style={{
+                      flexShrink: 0,
+                      background: syncToGmbPending ? "#ccfbf1" : "#fff",
+                      color: syncToGmbPending ? "#5eead4" : "#0f766e",
+                      border: "1.5px solid #5eead4",
+                      borderRadius: 10,
+                      padding: "11px 20px",
+                      fontSize: 13,
+                      fontWeight: 800,
+                      cursor: syncToGmbPending || !canSyncGmb ? "not-allowed" : "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {syncToGmbPending ? "Syncing…" : "Sync to Google"}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void handleSave()}
+                  disabled={Boolean(savePending)}
+                  style={{
+                    flexShrink: 0,
+                    background: savePending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
+                    color: savePending ? "#a5b4fc" : "#fff",
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "11px 28px",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: savePending ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    boxShadow: savePending ? "none" : "0 4px 18px rgba(99,102,241,.35)",
+                  }}
+                >
+                  {savePending ? "Saving…" : "Save changes"}
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 18,
-              boxShadow: "0 4px 32px rgba(15,23,42,.08)",
-              border: "1px solid #e4e9f2",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              minHeight: embedded ? 420 : 0,
-              height: embedded ? "auto" : "100%",
-            }}
-          >
-            <AIStudioPanel
-              businessName={businessName}
-              categoryHint={categoryHint}
-              userData={userData}
-              primaryLoc={primaryLoc}
-              selectedBusiness={selectedBusiness}
-              onApplyField={handleStudioApply}
-            />
           </div>
         </div>
         )}
@@ -1764,7 +2590,11 @@ export default function BusinessInformationPanel({
             >
               <span style={{ color: "#f9ab00", fontSize: 20, lineHeight: 1, flexShrink: 0 }} aria-hidden>!</span>
               <p style={{ margin: 0, fontSize: 13, color: "#3c4043", lineHeight: 1.5, flex: 1 }}>
-                Review and edit your business information to improve your presence. Scroll through tabs, then save your automation description when ready.
+                {savePushesDescriptionAndServiceArea
+                  ? "Business name, categories, and storefront address are locked here. Save changes PATCHes description and service area on Google, then reloads live data. Use Sync to Google for phone, website, WhatsApp, and map pin."
+                  : gmbSyncMode
+                    ? "Business name, categories, and storefront address are locked here. Description and WhatsApp are manual. Save stores your automation description; Sync pushes fields to Google — we refetch your listing afterward."
+                    : "Review and edit your business information to improve your presence. Scroll through tabs, then save your automation description when ready."}
               </p>
             </div>
           </div>

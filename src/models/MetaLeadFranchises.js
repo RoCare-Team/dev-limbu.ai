@@ -49,6 +49,8 @@ const franchiseLeadSchema = new mongoose.Schema(
     ],
     /** True when lead phone matches an IVR did_number or caller number (see /api/incoming-ivr-franchise). */
     ivrMeInterested: { type: Boolean, default: false },
+    /** First time IVR interest was detected (webhook or sync from call log). */
+    ivrMeInterestedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

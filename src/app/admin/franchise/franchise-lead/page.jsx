@@ -253,10 +253,10 @@ export default function FranchiseLeadsPage() {
   const [franchiseFollowUpLeadsAllLoaded, setFranchiseFollowUpLeadsAllLoaded] =
     useState(false);
 
-  /** Franchise admins always use a date bucket (no "All time"); supers may use "all". */
+  /** Narrow main table to follow-up bucket only when a period is selected (not "All time"). */
   const franchiseFollowUpTableActive = useMemo(
-    () => role === "franchiseAdmin" || franchiseFollowUpFilter !== "all",
-    [role, franchiseFollowUpFilter],
+    () => franchiseFollowUpFilter !== "all",
+    [franchiseFollowUpFilter],
   );
   const [franchiseFollowUpsLoading, setFranchiseFollowUpsLoading] = useState(false);
   const [franchiseByAgentOpen, setFranchiseByAgentOpen] = useState(false);
@@ -557,12 +557,6 @@ export default function FranchiseLeadsPage() {
     setRole(userRole);
     fetchFranchiseAdmins();
   }, []);
-
-  useEffect(() => {
-    if (role === "franchiseAdmin") {
-      setFranchiseFollowUpFilter((f) => (f === "all" ? "today" : f));
-    }
-  }, [role]);
 
   useEffect(() => {
     if (
@@ -1988,17 +1982,18 @@ if (!executiveMobile && typeof window !== "undefined") {
               <div>
                 <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   {role === "franchiseAdmin"
-                    ? "Follow-ups — tap a period (table + pending cards match this window)"
+                    ? "Follow-ups — All leads shows your full list; a period narrows the table + pending strip"
                     : "Follow-ups (tap to filter main table)"}
                 </p>
                 <div
                   className={`grid grid-cols-2 gap-2 ${
-                    role === "franchiseAdmin" ? "md:grid-cols-4" : "md:grid-cols-4"
+                    role === "franchiseAdmin" ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-4"
                   }`}
                 >
                   {(
                     role === "franchiseAdmin"
                       ? [
+                          { key: "all", label: "All leads", count: leads.length, bg: "bg-gray-600", ring: "ring-gray-400" },
                           { key: "today", label: "Today", count: franchiseFollowUpStats.todayFollowUps, bg: "bg-amber-500", ring: "ring-amber-400" },
                           { key: "tomorrow", label: "Tomorrow", count: franchiseFollowUpStats.tomorrowFollowUps, bg: "bg-rose-500", ring: "ring-rose-400" },
                           { key: "next7days", label: "Next 7 Days", count: franchiseFollowUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
@@ -2509,7 +2504,7 @@ if (!executiveMobile && typeof window !== "undefined") {
 
           {/* SEARCH BAR */}
           <div className="mt-6 mb-2">
-{franchiseFollowUpTableActive && role !== "franchiseAdmin" && (
+{franchiseFollowUpTableActive && (
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
                   <span className="text-indigo-600/90">Table filter:</span>
@@ -3061,7 +3056,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Showing <span className="font-medium">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
                 <span className="font-medium">{Math.min(currentPage * PAGE_SIZE, filteredLeads.length)}</span> of{" "}
                 <span className="font-medium">{filteredLeads.length}</span> leads
-                {franchiseFollowUpTableActive && role !== "franchiseAdmin" && (
+                {franchiseFollowUpTableActive && (
                   <span className="block text-xs text-indigo-600 font-medium mt-1">
                     Follow-up window: {franchiseFollowUpFilterLabel}
                   </span>

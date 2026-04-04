@@ -222,18 +222,43 @@ export async function GET(req) {
       );
     }
 
-    // Fetch manual leads
-    const manualQuery = { source: 'manual' };
-    if (filterAdminId) {
-      manualQuery.assignedFranchiseAdminId = filterAdminId;
-    }
-    const manualLeads = await Lead.find(manualQuery)
-      .populate("assignedFranchiseAdminId", "fullName email role")
-      .sort({ createdTime: -1 })
-      .lean();
+    let combinedLeads;
 
-    const formattedManualLeads = manualLeads.map(formatLeadForResponse);
-    const combinedLeads = [...allLeadsResponse, ...formattedManualLeads].sort((a, b) => new Date(b.created_time) - new Date(a.created_time));
+    if (filterAdminId) {
+      const adminOid = mongoose.Types.ObjectId.isValid(filterAdminId)
+        ? new mongoose.Types.ObjectId(filterAdminId)
+        : null;
+      if (!adminOid) {
+        return NextResponse.json(
+          { success: false, message: "Invalid admin id" },
+          { status: 400 },
+        );
+      }
+      const metaResponseIds = new Set(allLeadsResponse.map((l) => l.id));
+      const allAssignedDocs = await Lead.find({
+        assignedFranchiseAdminId: adminOid,
+      })
+        .populate("assignedFranchiseAdminId", "fullName email role")
+        .lean();
+
+      const extraAssigned = allAssignedDocs
+        .filter((doc) => !metaResponseIds.has(doc.leadId))
+        .map(formatLeadForResponse);
+
+      combinedLeads = [...allLeadsResponse, ...extraAssigned].sort(
+        (a, b) => new Date(b.created_time) - new Date(a.created_time),
+      );
+    } else {
+      const manualLeads = await Lead.find({ source: "manual" })
+        .populate("assignedFranchiseAdminId", "fullName email role")
+        .sort({ createdTime: -1 })
+        .lean();
+
+      const formattedManualLeads = manualLeads.map(formatLeadForResponse);
+      combinedLeads = [...allLeadsResponse, ...formattedManualLeads].sort(
+        (a, b) => new Date(b.created_time) - new Date(a.created_time),
+      );
+    }
 
     return NextResponse.json({
       success: true,

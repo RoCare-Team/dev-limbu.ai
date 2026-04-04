@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { MongoClient } from "mongodb";
+import { mongooseConnectionUri } from "./mongoConnectionUri";
 
 let cached = global.mongoose;
 let clientPromiseCached = global.clientPromise;
@@ -15,7 +16,7 @@ if (!clientPromiseCached) {
 export default async function dbConnect() {
   // Only check for MONGODB_URI when actually connecting, not at module load time
   // This allows the build to succeed even without the env var at build time
-  const MONGODB_URI = process.env.MONGODB_URI;
+  const MONGODB_URI = mongooseConnectionUri(process.env.MONGODB_URI);
 
   if (cached.conn) return cached.conn;
 

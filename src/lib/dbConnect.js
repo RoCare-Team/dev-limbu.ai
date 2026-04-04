@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { mongooseConnectionUri } from "./mongoConnectionUri";
 
 let cached = global.mongoose;
 
@@ -7,7 +8,8 @@ if (!cached) {
 }
 
 export default async function dbConnect() {
-  const MONGO_URI = process.env.MONGODB_URI;
+  const raw = process.env.MONGODB_URI;
+  const MONGO_URI = mongooseConnectionUri(raw);
 
   if (!MONGO_URI) {
     console.warn("⚠️ MONGODB_URI not defined");

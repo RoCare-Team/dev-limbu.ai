@@ -9,24 +9,31 @@ if (!cached) {
 export default async function dbConnect() {
   const MONGO_URI = process.env.MONGODB_URI;
 
-  // Build time par crash na ho
   if (!MONGO_URI) {
-    console.warn("⚠️ MONGODB_URI not defined. Skipping DB connection.");
+    console.warn("⚠️ MONGODB_URI not defined");
     return null;
   }
 
-  if (cached.conn) return cached.conn;
+  // 🔥 Already connected
+  if (cached.conn) {
+    return cached.conn;
+  }
 
+  // 🔥 Create new connection promise if not exists
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGO_URI);
+    cached.promise = mongoose.connect(MONGO_URI, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000, // fast fail
+      socketTimeoutMS: 45000,
+    });
   }
 
   try {
     cached.conn = await cached.promise;
+    console.log("✅ MongoDB Connected");
   } catch (error) {
-    // Reset so the next request retries instead of replaying a failed promise
-    cached.promise = null;
-    console.error("MongoDB connection error:", error);
+    cached.promise = null; // 🔥 VERY IMPORTANT (retry fix)
+    console.error("❌ MongoDB connection error:", error.message);
     throw error;
   }
 

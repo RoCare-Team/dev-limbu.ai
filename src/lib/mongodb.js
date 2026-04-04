@@ -1,52 +1,44 @@
-import mongoose from "mongoose";
 import { MongoClient } from "mongodb";
 import { mongooseConnectionUri } from "./mongoConnectionUri";
+import dbConnect from "./dbConnect";
 
-let cached = global.mongoose;
 let clientPromiseCached = global.clientPromise;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
 
 if (!clientPromiseCached) {
   clientPromiseCached = global.clientPromise = { client: null, promise: null };
 }
 
-export default async function dbConnect() {
-  // Only check for MONGODB_URI when actually connecting, not at module load time
-  // This allows the build to succeed even without the env var at build time
-  const MONGODB_URI = mongooseConnectionUri(process.env.MONGODB_URI);
-
-  if (cached.conn) return cached.conn;
-
-  if (!cached.promise) {
-    if (!MONGODB_URI) {
-      console.warn("MONGODB_URI environment variable is not defined. Database connection will not be available.");
-      return null;
-    }
-    
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-    });
-  }
-
-  try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    console.error("MongoDB connection error:", e.message);
-    return null;
-  }
-
-  return cached.conn;
+function getMongoClientOptions() {
+  const maxPoolSize = Math.min(
+    100,
+    Math.max(5, parseInt(process.env.MONGODB_MAX_POOL_SIZE || "25", 10) || 25),
+  );
+  const minPoolSize = Math.min(
+    maxPoolSize,
+    Math.max(0, parseInt(process.env.MONGODB_MIN_POOL_SIZE || "2", 10) || 2),
+  );
+  return {
+    maxPoolSize,
+    minPoolSize,
+    serverSelectionTimeoutMS:
+      parseInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || "10000", 10) ||
+      10000,
+    connectTimeoutMS:
+      parseInt(process.env.MONGODB_CONNECT_TIMEOUT_MS || "10000", 10) || 10000,
+    socketTimeoutMS:
+      parseInt(process.env.MONGODB_SOCKET_TIMEOUT_MS || "120000", 10) || 120000,
+    maxIdleTimeMS:
+      parseInt(process.env.MONGODB_MAX_IDLE_TIME_MS || "60000", 10) || 60000,
+    ...(process.env.MONGODB_FORCE_IPV4 === "1" ? { family: 4 } : {}),
+  };
 }
 
-// Export a clientPromise for NextAuth and other modules that need direct MongoDB client access
-// This follows the standard pattern used in Next.js + MongoDB applications
+/** Same Mongoose cache as @/lib/dbConnect (no duplicate pools). */
+export default dbConnect;
+
 export const clientPromise = (async () => {
-  const MONGODB_URI = process.env.MONGODB_URI;
-  
+  const MONGODB_URI = mongooseConnectionUri(process.env.MONGODB_URI);
+
   const fallbackClient = {
     db: () => ({
       collection: () => ({
@@ -58,8 +50,9 @@ export const clientPromise = (async () => {
   };
 
   if (!MONGODB_URI) {
-    // Gracefully handle missing DB URI so app/auth can still work
-    console.warn("MONGODB_URI environment variable is not defined. Database connection will not be available.");
+    console.warn(
+      "MONGODB_URI environment variable is not defined. Database connection will not be available.",
+    );
     return fallbackClient;
   }
 
@@ -68,7 +61,7 @@ export const clientPromise = (async () => {
   }
 
   if (!clientPromiseCached.promise) {
-    const client = new MongoClient(MONGODB_URI);
+    const client = new MongoClient(MONGODB_URI, getMongoClientOptions());
     clientPromiseCached.promise = client.connect().then(() => client);
   }
 

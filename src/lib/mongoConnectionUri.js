@@ -1,7 +1,11 @@
 /**
- * Mongoose connection URI: use gmb_dashboard when MONGODB_URI has no DB path
- * (matches native driver usage: client.db("gmb_dashboard")).
- * Override with MONGODB_DB_NAME (e.g. "test" for local experiments).
+ * Mongoose / MongoClient URI: append database name when MONGODB_URI has no path.
+ *
+ * Examples:
+ * - mongodb://13.200.192.11:27017 → mongodb://13.200.192.11:27017/gmb_dashboard
+ * - mongodb://127.0.0.1:27017/mydb → unchanged
+ *
+ * Override default DB with MONGODB_DB_NAME (e.g. "test" for restores from a test dump).
  */
 const DEFAULT_DB = process.env.MONGODB_DB_NAME || "gmb_dashboard";
 

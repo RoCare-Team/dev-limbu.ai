@@ -1,193 +1,166 @@
+"use client";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-"use client"
+export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-import Image from "next/image"
-import { Menu, X } from "lucide-react"
-import LogoImage from "../../../public/images/bg-logo.png"
-import { Phone } from "lucide-react";
+  const pathname = usePathname();
 
-export default function HeaderSection({
-  isLoggedIn,
-  handleNavigation,
-  handleLogout,
-  setShowBookDemoModal,
-  isMobileMenuOpen,
-  setIsMobileMenuOpen
-}) {
+  // Zustand Store
+  const { isLoggedIn, logout, checkAuth, setModalOpen } = useAuthStore();
+
+  // Sync Auth and Scroll
+  useEffect(() => {
+    checkAuth();
+
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [checkAuth]);
+
+  const navLinks = [
+    { name: "Features", href: "/#features" },
+    { name: "Services", href: "/#services" },
+    { name: "Franchise", href: "/franchise-opportunities" },
+  ];
+
+  // Condition for background transparency
+  const showBg = pathname !== "/" || scrolled;
 
   return (
-    <>
-      {/* HEADER */}
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-  <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-
-    {/* LEFT - LOGO */}
-    <div
-      className="flex items-center gap-3 cursor-pointer flex-shrink-0"
-      onClick={() => handleNavigation('/')}
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${showBg
+        ? "bg-[var(--cyber-black)]/80 backdrop-blur-md border-b border-white/10 py-3"
+        : "bg-transparent py-4"
+        }`}
     >
-      <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center shadow-md">
-        <Image
-          src={LogoImage}
-          alt="Limbu.ai Logo"
-          className="w-7 h-7"
-        />
-      </div>
+      <div className="flex items-center justify-between px-6 md:px-10">
+        {/* LOGO */}
+        <Link href="/" className="cursor-pointer flex items-center shrink-0">
+          <Image
+            src="/images/limbuailogo.png"
+            alt="Limbu.ai Logo"
+            width={160}
+            height={49}
+            className="object-contain h-10 w-auto"
+            priority
+          />
+        </Link>
 
-      <div className="leading-tight">
-        <h2 className="text-lg font-bold text-yellow-500">
-          limbu.ai
-        </h2>
-        <p className="text-xs text-gray-600">
-          Local Growth & Social 
-        </p>
-      </div>
-    </div>
+        {/* Desktop Menu */}
+        <div className="hidden md:flex items-center gap-8">
+          <ul className="flex items-center gap-8 list-none m-0 p-0">
+            {navLinks.map((item) => (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  className="text-white hover:text-[var(--lemon-glow)] transition"
+                >
+                  {item.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
 
-    {/* CENTER - NAV LINKS */}
-    <nav className="hidden lg:flex items-center gap-7 text-sm text-sm text-[#101010] font-dark">
-      <a href="#features" className="hover:text-lightPrimary transition">
-        Features
-      </a>
+          <div className="w-px h-5 bg-white/15" />
 
-      <a href="/work-with-us" className="hover:text-lightPrimary transition">
-        work with Us
-      </a>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setModalOpen(true)}
+              className="btn-ghost btn-sm text-white"
+            >
+              Book Free Demo
+            </button>
 
-      <a href="#services" className="hover:text-lightPrimary transition">
-        Our Services
-      </a>
+            {isLoggedIn ? (
+              <>
+                <Link href="/dashboard" className="btn-ghost btn-sm">
+                  Dashboard
+                </Link>
+                <button onClick={logout} className="btn-lemon btn-sm">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link href="/login" className="btn-lemon btn-sm">
+                Start Now
+              </Link>
+            )}
+          </div>
+        </div>
 
-      <a href="/franchise-opportunities" className="hover:text-lightPrimary transition">
-        Become Franchise Partners
-      </a>
-
-      <button
-        onClick={() => setShowBookDemoModal(true)}
-        className="text-lightPrimary hover:underline"
-      >
-        Book a Demo
-      </button>
-    </nav>
-
-    {/* RIGHT - ACTION BUTTONS */}
-    <div className="hidden lg:flex items-center gap-4">
-
-      {/* WhatsApp */}
-      <a
-  href="tel:9283344726"
-  className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
->
-  <Phone className="w-4 h-4" />
-  9283344726
-</a>
-
-      {isLoggedIn ? (
-        <>
-          <button
-            onClick={() => handleNavigation('/dashboard')}
-            className="px-5 py-2 border border-yellow-400 text-gray-800 rounded-lg font-semibold hover:bg-yellow-50 transition"
-          >
-            Dashboard
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="px-6 py-2 bg-lightPrimary text-dark rounded-lg font-semibold hover:shadow-md transition"
-          >
-            Logout
-          </button>
-        </>
-      ) : (
+        {/* Mobile Hamburger */}
         <button
-          onClick={() => handleNavigation('/login')}
-          className="px-6 py-2 bg-lightPrimary text-dark rounded-lg font-semibold hover:shadow-md transition"
+          className="md:hidden flex flex-col gap-1.5 p-1 z-50"
+          onClick={() => setMenuOpen(!menuOpen)}
         >
-          Login
+          <span
+            className={`block w-6 h-0.5 bg-[var(--lemon-glow)] transition ${menuOpen ? "rotate-45 translate-y-2" : ""
+              }`}
+          />
+          <span
+            className={`block w-6 h-0.5 bg-[var(--lemon-glow)] transition ${menuOpen ? "opacity-0" : ""
+              }`}
+          />
+          <span
+            className={`block w-6 h-0.5 bg-[var(--lemon-glow)] transition ${menuOpen ? "-rotate-45 -translate-y-2" : ""
+              }`}
+          />
         </button>
+      </div>
+
+      {/* Mobile Dropdown */}
+      {menuOpen && (
+        <div className="md:hidden flex flex-col gap-4 px-6 pt-6 pb-6 bg-[var(--cyber-black)]/95 backdrop-blur-md border-b border-white/10">
+          {navLinks.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="text-white text-left text-lg"
+              onClick={() => setMenuOpen(false)}
+            >
+              {item.name}
+            </Link>
+          ))}
+
+          <div className="flex flex-col gap-3 mt-2">
+            <button
+              onClick={() => {
+                setModalOpen(true);
+                setMenuOpen(false);
+              }}
+              className="btn-ghost btn-md justify-center"
+            >
+              Book Free Demo
+            </button>
+
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                onClick={() => setMenuOpen(false)}
+                className="btn-lemon btn-md flex justify-center"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="btn-lemon btn-md flex justify-center"
+              >
+                Start Now
+              </Link>
+            )}
+          </div>
+        </div>
       )}
-    </div>
-
-    {/* MOBILE MENU BUTTON */}
-    <div className="lg:hidden">
-      <button onClick={() => setIsMobileMenuOpen(true)}>
-        <Menu className="w-6 h-6 text-gray-800" />
-      </button>
-    </div>
-
-  </div>
-</header>
-
-
-      {/* MOBILE MENU */}
-      {isMobileMenuOpen && (
-  <div className="fixed inset-0 z-50 md:hidden">
-    
-    {/* Overlay */}
-    <div 
-      className="absolute inset-0 bg-black/40"
-      onClick={() => setIsMobileMenuOpen(false)}
-    ></div>
-
-    {/* Right Slide Panel */}
-    <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 shadow-xl transform transition-transform duration-300 ease-in-out">
-
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-xl font-bold text-slate-800">Limbu.ai</h2>
-        <button onClick={() => setIsMobileMenuOpen(false)}>
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-
-      <nav className="flex flex-col gap-6">
-
-        <a 
-          href="#features" 
-          onClick={() => setIsMobileMenuOpen(false)} 
-          className="text-lg font-medium text-slate-700"
-        >
-          Features
-        </a>
-
-        <a 
-          href="#services" 
-          onClick={() => setIsMobileMenuOpen(false)} 
-          className="text-lg font-medium text-slate-700"
-        >
-          Services
-        </a>
-
-        <a 
-          href="/franchise-opportunities" 
-          className=" text-dark hover:text-primary transition"
-        >
-          Become Franchise Partners
-        </a>
-
-        <button
-          onClick={() => {
-            setShowBookDemoModal(true)
-            setIsMobileMenuOpen(false)
-          }}
-          className="text-lg font-medium text-dark text-left"
-        >
-          Book a Demo
-        </button>
-
-        {/* WhatsApp / Call Number */}
-        <a
-  href="tel:9283344726"
-  className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
->
-  <Phone className="w-4 h-4" />
-  9283344726
-</a>
-
-      </nav>
-    </div>
-  </div>
-)}
-          
-    </>
-  )
+    </nav>
+  );
 }

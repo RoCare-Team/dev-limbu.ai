@@ -1,143 +1,210 @@
+"use client";
 
-"use client"
-import { useState, useEffect } from "react"
+import Link from "next/link";
+import Image from "next/image";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-export default function HeroSection({
-  videoExamples,
-  currentVideoIndex,
-  handleVideoEnd,
-  slidingTexts,
-  slidingTextIndex,
-  handleNavigation,
-  isLoggedIn,
-  setShowVideoModal
-}) {
 
-  const images = [
-  "/images/banners1.avif",
-  "/images/banner3.jpg",
-  "/images/banners3.webp",
-]
 
-const [currentImage, setCurrentImage] = useState(0)
+const clientLogos = [
+  { name: "Anup Gupta", src: "/images/clients/anup_gupta.png" },
+  { name: "Ro-Care India", src: "/images/clients/ro-care-india.webp" },
+  { name: "Dynamic Drapry", src: "/images/clients/dynamic_drapry.png" },
+  { name: "Mannubhai", src: "/images/clients/mannubhai.webp" },
+  { name: "Banjara Salon", src: "/images/clients/banjara_salon.png" },
+  { name: "Mazz", src: "/images/clients/mazz.png" },
+  { name: "Gudiya Collection", src: "/images/clients/gudiya_collection.png" },
+  { name: "Lucky Dry", src: "/images/clients/lucky_dry.jpg" },
+];
 
-useEffect(() => {
-  const interval = setInterval(() => {
-    setCurrentImage((prev) => (prev + 1) % images.length)
-  }, 4000)
+export default function HeroSection() {
+  const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);
 
-  return () => clearInterval(interval)
-}, [])
-
+  const { isLoggedIn } = useAuthStore();
   return (
-    <section className="relative h-[80vh] md:h-screen w-full flex items-end md:items-center justify-center overflow-hidden">
-
-      {/* Background Video */}
-    {images.map((img, index) => (
-  <img
-    key={index}
-    src={img}
-    alt="Hero Background"
-    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-      index === currentImage ? "opacity-100" : "opacity-0"
-    }`}
-  />
-))}
-
-      {/* <video
+    <section
+      className="relative w-full h-dvh overflow-hidden flex flex-col"
+      style={{ backgroundColor: "var(--cyber-black)" }}
+    >
+      {/* ── LAYER 0: Video Background ── */}
+      <video
+        className="absolute inset-0 w-full h-full object-cover opacity-85 z-0"
+        src="/videos/hero-bg.mp4"
         autoPlay
+        loop
         muted
         playsInline
-        onEnded={handleVideoEnd}
-        key={currentVideoIndex}
-        className="absolute z-0 w-auto min-w-full min-h-full max-w-none transition-opacity duration-1000 ease-in-out"
-        style={{ opacity: 1 }}
+      />
+
+      {/* ── LAYER 1: Top dark fade (for Navbar readability) ── */}
+      <div className="absolute inset-0 z-[1] pointer-events-none bg-gradient-to-b from-black/20 to-transparent" />
+
+      {/* ── LAYER 1: Left dark fade (headline pop) ── */}
+      <div className="absolute inset-0 z-[1] pointer-events-none bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+
+      {/* ── LAYER 1: Bottom fade — merges seamlessly into next section ── */}
+      <div className="absolute bottom-0 left-0 right-0 h-[60%] z-[1] pointer-events-none bg-gradient-to-t from-[#050505] via-[#050505]/70 to-transparent" />
+
+      {/* ── Webinar CTA Badge (top-right) ── */}
+      <Link
+        href="/webinar-demo"
+        className="absolute top-[80px] md:top-[90px] right-5 md:right-8 z-20 flex items-center gap-2 px-3 py-2 rounded-xl group"
+        style={{
+          background: "rgba(18,18,18,0.45)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(253,224,71,0.18)",
+        }}
       >
-        <source src={videoExamples[currentVideoIndex]} type="video/mp4" />
-        Your browser does not support the video tag.
-      </video> */}
+        {/* Live pulse dot */}
+        <span className="w-2 h-2 rounded-full bg-[#FDE047] animate-pulse" />
 
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
+        {/* Text block */}
+        <div className="flex flex-col leading-tight">
+          <span
+            className="text-[10px] font-semibold whitespace-nowrap"
+            style={{ color: "var(--pure-white)" }}
+          >
+            Free AI Webinar
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--tech-gray)" }}>
+            🔥 128 joined in last 1 hr
+          </span>
+        </div>
 
-      {/* Content */}
-      <div className="relative z-20 text-center max-w-4xl mx-auto px-4 sm:px-6 pb-20 md:pb-0">
+        {/* Arrow */}
+        <span
+          className="text-xs transition-transform duration-200 group-hover:-translate-y-1 group-hover:translate-x-1"
+          style={{ color: "#FDE047" }}
+        >
+          ↗
+        </span>
+      </Link>
 
-        {/* Sliding Text Badge */}
-        <div className="relative h-10 mb-4 sm:mb-8 flex items-center justify-center">
-          {slidingTexts?.map((item, index) => (
-            <div
-              key={index}
-              className={`absolute w-full transition-opacity duration-500 ease-in-out ${
-                index === slidingTextIndex ? 'opacity-100' : 'opacity-0'
-              }`}
+      {/* ── LAYER 3: Main Hero Body ── */}
+      <div className="relative z-10 flex flex-col justify-center flex-1 px-6 md:px-10 pt-[90px] md:pt-[100px] pb-4">
+        {/* Rating Badge */}
+        <div className="mb-4 sm:mb-6">
+          <div
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 sm:px-4 sm:py-2"
+            style={{
+              background: "rgba(253,224,71,0.06)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(253,224,71,0.18)",
+            }}
+          >
+            <span style={{ color: "var(--lemon-glow)", fontSize: "14px" }}>
+              ★
+            </span>
+            <span
+              className="text-[11px] sm:text-xs font-semibold"
+              style={{ color: "var(--tech-silver)" }}
             >
-              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-blue-200 rounded-full shadow-sm">
-                <span className="text-sm">{item.icon}</span>
-                <span className="text-xs sm:text-sm font-medium text-slate-700">
-                  {item.text}
+              4.8 on Capterra
+            </span>
+            <span
+              className="text-[11px] sm:text-xs"
+              style={{ color: "var(--tech-gray)" }}
+            >
+              · 706 reviews
+            </span>
+          </div>
+        </div>
+
+        {/* Headline + Description — two-column on large screens */}
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 lg:gap-12 max-w-[1400px]">
+          {/* LEFT — Headline + Buttons */}
+          <div className="flex flex-col">
+            <h1
+              className=" font-normal uppercase leading-[0.92] tracking-tight"
+              style={{
+                fontFamily: "Anton, Impact, sans-serif",
+                color: "var(--pure-white)",
+                marginBottom: "4px",
+                fontSize: "clamp(2.4rem, 5.5vw, 5.5rem)",
+              }}
+            >
+              Make your brand
+            </h1>
+            <h1
+              className="font-normal uppercase leading-[0.92] tracking-tight hero-outline"
+              style={{
+                fontFamily: "Anton, Impact, sans-serif",
+                fontSize: "clamp(2.4rem, 5.5vw, 5.5rem)",
+              }}
+            >
+              extraordinary.
+            </h1>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-3 mt-6 sm:mt-8 mb-3">
+              {
+                isLoggedIn ? (
+                  <Link href="/dashboard" className="btn-lemon btn-md">
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <Link href="/login" className="btn-lemon btn-md">
+                    Start Today Get 500 Coin
+                  </Link>
+                )
+              }
+              <button
+                className="btn-ghost btn-sm sm:btn-md group py-3.5"
+                onClick={() => setSelectedVideo("https://youtu.be/eQUd6u36w3g?si=_AJ3OymZQD6HnXRl")}
+              >
+                Watch Demo
+                <span className="ml-2 inline-block transition-transform duration-200 group-hover:translate-x-1">
+                  →
                 </span>
-              </div>
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT — Description */}
+          <div className="lg:max-w-[320px] lg:pb-2 shrink-0">
+            <div className="circuit-line mb-3 hidden lg:block" />
+            <p
+              className="text-sm sm:text-base leading-relaxed font-medium"
+              style={{ color: "rgba(226,232,240,0.85)" }}
+            >
+              The AI marketing platform with taste, power, and speed — turning
+              strategy into content and insights into growth.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── LAYER 4: Image-Based Client Logo Slider ── */}
+      <div className="relative z-10 w-full py-3 sm:py-4 overflow-hidden shrink-0">
+        {/* Left fade */}
+        <div className="pointer-events-none absolute left-0 top-0 h-full w-20 md:w-28 z-20 bg-gradient-to-r from-[#050505] to-transparent" />
+
+        {/* Right fade */}
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-20 md:w-28 z-20 bg-gradient-to-l from-[#050505] to-transparent" />
+
+        <div className="animate-scroll flex items-center">
+          {[...clientLogos, ...clientLogos].map((client, i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 flex items-center px-6 sm:px-10 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
+            >
+              <Image
+                src={client.src}
+                alt={client.name}
+                width={120}
+                height={40}
+                className="h-8 w-auto object-contain brightness-200"
+              />
+              <span
+                className="ml-6 sm:ml-10 text-lg"
+                style={{ color: "rgba(253,224,71,0.2)" }}
+              >
+                ·
+              </span>
             </div>
           ))}
         </div>
-
-        {/* Headline */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight mb-4 ml-[10px]">
-          <span className="text-white">
-             AI Marketing Platform for Google,
-          </span>
-          <br />
-          <span className="text-white">
-            Facebook & Instagram.
-          </span>
-          <br />
-          <span className="bg-primary bg-clip-text text-transparent">
-            Stop juggling tabs.
-          </span>
-        </h1>
-
-        {/* Subheadline */}
-        <p className="text-sm sm:text-lg md:text-xl text-slate-200 mb-6 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
-          Grow your revenue with Limbu.ai  — the AI command center for Google Business Profile and social media automation.
-        </p>
-
-        {/* Buttons */}
-        <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
-
-          {/* Primary Button */}
-          <button
-            onClick={() =>
-              handleNavigation(isLoggedIn ? '/dashboard' : '/login')
-            }
-            className="group w-auto px-4 sm:px-8 py-3 sm:py-4 bg-transparent border-2 border-lightPrimary backdrop-blur-sm text-lightPrimary rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg hover:shadow-2xl transition-all hover:scale-105 inline-flex items-center justify-center gap-2 hover:shadow-xl hover:border-slate-200"
-          >
-            {isLoggedIn ? "Go to Dashboard" : "Start Free Trial"}
-            <svg
-              className="w-4 sm:w-5 h-4 sm:h-5 group-hover:translate-x-1 transition-transform"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M10 3l7 7-7 7M3 10h14" />
-            </svg>
-          </button>
-
-          {/* Watch Demo Button */}
-          <button
-            onClick={() => setShowVideoModal(true)}
-            className="group w-auto px-4 sm:px-8 py-3 sm:py-4 bg-transparent backdrop-blur-sm border-2 border-dark text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-lg hover:shadow-xl hover:border-lightPrimary transition-all inline-flex items-center justify-center gap-2"
-          >
-            ▶ Watch Demo
-          </button>
-
-          
-
-        </div>   
       </div>
-      
     </section>
-  )
+  );
 }
-
-
-

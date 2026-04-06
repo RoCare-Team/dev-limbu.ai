@@ -29,6 +29,7 @@ export default function ProfileWithStats() {
   const [transactions, setTransactions] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [aiImages, setAiImages] = useState([]);
+  // console.log("AI Images in profile components:-->", aiImages);
   const [loadingImages, setLoadingImages] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
 
@@ -128,7 +129,7 @@ export default function ProfileWithStats() {
 
   if (!userData) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50">
+      <div className="h-screen flex items-center justify-center bg-linear-to-br from-violet-50 via-purple-50 to-indigo-50">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-xl font-semibold text-gray-700">Loading your profile...</p>
@@ -145,7 +146,7 @@ export default function ProfileWithStats() {
     : "-";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 p-4 sm:p-8 mt-10">
+    <div className="min-h-screen bg-linear-to-br from-violet-50 via-purple-50 to-indigo-50 p-4 sm:p-8 mt-10">
       <div className="max-w-6xl mx-auto">
         {/* ---------------- HERO PROFILE CARD ---------------- */}
         <div className="relative bg-lightPrimary rounded-3xl shadow-2xl p-8 mb-8 overflow-hidden">
@@ -158,7 +159,7 @@ export default function ProfileWithStats() {
               {/* Avatar with glow effect */}
               <div className="relative">
                 <div className="absolute inset-0 bg-white/30 rounded-full blur-xl"></div>
-                <div className="relative w-28 h-28 rounded-full bg-gradient-to-tr from-white to-purple-100 flex items-center justify-center text-dark text-5xl font-bold shadow-2xl ring-4 ring-white/50">
+                <div className="relative w-28 h-28 rounded-full bg-linear-to-br from-white to-purple-100 flex items-center justify-center text-dark text-5xl font-bold shadow-2xl ring-4 ring-white/50">
                   {fullName?.charAt(0)}
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-lightPrimary w-8 h-8 rounded-full border-4 border-white flex items-center justify-center">

@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
 import { headers } from "next/headers";
+import InitAuth from "@/components/InitAuth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -124,6 +125,8 @@ export default async function RootLayout({ children }) {
         </noscript>
 
         <SessionProviderWrapper>
+          <InitAuth />
+
           <ClientLayout>
             {isSubdomainSite ? children : <AuthGuard>{children}</AuthGuard>}
           </ClientLayout>

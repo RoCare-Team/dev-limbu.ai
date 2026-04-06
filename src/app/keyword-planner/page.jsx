@@ -1,8 +1,17 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { Search, Plus, Tag, TrendingUp, X, BarChart3, Check, Loader2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Tag,
+  TrendingUp,
+  X,
+  BarChart3,
+  Check,
+  Loader2,
+} from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
-import { useSession } from "next-auth/react";
+// import { useSession } from "next-auth/react";
 import SupportModal from "@/components/SupportModal";
 
 export default function KeywordPage() {
@@ -11,7 +20,7 @@ export default function KeywordPage() {
   const [saved, setSaved] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(null); // To show loader on add button
-  const { data: session } = useSession();
+  // const { data: session } = useSession();
 
   const showToast = (message, type) => {
     if (type === "success") {
@@ -33,17 +42,18 @@ export default function KeywordPage() {
 
     setIsSearching(true);
 
-    const res = await fetch('https://n8n.limbutech.in/webhook/4dc0fc39-0e04-4d74-a189-1c4f09bd6894', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const res = await fetch(
+      "https://n8n.limbutech.in/webhook/4dc0fc39-0e04-4d74-a189-1c4f09bd6894",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          keyword: value,
+        }),
       },
-      body: JSON.stringify({
-        keyword: value
-      })
-    });
-
-
+    );
 
     const data = await res.json();
 
@@ -51,7 +61,9 @@ export default function KeywordPage() {
       // Handle Google Ads API response format
       const mappedSuggestions = data.results.map((item) => ({
         keyword: item.text,
-        volume: item.keywordIdeaMetrics?.avgMonthlySearches ? parseInt(item.keywordIdeaMetrics.avgMonthlySearches) : 0,
+        volume: item.keywordIdeaMetrics?.avgMonthlySearches
+          ? parseInt(item.keywordIdeaMetrics.avgMonthlySearches)
+          : 0,
         competition: item.keywordIdeaMetrics?.competition,
         competitionIndex: item.keywordIdeaMetrics?.competitionIndex,
       }));
@@ -59,7 +71,11 @@ export default function KeywordPage() {
     } else if (data.success) {
       // Fallback for previous format
       setSuggestions(
-        data.keywords.map(k => (typeof k === 'string' ? { keyword: k, volume: Math.floor(Math.random() * 5000) + 100 } : k))
+        data.keywords.map((k) =>
+          typeof k === "string"
+            ? { keyword: k, volume: Math.floor(Math.random() * 5000) + 100 }
+            : k,
+        ),
       );
     }
     setIsSearching(false);
@@ -72,7 +88,12 @@ export default function KeywordPage() {
     await fetch("/api/keyword-research", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, keyword: keywordData.keyword, volume: keywordData.volume, competition: keywordData.competition }),
+      body: JSON.stringify({
+        userId,
+        keyword: keywordData.keyword,
+        volume: keywordData.volume,
+        competition: keywordData.competition,
+      }),
     });
     await fetchSavedKeywords();
     setIsSaving(null);
@@ -98,23 +119,29 @@ export default function KeywordPage() {
     fetchSavedKeywords();
   }, []);
 
-  const savedKeywordsSet = useMemo(() => new Set(saved.map(s => s.keyword)), [saved]);
+  const savedKeywordsSet = useMemo(
+    () => new Set(saved.map((s) => s.keyword)),
+    [saved],
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <Toaster />
-      <div className="max-w-screen-xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-lightPrimary rounded-2xl mb-4 shadow-lg">
             <TrendingUp className="w-8 h-8 text-dark" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">Keyword Research</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Discover and save the best keywords for your content</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+            Keyword Research
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base">
+            Discover and save the best keywords for your content
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
           {/* Left Panel: Search & Suggestions */}
           <div className="lg:col-span-8 space-y-6">
             {/* Search Box */}
@@ -140,16 +167,26 @@ export default function KeywordPage() {
               </div>
             </div>
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 min-h-[60vh]">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Suggestions</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">
+                Suggestions
+              </h2>
 
               <div className="space-y-2">
                 {!isSearching && suggestions.length > 0 && (
                   <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 mb-2">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Keyword</span>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Keyword
+                    </span>
                     <div className="flex items-center gap-4">
-                      <span className="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 text-right">Volume</span>
-                      <span className="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-center">Competition</span>
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-center">Action</span>
+                      <span className="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 text-right">
+                        Volume
+                      </span>
+                      <span className="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-center">
+                        Competition
+                      </span>
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 text-center">
+                        Action
+                      </span>
                     </div>
                   </div>
                 )}
@@ -162,77 +199,92 @@ export default function KeywordPage() {
 
                 {!isSearching && suggestions.length === 0 && (
                   <div className="text-center py-20 text-gray-400">
-                    <p className="font-medium">{input ? "No suggestions found." : "Start typing to see keyword suggestions."}</p>
+                    <p className="font-medium">
+                      {input
+                        ? "No suggestions found."
+                        : "Start typing to see keyword suggestions."}
+                    </p>
                   </div>
                 )}
 
-                {!isSearching && suggestions.map((k, idx) => {
-                  const isAdded = savedKeywordsSet.has(k.keyword);
-                  return (
-                    <div
-                      key={idx}
-                      className={`
+                {!isSearching &&
+                  suggestions.map((k, idx) => {
+                    const isAdded = savedKeywordsSet.has(k.keyword);
+                    return (
+                      <div
+                        key={idx}
+                        className={`
                         flex justify-between items-center p-4 rounded-xl border-2 transition-all duration-200
-                        ${isAdded
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-white hover:bg-blue-50 hover:border-blue-200 border-gray-100'
+                        ${
+                          isAdded
+                            ? "bg-green-50 border-green-200"
+                            : "bg-white hover:bg-blue-50 hover:border-blue-200 border-gray-100"
                         }
                       `}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`font-medium text-sm ${isAdded ? 'text-green-800' : 'text-gray-800'}`}>{k.keyword}</span>
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`font-medium text-sm ${isAdded ? "text-green-800" : "text-gray-800"}`}
+                          >
+                            {k.keyword}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="hidden sm:flex items-center justify-end gap-1.5 text-sm text-gray-500 font-medium w-20">
+                            {k.volume ? (
+                              <>
+                                <BarChart3 className="w-4 h-4 text-dark" />
+                                <span>{k.volume.toLocaleString()}</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </div>
+                          <div className="hidden sm:flex justify-center w-24">
+                            {k.competition ? (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  k.competition === "LOW"
+                                    ? "bg-fullLight text-dark"
+                                    : k.competition === "MEDIUM"
+                                      ? "bg-yellow-100 text-yellow-700"
+                                      : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {k.competition}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </div>
+                          <div className="w-24 flex justify-center">
+                            {isAdded ? (
+                              <button
+                                disabled
+                                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-green-200 text-green-800 rounded-lg text-sm font-semibold cursor-default w-full"
+                              >
+                                <Check className="w-4 h-4" />
+                                Added
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => addKeyword(k)}
+                                disabled={isSaving === k.keyword}
+                                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-dark rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait w-full"
+                              >
+                                {isSaving === k.keyword ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Plus className="w-4 h-4" />
+                                )}
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center justify-end gap-1.5 text-sm text-gray-500 font-medium w-20">
-                          {k.volume ? (
-                            <>
-                              <BarChart3 className="w-4 h-4 text-dark" />
-                              <span>{k.volume.toLocaleString()}</span>
-                            </>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
-                        </div>
-                        <div className="hidden sm:flex justify-center w-24">
-                          {k.competition ? (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${k.competition === 'LOW' ? 'bg-fullLight text-dark' :
-                                k.competition === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-red-100 text-red-700'
-                              }`}>
-                              {k.competition}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
-                        </div>
-                        <div className="w-24 flex justify-center">
-                          {isAdded ? (
-                            <button
-                              disabled
-                              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-green-200 text-green-800 rounded-lg text-sm font-semibold cursor-default w-full"
-                            >
-                              <Check className="w-4 h-4" />
-                              Added
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => addKeyword(k)}
-                              disabled={isSaving === k.keyword}
-                              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-dark rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-blue-400 disabled:cursor-wait w-full"
-                            >
-                              {isSaving === k.keyword ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Plus className="w-4 h-4" />
-                              )}
-                              Add
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             </div>
           </div>
@@ -245,7 +297,9 @@ export default function KeywordPage() {
                   <Tag className="w-5 h-5 text-dark" />
                   My Keywords
                 </h2>
-                <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{saved.length}</span>
+                <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                  {saved.length}
+                </span>
               </div>
 
               {saved.length === 0 ? (
@@ -254,37 +308,52 @@ export default function KeywordPage() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-                  {saved.slice().sort((a, b) => String(b._id).localeCompare(String(a._id))).map((k) => (
-                    <div key={k._id} className="flex justify-between items-center p-3 bg-gray-50 hover:bg-white border border-gray-100 hover:border-blue-200 rounded-xl transition-all duration-200 shadow-sm hover:shadow group">
-                      <div className="flex flex-col min-w-0 mr-2 gap-1">
-                        <span className="font-medium text-gray-700 truncate">{k.keyword}</span>
-                        {k.competition && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${k.competition === 'LOW' ? 'bg-green-100 text-green-700' :
-                              k.competition === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                            }`}>
-                            {k.competition}
+                  {saved
+                    .slice()
+                    .sort((a, b) => String(b._id).localeCompare(String(a._id)))
+                    .map((k) => (
+                      <div
+                        key={k._id}
+                        className="flex justify-between items-center p-3 bg-gray-50 hover:bg-white border border-gray-100 hover:border-blue-200 rounded-xl transition-all duration-200 shadow-sm hover:shadow group"
+                      >
+                        <div className="flex flex-col min-w-0 mr-2 gap-1">
+                          <span className="font-medium text-gray-700 truncate">
+                            {k.keyword}
                           </span>
-                        )}
+                          {k.competition && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${
+                                k.competition === "LOW"
+                                  ? "bg-green-100 text-green-700"
+                                  : k.competition === "MEDIUM"
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {k.competition}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {k.volume !== undefined && k.volume !== null && (
+                            <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded-md flex items-center gap-1 shadow-sm whitespace-nowrap">
+                              <BarChart3 className="w-3 h-3 text-blue-500" />
+                              {k.volume.toLocaleString()}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => deleteKeyword(k._id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {(k.volume !== undefined && k.volume !== null) && (
-                          <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded-md flex items-center gap-1 shadow-sm whitespace-nowrap">
-                            <BarChart3 className="w-3 h-3 text-blue-500" />
-                            {k.volume.toLocaleString()}
-                          </span>
-                        )}
-                        <button onClick={() => deleteKeyword(k._id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
           </div>
-
         </div>
       </div>
 

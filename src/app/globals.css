@@ -1,87 +1,293 @@
 @import "tailwindcss";
 
-
-@theme {
-  --color-primary: #F1F5F9;
-  --color-lightPrimary:  #FDD835;
-  --color-fullLight: #FFF9C4;
-  --color-dark: #0B0F19;
-}
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* ── Tailwind v4: Register custom tokens so classes like bg-cyber-black work ── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cyber-black: #050505;
+  --color-deep-charcoal: #121212;
+  --color-lemon-glow: #fde047;
+  --color-lemon-hover: #facc15;
+  --color-tech-silver: #e2e8f0;
+  --color-tech-gray: #94a3b8;
+  --color-pure-white: #ffffff;
+
+  --font-sans: "Inter", "Montserrat", system-ui, sans-serif;
+  --font-anton: "Anton", Impact, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── CSS Variables ── */
+:root {
+  --cyber-black: #050505;
+  --deep-charcoal: #121212;
+  --lemon-glow: #fde047;
+  --lemon-hover: #facc15;
+  --tech-silver: #e2e8f0;
+  --tech-gray: #94a3b8;
+  --pure-white: #ffffff;
+  --shadow-lemon: 0 0 20px rgba(253, 224, 71, 0.3);
+  --shadow-lemon-strong: 0 0 35px rgba(253, 224, 71, 0.5);
+  --background: #050505;
+  --foreground: #ffffff;
+}
+
+/* ── Base ── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: radial-gradient(
+      circle at 50% 30%,
+      #1a1c0e 0%,
+      var(--cyber-black) 70%
+    );
+    background-attachment: fixed;
+    color: var(--foreground);
+    font-family: "Inter", "Montserrat", system-ui, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Inter", Impact, sans-serif;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Components ── */
+@layer components {
+  /* Glassmorphism Nav */
+  .glass {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: rgba(5, 5, 5, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Lemon CTA Button */
+  .btn-lemon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    white-space: nowrap;
+    background-color: var(--lemon-glow);
+    color: var(--cyber-black);
+    box-shadow: var(--shadow-lemon);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .btn-lemon:hover {
+    background-color: var(--lemon-hover);
+    box-shadow: var(--shadow-lemon-strong);
+    transform: translateY(-2px);
+  }
+  .btn-lemon:active {
+    transform: translateY(0);
+  }
+
+  /* Ghost Button */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    background: transparent;
+    color: var(--tech-silver);
+    border: 1px solid rgba(226, 232, 240, 0.18);
+    transition: all 0.3s ease;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .btn-ghost:hover {
+    background: rgba(253, 224, 71, 0.05);
+    border-color: rgba(253, 224, 71, 0.35);
+    color: var(--lemon-glow);
+  }
+
+  /* Button sizes */
+  .btn-sm {
+    padding: 8px 18px;
+    font-size: 13px;
+  }
+  .btn-md {
+    padding: 14px 28px;
+    font-size: 14px;
+  }
+  .btn-lg {
+    padding: 16px 36px;
+    font-size: 15px;
+  }
+
+  /* Hero Headline — fully responsive via clamp */
+  .hero-headline {
+    font-family: "Anton", Impact, sans-serif;
+    text-transform: uppercase;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    /* 
+      clamp(min, preferred, max)
+      min  = 2.2rem  → very small phones (< 375px)
+      vw   = 9vw     → scales smoothly with viewport
+      max  = 7.5rem  → caps on large desktops
+    */
+    font-size: clamp(2.2rem, 9vw, 7.5rem);
+  }
+
+  /* Finer control at specific breakpoints */
+  @media (max-width: 374px) {
+    .hero-headline {
+      font-size: 1.9rem;
+    }
+  }
+  @media (min-width: 375px) and (max-width: 479px) {
+    .hero-headline {
+      font-size: clamp(2rem, 10vw, 2.6rem);
+    }
+  }
+  @media (min-width: 480px) and (max-width: 639px) {
+    .hero-headline {
+      font-size: clamp(2.6rem, 9vw, 3.2rem);
+    }
+  }
+  @media (min-width: 640px) and (max-width: 767px) {
+    .hero-headline {
+      font-size: clamp(3.2rem, 8vw, 4.2rem);
+    }
+  }
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .hero-headline {
+      font-size: clamp(4rem, 7vw, 5.2rem);
+    }
+  }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .hero-headline {
+      font-size: clamp(4.8rem, 6.5vw, 5.8rem);
+    }
+  }
+  @media (min-width: 1280px) and (max-width: 1535px) {
+    .hero-headline {
+      font-size: clamp(5.8rem, 6vw, 6.8rem);
+    }
+  }
+  @media (min-width: 1536px) {
+    .hero-headline {
+      font-size: 7.5rem;
+    }
+  }
+
+  /* Outline variant */
+  .hero-outline {
+    -webkit-text-stroke: 1.5px var(--lemon-glow);
+    color: transparent;
+  }
+  @media (min-width: 640px) {
+    .hero-outline {
+      -webkit-text-stroke: 2px var(--lemon-glow);
+    }
+  }
+  @media (min-width: 1280px) {
+    .hero-outline {
+      -webkit-text-stroke: 2.5px var(--lemon-glow);
+    }
+  }
+
+  /* Circuit divider line */
+  .circuit-line {
+    height: 1px;
+    opacity: 0.25;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--lemon-glow) 20%,
+      #ffffff 50%,
+      var(--lemon-glow) 80%,
+      transparent
+    );
+    border: none;
+  }
+
+  /* Nav link */
+  .nav-link {
+    color: var(--tech-silver);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .nav-link:hover {
+    color: var(--lemon-glow);
+  }
 }
 
-@keyframes scroll-logos {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
 @keyframes scroll {
-  0% {
+  from {
     transform: translateX(0);
   }
-  100% {
+  to {
     transform: translateX(-50%);
   }
 }
-
 .animate-scroll {
   display: flex;
-  width: max-content;
-  animation: scroll 25s linear infinite;
+  animation: scroll 20s linear infinite;
 }
 
-/* Hover पर animation pause */
-.animate-scroll:hover {
-  animation-play-state: paused;
+.input {
+  @apply w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-white/40 outline-none transition-all;
+}
+.input:focus {
+  @apply ring-2 ring-[#FDE047];
 }
 
-
-.animate-scroll-logos {
-  animation: scroll-logos 25s linear infinite;
+button {
+  @apply cursor-pointer;
 }
 
-@keyframes scrollVideos {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+/* Custom Scrollbar */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
 }
 
-.animate-scroll-videos {
-  animation: scrollVideos 10s linear infinite;
+/* Track (background) */
+.custom-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05); /* bg-white/[0.05] */
+  border-radius: 10px;
 }
 
-.animate-scroll-videos:hover {
-  animation-play-state: paused;
+/* Thumb (scroll handle) */
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2464c7, #123b77); /* your blue theme */
+  border-radius: 10px;
+  border: 1.5px solid #fde047; /* yellow ring effect */
 }
 
+/* Hover effect */
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #fde047, #1e3a8a);
+}
 
-
+/* Firefox support */
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #fde047 rgba(255, 255, 255, 0.05);
+}

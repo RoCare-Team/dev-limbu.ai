@@ -7,10 +7,15 @@ import {
   generateWithAiAgentAction,
   savePostAction,
   deductFromWalletAction,
-  generateWithAssetsAction, deletePostFromGmbAction,
-  updatePostStatusAction, postToGmbAction,
+  generateWithAssetsAction,
+  deletePostFromGmbAction,
+  updatePostStatusAction,
+  postToGmbAction,
 } from "@/app/actions/postActions";
-import { deleteAssetAction, loadAssetsFromServerAction } from "@/app/actions/assetActions";
+import {
+  deleteAssetAction,
+  loadAssetsFromServerAction,
+} from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
@@ -53,8 +58,6 @@ import InstagramShareModal from "../../components/post-management/InstagramShare
 import PreviewSection from "../../components/post-management/PreviewSection";
 import PostCard from "../../components/post-management/PostCard";
 
-
-
 import { useSession } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -84,7 +87,11 @@ const AI_IMAGE_GENERATION_COINS = 80;
 /** Wallet cost per image → video conversion (auto + modal). */
 const VIDEO_GENERATION_COINS = 200;
 
-async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 120000) {
+async function waitForInstagramVideoContainer(
+  creationId,
+  accessToken,
+  maxMs = 120000,
+) {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
     const u = new URL(`https://graph.facebook.com/v24.0/${creationId}`);
@@ -94,7 +101,9 @@ async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 1
     const j = await r.json();
     if (j.status_code === "FINISHED") return;
     if (j.status_code === "ERROR" || j.status_code === "EXPIRED") {
-      throw new Error(j.error?.message || `Instagram processing: ${j.status_code}`);
+      throw new Error(
+        j.error?.message || `Instagram processing: ${j.status_code}`,
+      );
     }
     await new Promise((res) => setTimeout(res, 4000));
   }
@@ -114,8 +123,8 @@ export default function PostManagementPage() {
   const { slug } = useParams();
   const { data: session } = useSession();
 
-
   const [posts, setPosts] = useState([]);
+  console.log("Post in Post Manegement", posts);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
   const [prompt, setPrompt] = useState("");
@@ -135,11 +144,17 @@ export default function PostManagementPage() {
   const [isPosting, setIsPosting] = useState(false); // Moved here from PostCard
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [postToSchedule, setPostToSchedule] = useState(null);
-  const [scheduledDateForLocations, setScheduledDateForLocations] = useState(null); // New state for selected date
+  const [scheduledDateForLocations, setScheduledDateForLocations] =
+    useState(null); // New state for selected date
   const [previewData, setPreviewData] = useState(null);
   const [lastUsedAssetsFlow, setLastUsedAssetsFlow] = useState(false);
-  const [showScheduleConfirmation, setShowScheduleConfirmation] = useState(false);
-  const [scheduledPlatforms, setScheduledPlatforms] = useState({ gmb: [], fb: [], ig: [] });
+  const [showScheduleConfirmation, setShowScheduleConfirmation] =
+    useState(false);
+  const [scheduledPlatforms, setScheduledPlatforms] = useState({
+    gmb: [],
+    fb: [],
+    ig: [],
+  });
 
   const [showFacebookModal, setShowFacebookModal] = useState(false);
   const [facebookPages, setFacebookPages] = useState([]);
@@ -157,8 +172,12 @@ export default function PostManagementPage() {
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [availableBusinesses, setAvailableBusinesses] = useState([]);
   const [loadingBusinesses, setLoadingBusinesses] = useState(false);
-  const [bussinessTitle, setBussinessTitle] = useState("")
-  const [selectedPlatforms, setSelectedPlatforms] = useState(["gmb",'fb', 'ig']);
+  const [bussinessTitle, setBussinessTitle] = useState("");
+  const [selectedPlatforms, setSelectedPlatforms] = useState([
+    "gmb",
+    "fb",
+    "ig",
+  ]);
   const [keywordError, setKeywordError] = useState("");
   const [imageToVideoOpen, setImageToVideoOpen] = useState(false);
   const [imageToVideoInitialPost, setImageToVideoInitialPost] = useState(null);
@@ -167,12 +186,11 @@ export default function PostManagementPage() {
 
   // Helper to strip base64 prefix
   const stripBase64 = (str) => {
-    if (typeof str === 'string' && str.includes('base64,')) {
-      return str.split('base64,')[1];
+    if (typeof str === "string" && str.includes("base64,")) {
+      return str.split("base64,")[1];
     }
     return str;
   };
-
 
   // Load locations from localStorage
   const [availableLocations, setAvailableLocations] = useState([]);
@@ -186,9 +204,12 @@ export default function PostManagementPage() {
         const formattedLocations = parsedLocations.map((loc, index) => ({
           id: loc.id || index + 1,
           name: loc.name || loc.title || `Location ${index + 1}`,
-          address: loc.address || loc.storefrontAddress?.addressLines?.join(", ") || "Address not available",
+          address:
+            loc.address ||
+            loc.storefrontAddress?.addressLines?.join(", ") ||
+            "Address not available",
           city: loc.city || "",
-          ...loc
+          ...loc,
         }));
         setAvailableLocations(formattedLocations);
       } catch (err) {
@@ -207,7 +228,7 @@ export default function PostManagementPage() {
 
   useEffect(() => {
     if (previewData && posts.length > 0) {
-      const updatedPost = posts.find(p => p._id === previewData._id);
+      const updatedPost = posts.find((p) => p._id === previewData._id);
       if (updatedPost && updatedPost !== previewData) {
         setPreviewData(updatedPost);
       }
@@ -259,12 +280,13 @@ export default function PostManagementPage() {
     }
   }, []);
 
-
-
-  useEffect(() => { fetchUserAssets(); }, [fetchUserAssets]);
+  useEffect(() => {
+    fetchUserAssets();
+  }, [fetchUserAssets]);
 
   useEffect(() => {
-    const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : ["gmb"];
+    const platforms =
+      selectedPlatforms.length > 0 ? selectedPlatforms : ["gmb"];
     let size = "16:9";
 
     if (platforms.includes("fb") || platforms.includes("ig")) {
@@ -279,7 +301,7 @@ export default function PostManagementPage() {
       }
 
       const newAssets = prev.map((a) =>
-        a.name === "Size" ? { ...a, url: size } : a
+        a.name === "Size" ? { ...a, url: size } : a,
       );
 
       // Preserve the user's selection by mapping previous selection to new asset objects
@@ -291,7 +313,6 @@ export default function PostManagementPage() {
       return newAssets;
     });
   }, [selectedPlatforms]);
-
 
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
@@ -309,13 +330,55 @@ export default function PostManagementPage() {
   });
 
   const tabs = [
-    { id: "total", label: "Total Posts", shortLabel: "Total", icon: ImageIcon, count: allCounts.total },
-    { id: "pending", label: "Pending", shortLabel: "Pending", icon: Clock, count: allCounts.pending },
-    { id: "approved", label: "Approved", shortLabel: "Approved", icon: CheckCircle, count: allCounts.approved }, // Corrected icon
-    { id: "rejected", label: "Rejected", shortLabel: "Rejected", icon: XCircle, count: allCounts.rejected },
-    { id: "scheduled", label: "Scheduled", shortLabel: "Scheduled", icon: Calendar, count: allCounts.scheduled },
-    { id: "posted", label: "Posted", shortLabel: "Posted", icon: Send, count: allCounts.posted },
-    { id: "videos", label: "Videos", shortLabel: "Videos", icon: Film, count: allCounts.videos },
+    {
+      id: "total",
+      label: "Total Posts",
+      shortLabel: "Total",
+      icon: ImageIcon,
+      count: allCounts.total,
+    },
+    {
+      id: "pending",
+      label: "Pending",
+      shortLabel: "Pending",
+      icon: Clock,
+      count: allCounts.pending,
+    },
+    {
+      id: "approved",
+      label: "Approved",
+      shortLabel: "Approved",
+      icon: CheckCircle,
+      count: allCounts.approved,
+    }, // Corrected icon
+    {
+      id: "rejected",
+      label: "Rejected",
+      shortLabel: "Rejected",
+      icon: XCircle,
+      count: allCounts.rejected,
+    },
+    {
+      id: "scheduled",
+      label: "Scheduled",
+      shortLabel: "Scheduled",
+      icon: Calendar,
+      count: allCounts.scheduled,
+    },
+    {
+      id: "posted",
+      label: "Posted",
+      shortLabel: "Posted",
+      icon: Send,
+      count: allCounts.posted,
+    },
+    {
+      id: "videos",
+      label: "Videos",
+      shortLabel: "Videos",
+      icon: Film,
+      count: allCounts.videos,
+    },
   ];
 
   const fetchPosts = async (isBackground = false) => {
@@ -330,30 +393,37 @@ export default function PostManagementPage() {
         // Check for stuck processing posts (scheduled date passed by > 1 hour)
         const now = new Date();
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        
-        const stuckPosts = allPosts.filter(post => 
-          post.status === 'processing' && 
-          post.scheduledDate && 
-          new Date(post.scheduledDate) < oneHourAgo
+
+        const stuckPosts = allPosts.filter(
+          (post) =>
+            post.status === "processing" &&
+            post.scheduledDate &&
+            new Date(post.scheduledDate) < oneHourAgo,
         );
 
         if (stuckPosts.length > 0) {
-             await Promise.all(stuckPosts.map(post => 
-                updatePostStatusAction({
-                    id: post._id,
-                    userId,
-                    status: 'failed',
-                    error: 'Processing timeout: Schedule time passed by 1 hour'
-                })
-             ));
-             
-             // Update local state to reflect changes immediately
-             allPosts = allPosts.map(post => {
-                 if (stuckPosts.find(sp => sp._id === post._id)) {
-                     return { ...post, status: 'failed', error: 'Processing timeout: Schedule time passed by 1 hour' };
-                 }
-                 return post;
-             });
+          await Promise.all(
+            stuckPosts.map((post) =>
+              updatePostStatusAction({
+                id: post._id,
+                userId,
+                status: "failed",
+                error: "Processing timeout: Schedule time passed by 1 hour",
+              }),
+            ),
+          );
+
+          // Update local state to reflect changes immediately
+          allPosts = allPosts.map((post) => {
+            if (stuckPosts.find((sp) => sp._id === post._id)) {
+              return {
+                ...post,
+                status: "failed",
+                error: "Processing timeout: Schedule time passed by 1 hour",
+              };
+            }
+            return post;
+          });
         }
 
         setPosts(allPosts);
@@ -381,7 +451,6 @@ export default function PostManagementPage() {
       if (!isBackground) setIsLoadingPosts(false);
     }
   };
-  
 
   const fileToBase64 = (file) =>
     new Promise((resolve, reject) => {
@@ -391,7 +460,12 @@ export default function PostManagementPage() {
       reader.onerror = (err) => reject(err);
     });
 
-  const handleGenerateClick = async (selectedAssets, useAssetsFlow, businessName, keywords) => {
+  const handleGenerateClick = async (
+    selectedAssets,
+    useAssetsFlow,
+    businessName,
+    keywords,
+  ) => {
     const resolvedBusinessName = resolveBusinessNameForGeneration({
       fromInput: typeof businessName === "string" ? businessName : "",
       selectedBusinessName: selectedBusiness?.name,
@@ -401,7 +475,11 @@ export default function PostManagementPage() {
     });
 
     // Auto-scroll to preview section on mobile
-    if (typeof window !== 'undefined' && window.innerWidth < 1024 && previewRef.current) {
+    if (
+      typeof window !== "undefined" &&
+      window.innerWidth < 1024 &&
+      previewRef.current
+    ) {
       previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
@@ -436,7 +514,7 @@ export default function PostManagementPage() {
       await handleImageGenerateWithAssets(
         selectedAssets,
         resolvedBusinessName,
-        processedKeywords
+        processedKeywords,
       );
     } else {
       await handleAiAgent(selectedAssets);
@@ -450,7 +528,10 @@ export default function PostManagementPage() {
 
       let imageUrl = image;
 
-      if ((typeof image === "string" && image.startsWith("data:")) || (typeof image === "object" && image !== null)) {
+      if (
+        (typeof image === "string" && image.startsWith("data:")) ||
+        (typeof image === "object" && image !== null)
+      ) {
         // 1. Get Secure Signature from Server
         const sigData = await getCloudinarySignatureAction();
         if (!sigData.success) {
@@ -470,12 +551,14 @@ export default function PostManagementPage() {
           {
             method: "POST",
             body: formData,
-          }
+          },
         );
 
         if (!res.ok) {
           const errorData = await res.json();
-          throw new Error(errorData.error?.message || "Failed to upload image to Cloudinary");
+          throw new Error(
+            errorData.error?.message || "Failed to upload image to Cloudinary",
+          );
         }
 
         const data = await res.json();
@@ -499,10 +582,13 @@ export default function PostManagementPage() {
 
       const savedPost = savedPostResponse.data;
       setPosts((prev) => [savedPost, ...prev]);
-      setAllCounts((prev) => ({ ...prev, total: prev.total + 1, pending: prev.pending + 1 }));
+      setAllCounts((prev) => ({
+        ...prev,
+        total: prev.total + 1,
+        pending: prev.pending + 1,
+      }));
       setPreviewData(savedPost);
       showToast("Manual Post Created Successfully! 🎉");
-
     } catch (error) {
       console.error("Manual Post Error:", error);
       showToast(error.message || "Failed to create post!", "error");
@@ -553,13 +639,17 @@ export default function PostManagementPage() {
 
       // Prepare assets with stripped base64
       const strippedLogo = stripBase64(logoBase64);
-      const strippedAssets = selectedAssets.map(asset => ({
+      const strippedAssets = selectedAssets.map((asset) => ({
         ...asset,
-        url: stripBase64(asset.url)
+        url: stripBase64(asset.url),
       }));
 
       // Call AI Agent API (single generation, not per location)
-      const apiResponse = await generateWithAiAgentAction(prompt, strippedLogo, strippedAssets);
+      const apiResponse = await generateWithAiAgentAction(
+        prompt,
+        strippedLogo,
+        strippedAssets,
+      );
 
       clearInterval(timer);
 
@@ -572,8 +662,16 @@ export default function PostManagementPage() {
 
       console.log("datadata", data);
 
-      const { gmb_des: gmbDesc, fb_des: fbDesc, ig_des: igDesc } = normalizePlatformDescriptions(
-        Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
+      const {
+        gmb_des: gmbDesc,
+        fb_des: fbDesc,
+        ig_des: igDesc,
+      } = normalizePlatformDescriptions(
+        Object.assign(
+          {},
+          typeof apiResponse === "object" && apiResponse ? apiResponse : {},
+          data,
+        ),
       );
 
       const walletData = await deductFromWalletAction(userId, {
@@ -583,14 +681,17 @@ export default function PostManagementPage() {
         metadata: {
           aiPrompt: prompt,
           logoUsed: !!logo,
-        }
+        },
       });
 
       if (walletData.error) {
         console.warn("Wallet deduction failed:", walletData.error);
         showToast(walletData.error, "error");
       } else {
-        showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted for AI image generation ✅`, "success");
+        showToast(
+          `${AI_IMAGE_GENERATION_COINS} coins deducted for AI image generation ✅`,
+          "success",
+        );
         setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
       }
 
@@ -619,7 +720,11 @@ export default function PostManagementPage() {
 
       const savedPost = savedPostResponse.data;
       setPosts((prev) => [savedPost, ...prev]);
-      setAllCounts((prev) => ({ ...prev, total: prev.total + 1, pending: prev.pending + 1 }));
+      setAllCounts((prev) => ({
+        ...prev,
+        total: prev.total + 1,
+        pending: prev.pending + 1,
+      }));
       setPreviewData(savedPost);
       showToast("Post Generated & Saved Successfully! 🎉");
 
@@ -635,9 +740,11 @@ export default function PostManagementPage() {
     }
   };
 
-
-
-  const handleImageGenerateWithAssets = async (selectedAssets = [], businessName, keywords) => {
+  const handleImageGenerateWithAssets = async (
+    selectedAssets = [],
+    businessName,
+    keywords,
+  ) => {
     if (!prompt.trim()) {
       showToast("Please enter a prompt before generating!", "error");
       return;
@@ -689,30 +796,53 @@ export default function PostManagementPage() {
         topic: prompt,
         bussiness_name: effectiveBussinessName,
         keywords: keywords || "",
-        colourPalette: userAssets.find(a => a.name === 'Color')?.url || "none",
-        size: userAssets.find(a => a.name === 'Size')?.url || "1:1",
-        characterImage: stripBase64(selectedAssets.find(a => a.name === 'Character')?.url || ""),
-        uniformImage: stripBase64(selectedAssets.find(a => a.name === 'Uniform')?.url || ""),
-        productImage: stripBase64(selectedAssets.find(a => a.name.startsWith('Product'))?.url || ""),
-        backgroundImage: stripBase64(selectedAssets.find(a => a.name === 'Background')?.url || ""),
-        logoImage: stripBase64(selectedAssets.find(a => a.name === 'Logo')?.url || logoBase64 || ""),
-        platform: selectedPlatforms.length > 0 ? selectedPlatforms.join(',') : "gmb"
+        colourPalette:
+          userAssets.find((a) => a.name === "Color")?.url || "none",
+        size: userAssets.find((a) => a.name === "Size")?.url || "1:1",
+        characterImage: stripBase64(
+          selectedAssets.find((a) => a.name === "Character")?.url || "",
+        ),
+        uniformImage: stripBase64(
+          selectedAssets.find((a) => a.name === "Uniform")?.url || "",
+        ),
+        productImage: stripBase64(
+          selectedAssets.find((a) => a.name.startsWith("Product"))?.url || "",
+        ),
+        backgroundImage: stripBase64(
+          selectedAssets.find((a) => a.name === "Background")?.url || "",
+        ),
+        logoImage: stripBase64(
+          selectedAssets.find((a) => a.name === "Logo")?.url ||
+            logoBase64 ||
+            "",
+        ),
+        platform:
+          selectedPlatforms.length > 0 ? selectedPlatforms.join(",") : "gmb",
       });
 
       clearInterval(timer);
 
-
-
-
       // The direct response from n8n is now the data we need
       if (apiResponse.status !== "true" && !apiResponse.success) {
-        throw new Error(apiResponse.error || apiResponse.message || "AI asset generation failed.");
+        throw new Error(
+          apiResponse.error ||
+            apiResponse.message ||
+            "AI asset generation failed.",
+        );
       }
 
       const data = apiResponse.success ? apiResponse.data : apiResponse;
 
-      const { gmb_des: gmbDesc, fb_des: fbDesc, ig_des: igDesc } = normalizePlatformDescriptions(
-        Object.assign({}, typeof apiResponse === "object" && apiResponse ? apiResponse : {}, data)
+      const {
+        gmb_des: gmbDesc,
+        fb_des: fbDesc,
+        ig_des: igDesc,
+      } = normalizePlatformDescriptions(
+        Object.assign(
+          {},
+          typeof apiResponse === "object" && apiResponse ? apiResponse : {},
+          data,
+        ),
       );
 
       const walletData = await deductFromWalletAction(userId, {
@@ -722,23 +852,30 @@ export default function PostManagementPage() {
         metadata: {
           aiPrompt: prompt,
           logoUsed: !!logo,
-        }
+        },
       });
 
       if (walletData.error) {
         console.warn("Wallet deduction failed:", walletData.error);
         showToast(walletData.error, "error");
       } else {
-        showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted for AI image generation ✅`, "success");
+        showToast(
+          `${AI_IMAGE_GENERATION_COINS} coins deducted for AI image generation ✅`,
+          "success",
+        );
         setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
       }
 
       let finalDescription = data.description;
       if (!finalDescription) {
-        if (selectedPlatforms.includes('gmb') && gmbDesc) finalDescription = gmbDesc;
-        else if (selectedPlatforms.includes('fb') && fbDesc) finalDescription = fbDesc;
-        else if (selectedPlatforms.includes('ig') && igDesc) finalDescription = igDesc;
-        else finalDescription = gmbDesc || fbDesc || igDesc || "Generated Content";
+        if (selectedPlatforms.includes("gmb") && gmbDesc)
+          finalDescription = gmbDesc;
+        else if (selectedPlatforms.includes("fb") && fbDesc)
+          finalDescription = fbDesc;
+        else if (selectedPlatforms.includes("ig") && igDesc)
+          finalDescription = igDesc;
+        else
+          finalDescription = gmbDesc || fbDesc || igDesc || "Generated Content";
       }
 
       // Save Post Immediately
@@ -761,7 +898,11 @@ export default function PostManagementPage() {
 
       const savedPost = savedPostResponse.data;
       setPosts((prev) => [savedPost, ...prev]);
-      setAllCounts((prev) => ({ ...prev, total: prev.total + 1, pending: prev.pending + 1 }));
+      setAllCounts((prev) => ({
+        ...prev,
+        total: prev.total + 1,
+        pending: prev.pending + 1,
+      }));
       setPreviewData(savedPost);
       showToast("Post Generated & Saved Successfully! 🎉");
 
@@ -774,15 +915,19 @@ export default function PostManagementPage() {
       setCountdown(0);
     }
   };
- 
 
   const handleDateChange = (id, value) => {
     setScheduleDates((prev) => ({ ...prev, [id]: value }));
   };
 
   // Handler for when a date is confirmed in the ScheduleModal
-  const handleScheduleDateConfirmed = async (postId, status, selectedDate, selectedTargets) => {
-    const post = posts.find(p => p._id === postId);
+  const handleScheduleDateConfirmed = async (
+    postId,
+    status,
+    selectedDate,
+    selectedTargets,
+  ) => {
+    const post = posts.find((p) => p._id === postId);
     if (!post) {
       showToast("Post not found for scheduling.", "error");
       return;
@@ -792,10 +937,14 @@ export default function PostManagementPage() {
     const checkmarkSource = post?.checkmark;
     let checkmarkPayload = "both"; // Default
     if (Array.isArray(checkmarkSource)) {
-      if (checkmarkSource.includes("post") && checkmarkSource.includes("photo")) checkmarkPayload = "both";
+      if (checkmarkSource.includes("post") && checkmarkSource.includes("photo"))
+        checkmarkPayload = "both";
       else if (checkmarkSource.includes("photo")) checkmarkPayload = "photo";
       else if (checkmarkSource.includes("post")) checkmarkPayload = "post";
-    } else if (typeof checkmarkSource === "string" && checkmarkSource !== "$undefined") {
+    } else if (
+      typeof checkmarkSource === "string" &&
+      checkmarkSource !== "$undefined"
+    ) {
       checkmarkPayload = checkmarkSource;
     }
 
@@ -803,60 +952,68 @@ export default function PostManagementPage() {
     if (selectedTargets.gmb?.length > 0) sources.push("gmb");
     if (selectedTargets.fb?.length > 0) sources.push("fb");
     if (selectedTargets.ig?.length > 0) sources.push("ig");
-    
+
     const scheduledDateSource = sources; // Keep as array, not joined string
 
-    const selectedGmbLocations = selectedTargets.gmb?.length > 0 
-        ? availableLocations.filter(loc => selectedTargets.gmb.includes(loc.id))
+    const selectedGmbLocations =
+      selectedTargets.gmb?.length > 0
+        ? availableLocations.filter((loc) =>
+            selectedTargets.gmb.includes(loc.id),
+          )
         : [];
 
-    const selectedFbPages = selectedTargets.fb?.length > 0
-        ? facebookPages.filter(p => selectedTargets.fb.includes(p.pageId)).map(p => ({
-            userId: post.userId,
-            pageId: p.pageId,
-            pageAccessToken: p.pageAccessToken,
-            caption: post.fbDescription || post.description,
-            imageUrl: post.aiOutput
-        }))
+    const selectedFbPages =
+      selectedTargets.fb?.length > 0
+        ? facebookPages
+            .filter((p) => selectedTargets.fb.includes(p.pageId))
+            .map((p) => ({
+              userId: post.userId,
+              pageId: p.pageId,
+              pageAccessToken: p.pageAccessToken,
+              caption: post.fbDescription || post.description,
+              imageUrl: post.aiOutput,
+            }))
         : [];
-    
-    const selectedIgPages = selectedTargets.ig?.length > 0
-        ? instagramAccounts.filter(a => selectedTargets.ig.includes(a.igId)).map(a => ({
-            userId: post.userId,
-            igUserId: a.igId,
-            accessToken: a.pageAccessToken,
-            caption: post.igDescription || post.description,
-            imageUrl: post.aiOutput
-        }))
+
+    const selectedIgPages =
+      selectedTargets.ig?.length > 0
+        ? instagramAccounts
+            .filter((a) => selectedTargets.ig.includes(a.igId))
+            .map((a) => ({
+              userId: post.userId,
+              igUserId: a.igId,
+              accessToken: a.pageAccessToken,
+              caption: post.igDescription || post.description,
+              imageUrl: post.aiOutput,
+            }))
         : [];
 
     if (sources.length > 0) {
-        // Store platforms for confirmation modal
-        setScheduledPlatforms({
-            gmb: selectedGmbLocations,
-            fb: selectedFbPages,
-            ig: selectedIgPages
-        });
-        
-        await handleUpdateStatus(
-            postId,
-            "scheduled",
-            selectedDate,
-            selectedGmbLocations,
-            checkmarkPayload,
-            scheduledDateSource,
-            selectedFbPages,
-            selectedIgPages
-        );
-        
-        setIsScheduleModalOpen(false);
-        setShowScheduleConfirmation(true);
+      // Store platforms for confirmation modal
+      setScheduledPlatforms({
+        gmb: selectedGmbLocations,
+        fb: selectedFbPages,
+        ig: selectedIgPages,
+      });
+
+      await handleUpdateStatus(
+        postId,
+        "scheduled",
+        selectedDate,
+        selectedGmbLocations,
+        checkmarkPayload,
+        scheduledDateSource,
+        selectedFbPages,
+        selectedIgPages,
+      );
+
+      setIsScheduleModalOpen(false);
+      setShowScheduleConfirmation(true);
     } else {
-        showToast("Please select at least one platform to schedule.", "error");
-        return;
+      showToast("Please select at least one platform to schedule.", "error");
+      return;
     }
   };
-
 
   const handleUpdateStatus = async (
     postOrId,
@@ -866,7 +1023,7 @@ export default function PostManagementPage() {
     checkmark = undefined,
     scheduledDateSource = null,
     facebookPages = [],
-    instagramAccounts = []
+    instagramAccounts = [],
   ) => {
     console.log("📍 Locations:", locations);
     console.log("✅ Checkmark:", checkmark);
@@ -884,15 +1041,19 @@ export default function PostManagementPage() {
 
     // When scheduling, we must have a refresh token to pass to the backend.
     if (newStatus === "scheduled" && !session?.refreshToken) {
-      showToast("Please connect first Bussiness Account or  log in again to schedule posts.", "error");
+      showToast(
+        "Please connect first Bussiness Account or  log in again to schedule posts.",
+        "error",
+      );
       return;
     }
-
 
     try {
       // Deduplicate locations based on locationId to ensure unique targets
       const uniqueLocations = Array.isArray(locations)
-        ? Array.from(new Map(locations.map(item => [item.locationId, item])).values())
+        ? Array.from(
+            new Map(locations.map((item) => [item.locationId, item])).values(),
+          )
         : [];
 
       // 🔹 NORMALIZED PAYLOAD
@@ -902,11 +1063,12 @@ export default function PostManagementPage() {
         status: newStatus,
         scheduledDate: scheduleDate || null,
         checkmark: checkmark,
-        refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
+        refreshToken:
+          newStatus === "scheduled" ? session?.refreshToken : undefined,
         locations: uniqueLocations,
         scheduledDateSource: scheduledDateSource,
         fbPages: facebookPages,
-        igPages: instagramAccounts
+        igPages: instagramAccounts,
       };
 
       if (newStatus === "scheduled") {
@@ -917,13 +1079,12 @@ export default function PostManagementPage() {
         }));
 
         payload.locationData = locationData;
-        payload.account = uniqueLocations.length > 0 ? uniqueLocations[0].accountId : "";
+        payload.account =
+          uniqueLocations.length > 0 ? uniqueLocations[0].accountId : "";
       }
-
 
       const res = await updatePostStatusAction(payload);
       console.log("resresres", res);
-
 
       if (!res?.success) {
         showToast(res?.error || "Failed to update post", "error");
@@ -937,15 +1098,16 @@ export default function PostManagementPage() {
         prev.map((p) =>
           p._id === postId
             ? {
-              ...p,
-              status: newStatus,
-              scheduledDate: res.data?.scheduledDate || scheduleDate,
-              locations: res.data?.locations || locations,
-              checkmark: res.data?.checkmark ?? checkmark,
-              scheduledDateSource: res.data?.scheduledDateSource || scheduledDateSource,
-            }
-            : p
-        )
+                ...p,
+                status: newStatus,
+                scheduledDate: res.data?.scheduledDate || scheduleDate,
+                locations: res.data?.locations || locations,
+                checkmark: res.data?.checkmark ?? checkmark,
+                scheduledDateSource:
+                  res.data?.scheduledDateSource || scheduledDateSource,
+              }
+            : p,
+        ),
       );
 
       await fetchPosts(activeTab);
@@ -962,7 +1124,8 @@ export default function PostManagementPage() {
     let current = post.checkmark || "post";
     // Handle legacy array case if any
     if (Array.isArray(current)) {
-      if (current.includes("post") && current.includes("photo")) current = "both";
+      if (current.includes("post") && current.includes("photo"))
+        current = "both";
       else if (current.includes("photo")) current = "photo";
       else current = "post";
     }
@@ -985,10 +1148,16 @@ export default function PostManagementPage() {
     else if (isPost) newVal = "post";
 
     // Optimistic update
-    setPosts((prev) => prev.map((p) => (p._id === id ? { ...p, checkmark: newVal } : p)));
+    setPosts((prev) =>
+      prev.map((p) => (p._id === id ? { ...p, checkmark: newVal } : p)),
+    );
 
     try {
-      await updatePostStatusAction({ id, userId: localStorage.getItem("userId"), checkmark: newVal });
+      await updatePostStatusAction({
+        id,
+        userId: localStorage.getItem("userId"),
+        checkmark: newVal,
+      });
     } catch (e) {
       showToast("Failed to update selection", "error");
     }
@@ -1075,12 +1244,12 @@ export default function PostManagementPage() {
                 description: caption || "",
                 access_token: accessToken,
               }),
-            }
+            },
           );
           const videoData = await videoRes.json();
           if (!videoData.id) {
             throw new Error(
-              videoData.error?.message || "Failed to publish video to Facebook"
+              videoData.error?.message || "Failed to publish video to Facebook",
             );
           }
           videoId = videoData.id;
@@ -1105,7 +1274,9 @@ export default function PostManagementPage() {
         const photoData = await photoRes.json();
 
         if (!photoData.id) {
-          throw new Error(photoData.error?.message || "Failed to upload photo to Facebook");
+          throw new Error(
+            photoData.error?.message || "Failed to upload photo to Facebook",
+          );
         }
 
         const photoId = photoData.id;
@@ -1127,11 +1298,13 @@ export default function PostManagementPage() {
         const feedData = await feedRes.json();
 
         if (!feedData.id) {
-          throw new Error(feedData.error?.message || "Failed to publish post to Facebook Feed");
+          throw new Error(
+            feedData.error?.message ||
+              "Failed to publish post to Facebook Feed",
+          );
         }
 
         facebookPostId = feedData.id;
-
       } else {
         // Direct call to Facebook Graph API for Feed
         const graphUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
@@ -1159,8 +1332,8 @@ export default function PostManagementPage() {
       // Send post published email notification for Facebook
       try {
         const pageName = pageData.pageName || "Facebook Page";
-        
-        const emailResponse = await fetch('/api/send-post-published-email', {
+
+        const emailResponse = await fetch("/api/send-post-published-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1171,13 +1344,16 @@ export default function PostManagementPage() {
             postUrl: metaPublishMedia(post).url || post.aiOutput,
           }),
         });
-        
+
         const emailResult = await emailResponse.json();
         if (emailResult.success) {
           console.log("📧 Facebook post published email sent successfully");
         }
       } catch (emailError) {
-        console.log("⚠️ Error sending Facebook post published email:", emailError.message);
+        console.log(
+          "⚠️ Error sending Facebook post published email:",
+          emailError.message,
+        );
       }
 
       await updatePostStatusAction({
@@ -1186,13 +1362,15 @@ export default function PostManagementPage() {
         facebookPostId: facebookPostId,
         facebookPageAccessToken: accessToken,
         status: "posted",
-        whenPosted: { ...post.whenPosted, facebook: true }
+        whenPosted: { ...post.whenPosted, facebook: true },
       });
       await fetchPosts(true); // Refresh posts to get the updated data
-
     } catch (err) {
       console.error("Facebook post error:", err);
-      showToast(err.message || "Something went wrong posting to Facebook", "error");
+      showToast(
+        err.message || "Something went wrong posting to Facebook",
+        "error",
+      );
     }
   };
 
@@ -1265,7 +1443,10 @@ export default function PostManagementPage() {
 
       if (!mediaData.id) {
         console.error("Instagram API Error (Media Container):", mediaData);
-        throw new Error(mediaData.error?.message || "Failed to create Instagram media container.");
+        throw new Error(
+          mediaData.error?.message ||
+            "Failed to create Instagram media container.",
+        );
       }
 
       // Step 2: Wait for processing (longer for video)
@@ -1276,8 +1457,15 @@ export default function PostManagementPage() {
       }
 
       const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
-      const publishPayload = { creation_id: mediaData.id, access_token: accessToken };
-      const publishRes = await fetch(publishUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(publishPayload) });
+      const publishPayload = {
+        creation_id: mediaData.id,
+        access_token: accessToken,
+      };
+      const publishRes = await fetch(publishUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(publishPayload),
+      });
       const publishData = await publishRes.json();
 
       if (publishData.id) {
@@ -1286,8 +1474,8 @@ export default function PostManagementPage() {
         // Send post published email notification for Instagram
         try {
           const igUsername = accountData.igUsername || "Instagram Account";
-          
-          const emailResponse = await fetch('/api/send-post-published-email', {
+
+          const emailResponse = await fetch("/api/send-post-published-email", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1295,28 +1483,32 @@ export default function PostManagementPage() {
               platform: "Instagram",
               businessName: igUsername,
               locationName: igUsername,
-            postUrl: media.url || post.aiOutput,
+              postUrl: media.url || post.aiOutput,
             }),
           });
-          
+
           const emailResult = await emailResponse.json();
           if (emailResult.success) {
             console.log("📧 Instagram post published email sent successfully");
           }
         } catch (emailError) {
-          console.log("⚠️ Error sending Instagram post published email:", emailError.message);
+          console.log(
+            "⚠️ Error sending Instagram post published email:",
+            emailError.message,
+          );
         }
 
         await updatePostStatusAction({
           id: post._id,
           userId: localStorage.getItem("userId"),
           status: "posted",
-          whenPosted: { ...post.whenPosted, instagram: true }
+          whenPosted: { ...post.whenPosted, instagram: true },
         });
         await fetchPosts(true);
-      }
-      else throw new Error(publishData.error?.message || "Failed to publish to Instagram.");
-
+      } else
+        throw new Error(
+          publishData.error?.message || "Failed to publish to Instagram.",
+        );
     } catch (err) {
       console.error("Instagram post error:", err);
       showToast(err.message, "error");
@@ -1402,7 +1594,7 @@ export default function PostManagementPage() {
             ? ivData.error
             : ivData.error?.message ||
                 ivData.message ||
-                "Video generation failed"
+                "Video generation failed",
         );
       }
       if (!ivData.drive_link) {
@@ -1418,7 +1610,10 @@ export default function PostManagementPage() {
       if (walletDeduct.error) {
         showToast(walletDeduct.error, "error");
       } else {
-        showToast(`${VIDEO_GENERATION_COINS} coins deducted for video generation ✅`, "success");
+        showToast(
+          `${VIDEO_GENERATION_COINS} coins deducted for video generation ✅`,
+          "success",
+        );
         setUserWallet((prev) => Math.max(0, prev - VIDEO_GENERATION_COINS));
       }
 
@@ -1446,11 +1641,9 @@ export default function PostManagementPage() {
       }
 
       const merged = { ...post, ...upd.data };
-      setPosts((prev) =>
-        prev.map((p) => (p._id === post._id ? merged : p))
-      );
+      setPosts((prev) => prev.map((p) => (p._id === post._id ? merged : p)));
       setPreviewData((prev) =>
-        prev?._id === post._id ? { ...prev, ...upd.data } : prev
+        prev?._id === post._id ? { ...prev, ...upd.data } : prev,
       );
       showToast("Video ready — tap the Video tab");
       await fetchPosts(true);
@@ -1465,7 +1658,7 @@ export default function PostManagementPage() {
     const userId = localStorage.getItem("userId");
 
     let payloadUpdates = {};
-    if (typeof updates === 'string') {
+    if (typeof updates === "string") {
       payloadUpdates = { description: updates };
     } else {
       payloadUpdates = updates;
@@ -1476,21 +1669,26 @@ export default function PostManagementPage() {
 
     if (data.success) {
       showToast("Description updated!");
-      setPosts(prev => prev.map(p => (p._id === id ? { ...p, ...payloadUpdates, status: 'pending' } : p)));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p._id === id ? { ...p, ...payloadUpdates, status: "pending" } : p,
+        ),
+      );
       if (previewData?._id === id) {
-        setPreviewData(prev => ({...prev, ...payloadUpdates}));
+        setPreviewData((prev) => ({ ...prev, ...payloadUpdates }));
       }
     } else {
       showToast(data.error || "Failed to update description", "error");
     }
   };
 
-
-
   const handleDeleteFromGMB = async (post) => {
     // First, check if the post has been published anywhere.
     if (!post.locations || post.locations.length === 0) {
-      showToast("This post hasn't been published to any locations yet.", "error");
+      showToast(
+        "This post hasn't been published to any locations yet.",
+        "error",
+      );
       return;
     }
 
@@ -1513,24 +1711,27 @@ export default function PostManagementPage() {
     }
 
     const userId = localStorage.getItem("userId");
-    let selectedLocations = availableLocations.filter(loc =>
-      selectedLocationIds.includes(loc.id)
-    ).map(loc => ({ ...loc, isPosted: false }));
+    let selectedLocations = availableLocations
+      .filter((loc) => selectedLocationIds.includes(loc.id))
+      .map((loc) => ({ ...loc, isPosted: false }));
 
     // Normalize checkmark payload
     const checkmarkSource = checkmark || postToAction?.checkmark;
     let checkmarkPayload = "both"; // Default
     if (Array.isArray(checkmarkSource)) {
-      if (checkmarkSource.includes("post") && checkmarkSource.includes("photo")) checkmarkPayload = "both";
+      if (checkmarkSource.includes("post") && checkmarkSource.includes("photo"))
+        checkmarkPayload = "both";
       else if (checkmarkSource.includes("photo")) checkmarkPayload = "photo";
       else if (checkmarkSource.includes("post")) checkmarkPayload = "post";
-    } else if (typeof checkmarkSource === "string" && checkmarkSource !== "$undefined") {
+    } else if (
+      typeof checkmarkSource === "string" &&
+      checkmarkSource !== "$undefined"
+    ) {
       checkmarkPayload = checkmarkSource;
     }
 
     // Determine if this is a "Post Now" or "Schedule Post" action
     if (scheduledDateForLocations && postToSchedule) {
-
       // This is a "Schedule Post" action
       // No direct cost deduction here for scheduling, as actual posting cost is handled by cron
 
@@ -1539,14 +1740,16 @@ export default function PostManagementPage() {
         "scheduled",
         scheduledDateForLocations,
         selectedLocations,
-        checkmarkPayload
+        checkmarkPayload,
       );
-      showToast(`Post scheduled for ${selectedLocationIds.length} locations on ${new Date(scheduledDateForLocations).toLocaleDateString()}!`, "success");
+      showToast(
+        `Post scheduled for ${selectedLocationIds.length} locations on ${new Date(scheduledDateForLocations).toLocaleDateString()}!`,
+        "success",
+      );
 
       // Reset scheduling specific states
       setScheduledDateForLocations(null);
       setPostToSchedule(null);
-
     } else {
       // This is a "Post Now" action (existing logic)
       // Calculate cost: 20 coins per location for posting
@@ -1561,7 +1764,10 @@ export default function PostManagementPage() {
 
         // Check if user has sufficient balance
         if (walletBalance < totalPostCost) {
-          showToast(`Insufficient wallet balance. Required: ${totalPostCost} coins`, "error");
+          showToast(
+            `Insufficient wallet balance. Required: ${totalPostCost} coins`,
+            "error",
+          );
           setRequiredCoins(totalPostCost);
           setShowInsufficientBalance(true);
           return;
@@ -1578,15 +1784,17 @@ export default function PostManagementPage() {
           metadata: {
             aiPrompt: prompt,
             logoUsed: !!logo,
-          }
+          },
         });
-
 
         if (walletRes.message === "Wallet updated") {
           const newBalance = walletBalance - totalPostCost;
           setUserWallet(newBalance);
           localStorage.setItem("walletBalance", newBalance);
-          showToast(`${totalPostCost} coins deducted (${selectedLocationIds.length} locations × 20 coins)`, "info");
+          showToast(
+            `${totalPostCost} coins deducted (${selectedLocationIds.length} locations × 20 coins)`,
+            "info",
+          );
           deductionSuccessful = true;
         } else {
           showToast(walletRes.error || "Wallet deduction failed", "error");
@@ -1595,7 +1803,7 @@ export default function PostManagementPage() {
         }
 
         // Prepare location data for webhook
-        const locationData = selectedLocations.map(loc => ({
+        const locationData = selectedLocations.map((loc) => ({
           city: loc.locationId,
           cityName: loc.locality,
           bookUrl: loc.websiteUrl || "",
@@ -1608,10 +1816,10 @@ export default function PostManagementPage() {
 
         for (let i = 0; i < locationData.length; i += BATCH_SIZE) {
           const batch = locationData.slice(i, i + BATCH_SIZE);
-          const batchPayload = batch.map(b => ({
+          const batchPayload = batch.map((b) => ({
             city: b.city,
             cityName: b.cityName,
-            bookUrl: b.bookUrl
+            bookUrl: b.bookUrl,
           }));
 
           try {
@@ -1625,12 +1833,14 @@ export default function PostManagementPage() {
             });
 
             if (batchOk) {
-              successfulLocations.push(...batch.map(b => b.originalLoc));
+              successfulLocations.push(...batch.map((b) => b.originalLoc));
 
               // Update isPosted status incrementally for real-time updates
-              const batchIds = batch.map(b => b.originalLoc.locationId);
-              selectedLocations = selectedLocations.map(loc =>
-                batchIds.includes(loc.locationId) ? { ...loc, isPosted: true } : loc
+              const batchIds = batch.map((b) => b.originalLoc.locationId);
+              selectedLocations = selectedLocations.map((loc) =>
+                batchIds.includes(loc.locationId)
+                  ? { ...loc, isPosted: true }
+                  : loc,
               );
 
               await updatePostStatusAction({
@@ -1651,19 +1861,23 @@ export default function PostManagementPage() {
         if (successfulLocations.length > 0) {
           if (successfulLocations.length < selectedLocations.length) {
             // Partial success - refund difference
-            const refundAmount = (selectedLocations.length - successfulLocations.length) * 20;
+            const refundAmount =
+              (selectedLocations.length - successfulLocations.length) * 20;
             await deductFromWalletAction(userId, {
               amount: refundAmount,
               type: "credit",
               reason: "Refund-Partial-Post-Failed",
-              metadata: { originalReason: "Post-on-GMB" }
+              metadata: { originalReason: "Post-on-GMB" },
             });
 
             const userData = await getUserWalletAction(userId);
             setUserWallet(userData.wallet);
             localStorage.setItem("walletBalance", userData.wallet);
 
-            showToast(`Posted to ${successfulLocations.length}/${selectedLocations.length} locations. Refunded failed ones.`, "warning");
+            showToast(
+              `Posted to ${successfulLocations.length}/${selectedLocations.length} locations. Refunded failed ones.`,
+              "warning",
+            );
           } else {
             showToast("Post successfully sent to all locations!", "success");
             setShowSuccess(true);
@@ -1676,26 +1890,35 @@ export default function PostManagementPage() {
               const postUrl = successfulLocations[0]?.websiteUrl || "";
 
               // Send email to user
-              const emailResponse = await fetch('/api/send-post-published-email', {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  userId: userId,
-                  platform: "Google My Business",
-                  businessName: businessName,
-                  locationName: locationName,
-                  postUrl: postUrl,
-                }),
-              });
-              
+              const emailResponse = await fetch(
+                "/api/send-post-published-email",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    userId: userId,
+                    platform: "Google My Business",
+                    businessName: businessName,
+                    locationName: locationName,
+                    postUrl: postUrl,
+                  }),
+                },
+              );
+
               const emailResult = await emailResponse.json();
               if (emailResult.success) {
                 console.log("📧 Post published email sent successfully");
               } else {
-                console.log("⚠️ Failed to send post published email:", emailResult.message);
+                console.log(
+                  "⚠️ Failed to send post published email:",
+                  emailResult.message,
+                );
               }
             } catch (emailError) {
-              console.log("⚠️ Error sending post published email:", emailError.message);
+              console.log(
+                "⚠️ Error sending post published email:",
+                emailError.message,
+              );
               // Don't fail the post if email fails
             }
           }
@@ -1703,19 +1926,20 @@ export default function PostManagementPage() {
           // Update post with successful locations
           await updatePostStatusAction({
             id: postToAction._id,
-            locations: successfulLocations.map(loc => ({ ...loc, isPosted: true })),
+            locations: successfulLocations.map((loc) => ({
+              ...loc,
+              isPosted: true,
+            })),
             status: "posted",
             userId: userId,
-            whenPosted: { ...postToAction.whenPosted, gmb: true }
+            whenPosted: { ...postToAction.whenPosted, gmb: true },
           });
 
           // Refresh posts
           await fetchPosts(activeTab);
-
         } else {
           throw new Error("All batches failed to post.");
         }
-
       } catch (error) {
         console.error("Post error:", error);
 
@@ -1727,15 +1951,21 @@ export default function PostManagementPage() {
             userId,
             status: "failed",
             error: errorMsg,
-            locations: selectedLocations
+            locations: selectedLocations,
           });
 
-          setPosts(prev => prev.map(p => p._id === postToAction._id ? {
-            ...p,
-            status: "failed",
-            error: errorMsg,
-            locations: selectedLocations
-          } : p));
+          setPosts((prev) =>
+            prev.map((p) =>
+              p._id === postToAction._id
+                ? {
+                    ...p,
+                    status: "failed",
+                    error: errorMsg,
+                    locations: selectedLocations,
+                  }
+                : p,
+            ),
+          );
         }
 
         if (deductionSuccessful) {
@@ -1747,7 +1977,7 @@ export default function PostManagementPage() {
             reason: "Refund-Post-Failed",
             metadata: {
               originalReason: "Post-on-GMB",
-            }
+            },
           });
           const userData = await getUserWalletAction(userId);
           setUserWallet(userData.wallet);
@@ -1763,10 +1993,14 @@ export default function PostManagementPage() {
     setPostToAction(null); // Clear postToAction after handling
   };
 
-
   const handlePost = async (post) => {
     // First check if user has approved the post
-    if (post.status !== "approved" && post.status !== "scheduled" && post.status !== "posted" && post.status !== "failed") {
+    if (
+      post.status !== "approved" &&
+      post.status !== "scheduled" &&
+      post.status !== "posted" &&
+      post.status !== "failed"
+    ) {
       showToast("Please approve the post first!", "error");
       return;
     }
@@ -1787,8 +2021,8 @@ export default function PostManagementPage() {
 
     // Find the full location objects based on the selected IDs.
     // The `LocationSelectionModal` passes back the `id` property of the location objects.
-    const locationsToDelete = postToAction.locations.filter(loc =>
-      selectedLocationIds.includes(loc.id)
+    const locationsToDelete = postToAction.locations.filter((loc) =>
+      selectedLocationIds.includes(loc.id),
     );
 
     setIsPosting(true);
@@ -1815,16 +2049,17 @@ export default function PostManagementPage() {
 
     if (successCount > 0) {
       const remainingLocations = postToAction.locations.filter(
-        (loc) => !selectedLocationIds.includes(loc.id)
+        (loc) => !selectedLocationIds.includes(loc.id),
       );
 
-      const newStatus = remainingLocations.length === 0 ? 'approved' : postToAction.status;
+      const newStatus =
+        remainingLocations.length === 0 ? "approved" : postToAction.status;
 
       await updatePostStatusAction({
         id: postToAction._id,
         userId,
         locations: remainingLocations,
-        status: newStatus
+        status: newStatus,
       });
       await fetchPosts(activeTab);
     }
@@ -1863,8 +2098,8 @@ export default function PostManagementPage() {
           prev.map((p) =>
             p._id === rejectPostId
               ? { ...p, status: "rejected", rejectReason: rejectReason }
-              : p
-          )
+              : p,
+          ),
         );
 
         // ✅ Update counts
@@ -1879,13 +2114,11 @@ export default function PostManagementPage() {
       setRejectReason("");
       setRejectPostId(null);
       setShowRejectModal(false);
-
     } catch (error) {
       console.error(error);
       showToast("Error rejecting post", "error");
     }
   };
-
 
   const handleDownload = async (post) => {
     const mediaUrl = post?.aiOutput;
@@ -1914,7 +2147,11 @@ export default function PostManagementPage() {
       link.click();
       URL.revokeObjectURL(url);
       document.body.removeChild(link);
-      showToast(looksLikeVideoUrl(mediaUrl) ? "Video downloaded! 📥" : "Image downloaded successfully! 📥");
+      showToast(
+        looksLikeVideoUrl(mediaUrl)
+          ? "Video downloaded! 📥"
+          : "Image downloaded successfully! 📥",
+      );
     } catch (err) {
       showToast("Failed to download file", "error");
     }
@@ -1935,7 +2172,6 @@ export default function PostManagementPage() {
       showToast("Link copied to clipboard! 📋");
     }
   };
-
 
   // Load user settings including businesses (no error toast when GMB simply not linked — expected)
   const loadUserSettings = useCallback(async () => {
@@ -2003,7 +2239,6 @@ export default function PostManagementPage() {
     }
   }, []);
 
-
   useEffect(() => {
     fetchPosts();
   }, []);
@@ -2070,7 +2305,9 @@ export default function PostManagementPage() {
             walletBalance={userWallet}
             initialSelected={
               postToAction?.locations?.map((l) => {
-                const match = availableLocations.find((al) => al.locationId === l.locationId);
+                const match = availableLocations.find(
+                  (al) => al.locationId === l.locationId,
+                );
                 return match ? match.id : l.id;
               }) || []
             }
@@ -2176,7 +2413,7 @@ export default function PostManagementPage() {
               const exists = prev.some((p) => p._id === saved._id);
               if (exists) {
                 return prev.map((p) =>
-                  p._id === saved._id ? { ...p, ...saved } : p
+                  p._id === saved._id ? { ...p, ...saved } : p,
                 );
               }
               return [saved, ...prev];
@@ -2193,11 +2430,17 @@ export default function PostManagementPage() {
             <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-10 flex flex-col items-center space-y-4 sm:space-y-6 max-w-md w-full border-4 border-white/30">
               <div className="relative">
                 <div className="absolute inset-0 bg-orange-300/40 rounded-full blur-2xl animate-pulse"></div>
-                <div className="text-6xl sm:text-8xl animate-bounce-slow">🚀</div>
+                <div className="text-6xl sm:text-8xl animate-bounce-slow">
+                  🚀
+                </div>
               </div>
               <div className="text-center space-y-2 sm:space-y-3">
-                <h3 className="text-2xl sm:text-3xl font-black text-white">Publishing Post...</h3>
-                <p className="text-blue-100 text-xs sm:text-sm">Sending to Google My Business</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-white">
+                  Publishing Post...
+                </h3>
+                <p className="text-blue-100 text-xs sm:text-sm">
+                  Sending to Google My Business
+                </p>
               </div>
               <div className="w-full bg-white/30 rounded-full h-2.5 overflow-hidden">
                 <div className="bg-gradient-to-r from-orange-300 via-yellow-300 to-green-300 h-full rounded-full animate-shimmer"></div>
@@ -2205,19 +2448,20 @@ export default function PostManagementPage() {
             </div>
           </div>
         )}
-        {showSuccess && <SuccessOverlay onComplete={() => setShowSuccess(false)} postsCount={postsGeneratedCount} />}
+        {showSuccess && (
+          <SuccessOverlay
+            onComplete={() => setShowSuccess(false)}
+            postsCount={postsGeneratedCount}
+          />
+        )}
 
         <div>
-
           <div
             className="
     grid grid-cols-2 sm:flex sm:flex-row items-center
     gap-3
   "
           >
-
-
-
             {/* Post Management */}
             <div
               className="
@@ -2241,64 +2485,74 @@ export default function PostManagementPage() {
             <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-4 bg-white px-3 py-2 sm:px-5 sm:py-1 rounded-2xl shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-start sm:justify-center sm:ml-4">
               {/* <span className="text-xs fon t-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span> */}
 
-
               {/* All */}
               <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
                 <input
                   type="checkbox"
-                  checked={['gmb', 'fb', 'ig'].every(p => selectedPlatforms.includes(p))}
+                  checked={["gmb", "fb", "ig"].every((p) =>
+                    selectedPlatforms.includes(p),
+                  )}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedPlatforms(['gmb', 'fb', 'ig']);
+                      setSelectedPlatforms(["gmb", "fb", "ig"]);
                     } else {
                       setSelectedPlatforms([]);
                     }
                   }}
                   className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-600 transition-all"
                 />
-                <span className="text-sm font-semibold text-neutral-600  group-hover:text-gray-600">All</span>
+                <span className="text-sm font-semibold text-neutral-600  group-hover:text-gray-600">
+                  All
+                </span>
               </label>
 
               {/* GMB */}
               <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-  <input
-    type="checkbox"
-    checked={selectedPlatforms.includes('gmb')}
-    onChange={() =>
-      setSelectedPlatforms(prev =>
-        prev.includes('gmb')
-          ? prev.filter(p => p !== 'gmb')
-          : [...prev, 'gmb']
-      )
-    }
-    className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-600 transition-all"
-  />
+                <input
+                  type="checkbox"
+                  checked={selectedPlatforms.includes("gmb")}
+                  onChange={() =>
+                    setSelectedPlatforms((prev) =>
+                      prev.includes("gmb")
+                        ? prev.filter((p) => p !== "gmb")
+                        : [...prev, "gmb"],
+                    )
+                  }
+                  className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-600 transition-all"
+                />
 
-  <div
-    className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${
-      selectedPlatforms.includes('gmb')
-        ? 'bg-white border-blue-200 shadow-md scale-105'
-        : 'bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100'
-    }`}
-  >
-    <img
-      src="https://www.gstatic.com/images/branding/product/1x/gsa_48dp.png"
-      alt="Google"
-      className="w-5 h-5 object-contain"
-    />
-  </div>
-</label>
-
+                <div
+                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${
+                    selectedPlatforms.includes("gmb")
+                      ? "bg-white border-blue-200 shadow-md scale-105"
+                      : "bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src="https://www.gstatic.com/images/branding/product/1x/gsa_48dp.png"
+                    alt="Google"
+                    className="w-5 h-5 object-contain"
+                  />
+                </div>
+              </label>
 
               {/* Facebook */}
               <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
                 <input
                   type="checkbox"
-                  checked={selectedPlatforms.includes('fb')}
-                  onChange={() => setSelectedPlatforms(prev => prev.includes('fb') ? prev.filter(p => p !== 'fb') : [...prev, 'fb'])}
+                  checked={selectedPlatforms.includes("fb")}
+                  onChange={() =>
+                    setSelectedPlatforms((prev) =>
+                      prev.includes("fb")
+                        ? prev.filter((p) => p !== "fb")
+                        : [...prev, "fb"],
+                    )
+                  }
                   className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-500 transition-all"
                 />
-                <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('fb') ? 'bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
+                <div
+                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes("fb") ? "bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105" : "bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100"}`}
+                >
                   <Facebook className="w-5 h-5 fill-current" />
                 </div>
               </label>
@@ -2307,11 +2561,19 @@ export default function PostManagementPage() {
               <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
                 <input
                   type="checkbox"
-                  checked={selectedPlatforms.includes('ig')}
-                  onChange={() => setSelectedPlatforms(prev => prev.includes('ig') ? prev.filter(p => p !== 'ig') : [...prev, 'ig'])}
+                  checked={selectedPlatforms.includes("ig")}
+                  onChange={() =>
+                    setSelectedPlatforms((prev) =>
+                      prev.includes("ig")
+                        ? prev.filter((p) => p !== "ig")
+                        : [...prev, "ig"],
+                    )
+                  }
                   className="w-4 h-4 rounded border-primary text-dark accent-yellow-400  focus:ring-pink-500 transition-all"
                 />
-                <div className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes('ig') ? 'bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105' : 'bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100'}`}>
+                <div
+                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes("ig") ? "bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105" : "bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100"}`}
+                >
                   <Instagram className="w-5 h-5" />
                 </div>
               </label>
@@ -2320,7 +2582,10 @@ export default function PostManagementPage() {
             {/* 5000 > 2 video 2500  > 1 */}
 
             {/* Preview Button */}
-            <a href={previewData?.aiOutput} target="_blank" rel="noopener noreferrer"
+            <a
+              href={previewData?.aiOutput}
+              target="_blank"
+              rel="noopener noreferrer"
               className="
       inline-flex items-center gap-1.5
       px-3 sm:px-5 py-2
@@ -2339,14 +2604,11 @@ export default function PostManagementPage() {
               <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
               Preview
             </a>
-
           </div>
-
 
           {/* <p className="text-blue/90 text-sm sm:text-sm font-medium text-center">
     Create stunning GMB posts with AI in seconds ✨
   </p> */}
-
         </div>
 
         {/* {!loadingBusinesses && availableBusinesses.length === 0 && (
@@ -2398,7 +2660,6 @@ export default function PostManagementPage() {
               <Video className="w-5 h-5" />
               Image to Video
             </button>
-
           </div>
 
           {/* Right Column: Live Preview */}
@@ -2434,7 +2695,6 @@ export default function PostManagementPage() {
           </div>
         </div>
 
-
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 sm:gap-5 ">
           {tabs.map((tab) => (
             <TabButton
@@ -2449,8 +2709,14 @@ export default function PostManagementPage() {
 
         {isLoadingPosts ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <Lottie animationData={animationData} loop={true} className="w-32 h-32" />
-            <p className="text-gray-500 mt-4 font-medium">Loading your creatives...</p>
+            <Lottie
+              animationData={animationData}
+              loop={true}
+              className="w-32 h-32"
+            />
+            <p className="text-gray-500 mt-4 font-medium">
+              Loading your creatives...
+            </p>
           </div>
         ) : filteredPosts.length > 0 ? (
           <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6 mt-6">
@@ -2479,7 +2745,9 @@ export default function PostManagementPage() {
         ) : (
           <div className="bg-white rounded-2xl sm:rounded-3xl p-10 sm:p-16 text-center border-3 border-dashed border-gray-300 shadow-xl">
             <div className="text-6xl sm:text-8xl mb-4 sm:mb-6">📭</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">No posts found</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              No posts found
+            </h3>
             <p className="text-gray-600 text-base">
               {activeTab === "total"
                 ? "Create your first AI-powered post above!"
@@ -2511,4 +2779,4 @@ export default function PostManagementPage() {
       </a>
     </div>
   );
-}  
+}

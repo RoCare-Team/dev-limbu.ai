@@ -1,10 +1,36 @@
 "use client";
 
-import { ArrowRight, CheckCircle, Star, PhoneCall, TrendingUp, Users, DollarSign, Award, Shield, Zap, BarChart, Target, Rocket, Clock, HeadphonesIcon, BookOpen, Gift, X, Sparkles, ArrowLeft } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle,
+  Star,
+  PhoneCall,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Award,
+  Shield,
+  Zap,
+  BarChart,
+  Target,
+  Rocket,
+  Clock,
+  HeadphonesIcon,
+  BookOpen,
+  Gift,
+  X,
+  Sparkles,
+  ArrowLeft,
+} from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import Navbar from "@/components/sections/HeaderSection";
+import FooterSection from "@/components/sections/FooterSection";
+import ScrollToTop from "@/components/ui/ScrollToTop";
+import BookDemoModal from "@/components/modals/WebinarBooking";
 
 export default function FranchisePage() {
+
   const [selectedPlan, setSelectedPlan] = useState("premium");
   const [showForm, setShowForm] = useState(false);
   const [serviceForm, setServiceForm] = useState({
@@ -12,7 +38,7 @@ export default function FranchisePage() {
     phone: "",
     email: "",
     city: "",
-    gstNumber: ""
+    gstNumber: "",
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
 
@@ -25,34 +51,34 @@ export default function FranchisePage() {
       try {
         const res = await fetch(`/api/auth/signup?userId=${userId}`);
         const data = await res.json();
-        
+
         if (data) {
-          setServiceForm(prev => ({
+          setServiceForm((prev) => ({
             ...prev,
-            name: data.fullName || '',
-            phone: data.phone || '',
-            email: data.email || '',
-            gstNumber: data.gst || ''
+            name: data.fullName || "",
+            phone: data.phone || "",
+            email: data.email || "",
+            gstNumber: data.gst || "",
           }));
         }
       } catch (error) {
         console.error("Error fetching user details:", error);
       }
     } else {
-      setServiceForm(prev => ({
+      setServiceForm((prev) => ({
         ...prev,
-        name: '',
-        phone: '',
-        email: '',
-        gstNumber: ''
+        name: "",
+        phone: "",
+        email: "",
+        gstNumber: "",
       }));
     }
   };
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
@@ -61,8 +87,13 @@ export default function FranchisePage() {
 
   const handleServicePayment = async (e) => {
     e.preventDefault();
-    
-    if (!serviceForm.name || !serviceForm.phone || !serviceForm.email || !serviceForm.city) {
+
+    if (
+      !serviceForm.name ||
+      !serviceForm.phone ||
+      !serviceForm.email ||
+      !serviceForm.city
+    ) {
       alert("Please fill all required fields");
       return;
     }
@@ -89,8 +120,8 @@ export default function FranchisePage() {
           receipt: `franchise_${Date.now()}`,
           notes: {
             plan_name: selectedPlan,
-            user_email: serviceForm.email
-          }
+            user_email: serviceForm.email,
+          },
         }),
       });
 
@@ -102,7 +133,8 @@ export default function FranchisePage() {
 
       // 2. Open Razorpay
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_RwX1nRfZbVyVwT",
+        key:
+          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_RwX1nRfZbVyVwT",
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: "Limbu.ai Franchise",
@@ -113,14 +145,14 @@ export default function FranchisePage() {
             const res = await fetch("/api/franchise", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                ...serviceForm, 
+              body: JSON.stringify({
+                ...serviceForm,
                 plan: selectedPlan,
                 investment: investmentAmount,
                 paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id, 
+                orderId: response.razorpay_order_id,
                 amount: totalAmount, // Send total amount paid
-                status: "paid"
+                status: "paid",
               }),
             });
 
@@ -134,7 +166,7 @@ export default function FranchisePage() {
                   phone: "",
                   email: "",
                   city: "",
-                  gstNumber: ""
+                  gstNumber: "",
                 });
               }, 3000);
             } else {
@@ -143,22 +175,23 @@ export default function FranchisePage() {
             }
           } catch (error) {
             console.error("Error submitting form:", error);
-            alert("Failed to submit application. Please check your connection.");
+            alert(
+              "Failed to submit application. Please check your connection.",
+            );
           }
         },
         prefill: {
           name: serviceForm.name,
           email: serviceForm.email,
-          contact: serviceForm.phone
+          contact: serviceForm.phone,
         },
         theme: {
-          color: "#2563EB"
-        }
+          color: "#2563EB",
+        },
       };
 
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
-
     } catch (error) {
       console.error("Payment Error:", error);
       alert("Failed to initiate payment.");
@@ -173,7 +206,7 @@ export default function FranchisePage() {
       monthly: 12000,
       yearly: 144000,
       profitPercent: 30,
-      platformFeePercent: 50
+      platformFeePercent: 50,
     },
     standard: {
       clients: 50,
@@ -182,7 +215,7 @@ export default function FranchisePage() {
       monthly: 37500,
       yearly: 450000,
       profitPercent: 40,
-      platformFeePercent: 40
+      platformFeePercent: 40,
     },
     premium: {
       clients: 100,
@@ -191,8 +224,8 @@ export default function FranchisePage() {
       monthly: 90000,
       yearly: 1080000,
       profitPercent: 50,
-      platformFeePercent: 30
-    }
+      platformFeePercent: 30,
+    },
   };
 
   // Reactive amount calculations for UI
@@ -202,183 +235,230 @@ export default function FranchisePage() {
 
   return (
     <div className="w-full bg-gray-50 text-gray-900">
-      
+      <Navbar />
       {/* =================== APPLICATION FORM MODAL =================== */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative animate-slideUp">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          {/* Modal Container */}
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]">
             {/* Close Button */}
-            <button 
+            <button
               onClick={() => setShowForm(false)}
-              className="absolute top-6 right-6 w-10 h-10 bg-gray-100 hover:bg-red-100 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
+              className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-red-500/20 flex items-center justify-center transition-all hover:scale-110 z-10"
             >
-              <X className="w-5 h-5 text-gray-600 hover:text-red-600" />
+              <X className="w-5 h-5 text-white hover:text-red-400" />
             </button>
 
             {!formSubmitted ? (
               <>
-                {/* Form Header */}
-                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-8 rounded-t-3xl">
-                  <div className="flex items-center justify-center mb-4">
-                    <div className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
-                      Limited Slots Available
-                    </div>
+                {/* Header */}
+                <div className="p-8 border-b border-white/10 text-center">
+                  <div className="inline-block mb-4 px-4 py-2 rounded-full text-sm font-semibold bg-[#FDE047] text-black">
+                    ⚡ Limited Slots Available
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-3">
+
+                  <h2 className="text-3xl md:text-4xl font-semibold text-white mb-2">
                     Start Your Franchise Journey
                   </h2>
-                  <p className="text-center text-blue-100 text-lg">
-                    Fill the form below and our team will contact you within 24 hours
+
+                  <p className="text-white/60">
+                    Fill the form and our team will contact you within 24 hours
                   </p>
-                  
-                  {/* Trust Indicators */}
+
+                  {/* Stats */}
                   <div className="grid grid-cols-3 gap-4 mt-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">500+</div>
-                      <div className="text-xs text-blue-200">Active Partners</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">98%</div>
-                      <div className="text-xs text-blue-200">Success Rate</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">₹2.5L+</div>
-                      <div className="text-xs text-blue-200">Avg. Monthly</div>
-                    </div>
+                    {[
+                      { value: "500+", label: "Partners" },
+                      { value: "98%", label: "Success Rate" },
+                      { value: "₹2.5L+", label: "Avg. Monthly" },
+                    ].map((item, i) => (
+                      <div key={i} className="text-center">
+                        <div className="text-lg font-bold text-[#FDE047]">
+                          {item.value}
+                        </div>
+                        <div className="text-xs text-white/50">
+                          {item.label}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Form Body */}
-                <form onSubmit={handleServicePayment} className="p-8 space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={serviceForm.name}
-                      onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                      placeholder="Enter your name"
-                    />
-                  </div>
+                {/* Form */}
+                <form onSubmit={handleServicePayment} className="p-8 space-y-4">
+                  {/* Input Field */}
+                  {[
+                    {
+                      label: "Full Name",
+                      type: "text",
+                      key: "name",
+                      placeholder: "Enter your name",
+                    },
+                    {
+                      label: "Phone Number",
+                      type: "tel",
+                      key: "phone",
+                      placeholder: "Enter your phone number",
+                    },
+                    {
+                      label: "Email Address",
+                      type: "email",
+                      key: "email",
+                      placeholder: "Enter your email",
+                    },
+                    {
+                      label: "City",
+                      type: "text",
+                      key: "city",
+                      placeholder: "Enter your city",
+                    },
+                  ].map((field, i) => (
+                    <div key={i}>
+                      <label className="block text-xs text-white/60 mb-1">
+                        {field.label}
+                      </label>
 
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Phone Number</label>
-                    <input
-                      type="tel"
-                      required
-                      value={serviceForm.phone}
-                      onChange={(e) => setServiceForm({ ...serviceForm, phone: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                      placeholder="Enter your phone number"
-                    />
-                  </div>
+                      <input
+                        type={field.type}
+                        required
+                        value={serviceForm[field.key]}
+                        onChange={(e) =>
+                          setServiceForm({
+                            ...serviceForm,
+                            [field.key]: e.target.value,
+                          })
+                        }
+                        className="
+                    w-full px-4 py-3 text-sm rounded-xl
+                    bg-white/[0.05] border border-white/10
+                    text-white placeholder-white/40
+                    focus:outline-none focus:ring-2 focus:ring-[#FDE047]
+                    transition-all
+                  "
+                        placeholder={field.placeholder}
+                      />
+                    </div>
+                  ))}
 
+                  {/* Plan Select */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Email Address</label>
-                    <input
-                      type="email"
-                      required
-                      value={serviceForm.email}
-                      onChange={(e) => setServiceForm({ ...serviceForm, email: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                      placeholder="Enter your email"
-                    />
-                  </div>
+                    <label className="block text-xs text-white/60 mb-1">
+                      Select Franchise Plan
+                    </label>
 
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">City</label>
-                    <input
-                      type="text"
-                      required
-                      value={serviceForm.city}
-                      onChange={(e) => setServiceForm({ ...serviceForm, city: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                      placeholder="Enter your city"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Select Franchise Plan</label>
                     <select
                       value={selectedPlan}
                       onChange={(e) => setSelectedPlan(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      className="
+                  w-full px-4 py-3 text-sm rounded-xl
+                  bg-white/[0.05] border border-white/10
+                  text-white
+                  focus:outline-none focus:ring-2 focus:ring-[#FDE047]
+                "
                     >
-                      <option value="premium">Business Excellence Plan - ₹5,00,000 + GST</option>
+                      <option className="text-black" value="premium">
+                        Business Excellence Plan - ₹5,00,000 + GST
+                      </option>
                     </select>
                   </div>
 
                   {/* Payment Breakdown */}
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2 my-3">
-                    <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">Investment Amount:</span>
-                        <span className="font-semibold text-slate-800">₹{investmentAmount.toLocaleString()}</span>
+                  <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                    <div className="flex justify-between text-sm text-white/60">
+                      <span>Investment:</span>
+                      <span className="text-white font-medium">
+                        ₹{investmentAmount.toLocaleString()}
+                      </span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">GST (18%):</span>
-                        <span className="font-semibold text-slate-800">₹{gstAmount.toLocaleString()}</span>
+
+                    <div className="flex justify-between text-sm text-white/60">
+                      <span>GST (18%):</span>
+                      <span className="text-white font-medium">
+                        ₹{gstAmount.toLocaleString()}
+                      </span>
                     </div>
-                    <div className="flex justify-between text-lg font-bold border-t border-slate-300 pt-2 mt-2">
-                        <span className="text-slate-800">Total Payable:</span>
-                        <span className="text-blue-600">₹{totalAmount.toLocaleString()}</span>
+
+                    <div className="flex justify-between text-lg font-semibold border-t border-white/10 pt-2">
+                      <span className="text-white">Total:</span>
+                      <span className="text-[#FDE047]">
+                        ₹{totalAmount.toLocaleString()}
+                      </span>
                     </div>
                   </div>
 
+                  {/* GST */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">GST Number (Optional)</label>
+                    <label className="block text-xs text-white/60 mb-1">
+                      GST Number (Optional)
+                    </label>
+
                     <input
                       type="text"
                       value={serviceForm.gstNumber}
-                      onChange={(e) => setServiceForm({ ...serviceForm, gstNumber: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      onChange={(e) =>
+                        setServiceForm({
+                          ...serviceForm,
+                          gstNumber: e.target.value,
+                        })
+                      }
+                      className="
+                  w-full px-4 py-3 text-sm rounded-xl
+                  bg-white/[0.05] border border-white/10
+                  text-white placeholder-white/40
+                  focus:outline-none focus:ring-2 focus:ring-[#FDE047]
+                "
                       placeholder="Enter GST number"
                     />
                   </div>
 
+                  {/* Submit */}
                   <button
                     type="submit"
-                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all hover:scale-[1.02] mt-2 text-sm"
+                    className=" cursor-pointer
+                w-full py-4 rounded-xl font-semibold text-black
+                bg-[#FDE047]
+                hover:bg-white hover:scale-[1.02]
+                transition-all duration-300
+                shadow-[0_0_20px_rgba(253,224,71,0.35)]
+              "
                   >
                     Pay ₹{totalAmount.toLocaleString()} Now
                   </button>
                 </form>
               </>
             ) : (
-              /* Success Message */
+              /* Success */
               <div className="p-12 text-center">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
-                  <CheckCircle className="w-12 h-12 text-green-600" />
+                <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-12 h-12 text-green-400" />
                 </div>
-                <h3 className="text-3xl font-bold text-gray-800 mb-4">
-                  Application Submitted Successfully! 🎉
+
+                <h3 className="text-3xl font-semibold text-white mb-4">
+                  Application Submitted 🎉
                 </h3>
-                <p className="text-lg text-gray-600 mb-6">
-                  Thank you for your interest in Limbu.ai Franchise!
+
+                <p className="text-white/60 mb-6">
+                  Our team will contact you within 24 hours.
                 </p>
-                <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-2xl mb-6">
-                  <p className="text-gray-700 mb-3">
-                    <strong className="text-blue-600">What's Next?</strong>
-                  </p>
-                  <ul className="text-left space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      Our team will review your application within 24 hours
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      We'll schedule a FREE discovery call with you
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      Get detailed insights about the franchise opportunity
-                    </li>
-                  </ul>
+
+                <div className="bg-white/[0.03] border border-white/10 p-6 rounded-2xl text-left space-y-2 text-sm text-white/70">
+                  <div className="flex gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#FDE047]" />
+                    Application review
+                  </div>
+                  <div className="flex gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#FDE047]" />
+                    Free consultation call
+                  </div>
+                  <div className="flex gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#FDE047]" />
+                    Franchise onboarding
+                  </div>
                 </div>
-                <div className="flex items-center justify-center gap-2 text-gray-600">
-                  <PhoneCall className="w-5 h-5" />
-                  <span className="text-sm">Check your email and phone for updates</span>
+
+                <div className="mt-6 text-white/50 text-sm flex justify-center items-center gap-2">
+                  <PhoneCall className="w-4 h-4" />
+                  Check your phone/email
                 </div>
               </div>
             )}
@@ -387,57 +467,87 @@ export default function FranchisePage() {
       )}
 
       {/* =================== HERO SECTION =================== */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white py-24 px-6 overflow-hidden">
+      <section
+        className="relative w-full py-24 px-6 overflow-hidden font-[Inter]"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Back to Home Button */}
         <div className="absolute top-6 left-6 z-20">
-          <Link href="/" className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm border border-white/10">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-white/60 hover:text-[#FDE047] transition-colors border border-white/10 hover:border-[#FDE047] px-4 py-2 rounded-full backdrop-blur-sm"
+          >
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium">Back to Home</span>
+            <span className="text-sm font-medium tracking-widest uppercase">
+              Back to Home
+            </span>
           </Link>
         </div>
 
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-yellow-300 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-pink-400 rounded-full blur-3xl"></div>
+        {/* Ambient Background Glows */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#FDE047] rounded-full blur-[150px] opacity-[0.07]" />
+          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600 rounded-full blur-[150px] opacity-[0.05]" />
         </div>
-        
+
         <div className="max-w-7xl mx-auto text-center space-y-8 relative z-10">
-          <div className="inline-block bg-yellow-400 text-black px-6 py-2 rounded-full font-bold text-sm mb-4">
-            🚀 Limited Franchise Slots Available
+          {/* Chip Label */}
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full border border-[#FDE047]/30 bg-[#FDE047]/5">
+            <span className="w-2 h-2 rounded-full bg-[#FDE047] animate-pulse" />
+            <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#FDE047]">
+              Limited Franchise Slots Available
+            </span>
           </div>
-          
-          <h1 className="text-5xl md:text-7xl font-extrabold leading-tight">
-            Build Your Own <span className="text-yellow-300">AI Business Empire</span>
+
+          {/* Headline */}
+          <h1
+            className="uppercase leading-[1] tracking-tight text-white font-semibold"
+            style={{
+              fontSize: "clamp(3rem, 7vw, 6rem)",
+            }}
+          >
+            Build Your Own <br />
+            <span className="text-[#FDE047]">AI Business Empire</span>
           </h1>
-          
-          <p className="text-xl md:text-2xl opacity-90 max-w-4xl mx-auto">
-            Partner with Limbu.ai - India's #1 AI-Powered Google My Business Management Platform
+
+          {/* Description */}
+          <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto leading-relaxed font-normal">
+            Partner with Limbu.ai - India's #1 AI-Powered Google My Business
+            Management Platform.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-4 pt-6">
-            <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-lg">
-              <div className="text-3xl font-bold">₹2.5L+</div>
-              <div className="text-sm opacity-80">Monthly Potential</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-lg">
-              <div className="text-3xl font-bold">100%</div>
-              <div className="text-sm opacity-80">Recurring Revenue</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-lg">
-              <div className="text-3xl font-bold">Zero</div>
-              <div className="text-sm opacity-80">Tech Skills Needed</div>
-            </div>
+          {/* Stats Grid */}
+          <div className="flex flex-wrap justify-center gap-6 pt-8">
+            {[
+              { val: "₹2.5L+", label: "Monthly Potential" },
+              { val: "100%", label: "Recurring Revenue" },
+              { val: "Zero", label: "Tech Skills Needed" },
+            ].map((stat, i) => (
+              <div
+                key={i}
+                className="px-8 py-6 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-sm"
+              >
+                <div className="text-3xl md:text-4xl font-semibold text-white mb-1">
+                  {stat.val}
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-medium">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <button 
+          {/* Buttons */}
+          <div className="flex flex-wrap justify-center gap-4 mt-10">
+            <button
               onClick={() => handleOpenForm()}
-              className="bg-yellow-400 text-black font-bold px-8 py-4 rounded-full hover:bg-yellow-300 transition-all hover:scale-105 flex items-center gap-2 shadow-2xl"
+              className="bg-[#FDE047] text-black font-semibold px-10 py-4 rounded-xl hover:bg-white transition-all hover:scale-105 flex items-center gap-2 shadow-[0_0_30px_rgba(253,224,71,0.3)] cursor-pointer"
             >
               Start Your Franchise <ArrowRight size={20} />
             </button>
-            <button 
+            <button
               onClick={() => handleOpenForm()}
-              className="bg-white/20 border-2 border-white px-8 py-4 rounded-full hover:bg-white/30 transition-all backdrop-blur-md"
+              className="bg-transparent border border-white/20 text-white px-10 py-4 rounded-xl hover:bg-white/5 transition-all cursor-pointer font-medium"
             >
               Watch Success Stories
             </button>
@@ -446,133 +556,242 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== TRUST BADGES =================== */}
-      <section className="py-8 bg-white border-b">
+      <section
+        className="py-10 border-b border-white/10"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-60">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">1000+</div>
-              <div className="text-sm">Active Businesses</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">50+</div>
-              <div className="text-sm">Cities Covered</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">98%</div>
-              <div className="text-sm">Success Rate</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">4.9/5</div>
-              <div className="text-sm">Partner Rating</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =================== ABOUT LIMBU.AI =================== */}
-      <section className="py-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              What is <span className="text-blue-600">Limbu.ai?</span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              The most advanced AI-powered Google My Business automation platform helping businesses dominate local search
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
             {[
-              { icon: Zap, title: "AI Auto-Posting", desc: "Generate and schedule GMB posts automatically using AI" },
-              { icon: Users, title: "Multi-Location Management", desc: "Manage unlimited business locations from one dashboard" },
-              { icon: Star, title: "Smart Review Replies", desc: "AI responds to reviews in seconds with personalized messages" },
-              { icon: BarChart, title: "Growth Analytics", desc: "Track performance, insights, and ROI in real-time" },
-              { icon: Target, title: "Lead Generation", desc: "Convert more searches into customers automatically" },
-              { icon: Shield, title: "Brand Protection", desc: "Monitor and protect business reputation 24/7" }
+              { value: "1000+", label: "Active Businesses" },
+              { value: "50+", label: "Cities Covered" },
+              { value: "98%", label: "Success Rate" },
+              { value: "4.9/5", label: "Partner Rating" },
             ].map((item, i) => (
-              <div key={i} className="group p-8 bg-white rounded-3xl shadow-lg border-2 border-gray-100 hover:border-blue-500 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                <div className="bg-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors">
-                  <item.icon className="text-blue-600 group-hover:text-white w-8 h-8" />
+              <div
+                key={i}
+                className="text-center px-6 py-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-sm hover:border-[#FDE047]/40 transition-all duration-300"
+              >
+                {/* Value */}
+                <div className="text-2xl md:text-3xl font-semibold text-[#FDE047] mb-1">
+                  {item.value}
                 </div>
-                <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                <p className="text-gray-600">{item.desc}</p>
+
+                {/* Label */}
+                <div className="text-xs md:text-sm uppercase tracking-widest text-white/50">
+                  {item.label}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-   
+      {/* =================== ABOUT LIMBU.AI =================== */}
+      <section
+        className="relative py-24 px-6 overflow-hidden"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Glow Background */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.06] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              What is <span className="text-[#FDE047]">Limbu.ai?</span>
+            </h2>
+            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto">
+              The most advanced AI-powered Google My Business automation
+              platform helping businesses dominate local search
+            </p>
+          </div>
+
+          {/* Unique Layout */}
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* LEFT BIG CARD */}
+            <div className="md:col-span-2 group p-10 rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md hover:border-[#FDE047]/40 transition-all duration-300">
+              <div className="flex items-start gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-[#FDE047]/10 flex items-center justify-center">
+                  <Zap className="text-[#FDE047] w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-semibold text-white mb-3">
+                    AI Auto-Posting
+                  </h3>
+                  <p className="text-white/60 max-w-md">
+                    Generate, optimize, and schedule Google My Business posts
+                    automatically using powerful AI workflows — saving hours
+                    daily.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT SMALL CARD */}
+            <div className="group p-8 rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md hover:border-[#FDE047]/40 transition-all duration-300">
+              <div className="w-14 h-14 rounded-xl bg-[#FDE047]/10 flex items-center justify-center mb-4">
+                <Users className="text-[#FDE047] w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Multi-Location
+              </h3>
+              <p className="text-white/60 text-sm">
+                Manage unlimited locations from a single dashboard.
+              </p>
+            </div>
+
+            {/* 3 SMALL CARDS */}
+            {[
+              {
+                icon: Star,
+                title: "Smart Review Replies",
+                desc: "AI responds instantly with human-like replies",
+              },
+              {
+                icon: BarChart,
+                title: "Growth Analytics",
+                desc: "Track performance & ROI in real-time",
+              },
+              {
+                icon: Target,
+                title: "Lead Generation",
+                desc: "Convert search traffic into real customers",
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="group p-8 rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md hover:border-[#FDE047]/40 hover:scale-105 transition-all duration-300"
+              >
+                <div className="w-14 h-14 rounded-xl bg-[#FDE047]/10 flex items-center justify-center mb-4">
+                  <item.icon className="text-[#FDE047] w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-white/60 text-sm">{item.desc}</p>
+              </div>
+            ))}
+
+            {/* LAST WIDE CARD */}
+            <div className="md:col-span-3 group p-10 rounded-3xl border border-white/10 bg-gradient-to-r from-white/[0.03] to-white/[0.01] backdrop-blur-md hover:border-[#FDE047]/40 transition-all duration-300">
+              <div className="flex items-start gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-[#FDE047]/10 flex items-center justify-center">
+                  <Shield className="text-[#FDE047] w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-semibold text-white mb-3">
+                    Brand Protection
+                  </h3>
+                  <p className="text-white/60 max-w-2xl">
+                    Monitor reviews, detect negative sentiment, and protect your
+                    business reputation 24/7 with AI-powered insights and
+                    alerts.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* =================== WHY FRANCHISE WITH US =================== */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Why Choose <span className="text-blue-600">Limbu.ai Franchise?</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/4 left-1/3 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Why Choose{" "}
+              <span className="text-[#FDE047]">Limbu.ai Franchise?</span>
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto">
               We provide everything you need to build a successful AI business
             </p>
           </div>
 
+          {/* Layout */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
                 icon: Rocket,
                 title: "Booming Market",
                 desc: "Local SEO market growing at 40% annually in India",
-                color: "blue"
               },
               {
                 icon: DollarSign,
                 title: "Recurring Revenue",
                 desc: "100% monthly recurring income from subscriptions",
-                color: "green"
               },
               {
                 icon: Shield,
                 title: "Zero Risk",
                 desc: "Proven business model with guaranteed support",
-                color: "purple"
               },
               {
                 icon: Users,
                 title: "Huge Demand",
                 desc: "Every local business needs GMB optimization",
-                color: "orange"
               },
               {
                 icon: Zap,
                 title: "AI Automation",
                 desc: "90% of work handled by AI - minimal effort required",
-                color: "yellow"
               },
               {
                 icon: Award,
                 title: "Exclusive Rights",
                 desc: "Limited franchises per city - less competition",
-                color: "red"
               },
               {
                 icon: TrendingUp,
                 title: "High Margins",
                 desc: "60-70% profit margins on every client",
-                color: "indigo"
               },
               {
                 icon: Clock,
                 title: "Flexible Hours",
                 desc: "Work from anywhere, anytime at your own pace",
-                color: "pink"
-              }
+              },
             ].map((item, i) => (
-              <div key={i} className="group p-6 bg-gray-50 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all duration-300">
-                <div className={`bg-${item.color}-100 w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <item.icon className={`text-${item.color}-600 w-7 h-7`} />
+              <div
+                key={i}
+                className="
+            group p-6 rounded-2xl 
+            bg-white/[0.03] 
+            border border-white/10 
+            backdrop-blur-md 
+            hover:border-[#FDE047]/40 
+            hover:scale-105 
+            hover:shadow-[0_0_30px_rgba(253,224,71,0.15)]
+            transition-all duration-300
+          "
+              >
+                {/* Icon */}
+                <div className="w-14 h-14 rounded-xl bg-[#FDE047]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <item.icon className="text-[#FDE047] w-7 h-7" />
                 </div>
-                <h3 className="text-lg font-bold mb-2">{item.title}</h3>
-                <p className="text-gray-600 text-sm">{item.desc}</p>
+
+                {/* Title */}
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {item.title}
+                </h3>
+
+                {/* Desc */}
+                <p className="text-white/60 text-sm leading-relaxed">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -580,18 +799,31 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== COMPLETE BENEFITS PACKAGE =================== */}
-      <section className="py-20 bg-gradient-to-br from-indigo-600 to-blue-700 text-white px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Complete <span className="text-yellow-300">Franchise Support Package</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[450px] h-[450px] bg-[#FDE047] blur-[150px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-purple-600 blur-[150px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Complete{" "}
+              <span className="text-[#FDE047]">Franchise Support Package</span>
             </h2>
-            <p className="text-xl opacity-90">
-              Everything you need to succeed - training, tools, marketing & ongoing support
+            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto">
+              Everything you need to succeed — training, tools, marketing &
+              ongoing support
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          {/* Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 icon: BookOpen,
@@ -601,8 +833,8 @@ export default function FranchisePage() {
                   "Product mastery workshops",
                   "Sales & pitching training",
                   "Digital marketing crash course",
-                  "Live Q&A sessions"
-                ]
+                  "Live Q&A sessions",
+                ],
               },
               {
                 icon: Gift,
@@ -612,8 +844,8 @@ export default function FranchisePage() {
                   "Social media content templates",
                   "Email campaign templates",
                   "Video presentation decks",
-                  "Branded merchandise kit"
-                ]
+                  "Branded merchandise kit",
+                ],
               },
               {
                 icon: Target,
@@ -623,8 +855,8 @@ export default function FranchisePage() {
                   "Client presentation templates",
                   "Pricing strategy guide",
                   "Objection handling manual",
-                  "Lead generation strategies"
-                ]
+                  "Lead generation strategies",
+                ],
               },
               {
                 icon: Users,
@@ -634,8 +866,8 @@ export default function FranchisePage() {
                   "Client onboarding system",
                   "Revenue tracking tools",
                   "Performance analytics",
-                  "Commission calculator"
-                ]
+                  "Commission calculator",
+                ],
               },
               {
                 icon: HeadphonesIcon,
@@ -645,8 +877,8 @@ export default function FranchisePage() {
                   "Dedicated account manager",
                   "Monthly strategy calls",
                   "Franchise community access",
-                  "Regular product updates"
-                ]
+                  "Regular product updates",
+                ],
               },
               {
                 icon: Award,
@@ -656,18 +888,40 @@ export default function FranchisePage() {
                   "Top performer recognition",
                   "Exclusive expansion rights",
                   "Annual reward programs",
-                  "Leadership opportunities"
-                ]
-              }
+                  "Leadership opportunities",
+                ],
+              },
             ].map((benefit, i) => (
-              <div key={i} className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border-2 border-white/20 hover:bg-white/20 transition-all">
-                <benefit.icon className="w-12 h-12 text-yellow-300 mb-4" />
-                <h3 className="text-2xl font-bold mb-4">{benefit.title}</h3>
-                <ul className="space-y-2">
+              <div
+                key={i}
+                className="
+            group p-8 rounded-3xl 
+            bg-white/[0.03] 
+            border border-white/10 
+            backdrop-blur-md 
+            hover:border-[#FDE047]/40 
+            hover:shadow-[0_0_40px_rgba(253,224,71,0.15)]
+            transition-all duration-300
+          "
+              >
+                {/* Icon */}
+                <div className="w-14 h-14 rounded-xl bg-[#FDE047]/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
+                  <benefit.icon className="text-[#FDE047] w-7 h-7" />
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  {benefit.title}
+                </h3>
+
+                {/* List */}
+                <ul className="space-y-3">
                   {benefit.items.map((item, j) => (
                     <li key={j} className="flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-300 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm opacity-90">{item}</span>
+                      <CheckCircle className="w-5 h-5 text-[#FDE047] mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-white/60 leading-relaxed">
+                        {item}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -678,18 +932,29 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== SUCCESS STORIES =================== */}
-      <section className="py-20 bg-gray-50 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Real <span className="text-blue-600">Success Stories</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Real <span className="text-[#FDE047]">Success Stories</span>
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto">
               Hear from our successful franchise partners across India
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          {/* Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 name: "Rajesh Kumar",
@@ -697,7 +962,8 @@ export default function FranchisePage() {
                 revenue: "₹1.2L/month",
                 clients: 85,
                 time: "10 months",
-                quote: "Started with zero tech knowledge. Now managing 85+ businesses and earning more than my corporate job!"
+                quote:
+                  "Started with zero tech knowledge. Now managing 85+ businesses and earning more than my corporate job!",
               },
               {
                 name: "Priya Sharma",
@@ -705,7 +971,8 @@ export default function FranchisePage() {
                 revenue: "₹95K/month",
                 clients: 62,
                 time: "8 months",
-                quote: "The AI does all the heavy lifting. I just focus on building relationships with local businesses."
+                quote:
+                  "The AI does all the heavy lifting. I just focus on building relationships with local businesses.",
               },
               {
                 name: "Amit Patel",
@@ -713,37 +980,66 @@ export default function FranchisePage() {
                 revenue: "₹1.8L/month",
                 clients: 120,
                 time: "14 months",
-                quote: "Best business decision ever! Now planning to expand to 2 more cities with my earnings."
-              }
+                quote:
+                  "Best business decision ever! Now planning to expand to 2 more cities with my earnings.",
+              },
             ].map((story, i) => (
-              <div key={i} className="bg-white p-8 rounded-3xl shadow-xl border-2 border-gray-100 hover:border-blue-500 transition-all">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+              <div
+                key={i}
+                className="
+            group p-8 rounded-3xl 
+            bg-white/[0.03] 
+            border border-white/10 
+            backdrop-blur-md 
+            hover:border-[#FDE047]/40 
+            hover:shadow-[0_0_40px_rgba(253,224,71,0.15)]
+            transition-all duration-300
+          "
+              >
+                {/* Profile */}
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="w-14 h-14 rounded-full bg-[#FDE047]/10 flex items-center justify-center text-[#FDE047] text-xl font-semibold">
                     {story.name.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-bold text-lg">{story.name}</div>
-                    <div className="text-sm text-gray-600">{story.city}</div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-blue-50 rounded-xl">
-                  <div>
-                    <div className="text-sm text-gray-600">Monthly Revenue</div>
-                    <div className="text-lg font-bold text-blue-600">{story.revenue}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Active Clients</div>
-                    <div className="text-lg font-bold text-blue-600">{story.clients}</div>
+                    <div className="font-semibold text-white">{story.name}</div>
+                    <div className="text-sm text-white/50">{story.city}</div>
                   </div>
                 </div>
 
-                <p className="text-gray-700 italic mb-3">"{story.quote}"</p>
-                <div className="text-sm text-gray-500">Journey: {story.time}</div>
-                
-                <div className="flex gap-1 mt-3">
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4 mb-5 p-4 rounded-xl bg-white/[0.02] border border-white/10">
+                  <div>
+                    <div className="text-xs text-white/50">Monthly Revenue</div>
+                    <div className="text-lg font-semibold text-[#FDE047]">
+                      {story.revenue}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/50">Active Clients</div>
+                    <div className="text-lg font-semibold text-[#FDE047]">
+                      {story.clients}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quote */}
+                <p className="text-white/70 italic mb-4 leading-relaxed">
+                  “{story.quote}”
+                </p>
+
+                {/* Journey */}
+                <div className="text-sm text-white/50 mb-3">
+                  Journey: {story.time}
+                </div>
+
+                {/* Stars */}
+                <div className="flex gap-1">
                   {[...Array(5)].map((_, j) => (
-                    <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <Star
+                      key={j}
+                      className="w-4 h-4 fill-[#FDE047] text-[#FDE047]"
+                    />
                   ))}
                 </div>
               </div>
@@ -753,20 +1049,44 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== WHO CAN APPLY =================== */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Who Can Become a <span className="text-blue-600">Franchise Partner?</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden font-[Inter]"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Who Can Become a{" "}
+              <span className="text-[#FDE047]">Franchise Partner?</span>
             </h2>
           </div>
 
+          {/* Layout */}
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-green-50 border-2 border-green-200 p-8 rounded-3xl">
-              <h3 className="text-2xl font-bold text-green-800 mb-6 flex items-center gap-2">
-                <CheckCircle className="w-7 h-7" />
+            {/* LEFT - PERFECT FOR */}
+            <div
+              className="
+          group p-8 rounded-3xl 
+          bg-white/[0.03] 
+          border border-white/10 
+          backdrop-blur-md 
+          hover:border-[#FDE047]/40 
+          hover:shadow-[0_0_40px_rgba(253,224,71,0.15)]
+          transition-all duration-300
+        "
+            >
+              <h3 className="text-2xl font-semibold text-[#FDE047] mb-6 flex items-center gap-2">
+                <CheckCircle className="w-6 h-6" />
                 Perfect For
               </h3>
+
               <ul className="space-y-3">
                 {[
                   "Digital marketing professionals",
@@ -776,21 +1096,33 @@ export default function FranchisePage() {
                   "Anyone with local business connections",
                   "Stay-at-home parents wanting flexible income",
                   "Corporate employees wanting side business",
-                  "Recent graduates with entrepreneurial spirit"
+                  "Recent graduates with entrepreneurial spirit",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                    <span>{item}</span>
+                    <CheckCircle className="w-5 h-5 text-[#FDE047] mt-0.5 flex-shrink-0" />
+                    <span className="text-white/70 text-sm">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="bg-blue-50 border-2 border-blue-200 p-8 rounded-3xl">
-              <h3 className="text-2xl font-bold text-blue-800 mb-6 flex items-center gap-2">
-                <Award className="w-7 h-7" />
+            {/* RIGHT - REQUIREMENTS */}
+            <div
+              className="
+          group p-8 rounded-3xl 
+          bg-white/[0.03] 
+          border border-white/10 
+          backdrop-blur-md 
+          hover:border-[#FDE047]/40 
+          hover:shadow-[0_0_40px_rgba(253,224,71,0.15)]
+          transition-all duration-300
+        "
+            >
+              <h3 className="text-2xl font-semibold text-white mb-6 flex items-center gap-2">
+                <Award className="w-6 h-6 text-[#FDE047]" />
                 Requirements
               </h3>
+
               <ul className="space-y-3">
                 {[
                   "Basic computer & internet skills",
@@ -800,24 +1132,41 @@ export default function FranchisePage() {
                   "Initial investment capability",
                   "Time: 3-4 hours daily (flexible)",
                   "Smartphone & laptop",
-                  "Willingness to learn"
+                  "Willingness to learn",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <span>{item}</span>
+                    <CheckCircle className="w-5 h-5 text-[#FDE047] mt-0.5 flex-shrink-0" />
+                    <span className="text-white/70 text-sm">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 p-8 rounded-3xl mt-8">
+          {/* BOTTOM HIGHLIGHT CARD */}
+          <div
+            className="
+        mt-12 p-8 md:p-10 rounded-3xl 
+        border border-[#FDE047]/30 
+        bg-[#FDE047]/5 
+        backdrop-blur-md
+        hover:shadow-[0_0_40px_rgba(253,224,71,0.2)]
+        transition-all duration-300
+      "
+          >
             <div className="flex items-start gap-4">
-              <Star className="w-8 h-8 text-yellow-600 mt-1" />
+              <Star className="w-8 h-8 text-[#FDE047] mt-1" />
+
               <div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">No Technical Skills Required!</h3>
-                <p className="text-gray-700">
-                  Our AI platform handles all the technical work. You focus on connecting with local businesses and building relationships. We provide complete training on sales, marketing, and client management.
+                <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
+                  No Technical Skills Required!
+                </h3>
+
+                <p className="text-white/70 leading-relaxed">
+                  Our AI platform handles all the technical work. You focus on
+                  connecting with local businesses and building relationships.
+                  We provide complete training on sales, marketing, and client
+                  management so you can scale confidently.
                 </p>
               </div>
             </div>
@@ -826,55 +1175,96 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== HOW IT WORKS =================== */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              How to <span className="text-blue-600">Get Started</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden font-[Inter]"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              How to <span className="text-[#FDE047]">Get Started</span>
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-lg md:text-xl text-white/60">
               Simple 4-step process to launch your franchise
             </p>
           </div>
 
+          {/* Timeline Container */}
           <div className="relative">
-            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-1 bg-blue-200 -translate-y-1/2"></div>
-            
-            <div className="grid md:grid-cols-4 gap-8 relative">
+            {/* Line (Desktop) */}
+            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-[2px] bg-white/10 -translate-y-1/2" />
+
+            {/* Steps */}
+            <div className="grid md:grid-cols-4 gap-10 relative">
               {[
                 {
                   step: "01",
                   title: "Apply Online",
                   desc: "Fill the franchise application form and schedule a discovery call",
-                  icon: Target
+                  icon: Target,
                 },
                 {
                   step: "02",
                   title: "Get Training",
                   desc: "Complete our 5-day comprehensive training program",
-                  icon: BookOpen
+                  icon: BookOpen,
                 },
                 {
                   step: "03",
                   title: "Setup Business",
                   desc: "Get your dashboard, materials, and start onboarding clients",
-                  icon: Rocket
+                  icon: Rocket,
                 },
                 {
                   step: "04",
                   title: "Earn & Grow",
                   desc: "Build recurring revenue and scale your franchise business",
-                  icon: TrendingUp
-                }
+                  icon: TrendingUp,
+                },
               ].map((item, i) => (
-                <div key={i} className="relative">
-                  <div className="bg-white p-8 rounded-3xl shadow-xl border-2 border-blue-100 hover:border-blue-500 transition-all hover:scale-105">
-                    <div className="bg-blue-600 text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold mb-4 mx-auto">
+                <div key={i} className="relative group">
+                  {/* Connector Dot */}
+                  <div className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+                    <div className="w-4 h-4 rounded-full bg-[#FDE047] shadow-[0_0_15px_rgba(253,224,71,0.8)]" />
+                  </div>
+
+                  {/* Card */}
+                  <div
+                    className="
+                relative z-10 p-8 rounded-3xl 
+                bg-white/[0.03] 
+                border border-white/10 
+                backdrop-blur-md 
+                hover:border-[#FDE047]/40 
+                hover:shadow-[0_0_40px_rgba(253,224,71,0.15)]
+                hover:-translate-y-2
+                transition-all duration-300
+              "
+                  >
+                    {/* Step Number */}
+                    <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#FDE047]/10 flex items-center justify-center text-[#FDE047] text-xl font-semibold">
                       {item.step}
                     </div>
-                    <item.icon className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold mb-2 text-center">{item.title}</h3>
-                    <p className="text-gray-600 text-center">{item.desc}</p>
+
+                    {/* Icon */}
+                    <item.icon className="w-10 h-10 text-[#FDE047] mx-auto mb-4" />
+
+                    {/* Title */}
+                    <h3 className="text-lg font-semibold text-white text-center mb-2">
+                      {item.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="text-white/60 text-sm text-center leading-relaxed">
+                      {item.desc}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -884,41 +1274,34 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== INVESTMENT PLANS =================== */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Choose Your <span className="text-blue-600">Franchise Plan</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden font-[Inter]"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Choose Your <span className="text-[#FDE047]">Franchise Plan</span>
             </h2>
-            <p className="text-xl text-gray-600">
-              Select the plan that fits your investment capacity and growth goals
+            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto">
+              Select the plan that fits your investment capacity and growth
+              goals
             </p>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-8">
+          {/* Cards */}
+          <div className="flex flex-wrap justify-center gap-10">
             {[
-              // {
-              //   name: "Business Champion",
-              //   investment: "₹50,000",
-              //   originalPrice: "₹1,00,000",
-              //   commission: "30%",
-              //   features: [
-              //     "City-level franchise rights",
-              //     "Complete training program",
-              //     "Marketing material kit",
-              //     "Dedicated support",
-              //     "Franchise dashboard access",
-              //     "Sales scripts & templates",
-              //     "Monthly strategy calls"
-              //   ],
-              //   potential: "₹25K-1L/month",
-              //   best: "New entrepreneurs"
-              // },
-           
               {
                 name: "Business Excellence Plan",
                 investment: "₹5,00,000 + 18% GST",
-                // originalPrice: "₹5,00,000",
                 commission: "50% on revenue",
                 features: [
                   "Regional franchise rights",
@@ -929,164 +1312,190 @@ export default function FranchisePage() {
                   "Sub-franchise opportunities",
                   "Priority feature access",
                   "Annual business retreat",
-                  "Expansion funding support"
+                  "Expansion funding support",
                 ],
-                // target: "100+ clients",
                 potential: "₹1L-3L/month",
                 best: "Established entrepreneurs",
-                                popular: true
-
+                popular: true,
               },
-              //    {
-              //   name: "Business Growth Plan",
-              //   investment: "₹1,00,000",
-              //   originalPrice: "₹2,00,000",
-              //   commission: "40% on revenue + 10% Business Champion",
-              //   features: [
-              //     "Multi-city franchise rights",
-              //     "Priority training & support",
-              //     "Premium marketing materials",
-              //     "Lead generation support",
-              //     "Advanced dashboard features",
-              //     "Quarterly business reviews",
-              //     "White-label options",
-              //     "Team building guidance"
-              //   ],
-              //   // target: "50/-80 clients",
-              //   potential: "₹50K-2L/month",
-              //   best: "Growth-focused partners",
-              // },
             ].map((plan, i) => (
-              <div key={i} className={`relative bg-white rounded-3xl shadow-2xl border-2 p-8 w-full md:max-w-md ${plan.popular ? 'border-blue-500 scale-105' : 'border-gray-200'}`}>
+              <div
+                key={i}
+                className={`
+            relative w-full md:max-w-md p-8 rounded-3xl 
+            bg-white/[0.03] 
+            border 
+            backdrop-blur-md 
+            transition-all duration-300
+            ${
+              plan.popular
+                ? "border-[#FDE047]/50 scale-105 shadow-[0_0_50px_rgba(253,224,71,0.2)]"
+                : "border-white/10"
+            }
+          `}
+              >
+                {/* Most Popular Badge */}
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#FDE047] text-black px-6 py-2 rounded-full text-xs font-semibold shadow-lg">
                     Most Popular
                   </div>
                 )}
-                
+
+                {/* Header */}
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                  {plan.originalPrice && (
-                    <div className="inline-block bg-red-100 text-red-600 text-xs font-bold px-3 py-1 rounded-full mb-2 animate-pulse">
-                      🎉 New Year Offer
-                    </div>
-                  )}
-                  {plan.originalPrice && (
-                    <div className="text-lg text-gray-400 line-through font-bold decoration-red-500 decoration-2">
-                      {plan.originalPrice}
-                    </div>
-                  )}
-                  <div className="text-4xl font-bold text-blue-600 mb-2">{plan.investment}</div>
-                  <div className="text-sm text-gray-600">One-time investment</div>
-                </div>
+                  <h3 className="text-2xl font-semibold text-white mb-2">
+                    {plan.name}
+                  </h3>
 
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl mb-6">
-                  <div className="text-center">
-                    <div className="text-sm text-gray-600 mb-1">Profit Sharing</div>
-                    <div className="text-lg font-bold text-green-600 leading-tight">{plan.commission}</div>
+                  <div className="text-4xl font-bold text-[#FDE047] mb-2">
+                    {plan.investment}
+                  </div>
+
+                  <div className="text-sm text-white/50">
+                    One-time investment
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-6">
-                  {/* <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-600">Target Clients</div>
-                    <div className="font-bold text-blue-600">{plan.target}</div>
-                  </div> */}
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <div className="text-xs text-gray-600">Income Potential</div>
-                    <div className="font-bold text-purple-600">{plan.potential}</div>
+                {/* Commission Box */}
+                <div className="p-4 rounded-xl mb-6 border border-white/10 bg-white/[0.02] text-center">
+                  <div className="text-xs text-white/50 mb-1">
+                    Profit Sharing
+                  </div>
+                  <div className="text-lg font-semibold text-[#FDE047]">
+                    {plan.commission}
                   </div>
                 </div>
 
+                {/* Potential */}
+                <div className="p-4 rounded-xl mb-6 border border-white/10 bg-white/[0.02] text-center">
+                  <div className="text-xs text-white/50">Income Potential</div>
+                  <div className="text-lg font-semibold text-[#FDE047]">
+                    {plan.potential}
+                  </div>
+                </div>
+
+                {/* Features */}
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, j) => (
                     <li key={j} className="flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700">{feature}</span>
+                      <CheckCircle className="w-5 h-5 text-[#FDE047] mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-white/70">{feature}</span>
                     </li>
                   ))}
                 </ul>
 
+                {/* Best For */}
                 <div className="text-center mb-6">
-                  <div className="text-xs text-gray-500 mb-2">Best for:</div>
-                  <div className="text-sm font-semibold text-gray-700">{plan.best}</div>
+                  <div className="text-xs text-white/50 mb-1">Best for:</div>
+                  <div className="text-sm font-semibold text-white">
+                    {plan.best}
+                  </div>
                 </div>
 
-                <button 
+                {/* CTA */}
+                <button
                   onClick={() => handleOpenForm("premium")}
-                  className={`w-full py-4 rounded-full font-bold transition-all ${plan.popular ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                  className="
+              w-full py-4 rounded-xl font-semibold
+              bg-[#FDE047] text-black 
+              hover:bg-white 
+              hover:scale-105
+              transition-all duration-300 cursor-pointer
+              shadow-[0_0_20px_rgba(253,224,71,0.3)]
+            "
                 >
                   Choose {plan.name}
                 </button>
               </div>
             ))}
           </div>
-
-          {/* <div className="bg-yellow-50 border-2 border-yellow-200 p-6 rounded-2xl mt-12 max-w-4xl mx-auto">
-            <div className="flex items-start gap-4">
-              <Gift className="w-8 h-8 text-yellow-600 mt-1 flex-shrink-0" />
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Limited Time Offer!</h3>
-                <p className="text-gray-700">
-                  Apply before Dec 31, 2025 and get <strong>₹10,000 worth of bonus marketing materials</strong> + Free advanced sales training worth ₹15,000. Plus, first 50 partners get exclusive city rights!
-                </p>
-              </div>
-            </div>
-          </div> */}
         </div>
       </section>
 
       {/* =================== FAQ SECTION =================== */}
-      <section className="py-20 bg-gray-50 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Frequently Asked <span className="text-blue-600">Questions</span>
+      <section
+        className="relative py-24 px-6 overflow-hidden font-[Inter]"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
+        </div>
+
+        <div className="max-w-5xl mx-auto relative z-10">
+          {/* Heading */}
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Frequently Asked <span className="text-[#FDE047]">Questions</span>
             </h2>
+            <p className="text-white/60 max-w-2xl mx-auto">
+              Everything you need to know before starting your franchise journey
+            </p>
           </div>
 
-          <div className="space-y-4">
+          {/* FAQ Items */}
+          <div className="space-y-6">
             {[
               {
                 q: "Do I need technical skills to run this franchise?",
-                a: "No! Our AI platform handles all technical aspects. You just need basic computer skills and good communication abilities. We provide complete training on everything else."
+                a: "No! Our AI platform handles all technical aspects. You just need basic computer skills and good communication abilities. We provide complete training on everything else.",
               },
               {
                 q: "How much time do I need to invest daily?",
-                a: "You can start with 3-4 hours daily. As you build your client base and processes, you can scale up or hire a small team. Many partners work part-time initially."
+                a: "You can start with 3-4 hours daily. As you build your client base and processes, you can scale up or hire a small team.",
               },
               {
                 q: "What is the breakeven period?",
-                a: "Most partners break even within 4-6 months with consistent effort. Some achieve it faster depending on their network and sales skills."
+                a: "Most partners break even within 4-6 months with consistent effort. Some achieve it faster depending on their network.",
               },
               {
                 q: "Can I run this alongside my job?",
-                a: "Yes! Many of our partners started part-time. The flexible schedule allows you to work evenings and weekends initially, then transition to full-time as revenue grows."
+                a: "Yes! Many partners start part-time and transition to full-time once revenue grows.",
               },
               {
                 q: "What kind of support do you provide?",
-                a: "Complete support including training, sales scripts, marketing materials, technical support, dedicated account manager, and access to our franchise community."
+                a: "Complete support including training, sales scripts, marketing materials, technical help, and a dedicated account manager.",
               },
               {
-                q: "Are there any hidden costs or monthly fees?",
-                a: "No hidden costs! You keep 60-70% of client payments (based on your plan). No monthly franchise fees. You only pay your operational costs like internet and marketing."
+                q: "Are there any hidden costs?",
+                a: "No hidden costs. You keep 60-70% revenue. Only basic operational expenses apply.",
               },
               {
-                q: "Can I hire a team to scale my business?",
-                a: "Absolutely! Many successful partners build teams of 2-5 people to handle sales, onboarding, and client support, allowing them to scale beyond 100+ clients."
+                q: "Can I hire a team?",
+                a: "Yes! Many partners scale by building small teams for sales and support.",
               },
               {
-                q: "What if the business doesn't work in my city?",
-                a: "We carefully evaluate each city's potential before approving franchises. We also provide lead generation support and proven strategies. Plus, you can expand to nearby cities."
-              }
+                q: "What if it doesn't work in my city?",
+                a: "We provide lead generation support and proven strategies. You can also expand to nearby cities.",
+              },
             ].map((faq, i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 hover:border-blue-500 transition-all">
-                <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-start gap-2">
-                  <span className="text-blue-600">Q:</span> {faq.q}
+              <div
+                key={i}
+                className="
+            group p-6 rounded-2xl 
+            bg-white/[0.03] 
+            border border-white/10 
+            backdrop-blur-md
+            transition-all duration-300
+            hover:border-[#FDE047]/40 
+            hover:shadow-[0_0_25px_rgba(253,224,71,0.15)]
+          "
+              >
+                {/* Question */}
+                <h3 className="text-lg md:text-xl font-semibold text-white flex items-start gap-3">
+                  <span className="text-[#FDE047]">Q.</span>
+                  {faq.q}
                 </h3>
-                <p className="text-gray-700 pl-6">
-                  <span className="text-green-600 font-bold">A:</span> {faq.a}
+
+                {/* Answer */}
+                <p className="text-white/70 mt-3 pl-6 leading-relaxed">
+                  <span className="text-[#FDE047] font-semibold">A.</span>{" "}
+                  {faq.a}
                 </p>
+
+                {/* Bottom Glow Line */}
+                <div className="mt-4 h-[1px] w-0 bg-[#FDE047] transition-all duration-500 group-hover:w-full" />
               </div>
             ))}
           </div>
@@ -1094,123 +1503,139 @@ export default function FranchisePage() {
       </section>
 
       {/* =================== FINAL CTA =================== */}
-      <section className="py-24 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white px-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-yellow-300 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-pink-400 rounded-full blur-3xl"></div>
+      <section
+        className="relative py-28 px-6 overflow-hidden font-[Inter]"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Background Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.06] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.06] rounded-full" />
         </div>
 
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-block bg-yellow-400 text-black px-6 py-2 rounded-full font-bold text-sm mb-6">
-            ⚡ Limited Slots - Only 5 Franchises Per City
-          </div>
-
-          <h2 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
-            Ready to Build Your <span className="text-yellow-300">AI Business Empire?</span>
-          </h2>
-
-          <p className="text-xl md:text-2xl opacity-90 mb-4">
-            Join India's fastest-growing AI-powered GMB automation franchise
-          </p>
-
-          <p className="text-lg opacity-80 mb-10 max-w-3xl mx-auto">
-            Limited franchise opportunities available in each city. Secure your territory before your competitors do. Start earning ₹50K-2.5L+ monthly recurring income.
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-6 mb-12">
-            <button 
-              onClick={() => handleOpenForm()}
-              className="bg-yellow-400 text-black px-10 py-5 rounded-full text-xl font-bold hover:bg-yellow-300 transition-all hover:scale-110 flex items-center gap-2 shadow-2xl"
-            >
-              Apply for Franchise Now <ArrowRight size={24} />
-            </button>
-
-            <button 
-              onClick={() => handleOpenForm()}
-              className="bg-white/20 border-2 border-white px-10 py-5 rounded-full text-xl hover:bg-white/30 transition-all backdrop-blur-md flex items-center gap-2"
-            >
-              <PhoneCall size={24} /> Schedule Free Consultation
-            </button>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20">
-              <div className="text-3xl font-bold mb-2">1lakh+</div>
-              <div className="text-sm opacity-90">Starting Investment</div>
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Main Glass Card */}
+          <div className="bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-3xl p-10 md:p-16 text-center shadow-[0_0_40px_rgba(255,255,255,0.05)]">
+            {/* Badge */}
+            <div className="inline-block mb-6 px-6 py-2 rounded-full text-sm font-semibold bg-[#FDE047] text-black shadow-md">
+              ⚡ Limited Slots - Only 5 Franchises Per City
             </div>
-            <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20">
-              <div className="text-3xl font-bold mb-2">40-60%</div>
-              <div className="text-sm opacity-90">Your Commission</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20">
-              <div className="text-3xl font-bold mb-2">100%</div>
-              <div className="text-sm opacity-90">Recurring Revenue</div>
-            </div>
-          </div>
 
-          <div className="mt-12 pt-8 border-t border-white/20">
-            <p className="text-sm opacity-75 mb-4">Have questions? We're here to help!</p>
-            <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <a href="tel:+919876543210" className="flex items-center gap-2 hover:text-yellow-300 transition">
-                <PhoneCall size={16} /> +91 9289344708
-              </a>
-              <a href="mailto:info@limbu.ai" className="flex items-center gap-2 hover:text-yellow-300 transition">
-                📧 info@limbu.ai
-              </a>
-              <button onClick={() => handleOpenForm()} className="flex items-center gap-2 hover:text-yellow-300 transition">
-                💬 Live Chat Support
+            {/* Heading */}
+            <h2 className="text-4xl md:text-6xl font-semibold text-white mb-6 leading-tight">
+              Ready to Build Your{" "}
+              <span className="text-[#FDE047]">AI Business Empire?</span>
+            </h2>
+
+            {/* Subtext */}
+            <p className="text-white/70 text-lg md:text-xl max-w-2xl mx-auto mb-4">
+              Join India's fastest-growing AI-powered GMB automation franchise
+            </p>
+
+            <p className="text-white/50 max-w-3xl mx-auto mb-10">
+              Limited franchise opportunities available in each city. Secure
+              your territory before competitors do and start generating
+              consistent recurring income.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap justify-center gap-6 mb-14">
+              <button
+                onClick={() => handleOpenForm()}
+                className=" cursor-pointer
+            px-10 py-5 rounded-xl font-semibold text-lg
+            bg-[#FDE047] text-black 
+            hover:bg-white 
+            hover:scale-105
+            transition-all duration-300
+            flex items-center gap-2
+            shadow-[0_0_25px_rgba(253,224,71,0.35)]
+          "
+              >
+                Apply for Franchise <ArrowRight size={22} />
               </button>
+
+              <button
+                onClick={() => handleOpenForm()}
+                className=" cursor-pointer
+            px-10 py-5 rounded-xl text-lg
+            border border-white/20
+            bg-white/[0.05]
+            backdrop-blur-md
+            hover:border-[#FDE047]/40
+            hover:scale-105
+            transition-all duration-300
+            flex items-center gap-2 text-white
+          "
+              >
+                <PhoneCall size={22} /> Free Consultation
+              </button>
+            </div>
+
+            {/* Stats Section */}
+            <div className="grid md:grid-cols-3 gap-6 mb-12">
+              {[
+                { value: "₹1L+", label: "Starting Investment" },
+                { value: "40-60%", label: "Your Commission" },
+                { value: "100%", label: "Recurring Revenue" },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  className="
+              p-6 rounded-2xl 
+              bg-white/[0.03] 
+              border border-white/10 
+              backdrop-blur-md
+              hover:border-[#FDE047]/40
+              transition-all duration-300
+            "
+                >
+                  <div className="text-3xl font-bold text-[#FDE047] mb-2">
+                    {item.value}
+                  </div>
+                  <div className="text-sm text-white/60">{item.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Contact Section */}
+            <div className="pt-8 border-t border-white/10">
+              <p className="text-white/50 mb-4">
+                Have questions? We're here to help.
+              </p>
+
+              <div className="flex flex-wrap justify-center gap-6 text-sm">
+                <a
+                  href="tel:+919289344708"
+                  className="flex items-center gap-2 text-white/70 hover:text-[#FDE047] transition"
+                >
+                  <PhoneCall size={16} /> +91 9289344708
+                </a>
+
+                <a
+                  href="mailto:info@limbu.ai"
+                  className="flex items-center gap-2 text-white/70 hover:text-[#FDE047] transition"
+                >
+                  📧 info@limbu.ai
+                </a>
+
+                <button
+                  onClick={() => handleOpenForm()}
+                  className="flex items-center gap-2 text-white/70 hover:text-[#FDE047] transition"
+                >
+                  💬 Live Chat
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* =================== FOOTER =================== */}
-      <footer className="bg-gray-900 text-white py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h3 className="text-2xl font-bold text-blue-400 mb-4">Limbu.ai</h3>
-              <p className="text-gray-400 text-sm">
-                India's most advanced AI-powered Google My Business management platform.
-              </p>
-            </div>
+      <FooterSection />
 
-            <div>
-              <h4 className="font-bold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition">About Us</a></li>
-                <li><a href="#" className="hover:text-white transition">How It Works</a></li>
-                <li><a href="#" className="hover:text-white transition">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition">Success Stories</a></li>
-              </ul>
-            </div>
+      <ScrollToTop />
 
-            <div>
-              <h4 className="font-bold mb-4">Franchise</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><button onClick={() => handleOpenForm()} className="hover:text-white transition">Apply Now</button></li>
-                <li><a href="#" className="hover:text-white transition">Benefits</a></li>
-                <li><a href="#" className="hover:text-white transition">Support</a></li>
-                <li><a href="#" className="hover:text-white transition">FAQs</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4">Contact</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>📞 +91 9289344708</li>
-                <li>📧 info@limbu.ai</li>
-                <li>📍 Gurugram, India</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Limbu.ai. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <BookDemoModal/>
     </div>
   );
 }

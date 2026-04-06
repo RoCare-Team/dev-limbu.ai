@@ -1,388 +1,335 @@
-'use client';
-import * as React from 'react';
-import { styled, useTheme } from '@mui/material/styles';
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import toast, { Toaster } from "react-hot-toast";
+import Link from "next/link";
+import Image from "next/image";
 import {
-  Box,
-  CssBaseline,
-  Drawer as MuiDrawer,
-  AppBar as MuiAppBar,
-  Toolbar,
-  Typography,
-  Divider,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Avatar,
-  Badge,
-  Chip,
-  useMediaQuery,
-  Menu,
-  MenuItem,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  Card,
-  CardContent,
-  Tabs,
-  Tab,
-  CircularProgress,
-  ToggleButton,
-  ToggleButtonGroup
-} from '@mui/material';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Dashboard as DashboardIcon,
-  AccountCircle as AccountIcon,
-  Article as PostIcon,
-  Settings as SettingsIcon,
-  Logout as LogoutIcon,
-  Upgrade as UpgradeIcon,
-  KeyboardArrowDown as ArrowDownIcon,
-  AccountBalanceWallet as WalletIcon,
-} from '@mui/icons-material';
-import { useRouter, usePathname } from 'next/navigation';
-import toast, { Toaster } from 'react-hot-toast';
-import Link from 'next/link';
-import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp, User, Sparkles } from 'lucide-react';
-import logoDash from "../../public/images/bg-logo.png"
-import Image from 'next/image';
-import WebAssetIcon from '@mui/icons-material/WebAsset';
-import { CassetteTape } from 'lucide-react';
+  Activity,
+  Home,
+  Menu as MenuIcon,
+  Package,
+  Wand,
+  CheckCircle,
+  X,
+  LayoutDashboard,
+  FileText,
+  Star,
+  Image as LucideImage,
+  KeyRound,
+  ChevronDown,
+  ChevronUp,
+  User,
+  Settings,
+  LogOut,
+  Wallet,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from "lucide-react";
+import logoDash from "../../public/images/bg-logo.png";
 
 const drawerWidth = 260;
+const SETTINGS_NAV_USER_IDS = new Set(["USR1761994068831"]);
 
-/** Only these localStorage `userId` values see Settings in the sidebar / account menu. */
-const SETTINGS_NAV_USER_IDS = new Set(['USR1761994068831']);
+/* ── Avatar initials ── */
+function AvatarCircle({ name, size = "md", src }) {
+  const s = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm";
+  if (src)
+    return (
+      <img src={src} alt={name} className={`${s} rounded-full object-cover`} />
+    );
+  return (
+    <div
+      className={`${s} rounded-full flex items-center justify-center font-bold flex-shrink-0`}
+      style={{
+        backgroundColor: "#1a1a1a",
+        border: "1px solid rgba(253,224,71,0.2)",
+        color: "#FDE047",
+      }}
+    >
+      {name ? name.charAt(0).toUpperCase() : "U"}
+    </div>
+  );
+}
 
-const openedMixin = (theme) => ({
-  width: drawerWidth,
-  background: '#ffffff',
-  borderRight: '1px solid #f1f5f9',
-  transition: theme.transitions.create('width', {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.enteringScreen,
-  }),
-  overflowX: 'hidden',
-});
+/* ── Nav item ── */
+function NavItem({
+  item,
+  open,
+  isActive,
+  isDropdownOpen,
+  onToggleDropdown,
+  onNavigate,
+  pathname,
+}) {
+  const isDropdown = !!item.children;
+  return (
+    <div>
+      <button
+        onClick={() =>
+          isDropdown ? onToggleDropdown() : onNavigate(item.path)
+        }
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 cursor-pointer group ${
+          isActive
+            ? "text-black"
+            : "text-[rgba(226,232,240,0.55)] hover:text-[rgba(226,232,240,0.9)] hover:bg-[rgba(255,255,255,0.04)]"
+        }`}
+        style={isActive ? { backgroundColor: "#FDE047" } : {}}
+      >
+        <span
+          className={`flex-shrink-0 transition-transform duration-200 ${isActive ? "text-black" : "text-[rgba(253,224,71,0.5)] group-hover:text-[rgba(253,224,71,0.8)]"}`}
+        >
+          {item.icon}
+        </span>
+        {open && (
+          <>
+            <span
+              className="flex-1 text-left text-[13px] font-medium tracking-[0.01em] truncate"
+              style={{ fontFamily: "inherit" }}
+            >
+              {item.text}
+            </span>
+            {isDropdown && (
+              <span
+                className={
+                  isActive ? "text-black" : "text-[rgba(226,232,240,0.3)]"
+                }
+              >
+                {isDropdownOpen ? (
+                  <ChevronUp size={14} />
+                ) : (
+                  <ChevronDown size={14} />
+                )}
+              </span>
+            )}
+          </>
+        )}
+      </button>
 
-const closedMixin = (theme) => ({
-  transition: theme.transitions.create('width', {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  overflowX: 'hidden',
-  width: 0,
-  [theme.breakpoints.up('sm')]: {
-    width: 72,
-  },
-  background: '#ffffff',
-  borderRight: '1px solid #f1f5f9',
-});
-
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(0, 2),
-  minHeight: 64,
-}));
-
-const AppBar = styled(MuiAppBar, {
-  shouldForwardProp: (prop) => prop !== 'open',
-})(({ theme, open }) => ({
-  zIndex: theme.zIndex.drawer + 1,
-  background: '#ffffff',
-  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-  color: '#333',
-  transition: theme.transitions.create(['width', 'margin'], {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  ...(open && {
-    marginLeft: drawerWidth,
-    width: `calc(100% - ${drawerWidth}px)`,
-    [theme.breakpoints.down('sm')]: {
-      marginLeft: 0,
-      width: '100%',
-    },
-  }),
-}));
-
-const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
-  ({ theme, open }) => ({
-    width: drawerWidth,
-    flexShrink: 0,
-    whiteSpace: 'nowrap',
-    boxSizing: 'border-box',
-    ...(open && {
-      ...openedMixin(theme),
-      '& .MuiDrawer-paper': openedMixin(theme),
-    }),
-    ...(!open && {
-      ...closedMixin(theme),
-      '& .MuiDrawer-paper': closedMixin(theme),
-    }),
-  })
-);
-
+      {/* Dropdown children */}
+      {isDropdown && isDropdownOpen && open && (
+        <div
+          className="ml-4 mt-1 mb-1 pl-3 space-y-0.5"
+          style={{ borderLeft: "1px solid rgba(253,224,71,0.15)" }}
+        >
+          {item.children.map((sub, i) => {
+            const subActive = sub.path === pathname;
+            return (
+              <button
+                key={i}
+                onClick={() => onNavigate(sub.path)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 cursor-pointer ${
+                  subActive
+                    ? "text-black"
+                    : "text-[rgba(226,232,240,0.45)] hover:text-[rgba(226,232,240,0.85)] hover:bg-[rgba(255,255,255,0.04)]"
+                }`}
+                style={subActive ? { backgroundColor: "#FDE047" } : {}}
+              >
+                {sub.text}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Sidebar({ children, user }) {
-  const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [open, setOpen] = React.useState(!isMobile);
-  const [userPlan, setUserPlan] = React.useState('Free');
-  const [walletBalance, setWalletBalance] = React.useState(0);
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [upgradeDialogOpen, setUpgradeDialogOpen] = React.useState(false);
-  const [userId, setUserId] = React.useState(null);
-  const [subscriptionData, setSubscriptionData] = React.useState(null);
-  const [subscriptionLoading, setSubscriptionLoading] = React.useState(true);
-  const [userName, setUserName] = React.useState('');
-  const [userEmail, setUserEmail] = React.useState('');
-  const [initialLoad, setInitialLoad] = React.useState(true);
-  const [locationCheck, setLocationCheck] = React.useState("")
-  const [openDropdown, setOpenDropdown] = React.useState(null);
-  const [paidService, setPaidService] = React.useState(null);
-  const [paidPackage, setPaidPackage] = React.useState(null);
-  const [currentPlanDuration, setCurrentPlanDuration] = React.useState(null);
-  const [plansModalOpen, setPlansModalOpen] = React.useState(false);
-  const [subscriptionPlans, setSubscriptionPlans] = React.useState(null);
-  const [servicePlans, setServicePlans] = React.useState([]);
-  // const [subscriptionPlans, setSubscriptionPlans] = React.useState(null);
-  const [plansLoading, setPlansLoading] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState(0);
-  const [selectedCycle, setSelectedCycle] = React.useState('monthly');
 
+  const [open, setOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [userPlan, setUserPlan] = useState("Free");
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [userId, setUserId] = useState(null);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [locationCheck, setLocationCheck] = useState("");
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [paidService, setPaidService] = useState(null);
+  const [paidPackage, setPaidPackage] = useState(null);
+  const [currentPlanDuration, setCurrentPlanDuration] = useState(null);
+  const [plansModalOpen, setPlansModalOpen] = useState(false);
+  const [subscriptionPlans, setSubscriptionPlans] = useState(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileRef = useRef(null);
 
-  const [notifications, setNotifications] = React.useState([]);
-  const [notificationCount, setNotificationCount] = React.useState(0);
-  const [notifAnchorEl, setNotifAnchorEl] = React.useState(null); // renamed ✅
-
-  // Sync userId from localStorage for nav (e.g. Settings visibility).
-  React.useLayoutEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = localStorage.getItem('userId');
-    if (id) setUserId(id);
-  }, []);
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const onStorage = (e) => {
-      if (e.key === 'userId') setUserId(e.newValue || null);
+  /* ── Responsive ── */
+  useEffect(() => {
+    const check = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      if (mobile) setOpen(false);
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = localStorage.getItem('userId');
-    setUserId(id || null);
+  /* ── userId from localStorage ── */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const id = localStorage.getItem("userId");
+    if (id) setUserId(id);
   }, [pathname]);
 
-  // Get user info from props or localStorage
-  React.useEffect(() => {
-    if (user?.name) {
-      setUserName(user.name);
-    } else if (typeof window !== 'undefined') {
-      const storedName = localStorage.getItem('userName') || localStorage.getItem('fullName');
-      if (storedName) {
-        setUserName(storedName);
-      }
+  /* ── User info ── */
+  useEffect(() => {
+    if (user?.name) setUserName(user.name);
+    else {
+      const n =
+        localStorage.getItem("userName") || localStorage.getItem("fullName");
+      if (n) setUserName(n);
     }
-
-    if (user?.email) {
-      setUserEmail(user.email);
-    } else if (typeof window !== 'undefined') {
-      const storedEmail = localStorage.getItem('userEmail') || localStorage.getItem('email');
-      if (storedEmail) {
-        setUserEmail(storedEmail);
-      }
+    if (user?.email) setUserEmail(user.email);
+    else {
+      const e =
+        localStorage.getItem("userEmail") || localStorage.getItem("email");
+      if (e) setUserEmail(e);
     }
   }, [user]);
 
-  // Fetch user subscription details from API
+  /* ── Fetch subscription ── */
   const fetchSubscriptionDetails = async (showLoader = false) => {
-    if (showLoader) {
-      setSubscriptionLoading(true);
-    }
-
+    if (showLoader) setSubscriptionLoading(true);
     try {
-      const storedUserId = localStorage.getItem('userId');
-      if (!storedUserId) {
-        console.error('No userId found');
-        setUserPlan('Free');
+      const uid = localStorage.getItem("userId");
+      if (!uid) {
+        setUserPlan("Free");
         return;
       }
-
-      const response = await fetch(`/api/auth/signup?userId=${storedUserId}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSubscriptionData(data);
-
-        console.log("dataata",data);
-        
-
-        // Extract user name correctly
-        if (data.fullName) {
-          setUserName(data.fullName);
-          localStorage.setItem('userName', data.fullName);
-        }
-
-        if (data.email) {
-          setUserEmail(data.email);
-          localStorage.setItem('userEmail', data.email);
-        }
-
-        // Check subscription status
-        if (data.subscription && data.subscription.status === 'active') {
-          const newPlan = data.subscription.plan || 'Premium Plan';
-          setUserPlan(newPlan);
-          localStorage.setItem('Plan', newPlan);
-        } else {
-          setUserPlan('Free');
-          localStorage.setItem('Plan', 'Free');
-        }
-        
-        if (data.paidService) {
-          setPaidService(data.paidService);
-          localStorage.setItem('paidService', data.paidService);
-        }
-
-        if (data.paidPackage) {
-          setPaidPackage(data.paidPackage);
-          localStorage.setItem('paidPackage', data.paidPackage);
-        }
-
-        if (data.planDuration) {
-          setCurrentPlanDuration(data.planDuration);
-          localStorage.setItem('planDuration', data.planDuration);
-        }
-
-        // Update wallet balance from subscription data
-        if (data.wallet !== undefined) {
-          setWalletBalance(data.wallet);
-          localStorage.setItem('walletBalance', data.wallet.toString());
-        }
-      } else {
-        setUserPlan('Free');
-        localStorage.setItem('Plan', 'Free');
-      }
-    } catch (error) {
-      console.error('Error fetching subscription details:', error);
-      setUserPlan('Free');
-      localStorage.setItem('Plan', 'Free');
-    } finally {
-      if (showLoader) {
-        setSubscriptionLoading(false);
-      }
-      setInitialLoad(false);
-    }
-  };
-
-
-
-  // Fetch wallet balance from API
-  const fetchWalletBalance = async () => {
-    try {
-      const storedUserId = localStorage.getItem('userId');
-      if (!storedUserId) {
-        console.error('No userId found');
-        return;
-      }
-
-      const response = await fetch(`/api/users/userbalance?userId=${storedUserId}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setWalletBalance(data.user.wallet);
-        localStorage.setItem('walletBalance', data.user.wallet.toString());
-      }
-    } catch (error) {
-      console.error('Error fetching wallet balance:', error);
-    }
-  };
-
-  // Get plan and wallet from localStorage and API on mount
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUserId = localStorage.getItem('userId');
-      if (storedUserId) {
-        setUserId(storedUserId);
-
-        // Load from localStorage first for instant display
-        const storedPlan = localStorage.getItem('Plan');
-        if (storedPlan) {
-          setUserPlan(storedPlan);
-        }
-
-        const storedBalance = localStorage.getItem('walletBalance');
-        if (storedBalance) {
-          setWalletBalance(parseInt(storedBalance));
-        }
-
-        const storedName = localStorage.getItem('userName') || localStorage.getItem('fullName');
-        if (storedName) {
-          setUserName(storedName);
-        }
-
-        const storedEmail = localStorage.getItem('userEmail') || localStorage.getItem('email');
-        if (storedEmail) {
-          setUserEmail(storedEmail);
-        }
-        
-        const storedPaidService = localStorage.getItem('paidService');
-        if (storedPaidService) {
-          setPaidService(storedPaidService);
-        }
-        
-        const storedPaidPackage = localStorage.getItem('paidPackage');
-        if (storedPaidPackage) {
-          setPaidPackage(storedPaidPackage);
-        }
-
-        const storedPlanDuration = localStorage.getItem('planDuration');
-        if (storedPlanDuration) {
-          setCurrentPlanDuration(storedPlanDuration);
-        }
-
-        // Then fetch latest data
-        fetchSubscriptionDetails(true);
-        fetchWalletBalance();
-      } else {
-        setSubscriptionLoading(false);
-        setInitialLoad(false);
-      }
-    }
-  }, []);
-
-  const fetchPlansData = async () => {
-    try {
-      const res = await fetch('/api/home-data?type=subscriptionPlans');
+      const res = await fetch(`/api/auth/signup?userId=${uid}`);
       if (res.ok) {
         const data = await res.json();
-        setSubscriptionPlans(data);
+        setSubscriptionData(data);
+        if (data.fullName) {
+          setUserName(data.fullName);
+          localStorage.setItem("userName", data.fullName);
+        }
+        if (data.email) {
+          setUserEmail(data.email);
+          localStorage.setItem("userEmail", data.email);
+        }
+        if (data.subscription?.status === "active") {
+          const p = data.subscription.plan || "Premium Plan";
+          setUserPlan(p);
+          localStorage.setItem("Plan", p);
+        } else {
+          setUserPlan("Free");
+          localStorage.setItem("Plan", "Free");
+        }
+        if (data.paidService) {
+          setPaidService(data.paidService);
+          localStorage.setItem("paidService", data.paidService);
+        }
+        if (data.paidPackage) {
+          setPaidPackage(data.paidPackage);
+          localStorage.setItem("paidPackage", data.paidPackage);
+        }
+        if (data.planDuration) {
+          setCurrentPlanDuration(data.planDuration);
+          localStorage.setItem("planDuration", data.planDuration);
+        }
+        if (data.wallet !== undefined) {
+          setWalletBalance(data.wallet);
+          localStorage.setItem("walletBalance", data.wallet.toString());
+        }
+      } else {
+        setUserPlan("Free");
       }
-    } catch (error) {
-      console.error("Failed to fetch plans", error);
+    } catch {
+      setUserPlan("Free");
+    } finally {
+      if (showLoader) setSubscriptionLoading(false);
     }
+  };
+
+  /* ── Fetch wallet ── */
+  const fetchWalletBalance = async () => {
+    try {
+      const uid = localStorage.getItem("userId");
+      if (!uid) return;
+      const res = await fetch(`/api/users/userbalance?userId=${uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setWalletBalance(data.user.wallet);
+        localStorage.setItem("walletBalance", data.user.wallet.toString());
+      }
+    } catch {}
+  };
+
+  /* ── Initial load ── */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const uid = localStorage.getItem("userId");
+    if (!uid) {
+      setSubscriptionLoading(false);
+      return;
+    }
+    setUserId(uid);
+    const stored = {
+      plan: localStorage.getItem("Plan"),
+      balance: localStorage.getItem("walletBalance"),
+      name:
+        localStorage.getItem("userName") || localStorage.getItem("fullName"),
+      email: localStorage.getItem("userEmail") || localStorage.getItem("email"),
+      service: localStorage.getItem("paidService"),
+      package: localStorage.getItem("paidPackage"),
+      dur: localStorage.getItem("planDuration"),
+    };
+    if (stored.plan) setUserPlan(stored.plan);
+    if (stored.balance) setWalletBalance(parseInt(stored.balance));
+    if (stored.name) setUserName(stored.name);
+    if (stored.email) setUserEmail(stored.email);
+    if (stored.service) setPaidService(stored.service);
+    if (stored.package) setPaidPackage(stored.package);
+    if (stored.dur) setCurrentPlanDuration(stored.dur);
+    fetchSubscriptionDetails(true);
+    fetchWalletBalance();
+
+    const locationDetailsStr = localStorage.getItem("locationDetails");
+    try {
+      const loc = JSON.parse(locationDetailsStr);
+      if (loc?.[0]?.title) setLocationCheck(loc[0].title);
+    } catch {}
+  }, []);
+
+  /* ── Wallet refresh every 30s ── */
+  useEffect(() => {
+    if (!userId) return;
+    const t = setInterval(fetchWalletBalance, 30000);
+    return () => clearInterval(t);
+  }, [userId]);
+
+  /* ── Close profile menu on outside click ── */
+  useEffect(() => {
+    const handler = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ── Default open dropdown ── */
+  useEffect(() => {
+    const idx = menuItems.findIndex((i) => i.text === "Services & Packages");
+    if (idx !== -1) setOpenDropdown(idx);
+  }, []);
+
+  /* ── Fetch plans ── */
+  const fetchPlansData = async () => {
+    try {
+      const res = await fetch("/api/home-data?type=subscriptionPlans");
+      if (res.ok) setSubscriptionPlans(await res.json());
+    } catch {}
   };
 
   const handleOpenPlansModal = () => {
@@ -391,1143 +338,755 @@ export default function Sidebar({ children, user }) {
     fetchPlansData();
   };
 
-  const handleClosePlansModal = () => {
-    setPlansModalOpen(false);
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
-  const handleCycleChange = (event, newCycle) => {
-    if (newCycle !== null) {
-      setSelectedCycle(newCycle);
-    }
-  };
-
-  // Refresh wallet balance and subscription periodically (only wallet, not plan)
-  React.useEffect(() => {
-    if (userId) {
-      const interval = setInterval(() => {
-        fetchWalletBalance();
-      }, 30000); // Only refresh wallet every 30 seconds
-
-      return () => clearInterval(interval);
-    }
-  }, [userId]);
-
-  React.useEffect(() => {
-    if (isMobile) {
-      setOpen(false);
-    }
-  }, [isMobile]);
-
-  const handleDrawerToggle = () => setOpen(!open);
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  // const handleUpgradeClick = () => {
-  //   if (userPlan === 'Free' || subscriptionData?.subscription?.status !== 'active') {
-  //     handleMenuClose();
-  //     router.push('/subscription');
-  //   } else {
-  //     // Refresh subscription data before opening dialog
-  //     fetchSubscriptionDetails(true);
-  //     setUpgradeDialogOpen(true);
-  //     handleMenuClose();
-  //   }
-  // };
-
-  // const handleUpgradeDialogClose = () => {
-  //   setUpgradeDialogOpen(false);
-  // };
-
-  const handleWalletClick = () => {
-    if (userId) {
-      fetchWalletBalance();
-    }
-    handleMenuClose();
-    router.push('/wallet');
-  };
-
   const handleSignOut = async () => {
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.clear();
-      }
-      toast.success('Logged out successfully!');
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Failed to logout. Please try again.');
-    }
+    localStorage.clear();
+    toast.success("Logged out successfully!");
+    router.push("/login");
   };
 
-
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/admin/notification");
-      const data = await res.json();
-
-      if (data.success && data.notifications) {
-        setNotifications(data.notifications);
-        const unread = data.notifications.filter((n) => !n.isRead).length;
-        setNotificationCount(unread);
-      }
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
+  const navigate = (path) => {
+    let finalPath = path;
+    if (path.includes("[bussiness]")) {
+      const slug = locationCheck?.trim().replace(/\s+/g, "-").toLowerCase();
+      finalPath = path.replace("[bussiness]", slug);
     }
+    if (isMobile) setOpen(false);
+    router.push(finalPath);
   };
 
-  React.useEffect(() => {
-    fetchNotifications();
-    const locationDetailsStr = localStorage.getItem("locationDetails");
-
-    const locationDetails = JSON.parse(locationDetailsStr);
-
-
-
-    const bussinessLocation = locationDetails && locationDetails[0]?.title;
-    setLocationCheck(bussinessLocation)
-  }, []);
-
-  // ✅ Handle open/close
-  const handleNotifOpen = (event) => setNotifAnchorEl(event.currentTarget);
-  const handleNotifClose = () => setNotifAnchorEl(null);
-
+  /* ── Nav items ── */
   const menuItems = [
-    { text: 'Home', icon: <Home size={20} />, path: '/' },
-    { text: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
-    { text: 'Post Management', icon: <FileText size={20} />, path: '/post-management' },
-    { text: 'Review Management', icon: <Star size={20} />, path: '/review-management' },
+    { text: "Home", icon: <Home size={18} />, path: "/" },
     {
-      text: 'Get Magic QR',
-      icon: <Wand size={20} />,
-      children: [
-        { text: 'Get Magic QR', path: '/get-magic-qr' },
-        { text: 'Get Customer Review', path: '/reviews/get-customer-review' }
-      ]
+      text: "Dashboard",
+      icon: <LayoutDashboard size={18} />,
+      path: "/dashboard",
     },
-    { text: 'Assets Management', icon: <LucideImage size={20} />, path: '/assets-management' },
-    { text: 'Keyword Management', icon: <KeyRound size={20} />, path: '/keyword-planner' },
     {
-      text: 'Services & Packages',
-      icon: <Package size={20} />,
-      children: [
-        { text: 'Our Services', path: '/#services' },
-        { text: 'Our Packages', path: '/#subscription-plans' }
-      ]
+      text: "Post Management",
+      icon: <FileText size={18} />,
+      path: "/post-management",
     },
-    { text: 'GMB Health', icon: <Activity size={20} />, path: '/gmb-health' },
-    // { text: 'Build Website', icon: <Activity size={20} />, path: '/build-website' },
-    // { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
-    { text: 'User Profile', icon: <User size={20} />, path: '/profile' },
-    // { text: 'Optimization', icon: <Sparkles size={20} />, path: '/user-settings/optimization' },
-    { text: 'Settings', icon: <SettingsIcon size={20} />, path: '/user-settings' },
+    {
+      text: "Review Management",
+      icon: <Star size={18} />,
+      path: "/review-management",
+    },
+    {
+      text: "Get Magic QR",
+      icon: <Wand size={18} />,
+      children: [
+        { text: "Get Magic QR", path: "/get-magic-qr" },
+        { text: "Get Customer Review", path: "/reviews/get-customer-review" },
+      ],
+    },
+    {
+      text: "Assets Management",
+      icon: <LucideImage size={18} />,
+      path: "/assets-management",
+    },
+    {
+      text: "Keyword Management",
+      icon: <KeyRound size={18} />,
+      path: "/keyword-planner",
+    },
+    {
+      text: "Services & Packages",
+      icon: <Package size={18} />,
+      children: [
+        { text: "Our Services", path: "/#services" },
+        { text: "Our Packages", path: "/#subscription-plans" },
+      ],
+    },
+    { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
+    { text: "User Profile", icon: <User size={18} />, path: "/profile" },
+    { text: "Settings", icon: <Settings size={18} />, path: "/user-settings" },
   ];
 
-  const SETTINGS_RELATED_PATHS = new Set(['/user-settings', '/user-settings/optimization']);
-  const navUserId = typeof userId === 'string' ? userId.trim() : '';
-  const showSettingsNav = SETTINGS_NAV_USER_IDS.has(navUserId);
-  const visibleMenuItems = showSettingsNav
+  const SETTINGS_PATHS = new Set([
+    "/user-settings",
+    "/user-settings/optimization",
+  ]);
+  const navUserId = typeof userId === "string" ? userId.trim() : "";
+  const showSettings = SETTINGS_NAV_USER_IDS.has(navUserId);
+  const visibleItems = showSettings
     ? menuItems
-    : menuItems.filter((item) => !SETTINGS_RELATED_PATHS.has(item.path));
+    : menuItems.filter((i) => !SETTINGS_PATHS.has(i.path));
 
-  // const getPlanConfig = (plan) => {
-  //   const planLower = plan?.toLowerCase() || 'free';
-
-  //   switch (planLower) {
-  //     case 'premium':
-  //     case 'premium plan':
-  //     case 'pro':
-  //       return {
-  //         label: 'Premium',
-  //         gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  //         color: 'white',
-  //       };
-  //     case 'enterprise':
-  //     case 'enterprise plan':
-  //       return {
-  //         label: 'Enterprise',
-  //         gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
-  //         color: 'white',
-  //       };
-  //     case 'standard':
-  //     case 'standard plan':
-  //       return {
-  //         label: 'Standard',
-  //         gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-  //         color: 'white',
-  //       };
-  //     case 'free':
-  //     default:
-  //       return {
-  //         label: 'Free',
-  //         gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-  //         color: 'white',
-  //       };
-  //   }
-  // };
-
-  // const planConfig = getPlanConfig(userPlan);
-
-  const drawerContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <DrawerHeader>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {/* <Image
-            src={logoDash}
-            width={40}
-            height={40}
-            alt="Limbu.AI"
-          /> */}
-          {open && (
-            <Link href="/">
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  letterSpacing: '-0.5px',
-                }}
-              >
-                {/* Limbu.AI */}
-              </Typography>
-            </Link>
-          )}
-        </Box>
-        {open && (
-          <IconButton onClick={handleDrawerToggle} size="small">
-            {theme.direction === 'rtl' ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-          </IconButton>
-        )}
-      </DrawerHeader>
-
-      <Divider sx={{ borderColor: 'rgba(102, 126, 234, 0.1)' }} />
-
-     <List sx={{ flex: 1, overflowY: 'auto', px: 1.5, pt: 2 }}>
-  {visibleMenuItems.map((item, index) => {
-    const isDropdown = !!item.children;
-    const isOpen = openDropdown === index;
-
-    const isActive =
-      item.path === pathname ||
-      (item.children && item.children.some(c => c.path === pathname));
-
-    const navigateTo = (path) => {
-      let finalPath = path;
-
-      if (path.includes("[bussiness]")) {
-        const slug =
-          locationCheck &&
-          locationCheck.trim().replace(/\s+/g, "-").toLowerCase();
-
-        finalPath = path.replace("[bussiness]", slug);
-      }
-
-      if (isMobile) handleDrawerToggle();
-      router.push(finalPath);
-    };
-
-    return (
-      <div key={index}>
-        {/* MAIN BUTTON */}
-        <ListItem disablePadding sx={{ display: "block", mb: 0.5 }}>
-          <ListItemButton
-            onClick={() => {
-              if (isDropdown) {
-                setOpenDropdown(isOpen ? null : index);
-              } else {
-                navigateTo(item.path);
-              }
-            }}
-            sx={{
-              minHeight: 44,
-              justifyContent: open ? "initial" : "center",
-              px: 2,
-              mx: 1.5,
-              borderRadius: "10px",
-              transition: "all 0.2s ease-in-out",
-
-              /* ACTIVE COLOR */
-              bgcolor: isActive ? "#0F172A" : "transparent",
-              color: isActive ? "#ffffff" : "#475569",
-
-              "&:hover": {
-                background: isActive
-                  ? "#0F172A"
-                  : "rgba(0,0,0,0.04)",
-                transform: "translateX(2px)",
-                color: isActive ? "#ffffff" : "#1e293b",
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: 0,
-                mr: open ? 2 : "auto",
-                justifyContent: "center",
-                color: isActive ? "#ffffff" : "#94a3b8",
+  /* ── Sidebar content ── */
+  const sidebarContent = (
+    <div
+      className="h-full flex flex-col"
+      style={{ backgroundColor: "#0a0a0a" }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-4 h-16 shrink-0"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        {open ? (
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image src={logoDash} width={32} height={32} alt="Logo" />
+            <span
+              className="font-normal uppercase tracking-tight text-lg leading-none"
+              style={{
+                fontFamily: "Anton, Impact, sans-serif",
+                color: "#FDE047",
               }}
             >
-              {item.icon}
-            </ListItemIcon>
-
-            <ListItemText
-              primary={item.text}
-              sx={{
-                opacity: open ? 1 : 0,
-                "& .MuiTypography-root": {
-                  fontWeight: isActive ? 600 : 500,
-                  fontSize: "0.9rem",
-                },
-              }}
-            />
-
-            {isDropdown && open && (
-              <Box sx={{ color: isActive ? "#fff" : "#94a3b8", display: "flex" }}>
-                {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </Box>
-            )}
-          </ListItemButton>
-        </ListItem>
-
-        {/* DROPDOWN CHILDREN */}
-        {isDropdown && isOpen && open && (
-          <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2">
-            {item.children.map((sub, i) => {
-              const isSubActive = sub.path === pathname;
-
-              return (
-                <ListItemButton
-                  key={i}
-                  onClick={() => navigateTo(sub.path)}
-                  sx={{
-                    pl: 2,
-                    py: 0.8,
-                    borderRadius: "8px",
-                    mb: 0.5,
-
-                    bgcolor: isSubActive ? "#0F172A" : "transparent",
-                    color: isSubActive ? "#ffffff" : "#64748b",
-
-                    "&:hover": {
-                      background: isSubActive
-                        ? "#0F172A"
-                        : "rgba(0,0,0,0.03)",
-                      color: isSubActive ? "#ffffff" : "#1e293b",
-                    },
-                  }}
-                >
-                  <ListItemText
-                    primary={sub.text}
-                    sx={{
-                      "& .MuiTypography-root": {
-                        fontSize: "0.85rem",
-                        fontWeight: isSubActive ? 600 : 400,
-                      },
-                    }}
-                  />
-                </ListItemButton>
-              );
-            })}
-          </div>
+              Limbu.AI
+            </span>
+          </Link>
+        ) : (
+          <Image
+            src={logoDash}
+            width={28}
+            height={28}
+            alt="Logo"
+            className="mx-auto"
+          />
+        )}
+        {open && (
+          <button
+            onClick={() => setOpen(false)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer hover:bg-[rgba(255,255,255,0.06)]"
+            style={{ color: "rgba(226,232,240,0.4)" }}
+          >
+            <ChevronLeft size={16} />
+          </button>
         )}
       </div>
-    );
-  })}
-</List>
 
-      {/* <Box sx={{ p: 2, mt: 'auto' }}>
-        <Box
-          sx={{
-            p: 2.5,
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-            border: '1px solid #e2e8f0',
-            textAlign: 'center',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.5px', display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
-            CURRENT PLAN
-          </Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#1e293b', mb: 2, fontSize: '0.95rem' }}>
-            {paidPackage || paidService || 'Free Plan'}
-          </Typography>
-          <Button
-            variant="contained"
-            size="small"
-            fullWidth
-            onClick={handleOpenPlansModal}
-            sx={{
-              background: '#1e293b',
-              color: 'white',
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              borderRadius: '8px',
-              boxShadow: 'none',
-              py: 0.8,
-              '&:hover': {
-                background: '#334155',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 custom-scroll">
+        {visibleItems.map((item, idx) => {
+          const isDropdown = !!item.children;
+          const isActive =
+            item.path === pathname ||
+            (item.children && item.children.some((c) => c.path === pathname));
+          return (
+            <NavItem
+              key={idx}
+              item={item}
+              open={open}
+              isActive={isActive}
+              isDropdownOpen={openDropdown === idx}
+              onToggleDropdown={() =>
+                setOpenDropdown(openDropdown === idx ? null : idx)
               }
-            }}
-          >
-            Upgrade
-          </Button>
-        </Box>
-      </Box> */}
+              onNavigate={navigate}
+              pathname={pathname}
+            />
+          );
+        })}
+      </nav>
 
-      <Dialog
-        open={plansModalOpen}
-        onClose={handleClosePlansModal}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            background: '#f8fafc',
-            // minHeight: '80vh'
-          }
-        }}
+      {/* Bottom user strip */}
+      <div
+        className="px-3 py-3 shrink-0"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-          <Typography variant="h5" fontWeight="bold" sx={{ background: 'linear-gradient(to right, #2563eb, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            My Subscription
-          </Typography>
-          <IconButton onClick={handleClosePlansModal} size="small">
-            <X />
-          </IconButton>
-        </DialogTitle>
-        
-        <DialogContent>
-           {subscriptionLoading ? (
-             <Box display="flex" justifyContent="center" p={5}><CircularProgress /></Box>
-           ) : (
-             <Box>
-               <Card sx={{ mb: 3, borderRadius: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                 <CardContent>
-                   <Grid container spacing={2}>
-                     <Grid item xs={12}>
-                       <Typography variant="subtitle2" color="text.secondary">Current Plan</Typography>
-                       <Typography variant="h5" fontWeight="bold" color="primary.main">
-                         {paidPackage || paidService || 'Free Plan'}
-                       </Typography>
-                     </Grid>
-                     
-                     {subscriptionData?.subscription?.status === 'active' && (
-                       <>
-                         <Grid item xs={6}>
-                           <Typography variant="subtitle2" color="text.secondary">Start Date</Typography>
-                           <Typography variant="body1" fontWeight="500">
-                             {subscriptionData.subscription.date ? new Date(subscriptionData.subscription.date).toLocaleDateString() : 'N/A'}
-                           </Typography>
-                         </Grid>
-                         <Grid item xs={6}>
-                           <Typography variant="subtitle2" color="text.secondary">Expiry Date</Typography>
-                           <Typography variant="body1" fontWeight="500">
-                             {subscriptionData.subscription.expiry ? new Date(subscriptionData.subscription.expiry).toLocaleDateString() : 'N/A'}
-                           </Typography>
-                         </Grid>
-                         <Grid item xs={12}>
-                            <Box display="flex" alignItems="center" gap={1} mt={1}>
-                              <Typography variant="subtitle2" color="text.secondary">Status:</Typography>
-                              <Chip 
-                                label={subscriptionData.subscription.status} 
-                                color="success" 
-                                size="small" 
-                                sx={{ fontWeight: 'bold', textTransform: 'capitalize' }} 
-                              />
-                            </Box>
-                         </Grid>
-                       </>
-                     )}
-
-                     {subscriptionPlans && (paidPackage || paidService) && (() => {
-                        let plan = null;
-
-                        // 1. Try finding by paidPackage + planDuration
-                        if (paidPackage && currentPlanDuration) {
-                          const cycleData = subscriptionPlans.billingCycles.find(c => c.cycle === currentPlanDuration);
-                          if (cycleData) {
-                            plan = cycleData.plans.find(p => p.title === paidPackage);
-                          }
-                        }
-
-                        // 2. Fallback: Try finding by paidService (legacy or simple string match)
-                        if (!plan && paidService) {
-                           plan = subscriptionPlans.billingCycles.flatMap(c => c.plans).find(p => p.title === paidService);
-                        }
-                        
-                        if (plan) {
-                          return (
-                            <Grid item xs={12}>
-                              <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #e2e8f0' }}>
-                                
-                                {plan.description && (
-                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic', textAlign: 'center' }}>
-                                    {plan.description}
-                                  </Typography>
-                                )}
-
-                                <Grid container spacing={2} sx={{ mb: 2 }}>
-                                  <Grid item xs={6}>
-                                    <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                                      <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">POSTS</Typography>
-                                      <Typography variant="h6" color="primary.main" fontWeight="bold">{plan.posts}</Typography>
-                                    </Box>
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Box sx={{ p: 1.5, bgcolor: '#fafcfe', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                                      <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">CITATIONS</Typography>
-                                      <Typography variant="h6" color="primary.main" fontWeight="bold">{plan.citations}</Typography>
-                                    </Box>
-                                  </Grid>
-                                </Grid>
-
-                                <Box>
-                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                    Plan: {plan.title} ({plan.duration})
-                                  </Typography>
-                                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: '#334155' }}>
-                                    Plan Details: Start Date : {subscriptionData.packageStartDate ? new Date(subscriptionData.packageStartDate).toLocaleDateString() : 'N/A'} | Expiry Date : {subscriptionData.packageExpiryDate ? new Date(subscriptionData.packageExpiryDate).toLocaleDateString() : 'N/A'}
-                                  </Typography>
-                                  
-                                </Box>
-{/* 
-                                <Box sx={{ mb: 2, p: 2, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
-                                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                      <Typography variant="body2" color="text.secondary">Base Price</Typography>
-                                      <Typography variant="body2" fontWeight="bold">₹{plan.basePrice}</Typography>
-                                   </Box>
-                                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                      <Typography variant="body2" color="text.secondary">GST (18%)</Typography>
-                                      <Typography variant="body2" fontWeight="bold">₹{plan.gst}</Typography>
-                                   </Box>
-                                   <Divider sx={{ my: 1, borderColor: '#bbf7d0' }} />
-                                   <Box display="flex" justifyContent="space-between" alignItems="center">
-                                      <Typography variant="subtitle2" fontWeight="bold">Total Value</Typography>
-                                      <Typography variant="subtitle2" fontWeight="bold" color="success.main">₹{plan.totalAmount} / {plan.duration}</Typography>
-                                   </Box>
-                                </Box> */}
-
-                                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: '#334155' }}>
-                                  Plan Features:
-                                </Typography>
-                                <Grid container spacing={1}>
-                                  {plan.features && plan.features.map((feature, idx) => (
-                                    <Grid item xs={12} key={idx}>
-                                      <Box display="flex" alignItems="start" gap={1.5}>
-                                        <CheckCircle size={16} color="#10b981" style={{ marginTop: 3, flexShrink: 0 }} />
-                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>{feature}</Typography>
-                                      </Box>
-                                    </Grid>
-                                  ))}
-                                </Grid>
-                              </Box>
-                            </Grid>
-                          );
-                        }
-                        return null;
-                     })()}
-                   </Grid>
-                 </CardContent>
-               </Card>
-
-               <Grid container spacing={2}>
-                 <Grid item xs={6}>
-                   <Button 
-                     fullWidth 
-                     variant="outlined" 
-                     size="large"
-                     onClick={() => {
-                       handleClosePlansModal();
-                       router.push('/user-activity');
-                     }}
-                     startIcon={<Activity size={18} />}
-                     sx={{ 
-                       py: 1.5,
-                       fontWeight: 'bold',
-                       borderColor: '#667eea',
-                       color: '#667eea',
-                       '&:hover': {
-                         borderColor: '#764ba2',
-                         color: '#764ba2',
-                         background: 'rgba(102, 126, 234, 0.04)'
-                       }
-                     }}
-                   >
-                     View Activity
-                   </Button>
-                 </Grid>
-                 <Grid item xs={6}>
-                   <Button 
-                     fullWidth 
-                     variant="contained" 
-                     size="large"
-                     onClick={() => {
-                       handleClosePlansModal();
-                       router.push('/#subscription-plans');
-                     }}
-                     sx={{ 
-                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                       py: 1.5,
-                       fontWeight: 'bold'
-                     }}
-                   >
-                     Upgrade / Renew
-                   </Button>
-                 </Grid>
-               </Grid>
-             </Box>
-           )}
-        </DialogContent>
-      </Dialog>
-    </Box>
+        <button
+          onClick={() => navigate("/profile")}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[rgba(255,255,255,0.05)]`}
+        >
+          <AvatarCircle name={userName} size="sm" src={user?.image} />
+          {open && (
+            <div className="flex-1 min-w-0 text-left">
+              <p
+                className="text-[12px] font-semibold truncate"
+                style={{ color: "rgba(226,232,240,0.85)" }}
+              >
+                {userName || "User"}
+              </p>
+              <p
+                className="text-[10px] truncate"
+                style={{ color: "rgba(226,232,240,0.35)" }}
+              >
+                {userEmail
+                  ? userEmail.length > 22
+                    ? userEmail.slice(0, 22) + "…"
+                    : userEmail
+                  : ""}
+              </p>
+            </div>
+          )}
+        </button>
+      </div>
+    </div>
   );
-
-
-  // Open dropdown by default (for the first dropdown menu)
-  React.useEffect(() => {
-    const targetIndex = menuItems.findIndex(item => item.text === 'Services & Packages');
-    if (targetIndex !== -1) {
-      setOpenDropdown(targetIndex);
-    }
-  }, []);
-
-
 
   return (
     <>
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-        <CssBaseline />
-        <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: "#0a0a0a",
+            color: "#e2e8f0",
+            border: "1px solid rgba(253,224,71,0.2)",
+            fontSize: "13px",
+          },
+        }}
+      />
 
-        <AppBar position="fixed" open={open}>
-          <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {!open && (
-                <IconButton
-                  color="inherit"
-                  onClick={handleDrawerToggle}
-                  edge="start"
-                  sx={{
-                    background: 'rgba(0, 0, 0, 0.05)',
-                    '&:hover': {
-                      background: 'rgba(0, 0, 0, 0.1)',
-                    },
-                  }}
-                >
-                <MenuIcon size={24} />
-                </IconButton>
-              )}
-              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    display: { xs: "none", sm: "flex" },
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                <Image
-                  src={logoDash}
-                  width={40}       // <== increase/decrease size
-                  height={80}
-                  alt="Logo"
-                  style={{ marginRight: 6 }}
-                />
-                Limbu.AI
-              </Typography></Link>
-              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    display: { xs: "flex", sm: "none" },
-                    alignItems: "center",
-                    cursor: "pointer",
-                    gap: 1
-                  }}
-                >
-                  <Image
-                    src={logoDash}
-                    width={32}
-                    height={32}
-                    alt="Logo"
-                  />
-                  Limbu.AI
-                </Typography>
-              </Link>
-
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
-              {/* Notifications Icon */}
-
-              {/* Plan Chip */}
-              {(paidPackage || paidService) && (
-                
-  <Chip
-    label={paidPackage || paidService}
-    onClick={handleOpenPlansModal}
-    sx={{
-      fontWeight: 600,
-      background: '#0B0F19',
-      color: 'white',
-      border: 'none',
-      cursor: 'pointer',
-      boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)',
-      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-      height: { xs: 28, sm: 32 },
-
-      '&:hover': {
-        background: '#0B0F19',   // same as normal
-        color: 'white',         // same as normal
-        boxShadow: '0 2px 8px rgba(255, 94, 98, 0.3)', // same shadow
-      }
-    }}
-  />
-)}
-
-              {/* Wallet Chip */}
-             <Chip
-  label={isMobile ? `${walletBalance}` : `${walletBalance} Coins`}
-  icon={<AddCircleOutlineIcon sx={{ color: 'white !important' }} />}
-  onClick={handleWalletClick}
-  sx={{
-    fontWeight: 600,
-    background: '#0B0F19',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-    height: { xs: 28, sm: 32 },
-
-    '&:hover': {
-      background: '#0B0F19',
-      color: 'yellow',
-      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-      transform: 'none',
-      opacity: 1,
-    },
-
-    '& .MuiChip-icon': {
-      fontSize: { xs: '1rem', sm: '1.25rem' },
-    },
-  }}
-/>
-
-
-
-              {/* User Menu */}
-              <Box
-                onClick={handleMenuOpen}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: '8px',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    backgroundColor: '#eaecf0',
-                  },
+      <div className="flex min-h-screen" style={{ backgroundColor: "#060606" }}>
+        {/* ── Sidebar (desktop permanent) ── */}
+        {!isMobile && (
+          <aside
+            className="fixed left-0 top-0 h-full z-30 transition-all duration-300 shrink-0"
+            style={{
+              width: open ? `${drawerWidth}px` : "72px",
+              borderRight: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            {sidebarContent}
+            {/* Collapsed toggle */}
+            {!open && (
+              <button
+                onClick={() => setOpen(true)}
+                className="absolute -right-3 top-16 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 z-10"
+                style={{
+                  backgroundColor: "#FDE047",
+                  boxShadow: "0 0 12px rgba(253,224,71,0.4)",
                 }}
               >
-                <Badge
-                  variant="dot"
-                  overlap="circular"
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'right',
-                  }}
-                  color="success"
-                >
-                  <Avatar
-                    alt={userName || 'User'}
-                    src={user?.image || user?.avatar}
-                    sx={{
-                      width: { xs: 32, sm: 36 },
-                      height: { xs: 32, sm: 36 },
-                       color: 'dark',
-                      bgcolor: '#0B0F19',
-                      fontWeight: 600,
-                      color: 'white',
-                    }}
-                  >
-                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                  </Avatar>
-                </Badge>
-                {!isMobile && (
-                  <>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                        {userName || 'User'}
-                      </Typography>
-                      {userEmail && (
-                        <Typography variant="caption" sx={{ opacity: 0.9, lineHeight: 1.2 }}>
-                          {userEmail.length > 20 ? userEmail.substring(0, 20) + '...' : userEmail}
-                        </Typography>
-                      )}
-                    </Box>
-                    <ArrowDownIcon />
-                  </>
-                )}
-              </Box>
-            </Box>
-          </Toolbar>
-        </AppBar>
-
-        {/* User Menu Dropdown */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
-          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-          PaperProps={{
-            elevation: 8,
-            sx: {
-              mt: 1.5,
-              minWidth: 220,
-              borderRadius: 2,
-              overflow: 'visible',
-              filter: 'drop-shadow(0px 2px 8px rgba(139, 6, 6, 0.15))',
-            },
-          }}
-        >
-          <MenuItem disabled>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar
-                alt={userName || 'User'}
-                src={user?.image || user?.avatar}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  bgcolor: '#364dd1',
-                  fontWeight: 600,
-                }}
-              >
-                {userName ? userName.charAt(0).toUpperCase() : 'U'}
-              </Avatar>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {userName || 'No Name'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {userEmail || 'No email'}
-                </Typography>
-              </Box>
-            </Box>
-          </MenuItem>
-          <Divider />
-          <MenuItem
-            onClick={() => {
-              handleMenuClose();
-              router.push('/profile');
-            }}
-          >
-            <ListItemIcon>
-              <AccountIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Profile</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={handleWalletClick}>
-            <ListItemIcon>
-              <WalletIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Wallet ({walletBalance} Coins)</ListItemText>
-          </MenuItem>
-          {/* <MenuItem onClick={handleUpgradeClick}>
-            <ListItemIcon>
-              <UpgradeIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              {userPlan === 'Free' || subscriptionData?.subscription?.status !== 'active'
-                ? 'Upgrade Plan'
-                : 'Manage Subscription'}
-            </ListItemText>
-          </MenuItem> */}
-          {showSettingsNav && (
-            <MenuItem
-              onClick={() => {
-                handleMenuClose();
-                router.push('/user-settings');
-              }}
-            >
-              <ListItemIcon>
-                <SettingsIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Settings</ListItemText>
-            </MenuItem>
-          )}
-          <Divider />
-          <MenuItem
-            onClick={handleSignOut}
-            sx={{
-              color: 'error.main',
-              '&:hover': {
-                backgroundColor: 'error.light',
-                color: 'error.dark',
-              },
-            }}
-          >
-            <ListItemIcon>
-              <LogoutIcon fontSize="small" color="error" />
-            </ListItemIcon>
-            <ListItemText>Logout</ListItemText>
-          </MenuItem>
-        </Menu>
-
-        {/* Subscription Details Dialog */}
-        {/* <Dialog
-          open={upgradeDialogOpen}
-          onClose={handleUpgradeDialogClose}
-          maxWidth="md"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              maxHeight: '90vh',
-            },
-          }}
-        >
-          <DialogTitle
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              fontWeight: 700,
-            }}
-          >
-            Subscription Details
-          </DialogTitle>
-          <DialogContent sx={{ mt: 3, overflowY: 'auto' }}>
-            {subscriptionLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <Card
-                  sx={{
-                    mb: 3,
-                    background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
-                    borderRadius: 2,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                      Current Plan
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Plan Name
-                          </Typography>
-                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            {subscriptionData?.subscription?.plan || 'Free'}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Status
-                          </Typography>
-                          <Chip
-                            label={
-                              subscriptionData?.subscription?.status === 'active' ? 'Active' : 'Inactive'
-                            }
-                            color={
-                              subscriptionData?.subscription?.status === 'active' ? 'success' : 'default'
-                            }
-                            size="small"
-                            sx={{ mt: 0.5 }}
-                          />
-                        </Box>
-                      </Grid>
-                      {subscriptionData?.subscription?.status === 'active' && (
-                        <>
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ mb: 2 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Start Date
-                              </Typography>
-                              <Typography variant="body1">
-                                {new Date(subscriptionData.subscription.date).toLocaleDateString()}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ mb: 2 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Expiry Date
-                              </Typography>
-                              <Typography variant="body1">
-                                {new Date(subscriptionData.subscription.expiry).toLocaleDateString()}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ mb: 2 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Order ID
-                              </Typography>
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontFamily: 'monospace',
-                                  fontSize: '0.85rem',
-                                  wordBreak: 'break-all',
-                                }}
-                              >
-                                {subscriptionData.subscription.orderId}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ mb: 2 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Payment ID
-                              </Typography>
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontFamily: 'monospace',
-                                  fontSize: '0.85rem',
-                                  wordBreak: 'break-all',
-                                }}
-                              >
-                                {subscriptionData.subscription.paymentId}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12}>
-                            <Box sx={{ mb: 2 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Wallet Balance
-                              </Typography>
-                              <Typography variant="h6" sx={{ fontWeight: 600, color: '#10b981' }}>
-                                {subscriptionData.wallet || walletBalance} Coins
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        </>
-                      )}
-                    </Grid>
-                  </CardContent>
-                </Card>
-
-                {subscriptionData?.subscription?.status !== 'active' && (
-                  <Box
-                    sx={{
-                      p: 3,
-                      background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                      borderRadius: 2,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                      Unlock Premium Features
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Upgrade your plan to access advanced features and boost your productivity!
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={() => {
-                        handleUpgradeDialogClose();
-                        router.push('/subscription');
-                      }}
-                      sx={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white',
-                        fontWeight: 600,
-                        px: 4,
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #5568d3 0%, #6941a0 100%)',
-                        },
-                      }}
-                    >
-                      View Plans & Upgrade
-                    </Button>
-                  </Box>
-                )}
-              </>
+                <ChevronRight size={12} className="text-black" />
+              </button>
             )}
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button onClick={handleUpgradeDialogClose} variant="outlined">
-              Close
-            </Button>
-            {subscriptionData?.subscription?.status === 'active' && (
-              <Button
-                onClick={() => {
-                  handleUpgradeDialogClose();
-                  router.push('/subscription');
-                }}
-                variant="contained"
-                sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #5568d3 0%, #6941a0 100%)',
-                  },
-                }}
-              >
-                Change Plan
-              </Button>
-            )}
-          </DialogActions>
-        </Dialog> */}
-
-        {/* Drawer */}
-        {isMobile ? (
-          <MuiDrawer
-            variant="temporary"
-            open={open}
-            onClose={handleDrawerToggle}
-            ModalProps={{
-              keepMounted: true,
-            }}
-            sx={{
-              '& .MuiDrawer-paper': {
-                width: drawerWidth,
-                boxSizing: 'border-box',
-                background: '#ffffff',
-              },
-            }}
-          >
-            {drawerContent}
-          </MuiDrawer>
-        ) : (
-          <Drawer variant="permanent" open={open}>
-            {drawerContent}
-          </Drawer>
+          </aside>
         )}
 
-        {/* Main Content */}
-        <Box component="main" sx={{ flexGrow: 1, bgcolor: '#FFFFFF', minHeight: '100vh', p: { xs: 2, sm: 3 } }}>
-          <DrawerHeader />
-          {children}
-        </Box>
-      </Box>
+        {/* ── Mobile drawer overlay ── */}
+        {isMobile && open && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+            />
+            <aside
+              className="fixed left-0 top-0 h-full z-50 transition-transform duration-300"
+              style={{
+                width: `${drawerWidth}px`,
+                borderRight: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              {sidebarContent}
+            </aside>
+          </>
+        )}
+
+        {/* ── Main area ── */}
+        <div
+          className="flex flex-col flex-1 min-w-0 transition-all duration-300"
+          style={{
+            marginLeft: isMobile ? 0 : open ? `${drawerWidth}px` : "72px",
+          }}
+        >
+          {/* ── Top AppBar ── */}
+          <header
+            className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 h-16 flex-shrink-0"
+            style={{
+              backgroundColor: "rgba(6,6,6,0.95)",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            {/* Left: hamburger (mobile) + logo */}
+            <div className="flex items-center gap-3">
+              {isMobile && (
+                <button
+                  onClick={() => setOpen(true)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-[rgba(255,255,255,0.06)]"
+                  style={{ color: "rgba(226,232,240,0.6)" }}
+                >
+                  <MenuIcon size={20} />
+                </button>
+              )}
+            </div>
+
+            {/* Right: chips + user menu */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Plan chip */}
+              {(paidPackage || paidService) && (
+                <button
+                  onClick={handleOpenPlansModal}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-all duration-200 hover:opacity-85"
+                  style={{
+                    background: "rgba(253,224,71,0.1)",
+                    border: "1px solid rgba(253,224,71,0.25)",
+                    color: "#FDE047",
+                  }}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full animate-pulse"
+                    style={{ backgroundColor: "#FDE047" }}
+                  />
+                  {paidPackage || paidService}
+                </button>
+              )}
+
+              {/* Wallet chip */}
+              <button
+                onClick={() => {
+                  fetchWalletBalance();
+                  router.push("/wallet");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-[0.05em] cursor-pointer transition-all duration-200 hover:opacity-85"
+                style={{
+                  background: "rgba(74,222,128,0.08)",
+                  border: "1px solid rgba(74,222,128,0.2)",
+                  color: "#4ade80",
+                }}
+              >
+                <Plus size={13} />
+                <span>{walletBalance}</span>
+                <span className="hidden sm:inline">Coins</span>
+              </button>
+
+              {/* Profile menu */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-xl cursor-pointer transition-all duration-200 hover:bg-[rgba(255,255,255,0.05)]"
+                >
+                  <div className="relative">
+                    <AvatarCircle name={userName} src={user?.image} />
+                    <span
+                      className="absolute bottom-0 right-0 w-2 h-2 rounded-full border border-black"
+                      style={{ backgroundColor: "#4ade80" }}
+                    />
+                  </div>
+                  <div className="hidden sm:flex flex-col items-start">
+                    <span
+                      className="text-[12px] font-semibold leading-tight"
+                      style={{ color: "rgba(226,232,240,0.9)" }}
+                    >
+                      {userName || "User"}
+                    </span>
+                    {userEmail && (
+                      <span
+                        className="text-[10px] leading-tight"
+                        style={{ color: "rgba(226,232,240,0.4)" }}
+                      >
+                        {userEmail.length > 18
+                          ? userEmail.slice(0, 18) + "…"
+                          : userEmail}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className="hidden sm:block"
+                    style={{ color: "rgba(226,232,240,0.35)" }}
+                  />
+                </button>
+
+                {/* Dropdown menu */}
+                {profileMenuOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-56 rounded-2xl overflow-hidden z-50"
+                    style={{
+                      backgroundColor: "#0d0d0d",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    {/* User info */}
+                    <div
+                      className="px-4 py-3.5"
+                      style={{
+                        borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <AvatarCircle name={userName} src={user?.image} />
+                        <div className="min-w-0">
+                          <p
+                            className="text-[12px] font-semibold truncate"
+                            style={{ color: "rgba(226,232,240,0.9)" }}
+                          >
+                            {userName || "No Name"}
+                          </p>
+                          <p
+                            className="text-[10px] truncate"
+                            style={{ color: "rgba(226,232,240,0.4)" }}
+                          >
+                            {userEmail || "No email"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu items */}
+                    {[
+                      {
+                        icon: <User size={14} />,
+                        label: "Profile",
+                        action: () => {
+                          setProfileMenuOpen(false);
+                          router.push("/profile");
+                        },
+                      },
+                      {
+                        icon: <Wallet size={14} />,
+                        label: `Wallet · ${walletBalance} Coins`,
+                        action: () => {
+                          setProfileMenuOpen(false);
+                          fetchWalletBalance();
+                          router.push("/wallet");
+                        },
+                      },
+                      ...(showSettings
+                        ? [
+                            {
+                              icon: <Settings size={14} />,
+                              label: "Settings",
+                              action: () => {
+                                setProfileMenuOpen(false);
+                                router.push("/user-settings");
+                              },
+                            },
+                          ]
+                        : []),
+                    ].map(({ icon, label, action }) => (
+                      <button
+                        key={label}
+                        onClick={action}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[rgba(255,255,255,0.04)] text-left"
+                        style={{ color: "rgba(226,232,240,0.65)" }}
+                      >
+                        <span style={{ color: "rgba(253,224,71,0.5)" }}>
+                          {icon}
+                        </span>
+                        {label}
+                      </button>
+                    ))}
+
+                    <div
+                      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                    />
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        handleSignOut();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[rgba(248,113,113,0.07)] text-left"
+                      style={{ color: "#f87171" }}
+                    >
+                      <LogOut size={14} />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* ── Page content ── */}
+          <main
+            className="flex-1 p-4 sm:p-6"
+            style={{ backgroundColor: "#060606" }}
+          >
+            {children}
+          </main>
+        </div>
+      </div>
+
+      {/* ── Subscription Modal ── */}
+      {plansModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(8px)",
+          }}
+          onClick={() => setPlansModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl overflow-hidden"
+            style={{
+              backgroundColor: "#0d0d0d",
+              border: "1px solid rgba(253,224,71,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal top bar */}
+            <div
+              className="h-[2px]"
+              style={{
+                background:
+                  "linear-gradient(90deg, #FDE047, rgba(253,224,71,0.2))",
+              }}
+            />
+
+            {/* Modal header */}
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <h2
+                className="font-normal uppercase tracking-tight"
+                style={{
+                  fontFamily: "Anton, Impact, sans-serif",
+                  color: "#FDE047",
+                  fontSize: "1.3rem",
+                }}
+              >
+                My Subscription
+              </h2>
+              <button
+                onClick={() => setPlansModalOpen(false)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-[rgba(255,255,255,0.06)]"
+                style={{ color: "rgba(226,232,240,0.5)" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-6 py-5">
+              {subscriptionLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div
+                    className="w-8 h-8 rounded-full border-2 animate-spin"
+                    style={{
+                      borderColor: "rgba(253,224,71,0.15)",
+                      borderTopColor: "#FDE047",
+                    }}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Current plan */}
+                  <div
+                    className="rounded-xl p-4 mb-4"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.07)",
+                    }}
+                  >
+                    <p
+                      className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-1"
+                      style={{ color: "rgba(226,232,240,0.4)" }}
+                    >
+                      Current Plan
+                    </p>
+                    <p
+                      className="font-normal uppercase tracking-tight mb-3"
+                      style={{
+                        fontFamily: "Anton, Impact, sans-serif",
+                        color: "#FDE047",
+                        fontSize: "1.4rem",
+                      }}
+                    >
+                      {paidPackage || paidService || "Free Plan"}
+                    </p>
+
+                    {subscriptionData?.subscription?.status === "active" && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          {
+                            label: "Start Date",
+                            value: subscriptionData.subscription.date
+                              ? new Date(
+                                  subscriptionData.subscription.date,
+                                ).toLocaleDateString()
+                              : "N/A",
+                          },
+                          {
+                            label: "Expiry Date",
+                            value: subscriptionData.subscription.expiry
+                              ? new Date(
+                                  subscriptionData.subscription.expiry,
+                                ).toLocaleDateString()
+                              : "N/A",
+                          },
+                        ].map(({ label, value }) => (
+                          <div key={label}>
+                            <p
+                              className="text-[10px] font-semibold tracking-[0.1em] uppercase mb-0.5"
+                              style={{ color: "rgba(226,232,240,0.35)" }}
+                            >
+                              {label}
+                            </p>
+                            <p
+                              className="text-[13px] font-medium"
+                              style={{ color: "rgba(226,232,240,0.8)" }}
+                            >
+                              {value}
+                            </p>
+                          </div>
+                        ))}
+                        <div className="col-span-2 flex items-center gap-2 mt-1">
+                          <p
+                            className="text-[10px] font-semibold tracking-[0.1em] uppercase"
+                            style={{ color: "rgba(226,232,240,0.35)" }}
+                          >
+                            Status:
+                          </p>
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-[0.1em] uppercase"
+                            style={{
+                              background: "rgba(74,222,128,0.1)",
+                              border: "1px solid rgba(74,222,128,0.25)",
+                              color: "#4ade80",
+                            }}
+                          >
+                            {subscriptionData.subscription.status}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plan features */}
+                  {subscriptionPlans &&
+                    (paidPackage || paidService) &&
+                    (() => {
+                      let plan = null;
+                      if (paidPackage && currentPlanDuration) {
+                        const cycle = subscriptionPlans.billingCycles?.find(
+                          (c) => c.cycle === currentPlanDuration,
+                        );
+                        if (cycle)
+                          plan = cycle.plans?.find(
+                            (p) => p.title === paidPackage,
+                          );
+                      }
+                      if (!plan && paidService) {
+                        plan = subscriptionPlans.billingCycles
+                          ?.flatMap((c) => c.plans)
+                          .find((p) => p.title === paidService);
+                      }
+                      if (!plan) return null;
+                      return (
+                        <div
+                          className="rounded-xl p-4 mb-4"
+                          style={{
+                            backgroundColor: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                          }}
+                        >
+                          {plan.description && (
+                            <p
+                              className="text-[11px] text-center mb-3 italic"
+                              style={{ color: "rgba(226,232,240,0.45)" }}
+                            >
+                              {plan.description}
+                            </p>
+                          )}
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            {[
+                              { label: "Posts", value: plan.posts },
+                              { label: "Citations", value: plan.citations },
+                            ].map(({ label, value }) => (
+                              <div
+                                key={label}
+                                className="rounded-lg p-3 text-center"
+                                style={{
+                                  background: "rgba(253,224,71,0.05)",
+                                  border: "1px solid rgba(253,224,71,0.1)",
+                                }}
+                              >
+                                <p
+                                  className="text-[9px] font-bold tracking-[0.15em] uppercase mb-1"
+                                  style={{ color: "rgba(253,224,71,0.5)" }}
+                                >
+                                  {label}
+                                </p>
+                                <p
+                                  className="font-normal text-xl"
+                                  style={{
+                                    fontFamily: "Anton, Impact, sans-serif",
+                                    color: "#FDE047",
+                                  }}
+                                >
+                                  {value}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          <p
+                            className="text-[11px] mb-2 font-medium"
+                            style={{ color: "rgba(226,232,240,0.5)" }}
+                          >
+                            {plan.title} · {plan.duration} · Start:{" "}
+                            {subscriptionData?.packageStartDate
+                              ? new Date(
+                                  subscriptionData.packageStartDate,
+                                ).toLocaleDateString()
+                              : "N/A"}{" "}
+                            → Expiry:{" "}
+                            {subscriptionData?.packageExpiryDate
+                              ? new Date(
+                                  subscriptionData.packageExpiryDate,
+                                ).toLocaleDateString()
+                              : "N/A"}
+                          </p>
+                          <p
+                            className="text-[10px] font-semibold tracking-[0.1em] uppercase mb-2"
+                            style={{ color: "rgba(226,232,240,0.35)" }}
+                          >
+                            Plan Features
+                          </p>
+                          <div className="space-y-1.5">
+                            {plan.features?.map((f, i) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <CheckCircle
+                                  size={13}
+                                  className="flex-shrink-0 mt-0.5"
+                                  style={{ color: "#4ade80" }}
+                                />
+                                <p
+                                  className="text-[12px]"
+                                  style={{ color: "rgba(226,232,240,0.6)" }}
+                                >
+                                  {f}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                  {/* Modal action buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setPlansModalOpen(false);
+                        router.push("/user-activity");
+                      }}
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl text-[12px] font-semibold tracking-[0.08em] uppercase cursor-pointer transition-all duration-200 hover:opacity-80"
+                      style={{
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        color: "rgba(226,232,240,0.65)",
+                      }}
+                    >
+                      <Activity size={14} /> View Activity
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPlansModalOpen(false);
+                        router.push("/#subscription-plans");
+                      }}
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl text-[12px] font-bold tracking-[0.08em] uppercase cursor-pointer transition-all duration-200 hover:opacity-90"
+                      style={{
+                        background: "#FDE047",
+                        color: "#000",
+                        boxShadow: "0 0 20px rgba(253,224,71,0.25)",
+                      }}
+                    >
+                      Upgrade / Renew ↗
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

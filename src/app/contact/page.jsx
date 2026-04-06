@@ -1,7 +1,18 @@
 "use client";
 
-import { HiPhone, HiMail, HiLocationMarker, HiClock, HiArrowLeft, HiCheckCircle, HiExclamationCircle } from "react-icons/hi";
+import {
+  HiPhone,
+  HiMail,
+  HiLocationMarker,
+  HiClock,
+  HiArrowLeft,
+  HiCheckCircle,
+  HiExclamationCircle,
+} from "react-icons/hi";
+
 import { useState } from "react";
+import Navbar from "@/components/sections/HeaderSection";
+import FooterSection from "@/components/sections/FooterSection";
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -9,14 +20,15 @@ export default function ContactUs() {
     email: "",
     phone: "",
     message: "",
-    consent: false
+    consent: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
 
   const handleChange = (e) => {
-    const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    const value =
+      e.target.type === "checkbox" ? e.target.checked : e.target.value;
     setFormData({ ...formData, [e.target.name]: value });
   };
 
@@ -36,235 +48,222 @@ export default function ContactUs() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setSubmitStatus('success');
+        setSubmitStatus("success");
         setFormData({
           name: "",
           email: "",
           phone: "",
           message: "",
-          consent: false
+          consent: false,
         });
-        
-        setTimeout(() => {
-          setSubmitStatus(null);
-        }, 5000);
+
+        setTimeout(() => setSubmitStatus(null), 5000);
       } else {
-        setSubmitStatus('error');
+        setSubmitStatus("error");
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
-      setSubmitStatus('error');
+      setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center px-3 sm:px-4 py-6 sm:py-12">
-      <div className="bg-white shadow-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-10 w-full max-w-5xl border border-gray-100">
+    <>
+      <Navbar />
 
-        <button
-          onClick={() => window.history.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 mb-4 sm:mb-6 font-medium transition-colors text-sm"
-        >
-          <HiArrowLeft className="text-lg" />
-          Back
-        </button>
-
-        <div className="text-center mb-6 sm:mb-12">
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-900 mb-2 sm:mb-4 bg-neutral-700 bg-clip-text text-transparent">
-            Get In Touch
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-lg max-w-2xl mx-auto px-2">
-            Have questions or need support? We're here to help you succeed.
-          </p>
+      <div
+        className="min-h-screen py-20 px-6 font-[Inter] relative overflow-hidden"
+        style={{ backgroundColor: "var(--cyber-black)" }}
+      >
+        {/* Glow */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
         </div>
 
-        {submitStatus === 'success' && (
-          <div className="mb-4 sm:mb-8 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 sm:gap-3">
-            <HiCheckCircle className="text-green-600 text-xl sm:text-2xl flex-shrink-0" />
-            <div>
-              <p className="text-green-800 font-semibold text-sm sm:text-base">Message sent successfully!</p>
-              <p className="text-green-600 text-xs sm:text-sm">We'll get back to you shortly.</p>
-            </div>
+        <div className="max-w-6xl mx-auto relative z-10">
+
+          {/* Back */}
+          <button
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 text-white/60 hover:text-[#FDE047] mb-8"
+          >
+            <HiArrowLeft /> Back
+          </button>
+
+          {/* Heading */}
+          <div className="text-center mb-16">
+            <h1 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+              Get In <span className="text-[#FDE047]">Touch</span>
+            </h1>
+            <p className="text-white/60 max-w-xl mx-auto">
+              Have questions? We’re here to help you grow your business.
+            </p>
           </div>
-        )}
 
-        {submitStatus === 'error' && (
-          <div className="mb-4 sm:mb-8 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 sm:gap-3">
-            <HiExclamationCircle className="text-red-600 text-xl sm:text-2xl flex-shrink-0" />
-            <div>
-              <p className="text-red-800 font-semibold text-sm sm:text-base">Something went wrong</p>
-              <p className="text-red-600 text-xs sm:text-sm">Please try again later or contact us directly.</p>
-            </div>
-          </div>
-        )}
-
-        <div className="grid lg:grid-cols-2 gap-6 sm:gap-10">
-
-          <div className="order-2 lg:order-1">
-            <div className="space-y-4 sm:space-y-5 bg-gradient-to-br from-neutral-50 to-yellow-50 p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Send a Message</h2>
-
+          {/* Alerts */}
+          {submitStatus === "success" && (
+            <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex gap-3">
+              <HiCheckCircle className="text-green-400 text-2xl" />
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Full Name 
-                </label>
+                <p className="text-green-300 font-semibold">
+                  Message sent successfully!
+                </p>
+                <p className="text-green-400 text-sm">
+                  We'll contact you soon.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {submitStatus === "error" && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-3">
+              <HiExclamationCircle className="text-red-400 text-2xl" />
+              <div>
+                <p className="text-red-300 font-semibold">
+                  Something went wrong
+                </p>
+                <p className="text-red-400 text-sm">
+                  Please try again later.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid lg:grid-cols-2 gap-10">
+
+            {/* FORM */}
+            <div className="bg-white/[0.03] border border-white/10 backdrop-blur-xl p-8 rounded-3xl">
+              <h2 className="text-2xl font-semibold text-white mb-6">
+                Send Message
+              </h2>
+
+              <div className="space-y-4">
+
+                {/* Name */}
                 <input
                   type="text"
                   name="name"
+                  required
+                  minLength={3}
                   value={formData.name}
-                  placeholder="John Doe"
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-neutral-500 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all"
+                  placeholder="Full Name"
+                  className="input"
                 />
-              </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Email Address
-                </label>
+                {/* Email */}
                 <input
                   type="email"
                   name="email"
+                  required
                   value={formData.email}
-                  placeholder="john@example.com"
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all"
+                  placeholder="Email Address"
+                  className="input"
                 />
-              </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Phone Number
-                </label>
+                {/* Phone */}
                 <input
                   type="tel"
                   name="phone"
+                  required
+                  pattern="[0-9]{10}"
                   value={formData.phone}
-                  placeholder="+91 9876543210"
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all"
+                  placeholder="10 digit phone number"
+                  className="input"
                 />
-              </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Your Message
-                </label>
+                {/* Message */}
                 <textarea
                   name="message"
+                  required
+                  minLength={10}
                   rows="4"
                   value={formData.message}
-                  placeholder="Tell us how we can help you..."
                   onChange={handleChange}
-                  className="w-full p-3 sm:p-4 text-sm sm:text-base rounded-lg sm:rounded-xl border border-gray-300 focus:ring-2 focus:ring-neutral-600 focus:border-transparent outline-none transition-all resize-none"
-                ></textarea>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  name="consent"
-                  id="consent"
-                  checked={formData.consent}
-                  onChange={handleChange}
-                  className="mt-0.5 w-4 h-4 text-neutral-600 border-gray-300 rounded focus:ring-neutral-600 flex-shrink-0"
+                  placeholder="Your Message"
+                  className="input resize-none"
                 />
-                <label htmlFor="consent" className="text-xs text-gray-600 leading-snug">
-                  By continuing, you agree to Limbu Ai and authorize our representatives to contact you via Call, Email, SMS, RCS, or WhatsApp regarding your service requests and related updates.
-                </label>
-              </div>
 
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !formData.consent}
-                className="w-full bg-gradient-to-r from-neutral-700 to-yellow-600 text-white py-3 sm:py-4 text-sm sm:text-base rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Sending...
-                  </span>
-                ) : (
-                  'Send Message'
-                )}
-              </button>
+                {/* Consent */}
+                <div className="flex gap-2 text-sm text-white/60">
+                  <input
+                    type="checkbox"
+                    name="consent"
+                    checked={formData.consent}
+                    onChange={handleChange}
+                    className="mt-1"
+                  />
+                  I agree to be contacted
+                </div>
+
+                {/* Submit */}
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !formData.consent}
+                  className="
+                    w-full py-4 rounded-xl font-semibold
+                    bg-[#FDE047] text-black
+                    hover:bg-white hover:scale-[1.02]
+                    transition-all
+                    disabled:opacity-50
+                  "
+                >
+                  {isSubmitting ? "Sending..." : "Send Message"}
+                </button>
+              </div>
+            </div>
+
+            {/* INFO */}
+            <div className="space-y-6">
+              {[
+                {
+                  icon: <HiPhone />,
+                  title: "Phone",
+                  value: "+91 9289344726",
+                },
+                {
+                  icon: <HiMail />,
+                  title: "Email",
+                  value: "info@limbu.ai",
+                },
+                {
+                  icon: <HiLocationMarker />,
+                  title: "Address",
+                  value: "Gurugram, Haryana",
+                },
+                {
+                  icon: <HiClock />,
+                  title: "Hours",
+                  value: "Mon–Sat: 9AM–7PM",
+                },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  className="p-6 rounded-2xl bg-white/[0.03] border border-white/10 flex gap-4 items-center hover:border-[#FDE047]/40 transition"
+                >
+                  <div className="text-[#FDE047] text-2xl">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">
+                      {item.title}
+                    </h3>
+                    <p className="text-white/60 text-sm">
+                      {item.value}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-
-          <div className="space-y-4 sm:space-y-5 order-1 lg:order-2">
-
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-neutral-100 group">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
-                  <HiPhone className="text-lg sm:text-2xl" />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Phone</h2>
-                  <p className="text-gray-700 font-medium text-xs sm:text-base">+91 9289344726</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-purple-100 group">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
-                  <HiMail className="text-lg sm:text-2xl" />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Email</h2>
-                  <p className="text-gray-700 font-medium text-xs sm:text-base">info@limbu.ai</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-green-100 group">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
-                  <HiLocationMarker className="text-lg sm:text-2xl" />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Address</h2>
-                  <p className="text-neutral-700 text-xs sm:text-sm leading-relaxed">
-                    Unit No. 831, 8th Floor, JMD Megapolis,<br />
-                    Sector 48, Gurugram, Haryana 122018
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all border border-orange-100 group">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="bg-neutral-600 p-3 sm:p-4 rounded-lg sm:rounded-xl text-white group-hover:scale-110 transition-transform">
-                  <HiClock className="text-lg sm:text-2xl" />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Business Hours</h2>
-                  <p className="text-gray-700 text-xs sm:text-sm">Mon – Sat: 9:00 AM – 7:00 PM</p>
-                  <p className="text-gray-700 text-xs sm:text-sm">Sunday: Closed</p>
-                </div>
-              </div>
-            </div>
-
-          </div>
         </div>
-
-        <div className="mt-6 sm:mt-10 pt-6 sm:pt-8 border-t border-gray-200 text-center">
-          <p className="text-gray-600 mb-3 sm:mb-4 text-xs sm:text-base">Prefer to email us directly?</p>
-          <a
-            href="mailto:info@limbu.ai"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-neutral-700 to-yellow-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base rounded-xl sm:rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
-          >
-            <HiMail className="text-lg sm:text-xl" />
-            Send us an Email
-          </a>
-        </div>
-
       </div>
-    </div>
+
+      <FooterSection />
+    </>
   );
 }

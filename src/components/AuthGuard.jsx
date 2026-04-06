@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,8 +23,8 @@ export default function AuthGuard({ children }) {
       return;
     }
 
-    const userId = localStorage.getItem("userId");  
-    const role = localStorage.getItem("role");  // admin | franchiseAdmin
+    const userId = localStorage.getItem("userId");
+    const role = localStorage.getItem("role"); // admin | franchiseAdmin
 
     const publicRoutes = [
       "/",
@@ -35,14 +34,24 @@ export default function AuthGuard({ children }) {
       "/contact",
       "/privacy-policy",
       "/franchise-opportunities",
+      "/webinar-demo",
       "/cancellation-policy",
       "/terms-and-conditions",
       "/refund-policy",
       "/franchise-panel/login",
-      "/work-with-us"
+      "/work-with-us",
+      "/thank-you",
     ];
 
-    const allowedAdminRoles = ["admin", "superAdmin","superFranchiseAdmin", "franchiseAdmin", "manager", "agent", "subadmin"];
+    const allowedAdminRoles = [
+      "admin",
+      "superAdmin",
+      "superFranchiseAdmin",
+      "franchiseAdmin",
+      "manager",
+      "agent",
+      "subadmin",
+    ];
     const isPublicRoute = publicRoutes.includes(pathname);
     const isAdminRoute = pathname.startsWith("/admin");
     const isReviewRoute = pathname.startsWith("/reviews");

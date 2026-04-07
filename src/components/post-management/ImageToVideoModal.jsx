@@ -19,8 +19,9 @@ import {
   deductFromWalletAction,
 } from "@/app/actions/postActions";
 
-const AUDIO_FOLDER_FIXED = "basic";
-const DURATION_OPTIONS = [4, 6, 8, 10, 12, 15];
+const DURATION_OPTIONS = [5, 8, 10];
+const PLATFORM_OPTIONS = ["instagram", "facebook", "both"];
+const AUDIO_FOLDER_OPTIONS = ["dharmik", "motivational", "basic"];
 
 export function displayUrlForPostOutput(url) {
   if (!url || typeof url !== "string") return "";
@@ -64,7 +65,11 @@ export default function ImageToVideoModal({
   onVideoInsufficientBalance,
 }) {
   const [ivPrompt, setIvPrompt] = useState("");
-  const [ivDuration, setIvDuration] = useState(8);
+  const [ivDuration, setIvDuration] = useState(5);
+  const [ivPlatform, setIvPlatform] = useState("both");
+  const [voiceMode, setVoiceMode] = useState("skip");
+  const [audioFileUrl, setAudioFileUrl] = useState("");
+  const [audioFolder, setAudioFolder] = useState("basic");
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [uploadedCloudinaryUrl, setUploadedCloudinaryUrl] = useState(null);
   const [uploadingToCloudinary, setUploadingToCloudinary] = useState(false);
@@ -83,7 +88,11 @@ export default function ImageToVideoModal({
     if (!isOpen) return;
     setResult(null);
     setIvPrompt("");
-    setIvDuration(8);
+    setIvDuration(5);
+    setIvPlatform("both");
+    setVoiceMode("skip");
+    setAudioFileUrl("");
+    setAudioFolder("basic");
     setCopiedField(null);
     setAiPromptLoading(false);
     if (
@@ -319,10 +328,6 @@ export default function ImageToVideoModal({
   };
 
   const handleGenerate = async () => {
-    if (!ivPrompt.trim()) {
-      showToast?.("Enter a video effect / prompt.", "error");
-      return;
-    }
     if (!effectiveImagePayload) {
       showToast?.(
         "Select a creative below or upload via Cloudinary.",
@@ -355,12 +360,19 @@ export default function ImageToVideoModal({
     setResult(null);
     try {
       const body = {
-        prompt: ivPrompt.trim(),
+        prompt: ivPrompt.trim() || `Create an engaging short video for ${resolvedBusinessName || "this business"}.`,
         business_name: resolvedBusinessName || "Business",
         duration: ivDuration,
-        audio_folder: AUDIO_FOLDER_FIXED,
-        platform: "both",
+        platform: ivPlatform,
       };
+      if (voiceMode === "use-voice") {
+        const trimmedAudioUrl = audioFileUrl.trim();
+        if (trimmedAudioUrl) {
+          body.audio_file_url = trimmedAudioUrl;
+        }
+      } else if (audioFolder) {
+        body.audio_folder = audioFolder;
+      }
       if (effectiveImagePayload.image_url) {
         body.image_url = effectiveImagePayload.image_url;
       } else {
@@ -652,6 +664,26 @@ export default function ImageToVideoModal({
                 ))}
               </select>
             </div>
+            <div className="flex-1">
+              <label
+                htmlFor="iv-modal-platform"
+                className="text-xs font-semibold text-gray-600 block mb-1"
+              >
+                Platform
+              </label>
+              <select
+                id="iv-modal-platform"
+                value={ivPlatform}
+                onChange={(e) => setIvPlatform(e.target.value)}
+                className="w-full sm:w-44 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 bg-white"
+              >
+                {PLATFORM_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex-1 text-xs text-gray-600 sm:pb-2">
               <span className="font-semibold text-gray-700">Business name</span>
               <span className="text-gray-400"> (auto)</span>
@@ -661,10 +693,77 @@ export default function ImageToVideoModal({
               >
                 {resolvedBusinessName || "—"}
               </p>
-              <p className="mt-1 text-gray-400">
-                Audio: <code className="text-gray-600">{AUDIO_FOLDER_FIXED}</code>
-              </p>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+            <p className="text-xs font-semibold text-gray-700">
+              Audio (optional): Use your own voice or skip
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setVoiceMode("use-voice")}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  voiceMode === "use-voice"
+                    ? "border-amber-500 bg-amber-50 text-amber-900"
+                    : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                }`}
+              >
+                Use my voice
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceMode("skip")}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  voiceMode === "skip"
+                    ? "border-amber-500 bg-amber-50 text-amber-900"
+                    : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                }`}
+              >
+                Skip
+              </button>
+            </div>
+
+            {voiceMode === "use-voice" ? (
+              <div>
+                <label
+                  htmlFor="iv-modal-audio-url"
+                  className="text-xs font-semibold text-gray-600 block mb-1"
+                >
+                  Audio file URL (optional)
+                </label>
+                <input
+                  id="iv-modal-audio-url"
+                  type="url"
+                  value={audioFileUrl}
+                  onChange={(e) => setAudioFileUrl(e.target.value)}
+                  placeholder="https://example.com/audio.mp3"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400"
+                />
+              </div>
+            ) : (
+              <div>
+                <label
+                  htmlFor="iv-modal-audio-folder"
+                  className="text-xs font-semibold text-gray-600 block mb-1"
+                >
+                  Audio mood (optional)
+                </label>
+                <select
+                  id="iv-modal-audio-folder"
+                  value={audioFolder}
+                  onChange={(e) => setAudioFolder(e.target.value)}
+                  className="w-full sm:w-44 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 bg-white"
+                >
+                  {AUDIO_FOLDER_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <p className="text-[11px] text-center text-gray-500">

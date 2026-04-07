@@ -3,6 +3,8 @@ import Site from "@/models/Site";
 import { Phone, MapPin, MessageCircle } from "lucide-react";
 import { SiteAnimations } from "@/components/Siteclientcomponents";
 import NavBar from "@/components/websiteNavbar"; // <-- new client component below
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 /* ================================
    Helper: WhatsApp link
@@ -60,9 +62,13 @@ export async function generateMetadata({ params }) {
   const site = await getSiteData(p?.slug);
   if (!site)
     return { title: "Business Website", description: "Professional business website" };
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
   return {
     title: site?.aiContent?.meta?.title || site?.business?.title,
     description: site?.aiContent?.meta?.description || "Business website",
+    alternates: {
+      canonical: `https://${p?.slug}.${rootDomain}`,
+    },
   };
 }
 
@@ -76,6 +82,19 @@ export default async function SitePage({ params }) {
   const siteData = await getSiteData(slug);
   if (!siteData)
     return <div className="p-20 text-center">Site Not Found</div>;
+
+  const headerStore = await headers();
+  const forwardedHost = headerStore.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = (forwardedHost || headerStore.get("host") || "").split(":")[0].toLowerCase();
+  const forwardedProto = headerStore.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
+  const isMainRootDomain = host === rootDomain || host === `www.${rootDomain}`;
+
+  // Keep local/staging path usage untouched, but force live canonical tenant URL.
+  if (isMainRootDomain && slug) {
+    const protocol = forwardedProto || "https";
+    redirect(`${protocol}://${slug}.${rootDomain}`);
+  }
 
   const business = siteData.business || {};
   const aiContent = siteData.aiContent || {};

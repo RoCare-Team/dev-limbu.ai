@@ -47,6 +47,8 @@ export async function GET(req, context) {
     const collection = db.collection("adminbusinesses");
 
     const businesses = await collection.find({}).toArray();
+    console.log("businessesbusinesses",businesses);
+    
 
     let matchedListing = null;
     let matchedAccountName = "";
@@ -65,10 +67,6 @@ export async function GET(req, context) {
 
         const fullSlug = createSlug(title, locality, address);
         const shortSlug = createSlug(title, locality);
-
-        console.log(
-          `Compare → full: ${fullSlug} | short: ${shortSlug}`
-        );
 
         // ✅ Strong matching logic
         if (

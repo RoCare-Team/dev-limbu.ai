@@ -23,22 +23,32 @@ export async function POST(req) {
       prompt,
       business_name,
       duration,
-      audio_folder = "basic",
-      platform = "both",
+      audio_folder,
+      audio_file_url,
+      platform,
     } = body;
 
+    const allowedDurations = [5, 8, 10];
+    const allowedPlatforms = ["instagram", "facebook", "both"];
+    const allowedAudioFolders = ["dharmik", "motivational", "basic"];
     const trimmedPrompt = typeof prompt === "string" ? prompt.trim() : "";
-    if (!trimmedPrompt) {
+    const effectivePrompt = trimmedPrompt || "Create an engaging business promotional video.";
+
+    const d = Number(duration);
+    if (!Number.isFinite(d) || !allowedDurations.includes(d)) {
       return NextResponse.json(
-        { success: false, error: "prompt is required" },
+        { success: false, error: "duration must be one of 5, 8, or 10" },
         { status: 400 }
       );
     }
 
-    const d = Number(duration);
-    if (!Number.isFinite(d) || d < 1 || d > 60) {
+    const platformValue = typeof platform === "string" ? platform.trim() : "";
+    if (!allowedPlatforms.includes(platformValue)) {
       return NextResponse.json(
-        { success: false, error: "duration must be a number between 1 and 60" },
+        {
+          success: false,
+          error: "platform must be one of instagram, facebook, or both",
+        },
         { status: 400 }
       );
     }
@@ -86,18 +96,36 @@ export async function POST(req) {
       typeof business_name === "string" && business_name.trim()
         ? business_name.trim()
         : "Business";
+    const trimmedAudioFileUrl =
+      typeof audio_file_url === "string" ? audio_file_url.trim() : "";
+    const trimmedAudioFolder =
+      typeof audio_folder === "string" ? audio_folder.trim() : "";
+
+    if (trimmedAudioFolder && !allowedAudioFolders.includes(trimmedAudioFolder)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "audio_folder must be one of dharmik, motivational, or basic",
+        },
+        { status: 400 }
+      );
+    }
 
     const upstreamUrl =
       process.env.IMAGE_TO_VIDEO_API_URL || DEFAULT_IMAGE_TO_VIDEO_URL;
 
     const payload = {
       image_url: finalImageUrl,
-      prompt: trimmedPrompt,
+      prompt: effectivePrompt,
       business_name: name,
       duration: d,
-      audio_folder: typeof audio_folder === "string" ? audio_folder : "basic",
-      platform: typeof platform === "string" ? platform : "both",
+      platform: platformValue,
     };
+    if (trimmedAudioFileUrl) {
+      payload.audio_file_url = trimmedAudioFileUrl;
+    } else if (trimmedAudioFolder) {
+      payload.audio_folder = trimmedAudioFolder;
+    }
 
     const upstream = await fetch(upstreamUrl, {
       method: "POST",

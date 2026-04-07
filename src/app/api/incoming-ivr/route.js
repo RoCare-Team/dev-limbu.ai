@@ -62,11 +62,11 @@ const AISENSY_URL =
   "https://backend.aisensy.com/campaign/t1/api/v2";
 
 const CAMPAIGN_CONFIG = {
-  session4pm_new: {
+  demo_session_confirmation1: {
     mediaUrl:
       "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
   },
-  session5pm_new: {
+  demo_session_confirmation1: {
     mediaUrl:
       "https://limbuai.s3.ap-south-1.amazonaws.com/2WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
   },
@@ -216,7 +216,7 @@ export async function POST(req) {
     if (digit_pressed === "1" && !savedCall.whatsapp_sent) {
       const sent = await sendWhatsApp(
         customer_no_with_prefix,
-        "session4pm_new",
+        "demo_session_confirmation1",
         userName // ✅ frontend name
       );
 

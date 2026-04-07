@@ -4,6 +4,7 @@ import SessionProviderWrapper from "./providers/SessionProviderWrapper";
 import Script from "next/script";
 import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
+import InitAuth from "@/components/InitAuth";
 import { headers } from "next/headers";
 
 const inter = Inter({
@@ -41,32 +42,28 @@ export const metadata = {
     "google-site-verification":
       "zll2ej9beWSYpmxgi_jEum9kGdOTL5ftMV8NdbXJfN0",
   },
-
-  
 };
 
-function isTenantSubdomainHost(host) {
-  if (!host) return false;
-  const h = host.split(":")[0].toLowerCase();
-  return (
-    h.endsWith(".limbu.ai") &&
-    h !== "limbu.ai" &&
-    h !== "www.limbu.ai" &&
-    h !== "crm.limbu.ai"
-  );
-}
-
 export default async function RootLayout({ children }) {
+  // ✅ Read the header injected by middleware for subdomain tenant requests.
+  // When doctorfresh.limbu.ai/ hits middleware, it sets x-is-subdomain-site: 1
+  // and rewrites to /[slug]. We read it here (server-side) to skip all
+  // app chrome (AuthGuard, ClientLayout, GTM, Pixel) for tenant pages.
   const headersList = await headers();
-  const forwarded = headersList.get("x-forwarded-host");
-  const host =
-    forwarded?.split(",")[0]?.trim()?.split(":")[0] ||
-    headersList.get("host")?.split(":")[0] ||
-    "";
-  const isSubdomainSite =
-    headersList.get("x-is-subdomain-site") === "1" ||
-    isTenantSubdomainHost(host);
+  const isTenantSite = headersList.get("x-is-subdomain-site") === "1";
 
+  // If this is a tenant microsite, render a clean shell — no app UI at all
+  if (isTenantSite) {
+    return (
+      <html lang="en" className={inter.variable}>
+        <body className={`${inter.variable} antialiased`}>
+          {children}
+        </body>
+      </html>
+    );
+  }
+
+  // ── Main app shell (limbu.ai / www.limbu.ai only) ──
   return (
     <html lang="en" className={inter.variable}>
       <head>
@@ -124,8 +121,11 @@ export default async function RootLayout({ children }) {
         </noscript>
 
         <SessionProviderWrapper>
+          <InitAuth />
+
+          {/* 🔥 Single source of truth for auth */}
           <ClientLayout>
-            {isSubdomainSite ? children : <AuthGuard>{children}</AuthGuard>}
+            <AuthGuard>{children}</AuthGuard>
           </ClientLayout>
         </SessionProviderWrapper>
       </body>

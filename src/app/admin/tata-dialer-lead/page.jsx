@@ -94,8 +94,8 @@ const getCampaignByDate = (dateStr) => {
   const day = new Date(dateStr).getDay(); // 0=Sun, 5=Fri
 
   if (day === 0) return null;              // Sunday blocked
-  if (day === 5) return "session5pm_new"; // Friday → 5:30 PM
-  return "session4pm_new";                 // Mon–Sat → 4 PM
+  if (day === 5) return "demo_session_confirmation1"; // Friday → 5:30 PM
+  return "demo_session_confirmation1";                 // Mon–Sat → 4 PM
 };
 
 const sendMessage = async () => {

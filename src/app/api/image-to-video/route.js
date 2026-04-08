@@ -145,7 +145,19 @@ export async function POST(req) {
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    const resolvedVideoUrl =
+      (typeof data?.drive_link === "string" && data.drive_link.trim()) ||
+      (typeof data?.video_url === "string" && data.video_url.trim()) ||
+      (typeof data?.videoUrl === "string" && data.videoUrl.trim()) ||
+      "";
+
+    const normalizedResponse = {
+      ...data,
+      drive_link: resolvedVideoUrl || null,
+      video_url: resolvedVideoUrl || null,
+    };
+
+    return NextResponse.json(normalizedResponse, { status: 200 });
   } catch (error) {
     console.error("image-to-video API:", error);
     return NextResponse.json(

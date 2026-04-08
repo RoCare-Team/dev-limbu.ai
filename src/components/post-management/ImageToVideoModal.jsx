@@ -360,23 +360,25 @@ export default function ImageToVideoModal({
     setResult(null);
     try {
       const body = {
-        prompt: ivPrompt.trim() || `Create an engaging short video for ${resolvedBusinessName || "this business"}.`,
+        image_url: null,
         business_name: resolvedBusinessName || "Business",
         duration: ivDuration,
         platform: ivPlatform,
+        audio_file_url: null,
+        audio_folder: voiceMode === "use-voice" ? null : audioFolder || null,
       };
       if (voiceMode === "use-voice") {
         const trimmedAudioUrl = audioFileUrl.trim();
         if (trimmedAudioUrl) {
           body.audio_file_url = trimmedAudioUrl;
         }
-      } else if (audioFolder) {
-        body.audio_folder = audioFolder;
       }
       if (effectiveImagePayload.image_url) {
         body.image_url = effectiveImagePayload.image_url;
       } else {
-        body.image = effectiveImagePayload.image;
+        throw new Error(
+          "Image URL is invalid. Please use a source with a public image URL."
+        );
       }
 
       const res = await fetch("/api/image-to-video", {

@@ -120,12 +120,9 @@ export async function POST(req) {
       business_name: name,
       duration: d,
       platform: platformValue,
+      audio_file_url: trimmedAudioFileUrl || null,
+      audio_folder: trimmedAudioFileUrl ? null : trimmedAudioFolder || null,
     };
-    if (trimmedAudioFileUrl) {
-      payload.audio_file_url = trimmedAudioFileUrl;
-    } else if (trimmedAudioFolder) {
-      payload.audio_folder = trimmedAudioFolder;
-    }
 
     const upstream = await fetch(upstreamUrl, {
       method: "POST",

@@ -28,6 +28,7 @@ export default function AdminLayout({ children }) {
   const [permissions, setPermissions] = useState({});
   const [adminName, setAdminName] = useState("");
   const [email, setEmail] = useState("");
+  const theme = "light";
 
   /* ----------------------------
      AUTH + USER DATA
@@ -48,7 +49,12 @@ export default function AdminLayout({ children }) {
     } catch {
       setPermissions({});
     }
+
   }, [router]);
+
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+  }, [theme]);
 
   /* ----------------------------
      LOGOUT
@@ -87,6 +93,8 @@ export default function AdminLayout({ children }) {
     // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },
 
     { name: "Settings", icon: <Settings size={18} />, href: "/admin/settings", key: "seeAnalytics" },
+    { name: "Maintenance", icon: <PanelLeftDashed size={18} />, href: "/admin/maintenance" },
+    { name: "API Logs", icon: <BarChart3 size={18} />, href: "/admin/logs" },
 
     { name: "Visit Website", icon: <ArrowUpLeft size={18} />, href: "/" },
   ];
@@ -114,15 +122,21 @@ export default function AdminLayout({ children }) {
      UI
   ---------------------------- */
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div
+      className={`flex min-h-screen transition-colors ${
+        theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900"
+      } overflow-hidden`}
+    >
       {/* Sidebar */}
      <aside
   className={`${
     open ? "w-64" : "w-20"
-  } bg-[#0b141a] text-white transition-all duration-300 flex flex-col h-screen sticky top-0 overflow-y-auto`}
+  } transition-all duration-300 flex flex-col h-screen sticky top-0 overflow-y-auto shrink-0 ${
+    theme === "dark" ? "bg-[#0b141a] text-white" : "bg-white text-slate-900 border-r border-slate-200"
+  }`}
 > 
         {/* Header */}
-        <div className="p-4 border-b border-gray-800">
+        <div className={`p-4 ${theme === "dark" ? "border-b border-gray-800" : "border-b border-slate-200"}`}>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center font-bold uppercase">
               {adminName?.charAt(0)}
@@ -131,8 +145,12 @@ export default function AdminLayout({ children }) {
             {open && (
               <div className="leading-tight">
                 <p className="font-semibold text-sm">{adminName}</p>
-                <p className="text-xs text-gray-400">{email}</p>
-                <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-gray-800">
+                <p className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-slate-500"}>{email}</p>
+                <span
+                  className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded ${
+                    theme === "dark" ? "bg-gray-800" : "bg-slate-100"
+                  }`}
+                >
                   {role}
                 </span>
               </div>
@@ -141,7 +159,9 @@ export default function AdminLayout({ children }) {
 
           <button
             onClick={() => setOpen(!open)}
-            className="absolute top-4 right-3 text-gray-400 hover:text-white"
+            className={`absolute top-4 right-3 ${
+              theme === "dark" ? "text-gray-400 hover:text-white" : "text-slate-500 hover:text-slate-900"
+            }`}
           >
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -157,7 +177,15 @@ export default function AdminLayout({ children }) {
                 key={item.name}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 text-sm transition
-                ${active ? "bg-gray-800 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}
+                ${
+                  theme === "dark"
+                    ? active
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                    : active
+                      ? "bg-slate-200 text-slate-900"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
               >
                 {item.icon}
                 {open && <span>{item.name}</span>}
@@ -167,7 +195,7 @@ export default function AdminLayout({ children }) {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-gray-800">
+        <div className={`p-4 space-y-2 ${theme === "dark" ? "border-t border-gray-800" : "border-t border-slate-200"}`}>
           <button
             onClick={logout}
             className="flex items-center gap-3 text-sm text-red-400 hover:text-red-500 w-full"
@@ -179,7 +207,7 @@ export default function AdminLayout({ children }) {
       </aside> 
 
       {/* Main Content */}
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 min-w-0 p-6 overflow-y-auto">{children}</main>
     </div>
   );
 }

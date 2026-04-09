@@ -76,3 +76,43 @@ export async function POST(req) {
     );
   }
 }
+
+
+export async function GET(req) {
+  try {
+    const AdminBusiness = await getAdminBusinessModel();
+
+    const { searchParams } = new URL(req.url);
+    const userEmail = searchParams.get("userEmail");
+
+    if (!userEmail) {
+      return NextResponse.json(
+        { error: "userEmail is required" },
+        { status: 400 }
+      );
+    }
+
+    const business = await AdminBusiness.findOne({
+      userEmail: userEmail.toLowerCase(),
+    });
+
+    if (!business) {
+      return NextResponse.json(
+        { error: "No data found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      listings: business.listings,
+    });
+
+  } catch (err) {
+    console.error("Fetch listings error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

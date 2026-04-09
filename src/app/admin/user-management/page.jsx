@@ -43,6 +43,18 @@ import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
+import {
+  Box,
+  Button,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  TableContainer,
+  TextField,
+} from "@mui/material";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -78,7 +90,7 @@ export default function UserManagement() {
   const [remarksInput, setRemarksInput] = useState("");
   const [remarksHistory, setRemarksHistory] = useState([]);
   const [loadingRemarks, setLoadingRemarks] = useState(false);
-  const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
+ 
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
   const [planStartDate, setPlanStartDate] = useState("");
@@ -199,16 +211,7 @@ const [callStats, setCallStats] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [currentAgentId, setCurrentAgentId] = useState(null);
 
-  const filterLabel = useMemo(() => {
-    if (filterDate === "All") return null;
-    if (filterDate === "Custom Range") {
-      if (customStartDate && customEndDate) {
-        return `${new Date(customStartDate).toLocaleDateString()} - ${new Date(customEndDate).toLocaleDateString()}`;
-      }
-      return "Custom Range";
-    }
-    return filterDate;
-  }, [filterDate, customStartDate, customEndDate]);
+  
 
   const isAgent = role === "agent";
   const isManager = role === "manager";
@@ -671,6 +674,7 @@ const [callStats, setCallStats] = useState(null);
     leadStageFilter,
   ]);
 
+
   const fetchUsers = async (silent = false) => {
     if (!silent) setLoading(true);
     const adminEmail = localStorage.getItem("email");
@@ -1014,6 +1018,8 @@ const [callStats, setCallStats] = useState(null);
     }
   };
 
+  
+
   const handleResolveIssue = async (id) => {
     try {
       const res = await fetch("/api/issue-check", {
@@ -1225,7 +1231,7 @@ const [callStats, setCallStats] = useState(null);
 
   // ✅ Helper to safely get agent name from populated object or string ID
   const getAgentName = (assignedAgentId) => {
-    console.log("assignedAgentIdassignedAgentId", assignedAgentId);
+    // console.log("assignedAgentIdassignedAgentId", assignedAgentId);  
 
     if (!assignedAgentId) return "Unassigned";
 
@@ -1310,19 +1316,21 @@ const [callStats, setCallStats] = useState(null);
         screenshotUrl = await uploadToCloudinary(planScreenshot);
 
         const revenueRes = await fetch("/api/franchise-revenue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            leadId: selectedUser.userId,
-            leadName: selectedUser.fullName,
-            amount: parseFloat(planAmount),
-            paymentScreenshot: screenshotUrl,
-            email: localStorage.getItem("email"),
-            plan: selectedPlan,
-            type: "user_onboard",
-            notes: `Plan upgrade to ${selectedPlan}`,
-          }),
-        });
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({
+       leadId: selectedUser.userId,
+       leadName: selectedUser.fullName,
+       amount: parseFloat(planAmount),
+       paymentScreenshot: screenshotUrl,
+       email: localStorage.getItem("email"),
+       plan: selectedPlan,
+       notes: `Plan upgrade to ${selectedPlan}`,
+       type: selectedPlan.toLowerCase().includes("seo")
+      ? "seo_plan"
+      : "user_onboard",
+  }),
+});
 
         const revenueData = await revenueRes.json();
         if (!revenueData.success) {
@@ -1987,6 +1995,8 @@ const handleVoiceCall = async (phone) => {
   console.log("agentStatsagentStatsagentStats", stageStats);
   console.log("callStats", callStats);
 
+
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -2001,7 +2011,7 @@ const handleVoiceCall = async (phone) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-2 sm:p-3">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
@@ -2054,318 +2064,11 @@ const handleVoiceCall = async (phone) => {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h1 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
-            User Management
-          </h1>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              title={isRefreshingMetaLeads ? "Refreshing…" : "Refresh Meta Leads"}
-              onClick={() => handleRefreshMetaLeads(true)}
-              disabled={isRefreshingMetaLeads}
-              className="p-2 rounded-lg border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 shadow-sm transition-all disabled:opacity-50"
-            >
-              <RefreshCw size={18} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
-            </button>
-            <button
-              type="button"
-              title="Add User"
-              onClick={() => setAddingUser(true)}
-              className="p-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-sm transition-all"
-            >
-              <Plus size={18} strokeWidth={2.5} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          {(role === "superAdmin" ||
-            role === "admin" ||
-            role === "superfranchiseAdmin") &&
-            agents.length > 0 && (
-              <div className="space-y-2 w-full">
-                <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                  Total Assignments
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <div
-                    className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-medium ${getAvatarColor("Unassigned")}`}
-                  >
-                    <User className="w-3 h-3" />
-                    <span>Unassigned: {agentStats.unassigned || 0}</span>
-                  </div>
-                  {agents.map((agent) => {
-                    const count = agentStats[agent._id.toString()] || 0;
-                    if (count === 0) return null;
-                    return (
-                      <div
-                        key={agent._id}
-                        className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-medium ${getAvatarColor(agent.fullName)}`}
-                      >
-                        <User className="w-3 h-3" />
-                        <span>
-                          {agent.fullName}: {count}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-        </div>
-
-        {/* Main Stats Cards — hidden for agents (they have their own performance panel below) */}
-        {!isAgent && <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
-          {/* Total Users */}
-          <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">
-                  Total Users
-                </p>
-                <p className="text-lg font-bold text-indigo-800 mt-1">
-                  {stats.total}
-                </p>
-              </div>
-              <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <User className="text-indigo-600" size={18} />
-              </div>
-            </div>
-            {filterLabel && (
-              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={11} />
-                {filterLabel}
-              </div>
-            )}
-          </div>
-
-          {/* Active Users */}
-          {!isAgent && !isManager && (
-            <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
-                    Active Users
-                  </p>
-                  <p className="text-lg font-bold text-green-800 mt-1">
-                    {stageStats["Active"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="text-green-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Follow Up */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setStageModal("Follow Up")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">
-                    Follow Up
-                  </p>
-                  <p className="text-lg font-bold text-yellow-800 mt-1">
-                    {stageStats["Follow Up"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Clock className="text-yellow-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inactive */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setStageModal("Inactive")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">
-                    Inactive
-                  </p>
-                  <p className="text-lg font-bold text-gray-800 mt-1">
-                    {stageStats["Inactive"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <UserX className="text-gray-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Onboarded */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setStageModal("Onboard")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                    Onboarded
-                  </p>
-                  <p className="text-lg font-bold text-blue-800 mt-1">
-                    {stageStats["Onboard"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Rocket className="text-blue-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Total Posts */}
-          {!isAgent && (
-            <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 font-medium">
-                    Total Posts
-                  </p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
-                    {totalPostsCount}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <ImageIcon className="text-blue-600" size={18} />
-                </div>
-              </div>
-              {filterLabel && (
-                <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                  <Calendar size={11} />
-                  {filterLabel}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Users Today — Meta (bulk-upload) vs Signup vs total (IST / APP_TIMEZONE via API) */}
-          <div
-            className={`bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all ${
-              (role === "superAdmin" ||
-                role === "admin" ||
-                role === "superfranchiseAdmin") &&
-              !isManager
-                ? "md:col-span-2"
-                : ""
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-teal-700 font-medium">
-                  {isAgent ? "Calls Today" : "Users Today"}
-                </p>
-                {(role === "superAdmin" ||
-                  role === "admin" ||
-                  role === "superfranchiseAdmin") &&
-                !isAgent &&
-                !isManager ? (
-                  <>
-                    <p
-                      className="text-[10px] text-teal-600/90 leading-tight mt-0.5 line-clamp-2"
-                      title={todayLeadWindowLabel}
-                    >
-                      {todayLeadWindowLabel ||
-                        "Calendar day (Asia/Kolkata / app timezone)"}
-                    </p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
-                      <span title="Meta instant form + imports tagged bulk-upload">
-                        Meta Leads:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersMetaLeads}
-                        </b>
-                      </span>
-                      <span>
-                        Signup:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersSignups}
-                        </b>
-                      </span>
-                      <span>
-                        Total:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersCount}
-                        </b>
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-lg font-bold text-teal-800 ">
-                    {displayTodayUsersCount}
-                  </p>
-                )}
-              </div>
-              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
-                <User className="text-teal-700" size={18} />
-              </div>
-            </div>
-          </div>
-
-          {/* Total Calls Assigned — Agent only */}
-          {isAgent && (
-            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
-                    Total Assigned
-                  </p>
-                  <p className="text-lg font-bold text-indigo-800 mt-1">
-                    {stats.total ?? 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
-                  <UserCheck className="text-indigo-700" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Total Revenue - Role-based visibility */}
-          {(role === "superAdmin" ||
-            role === "franchiseAdmin" ||
-            role === "agent") && (
-            <div
-              className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
-              onClick={() => {
-                fetchRevenueUsers();
-                setShowRevenueUsersModal(true);
-              }}
-              title="Click to view onboarded users details"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-emerald-700 font-medium group-hover:underline">
-                    {role === "superAdmin" || role === "superFranchiseAdmin"
-                      ? "User Onboard Revenue"
-                      : "My Revenue"}
-                  </p>
-                  <p className="text-lg font-bold text-emerald-800 mt-1">
-                    ₹{totalRevenue.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Wallet className="text-emerald-700" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>}
+      <div className="max-w-[98vw] mx-auto">
 
         {/* ── Agent Performance Dashboard ──────────────────────────────── */}
         {isAgent && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4 space-y-3">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 space-y-3">
 
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -2450,122 +2153,10 @@ const handleVoiceCall = async (phone) => {
         )}
 
         {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          {/* Total Chats */}
-          <div
-            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
-            onClick={() => {
-              setChatModalFilter("all");
-              setShowChatStatsModal(true);
-              fetchChatStats();
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Chats</p>
-                <p className="text-lg font-bold text-gray-900 mt-0.5">
-                  {displayTotalChatsCount}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
-                <MessageSquare className="text-orange-600" size={20} />
-              </div>
-            </div>
-          </div>
-
-          {isAgent && (
-            <div
-              className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-3 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer min-h-[72px] group"
-              onClick={() => {
-                fetchRevenueUsers();
-                setShowRevenueUsersModal(true);
-              }}
-              title="Click to view onboarded users"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide group-hover:underline">
-                    My Revenue
-                  </p>
-                  <p className="text-lg font-bold text-emerald-800 mt-0.5">
-                    ₹{totalRevenue.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0">
-                  <Wallet className="text-emerald-700" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-        
-
-          {/* Chats Today */}
-          {!isAgent && (
-            <div
-              className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
-              onClick={() => {
-                setChatModalFilter("today");
-                setShowChatStatsModal(true);
-                fetchChatStats();
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 font-medium">
-                    Chats Today
-                  </p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
-                    {chatStats.today}
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                  <MessageSquare className="text-teal-600" size={20} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Resolved */}
-          {!isAgent && (
-            <div
-              className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
-              onClick={() => {
-                setChatModalFilter("resolved");
-                setShowChatStatsModal(true);
-                fetchChatStats();
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 font-medium">Resolved</p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
-                    {chatStats.resolved}
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Shield className="text-green-600" size={20} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* <div 
-            className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 shadow-lg border border-red-200 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setShowIssuesModal(true)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-700 text-sm font-medium">Reported Issues</p>
-                <p className="text-3xl font-bold text-red-800 mt-1">{issues.length}</p>
-              </div>
-              <Shield className="text-red-600" size={24} />
-            </div>
-          </div> */}
-        </div>
+     
         {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
-      {(role === "superAdmin" || role === "admin") && todayStats.assignments.length > 0 && (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-2">
+{false && (role === "superAdmin" || role === "admin") && todayStats.assignments.length > 0 && (
+  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-0.5">
 
     {/* Header */}
     <div className="flex items-center justify-between mb-1">
@@ -2584,7 +2175,7 @@ const handleVoiceCall = async (phone) => {
     </div>
 
     {/* Cards */}
-    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+    <div className="flex gap-2 overflow-x-auto pb-1">
       {todayStats.assignments
         .slice()
         .sort((a, b) => (b.count || 0) - (a.count || 0))
@@ -2600,18 +2191,18 @@ const handleVoiceCall = async (phone) => {
           return (
             <div
               key={agent._id || idx}
-              className={`min-w-[110px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
+              className={`min-w-[98px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
             >
               <div className="flex items-center gap-1">
                 <div className={`w-4 h-4 rounded-full ${badge} flex items-center justify-center text-white text-[9px]`}>
                   {(agent.agentName || "?")[0]}
                 </div>
-                <span className={`text-[10px] truncate ${text}`}>
+                <span className={`text-[9px] truncate ${text}`}>
                   {agent.agentName}
                 </span>
               </div>
 
-              <span className={`text-sm font-bold leading-tight ${text}`}>
+              <span className={`text-xs font-bold leading-tight ${text}`}>
                 {agent.count || 0}
               </span>
 
@@ -2625,260 +2216,9 @@ const handleVoiceCall = async (phone) => {
   </div>
 )}
 
-        {callStats && (role === "superAdmin" || role === "admin") && (
-          <div className="mb-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-3 py-2 md:px-4 md:py-2.5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-1.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                <Phone className="text-indigo-600" size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm md:text-base font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
-                <p className="text-[10px] text-gray-500 leading-snug">Today&apos;s call volume and scheduled follow-ups across agents</p>
-              </div>
-            </div>
+        
 
-            <div className="p-3 md:p-3.5 space-y-3">
-            {/* Calls today: summary + per-agent scroll */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Calls today</p>
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
-                <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-lg p-2.5 min-w-[120px] flex flex-col justify-center">
-                  <span className="text-[10px] text-blue-700 font-semibold uppercase">Total</span>
-                  <span className="text-xl font-bold text-blue-900 tabular-nums leading-tight">{callStats.totalCallsToday}</span>
-                  <span className="text-[9px] text-blue-600/80">all agents</span>
-                </div>
-                <div className="flex-1 min-w-0 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
-                  <div className="flex gap-1.5 min-w-min">
-                    {(callStats.todayCallsByAgent || []).map((agent) => (
-                      <div
-                        key={agent.agentId || agent.agentName}
-                        className="min-w-[100px] max-w-[128px] bg-gray-50 border border-gray-200 rounded-lg p-2 flex flex-col"
-                      >
-                        <span className="text-[9px] text-gray-500 truncate capitalize" title={agent.agentName}>
-                          {agent.agentName || "—"}
-                        </span>
-                        <span className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{agent.count}</span>
-                        <span className="text-[8px] text-gray-400">calls</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Follow-up buckets */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Follow-up schedule</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {[
-                { label: "Total",      value: followUpStats.totalFollowUps,     bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  bold: "text-amber-800",  sub: "text-amber-500",  note: "all follow-ups"  },
-                { label: "Today",      value: followUpStats.todayFollowUps,     bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    bold: "text-sky-800",    sub: "text-sky-500",    note: "due today"       },
-                { label: "Tomorrow",   value: followUpStats.tomorrowFollowUps,  bg: "bg-rose-50",   border: "border-rose-200",   text: "text-rose-700",   bold: "text-rose-800",   sub: "text-rose-500",   note: "due tomorrow"    },
-                { label: "Next 7 Days",value: followUpStats.next7DaysFollowUps, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", bold: "text-violet-800", sub: "text-violet-500", note: "upcoming"        },
-                { label: "This Month", value: followUpStats.thisMonthFollowUps, bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  bold: "text-green-800",  sub: "text-green-500",  note: "this month"      },
-              ].map(({ label, value, bg, border, text, bold, sub, note }) => (
-                <div key={label} className={`${bg} border ${border} rounded-lg p-2 flex flex-col min-h-[72px] justify-center`}>
-                  <span className={`text-[10px] font-semibold ${text}`}>{label}</span>
-                  <span className={`text-lg font-bold ${bold} tabular-nums mt-0.5 leading-tight`}>{value}</span>
-                  <span className={`text-[9px] ${sub} mt-auto leading-tight`}>{note}</span>
-                </div>
-              ))}
-            </div>
-            </div>
-
-            {/* ── Per-agent follow-up breakdown table (collapsible) ── */}
-            {(followUpStats.byAgent || []).length > 0 && (
-              <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
-                {/* Toggle header */}
-                <button
-                  onClick={() => setByAgentOpen(prev => !prev)}
-                  className="w-full bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <UserCheck size={13} className="text-indigo-500" />
-                    <span className="text-xs font-bold text-gray-700">Follow-ups by Agent</span>
-                    <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
-                      {(followUpStats.byAgent || []).length} agents
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
-                    <span>{byAgentOpen ? "Hide" : "Show"}</span>
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-200 ${byAgentOpen ? "rotate-180" : ""}`}
-                    />
-                  </div>
-                </button>
-
-                {/* Collapsible content */}
-                {byAgentOpen && (
-                  <div className="overflow-x-auto max-h-[min(70vh,520px)] border-t border-gray-100">
-                    <table className="w-full text-xs min-w-[640px]">
-                      <thead className="sticky top-0 z-10 shadow-sm">
-                        <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
-                          <th className="px-4 py-2.5 text-left">Agent</th>
-                          <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
-                          <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
-                          <th className="px-3 py-2.5 text-center text-violet-600">7 Days</th>
-                          <th className="px-3 py-2.5 text-center text-green-600">Month</th>
-                          <th className="px-3 py-2.5 text-center text-amber-600">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {(followUpStats.byAgent || []).map((agent, idx) => {
-                          const colors = ["bg-indigo-500","bg-teal-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-blue-500"];
-                          const c = colors[idx % colors.length];
-                          const name = agent.agentName || "Unknown";
-                          return (
-                            <tr key={agent._id || idx} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-2.5">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
-                                    {name.charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="font-medium text-gray-800 capitalize truncate max-w-[100px]">{name}</span>
-                                </div>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.today || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.tomorrow || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.next7days || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.thisMonth || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{agent.total || 0}</span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
-                          <td className="px-4 py-2 text-xs text-gray-600 font-bold">ALL AGENTS</td>
-                          <td className="px-3 py-2 text-center text-sky-700 font-black">{followUpStats.todayFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-rose-700 font-black">{followUpStats.tomorrowFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-violet-700 font-black">{followUpStats.next7DaysFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-green-700 font-black">{followUpStats.thisMonthFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-amber-700 font-black">{followUpStats.totalFollowUps}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Follow-up leads (all agents) — collapsible */}
-            <div className="mt-1 rounded-xl border border-gray-200 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setAdminFollowUpLeadsOpen((o) => !o)}
-                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Calendar size={13} className="text-violet-500 shrink-0" />
-                  <span className="text-xs font-bold text-gray-700">Follow-up Leads</span>
-                  <span className="text-[10px] text-gray-500 truncate">
-                    (
-                    {{ today: "Today", tomorrow: "Tomorrow", next7days: "Next 7 Days", thisMonth: "This Month", all: "All" }[followUpFilter]}
-                    )
-                  </span>
-                  <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
-                    {followUpLeads.length} leads
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-violet-600 shrink-0 ml-2">
-                  <span>{adminFollowUpLeadsOpen ? "Hide" : "Show"}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${adminFollowUpLeadsOpen ? "rotate-180" : ""}`}
-                  />
-                </div>
-              </button>
-              {adminFollowUpLeadsOpen && (
-                <>
-                  <div className="flex flex-wrap gap-1.5 px-3 py-2 bg-white border-b border-gray-100">
-                    {[
-                      { key: "today", label: "Today" },
-                      { key: "tomorrow", label: "Tomorrow" },
-                      { key: "next7days", label: "7 days" },
-                      { key: "thisMonth", label: "Month" },
-                      { key: "all", label: "All" },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setFollowUpFilter(key)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
-                          followUpFilter === key
-                            ? "bg-violet-600 text-white border-violet-600"
-                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-auto">
-                    {loadingFollowUps ? (
-                      <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
-                        <Clock size={14} className="animate-spin" /> Loading…
-                      </div>
-                    ) : followUpLeads.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
-                        No leads for this filter
-                      </div>
-                    ) : (
-                      <table className="w-full text-xs min-w-[720px]">
-                        <thead className="sticky top-0 bg-gray-100 border-b border-gray-200 z-[1]">
-                          <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500">
-                            <th className="px-3 py-2 font-semibold">Lead</th>
-                            <th className="px-3 py-2 font-semibold">Phone</th>
-                            <th className="px-3 py-2 font-semibold">Agent</th>
-                            <th className="px-3 py-2 font-semibold">Remark</th>
-                            <th className="px-3 py-2 font-semibold text-right">Follow-up</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {followUpLeads.map((lead, idx) => (
-                            <tr key={idx} className="hover:bg-violet-50/40">
-                              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
-                                {lead.fullName || lead.userId || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
-                              <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
-                                {lead.agentName || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate" title={lead.remark}>
-                                {lead.remark || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
-                                {lead.followUpDate
-                                  ? new Date(lead.followUpDate).toLocaleDateString("en-IN", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "2-digit",
-                                    })
-                                  : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
+        <Paper elevation={0} sx={{ border: "1px solid #e5e7eb", borderRadius: "16px", p: 2, mb: 1 }}>
           {isAgent && followUpFilter !== "all" && (
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
@@ -2887,126 +2227,135 @@ const handleVoiceCall = async (phone) => {
               </span>
             </div>
           )}
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 flex items-center gap-2">
-              <div className="relative flex-grow">
-                <Search
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  placeholder="Search by email, user ID, or phone number..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSearch();
-                    }
-                  }}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                />
-              </div>
-              <button
-                onClick={handleSearch}
-                className="px-5 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold flex items-center gap-2"
-              >
-                <Search size={18} />
-                <span>Search</span>
-              </button>
-            </div>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "2fr repeat(4, minmax(0, 1fr)) auto" },
+              gap: 1.5,
+              alignItems: "center",
+            }}
+          >
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Search by email, user ID, phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={16} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+              <Button
+              variant="contained"
+              onClick={handleSearch}
+              startIcon={<Search size={16} />}
+              sx={{ height: 40, textTransform: "none", fontWeight: 700 }}
+            >
+              Search
+            </Button>
 
-            <div className="relative">
-              <select
+            <FormControl size="small" fullWidth>
+              <InputLabel id="lead-stage-filter-label">Lead Stage</InputLabel>
+              <Select
+                labelId="lead-stage-filter-label"
                 value={leadStageFilter}
+                label="Lead Stage"
                 onChange={(e) => setLeadStageFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
               >
-                <option value="All">All Stages</option>
-                <option value="Active">Active</option>
-                <option value="Follow Up">Follow Up</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Onboard">Onboard</option>
-              </select>
-            </div>
+                <MenuItem value="All">All Stages</MenuItem>
+                <MenuItem value="Active">Active</MenuItem>
+                <MenuItem value="Follow Up">Follow Up</MenuItem>
+                <MenuItem value="Inactive">Inactive</MenuItem>
+                <MenuItem value="Onboard">Onboard</MenuItem>
+              </Select>
+            </FormControl>
 
             {(role === "superAdmin" ||
               role === "admin" ||
               role === "superfranchiseAdmin") && (
               <>
-                <div className="relative">
-                  <select
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="assignee-filter-label">Assign To</InputLabel>
+                  <Select
+                    labelId="assignee-filter-label"
                     value={assigneeFilter}
+                    label="Assign To"
                     onChange={(e) => setAssigneeFilter(e.target.value)}
-                    className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
                   >
-                    <option value="All">All Agents</option>
-                    <option value="Unassigned">Unassigned</option>
+                    <MenuItem value="All">All Agents</MenuItem>
+                    <MenuItem value="Unassigned">Unassigned</MenuItem>
                     {agents.map((agent) => (
-                      <option key={agent._id} value={agent._id}>
+                      <MenuItem key={agent._id} value={agent._id}>
                         {agent.fullName}
-                      </option>
+                      </MenuItem>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </FormControl>
 
                 {(role === "superAdmin" ||
                   role === "admin" ||
                   role === "superfranchiseAdmin") && (
-                  <div className="relative">
-                    <select
+                  <FormControl size="small" fullWidth>
+                    <InputLabel id="lead-status-filter-label">Lead Status</InputLabel>
+                    <Select
+                      labelId="lead-status-filter-label"
                       value={leadStatusFilter}
+                      label="Lead Status"
                       onChange={(e) => setLeadStatusFilter(e.target.value)}
-                      className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[150px]"
                     >
-                      <option value="All">All Lead Status</option>
-                      <option value="Hot">Hot Leads</option>
-                      <option value="Warm">Warm Leads</option>
-                      <option value="Cold">Cold Leads</option>
-                      <option value="Untagged">None</option>
-                    </select>
-                  </div>
+                      <MenuItem value="All">All Lead Status</MenuItem>
+                      <MenuItem value="Hot">Hot Leads</MenuItem>
+                      <MenuItem value="Warm">Warm Leads</MenuItem>
+                      <MenuItem value="Cold">Cold Leads</MenuItem>
+                      <MenuItem value="Untagged">None</MenuItem>
+                    </Select>
+                  </FormControl>
                 )}
               </>
             )}
 
-            <div className="relative">
-              <Calendar
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <select
+            <FormControl size="small" fullWidth>
+              <InputLabel id="date-filter-label">Date Range</InputLabel>
+              <Select
+                labelId="date-filter-label"
                 value={filterDate}
+                label="Date Range"
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="pl-11 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer min-w-[180px]"
               >
-                <option value="All">All Time</option>
-                <option value="Today">Today</option>
-                <option value="Last 7 Days">Last 7 Days</option>
-                <option value="Last 30 Days">Last 30 Days</option>
-                <option value="This Month">This Month</option>
-                <option value="Custom Range">Custom Range</option>
-              </select>
-            </div>
+                <MenuItem value="All">All Time</MenuItem>
+                <MenuItem value="Today">Today</MenuItem>
+                <MenuItem value="Last 7 Days">Last 7 Days</MenuItem>
+                <MenuItem value="Last 30 Days">Last 30 Days</MenuItem>
+                <MenuItem value="This Month">This Month</MenuItem>
+                <MenuItem value="Custom Range">Custom Range</MenuItem>
+              </Select>
+            </FormControl>
+
+          
 
             {filterDate === "Custom Range" && (
-              <div className="flex items-center gap-2">
-                <input
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, gridColumn: { xs: "1 / -1", xl: "1 / span 2" } }}>
+                <TextField
+                  size="small"
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  placeholder="Start Date"
+                  fullWidth
                 />
-                <span className="text-gray-400">to</span>
-                <input
+                <span className="text-sm text-gray-500">to</span>
+                <TextField
+                  size="small"
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  placeholder="End Date"
+                  fullWidth
                 />
-              </div>
+              </Box>
             )}
 
             {(searchQuery ||
@@ -3014,64 +2363,73 @@ const handleVoiceCall = async (phone) => {
               filterDate !== "All" ||
               assigneeFilter !== "All" ||
               leadStatusFilter !== "All") && (
-              <button
+              <Button
                 onClick={clearFilters}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 whitespace-nowrap"
+                variant="outlined"
+                color="inherit"
+                startIcon={<X size={16} />}
+                sx={{ height: 40, textTransform: "none", fontWeight: 600 }}
               >
-                <X size={18} />
                 Clear
-              </button>
+              </Button>
             )}
-          </div>
-        </div>
+          </Box>
+        </Paper>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col max-h-[100vh]">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
+        <Paper elevation={0} sx={{ border: "1px solid #dbe1ea", borderRadius: "16px", overflow: "hidden", backgroundColor: "#fff" }}>
+          <TableContainer
+            sx={{
+              maxHeight: { xs: "60vh", md: "72vh" },
+              "&::-webkit-scrollbar": { height: 8, width: 8 },
+              "&::-webkit-scrollbar-thumb": { backgroundColor: "#9ca3af", borderRadius: 99 },
+            }}
+          >
+          <div className="overflow-x-auto pb-1">
+            <table className="min-w-[2200px]">
+              <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                 <tr>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     {isAgent && followUpFilter !== "all" ? "Follow-up" : "Joined Date"}
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     User Name
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Plan
-                  </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  </th> */}
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Assign To
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Remarks
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Lead Stage
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Contact
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Chat
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Wallet
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Posts
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Business Name
                   </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Actions
                   </th>
                 </tr>
               </thead>
             </table>
           </div>
-          <div className="overflow-y-auto flex-grow">
-            <table className="min-w-full">
+          <div className="overflow-y-auto overflow-x-auto flex-grow">
+            <table className="min-w-[2200px]">
               <tbody className="divide-y divide-gray-100">
                 {loadingFollowUpTable &&
                 isAgent &&
@@ -3091,7 +2449,7 @@ const handleVoiceCall = async (phone) => {
                   </tr>
                 ) : (
                   <>
-                {filteredUsers.map((user) => {
+                {filteredUsers.map((user, rowIndex) => {
                   const postData = userPostsData[user.userId] || {
                     total: 0,
                     posted: 0,
@@ -3100,7 +2458,9 @@ const handleVoiceCall = async (phone) => {
                   return (
                     <tr
                       key={user._id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      className={`cursor-pointer transition-colors ${
+                        rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                      } hover:bg-indigo-50/50`}
                       onClick={() => handleViewPosts(user)}
                     >
                       <td className="px-6 py-5">
@@ -3598,10 +2958,11 @@ const handleVoiceCall = async (phone) => {
               </tbody>
             </table>
           </div>
-        </div>
+          </TableContainer>
+        </Paper>
         {/* Pagination Controls */}
         {isAgent && followUpFilter !== "all" ? (
-          <div className="flex items-center justify-center sm:justify-between gap-2 px-3 py-2 bg-white rounded-b-2xl border-t border-gray-200">
+          <div className="mt-2 flex items-center justify-center sm:justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
             <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
               <span className="font-semibold text-gray-800">
                 Showing {filteredUsers.length} users
@@ -3615,7 +2976,7 @@ const handleVoiceCall = async (phone) => {
         ) : (
           pagination &&
           pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between p-3 bg-white rounded-b-2xl border-t border-gray-200">
+            <div className="mt-2 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
               <span className="text-sm text-gray-600">
                 Page{" "}
                 <span className="font-semibold">{pagination.currentPage}</span>{" "}
@@ -3678,7 +3039,7 @@ const handleVoiceCall = async (phone) => {
               <div className="mt-2 pt-2 border-t border-gray-200">
                 <p className="text-xs text-gray-600">Current Balance</p>
                 <p className="text-xl font-bold text-emerald-600">
-                  {walletModalUser.wallet || 0} coins
+                  {walletModalUser.wallet || 0} coins   
                 </p>
               </div>
             </div>
@@ -4575,139 +3936,7 @@ const handleVoiceCall = async (phone) => {
         </div>
       )}
 
-      {showChatStatsModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {chatModalFilter === "today"
-                  ? "Chats Today"
-                  : chatModalFilter === "resolved"
-                    ? "Resolved Chats"
-                    : "All Chats"}
-              </h2>
-              <button
-                onClick={() => setShowChatStatsModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Issue
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {chatStats.data
-                    .filter((chat) => {
-                      // Filter for agents: only show chats from their assigned users
-                      if (role === "agent") {
-                        // Check if the chat's user is in the currently fetched users list (which is filtered for the agent)
-                        if (!users.some((u) => u.userId === chat.userId))
-                          return false;
-                      }
-
-                      if (chatModalFilter === "today") {
-                        if (!chat.createdAt) return false;
-                        const chatDate = new Date(chat.createdAt);
-                        const todayDate = new Date();
-                        return (
-                          chatDate.getDate() === todayDate.getDate() &&
-                          chatDate.getMonth() === todayDate.getMonth() &&
-                          chatDate.getFullYear() === todayDate.getFullYear()
-                        );
-                      }
-                      if (chatModalFilter === "resolved") {
-                        return chat.status === "resolved";
-                      }
-                      return true;
-                    })
-                    .map((chat, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {new Date(chat.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                          <div>{chat.user?.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">
-                            {chat?.user?.fullName}
-                          </div>
-                          <div>{chat.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">
-                            {chat.mobile}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
-                          {chat.issue || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              chat.status === "resolved"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {chat.status || "open"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  {chatStats.data.filter((chat) => {
-                    if (role === "agent") {
-                      if (!users.some((u) => u.userId === chat.userId))
-                        return false;
-                    }
-
-                    if (chatModalFilter === "today") {
-                      if (!chat.createdAt) return false;
-                      const chatDate = new Date(chat.createdAt);
-                      const todayDate = new Date();
-                      return (
-                        chatDate.getDate() === todayDate.getDate() &&
-                        chatDate.getMonth() === todayDate.getMonth() &&
-                        chatDate.getFullYear() === todayDate.getFullYear()
-                      );
-                    }
-                    if (chatModalFilter === "resolved") {
-                      return chat.status === "resolved";
-                    }
-                    return true;
-                  }).length === 0 && (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="px-6 py-8 text-center text-gray-500"
-                      >
-                        No chats found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
+     
       {showIssuesModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
@@ -4827,302 +4056,10 @@ const handleVoiceCall = async (phone) => {
         </div>
       )}
 
-      {/* Stage Breakdown Modal */}
-      {stageModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800">
-                {stageModal} Leads Breakdown
-              </h2>
-              <button
-                onClick={() => setStageModal(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="max-h-[60vh] overflow-y-auto pr-2">
-              <table className="w-full">
-                {role === "agent" ? (
-                  // Agent View: Show List of Users
-                  <>
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                          User Name
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">
-                          Phone
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {users
-                        .filter((u) => (u.leadStage || "Active") === stageModal)
-                        .map((user, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
-                              {user.fullName || "Unknown"}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                              {user.phone || user.mobileNumber || "N/A"}
-                            </td>
-                          </tr>
-                        ))}
-                      {users.filter(
-                        (u) => (u.leadStage || "Active") === stageModal,
-                      ).length === 0 && (
-                        <tr>
-                          <td
-                            colSpan="2"
-                            className="text-center py-4 text-gray-500 text-sm"
-                          >
-                            No users found on this page
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </>
-                ) : (
-                  // Admin View: Show Agent Breakdown
-                  <>
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                          Agent
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">
-                          Count
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {Object.values(
-                        detailedStats
-                          .filter((item) => item.stage === stageModal)
-                          .reduce((acc, item) => {
-                            const agentName =
-                              item.agentId === "Unassigned"
-                                ? "Unassigned"
-                                : agents.find((a) => a._id === item.agentId)
-                                    ?.fullName || "Unknown Agent";
-
-                            if (!acc[agentName]) {
-                              acc[agentName] = { agentName, count: 0 };
-                            }
-
-                            acc[agentName].count += item.count;
-
-                            return acc;
-                          }, {}),
-                      )
-                        .sort((a, b) => b.count - a.count)
-                        .map((item, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-800 font-medium">
-                              {item.agentName}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-800 text-right font-bold">
-                              {item.count}
-                            </td>
-                          </tr>
-                        ))}
-
-                      {detailedStats.filter((item) => item.stage === stageModal)
-                        .length === 0 && (
-                        <tr>
-                          <td
-                            colSpan="2"
-                            className="text-center py-4 text-gray-500 text-sm"
-                          >
-                            No leads in this stage
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </>
-                )}
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+     
 
       {/* User Onboard Revenue Details Modal ✅ NEW */}
-      {showRevenueUsersModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-6xl max-h-[90vh] w-full flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
-              <div>
-                <h2 className="text-2xl font-bold text-emerald-800">
-                  User Onboard Revenue Details
-                </h2>
-                <p className="text-sm text-emerald-700 mt-1">
-                  All users with `type: user_onboard` revenue entries
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowRevenueUsersModal(false);
-                  setRevenueUsersList([]);
-                }}
-                className="p-2 hover:bg-emerald-200 rounded-xl transition-all"
-              >
-                <X size={20} className="text-emerald-700" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {loadingRevenueUsers ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="flex flex-col items-center text-center">
-                    <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-3" />
-                    <p className="text-gray-600 font-medium">
-                      Loading onboarded users...
-                    </p>
-                  </div>
-                </div>
-              ) : revenueUsersList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
-                  <Wallet className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                  <h3 className="text-xl font-semibold mb-2 text-gray-600">
-                    No Onboarded Users Yet
-                  </h3>
-                  <p className="text-gray-500">
-                    No users with `user_onboard` revenue entries found for your
-                    account.
-                  </p>
-                  <p className="text-sm mt-1 text-gray-400">
-                    Onboard users using the ✅ button in the user table
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Table */}
-                  <div className="overflow-x-auto rounded-2xl border border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Plan
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Amount
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Screenshot
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Notes
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {revenueUsersList.map((revenue, index) => (
-                          <tr
-                            key={revenue._id || index}
-                            className="hover:bg-gray-50 transition-colors"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="font-semibold text-gray-900">
-                                {revenue.leadName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                ID: {revenue.leadId}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                UTR: {revenue.utrNumber || "N/A"}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                                {revenue.plan || "N/A"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="text-xl font-bold text-emerald-700">
-                                ₹{revenue.amount?.toLocaleString() || 0}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {new Date(revenue.createdAt).toLocaleDateString(
-                                  "en-IN",
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {new Date(revenue.createdAt).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              {revenue.paymentScreenshot ? (
-                                <button
-                                  onClick={() =>
-                                    setFullViewImage(revenue.paymentScreenshot)
-                                  }
-                                  className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
-                                >
-                                  <Eye size={14} />
-                                  View Proof
-                                </button>
-                              ) : (
-                                <span className="text-sm text-gray-400 italic">
-                                  No screenshot
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 max-w-xs">
-                              <div className="text-sm text-gray-900 line-clamp-2">
-                                {revenue.notes || "No notes"}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Footer Totals */}
-                  <div className="mt-6 pt-6 border-t border-gray-200 bg-emerald-50/50 rounded-2xl p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          Total Onboarded Users:
-                        </p>
-                        <p className="text-2xl font-bold text-emerald-800">
-                          {revenueUsersList.length}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Total Revenue:</p>
-                        <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                          ₹
-                          {revenueUsersList
-                            .reduce((sum, r) => sum + (r.amount || 0), 0)
-                            .toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+     
 
       {/* Onboard Client Modal */}
       {showOnboardModal && onboardModalUser && (
@@ -5356,177 +4293,6 @@ const handleVoiceCall = async (phone) => {
       )}
 
       {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}
-      {showRevenueUsersModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Onboarded Users Revenue
-                </h2>
-                <p className="text-gray-600 text-sm mt-1">
-                  Total: ₹{totalRevenue.toLocaleString()} from {revenueCount}{" "}
-                  users
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowRevenueUsersModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-auto">
-              {loadingRevenueUsers ? (
-                <div className="flex items-center justify-center py-12 text-gray-500">
-                  <RefreshCw className="w-8 h-8 animate-spin mr-3" />
-                  <span>Loading onboarded users...</span>
-                </div>
-              ) : revenueUsersList.length === 0 ? (
-                <div className="text-center py-16 text-gray-400">
-                  <Wallet className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <h3 className="text-xl font-semibold mb-2 text-gray-500">
-                    No onboarded users yet
-                  </h3>
-                  <p className="text-gray-400">
-                    Use the onboard button next to users to record revenue
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                          User
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                          Plan
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                          Screenshot
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                          Notes
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {revenueUsersList.map((revenue, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="font-semibold text-gray-900">
-                              {revenue.leadName}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              ID: {revenue.leadId}
-                            </div>
-                          </td>
-
-                          <td className="px-6 py-4 text-right">
-                            <div className="text-lg font-bold text-emerald-600">
-                              ₹{revenue.amount?.toLocaleString()}
-                            </div>
-                          </td>
-
-                          <td className="px-6 py-4">
-                            <span className="px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                              {revenue.plan || "N/A"}
-                            </span>
-                          </td>
-
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {new Date(revenue.createdAt).toLocaleDateString()}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            {revenue.paymentScreenshot ? (
-                              <button
-                                onClick={() =>
-                                  setFullViewImage(revenue.paymentScreenshot)
-                                }
-                                className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-all text-sm font-medium"
-                              >
-                                <Eye size={14} />
-                                View Proof
-                              </button>
-                            ) : (
-                              <span className="text-sm text-gray-400 italic">
-                                No screenshot
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            <div
-                              className="text-sm text-gray-700 max-w-xs truncate"
-                              title={revenue.notes}
-                            >
-                              {revenue.notes || "N/A"}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-200 bg-gray-50 rounded-b-3xl p-4">
-              <div className="flex justify-between items-center text-sm text-gray-600">
-                <span>
-                  Total Onboarded Users:
-                  <span className="font-bold text-gray-900">
-                    {revenueUsersList.length}
-                  </span>
-                </span>
-
-                <span>
-                  Total Revenue:
-                  <span className="font-bold text-emerald-600">
-                    ₹{totalRevenue.toLocaleString()}
-                  </span>
-                </span>
-              </div>
-
-              <button
-                onClick={() => setShowRevenueUsersModal(false)}
-                className="w-full mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-
-          {/* 🔥 Payment Screenshot Viewer */}
-          {fullViewImage && (
-            <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] p-6">
-              <button
-                onClick={() => setFullViewImage(null)}
-                className="absolute top-8 right-8 text-white bg-black/60 hover:bg-black/80 p-3 rounded-full"
-              >
-                <X size={28} />
-              </button>
-
-              <img
-                src={fullViewImage}
-                alt="Payment Proof"
-                className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl"
-              />
-            </div>
-          )}
-        </div>
-      )}
       {/* Meeting Schedule Modal */}
       {showMeetingModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
@@ -5626,4 +4392,23 @@ const handleVoiceCall = async (phone) => {
       />
     </div>
   );
+
+ 
 }
+
+ export const getTodayUsersData = async () => {
+  const adminEmail = localStorage.getItem("email");
+  if (!adminEmail) return null;
+
+  try {
+    const res = await fetch(
+      `/api/users?email=${adminEmail}&getTodayUsersCount=true`
+    );
+    const data = await res.json();
+
+    return data; // 🔥 yaha return kar rahe
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+};

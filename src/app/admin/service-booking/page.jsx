@@ -6,6 +6,7 @@ export default function ServiceBookingList() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -39,9 +40,32 @@ export default function ServiceBookingList() {
       </div>
     );
 
+  const filteredData = data.filter((item) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(item.name || "").toLowerCase().includes(q) ||
+      String(item.email || "").toLowerCase().includes(q) ||
+      String(item.phone || "").toLowerCase().includes(q) ||
+      String(item.planTitle || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6">Service Bookings</h2>
+      <div className="mb-5 mt-2">
+        <h2 className="text-3xl font-bold text-slate-900">Service Bookings</h2>
+        <p className="mt-1 text-sm text-slate-500">Track all service plan bookings in one place</p>
+      </div>
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search customer, email, contact, plan..."
+          className="w-full max-w-md rounded-xl border border-slate-300 px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+        />
+      </div>
 
       {/* Desktop Table */}
      {/* Desktop Table */}
@@ -61,7 +85,7 @@ export default function ServiceBookingList() {
       </thead>
 
       <tbody>
-        {data.map((item, index) => (
+        {filteredData.map((item, index) => (
           <tr
             key={item._id}
             className={`border-b transition ${
@@ -129,7 +153,7 @@ export default function ServiceBookingList() {
 
       {/* Mobile Cards */}
       <div className="grid gap-4 md:hidden">
-        {data.map((item) => (
+        {filteredData.map((item) => (
           <div
             key={item._id}
             className="bg-white rounded-xl shadow p-4 space-y-2"

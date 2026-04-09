@@ -1,8 +1,10 @@
 import dbConnect from "@/lib/dbConnect";
 import RazorpayTransaction from "@/models/RazorpayTransaction";
 import User from "@/models/User"; // <-- Add this import
+import { logApiRequest } from "@/lib/apiLogger";
 
 export async function POST(req) {
+  const startedAt = Date.now();
   await dbConnect();
 
   try {
@@ -10,6 +12,13 @@ export async function POST(req) {
       await req.json();
 
     if (!userId || !payment || !amount || !totalAmount) {
+      await logApiRequest({
+        path: "/api/razorpay/razorpay-transaction",
+        method: "POST",
+        status: 400,
+        durationMs: Date.now() - startedAt,
+        errorMessage: "Missing required fields",
+      });
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400 }
@@ -32,12 +41,25 @@ export async function POST(req) {
 
     await newTransaction.save();
 
+    await logApiRequest({
+      path: "/api/razorpay/razorpay-transaction",
+      method: "POST",
+      status: 201,
+      durationMs: Date.now() - startedAt,
+    });
     return new Response(
       JSON.stringify({ success: true, message: "Transaction saved successfully" }),
       { status: 201 }
     );
   } catch (error) {
     console.error("Error saving Razorpay transaction:", error);
+    await logApiRequest({
+      path: "/api/razorpay/razorpay-transaction",
+      method: "POST",
+      status: 500,
+      durationMs: Date.now() - startedAt,
+      errorMessage: error?.message || "Error saving Razorpay transaction",
+    });
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
     });
@@ -46,6 +68,7 @@ export async function POST(req) {
 
 
 export async function GET(req) {
+  const startedAt = Date.now();
   await dbConnect();
 
   try {
@@ -67,6 +90,12 @@ export async function GET(req) {
       });
     }
 
+    await logApiRequest({
+      path: "/api/razorpay/razorpay-transaction",
+      method: "GET",
+      status: 200,
+      durationMs: Date.now() - startedAt,
+    });
     return new Response(
       JSON.stringify({
         success: true,
@@ -77,6 +106,13 @@ export async function GET(req) {
     );
   } catch (error) {
     console.error("Error fetching transactions:", error);
+    await logApiRequest({
+      path: "/api/razorpay/razorpay-transaction",
+      method: "GET",
+      status: 500,
+      durationMs: Date.now() - startedAt,
+      errorMessage: error?.message || "Error fetching transactions",
+    });
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 500 }

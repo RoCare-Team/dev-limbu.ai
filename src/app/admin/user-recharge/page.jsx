@@ -27,41 +27,46 @@ export default function TransactionsPage() {
   }, []);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-5">All Transactions</h1>
+    <div className="p-4 sm:p-6">
+      <div className="mb-6 mt-2">
+        <h1 className="text-3xl font-bold text-slate-900">All Transactions</h1>
+        <p className="mt-1 text-sm text-slate-500">Wallet recharge transactions overview</p>
+      </div>
 
       {loading ? (
-        <p className="text-gray-600">Loading...</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">Loading transactions...</div>
       ) : (
         <>
-          <p className="text-lg font-semibold mb-3">
-            Total Transactions: <span className="text-blue-600">{total}</span>
-          </p>
+          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <p className="text-sm font-semibold text-blue-700">
+              Total Transactions: <span className="text-xl text-blue-900">{total}</span>
+            </p>
+          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-              <thead className="bg-gray-200">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
                 <tr>
-                  <th className="px-4 py-2">User Name</th>
-                  <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">Total Wallet</th>
-                  <th className="px-4 py-2">Amount</th>
-                  <th className="px-4 py-2">Order ID</th>
-                  <th className="px-4 py-2">Payment ID</th>
-                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold">User Name</th>
+                  <th className="px-4 py-3 text-left font-semibold">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold">Total Wallet</th>
+                  <th className="px-4 py-3 text-left font-semibold">Amount</th>
+                  <th className="px-4 py-3 text-left font-semibold">Order ID</th>
+                  <th className="px-4 py-3 text-left font-semibold">Payment ID</th>
+                  <th className="px-4 py-3 text-left font-semibold">Date</th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {data.map((tx, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="px-4 py-2">{tx.user?.fullName || "-"}</td>
-                    <td className="px-4 py-2">{tx.user?.email || "-"}</td>
-                    <td className="px-4 py-2">{tx.user?.wallet ?? "-"}</td>
-                    <td className="px-4 py-2 font-semibold">₹{tx.totalAmount}</td>
-                    <td className="px-4 py-2">{tx.orderId}</td>
-                    <td className="px-4 py-2">{tx.paymentId}</td>
-                    <td className="px-4 py-2">
+                  <tr key={i} className={i % 2 === 0 ? "bg-slate-50/50" : "bg-white"}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{tx.user?.fullName || "-"}</td>
+                    <td className="px-4 py-3 text-slate-600">{tx.user?.email || "-"}</td>
+                    <td className="px-4 py-3 text-slate-700">{tx.user?.wallet ?? "-"}</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹{tx.totalAmount}</td>
+                    <td className="px-4 py-3 text-slate-600">{tx.orderId}</td>
+                    <td className="px-4 py-3 text-slate-600">{tx.paymentId}</td>
+                    <td className="px-4 py-3 text-slate-600">
                       {new Date(tx.createdAt).toLocaleString()}
                     </td>
                   </tr>

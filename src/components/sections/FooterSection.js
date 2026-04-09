@@ -84,7 +84,7 @@ export default function FooterSection() {
             <h3 className="font-semibold text-lg mb-4">Support</h3>
             <ul className="space-y-3 text-sm text-slate-300">
               <li className="hover:text-white cursor-pointer">Help Center</li>
-              <li>Call: 9283344726</li>
+              <li>Call: 9289344726</li>
             </ul>
           </div>
 

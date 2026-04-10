@@ -1,6 +1,9 @@
 "use server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://limbu.ai";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXTAUTH_URL ||
+  "http://localhost:3000";
 
 
 export async function createDefaultAssetsAction(userId) {
@@ -30,12 +33,12 @@ export async function fetchPostsAction(userId, status) {
     const url = status === "total"
         ? `${API_URL}/api/post-status?userId=${userId}`
         : `${API_URL}/api/post-status?userId=${userId}&status=${status}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: "no-store" });
     return await res.json();
 }
 
 export async function fetchAllPostsAction(userId) {
-    const res = await fetch(`${API_URL}/api/post-status?userId=${userId}`);
+    const res = await fetch(`${API_URL}/api/post-status?userId=${userId}`, { cache: "no-store" });
     return await res.json();
 }
 

@@ -360,9 +360,30 @@ export async function GET(req) {
         "Cold": 0
       };
       const detailedStats = [];
+      const agentIds = [
+        ...new Set(
+          stats
+            .map((item) => item?._id?.agent?.toString())
+            .filter(Boolean),
+        ),
+      ];
+      const agentNameMap = {};
+
+      if (agentIds.length > 0) {
+        const agents = await Admin.find({ _id: { $in: agentIds } })
+          .select("_id fullName name")
+          .lean();
+
+        agents.forEach((agent) => {
+          agentNameMap[agent._id.toString()] =
+            agent.fullName || agent.name || "Unknown";
+        });
+      }
 
       stats.forEach((item) => {
         const agentId = item._id.agent ? item._id.agent.toString() : "Unassigned";
+        const agentName =
+          agentId === "Unassigned" ? "Unassigned" : (agentNameMap[agentId] || "Unknown");
         const stage = item._id.stage;
         const leadStatus = item._id.leadStatus || "Cold";
         const count = item.count;
@@ -377,7 +398,7 @@ export async function GET(req) {
         leadStatusStats[leadStatus] = (leadStatusStats[leadStatus] || 0) + count;
 
         // Detailed Breakdown
-        detailedStats.push({ stage, agentId, leadStatus, count });
+        detailedStats.push({ stage, agentId, agentName, leadStatus, count });
       });
 
       let extraStats = {};

@@ -8,6 +8,7 @@ import animationData from "@/assets/animation/Loading.json";
 import { getValidFrequencies, getRecommendedFrequency } from "@/utils/userSettingsHelpers";
 
 const ASSET_IMAGE_FIELDS = ["characterImage", "uniformImage", "productImage", "backgroundImage", "logoImage"];
+const USER_SETTINGS_PASSKEY = "Limbu007";
 
 function pickFirstNonEmpty(...vals) {
   for (const v of vals) {
@@ -687,9 +688,17 @@ export default function AutomationSettings({ onNavigateBack }) {
   // Success modal
   const [showModal,    setShowModal]    = useState(false);
   const [savedSummary, setSavedSummary] = useState(null);
+  const [passkeyVerified, setPasskeyVerified] = useState(false);
+  const [passkeyInput, setPasskeyInput] = useState("");
+  const [passkeyError, setPasskeyError] = useState("");
 
   const [gmbLocationsExpanded, setGmbLocationsExpanded] = useState(true);
   const [metaSyncing, setMetaSyncing] = useState(false);
+  const displayName = useMemo(() => {
+    const rawName = String(userData?.fullName || "").trim();
+    if (!rawName || /^USR\d+$/i.test(rawName)) return "Automation Settings";
+    return rawName;
+  }, [userData?.fullName]);
 
   const refreshSocialPages = useCallback(() => {
     const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
@@ -1098,6 +1107,16 @@ export default function AutomationSettings({ onNavigateBack }) {
     }
   };
 
+  const handlePasskeySubmit = (e) => {
+    e.preventDefault();
+    if (passkeyInput.trim() === USER_SETTINGS_PASSKEY) {
+      setPasskeyVerified(true);
+      setPasskeyError("");
+      return;
+    }
+    setPasskeyError("Invalid passkey. If you don't have a passkey, contact our Expert Team.");
+  };
+
   // ── Styles ─────────────────────────────────────────────────────────────────
 
   const S = {
@@ -1115,6 +1134,67 @@ export default function AutomationSettings({ onNavigateBack }) {
           <Lottie animationData={animationData} loop style={{ width: "100%", height: "100%" }} />
         </div>
         <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#64748b", letterSpacing: "-0.02em" }}>Loading settings…</p>
+      </div>
+    );
+  }
+
+  if (!passkeyVerified) {
+    return (
+      <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <form
+          onSubmit={handlePasskeySubmit}
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 16,
+            padding: 24,
+            boxShadow: "0 16px 32px rgba(15,23,42,.08)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>Enter User Passkey</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.45 }}>
+            User settings are protected. Enter your passkey to continue.
+          </p>
+          <input
+            type="password"
+            value={passkeyInput}
+            onChange={(e) => {
+              setPasskeyInput(e.target.value);
+              if (passkeyError) setPasskeyError("");
+            }}
+            placeholder="Enter passkey"
+            style={S.input}
+            autoFocus
+          />
+          {passkeyError && (
+            <div style={{ fontSize: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "8px 10px" }}>
+              {passkeyError}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            If you do not have a user passkey, contact our Expert Team.
+          </div>
+          <button
+            type="submit"
+            style={{
+              border: "none",
+              borderRadius: 10,
+              background: "#111827",
+              color: "#fff",
+              padding: "10px 14px",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Open User Settings
+          </button>
+        </form>
       </div>
     );
   }
@@ -1211,7 +1291,7 @@ export default function AutomationSettings({ onNavigateBack }) {
             <BackButton onClick={onNavigateBack || (() => window.history.back?.())} />
             <span style={{ color: "#e5e7eb" }}>|</span>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>{userData?.fullName || "Automation Settings"}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>{displayName}</div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{userData?.email || "Google Business Profile"}</div>
               <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4, fontWeight: 500 }}>Set up once — saved settings load automatically when you return.</div>
             </div>

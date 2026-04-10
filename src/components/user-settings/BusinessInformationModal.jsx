@@ -314,6 +314,7 @@ function FieldRow({
   fieldId,
   value,
   onChange,
+  onSaveField,
   multiline = false,
   businessName,
   categoryHint,
@@ -329,6 +330,7 @@ function FieldRow({
 }) {
   const [showChooser, setShowChooser] = useState(false);
   const [manualMode, setManualMode] = useState(false);
+  const [draftValue, setDraftValue] = useState("");
   const [aiPending, setAiPending] = useState(null);
   const [loading, setLoading] = useState(false);
   const [aiSource, setAiSource] = useState(false);
@@ -340,6 +342,31 @@ function FieldRow({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [manualOnly]);
+
+  useEffect(() => {
+    if (manualMode) return;
+    setDraftValue(String(value ?? ""));
+  }, [value, manualMode]);
+
+  const startEdit = () => {
+    setDraftValue(String(value ?? ""));
+    setManualMode(true);
+  };
+
+  const cancelEdit = () => {
+    setDraftValue(String(value ?? ""));
+    setManualMode(false);
+  };
+
+  const saveEdit = async () => {
+    let next = String(draftValue ?? "");
+    if (maxLength != null) next = next.slice(0, maxLength);
+    onChange(next);
+    if (typeof onSaveField === "function") {
+      await Promise.resolve(onSaveField({ fieldId, fieldLabel: label, value: next }));
+    }
+    setManualMode(false);
+  };
 
   const generateAI = async () => {
     setShowChooser(false);
@@ -406,57 +433,133 @@ function FieldRow({
         paddingBottom: noBottomRule ? 0 : 20,
         borderBottom: noBottomRule ? "none" : "1px solid #eef2f6",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
-            {label}
-          </span>
-          <span style={{
-            fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em",
-            color: "#475569", background: "#f1f5f9", border: "1px solid #e2e8f0",
-            padding: "3px 8px", borderRadius: 20,
-          }}>
-            Manual
-          </span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
+              {label}
+            </span>
+            <span style={{
+              fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em",
+              color: "#475569", background: "#f1f5f9", border: "1px solid #e2e8f0",
+              padding: "3px 8px", borderRadius: 20,
+            }}>
+              Manual
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={startEdit}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: 11, fontWeight: 800,
+              color: "#4f46e5",
+              background: "#fff",
+              border: "1.5px solid #c7d2fe",
+              borderRadius: 9, padding: "6px 12px",
+              cursor: "pointer", fontFamily: "inherit",
+              boxShadow: "0 1px 2px rgba(15,23,42,.06)",
+            }}
+          >
+            <EditIcon /> Edit
+          </button>
         </div>
         {manualHint ? (
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{manualHint}</p>
         ) : null}
-        {multiline ? (
-          <textarea
-            value={value}
-            onChange={(e) => {
-              let v = e.target.value;
-              if (maxLength != null) v = v.slice(0, maxLength);
-              onChange(v);
-            }}
-            rows={5}
-            maxLength={maxLength != null ? maxLength : undefined}
-            placeholder={`Enter ${label.toLowerCase()}…`}
-            style={{
-              width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
-              color: "#334155", border: "1.5px solid #e2e8f0", borderRadius: 10,
-              padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
-              outline: "none", background: "#fff",
-            }}
-          />
+        {manualMode ? (
+          multiline ? (
+            <textarea
+              autoFocus
+              value={draftValue}
+              onChange={(e) => {
+                let v = e.target.value;
+                if (maxLength != null) v = v.slice(0, maxLength);
+                setDraftValue(v);
+              }}
+              rows={5}
+              maxLength={maxLength != null ? maxLength : undefined}
+              placeholder={`Enter ${label.toLowerCase()}…`}
+              style={{
+                width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
+                color: "#334155", border: "1.5px solid #6366f1", borderRadius: 10,
+                padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
+                outline: "none", background: "#fafbff",
+              }}
+            />
+          ) : (
+            <input
+              autoFocus
+              type="text"
+              value={draftValue}
+              onChange={(e) => {
+                let v = e.target.value;
+                if (maxLength != null) v = v.slice(0, maxLength);
+                setDraftValue(v);
+              }}
+              maxLength={maxLength != null ? maxLength : undefined}
+              placeholder={`Enter ${label.toLowerCase()}…`}
+              style={{
+                width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
+                border: "1.5px solid #6366f1", borderRadius: 10, padding: "11px 14px",
+                fontFamily: "inherit", outline: "none", background: "#fafbff",
+              }}
+            />
+          )
         ) : (
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => {
-              let v = e.target.value;
-              if (maxLength != null) v = v.slice(0, maxLength);
-              onChange(v);
-            }}
-            maxLength={maxLength != null ? maxLength : undefined}
-            placeholder={`Enter ${label.toLowerCase()}…`}
+          <div
             style={{
-              width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
-              border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "11px 14px",
-              fontFamily: "inherit", outline: "none", background: "#fff",
+              fontSize: 14, color: value ? "#334155" : "#94a3b8",
+              padding: "11px 14px",
+              background: "#f8fafc",
+              borderRadius: 10,
+              border: "1px solid #e8edf5",
+              lineHeight: 1.7,
+              minHeight: multiline ? 72 : "auto",
+              whiteSpace: multiline ? "pre-wrap" : "normal",
+              wordBreak: "break-word",
             }}
-          />
+          >
+            {value || `Click Edit to add ${label.toLowerCase()}`}
+          </div>
         )}
+        {manualMode ? (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={() => void saveEdit()}
+              style={{
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 14px",
+                background: "#1a73e8",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              style={{
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                padding: "8px 14px",
+                background: "#fff",
+                color: "#334155",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
         {multiline && maxLength != null ? (
           <div style={{
             fontSize: 11, fontWeight: 700, color: "#94a3b8", textAlign: "right", marginTop: 8,
@@ -507,7 +610,7 @@ function FieldRow({
             <EditChooser
               fieldLabel={label}
               onAiClick={generateAI}
-              onManualClick={() => { setManualMode(true); setShowChooser(false); setAiSource(false); }}
+              onManualClick={() => { startEdit(); setShowChooser(false); setAiSource(false); }}
             />
           )}
         </div>
@@ -520,16 +623,14 @@ function FieldRow({
 
       {/* Value display */}
       {!loading && (manualMode ? (
-        multiline ? (
           <textarea
             autoFocus
-            value={value}
+            value={draftValue}
             onChange={(e) => {
               let v = e.target.value;
               if (maxLength != null) v = v.slice(0, maxLength);
-              onChange(v);
+              setDraftValue(v);
             }}
-            onBlur={() => setManualMode(false)}
             rows={5}
             maxLength={maxLength != null ? maxLength : undefined}
             style={{
@@ -539,25 +640,6 @@ function FieldRow({
               outline: "none", background: "#fafbff",
             }}
           />
-        ) : (
-          <input
-            autoFocus
-            type="text"
-            value={value}
-            onChange={(e) => {
-              let v = e.target.value;
-              if (maxLength != null) v = v.slice(0, maxLength);
-              onChange(v);
-            }}
-            onBlur={() => setManualMode(false)}
-            maxLength={maxLength != null ? maxLength : undefined}
-            style={{
-              width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
-              border: "1.5px solid #6366f1", borderRadius: 10, padding: "11px 14px",
-              fontFamily: "inherit", outline: "none", background: "#fafbff",
-            }}
-          />
-        )
       ) : (
         <div style={{
           fontSize: 14, color: value ? "#334155" : "#94a3b8",
@@ -573,6 +655,44 @@ function FieldRow({
           {value || `Click Edit to add ${label.toLowerCase()}`}
         </div>
       ))}
+      {manualMode ? (
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={() => void saveEdit()}
+            style={{
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 14px",
+              background: "#1a73e8",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={cancelEdit}
+            style={{
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
+              padding: "8px 14px",
+              background: "#fff",
+              color: "#334155",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : null}
 
       {multiline && maxLength != null ? (
         <div style={{
@@ -589,40 +709,6 @@ function FieldRow({
       {aiPending !== null && (
         <ConfirmModal field={label} aiContent={aiPending} onConfirm={confirmInsert} onCancel={() => setAiPending(null)} />
       )}
-    </div>
-  );
-}
-
-function SectionBlock({ title, hint, children }) {
-  return (
-    <div style={{
-      borderRadius: 16,
-      border: "1px solid #e2e8f0",
-      background: "linear-gradient(165deg, #ffffff 0%, #f8fafc 55%, #f1f5f9 100%)",
-      padding: "20px 22px 8px",
-      marginBottom: 18,
-      boxShadow: "0 4px 24px rgba(15,23,42,.045)",
-    }}>
-      <div style={{
-        marginBottom: 14,
-        paddingBottom: 12,
-        borderBottom: "1px solid #e8edf5",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-      }}>
-        <span style={{
-          width: 3, alignSelf: "stretch", minHeight: 36, borderRadius: 2,
-          background: "linear-gradient(180deg, #6366f1, #7c3aed)", flexShrink: 0,
-        }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", letterSpacing: "-.02em" }}>{title}</div>
-          {hint ? (
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>{hint}</div>
-          ) : null}
-        </div>
-      </div>
-      {children}
     </div>
   );
 }
@@ -749,16 +835,52 @@ function hasEnoughAddressForGeocode(payload) {
   return false;
 }
 
-/** Google-style service area: OSM-based radius search + curated presets + custom lines. */
+function SectionBlock({ title, hint, children }) {
+  return (
+    <div style={{
+      borderRadius: 16,
+      border: "1px solid #e2e8f0",
+      background: "linear-gradient(165deg, #ffffff 0%, #f8fafc 55%, #f1f5f9 100%)",
+      padding: "20px 22px 8px",
+      marginBottom: 18,
+      boxShadow: "0 4px 24px rgba(15,23,42,.045)",
+    }}>
+      <div style={{
+        marginBottom: 14,
+        paddingBottom: 12,
+        borderBottom: "1px solid #e8edf5",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+      }}>
+        <span style={{
+          width: 3, alignSelf: "stretch", minHeight: 36, borderRadius: 2,
+          background: "linear-gradient(180deg, #6366f1, #7c3aed)", flexShrink: 0,
+        }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", letterSpacing: "-.02em" }}>{title}</div>
+          {hint ? (
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>{hint}</div>
+          ) : null}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Service areas: Google optimization uses storefront address → geocode → OSM radius search; optional AI name hints. */
 function ServiceAreaMultiSelect({
   primaryLoc,
-  anchorLat,
-  anchorLng,
+  listingLat,
+  listingLng,
   selectedPlaces,
   onChange,
-  onAnchorResolved,
   noBottomRule = false,
   enableRadiusSearch = false,
+  aiContext = {},
+  onSaveServiceAreas,
+  saveServiceAreasPending = false,
 }) {
   const staticSuggestions = useMemo(
     () =>
@@ -773,6 +895,8 @@ function ServiceAreaMultiSelect({
 
   const [radiusKm, setRadiusKm] = useState(4);
   const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
+  const [aiAreaSuggestions, setAiAreaSuggestions] = useState([]);
+  const [aiAreaPending, setAiAreaPending] = useState(false);
   const [fetchingNearby, setFetchingNearby] = useState(false);
   const [nearbyError, setNearbyError] = useState("");
   const [customLine, setCustomLine] = useState("");
@@ -782,35 +906,25 @@ function ServiceAreaMultiSelect({
   const geocodePayload = useMemo(() => buildGeocodePayloadFromPrimaryLoc(primaryLoc), [primaryLoc]);
   const canGeocodeFromAddress = hasEnoughAddressForGeocode(geocodePayload);
 
-  const anchorFromProps =
-    anchorLat != null &&
-    anchorLng != null &&
-    Number.isFinite(Number(anchorLat)) &&
-    Number.isFinite(Number(anchorLng));
-
-  useEffect(() => {
-    if (anchorFromProps) {
-      setGeocodedLat(null);
-      setGeocodedLng(null);
-    }
-  }, [anchorFromProps, anchorLat, anchorLng]);
+  const listingPinOk =
+    listingLat != null &&
+    listingLng != null &&
+    Number.isFinite(Number(listingLat)) &&
+    Number.isFinite(Number(listingLng));
 
   useEffect(() => {
     setDynamicSuggestions([]);
     setNearbyError("");
-  }, [anchorLat, anchorLng]);
+    setAiAreaSuggestions([]);
+  }, [primaryLoc?.fullAddress, listingLat, listingLng]);
 
   const mergedSuggestions = useMemo(() => {
+    const sourceSuggestions = enableRadiusSearch
+      ? [...dynamicSuggestions, ...aiAreaSuggestions]
+      : staticSuggestions;
     const seen = new Set();
     const out = [];
-    for (const p of dynamicSuggestions) {
-      const k = String(p).toLowerCase();
-      if (!seen.has(k)) {
-        seen.add(k);
-        out.push(String(p));
-      }
-    }
-    for (const p of staticSuggestions) {
+    for (const p of sourceSuggestions) {
       const k = String(p).toLowerCase();
       if (!seen.has(k)) {
         seen.add(k);
@@ -818,15 +932,49 @@ function ServiceAreaMultiSelect({
       }
     }
     return out;
-  }, [dynamicSuggestions, staticSuggestions]);
+  }, [dynamicSuggestions, aiAreaSuggestions, staticSuggestions, enableRadiusSearch]);
+
+  const suggestAreasWithAi = async () => {
+    setAiAreaPending(true);
+    try {
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "field",
+          fieldId: "serviceArea",
+          fieldLabel: "Nearby service areas",
+          context: {
+            ...aiContext,
+            searchRadiusKm: radiusKm,
+            storefrontAddress: primaryLoc?.fullAddress || primaryLoc?.address || "",
+            locality: primaryLoc?.locality || "",
+            administrativeArea: primaryLoc?.administrativeArea || "",
+          },
+          currentValue: selectedPlaces.join(", "),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "AI area suggestions failed");
+      const raw = String(data.value ?? "").trim();
+      const parts = raw.split(/[,;|\n]/).map((s) => s.trim()).filter(Boolean);
+      setAiAreaSuggestions(parts);
+      if (parts.length) toast.success(`AI suggested ${parts.length} area name(s) — tap to add.`);
+      else toast.error("No areas returned — try again or use Find nearby areas.");
+    } catch (e) {
+      toast.error(e.message || "AI suggest failed");
+    } finally {
+      setAiAreaPending(false);
+    }
+  };
 
   const fetchNearby = async () => {
     if (!enableRadiusSearch) return;
     setFetchingNearby(true);
     setNearbyError("");
     try {
-      let lat = anchorFromProps ? Number(anchorLat) : null;
-      let lng = anchorFromProps ? Number(anchorLng) : null;
+      let lat = listingPinOk ? Number(listingLat) : null;
+      let lng = listingPinOk ? Number(listingLng) : null;
 
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         if (Number.isFinite(geocodedLat) && Number.isFinite(geocodedLng)) {
@@ -838,7 +986,7 @@ function ServiceAreaMultiSelect({
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         if (!canGeocodeFromAddress || !geocodePayload) {
           setNearbyError(
-            "Your listing has no map coordinates. Add a full storefront address in Google Business Profile, or type latitude/longitude above."
+            "Add a complete storefront address on Google Business Profile so we can locate your business and search within the radius."
           );
           return;
         }
@@ -855,7 +1003,6 @@ function ServiceAreaMultiSelect({
         lng = Number(gData.lng);
         setGeocodedLat(lat);
         setGeocodedLng(lng);
-        onAnchorResolved?.(lat, lng);
         toast.success("Located your business from address — searching nearby areas…", { duration: 3500 });
       }
 
@@ -900,10 +1047,9 @@ function ServiceAreaMultiSelect({
   };
 
   const cityLabel = [primaryLoc?.locality, primaryLoc?.administrativeArea].filter(Boolean).join(", ") || "your storefront";
-  const hasPinFromGoogle = anchorFromProps;
   const hasResolvedPin = Number.isFinite(geocodedLat) && Number.isFinite(geocodedLng);
   const findButtonEnabled =
-    enableRadiusSearch && (hasPinFromGoogle || canGeocodeFromAddress || hasResolvedPin);
+    enableRadiusSearch && (listingPinOk || canGeocodeFromAddress || hasResolvedPin);
 
   return (
     <div
@@ -919,8 +1065,9 @@ function ServiceAreaMultiSelect({
         </span>
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.55 }}>
-        Uses your <strong>business address / map pin</strong> ({cityLabel}). Pick areas, then <strong style={{ color: "#6366f1" }}>Save changes</strong> to update Google (
-        <code style={{ fontSize: 11, background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>serviceArea</code>).
+        Uses your <strong>storefront address on Google</strong> ({cityLabel}). Pick areas, then <strong style={{ color: "#6366f1" }}>Save service areas</strong> or{" "}
+        <strong style={{ color: "#6366f1" }}>Save changes</strong> to PATCH{" "}
+        <code style={{ fontSize: 11, background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>serviceArea</code> on Google.
       </p>
 
       {enableRadiusSearch ? (
@@ -931,7 +1078,7 @@ function ServiceAreaMultiSelect({
           borderRadius: 12,
           border: "1px solid #e8edf5",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginBottom: 8 }}>Nearby search (OpenStreetMap, ~km from pin)</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginBottom: 8 }}>Nearby search (OpenStreetMap, radius from your business location)</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155" }}>
               <span style={{ fontWeight: 600 }}>Radius</span>
@@ -970,20 +1117,58 @@ function ServiceAreaMultiSelect({
             >
               {fetchingNearby ? "Loading…" : "Find nearby areas"}
             </button>
+            <button
+              type="button"
+              onClick={() => void suggestAreasWithAi()}
+              disabled={aiAreaPending || !enableRadiusSearch}
+              style={{
+                padding: "9px 16px",
+                borderRadius: 8,
+                border: "1px solid #c7d2fe",
+                background: aiAreaPending ? "#eef2ff" : "#f5f3ff",
+                color: aiAreaPending ? "#a5b4fc" : "#5b21b6",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: aiAreaPending || !enableRadiusSearch ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {aiAreaPending ? "AI…" : "✨ AI suggest area names"}
+            </button>
+            {typeof onSaveServiceAreas === "function" ? (
+              <button
+                type="button"
+                onClick={() => void onSaveServiceAreas()}
+                disabled={saveServiceAreasPending}
+                style={{
+                  padding: "9px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: saveServiceAreasPending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
+                  color: saveServiceAreasPending ? "#a5b4fc" : "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: saveServiceAreasPending ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {saveServiceAreasPending ? "Saving…" : "Save service areas"}
+              </button>
+            ) : null}
           </div>
-          {!hasPinFromGoogle && canGeocodeFromAddress ? (
+          {!listingPinOk && canGeocodeFromAddress ? (
             <p style={{ margin: "10px 0 0", fontSize: 11, color: "#b45309", lineHeight: 1.5 }}>
-              Google did not return map coordinates for this listing. Click <strong>Find nearby areas</strong> — we geocode your{" "}
-              <strong>storefront address</strong> (OpenStreetMap), save the pin in the form, then load suburbs within the radius.
+              Google did not return coordinates for this listing. Tap <strong>Find nearby areas</strong> — we geocode your{" "}
+              <strong>storefront address</strong>, then load place names within the radius.
             </p>
           ) : null}
-          {!hasPinFromGoogle && !canGeocodeFromAddress ? (
+          {!listingPinOk && !canGeocodeFromAddress ? (
             <p style={{ margin: "10px 0 0", fontSize: 11, color: "#b45309", lineHeight: 1.5 }}>
-              Coordinates required — add a complete address on Google or enter latitude / longitude above.
+              Add a complete storefront address on Google Business Profile so we can locate the business and search within the radius.
             </p>
           ) : null}
-          {hasPinFromGoogle ? (
-            <p style={{ margin: "8px 0 0", fontSize: 11, color: "#047857" }}>Using map pin from your Google listing.</p>
+          {listingPinOk ? (
+            <p style={{ margin: "8px 0 0", fontSize: 11, color: "#047857" }}>Using coordinates from your Google listing for distance search.</p>
           ) : null}
           {nearbyError ? (
             <p style={{ margin: "10px 0 0", fontSize: 12, color: "#b91c1c" }}>{nearbyError}</p>
@@ -1031,12 +1216,13 @@ function ServiceAreaMultiSelect({
         </div>
       ) : (
         <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14, padding: "10px 12px", background: "#f8fafc", borderRadius: 10, border: "1px dashed #e2e8f0" }}>
-          No areas selected yet. Run nearby search (if enabled), use the list below, or add custom lines.
+          No areas selected yet. Use <strong>Find nearby areas</strong> or <strong>AI suggest</strong>, pick from the list, or add custom lines.
         </div>
       )}
 
       <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
-        Suggested areas {dynamicSuggestions.length ? "(map + presets)" : "(presets)"}
+        Suggested areas{" "}
+        {enableRadiusSearch ? "(Find + AI — tap Find or AI first)" : "(local presets)"}
       </div>
       <div
         style={{
@@ -1480,10 +1666,9 @@ export default function BusinessInformationPanel({
     primaryCategory: "",
     chatUrl: "",
     googleOpenStatus: "",
-    mapLat: "",
-    mapLng: "",
   });
   const [aiDescriptionPending, setAiDescriptionPending] = useState(false);
+  const [websiteBuilderPending, setWebsiteBuilderPending] = useState(false);
 
   const setField = useCallback((key) => (val) => setFields((p) => ({ ...p, [key]: val })), []);
 
@@ -1554,28 +1739,24 @@ export default function BusinessInformationPanel({
       ...(wa !== null ? { chatUrl: wa } : {}),
       serviceAreaPlaces: saList,
       hoursSummary: loc.hoursSummaryText || f.hoursSummary,
-      mapLat: loc.lat != null && loc.lat !== "" ? String(loc.lat) : f.mapLat,
-      mapLng: loc.lng != null && loc.lng !== "" ? String(loc.lng) : f.mapLng,
     }));
   }, [activeEditorLocationId, gmbLocations, profileDescriptionProp]);
-
-  const serviceAreaAnchor = useMemo(() => {
-    const la = parseFloat(String(fields.mapLat ?? "").replace(",", "."));
-    const ln = parseFloat(String(fields.mapLng ?? "").replace(",", "."));
-    if (Number.isFinite(la) && Number.isFinite(ln)) return { lat: la, lng: ln };
-    if (activeEnriched?.lat != null && activeEnriched?.lng != null) {
-      const la2 = Number(activeEnriched.lat);
-      const ln2 = Number(activeEnriched.lng);
-      if (Number.isFinite(la2) && Number.isFinite(ln2)) return { lat: la2, lng: ln2 };
-    }
-    return null;
-  }, [fields.mapLat, fields.mapLng, activeEnriched?.lat, activeEnriched?.lng]);
 
   const businessName = fields.businessName || selectedBusiness.title || "";
 
   const handleSave = useCallback(async () => {
     const desc = clampGmbDescription((fields.description || "").trim());
     const places = Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [];
+    if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
+      await onSyncToGmb({
+        description: desc,
+        primaryPhone: (fields.phone || "").trim(),
+        websiteUri: (fields.website || "").trim(),
+        chatUrl: (fields.chatUrl || "").trim(),
+        serviceAreaPlaces: places,
+      });
+      return;
+    }
     if (savePushesDescriptionAndServiceArea && typeof onSaveOptimization === "function") {
       await onSaveOptimization({
         locationId: activeEditorLocationId,
@@ -1587,28 +1768,17 @@ export default function BusinessInformationPanel({
     if (onConfirmProfileDescription) await Promise.resolve(onConfirmProfileDescription(desc));
   }, [
     savePushesDescriptionAndServiceArea,
+    gmbSyncMode,
+    onSyncToGmb,
     onSaveOptimization,
     activeEditorLocationId,
     onConfirmProfileDescription,
     fields.description,
     fields.serviceAreaPlaces,
+    fields.phone,
+    fields.website,
+    fields.chatUrl,
   ]);
-
-  const handleSyncToGmbClick = useCallback(async () => {
-    if (!onSyncToGmb || !activeEditorLocationId) return;
-    const lat = parseFloat(String(fields.mapLat).replace(",", "."));
-    const lng = parseFloat(String(fields.mapLng).replace(",", "."));
-    const latlng =
-      Number.isFinite(lat) && Number.isFinite(lng) ? { latitude: lat, longitude: lng } : undefined;
-    await onSyncToGmb({
-      description: clampGmbDescription((fields.description || "").trim()),
-      primaryPhone: (fields.phone || "").trim(),
-      websiteUri: (fields.website || "").trim(),
-      chatUrl: (fields.chatUrl || "").trim(),
-      serviceAreaPlaces: Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [],
-      latlng,
-    });
-  }, [onSyncToGmb, activeEditorLocationId, fields]);
 
   const canSyncGmb =
     Boolean(activeEditorLocationId) &&
@@ -1617,14 +1787,15 @@ export default function BusinessInformationPanel({
         (fields.phone || "").trim() ||
         (fields.website || "").trim() ||
         (fields.chatUrl || "").trim() ||
-        (Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length > 0) ||
-        (Number.isFinite(parseFloat(String(fields.mapLat).replace(",", "."))) &&
-          Number.isFinite(parseFloat(String(fields.mapLng).replace(",", "."))))
+        (Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length > 0)
     );
 
-  const handleServiceAreaAnchorResolved = useCallback((lat, lng) => {
-    setFields((f) => ({ ...f, mapLat: String(lat), mapLng: String(lng) }));
-  }, []);
+  const handleSaveServiceAreasToGoogle = useCallback(async () => {
+    if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
+    await onSyncToGmb({
+      serviceAreaPlaces: Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [],
+    });
+  }, [gmbSyncMode, activeEditorLocationId, onSyncToGmb, fields.serviceAreaPlaces]);
 
   const handleAiGenerateDescription = useCallback(async () => {
     setAiDescriptionPending(true);
@@ -1656,6 +1827,91 @@ export default function BusinessInformationPanel({
     }
   }, [optimizationContext, fields.description]);
 
+  const handleGenerateWebsiteFromBuilder = useCallback(async () => {
+    const title = (fields.businessName || primaryLoc.title || selectedBusiness.title || "").trim();
+    const locality = (primaryLoc.locality || "").trim();
+    const primaryCategory = (fields.primaryCategory || categoryHint[0] || activeEnriched?.primaryCategory || "").trim();
+    if (!title || !primaryCategory) {
+      toast.error("Business name and primary category are required to generate website.");
+      return;
+    }
+    const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+    if (!userId) {
+      toast.error("User ID not found. Log in again to save the generated site to your account.");
+      return;
+    }
+    setWebsiteBuilderPending(true);
+    try {
+      const aiRes = await fetch("/api/ai-genrated-website", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          locality,
+          primaryCategory,
+          additionalCategories: categoryHint.slice(1),
+        }),
+      });
+      const aiData = await aiRes.json().catch(() => ({}));
+      if (!aiRes.ok || !aiData?.content) {
+        throw new Error(aiData?.error || "Website builder generation failed");
+      }
+
+      const slug = String(aiData.slug || "").trim();
+      const saveRes = await fetch("/api/save-site", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          userId,
+          locationId: activeEditorLocationId || undefined,
+          business: {
+            title,
+            locality,
+            primaryCategory,
+            additionalCategories: categoryHint.slice(1),
+            address: primaryLoc.address || "",
+          },
+          aiContent: aiData.content,
+          mediaImages: [],
+        }),
+      });
+      const saveData = await saveRes.json().catch(() => ({}));
+      if (!saveRes.ok) {
+        throw new Error(saveData?.error || "Could not save website to database.");
+      }
+
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
+      const websiteUri = slug ? `https://${slug}.${rootDomain}` : "";
+      if (!websiteUri) throw new Error("Website URL generation failed");
+      setFields((f) => ({ ...f, website: websiteUri }));
+      if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
+        await onSyncToGmb({ websiteUri });
+      }
+      toast.success(
+        gmbSyncMode && activeEditorLocationId
+          ? "Site saved to your account and website URL synced to Google."
+          : "Website generated and saved to your account."
+      );
+    } catch (e) {
+      toast.error(e.message || "Could not generate website");
+    } finally {
+      setWebsiteBuilderPending(false);
+    }
+  }, [
+    fields.businessName,
+    fields.primaryCategory,
+    primaryLoc.title,
+    primaryLoc.locality,
+    primaryLoc.address,
+    selectedBusiness.title,
+    categoryHint,
+    activeEnriched?.primaryCategory,
+    activeEditorLocationId,
+    gmbSyncMode,
+    onSyncToGmb,
+  ]);
+
   const descriptionAiToolbar =
     savePushesDescriptionAndServiceArea && activeEditorLocationId ? (
       <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -1679,12 +1935,35 @@ export default function BusinessInformationPanel({
           {aiDescriptionPending ? "Generating…" : "✨ Generate description with AI"}
         </button>
         <span style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, maxWidth: 420 }}>
-          Uses listing + categories (max {GMB_PROFILE_DESCRIPTION_MAX} chars). Edit if needed, then Save changes.
+          Uses listing + categories (max {GMB_PROFILE_DESCRIPTION_MAX} chars). Edit if needed, then use Save on the field or Save changes.
         </span>
       </div>
     ) : null;
 
-  const sharedFieldProps = { businessName, categoryHint, userData, primaryLoc, aiContext: optimizationContext };
+  const handleFieldSave = useCallback(
+    async ({ fieldId, value: nextValue }) => {
+      if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
+      const text = String(nextValue ?? "").trim();
+      if (!text && fieldId !== "description") return;
+      const payload = {};
+      if (fieldId === "description") payload.description = clampGmbDescription(text);
+      if (fieldId === "phone") payload.primaryPhone = text;
+      if (fieldId === "website") payload.websiteUri = text;
+      if (fieldId === "chatUrl") payload.chatUrl = text;
+      if (Object.keys(payload).length === 0) return;
+      await onSyncToGmb(payload);
+    },
+    [gmbSyncMode, activeEditorLocationId, onSyncToGmb]
+  );
+
+  const sharedFieldProps = {
+    businessName,
+    categoryHint,
+    userData,
+    primaryLoc,
+    aiContext: optimizationContext,
+    onSaveField: handleFieldSave,
+  };
 
   const categoryBlock = useMemo(
     () => (
@@ -1906,6 +2185,10 @@ export default function BusinessInformationPanel({
   const gridColumns = "minmax(0, 1fr)";
   const gridMinHeight = embedded ? "auto" : "calc(100vh - 148px)";
 
+
+  console.log("fieldsfields");
+  
+
   return (
     <>
       <style>{`
@@ -1974,8 +2257,8 @@ export default function BusinessInformationPanel({
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", letterSpacing: "-.02em" }}>Profile fields</div>
             <p style={{ fontSize: 12, color: "#64748b", marginTop: 6, lineHeight: 1.5 }}>
-              Choose a location if you have several. Edits use the Business Information API; after <strong style={{ color: "#6366f1" }}>Save changes</strong> or{" "}
-              <strong style={{ color: "#0f766e" }}>Sync to Google</strong>, the app refetches live data from Google.
+              Choose a location if you have several. Edits use the Business Information API; after <strong style={{ color: "#6366f1" }}>Save changes</strong>,
+              the app refetches live data from Google.
             </p>
           </div>
         )}
@@ -2231,9 +2514,10 @@ export default function BusinessInformationPanel({
                       multiline
                       maxLength={GMB_PROFILE_DESCRIPTION_MAX}
                       manualOnly
+                      onSaveField={handleFieldSave}
                       manualHint={
                         savePushesDescriptionAndServiceArea
-                          ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Type here, then Save changes to PATCH Google and refetch live data.`
+                          ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Use Save on the field or Save changes to PATCH Google and refetch.`
                           : "From the business: Google field profile.description (Business Information API v1, updateMask profile.description). Hard limit 750 characters — type here, then Save / Sync."
                       }
                       noBottomRule
@@ -2241,24 +2525,69 @@ export default function BusinessInformationPanel({
                   </SectionBlock>
 
                   <SectionBlock title="Contact" hint="Shown on Google; keep consistent with your live profile.">
-                    <FieldRow label="Phone number" fieldId="phone" value={fields.phone} onChange={setField("phone")} {...sharedFieldProps} />
+                    <FieldRow
+                      label="Phone number"
+                      fieldId="phone"
+                      value={fields.phone}
+                      onChange={setField("phone")}
+                      manualOnly
+                      onSaveField={handleFieldSave}
+                      manualHint="Edit and use Save on the field, or Save changes, to sync phone to Google."
+                    />
                     <FieldRow
                       label="Chat / WhatsApp"
                       fieldId="chatUrl"
                       value={fields.chatUrl}
                       onChange={setField("chatUrl")}
                       manualOnly
+                      onSaveField={handleFieldSave}
                       manualHint="Google attribute attributes/url_whatsapp — PATCH .../locations/{locationId}/attributes?attributeMask=attributes/url_whatsapp. Example: https://wa.me/919876543210"
                     />
-                    <FieldRow label="Website" fieldId="website" value={fields.website} onChange={setField("website")} {...sharedFieldProps} />
-                    <FieldRow label="Booking / appointment link" fieldId="bookingUrl" value={fields.bookingUrl} onChange={setField("bookingUrl")} {...sharedFieldProps} noBottomRule />
+                    <div style={{ marginBottom: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateWebsiteFromBuilder()}
+                        disabled={websiteBuilderPending}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: "1px solid #bae6fd",
+                          background: websiteBuilderPending ? "#e0f2fe" : "#f0f9ff",
+                          color: websiteBuilderPending ? "#7dd3fc" : "#0369a1",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: websiteBuilderPending ? "not-allowed" : "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {websiteBuilderPending ? "Generating website…" : "Website Builder: Generate & fill URL"}
+                      </button>
+                    </div>
+                    <FieldRow
+                      label="Website"
+                      fieldId="website"
+                      value={fields.website}
+                      onChange={setField("website")}
+                      manualOnly
+                      onSaveField={handleFieldSave}
+                      manualHint="Use Website Builder (saves site to DB + can sync URL) or edit manually; Save on the field or Save changes updates Google."
+                    />
+                    <FieldRow
+                      label="Booking / appointment link"
+                      fieldId="bookingUrl"
+                      value={fields.bookingUrl}
+                      onChange={setField("bookingUrl")}
+                      manualOnly
+                      manualHint="Manual only. AI suggestions are disabled in Contact."
+                      noBottomRule
+                    />
                   </SectionBlock>
 
-                  <SectionBlock title="Location and areas" hint="Storefront address is from Google. Pick service areas from nearby suggestions (like Google Business Profile) or add custom lines.">
+                  <SectionBlock title="Location and areas" hint="Storefront address is from Google. Use radius search from that address, AI area names, or custom lines for service areas.">
                     <ReadOnlyAddressRow
                       label="Business address (storefront)"
                       value={primaryLoc.fullAddress || [primaryLoc.address, primaryLoc.locality].filter(Boolean).join(", ")}
-                      hint="To change the address or map pin in Google, use Google Business Profile."
+                      hint="To change the address in Google, use Google Business Profile."
                       pendingReviewWarning={
                         gmbSyncMode
                           ? "Address and storefront location are not updated from this app — Google may flag changes and move your profile to pending verification."
@@ -2266,51 +2595,14 @@ export default function BusinessInformationPanel({
                       }
                     />
                     <ReadOnlyLinkRow label="Google Maps" href={primaryLoc.mapsUri} hint="Opens your business on Google Maps." />
-                    {gmbSyncMode ? (
-                      <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
-                        <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
-                          Latitude / longitude
-                        </div>
-                        <div style={{
-                          fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
-                          borderRadius: 10, padding: "10px 12px", marginBottom: 12, lineHeight: 1.5,
-                        }}>
-                          Coordinates are sent to Google only when you sync. Incorrect pins can trigger review — use values that match your real location.
-                        </div>
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Latitude</span>
-                            <input
-                              value={fields.mapLat}
-                              onChange={(e) => setField("mapLat")(e.target.value)}
-                              placeholder="e.g. 25.5941"
-                              style={{
-                                fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                                fontFamily: "inherit", width: "100%", boxSizing: "border-box",
-                              }}
-                            />
-                          </label>
-                          <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Longitude</span>
-                            <input
-                              value={fields.mapLng}
-                              onChange={(e) => setField("mapLng")(e.target.value)}
-                              placeholder="e.g. 85.1376"
-                              style={{
-                                fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                                fontFamily: "inherit", width: "100%", boxSizing: "border-box",
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    ) : null}
                     <ServiceAreaMultiSelect
                       primaryLoc={primaryLoc}
-                      anchorLat={serviceAreaAnchor?.lat}
-                      anchorLng={serviceAreaAnchor?.lng}
+                      listingLat={activeEnriched?.lat}
+                      listingLng={activeEnriched?.lng}
                       enableRadiusSearch={gmbSyncMode}
-                      onAnchorResolved={handleServiceAreaAnchorResolved}
+                      aiContext={optimizationContext}
+                      onSaveServiceAreas={gmbSyncMode ? handleSaveServiceAreasToGoogle : undefined}
+                      saveServiceAreasPending={syncToGmbPending}
                       selectedPlaces={fields.serviceAreaPlaces}
                       onChange={setField("serviceAreaPlaces")}
                       noBottomRule
@@ -2369,9 +2661,10 @@ export default function BusinessInformationPanel({
                     multiline
                     maxLength={GMB_PROFILE_DESCRIPTION_MAX}
                     manualOnly
+                    onSaveField={handleFieldSave}
                     manualHint={
                       savePushesDescriptionAndServiceArea
-                        ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Save changes PATCHes Google and refetches.`
+                        ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Save on the field or Save changes PATCHes Google and refetches.`
                         : "Google profile.description (max 750 characters). Manual entry only — no AI."
                     }
                     noBottomRule
@@ -2381,17 +2674,62 @@ export default function BusinessInformationPanel({
 
               {tab === "contact" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
-                  <FieldRow label="Phone number" fieldId="phone" value={fields.phone} onChange={setField("phone")} {...sharedFieldProps} />
+                  <FieldRow
+                    label="Phone number"
+                    fieldId="phone"
+                    value={fields.phone}
+                    onChange={setField("phone")}
+                    manualOnly
+                    onSaveField={handleFieldSave}
+                    manualHint="Edit and use Save on the field, or Save changes, to sync phone to Google."
+                  />
                   <FieldRow
                     label="Chat / WhatsApp"
                     fieldId="chatUrl"
                     value={fields.chatUrl}
                     onChange={setField("chatUrl")}
                     manualOnly
+                    onSaveField={handleFieldSave}
                     manualHint="Google attributes/url_whatsapp — full https URL only. Manual entry only."
                   />
-                  <FieldRow label="Website" fieldId="website" value={fields.website} onChange={setField("website")} {...sharedFieldProps} />
-                  <FieldRow label="Booking / appointment link" fieldId="bookingUrl" value={fields.bookingUrl} onChange={setField("bookingUrl")} {...sharedFieldProps} noBottomRule />
+                  <div style={{ marginBottom: 12 }}>
+                    <button
+                      type="button"
+                      onClick={() => void handleGenerateWebsiteFromBuilder()}
+                      disabled={websiteBuilderPending}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 8,
+                        border: "1px solid #bae6fd",
+                        background: websiteBuilderPending ? "#e0f2fe" : "#f0f9ff",
+                        color: websiteBuilderPending ? "#7dd3fc" : "#0369a1",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        cursor: websiteBuilderPending ? "not-allowed" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {websiteBuilderPending ? "Generating website…" : "Website Builder: Generate & fill URL"}
+                    </button>
+                  </div>
+                  <FieldRow
+                    label="Website"
+                    fieldId="website"
+                    value={fields.website}
+                    onChange={setField("website")}
+                    manualOnly
+                    onSaveField={handleFieldSave}
+                    manualHint="Use Website Builder (saves site to DB + can sync URL) or edit manually; Save on the field or Save changes updates Google."
+                  />
+                  <FieldRow
+                    label="Booking / appointment link"
+                    fieldId="bookingUrl"
+                    value={fields.bookingUrl}
+                    onChange={setField("bookingUrl")}
+                    manualOnly
+                    manualHint="Manual only. AI suggestions are disabled in Contact."
+                    noBottomRule
+                  />
                   <div
                     style={{
                       fontSize: 12,
@@ -2415,7 +2753,7 @@ export default function BusinessInformationPanel({
                   <ReadOnlyAddressRow
                     label="Business address (storefront)"
                     value={primaryLoc.fullAddress || [primaryLoc.address, primaryLoc.locality].filter(Boolean).join(", ")}
-                    hint="Update in Google Business Profile to change the address or map pin."
+                    hint="Update in Google Business Profile to change the address."
                     pendingReviewWarning={
                       gmbSyncMode
                         ? "Address is not updated from this app — risky edits can move your profile to pending verification."
@@ -2423,45 +2761,14 @@ export default function BusinessInformationPanel({
                     }
                   />
                   <ReadOnlyLinkRow label="View on Google Maps" href={primaryLoc.mapsUri} />
-                  {gmbSyncMode ? (
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
-                        Latitude / longitude
-                      </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Latitude</span>
-                          <input
-                            value={fields.mapLat}
-                            onChange={(e) => setField("mapLat")(e.target.value)}
-                            placeholder="e.g. 25.5941"
-                            style={{
-                              fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                              fontFamily: "inherit", width: "100%", boxSizing: "border-box",
-                            }}
-                          />
-                        </label>
-                        <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Longitude</span>
-                          <input
-                            value={fields.mapLng}
-                            onChange={(e) => setField("mapLng")(e.target.value)}
-                            placeholder="e.g. 85.1376"
-                            style={{
-                              fontSize: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                              fontFamily: "inherit", width: "100%", boxSizing: "border-box",
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ) : null}
                   <ServiceAreaMultiSelect
                     primaryLoc={primaryLoc}
-                    anchorLat={serviceAreaAnchor?.lat}
-                    anchorLng={serviceAreaAnchor?.lng}
+                    listingLat={activeEnriched?.lat}
+                    listingLng={activeEnriched?.lng}
                     enableRadiusSearch={gmbSyncMode}
-                    onAnchorResolved={handleServiceAreaAnchorResolved}
+                    aiContext={optimizationContext}
+                    onSaveServiceAreas={gmbSyncMode ? handleSaveServiceAreasToGoogle : undefined}
+                    saveServiceAreasPending={syncToGmbPending}
                     selectedPlaces={fields.serviceAreaPlaces}
                     onChange={setField("serviceAreaPlaces")}
                     noBottomRule
@@ -2508,10 +2815,10 @@ export default function BusinessInformationPanel({
               }}
             >
               <div style={{ flex: 1, fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
-                {savePushesDescriptionAndServiceArea && activeEditorLocationId ? (
+                {gmbSyncMode && activeEditorLocationId ? (
                   <span>
-                    <strong style={{ color: "#6366f1" }}>Save changes</strong> PATCHes Google (<strong style={{ color: "#334155" }}>profile</strong> / description and{" "}
-                    <strong style={{ color: "#334155" }}>serviceArea</strong>), then refetches the location — nothing is written to automation DB from this screen.
+                    <strong style={{ color: "#6366f1" }}>Save changes</strong> syncs description, phone, website, WhatsApp, and service areas to Google, then reloads live data.
+                    You can also use <strong>Save</strong> on each field or <strong>Save service areas</strong> in the service-area panel.
                   </span>
                 ) : (
                   <span>
@@ -2526,46 +2833,25 @@ export default function BusinessInformationPanel({
                 )}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                {gmbSyncMode && activeEditorLocationId ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleSyncToGmbClick()}
-                    disabled={Boolean(syncToGmbPending) || !canSyncGmb}
-                    style={{
-                      flexShrink: 0,
-                      background: syncToGmbPending ? "#ccfbf1" : "#fff",
-                      color: syncToGmbPending ? "#5eead4" : "#0f766e",
-                      border: "1.5px solid #5eead4",
-                      borderRadius: 10,
-                      padding: "11px 20px",
-                      fontSize: 13,
-                      fontWeight: 800,
-                      cursor: syncToGmbPending || !canSyncGmb ? "not-allowed" : "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {syncToGmbPending ? "Syncing…" : "Sync to Google"}
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   onClick={() => void handleSave()}
-                  disabled={Boolean(savePending)}
+                  disabled={gmbSyncMode ? Boolean(syncToGmbPending) || !canSyncGmb : Boolean(savePending)}
                   style={{
                     flexShrink: 0,
-                    background: savePending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
-                    color: savePending ? "#a5b4fc" : "#fff",
+                    background: (gmbSyncMode ? syncToGmbPending : savePending) ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
+                    color: (gmbSyncMode ? syncToGmbPending : savePending) ? "#a5b4fc" : "#fff",
                     border: "none",
                     borderRadius: 10,
                     padding: "11px 28px",
                     fontSize: 13,
                     fontWeight: 800,
-                    cursor: savePending ? "not-allowed" : "pointer",
+                    cursor: (gmbSyncMode ? syncToGmbPending : savePending) ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
-                    boxShadow: savePending ? "none" : "0 4px 18px rgba(99,102,241,.35)",
+                    boxShadow: (gmbSyncMode ? syncToGmbPending : savePending) ? "none" : "0 4px 18px rgba(99,102,241,.35)",
                   }}
                 >
-                  {savePending ? "Saving…" : "Save changes"}
+                  {(gmbSyncMode ? syncToGmbPending : savePending) ? "Saving…" : "Save changes"}
                 </button>
               </div>
             </div>
@@ -2591,9 +2877,9 @@ export default function BusinessInformationPanel({
               <span style={{ color: "#f9ab00", fontSize: 20, lineHeight: 1, flexShrink: 0 }} aria-hidden>!</span>
               <p style={{ margin: 0, fontSize: 13, color: "#3c4043", lineHeight: 1.5, flex: 1 }}>
                 {savePushesDescriptionAndServiceArea
-                  ? "Business name, categories, and storefront address are locked here. Save changes PATCHes description and service area on Google, then reloads live data. Use Sync to Google for phone, website, WhatsApp, and map pin."
+                  ? "Business name, categories, and storefront address are locked here. Save changes syncs all editable fields to Google and reloads live data."
                   : gmbSyncMode
-                    ? "Business name, categories, and storefront address are locked here. Description and WhatsApp are manual. Save stores your automation description; Sync pushes fields to Google — we refetch your listing afterward."
+                    ? "Business name, categories, and storefront address are locked here. Description and contact fields are manual with Edit; Save changes pushes editable fields to Google and refetches."
                     : "Review and edit your business information to improve your presence. Scroll through tabs, then save your automation description when ready."}
               </p>
             </div>

@@ -181,6 +181,8 @@ export async function GET(request) {
     timestamp: new Date().toISOString(),
     baseUrl: BASE_URL,
     phase: 'prefetch',
+    note: 'Prefetch only: this route stores image+caption in AutomationPlan.prefetchPost and does not create PostStatus rows.',
+    nextStep: 'Run GET /api/cron/automation-plans?phase=publish (or phase=tick) at posting time to publish and save posts in PostStatus.',
     ...prefetchStats,
     logs,
   });

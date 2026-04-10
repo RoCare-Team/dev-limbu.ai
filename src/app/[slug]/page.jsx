@@ -2,9 +2,9 @@ import dbConnect from "@/lib/dbConnect";
 import Site from "@/models/Site";
 import { Phone, MapPin, MessageCircle } from "lucide-react";
 import { SiteAnimations } from "@/components/Siteclientcomponents";
-import NavBar from "@/components/websiteNavbar"; // <-- new client component below
+import NavBar from "@/components/websiteNavbar";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 
 /* ================================
    Helper: WhatsApp link
@@ -16,7 +16,7 @@ function getWhatsAppLink(phone) {
 }
 
 /* ================================
-   Fetch site + google media
+   Fetch site data from DB
 ================================ */
 async function getSiteData(slug) {
   if (!slug) return null;
@@ -28,6 +28,7 @@ async function getSiteData(slug) {
     let googleImages = [];
     const business = site.business || {};
 
+    // Try fetching Google Business media if token exists
     if (business?.accountId && business?.locationId && site?.googleAccessToken) {
       try {
         const mediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${business.accountId}/locations/${business.locationId}/media`;
@@ -43,29 +44,30 @@ async function getSiteData(slug) {
               ?.map((i) => i.sourceUrl) || [];
         }
       } catch (e) {
-        console.log("Media error", e);
+        console.warn("Google media fetch error:", e?.message);
       }
     }
 
     return JSON.parse(JSON.stringify({ ...site, googleImages }));
   } catch (e) {
-    console.log(e);
+    console.error("getSiteData error:", e?.message);
     return null;
   }
 }
 
 /* ================================
-   SEO
+   SEO Metadata
 ================================ */
 export async function generateMetadata({ params }) {
   const p = await params;
   const site = await getSiteData(p?.slug);
   if (!site)
     return { title: "Business Website", description: "Professional business website" };
+
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
   return {
     title: site?.aiContent?.meta?.title || site?.business?.title,
-    description: site?.aiContent?.meta?.description || "Business website",
+    description: site?.aiContent?.meta?.description || "Professional business website",
     alternates: {
       canonical: `https://${p?.slug}.${rootDomain}`,
     },
@@ -73,32 +75,78 @@ export async function generateMetadata({ params }) {
 }
 
 /* ================================
-   PAGE
+   PAGE COMPONENT
 ================================ */
 export default async function SitePage({ params }) {
   const p = await params;
   const slug = p?.slug;
 
-  const siteData = await getSiteData(slug);
-  if (!siteData)
-    return <div className="p-20 text-center">Site Not Found</div>;
+  if (!slug) return notFound();
 
+  // ── Read request headers ──
   const headerStore = await headers();
-  const forwardedHost = headerStore.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const host = (forwardedHost || headerStore.get("host") || "").split(":")[0].toLowerCase();
-  const forwardedProto = headerStore.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
-  const isMainRootDomain = host === rootDomain || host === `www.${rootDomain}`;
 
-  // Keep local/staging path usage untouched, but force live canonical tenant URL.
-  if (isMainRootDomain && slug) {
-    const protocol = forwardedProto || "https";
+  // ✅ KEY FIX: Middleware sets this header ONLY when request comes via subdomain
+  // e.g. doctorfresh.limbu.ai → middleware rewrites + sets x-is-subdomain-site: 1
+  const isSubdomainRequest = headerStore.get("x-is-subdomain-site") === "1";
+  const tenantSlugFromHeader = headerStore.get("x-tenant-slug");
+
+  // Get clean host
+  const forwardedHost = headerStore.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const rawHost = (forwardedHost || headerStore.get("host") || "").split(":")[0].toLowerCase();
+
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
+  const isLocalhost = rawHost === "localhost" || rawHost === "127.0.0.1";
+
+  // ✅ Detect if this is the main domain (not a tenant subdomain)
+  const isMainDomain =
+    rawHost === rootDomain ||
+    rawHost === `www.${rootDomain}` ||
+    rawHost === "crm.limbu.ai";
+
+  // ✅ REDIRECT LOGIC:
+  // If request came directly to limbu.ai/slug (main domain, not via subdomain rewrite),
+  // redirect to the correct subdomain — but ONLY in production, not localhost
+  if (isMainDomain && !isSubdomainRequest && !isLocalhost) {
+    // Safe protocol detection
+    const forwardedProto = headerStore
+      .get("x-forwarded-proto")
+      ?.split(",")[0]
+      ?.trim()
+      ?.toLowerCase();
+    const protocol = forwardedProto === "http" ? "http" : "https";
+
     redirect(`${protocol}://${slug}.${rootDomain}`);
+  }
+
+  // ── Fetch site data ──
+  const siteData = await getSiteData(slug);
+
+  // ✅ Show 404 if site doesn't exist in DB
+  if (!siteData) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-6">🔍</div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Site Not Found</h1>
+          <p className="text-gray-600 mb-8">
+            The website <span className="font-mono font-semibold text-blue-600">{slug}.{rootDomain}</span> doesn't exist yet or hasn't been published.
+          </p>
+          <a
+            href={`https://${rootDomain}`}
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition"
+          >
+            ← Go to Limbu AI
+          </a>
+        </div>
+      </div>
+    );
   }
 
   const business = siteData.business || {};
   const aiContent = siteData.aiContent || {};
 
+  // ── Images: prefer Google Business photos, fallback to saved mediaImages ──
   const mediaImages =
     siteData.googleImages?.length > 0
       ? siteData.googleImages
@@ -108,7 +156,7 @@ export default async function SitePage({ params }) {
     mediaImages[0] ||
     "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
 
-  /* Nav items — show only sections that have real data */
+  // ── Nav items — only show sections with real data ──
   const navItems = [
     { label: "Home", href: "#home" },
     ...(aiContent?.about?.content ? [{ label: "About", href: "#about" }] : []),
@@ -117,13 +165,13 @@ export default async function SitePage({ params }) {
     { label: "Contact", href: "#contact" },
   ];
 
-  /* Gallery: show all available images, max 12 */
+  // Gallery: max 12 images
   const galleryImages = mediaImages.slice(0, 12);
 
   return (
     <div className="font-sans text-gray-800 min-h-screen bg-white">
 
-      {/* ── NavBar (client component) ── */}
+      {/* ── NavBar ── */}
       <NavBar
         logo={business?.logoUrl}
         title={business?.title}
@@ -138,7 +186,7 @@ export default async function SitePage({ params }) {
           href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed right-6 bottom-28 z-50 bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-full shadow-2xl hover:opacity-90 transition-all transform hover:scale-110 group animate-bounce-slow"
+          className="fixed right-6 bottom-28 z-50 bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-full shadow-2xl hover:opacity-90 transition-all transform hover:scale-110 group"
           title="Chat on WhatsApp"
         >
           <MessageCircle className="w-7 h-7" />
@@ -160,17 +208,17 @@ export default async function SitePage({ params }) {
           backgroundPosition: "center",
         }}
       >
-        {/* Enhanced Overlay */}
+        {/* Dark Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/85 via-indigo-900/75 to-purple-900/85" />
 
         {/* Animated Blobs */}
-        <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
           <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
           <div className="absolute top-40 right-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
           <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000" />
         </div>
 
-        {/* Logo — Top Left (hidden on mobile since navbar shows it) */}
+        {/* Logo — Top Left (desktop only, navbar handles mobile) */}
         {business?.logoUrl && (
           <div className="absolute top-6 left-6 z-20 hidden md:block">
             <div className="bg-white p-4 rounded-2xl shadow-2xl">
@@ -225,17 +273,15 @@ export default async function SitePage({ params }) {
         <section id="about" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <div className="inline-block">
-                <span
-                  className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-                  style={{ color: "#2563eb" }}
-                >
-                  About Us
-                </span>
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                  {aiContent.about?.title || "About Us"}
-                </h2>
-              </div>
+              <span
+                className="font-semibold text-sm uppercase tracking-wider mb-4 block"
+                style={{ color: "#2563eb" }}
+              >
+                About Us
+              </span>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                {aiContent.about?.title || "About Us"}
+              </h2>
             </div>
             <div className="bg-white p-12 rounded-3xl shadow-xl border border-gray-100">
               <p className="text-lg md:text-xl text-gray-700 leading-relaxed whitespace-pre-wrap text-center">
@@ -276,14 +322,12 @@ export default async function SitePage({ params }) {
                     key={i}
                     className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden group transform hover:-translate-y-2 flex flex-col"
                   >
-                    {/* Gradient accent bar */}
                     <div
                       className="h-1.5 w-full"
                       style={{ background: `linear-gradient(to right, ${accent}, #818cf8)` }}
                     />
-                    {/* Content */}
                     <div className="p-7 flex-1 flex flex-col">
-                      <h3 className="font-bold text-xl mb-3 text-gray-900 transition-colors">
+                      <h3 className="font-bold text-xl mb-3 text-gray-900 group-hover:text-blue-600 transition-colors">
                         {service.title}
                       </h3>
                       <p className="text-gray-500 leading-relaxed text-sm flex-1">
@@ -300,12 +344,10 @@ export default async function SitePage({ params }) {
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           GALLERY SECTION
-          — only shown if images exist (> 3), shows max 8
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {galleryImages.length >= 1 && (
         <section id="gallery" className="py-32 px-6 bg-gradient-to-b from-gray-50 to-white">
           <div className="max-w-7xl mx-auto">
-            {/* Header */}
             <div className="text-center mb-16">
               <span
                 className="font-semibold text-sm uppercase tracking-wider mb-4 block"
@@ -317,7 +359,6 @@ export default async function SitePage({ params }) {
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Take a look at our projects and the quality of work we deliver
               </p>
-              {/* Image count badge */}
               <div className="mt-6 inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-2 shadow-sm">
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -328,7 +369,6 @@ export default async function SitePage({ params }) {
               </div>
             </div>
 
-            {/* Responsive masonry-style grid */}
             {galleryImages.length === 1 ? (
               <div className="max-w-3xl mx-auto">
                 <div className="relative overflow-hidden rounded-3xl group cursor-pointer shadow-2xl">
@@ -358,7 +398,6 @@ export default async function SitePage({ params }) {
                 ))}
               </div>
             ) : (
-              /* 3+ images — masonry: first image featured (2×2), rest 1×1 */
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[200px]">
                 {galleryImages.map((image, index) => (
                   <div
@@ -441,84 +480,82 @@ export default async function SitePage({ params }) {
 
           <div className="grid lg:grid-cols-2 gap-12 items-start">
             {/* Contact Information Card */}
-            <div className="space-y-8">
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-10 rounded-3xl text-white shadow-2xl">
-                <h3 className="text-3xl font-bold mb-6">Contact Information</h3>
-                <p className="text-blue-100 mb-8 text-lg">
-                  Feel free to reach out to us through any of these channels
-                </p>
-                <div className="space-y-6">
-                  {business?.phoneNumbers?.primaryPhone && (
-                    <div className="flex items-start gap-4">
-                      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                        <Phone className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="font-semibold mb-1">Phone</p>
-                        <a
-                          href={`tel:${business.phoneNumbers.primaryPhone}`}
-                          className="text-blue-100 hover:text-white transition"
-                        >
-                          {business.phoneNumbers.primaryPhone}
-                        </a>
-                      </div>
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-10 rounded-3xl text-white shadow-2xl">
+              <h3 className="text-3xl font-bold mb-6">Contact Information</h3>
+              <p className="text-blue-100 mb-8 text-lg">
+                Feel free to reach out to us through any of these channels
+              </p>
+              <div className="space-y-6">
+                {business?.phoneNumbers?.primaryPhone && (
+                  <div className="flex items-start gap-4">
+                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                      <Phone className="w-6 h-6" />
                     </div>
-                  )}
-
-                  {(business?.storefrontAddress?.addressLines?.[0] || business?.address) && (
-                    <div className="flex items-start gap-4">
-                      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                        <MapPin className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="font-semibold mb-1">Address</p>
-                        <p className="text-blue-100">
-                          {business.storefrontAddress?.addressLines?.[0] || business.address}
-                          {business.locality && `, ${business.locality}`}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="font-semibold mb-1">Phone</p>
+                      <a
+                        href={`tel:${business.phoneNumbers.primaryPhone}`}
+                        className="text-blue-100 hover:text-white transition"
+                      >
+                        {business.phoneNumbers.primaryPhone}
+                      </a>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {business?.phoneNumbers?.primaryPhone && (
-                    <div className="flex items-start gap-4">
-                      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                        <MessageCircle className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="font-semibold mb-1">WhatsApp</p>
-                        <a
-                          href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-100 hover:text-white transition"
-                        >
-                          Chat with us instantly
-                        </a>
-                      </div>
+                {(business?.storefrontAddress?.addressLines?.[0] || business?.address) && (
+                  <div className="flex items-start gap-4">
+                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                      <MapPin className="w-6 h-6" />
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <p className="font-semibold mb-1">Address</p>
+                      <p className="text-blue-100">
+                        {business.storefrontAddress?.addressLines?.[0] || business.address}
+                        {business.locality && `, ${business.locality}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-                <div className="mt-10 pt-8 border-t border-white/20">
-                  <p className="text-blue-100 text-sm mb-4">Connect with us</p>
-                  <div className="flex gap-4">
-                    {business?.phoneNumbers?.primaryPhone && (
+                {business?.phoneNumbers?.primaryPhone && (
+                  <div className="flex items-start gap-4">
+                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                      <MessageCircle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1">WhatsApp</p>
                       <a
                         href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-white/20 hover:bg-white/30 p-3 rounded-xl backdrop-blur-sm transition"
+                        className="text-blue-100 hover:text-white transition"
                       >
-                        <MessageCircle className="w-6 h-6" />
+                        Chat with us instantly
                       </a>
-                    )}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              <div className="mt-10 pt-8 border-t border-white/20">
+                <p className="text-blue-100 text-sm mb-4">Connect with us</p>
+                <div className="flex gap-4">
+                  {business?.phoneNumbers?.primaryPhone && (
+                    <a
+                      href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/20 hover:bg-white/30 p-3 rounded-xl backdrop-blur-sm transition"
+                    >
+                      <MessageCircle className="w-6 h-6" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Contact Form */}
+            {/* Contact Form — WhatsApp based */}
             <div className="bg-white p-10 rounded-3xl shadow-2xl border border-gray-100">
               <form
                 className="space-y-6"
@@ -620,7 +657,7 @@ export default async function SitePage({ params }) {
       </section>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CONTACT SECTION (dark)
+          DARK CONTACT SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section className="py-32 px-6 bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
         <div
@@ -686,7 +723,7 @@ export default async function SitePage({ params }) {
             <div className="text-center mt-12 flex flex-wrap justify-center gap-4">
               <a
                 href={`tel:${business.phoneNumbers.primaryPhone}`}
-                className="inline-flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-2xl hover:shadow-white/20"
+                className="inline-flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-2xl"
               >
                 <Phone className="w-5 h-5" />
                 Call Now
@@ -711,13 +748,10 @@ export default async function SitePage({ params }) {
       <footer className="py-12 bg-gray-950 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-center md:text-left">
-              <p className="text-gray-400">
-                © {new Date().getFullYear()}{" "}
-                <span className="text-white font-semibold">{business.title}</span>. All rights
-                reserved.
-              </p>
-            </div>
+            <p className="text-gray-400 text-center md:text-left">
+              © {new Date().getFullYear()}{" "}
+              <span className="text-white font-semibold">{business.title}</span>. All rights reserved.
+            </p>
             <div className="flex items-center gap-4">
               <span className="text-gray-500 text-sm">Powered by Limbu AI</span>
               <div className="h-4 w-px bg-gray-700" />
@@ -727,9 +761,7 @@ export default async function SitePage({ params }) {
         </div>
       </footer>
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          GLOBAL ANIMATION STYLES
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* Global Animation Styles */}
       <SiteAnimations />
     </div>
   );

@@ -1,9 +1,5 @@
-import SmartWalletRecharge from "@/components/wallet"
+import SmartWalletRecharge from "@/components/wallet";
 
-export default function WalletPage () {
-
-    return (
-        <SmartWalletRecharge/>
-
-    )
+export default function WalletPage() {
+  return <SmartWalletRecharge />;
 }

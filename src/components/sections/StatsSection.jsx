@@ -50,7 +50,7 @@ const AnimatedNumber = ({ end, decimals = 0, suffix = "" }) => {
 
   return (
     <span ref={ref} className="
-    text-6xl tracking-tighter font-light" style={{ color: "var(--pure-white)" }}    
+    text-5xl tracking-tighter font-light" style={{ color: "var(--foreground)" }}    
     >
       {count.toFixed(decimals)}{" "}
       {suffix}
@@ -61,46 +61,46 @@ const AnimatedNumber = ({ end, decimals = 0, suffix = "" }) => {
 function StatsSection() {
   return (
     <section
-      className="relative w-full py-20 md:py-32 px-6 md:px-10 flex flex-col items-center justify-center"
-      style={{ backgroundColor: "var(--cyber-black)" }} // Seamless blend with the hero
+      className="relative w-full py-12 px-6 md:px-10 flex flex-col items-center justify-center border-t border-black/5"
+      style={{ backgroundColor: "var(--background)" }}
     >
       <div className="w-full max-w-[1100px] mx-auto">
         
         {/* ── Headline ── */}
         <h2 
-          className="text-center text-3xl sm:text-4xl md:text-[2.75rem] font-medium leading-[1.15] tracking-tight mb-16 md:mb-24"
+          className="text-center text-2xl sm:text-3xl md:text-[2.25rem] font-bold leading-[1.2] tracking-tight mb-12 md:mb-16"
           style={{ 
-            color: "var(--pure-white)", 
-            fontFamily: "var(--font-sans, Inter, sans-serif)" 
+            color: "var(--foreground)", 
+            fontFamily: "var(--font-heading)" 
           }}
         >
-          Grow faster with social, blog, video, <br className="hidden md:block" />
-          and newsletter content that converts.
+          Scale your local presence with the GMB Automation tool <br className="hidden md:block" />
+          built to dominate search and drive growth.
         </h2>
 
         {/* ── Stats Grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8">
           
           {/* Stat 1 */}
           <div className="flex flex-col">
             <h3 
-              className="text-6xl md:text-7xl font-light mb-4 tracking-tighter"
-              style={{ color: "var(--pure-white)" }}
+              className="text-5xl md:text-6xl font-light mb-3 tracking-tighter"
+              style={{ color: "var(--foreground)" }}
             >
               <AnimatedNumber end={2.3} decimals={1} suffix="x" />
             </h3>
             <p 
-              className="text-[17px] md:text-lg mb-2 font-medium"
-              style={{ color: "var(--pure-white)" }}
+              className="text-[15px] md:text-base mb-1.5 font-bold"
+              style={{ color: "var(--foreground)" }}
             >
               Follower growth
             </p>
             <p 
-              className="text-sm md:text-[15px] leading-relaxed"
+              className="text-xs md:text-[14px] leading-relaxed"
               style={{ color: "var(--tech-gray)" }}
             >
               Top customers more than double their{" "}
-              <strong style={{ color: "var(--pure-white)", fontWeight: 500 }}>
+              <strong style={{ color: "var(--foreground)", fontWeight: 700 }}>
                 following
               </strong>{" "}
               in 30 days.
@@ -110,19 +110,19 @@ function StatsSection() {
           {/* Stat 2 */}
           <div className="flex flex-col">
             <h3 
-              className="text-6xl md:text-7xl font-light mb-4 tracking-tighter"
-              style={{ color: "var(--pure-white)" }}
+              className="text-5xl md:text-6xl font-light mb-3 tracking-tighter"
+              style={{ color: "var(--foreground)" }}
             >
               <AnimatedNumber end={87} decimals={0} suffix="%" />
             </h3>
             <p 
-              className="text-[17px] md:text-lg mb-2 font-medium"
-              style={{ color: "var(--pure-white)" }}
+              className="text-[15px] md:text-base mb-1.5 font-bold"
+              style={{ color: "var(--foreground)" }}
             >
               Audience growth
             </p>
             <p 
-              className="text-sm md:text-[15px] leading-relaxed"
+              className="text-xs md:text-[14px] leading-relaxed"
               style={{ color: "var(--tech-gray)" }}
             >
               87% of customers see audience growth in their first 30 days.
@@ -132,19 +132,19 @@ function StatsSection() {
           {/* Stat 3 */}
           <div className="flex flex-col">
             <h3 
-              className="text-6xl md:text-7xl font-light mb-4 tracking-tighter"
-              style={{ color: "var(--pure-white)" }}
+              className="text-5xl md:text-6xl font-light mb-3 tracking-tighter"
+              style={{ color: "var(--foreground)" }}
             >
               <AnimatedNumber end={99} decimals={0} suffix="%" />
             </h3>
             <p 
-              className="text-[17px] md:text-lg mb-2 font-medium"
-              style={{ color: "var(--pure-white)" }}
+              className="text-[15px] md:text-base mb-1.5 font-bold"
+              style={{ color: "var(--foreground)" }}
             >
               Lower cost vs agencies
             </p>
             <p 
-              className="text-sm md:text-[15px] leading-relaxed"
+              className="text-xs md:text-[14px] leading-relaxed"
               style={{ color: "var(--tech-gray)" }}
             >
               Agency-level strategy, content, and insights for 1% of the price.

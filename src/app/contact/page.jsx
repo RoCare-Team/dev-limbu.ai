@@ -73,191 +73,277 @@ export default function ContactUs() {
       <Navbar />
 
       <div
-        className="min-h-screen py-20 px-6 font-[Inter] relative overflow-hidden"
-        style={{ backgroundColor: "var(--cyber-black)" }}
+        className="min-h-screen py-20 px-4 sm:px-6 relative overflow-hidden"
+        style={{ backgroundColor: "var(--background)" }}
       >
-        {/* Glow */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-[#FDE047] blur-[140px] opacity-[0.05] rounded-full" />
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-600 blur-[140px] opacity-[0.05] rounded-full" />
-        </div>
+        {/* ── Subtle background grid ── */}
+        <div
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+            backgroundSize: "40px 40px"
+          }}
+        />
+
+        {/* ── Ambient glow — top right ── */}
+        <div
+          className="pointer-events-none absolute top-0 right-0 w-[500px] h-[400px] z-0 opacity-10"
+          style={{
+            background: "radial-gradient(ellipse at top right, rgba(250, 204, 21, 0.3) 0%, transparent 65%)",
+          }}
+        />
 
         <div className="max-w-6xl mx-auto relative z-10">
 
           {/* Back */}
           <button
             onClick={() => window.history.back()}
-            className="flex items-center gap-2 text-white/60 hover:text-[#FDE047] mb-8"
+            className="flex items-center gap-2 mb-10 text-xs font-bold tracking-widest uppercase transition-colors hover:text-[var(--lemon-hover)] text-slate-400 cursor-pointer"
           >
-            <HiArrowLeft /> Back
+            <HiArrowLeft /> Back to Home
           </button>
 
-          {/* Heading */}
+          {/* ── Section Header ── */}
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl font-semibold text-white mb-4">
-              Get In <span className="text-[#FDE047]">Touch</span>
+            {/* Label chip */}
+            <div
+              className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full"
+              style={{
+                background: "rgba(250, 204, 21, 0.1)",
+                border: "1px solid rgba(250, 204, 21, 0.2)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: "var(--lemon-hover)" }} />
+              <span className="text-[11px] font-bold tracking-[0.2em] uppercase" style={{ color: "var(--lemon-hover)" }}>
+                Contact Studio
+              </span>
+            </div>
+
+            {/* Headline */}
+            <h1
+              className="font-bold uppercase leading-[0.95] tracking-tight mb-4"
+              style={{
+                fontFamily: "var(--font-heading)",
+                color: "var(--foreground)",
+                fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
+              }}
+            >
+              Get In <span style={{ color: "var(--lemon-hover)" }}>Touch</span>
             </h1>
-            <p className="text-white/60 max-w-xl mx-auto">
-              Have questions? We’re here to help you grow your business.
+
+            <p
+              className="text-sm sm:text-base leading-relaxed max-w-xl mx-auto font-semibold"
+              style={{ color: "rgba(15, 23, 42, 0.6)" }}
+            >
+              Have questions? Our team of experts is ready to help you navigate your digital transformation journey.
             </p>
           </div>
 
           {/* Alerts */}
           {submitStatus === "success" && (
-            <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex gap-3">
-              <HiCheckCircle className="text-green-400 text-2xl" />
+            <div className="mb-8 p-5 bg-green-50 border border-green-100 rounded-2xl flex gap-4 animate-in fade-in slide-in-from-top-4">
+              <HiCheckCircle className="text-green-500 text-2xl shrink-0" />
               <div>
-                <p className="text-green-300 font-semibold">
+                <p className="text-green-800 font-bold text-sm uppercase tracking-tight">
                   Message sent successfully!
                 </p>
-                <p className="text-green-400 text-sm">
-                  We'll contact you soon.
+                <p className="text-green-600/80 text-xs font-semibold mt-1">
+                  Thank you for reaching out. We'll get back to you within 24 hours.
                 </p>
               </div>
             </div>
           )}
 
           {submitStatus === "error" && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-3">
-              <HiExclamationCircle className="text-red-400 text-2xl" />
+            <div className="mb-8 p-5 bg-red-50 border border-red-100 rounded-2xl flex gap-4 animate-in fade-in slide-in-from-top-4">
+              <HiExclamationCircle className="text-red-500 text-2xl shrink-0" />
               <div>
-                <p className="text-red-300 font-semibold">
-                  Something went wrong
+                <p className="text-red-800 font-bold text-sm uppercase tracking-tight">
+                  Submission Failed
                 </p>
-                <p className="text-red-400 text-sm">
-                  Please try again later.
+                <p className="text-red-600/80 text-xs font-semibold mt-1">
+                  Something went wrong on our end. Please try again later or email us directly.
                 </p>
               </div>
             </div>
           )}
 
-          <div className="grid lg:grid-cols-2 gap-10">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
 
-            {/* FORM */}
-            <div className="bg-white/[0.03] border border-white/10 backdrop-blur-xl p-8 rounded-3xl">
-              <h2 className="text-2xl font-semibold text-white mb-6">
-                Send Message
+            {/* FORM CARD */}
+            <div 
+              className="bg-white border rounded-3xl p-8 sm:p-10 transition-shadow duration-500 hover:shadow-2xl"
+              style={{
+                borderColor: "rgba(15, 23, 42, 0.08)",
+                boxShadow: "0 20px 40px -15px rgba(0,0,0,0.03)"
+              }}
+            >
+              <h2 className="text-xl font-bold uppercase tracking-tight text-black mb-8" style={{ fontFamily: "var(--font-heading)" }}>
+                Drop us a message
               </h2>
 
-              <div className="space-y-4">
-
+              <div className="space-y-5">
                 {/* Name */}
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  minLength={3}
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Full Name"
-                  className="input"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Full Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    minLength={3}
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Enter your name"
+                    className="input"
+                  />
+                </div>
 
                 {/* Email */}
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Email Address"
-                  className="input"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="name@company.com"
+                    className="input"
+                  />
+                </div>
 
                 {/* Phone */}
-                <input
-                  type="tel"
-                  name="phone"
-                  required
-                  pattern="[0-9]{10}"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="10 digit phone number"
-                  className="input"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    required
+                    pattern="[0-9]{10}"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="10 digit mobile number"
+                    className="input"
+                  />
+                </div>
 
                 {/* Message */}
-                <textarea
-                  name="message"
-                  required
-                  minLength={10}
-                  rows="4"
-                  value={formData.message}
-                  onChange={handleChange}
-                  placeholder="Your Message"
-                  className="input resize-none"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Your Message</label>
+                  <textarea
+                    name="message"
+                    required
+                    minLength={10}
+                    rows="4"
+                    value={formData.message}
+                    onChange={handleChange}
+                    placeholder="How can we help you?"
+                    className="input resize-none"
+                  />
+                </div>
 
                 {/* Consent */}
-                <div className="flex gap-2 text-sm text-white/60">
+                <div className="flex gap-3 text-xs font-semibold text-slate-500 py-2">
                   <input
                     type="checkbox"
                     name="consent"
                     checked={formData.consent}
                     onChange={handleChange}
-                    className="mt-1"
+                    className="mt-0.5 accent-[var(--lemon-hover)] w-4 h-4"
                   />
-                  I agree to be contacted
+                  <span>I agree to receive communications from Limbu AI regarding my inquiry.</span>
                 </div>
 
                 {/* Submit */}
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !formData.consent}
-                  className="
-                    w-full py-4 rounded-xl font-semibold
-                    bg-[#FDE047] text-black
-                    hover:bg-white hover:scale-[1.02]
-                    transition-all
-                    disabled:opacity-50
-                  "
+                  className="w-full py-4 rounded-2xl text-xs font-bold tracking-[0.15em] uppercase transition-all duration-300 hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:hover:scale-100 mt-4"
+                  style={{
+                    background: "var(--lemon-hover)",
+                    color: "#fff",
+                    boxShadow: "0 10px 20px -5px rgba(234, 179, 8, 0.3)",
+                  }}
                 >
-                  {isSubmitting ? "Sending..." : "Send Message"}
+                  {isSubmitting ? "Processing..." : "Send Message ↗"}
                 </button>
               </div>
             </div>
 
-            {/* INFO */}
+            {/* INFO SECTION */}
             <div className="space-y-6">
               {[
                 {
                   icon: <HiPhone />,
-                  title: "Phone",
+                  title: "Call Us Directly",
                   value: "+91 9289344726",
+                  desc: "Available Mon-Sat, 9AM-7PM"
                 },
                 {
                   icon: <HiMail />,
-                  title: "Email",
+                  title: "Email Inquiry",
                   value: "info@limbu.ai",
+                  desc: "Response within 12 hours"
                 },
                 {
                   icon: <HiLocationMarker />,
-                  title: "Address",
+                  title: "Our Studio",
                   value: "Gurugram, Haryana",
+                  desc: "India's Tech Hub"
                 },
                 {
                   icon: <HiClock />,
-                  title: "Hours",
-                  value: "Mon–Sat: 9AM–7PM",
+                  title: "Working Hours",
+                  value: "9:00 AM – 7:00 PM",
+                  desc: "Monday through Saturday"
                 },
               ].map((item, i) => (
                 <div
                   key={i}
-                  className="p-6 rounded-2xl bg-white/[0.03] border border-white/10 flex gap-4 items-center hover:border-[#FDE047]/40 transition"
+                  className="group p-6 rounded-3xl bg-white border border-slate-100 flex gap-6 items-center transition-all duration-300 hover:border-[var(--lemon-hover)]/30 hover:shadow-xl hover:-translate-y-1"
                 >
-                  <div className="text-[#FDE047] text-2xl">
+                  <div 
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl transition-colors group-hover:bg-[var(--lemon-hover)] group-hover:text-white"
+                    style={{ 
+                      background: "rgba(250, 204, 21, 0.1)", 
+                      color: "var(--lemon-hover)" 
+                    }}
+                  >
                     {item.icon}
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
                       {item.title}
                     </h3>
-                    <p className="text-white/60 text-sm">
+                    <p className="text-lg font-bold text-black tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
                       {item.value}
+                    </p>
+                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                      {item.desc}
                     </p>
                   </div>
                 </div>
               ))}
+
+              {/* Social or Extra Card */}
+              <div 
+                className="p-8 rounded-3xl bg-slate-950 text-white overflow-hidden relative"
+              >
+                <div className="relative z-10">
+                  <h3 className="text-xl text-white font-bold uppercase tracking-tight mb-2" style={{ fontFamily: "var(--font-heading)" }}>
+                    Ready to scale?
+                  </h3>
+                  <p className="text-white/60 text-sm font-medium mb-6">
+                    Join 500+ businesses growing with Limbu AI automation.
+                  </p>
+                  <a href="/signup" className="text-xs font-bold uppercase tracking-widest text-[var(--lemon-glow)] hover:underline">
+                    Get started now →
+                  </a>
+                </div>
+                {/* Decorative glow */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--lemon-hover)] opacity-10 blur-3xl -mr-10 -mt-10" />
+              </div>
             </div>
           </div>
         </div>

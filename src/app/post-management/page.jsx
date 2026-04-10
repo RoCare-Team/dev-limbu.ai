@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  fetchPostsAction,
   fetchAllPostsAction,
   getUserWalletAction,
   generateWithAiAgentAction,
@@ -21,32 +20,13 @@ import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload"
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
-  Loader2,
   CheckCircle,
   Clock,
   Calendar,
   Image as ImageIcon,
-  Sparkles,
   ArrowLeft,
   Send,
   XCircle,
-  Download,
-  Share2,
-  Edit3,
-  Save,
-  X,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  FileText,
-  ChevronDown,
-  MapPin,
-  Pencil,
-  Facebook,
-  Instagram,
-  ThumbsUp,
-  MessageCircle,
-  Wallet,
   Video,
   Film,
 } from "lucide-react";
@@ -56,6 +36,7 @@ import ScheduleConfirmationModal from "../../components/post-management/Schedule
 import FacebookShareModal from "../../components/post-management/FacebookShareModal";
 import InstagramShareModal from "../../components/post-management/InstagramShareModal";
 import PreviewSection from "../../components/post-management/PreviewSection";
+import PostManagementHeader from "../../components/post-management/PostManagementHeader";
 import PostCard from "../../components/post-management/PostCard";
 
 import { useSession } from "next-auth/react";
@@ -64,7 +45,7 @@ import Link from "next/link";
 import Toast from "../../components/Toast";
 import LocationSelectionModal from "../../components/LocationSelectionModal";
 import InsufficientBalanceModal from "../../components/InsufficientBalanceModal";
-import LoadingOverlay from "../../components/LoadingOverlay";
+// import LoadingOverlay from "../../components/LoadingOverlay";
 import SuccessOverlay from "../../components/SuccessOverlay"; // Corrected import path
 import SupportModal from "@/components/SupportModal";
 import FirstPostModal from "../../components/FirstPostModal";
@@ -122,6 +103,10 @@ export default function PostManagementPage() {
   const [requiredCoins, setRequiredCoins] = useState(0);
   const { slug } = useParams();
   const { data: session } = useSession();
+
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [posts, setPosts] = useState([]);
   console.log("Post in Post Manegement", posts);
@@ -332,125 +317,194 @@ export default function PostManagementPage() {
   const tabs = [
     {
       id: "total",
-      label: "Total Posts",
-      shortLabel: "Total",
+      label: "All",
       icon: ImageIcon,
       count: allCounts.total,
     },
     {
       id: "pending",
       label: "Pending",
-      shortLabel: "Pending",
       icon: Clock,
       count: allCounts.pending,
     },
     {
       id: "approved",
       label: "Approved",
-      shortLabel: "Approved",
       icon: CheckCircle,
       count: allCounts.approved,
-    }, // Corrected icon
+    },
     {
       id: "rejected",
       label: "Rejected",
-      shortLabel: "Rejected",
       icon: XCircle,
       count: allCounts.rejected,
     },
     {
       id: "scheduled",
       label: "Scheduled",
-      shortLabel: "Scheduled",
       icon: Calendar,
       count: allCounts.scheduled,
     },
     {
       id: "posted",
       label: "Posted",
-      shortLabel: "Posted",
       icon: Send,
       count: allCounts.posted,
     },
     {
       id: "videos",
       label: "Videos",
-      shortLabel: "Videos",
       icon: Film,
       count: allCounts.videos,
     },
   ];
 
-  const fetchPosts = async (isBackground = false) => {
-    if (!isBackground) setIsLoadingPosts(true);
-    try {
-      const userId = localStorage.getItem("userId");
-      const allPostsData = await fetchAllPostsAction(userId);
-
-      if (allPostsData.success) {
-        let allPosts = allPostsData.data;
-
-        // Check for stuck processing posts (scheduled date passed by > 1 hour)
-        const now = new Date();
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-
-        const stuckPosts = allPosts.filter(
-          (post) =>
-            post.status === "processing" &&
-            post.scheduledDate &&
-            new Date(post.scheduledDate) < oneHourAgo,
+  const fetchPosts = useCallback(
+    async (currentPage = 1, isBackground = false, status = "total") => {
+      if (currentPage === 1 && !isBackground) setIsLoadingPosts(true);
+      if (currentPage > 1) setIsLoadingMore(true);
+      try {
+        const userId = localStorage.getItem("userId");
+        const allPostsData = await fetchAllPostsAction(
+          userId,
+          currentPage,
+          12,
+          status,
         );
 
-        if (stuckPosts.length > 0) {
-          await Promise.all(
-            stuckPosts.map((post) =>
-              updatePostStatusAction({
-                id: post._id,
-                userId,
-                status: "failed",
-                error: "Processing timeout: Schedule time passed by 1 hour",
-              }),
-            ),
+        if (allPostsData.success) {
+          let fetchedPosts = allPostsData.data;
+
+          // Check for stuck processing posts (scheduled date passed by > 1 hour)
+          const now = new Date();
+          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+          const stuckPosts = fetchedPosts.filter(
+            (post) =>
+              post.status === "processing" &&
+              post.scheduledDate &&
+              new Date(post.scheduledDate) < oneHourAgo,
           );
 
-          // Update local state to reflect changes immediately
-          allPosts = allPosts.map((post) => {
-            if (stuckPosts.find((sp) => sp._id === post._id)) {
-              return {
-                ...post,
-                status: "failed",
-                error: "Processing timeout: Schedule time passed by 1 hour",
-              };
-            }
-            return post;
+          if (stuckPosts.length > 0) {
+            await Promise.all(
+              stuckPosts.map((post) =>
+                updatePostStatusAction({
+                  id: post._id,
+                  userId,
+                  status: "failed",
+                  error: "Processing timeout: Schedule time passed by 1 hour",
+                }),
+              ),
+            );
+
+            // Update local state to reflect changes immediately
+            fetchedPosts = fetchedPosts.map((post) => {
+              if (stuckPosts.find((sp) => sp._id === post._id)) {
+                return {
+                  ...post,
+                  status: "failed",
+                  error: "Processing timeout: Schedule time passed by 1 hour",
+                };
+              }
+              return post;
+            });
+          }
+
+          setPosts((prevPosts) => {
+            const currentPosts = currentPage === 1 ? [] : prevPosts;
+            const combined = [...currentPosts, ...fetchedPosts];
+            const uniquePosts = combined.filter(
+              (post, index, self) =>
+                index === self.findIndex((p) => p._id === post._id),
+            );
+
+            // Update counts based on uniquePosts
+            // Calculate and update counts
+            setAllCounts({
+              total: allPostsData.pagination
+                ? allPostsData.pagination.totalItems
+                : uniquePosts.filter((p) => p.status !== "rejected").length,
+              approved: uniquePosts.filter((p) => p.status === "approved")
+                .length,
+              pending: uniquePosts.filter((p) => p.status === "pending").length,
+              scheduled: uniquePosts.filter((p) => p.status === "scheduled")
+                .length,
+              posted: uniquePosts.filter((p) => p.status === "posted").length,
+              rejected: uniquePosts.filter((p) => p.status === "rejected")
+                .length,
+              videos: uniquePosts.filter((p) => postHasVideoAsset(p)).length,
+            });
+
+            return uniquePosts;
           });
+
+          if (allPostsData.pagination) {
+            setHasMore(currentPage < allPostsData.pagination.totalPages);
+          } else {
+            setHasMore(fetchedPosts.length === 12);
+          }
+
+          // Show magic modal if no posts exist
+          if (currentPage === 1 && fetchedPosts.length === 0) {
+            setShowFirstPostModal(true);
+          }
+        } else {
+          throw new Error(allPostsData.error || "Failed to fetch posts");
         }
-
-        setPosts(allPosts);
-
-        setAllCounts({
-          total: allPosts.filter((p) => p.status !== "rejected").length,
-          approved: allPosts.filter((p) => p.status === "approved").length,
-          pending: allPosts.filter((p) => p.status === "pending").length,
-          scheduled: allPosts.filter((p) => p.status === "scheduled").length,
-          posted: allPosts.filter((p) => p.status === "posted").length,
-          rejected: allPosts.filter((p) => p.status === "rejected").length,
-          videos: allPosts.filter((p) => postHasVideoAsset(p)).length,
-        });
-
-        // Show magic modal if no posts exist
-        if (allPosts.length === 0) {
-          setShowFirstPostModal(true);
-        }
-      } else {
-        throw new Error(allPostsData.error || "Failed to fetch posts");
+      } catch (err) {
+        showToast(err.message || "Error fetching posts", "error");
+      } finally {
+        if (currentPage === 1 && !isBackground) setIsLoadingPosts(false);
+        if (currentPage > 1) setIsLoadingMore(false);
       }
-    } catch (err) {
-      showToast(err.message || "Error fetching posts", "error");
-    } finally {
-      if (!isBackground) setIsLoadingPosts(false);
+    },
+    [showToast],
+  );
+
+  // Initial fetch and fetch on tab change
+  useEffect(() => {
+    setPage(1);
+    setPosts([]);
+    setHasMore(true);
+    fetchPosts(1, false, activeTab);
+  }, [activeTab, fetchPosts]);
+
+  // Fetch more when page changes
+  useEffect(() => {
+    if (page > 1) {
+      fetchPosts(page, true, activeTab);
     }
-  };
+  }, [page, activeTab, fetchPosts]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!hasMore || isLoadingMore || isLoadingPosts) return;
+
+      const scrollY = window.scrollY || window.pageYOffset;
+      const innerHeight = window.innerHeight;
+      const offsetHeight = document.documentElement.scrollHeight;
+
+      if (innerHeight + scrollY >= offsetHeight - 800) {
+        setPage((prevPage) => prevPage + 1);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMore, isLoadingMore, isLoadingPosts]);
+
+  // Automatically fetch next page if layout is too short to scroll but we have more items
+  useEffect(() => {
+    if (
+      !isLoadingPosts &&
+      !isLoadingMore &&
+      hasMore &&
+      document.documentElement.scrollHeight <= window.innerHeight
+    ) {
+      setPage((prevPage) => prevPage + 1);
+    }
+  }, [hasMore, isLoadingMore, isLoadingPosts]);
 
   const fileToBase64 = (file) =>
     new Promise((resolve, reject) => {
@@ -1110,7 +1164,7 @@ export default function PostManagementPage() {
         ),
       );
 
-      await fetchPosts(activeTab);
+      await fetchPosts(1, true);
     } catch (error) {
       console.error("❌ Update Error:", error);
       showToast("Error updating post", "error");
@@ -1936,7 +1990,7 @@ export default function PostManagementPage() {
           });
 
           // Refresh posts
-          await fetchPosts(activeTab);
+          await fetchPosts(1, true);
         } else {
           throw new Error("All batches failed to post.");
         }
@@ -2061,7 +2115,7 @@ export default function PostManagementPage() {
         locations: remainingLocations,
         status: newStatus,
       });
-      await fetchPosts(activeTab);
+      await fetchPosts(1, true);
     }
 
     setIsPosting(false);
@@ -2267,10 +2321,6 @@ export default function PostManagementPage() {
     }
   }, [isScheduleModalOpen]);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
   const filteredPosts = useMemo(() => {
     if (activeTab === "videos") {
       return posts.filter((p) => postHasVideoAsset(p));
@@ -2280,20 +2330,20 @@ export default function PostManagementPage() {
   }, [posts, activeTab]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50  mt-[-8px]">
+    <div className="text-slate-900">
       {/* Back button for mobile view */}
       <div className="sm:hidden fixed top-4 left-4 z-50">
         <Link href="/dashboard" passHref>
           <button
             aria-label="Go back to dashboard"
-            className="bg-white/80 backdrop-blur-sm p-2.5 rounded-full shadow-lg border border-gray-200 hover:scale-110 transition-transform"
+            className="bg-white/90 backdrop-blur-sm p-2.5 rounded-full shadow-lg border border-slate-200 hover:scale-110 transition-transform"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-800" />
+            <ArrowLeft className="w-5 h-5 text-slate-800" />
           </button>
         </Link>
       </div>
 
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-2 py-2">
+      <div className="max-w-7xl mx-auto space-y-2">
         {toast && <Toast message={toast.message} type={toast.type} />}
         {showLocationModal && (
           <LocationSelectionModal
@@ -2427,7 +2477,7 @@ export default function PostManagementPage() {
         )}
         {isPosting && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-lg z-50 flex items-center justify-center p-4">
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-10 flex flex-col items-center space-y-4 sm:space-y-6 max-w-md w-full border-4 border-white/30">
+            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-10 flex flex-col items-center space-y-4 sm:space-y-6 max-w-md w-full border-4 border-slate-200">
               <div className="relative">
                 <div className="absolute inset-0 bg-orange-300/40 rounded-full blur-2xl animate-pulse"></div>
                 <div className="text-6xl sm:text-8xl animate-bounce-slow">
@@ -2435,14 +2485,14 @@ export default function PostManagementPage() {
                 </div>
               </div>
               <div className="text-center space-y-2 sm:space-y-3">
-                <h3 className="text-2xl sm:text-3xl font-black text-white">
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
                   Publishing Post...
                 </h3>
                 <p className="text-blue-100 text-xs sm:text-sm">
                   Sending to Google My Business
                 </p>
               </div>
-              <div className="w-full bg-white/30 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                 <div className="bg-gradient-to-r from-orange-300 via-yellow-300 to-green-300 h-full rounded-full animate-shimmer"></div>
               </div>
             </div>
@@ -2455,176 +2505,11 @@ export default function PostManagementPage() {
           />
         )}
 
-        <div>
-          <div
-            className="
-    grid grid-cols-2 sm:flex sm:flex-row items-center
-    gap-3
-  "
-          >
-            {/* Post Management */}
-            <div
-              className="
-      inline-flex items-center gap-2
-      px-3 sm:px-5 py-1
-      rounded-xl
-      bg-white
-      shadow-md
-      border border-blue-100
-      whitespace-nowrap
-    "
-            >
-              <div className="p-1.5 sm:p-2 rounded-lg bg-neutral-50">
-                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-neutral-800" />
-              </div>
-              <span className="text-sm sm:text-xl font-bold text-neutral-800">
-                Post Management
-              </span>
-            </div>
-
-            <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap items-center gap-4 bg-white px-3 py-2 sm:px-5 sm:py-1 rounded-2xl shadow-sm border border-gray-200 col-span-2 order-last sm:order-none w-full sm:w-auto justify-start sm:justify-center sm:ml-4">
-              {/* <span className="text-xs fon t-bold text-gray-400 uppercase tracking-wider mr-2 whitespace-nowrap">Image For:</span> */}
-
-              {/* All */}
-              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={["gmb", "fb", "ig"].every((p) =>
-                    selectedPlatforms.includes(p),
-                  )}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedPlatforms(["gmb", "fb", "ig"]);
-                    } else {
-                      setSelectedPlatforms([]);
-                    }
-                  }}
-                  className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-600 transition-all"
-                />
-                <span className="text-sm font-semibold text-neutral-600  group-hover:text-gray-600">
-                  All
-                </span>
-              </label>
-
-              {/* GMB */}
-              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={selectedPlatforms.includes("gmb")}
-                  onChange={() =>
-                    setSelectedPlatforms((prev) =>
-                      prev.includes("gmb")
-                        ? prev.filter((p) => p !== "gmb")
-                        : [...prev, "gmb"],
-                    )
-                  }
-                  className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-600 transition-all"
-                />
-
-                <div
-                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${
-                    selectedPlatforms.includes("gmb")
-                      ? "bg-white border-blue-200 shadow-md scale-105"
-                      : "bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100"
-                  }`}
-                >
-                  <img
-                    src="https://www.gstatic.com/images/branding/product/1x/gsa_48dp.png"
-                    alt="Google"
-                    className="w-5 h-5 object-contain"
-                  />
-                </div>
-              </label>
-
-              {/* Facebook */}
-              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={selectedPlatforms.includes("fb")}
-                  onChange={() =>
-                    setSelectedPlatforms((prev) =>
-                      prev.includes("fb")
-                        ? prev.filter((p) => p !== "fb")
-                        : [...prev, "fb"],
-                    )
-                  }
-                  className="w-4 h-4 rounded border-gray-300 text-yellow-600 accent-yellow-400  focus:ring-yellow-500 transition-all"
-                />
-                <div
-                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes("fb") ? "bg-[#1877F2] border-[#1877F2] text-white shadow-md scale-105" : "bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100"}`}
-                >
-                  <Facebook className="w-5 h-5 fill-current" />
-                </div>
-              </label>
-
-              {/* Instagram */}
-              <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={selectedPlatforms.includes("ig")}
-                  onChange={() =>
-                    setSelectedPlatforms((prev) =>
-                      prev.includes("ig")
-                        ? prev.filter((p) => p !== "ig")
-                        : [...prev, "ig"],
-                    )
-                  }
-                  className="w-4 h-4 rounded border-primary text-dark accent-yellow-400  focus:ring-pink-500 transition-all"
-                />
-                <div
-                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes("ig") ? "bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] border-transparent text-white shadow-md scale-105" : "bg-gray-50 border-gray-200 text-gray-400 grayscale opacity-70 group-hover:opacity-100"}`}
-                >
-                  <Instagram className="w-5 h-5" />
-                </div>
-              </label>
-            </div>
-
-            {/* 5000 > 2 video 2500  > 1 */}
-
-            {/* Preview Button */}
-            <a
-              href={previewData?.aiOutput}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="
-      inline-flex items-center gap-1.5
-      px-3 sm:px-5 py-2
-      rounded-xl
-      bg-primary
-      hover:from-neutral-400 hover:to-yellow-600
-      text-dark font-semibold
-      shadow-md
-      transition-all duration-200
-      text-sm sm:text-base
-      justify-self-end
-      whitespace-nowrap
-      sm:ml-auto
-    "
-            >
-              <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-              Preview
-            </a>
-          </div>
-
-          {/* <p className="text-blue/90 text-sm sm:text-sm font-medium text-center">
-    Create stunning GMB posts with AI in seconds ✨
-  </p> */}
-        </div>
-
-        {/* {!loadingBusinesses && availableBusinesses.length === 0 && (
-          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-2">
-            <span>
-              Google Business Profile is not connected. Connect GMB in Settings to load
-              locations and post to Google.
-            </span>
-            <Link
-              href="/user-settings"
-              className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:no-underline"
-            >
-              Open Settings
-            </Link>
-          </div>
-        )} */}
+        <PostManagementHeader
+          selectedPlatforms={selectedPlatforms}
+          setSelectedPlatforms={setSelectedPlatforms}
+          previewData={previewData}
+        />
 
         {/* Main Content Area - Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-start ">
@@ -2695,7 +2580,7 @@ export default function PostManagementPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 sm:gap-5 ">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3 mb-2">
           {tabs.map((tab) => (
             <TabButton
               key={tab.id}
@@ -2719,36 +2604,43 @@ export default function PostManagementPage() {
             </p>
           </div>
         ) : filteredPosts.length > 0 ? (
-          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6 mt-6">
-            {filteredPosts.map((post) => (
-              <PostCard
-                key={post._id}
-                post={post}
-                scheduleDates={scheduleDates}
-                onDateChange={handleDateChange}
-                handleDownload={handleDownload}
-                handleShare={handleShare}
-                onUpdateStatus={handleUpdateStatus}
-                onReject={handleReject}
-                handlePost={handlePost}
-                onEditDescription={handleEditDescription}
-                handleDeleteFromGMB={handleDeleteFromGMB}
-                onToggleCheckmark={handleToggleCheckmark}
-                handleFacebookPost={handleFacebookPost}
-                handleInstagramPost={handleInstagramPost}
-                onConvertToVideo={handleAutoConvertToVideo}
-                convertingVideoPostId={convertingVideoPostId}
-                videoGenerationCoins={VIDEO_GENERATION_COINS}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6 mt-6">
+              {filteredPosts.map((post) => (
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  scheduleDates={scheduleDates}
+                  onDateChange={handleDateChange}
+                  handleDownload={handleDownload}
+                  handleShare={handleShare}
+                  onUpdateStatus={handleUpdateStatus}
+                  onReject={handleReject}
+                  handlePost={handlePost}
+                  onEditDescription={handleEditDescription}
+                  handleDeleteFromGMB={handleDeleteFromGMB}
+                  onToggleCheckmark={handleToggleCheckmark}
+                  handleFacebookPost={handleFacebookPost}
+                  handleInstagramPost={handleInstagramPost}
+                  onConvertToVideo={handleAutoConvertToVideo}
+                  convertingVideoPostId={convertingVideoPostId}
+                  videoGenerationCoins={VIDEO_GENERATION_COINS}
+                />
+              ))}
+            </div>
+            {isLoadingMore && (
+              <div className="flex justify-center py-6">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              </div>
+            )}
+          </>
         ) : (
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-10 sm:p-16 text-center border-3 border-dashed border-gray-300 shadow-xl">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-10 sm:p-16 text-center border-3 border-dashed border-slate-200 text-slate-900/80 shadow-xl">
             <div className="text-6xl sm:text-8xl mb-4 sm:mb-6">📭</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">
+            <h3 className="text-xl font-bold text-slate-900/90 mb-2">
               No posts found
             </h3>
-            <p className="text-gray-600 text-base">
+            <p className="text-slate-900/70 text-base">
               {activeTab === "total"
                 ? "Create your first AI-powered post above!"
                 : activeTab === "videos"
@@ -2760,23 +2652,6 @@ export default function PostManagementPage() {
       </div>
 
       <SupportModal showToast={showToast} />
-
-      {/* Floating WhatsApp Button */}
-      <a
-        href="https://wa.me/919289344726"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
-        aria-label="Chat on WhatsApp"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 32 32"
-          className="w-9 h-9 fill-white"
-        >
-          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z" />
-        </svg>
-      </a>
     </div>
   );
 }

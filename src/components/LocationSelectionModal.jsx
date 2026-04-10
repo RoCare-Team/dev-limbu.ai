@@ -49,22 +49,26 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
     const insufficientFunds = isPostAction && (walletBalance < totalCost);
 
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl 
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl 
        w-full max-w-2xl
-       max-h-[70vh]            /* 🔥 height reduced */
-       mt-10                   /* 🔥 top margin */
-       overflow-y-auto         /* scroll inside */
-       p-6 sm:p-8 
-       border-4 border-blue-200
-       animate-scale-in">
+       max-h-[85vh]
+       overflow-hidden
+       flex flex-col
+       border border-black/5
+       animate-scaleUp">
   
         {/* Modal Header */}
-        <div className="relative text-center mb-6 sm:mb-8 flex-shrink-0">
-          <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{title}</h3>
+        <div className="bg-black text-white px-6 sm:px-10 py-6 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center">
+              <MapPin className="text-black w-5 h-5" />
+            </div>
+            <h3 className="text-xl text-white sm:text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>{title}</h3>
+          </div>
           <button
             onClick={onClose}
-            className="absolute top-1/2 -translate-y-1/2 right-0 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-800"
+            className="p-2 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white"
             aria-label="Close modal"
           >
             <XCircle className="w-6 h-6" />
@@ -72,177 +76,187 @@ const LocationSelectionModal = ({ locations, onClose, onConfirm, title = "Select
         </div>
 
         {/* Modal Content */}
-        <div className="space-y-4 sm:space-y-6 flex-grow overflow-y-auto">
+        <div className="p-6 sm:p-10 space-y-6 overflow-y-auto flex-grow custom-scroll bg-slate-50/30">
           <div className="text-center">
               {title.includes("Post") && (
-                <p className="text- text-sm sm:text-base mt-2">Choose locations to post (20 coins per location)</p>
+                <p className="text-slate-400 text-xs sm:text-sm font-bold uppercase tracking-widest mb-4">Choose locations to post (20 coins per location)</p>
               )}
+              
               {/* Checkmark options for Post and Photo */}
-              <div className="flex justify-center gap-4 sm:gap-6 mt-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="post-checkbox"
-                    checked={checkmark.includes('post')}
-                    onChange={() => handleCheckmarkChange('post')}
-                    className="h-5 w-5 rounded border-gray-300 accent-lightPrimary text-dark focus:ring-dark cursor-pointer"
-                  />
-                  <label htmlFor="post-checkbox" className="ml-2 text-dark font-medium cursor-pointer">Post</label>
-                </div>
+              <div className="flex justify-center gap-6">
+                <label className="flex items-center group cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={checkmark.includes('post')}
+                      onChange={() => handleCheckmarkChange('post')}
+                      className="sr-only"
+                    />
+                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${checkmark.includes('post') ? 'bg-black border-black shadow-lg shadow-black/10' : 'bg-white border-slate-300 group-hover:border-yellow-400'}`}>
+                      {checkmark.includes('post') && <CheckCircle className="w-3.5 h-3.5 text-yellow-400" />}
+                    </div>
+                  </div>
+                  <span className="ml-3 text-sm font-black text-black uppercase tracking-widest">Post</span>
+                </label>
   
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="photo-checkbox"
-                    checked={checkmark.includes('photo')}
-                    onChange={() => handleCheckmarkChange('photo')}
-                    className="h-5 w-5 rounded border-gray-300 accent-lightPrimary text-dark focus:ring-dark cursor-pointer"
-                  />
-                  <label htmlFor="photo-checkbox" className="ml-2 text-dark font-medium cursor-pointer">Photo</label>
-                </div>
+                <label className="flex items-center group cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={checkmark.includes('photo')}
+                      onChange={() => handleCheckmarkChange('photo')}
+                      className="sr-only"
+                    />
+                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${checkmark.includes('photo') ? 'bg-black border-black shadow-lg shadow-black/10' : 'bg-white border-slate-300 group-hover:border-yellow-400'}`}>
+                      {checkmark.includes('photo') && <CheckCircle className="w-3.5 h-3.5 text-yellow-400" />}
+                    </div>
+                  </div>
+                  <span className="ml-3 text-sm font-black text-black uppercase tracking-widest">Photo</span>
+                </label>
               </div>
-              {/* Select All checkbox */}
-              <div className="mt-4 flex items-center justify-end">
-                <input
-                  type="checkbox"
-                  id="select-all-checkbox"
-                  checked={verifiedLocations.length > 0 && selectedLocations.length === verifiedLocations.length}
-                  onChange={handleSelectAll}
-                  className="h-5 w-5 rounded border-gray-300 text-dark focus:ring-dark cursor-pointer"
-                />
-                <label htmlFor="select-all-checkbox" className="ml-2 text-dark accent-lightPrimary font-medium cursor-pointer">
-                  {selectedLocations.length === verifiedLocations.length ? 'Deselect All' : 'Select All'}
+
+              {/* Select All */}
+              <div className="mt-6 flex items-center justify-end">
+                <label className="flex items-center group cursor-pointer">
+                  <span className="mr-3 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-black transition-colors">
+                    {selectedLocations.length === verifiedLocations.length ? 'Deselect All' : 'Select All Verified'}
+                  </span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={verifiedLocations.length > 0 && selectedLocations.length === verifiedLocations.length}
+                      onChange={handleSelectAll}
+                      className="sr-only"
+                    />
+                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${verifiedLocations.length > 0 && selectedLocations.length === verifiedLocations.length ? 'bg-yellow-400 border-yellow-400 shadow-lg shadow-yellow-400/20' : 'bg-white border-slate-300 group-hover:border-black'}`}>
+                      {verifiedLocations.length > 0 && selectedLocations.length === verifiedLocations.length && <CheckCircle className="w-3.5 h-3.5 text-black" />}
+                    </div>
+                  </div>
                 </label>
               </div>
             </div>
             
             {/* Summary Card */}
-            <div className=" bg-white border-neutral-300 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+            <div className="bg-white border border-black/5 rounded-[2rem] p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-black/5 pb-4">
                 <div>
-                  <p className="text-sm text-dark">Selected Locations</p>
-                  <p className="text-xl font-black text-dark">{selectedLocations.length}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Selected</p>
+                  <p className="text-2xl font-black text-black leading-none">{selectedLocations.length}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-dark text-right">Cost per Location</p>
-                  <p className="text-xl font-black text-dark">20 coins</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cost / Loc</p>
+                  <p className="text-2xl font-black text-black leading-none">20 <span className="text-xs uppercase opacity-50">coins</span></p>
                 </div>
               </div>
               
               {isPostAction && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-dark">Your Wallet</p>
-                    <p className={`text-xl font-black ${insufficientFunds ? 'text-white' : 'text-dark'}`}>
-                      {walletBalance} coins
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Your Wallet</p>
+                    <p className={`text-2xl font-black leading-none ${insufficientFunds ? 'text-red-500' : 'text-yellow-600'}`}>
+                      {walletBalance} <span className="text-xs uppercase opacity-50">coins</span>
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-dark">Total Cost</p>
-                    <p className={`text-xl font-black ${insufficientFunds ? 'text-primary' : 'text-dark'}`}>
-                      {totalCost} coins
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Cost</p>
+                    <p className="text-2xl font-black text-black leading-none">
+                      {totalCost} <span className="text-xs uppercase opacity-50">coins</span>
                     </p>
                   </div>
                 </div>
               )}
               
               {isPostAction && insufficientFunds && (
-                 <div className="bg-red-100 border border-red-300 rounded-lg p-2 text-center">
-                    <p className="text-red-700 text-sm font-bold">
-                       Insufficient Balance! You need {totalCost - walletBalance} more coins.
+                 <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center">
+                    <p className="text-red-600 text-xs font-bold uppercase tracking-widest">
+                       ⚠️ Insufficient Balance! Need {totalCost - walletBalance} more coins.
                     </p>
                  </div>
               )}
             </div>
             
-            <div className="max-h-[300px] sm:max-h-[400px] overflow-y-auto space-y-3">
+            <div className="space-y-3">
               {verifiedLocations.map((location) => (
                 <div
                   key={location.id}
                   onClick={() => toggleLocation(location.id)}
-                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedLocations.includes(location.id)
-                    ? 'border-lightPrimary bg-yellow-50 shadow-md'
-                    : 'border-lightPrimary bg-white hover:border-dark hover:bg-yellow-50'
+                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${selectedLocations.includes(location.id)
+                    ? 'border-black bg-white shadow-xl shadow-black/5 scale-[1.01]'
+                    : 'border-black/5 bg-white hover:border-yellow-400 hover:bg-yellow-400/5'
                     }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedLocations.includes(location.id)
-                        ? 'border-blue-500 bg-dark'
-                        : 'border-gray-400'
+                    <div className="flex items-center gap-4">
+                      <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedLocations.includes(location.id)
+                        ? 'bg-black border-black'
+                        : 'bg-white border-slate-200'
                         }`}>
                         {selectedLocations.includes(location.id) && (
-                          <CheckCircle className="w-4 h-4 text-white" />
+                          <CheckCircle className="w-4 h-4 text-yellow-400" />
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 text-sm sm:text-base">{location.title}</p>
-                        <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
+                        <p className="font-black text-black text-sm uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>{location.title}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 mt-1">
                           <MapPin className="w-3 h-3" />
                           {location.address}
                         </p>
                       </div>
                     </div>
-                    <span className="text-dark font-bold text-sm">20 coins</span>
+                    <span className="text-xs font-black text-black uppercase tracking-widest opacity-40">20c</span>
                   </div>
                 </div>
               ))}
+
               {unverifiedLocations.length > 0 && (
-                <div className="pt-4">
-                  <p className="text-sm font-bold text-gray-500 mb-2 border-t pt-3">Unverified Locations (Cannot be selected)</p>
+                <div className="pt-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-[1px] flex-1 bg-black/5" />
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Locked Locations</p>
+                    <div className="h-[1px] flex-1 bg-black/5" />
+                  </div>
                   {unverifiedLocations.map((location) => (
                     <div
                       key={location.id}
-                      className="p-4 rounded-xl border-2 border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed mt-2"
+                      className="p-5 rounded-2xl border border-black/5 bg-slate-50 opacity-40 cursor-not-allowed mt-3"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-gray-400">
-                            <XCircle className="w-4 h-4 text-gray-400" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-6 h-6 rounded-lg bg-slate-200 flex items-center justify-center">
+                            <XCircle className="w-4 h-4 text-slate-400" />
                           </div>
                           <div>
-                            <p className="font-bold text-gray-600 text-sm sm:text-base">{location.name}</p>
-                            <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                            <p className="font-bold text-slate-400 text-sm uppercase tracking-tight">{location.name || location.title}</p>
+                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1 mt-1">
                               <MapPin className="w-3 h-3" />
                               {location.address}
                             </p>
                           </div>
                         </div>
-                        <span className="text-dark font-bold text-sm">20 coins</span>
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Locked</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-  
-            {selectedLocations.length > 0 && (
-              <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 sm:p-4">
-                <p className="text-sm text-amber-900 flex items-start gap-2">
-                  <span className="text-lg sm:text-xl">💡</span>
-                  <span>
-                    <strong>Selected:</strong> {selectedLocations.length} location{selectedLocations.length > 1 ? 's' : ''}
-                    {' '}• Total posting cost: {selectedLocations.length * 20} coins
-                  </span>
-                </p>
-              </div>
-            )}
-            
-            <div className="flex flex-col sm:flex-row gap-3">
+          </div>
+
+          {/* Footer Actions */}
+          <div className="p-6 sm:p-10 bg-white border-t border-black/5 flex flex-col sm:flex-row gap-4 flex-shrink-0">
               <button
                 onClick={() => onConfirm(selectedLocations, getPayload())}
                 disabled={selectedLocations.length === 0 || insufficientFunds}
-                className="flex-1 bg-dark text-primary px-6 py-3 sm:py-4 rounded-xl font-bold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                className="btn-lemon flex-1 py-4 rounded-2xl text-xs uppercase font-black tracking-[0.2em] shadow-xl hover:scale-[1.02] disabled:opacity-30"
               >
-                {insufficientFunds ? "Recharge to Post" : `${confirmText} to ${selectedLocations.length} Location${selectedLocations.length !== 1 ? 's' : ''}`}
+                {insufficientFunds ? "Recharge Wallet" : `${confirmText} Post ↗`}
               </button>
               <button
-                onClick={onClose} // Close button
-                className="flex-1 bg-lightPrimary text-dark px-6 py-3 sm:py-4 rounded-xl font-bold hover:bg-gray-300 transition-all text-sm sm:text-base"
+                onClick={onClose}
+                className="btn-ghost flex-1 py-4 rounded-2xl text-xs uppercase font-black tracking-[0.2em]"
               >
-                Cancel
+                Cancel Action
               </button>
-            </div>
           </div>
         </div>
       </div>

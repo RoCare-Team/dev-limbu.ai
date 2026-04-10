@@ -21,6 +21,8 @@ import {
   Clock,
   X,
   FileText,
+  Loader2,
+  Info,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -142,7 +144,7 @@ const handleRecharge = async () => {
       name: "Limbu AI Wallet",
       description: `Recharge ₹${amount} + GST ₹${gstAmount}`,
       order_id: orderData.id,
-      theme: { color: "#2563eb" },
+      theme: { color: "#facc15" },
       modal: {
         ondismiss: function () {
           setLoading(false);
@@ -156,7 +158,7 @@ const handleRecharge = async () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               userId,
-              platform: "web",   // ✅ FIXED
+              platform: "web",
               plan: "WalletRecharge",
               amount: parseFloat(amount),
               gstAmount: parseFloat(gstAmount),
@@ -229,7 +231,7 @@ const formatDate = (dateString) => {
 
   const date = new Date(dateString);
   return date.toLocaleDateString("en-IN", {
-    timeZone: "Asia/Kolkata", // ✅ ADD THIS
+    timeZone: "Asia/Kolkata",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -241,15 +243,12 @@ const formatTime = (dateString) => {
 
   const date = new Date(dateString);
   return date.toLocaleTimeString("en-IN", {
-    timeZone: "Asia/Kolkata", // ✅ ADD THIS
+    timeZone: "Asia/Kolkata",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true, // optional but recommended
+    hour12: true,
   });
 };
-
-
-
 
   const goBack = () => {
     if (typeof window !== 'undefined') {
@@ -258,325 +257,322 @@ const formatTime = (dateString) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob-delay-2"></div>
-        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob-delay-4"></div>
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={goBack}
-            className="flex items-center gap-2 text-dark hover:text-lightPrimary transition-colors group"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Back to Dashboard</span>
-          </button>
-
-          <button
-            onClick={() => setShowTransactions(!showTransactions)}
-            className="flex items-center gap-2 px-4 py-2 bg-lightPrimary backdrop-blur-lg rounded-xl shadow-md border border-white/20 text-gray-700 hover:text-dark transition-all hover:shadow-lg"
-          >
-            <History className="w-5 h-5" />
-            <span className="font-medium">Transaction History </span>
-          </button>
-        </div>
-
-        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8">
-          {/* Left Side - Info Card */}
-          <div className="space-y-6 lg:col-span-1 order-2 lg:order-1">
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-lightPrimary rounded-2xl flex items-center justify-center shadow-lg">
-                  <Wallet className="w-8 h-8 text-dark" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold  bg-clip-text text-lightPrimary">
-                    Wallet Recharge
-                  </h1>
-                  <p className="text-gray-600 text-sm mt-1">
-                    Power up your account instantly
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
-                  <Zap className="w-5 h-5 text-dark mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-lightPrimary">Instant Credit</h3>
-                    <p className="text-sm text-dark">
-                      Coins added to your wallet immediately after payment
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
-                  <Shield className="w-5 h-5 text-gray-800 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-lightPrimary">Secure Payment</h3>
-                    <p className="text-sm text-gray-600">
-                      Protected by Razorpay's enterprise-grade security
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
-                  <TrendingUp className="w-5 h-5 text-gray-800 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-lightPrimary">Special Offers</h3>
-                    <p className="text-sm text-gray-600">
-                      Get 20% bonus on ₹5,000+ recharges
-                    </p>
-                  </div>
-                </div>
-              </div>
+    <div className="min-h-screen bg-slate-50/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={goBack}
+              className="p-2.5 rounded-xl border border-black/5 bg-white hover:bg-slate-50 transition-all shadow-sm group"
+            >
+              <ArrowLeft className="w-5 h-5 text-black group-hover:-translate-x-1 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+                Smart <span className="text-yellow-500">Wallet</span>
+              </h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Scale Your Digital Presence</p>
             </div>
           </div>
 
-          {/* Middle - Recharge Form */}
-          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 space-y-6 lg:col-span-2 order-1 lg:order-2">
-            <div>
-              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-dark" />
-                Choose Amount
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {presetAmounts.map((pkg, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setAmount(pkg.price)}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all ${
-                      amount === pkg.price
-                        ? "bg-lightPrimary text-dark border-dark shadow-lg transform scale-105"
-                        : "border-gray-200 text-gray-700 hover:border-gray-300 hover:shadow-md bg-white"
-                    }`}
-                  >
-                    {pkg.popular && (
-                      <span className="absolute -top-2 -left-2 bg-dark text-primary text-xs font-bold px-2 py-1 rounded-full shadow-md">
-                        Popular
-                      </span>
-                    )}
-                    {pkg.bonus && (
-                      <span className="absolute -top-2 -right-2 bg-dark text-primary text-xs font-bold px-2 py-1 rounded-full shadow-md">
-                        {pkg.bonus}
-                      </span>
-                    )}
-                    <IndianRupee
-                      className={`w-6 h-6 ${
-                        amount === pkg.price ? "text-dark" : "text-primary"
-                      }`}
-                    />
-                    <span className="font-bold text-xl">₹{pkg.price}</span>
-                    <span className="text-xs opacity-90">{pkg.coins} Coins</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <button
+            onClick={() => setShowTransactions(!showTransactions)}
+            className="btn-ghost px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2"
+          >
+            <History className="w-4 h-4" />
+            Transaction History
+          </button>
+        </div>
 
-            <div>
-              <label className="block text-lightPrimary font-semibold mb-3 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-lightPrimary" />
-                Custom Amount
-              </label>
-              <div className="relative">
-                <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark" />
-                <input
-                  type="number"
-                  min="200"
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full border-2 border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800 font-medium text-lg bg-white"
-                  placeholder="Enter amount"
-                />
-              </div>
-              <p className="text-xs text-dark mt-2 flex items-center gap-1">
-                <Coins className="w-3 h-3" />
-                {amount >= 5000 && "₹1 = 1.2 Coins (20% Bonus) • "}
-                {amount < 5000 && "₹1 = 1 Coin • "}
-                Minimum recharge: ₹200
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-gray-800 font-semibold mb-3 flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-dark" />
-                GST Number (Optional)
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={gstNumber}
-                  onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800 font-medium text-lg bg-white"
-                  placeholder="Enter your GSTIN"
-                  maxLength="15"
-                />
-              </div>
-            </div>
-            {/* Payment Breakdown */}
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <FileText className="w-5 h-5 text-dark" />
-                <h3 className="font-bold text-dark">Payment Breakdown</h3>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Left Side - Benefits */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-black rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+              {/* Background Decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl -mr-16 -mt-16" />
               
-              <div className="space-y-3">
-                <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                  <span className="text-dark">Base Amount</span>
-                  <span className="font-semibold text-dark">₹{amount.toFixed(2)}</span>
+              <div className="relative z-10">
+                <div className="w-14 h-14 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/20 mb-6">
+                  <Wallet className="w-7 h-7 text-black" />
                 </div>
-                
-                <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                  <span className="text-gray-600">GST (18%)</span>
-                  <span className="font-semibold text-dark">₹{gstAmount}</span>
-                </div>
-                
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-lg font-bold text-gray-800">Total Amount</span>
-                  <span className="text-2xl font-bold bg-primary bg-clip-text text-dark">
-                    ₹{totalAmount}
-                  </span>
-                </div>
+                <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2" style={{ fontFamily: "var(--font-heading)" }}>Wallet Benefits</h2>
+                <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mb-8">Maximize Your Growth Potential</p>
 
-                <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 font-medium">You'll Receive</span>
-                    <div className="flex items-center gap-2">
-                      <Coins className="w-5 h-5 text-gray-600" />
-                      <span className="text-xl font-bold text-dark">{coins} Coins</span>
+                <div className="space-y-6">
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      <Zap className="w-4 h-4 text-yellow-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider mb-1">Instant Activation</h3>
+                      <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Coins are credited to your secure vault immediately after verification.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      <Shield className="w-4 h-4 text-yellow-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider mb-1">Secure Protocol</h3>
+                      <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Enterprise-grade encryption powered by Razorpay's security stack.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      <TrendingUp className="w-4 h-4 text-yellow-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider mb-1">Scale Rewards</h3>
+                      <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Unlock up to 20% bonus coins on strategic high-volume recharges.</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={handleRecharge}
-              disabled={loading}
-              className={`w-full flex justify-center items-center gap-3 py-4 rounded-2xl shadow-lg font-bold text-dark text-lg transition-all ${
-                loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-lightPrimary  hover:shadow-xl hover:scale-105"
-              }`}
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Processing Payment...</span>
-                </>
-              ) : (
-                <>
-                  <IndianRupee className="w-6 h-6" />
-                  <span>Pay ₹{totalAmount}</span>
-                  <ArrowRight className="w-6 h-6" />
-                </>
-              )}
-            </button>
+            {/* Support Tooltip */}
+            <div className="bg-yellow-400/5 border border-yellow-400/10 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <Info className="w-4 h-4 text-yellow-600" />
+                <h4 className="text-[10px] font-black text-yellow-800 uppercase tracking-widest">Need Assistance?</h4>
+              </div>
+              <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                Facing issues with your payment? Our technical team is available 24/7 to resolve any wallet concerns.
+              </p>
+            </div>
+          </div>
 
-            <p className="text-xs text-center text-gray-500">
-              By proceeding, you agree to our terms and conditions
-            </p>
+          {/* Right Side - Recharge Engine */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white border border-black/5 rounded-3xl p-6 sm:p-10 shadow-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-slate-50 rounded-lg border border-black/5">
+                  <Sparkles className="w-5 h-5 text-yellow-500" />
+                </div>
+                <h2 className="text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>Select Power-Up</h2>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 mb-10">
+                {presetAmounts.map((pkg, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setAmount(pkg.price)}
+                    className={`relative border-2 rounded-2xl p-5 flex flex-col items-center gap-3 transition-all duration-300 ${
+                      amount === pkg.price
+                        ? "border-black bg-black text-yellow-400 shadow-xl shadow-black/10 scale-105"
+                        : "border-slate-100 bg-white text-slate-400 hover:border-yellow-400 hover:text-black"
+                    }`}
+                  >
+                    {pkg.popular && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-[0.2em] shadow-lg whitespace-nowrap">
+                        Most Popular
+                      </span>
+                    )}
+                    {pkg.bonus && (
+                      <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap border-2 border-white">
+                        {pkg.bonus}
+                      </span>
+                    )}
+                    <IndianRupee className="w-5 h-5" />
+                    <span className="font-black text-xl leading-none">₹{pkg.price}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{pkg.coins} Coins</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Custom Amount (₹)</label>
+                  <div className="relative">
+                   
+                    <input
+                      type="number"
+                      min="200"
+                      value={amount}
+                      onChange={(e) => setAmount(Number(e.target.value))}
+                      className="input w-full pl-12 py-4 text-lg font-black"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Info className="w-3 h-3" />
+                    Min: ₹200 • {amount >= 5000 ? "20% Bonus Active" : "1:1 Ratio"}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GSTIN (Optional)</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={gstNumber}
+                      onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                      className="input w-full pl-12 py-4 text-base font-bold uppercase tracking-widest"
+                      placeholder="ENTER GST NUMBER"
+                      maxLength="15"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              <div className="bg-slate-50 border border-black/5 rounded-3xl p-6 sm:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <FileText className="w-4 h-4 text-black" />
+                  <h3 className="text-sm font-black text-black uppercase tracking-widest">Order Summary</h3>
+                </div>
+                
+                <div className="space-y-4 mb-8">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-500">
+                    <span>Base Credits</span>
+                    <span className="text-black">₹{amount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-400">
+                    <span>GST (18%)</span>
+                    <span className="text-black">₹{gstAmount}</span>
+                  </div>
+                  <div className="pt-4 border-t border-black/5 flex justify-between items-center">
+                    <span className="text-sm font-black text-black uppercase tracking-widest">Total Payable</span>
+                    <span className="text-3xl font-black text-black">₹{totalAmount}</span>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-black/5 rounded-2xl p-4 flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-400/10 rounded-xl flex items-center justify-center">
+                      <Coins className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vault Deposit</p>
+                      <p className="text-lg font-black text-black">{coins} <span className="text-[10px] opacity-40">COINS</span></p>
+                    </div>
+                  </div>
+                  {amount >= 5000 && (
+                     <div className="bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                       <p className="text-[8px] font-black text-green-600 uppercase tracking-widest">Bonus Applied</p>
+                     </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleRecharge}
+                  disabled={loading}
+                  className="btn-lemon w-full py-5 rounded-2xl text-base uppercase font-black tracking-widest shadow-xl hover:scale-[1.02] disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Initializing Payment...
+                    </>
+                  ) : (
+                    <>
+                      Recharge Wallet Now ↗
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Transaction History Modal */}
       {showTransactions && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden animate-scale-in">
-            <div className="bg-lightPrimary p-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-dark rounded-xl flex items-center justify-center shadow-md">
-                  <History className="w-5 h-5 text-lightPrimary" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col border border-black/5 animate-scaleUp">
+            <div className="bg-black p-6 sm:p-8 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/20">
+                  <History className="w-6 h-6 text-black" />
                 </div>
-                <h2 className="text-2xl font-bold text-dark">Transaction History </h2>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>Vault Logs</h2>
+                  <p className="text-[9px] font-bold text-yellow-400 uppercase tracking-widest">Transaction History</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowTransactions(false)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2.5 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white"
               >
-                <X className="w-6 h-6 text-dark" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-6">
-              <div className="flex gap-2 mb-4">
+            <div className="p-6 sm:p-10 flex-1 flex flex-col min-h-0 bg-slate-50/30">
+              <div className="flex gap-2 mb-6 p-1 bg-white border border-black/5 rounded-xl shrink-0">
                 {["all", "credit", "debit"].map((type) => (
                   <button
                     key={type}
                     onClick={() => setFilterType(type)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 py-2 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                       filterType === type
-                        ? "bg-dark text-lightPrimary shadow-md"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        ? "bg-black text-yellow-400 shadow-lg"
+                        : "text-slate-400 hover:text-black hover:bg-slate-50"
                     }`}
                   >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type}
                   </button>
                 ))}
               </div>
 
-              <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 overflow-y-auto custom-scroll space-y-3 pr-2">
                 {loadingTx ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                    <Loader2 className="w-10 h-10 animate-spin text-black mb-4" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Reading Vault Records...</p>
                   </div>
                 ) : filteredTransactions.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 font-medium">No transactions found</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Your transaction history will appear here
-                    </p>
+                  <div className="text-center py-20">
+                    <div className="w-16 h-16 bg-white border border-black/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Receipt className="w-8 h-8 text-slate-200" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No logs found in this sector</p>
                   </div>
                 ) : (
                   filteredTransactions?.map((tx, index) => {
-                    
                     const isCredit = tx.type === "credit" || tx.type === "add";
                     return (
                       <div
                         key={tx._id || index}
-                        className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all animate-fade-in"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                        className="bg-white border border-black/5 rounded-2xl p-5 hover:border-yellow-400/30 transition-all group"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0">
                             <div
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                isCredit ? "bg-green-50" : "bg-red-50"
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isCredit ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
                               }`}
                             >
                               {isCredit ? (
-                                <ArrowUpCircle className="w-5 h-5 text-green-600" />
+                                <ArrowUpCircle className="w-5 h-5" />
                               ) : (
-                                <ArrowDownCircle className="w-5 h-5 text-red-600" />
+                                <ArrowDownCircle className="w-5 h-5" />
                               )}
                             </div>
-                            <div>
-                              <p className="font-semibold text-gray-800">
-                                {tx.description || (isCredit ? tx.reason : tx.reason)}
+                            <div className="min-w-0">
+                              <p className="font-black text-black text-xs uppercase tracking-tight truncate">
+                                {tx.description || tx.reason || "Wallet Operation"}
                               </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                <Calendar className="w-3 h-3" />
-                                <span>{formatDate(tx?.createdAt || tx?.date)}</span>
-                                <Clock className="w-3 h-3 ml-1" />
-                                <span>{formatTime(tx?.createdAt || tx?.date)}</span>
+                              <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>{formatDate(tx?.createdAt || tx?.date)}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                  <Clock className="w-3 h-3" />
+                                  <span>{formatTime(tx?.createdAt || tx?.date)}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p
-                              className={`font-bold text-lg ${
-                                isCredit ? "text-green-600" : "text-red-600"
-                              }`}
-                            >
+                          <div className="text-right shrink-0">
+                            <p className={`font-black text-base leading-none mb-1 ${isCredit ? "text-green-600" : "text-red-600"}`}>
                               {isCredit ? "+" : "-"}₹{tx.amount}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {tx.coins || tx.amount} Coins
+                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                              {tx.coins || tx.amount} COINS
                             </p>
                           </div>
                         </div>
@@ -592,86 +588,35 @@ const formatTime = (dateString) => {
 
       {/* Success Modal */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center w-full max-w-md animate-scale-in">
-            <div className="w-20 h-20 bg-lightPrimary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce-in">
-              <CheckCircle className="w-12 h-12 text-white" />
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fadeIn">
+          <div className="bg-white rounded-[2.5rem] p-10 text-center w-full max-w-md shadow-2xl border border-black/5 animate-scaleUp">
+            <div className="w-24 h-24 bg-yellow-400 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-yellow-400/20">
+              <CheckCircle className="w-12 h-12 text-black" />
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">
-              Payment Successful! 🎉
-            </h2>
+            <h2 className="text-2xl font-black text-black uppercase tracking-tighter mb-2" style={{ fontFamily: "var(--font-heading)" }}>Payment Successful</h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-10">Vault Balance Synchronized</p>
 
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6">
-              <p className="text-dark mb-2">Total Paid</p>
-              <p className="text-3xl font-bold bg-lightPrimary bg-clip-text text-transparent">
+            <div className="bg-slate-50 border border-black/5 rounded-3xl p-8 mb-10">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Credits Added</p>
+              <p className="text-4xl font-black text-black mb-4">
                 ₹{totalAmount}
               </p>
-              <div className="flex items-center justify-center gap-2 mt-3 text-dark">
+              <div className="flex items-center justify-center gap-3 text-yellow-600">
                 <Coins className="w-5 h-5" />
-                <span className="font-semibold">{coins} Coins Added</span>
+                <span className="text-lg font-black">{coins} COINS</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-dark text-sm">
-              <div className="w-2 h-2 bg-lightPrimary rounded-full animate-pulse"></div>
-              Transaction recorded successfully
-            </div>
+            <button 
+              onClick={() => router.push("/dashboard")}
+              className="btn-lemon w-full py-4 rounded-xl text-xs uppercase font-black tracking-widest"
+            >
+              Enter Dashboard ↗
+            </button>
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animate-blob-delay-2 {
-          animation: blob 7s infinite 2s;
-        }
-        .animate-blob-delay-4 {
-          animation: blob 7s infinite 4s;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { transform: scale(0.8); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes bounceIn {
-          from { transform: scale(0); }
-          to { transform: scale(1); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out;
-        }
-        .animate-scale-in {
-          animation: scaleIn 0.4s ease-out;
-        }
-        .animate-bounce-in {
-          animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #6366f1, #a855f7);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #4f46e5, #9333ea);
-        }
-      `}</style>
     </div>
   );
 }

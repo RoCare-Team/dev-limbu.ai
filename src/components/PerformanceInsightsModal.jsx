@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { X, Download, Calendar, AlertCircle, RefreshCw } from "lucide-react";
+import { X, Download, Calendar, AlertCircle, RefreshCw, BarChart3 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import PerformanceInsightsReport from "./PerformanceInsightsReport";
 import { generatePerformanceInsightsPDF } from "@/lib/performancePdfGenerator";
@@ -33,15 +33,35 @@ const PerformanceInsightsModal = ({
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const [hasAutoSavedThisSession, setHasAutoSavedThisSession] = useState(false);
   const autoRefreshIntervalRef = useRef(null);
-  const [localStartDate, setLocalStartDate] = useState(
-    dateRange?.startDate ? new Date(dateRange.startDate) : (() => {
-      const date = new Date();
-      date.setDate(1); // First day of current month
-      return date;
-    })()
-  );
-  const [localEndDate, setLocalEndDate] = useState(dateRange?.endDate ? new Date(dateRange.endDate) : new Date());
+  const [localStartDate, setLocalStartDate] = useState(new Date());
+  const [localEndDate, setLocalEndDate] = useState(new Date());
   const [reportMode, setReportMode] = useState("1month"); // "1month" or "6months"
+
+  // Helper to safely format date for input[type="date"]
+  const formatDateForInput = (date) => {
+    try {
+      if (!date || isNaN(new Date(date).getTime())) {
+        return new Date().toISOString().split("T")[0];
+      }
+      return new Date(date).toISOString().split("T")[0];
+    } catch (e) {
+      return new Date().toISOString().split("T")[0];
+    }
+  };
+
+  // Sync local state with props when modal opens or dateRange changes
+  useEffect(() => {
+    if (isOpen && dateRange) {
+      if (dateRange.startDate) {
+        const d = new Date(dateRange.startDate);
+        if (!isNaN(d.getTime())) setLocalStartDate(d);
+      }
+      if (dateRange.endDate) {
+        const d = new Date(dateRange.endDate);
+        if (!isNaN(d.getTime())) setLocalEndDate(d);
+      }
+    }
+  }, [isOpen, dateRange]);
 
   // Monitor displayData changes
   useEffect(() => {
@@ -427,305 +447,129 @@ const PerformanceInsightsModal = ({
   const currentEndDate = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
 
   return !isOpen ? null : (
-    <div className="fixed inset-0 bg-white bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-8 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-5xl w-full my-8 flex flex-col max-h-[92vh] overflow-hidden border border-black/5 animate-scaleUp">
         {/* Header */}
-<div
-  className="text-white flex justify-between items-center border-b"
-  style={{
-    backgroundColor: "#2563eb",
-    borderColor: "#1e40af",
-    padding: "20px"
-  }}
->        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              📊
+        <div className="bg-black text-white px-6 sm:px-8 py-6 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/20">
+              <BarChart3 className="text-black w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{businessName}</h2>
-              <p className="text-blue-100 text-sm">{locationName}</p>
+              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+                {businessName}
+              </h2>
+              <p className="text-yellow-400 text-xs font-bold uppercase tracking-widest opacity-80">{locationName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-full transition-all duration-300"
           >
             <X size={24} />
           </button>
         </div>
 
         {/* Controls */}
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid #e5e7eb", backgroundColor: "#ffffff" }}>
-          {/* Filter Section Header */}
-          <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Report Options</p>
-          
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="px-6 py-4 border-b border-black/5 bg-slate-50 flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowDatePicker(!showDatePicker)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                background: "#ffffff",
-                border: "2px solid #e5e7eb",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#374151",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#3b82f6";
-                e.currentTarget.style.backgroundColor = "#eff6ff";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#e5e7eb";
-                e.currentTarget.style.backgroundColor = "#ffffff";
-              }}
+              className="btn-ghost btn-sm gap-2"
             >
-              📅 Change Date Range
+              <Calendar size={14} className="text-yellow-500" />
+              <span>Custom Range</span>
             </button>
 
             <button
               onClick={handleLast1Month}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                background: reportMode === "1month" ? "#eff6ff" : "#ffffff",
-                border: `2px solid ${reportMode === "1month" ? "#3b82f6" : "#e5e7eb"}`,
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                color: reportMode === "1month" ? "#1d4ed8" : "#374151",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (reportMode !== "1month") {
-                  e.currentTarget.style.borderColor = "#93c5fd";
-                  e.currentTarget.style.backgroundColor = "#f0f9ff";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (reportMode !== "1month") {
-                  e.currentTarget.style.borderColor = "#e5e7eb";
-                  e.currentTarget.style.backgroundColor = "#ffffff";
-                }
-              }}
+              className={`btn-sm rounded-xl px-4 py-2 font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${reportMode === "1month" ? "bg-black text-yellow-400" : "bg-white text-slate-400 border border-black/5 hover:border-yellow-400"}`}
             >
-              📊 Last 1 Month
+              1 Month Report
             </button>
 
             <button
               onClick={handleLast6Months}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                background: reportMode === "6months" ? "#fff7ed" : "#ffffff",
-                border: `2px solid ${reportMode === "6months" ? "#f97316" : "#e5e7eb"}`,
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                color: reportMode === "6months" ? "#c2410c" : "#374151",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (reportMode !== "6months") {
-                  e.currentTarget.style.borderColor = "#fed7aa";
-                  e.currentTarget.style.backgroundColor = "#fef3c7";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (reportMode !== "6months") {
-                  e.currentTarget.style.borderColor = "#e5e7eb";
-                  e.currentTarget.style.backgroundColor = "#ffffff";
-                }
-              }}
+              className={`btn-sm rounded-xl px-4 py-2 font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${reportMode === "6months" ? "bg-black text-yellow-400" : "bg-white text-slate-400 border border-black/5 hover:border-yellow-400"}`}
             >
-              📈 6 Month Report
+              6 Month Report
             </button>
 
-            <div style={{ borderLeft: "1px solid #e5e7eb", height: 20, margin: "0 6px" }} />
+            <div className="h-6 w-[1px] bg-black/10 mx-2 hidden sm:block" />
 
             <button
               onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                background: autoRefreshEnabled ? "#f0fdf4" : "#ffffff",
-                border: `2px solid ${autoRefreshEnabled ? "#16a34a" : "#e5e7eb"}`,
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                color: autoRefreshEnabled ? "#15803d" : "#374151",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (!autoRefreshEnabled) {
-                  e.currentTarget.style.borderColor = "#86efac";
-                  e.currentTarget.style.backgroundColor = "#f0fdf4";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!autoRefreshEnabled) {
-                  e.currentTarget.style.borderColor = "#e5e7eb";
-                  e.currentTarget.style.backgroundColor = "#ffffff";
-                }
-              }}
+              className={`btn-sm rounded-xl px-4 py-2 font-black uppercase tracking-widest text-[10px] transition-all duration-300 flex items-center gap-2 ${autoRefreshEnabled ? "bg-green-500 text-white" : "bg-white text-slate-400 border border-black/5 hover:border-yellow-400"}`}
             >
               {autoRefreshEnabled ? (
                 <>
-                  <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
-                  Auto-Refresh ON
+                  <RefreshCw size={14} className="animate-spin" />
+                  Auto-Sync ON
                 </>
               ) : (
                 <>
                   <RefreshCw size={14} />
-                  Auto-Refresh
+                  Auto-Sync
                 </>
               )}
             </button>
+          </div>
 
-            <button
-              onClick={() => {
-                handleRefreshData();
-                toast.success("✓ Data refreshed!", { id: "manual-refresh" });
-              }}
-              disabled={lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                background: "#ffffff",
-                border: "2px solid #3b82f6",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#1d4ed8",
-                cursor: lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000 ? "not-allowed" : "pointer",
-                opacity: lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000 ? 0.5 : 1,
-                transition: "all 0.3s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (!(lastUpdated && (Date.now() - lastUpdated.getTime()) < 2000)) {
-                  e.currentTarget.style.backgroundColor = "#eff6ff";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#ffffff";
-              }}
-            >
-              <RefreshCw size={14} />
-              Refresh Now
-            </button>
-
+          <div className="ml-auto flex items-center gap-3">
             <button
               onClick={handleDownloadPDF}
               disabled={loading || isDownloading || !displayData}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                background: "#2563eb",
-                border: "2px solid transparent",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#ffffff",
-                cursor: loading || isDownloading || !displayData ? "not-allowed" : "pointer",
-                opacity: loading || isDownloading || !displayData ? 0.5 : 1,
-                transition: "all 0.3s ease",
-                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
-              }}
-              onMouseEnter={(e) => {
-                if (!(loading || isDownloading || !displayData)) {
-                  e.currentTarget.style.background = "#1d4ed8";
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.4)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#2563eb";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.3)";
-              }}
+              className="btn-lemon px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest gap-2 shadow-xl hover:scale-[1.02]"
             >
               {isDownloading ? (
-                <CircularProgress size={14} sx={{ color: "white" }} />
+                <CircularProgress size={14} sx={{ color: "black" }} />
               ) : (
                 <Download size={14} />
               )}
-              {isDownloading ? "Generating..." : "Download PDF"}
+              {isDownloading ? "Generating..." : "Download Report ↗"}
             </button>
-
-            {lastUpdated && (
-              <div style={{
-                marginLeft: "auto",
-                fontSize: 11,
-                background: "#eff6ff",
-                color: "#1d4ed8",
-                padding: "8px 12px",
-                borderRadius: 8,
-                fontWeight: 600,
-                border: "1px solid #bfdbfe",
-              }}>
-                ✓ Updated: {lastUpdated.toLocaleTimeString()}
-              </div>
-            )}
           </div>
         </div>
 
         {/* Date Range Picker */}
         {showDatePicker && (
-          <div className="px-6 py-4 border-b border-gray-200" style={{ backgroundColor: "#eff6ff" }}>
-            <h3 className="font-bold text-gray-800 mb-4">Select Date Range</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="px-8 py-6 border-b border-black/5 bg-yellow-400/5 animate-slideDown">
+            <h3 className="text-xs font-black text-black uppercase tracking-[0.2em] mb-4">Select Custom Date Range</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                   Start Date
                 </label>
                 <input
                   type="date"
                   value={localStartDate.toISOString().split("T")[0]}
                   onChange={(e) => setLocalStartDate(new Date(e.target.value))}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="input w-full"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                   End Date
                 </label>
                 <input
                   type="date"
                   value={localEndDate.toISOString().split("T")[0]}
                   onChange={(e) => setLocalEndDate(new Date(e.target.value))}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="input w-full"
                 />
               </div>
 
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-3">
                 <button
                   onClick={handleApplyDateRange}
-                  className="flex-1 px-4 py-2 text-white rounded-lg transition font-medium"
-                  style={{ backgroundColor: "#2563eb" }}
+                  className="btn-lemon flex-1 py-3.5 rounded-xl text-[10px] uppercase font-black"
                 >
-                  Apply
+                  Apply Filter
                 </button>
                 <button
                   onClick={handleResetDateRange}
-                  className="flex-1 px-4 py-2 text-gray-700 rounded-lg transition font-medium"
-                  style={{ backgroundColor: "#d1d5db" }}
+                  className="btn-ghost flex-1 py-3.5 rounded-xl text-[10px] uppercase font-black"
                 >
                   Reset
                 </button>
@@ -735,28 +579,28 @@ const PerformanceInsightsModal = ({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 p-4">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-8 custom-scroll">
           {loading || isSaving ? (
-            <div className="h-full flex items-center justify-center min-h-96">
-              <div className="text-center bg-white p-8 rounded-xl shadow-lg">
-                <CircularProgress size={60} sx={{ color: "#2563eb", marginBottom: "16px" }} />
-                <p className="text-gray-600 font-medium">
-                  {isSaving ? "Saving to database..." : "Loading performance insights..."}
+            <div className="h-full flex items-center justify-center min-h-[400px]">
+              <div className="text-center bg-white p-12 rounded-[2rem] shadow-xl border border-black/5">
+                <CircularProgress size={50} thickness={4} sx={{ color: "#eab308", marginBottom: "24px" }} />
+                <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                  {isSaving ? "Saving Report..." : "Generating Insights..."}
                 </p>
               </div>
             </div>
           ) : !displayData ? (
-            <div className="h-full flex items-center justify-center min-h-96">
-              <div className="text-center bg-white p-8 rounded-xl border-2 border-yellow-300 max-w-md shadow-lg">
-                <AlertCircle className="mx-auto mb-4 text-yellow-600" size={48} />
-                <p className="text-gray-700 font-semibold">No insights data available</p>
-                <p className="text-gray-500 text-sm mt-2">
-                  Please select a valid date range and try again
+            <div className="h-full flex items-center justify-center min-h-[400px]">
+              <div className="text-center bg-white p-12 rounded-[2rem] border border-black/5 max-w-md shadow-lg">
+                <AlertCircle className="mx-auto mb-6 text-yellow-500" size={48} />
+                <h3 className="text-black font-black uppercase tracking-tight mb-2">No Data Found</h3>
+                <p className="text-slate-400 font-bold text-sm">
+                  Please select a valid date range and try again.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-black/5">
               <PerformanceInsightsReport
                 ref={reportRef}
                 insightsData={displayData.insightsData}

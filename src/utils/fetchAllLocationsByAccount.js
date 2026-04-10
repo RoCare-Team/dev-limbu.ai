@@ -20,7 +20,7 @@ export async function fetchAllLocationsByAccount(accessToken, accountId) {
         );
 
       const data = await res.json();
-      console.log("pagesLocations", data);
+      console.log("Fetch Locations Response:", data);
 
       if (data.locations && data.locations.length > 0) {
         allLocations = [...allLocations, ...data.locations];

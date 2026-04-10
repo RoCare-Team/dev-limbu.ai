@@ -35,8 +35,8 @@ async function fetchGMBImages(accountId, locationId, accessToken) {
     });
 
     const mediaData = await mediaRes.json();
-    console.log("mediaDatamediaData",mediaData);
-    
+    console.log("mediaDatamediaData", mediaData);
+
 
     if (!mediaRes.ok) {
       console.warn("Media fetch failed:", mediaData);

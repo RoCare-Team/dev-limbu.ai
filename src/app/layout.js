@@ -4,7 +4,6 @@ import SessionProviderWrapper from "./providers/SessionProviderWrapper";
 import Script from "next/script";
 import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
-import { headers } from "next/headers";
 import InitAuth from "@/components/InitAuth";
 
 const inter = Inter({
@@ -42,32 +41,9 @@ export const metadata = {
     "google-site-verification":
       "zll2ej9beWSYpmxgi_jEum9kGdOTL5ftMV8NdbXJfN0",
   },
-
-  
 };
 
-function isTenantSubdomainHost(host) {
-  if (!host) return false;
-  const h = host.split(":")[0].toLowerCase();
-  return (
-    h.endsWith(".limbu.ai") &&
-    h !== "limbu.ai" &&
-    h !== "www.limbu.ai" &&
-    h !== "crm.limbu.ai"
-  );
-}
-
-export default async function RootLayout({ children }) {
-  const headersList = await headers();
-  const forwarded = headersList.get("x-forwarded-host");
-  const host =
-    forwarded?.split(",")[0]?.trim()?.split(":")[0] ||
-    headersList.get("host")?.split(":")[0] ||
-    "";
-  const isSubdomainSite =
-    headersList.get("x-is-subdomain-site") === "1" ||
-    isTenantSubdomainHost(host);
-
+export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <head>
@@ -127,8 +103,9 @@ export default async function RootLayout({ children }) {
         <SessionProviderWrapper>
           <InitAuth />
 
+          {/* 🔥 Single source of truth for auth */}
           <ClientLayout>
-            {isSubdomainSite ? children : <AuthGuard>{children}</AuthGuard>}
+            <AuthGuard>{children}</AuthGuard>
           </ClientLayout>
         </SessionProviderWrapper>
       </body>

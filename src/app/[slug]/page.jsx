@@ -26,7 +26,11 @@ async function getSiteData(slug) {
     let googleImages = [];
     const business = site.business || {};
 
-    if (business?.accountId && business?.locationId && site?.googleAccessToken) {
+    if (
+      business?.accountId &&
+      business?.locationId &&
+      site?.googleAccessToken
+    ) {
       try {
         const mediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${business.accountId}/locations/${business.locationId}/media`;
         const res = await fetch(mediaUrl, {
@@ -59,7 +63,10 @@ export async function generateMetadata({ params }) {
   const p = await params;
   const site = await getSiteData(p?.slug);
   if (!site)
-    return { title: "Business Website", description: "Professional business website" };
+    return {
+      title: "Business Website",
+      description: "Professional business website",
+    };
   return {
     title: site?.aiContent?.meta?.title || site?.business?.title,
     description: site?.aiContent?.meta?.description || "Business website",
@@ -74,8 +81,7 @@ export default async function SitePage({ params }) {
   const slug = p?.slug;
 
   const siteData = await getSiteData(slug);
-  if (!siteData)
-    return <div className="p-20 text-center">Site Not Found</div>;
+  if (!siteData) return <div className="p-20 text-center">Site Not Found</div>;
 
   const business = siteData.business || {};
   const aiContent = siteData.aiContent || {};
@@ -93,8 +99,12 @@ export default async function SitePage({ params }) {
   const navItems = [
     { label: "Home", href: "#home" },
     ...(aiContent?.about?.content ? [{ label: "About", href: "#about" }] : []),
-    ...(aiContent?.services?.length > 0 ? [{ label: "Services", href: "#services" }] : []),
-    ...(mediaImages.length >= 1 ? [{ label: "Gallery", href: "#gallery" }] : []),
+    ...(aiContent?.services?.length > 0
+      ? [{ label: "Services", href: "#services" }]
+      : []),
+    ...(mediaImages.length >= 1
+      ? [{ label: "Gallery", href: "#gallery" }]
+      : []),
     { label: "Contact", href: "#contact" },
   ];
 
@@ -103,7 +113,6 @@ export default async function SitePage({ params }) {
 
   return (
     <div className="font-sans text-gray-800 min-h-screen bg-white">
-
       {/* ── NavBar (client component) ── */}
       <NavBar
         logo={business?.logoUrl}
@@ -203,7 +212,10 @@ export default async function SitePage({ params }) {
           ABOUT SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {aiContent?.about?.content && (
-        <section id="about" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
+        <section
+          id="about"
+          className="py-32 px-6 bg-gradient-to-b from-white to-gray-50"
+        >
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <div className="inline-block">
@@ -231,7 +243,10 @@ export default async function SitePage({ params }) {
           SERVICES SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {aiContent.services?.length > 0 && (
-        <section id="services" className="py-32 px-6 bg-gradient-to-br from-gray-50 to-blue-50">
+        <section
+          id="services"
+          className="py-32 px-6 bg-gradient-to-br from-gray-50 to-blue-50"
+        >
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20">
               <span
@@ -244,7 +259,8 @@ export default async function SitePage({ params }) {
                 Our Services
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Discover our comprehensive range of professional services designed to meet your needs
+                Discover our comprehensive range of professional services
+                designed to meet your needs
               </p>
             </div>
 
@@ -260,7 +276,9 @@ export default async function SitePage({ params }) {
                     {/* Gradient accent bar */}
                     <div
                       className="h-1.5 w-full"
-                      style={{ background: `linear-gradient(to right, ${accent}, #818cf8)` }}
+                      style={{
+                        background: `linear-gradient(to right, ${accent}, #818cf8)`,
+                      }}
                     />
                     {/* Content */}
                     <div className="p-7 flex-1 flex flex-col">
@@ -284,7 +302,10 @@ export default async function SitePage({ params }) {
           — only shown if images exist (> 3), shows max 8
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {galleryImages.length >= 1 && (
-        <section id="gallery" className="py-32 px-6 bg-gradient-to-b from-gray-50 to-white">
+        <section
+          id="gallery"
+          className="py-32 px-6 bg-gradient-to-b from-gray-50 to-white"
+        >
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="text-center mb-16">
@@ -294,17 +315,30 @@ export default async function SitePage({ params }) {
               >
                 Our Work
               </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Gallery</h2>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Gallery
+              </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Take a look at our projects and the quality of work we deliver
               </p>
               {/* Image count badge */}
               <div className="mt-6 inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-2 shadow-sm">
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <svg
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
                 <span className="text-sm font-medium text-gray-600">
-                  {galleryImages.length} Photo{galleryImages.length !== 1 ? "s" : ""}
+                  {galleryImages.length} Photo
+                  {galleryImages.length !== 1 ? "s" : ""}
                 </span>
               </div>
             </div>
@@ -319,21 +353,28 @@ export default async function SitePage({ params }) {
                     className="w-full h-96 object-cover transform group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8">
-                    <span className="text-white font-semibold text-lg">View Image</span>
+                    <span className="text-white font-semibold text-lg">
+                      View Image
+                    </span>
                   </div>
                 </div>
               </div>
             ) : galleryImages.length === 2 ? (
               <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
                 {galleryImages.map((image, index) => (
-                  <div key={index} className="relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <div
+                    key={index}
+                    className="relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl hover:shadow-2xl transition-all duration-300"
+                  >
                     <img
                       src={image}
                       alt={`Gallery ${index + 1}`}
                       className="w-full h-72 object-cover transform group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-blue-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-6">
-                      <span className="text-white font-semibold">View Image</span>
+                      <span className="text-white font-semibold">
+                        View Image
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -403,7 +444,10 @@ export default async function SitePage({ params }) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           CONTACT FORM SECTION
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section id="contact" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
+      <section
+        id="contact"
+        className="py-32 px-6 bg-gradient-to-b from-white to-gray-50"
+      >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span
@@ -416,7 +460,8 @@ export default async function SitePage({ params }) {
               Request a Free Quote
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Fill out the form below and we'll get back to you as soon as possible
+              Fill out the form below and we'll get back to you as soon as
+              possible
             </p>
           </div>
 
@@ -446,7 +491,8 @@ export default async function SitePage({ params }) {
                     </div>
                   )}
 
-                  {(business?.storefrontAddress?.addressLines?.[0] || business?.address) && (
+                  {(business?.storefrontAddress?.addressLines?.[0] ||
+                    business?.address) && (
                     <div className="flex items-start gap-4">
                       <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
                         <MapPin className="w-6 h-6" />
@@ -454,7 +500,8 @@ export default async function SitePage({ params }) {
                       <div>
                         <p className="font-semibold mb-1">Address</p>
                         <p className="text-blue-100">
-                          {business.storefrontAddress?.addressLines?.[0] || business.address}
+                          {business.storefrontAddress?.addressLines?.[0] ||
+                            business.address}
                           {business.locality && `, ${business.locality}`}
                         </p>
                       </div>
@@ -469,7 +516,9 @@ export default async function SitePage({ params }) {
                       <div>
                         <p className="font-semibold mb-1">WhatsApp</p>
                         <a
-                          href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
+                          href={getWhatsAppLink(
+                            business.phoneNumbers.primaryPhone,
+                          )}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-100 hover:text-white transition"
@@ -486,7 +535,9 @@ export default async function SitePage({ params }) {
                   <div className="flex gap-4">
                     {business?.phoneNumbers?.primaryPhone && (
                       <a
-                        href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
+                        href={getWhatsAppLink(
+                          business.phoneNumbers.primaryPhone,
+                        )}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-white/20 hover:bg-white/30 p-3 rounded-xl backdrop-blur-sm transition"
@@ -508,7 +559,10 @@ export default async function SitePage({ params }) {
                 target="_blank"
               >
                 <div>
-                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
                     Full Name *
                   </label>
                   <input
@@ -523,7 +577,10 @@ export default async function SitePage({ params }) {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label
+                      htmlFor="phone"
+                      className="block text-sm font-semibold text-gray-700 mb-2"
+                    >
                       Phone Number *
                     </label>
                     <input
@@ -536,7 +593,10 @@ export default async function SitePage({ params }) {
                     />
                   </div>
                   <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-semibold text-gray-700 mb-2"
+                    >
                       Email
                     </label>
                     <input
@@ -550,7 +610,10 @@ export default async function SitePage({ params }) {
                 </div>
 
                 <div>
-                  <label htmlFor="service" className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label
+                    htmlFor="service"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
                     Service Required
                   </label>
                   <select
@@ -569,7 +632,10 @@ export default async function SitePage({ params }) {
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label
+                    htmlFor="message"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
                     Message
                   </label>
                   <textarea
@@ -626,7 +692,8 @@ export default async function SitePage({ params }) {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {(business?.storefrontAddress?.addressLines?.[0] || business?.address) && (
+            {(business?.storefrontAddress?.addressLines?.[0] ||
+              business?.address) && (
               <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl border border-white/20 hover:bg-white/15 transition-all shadow-xl">
                 <div className="flex items-start gap-4">
                   <div className="bg-blue-500 p-4 rounded-xl">
@@ -635,7 +702,8 @@ export default async function SitePage({ params }) {
                   <div className="flex-1">
                     <h3 className="text-xl font-bold mb-2">Visit Us</h3>
                     <p className="text-gray-300 leading-relaxed">
-                      {business.storefrontAddress?.addressLines?.[0] || business.address}
+                      {business.storefrontAddress?.addressLines?.[0] ||
+                        business.address}
                       {business.locality && `, ${business.locality}`}
                     </p>
                   </div>
@@ -695,14 +763,18 @@ export default async function SitePage({ params }) {
             <div className="text-center md:text-left">
               <p className="text-gray-400">
                 © {new Date().getFullYear()}{" "}
-                <span className="text-white font-semibold">{business.title}</span>. All rights
-                reserved.
+                <span className="text-white font-semibold">
+                  {business.title}
+                </span>
+                . All rights reserved.
               </p>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-gray-500 text-sm">Powered by Limbu AI</span>
               <div className="h-4 w-px bg-gray-700" />
-              <span className="text-gray-500 text-sm">Professional Website</span>
+              <span className="text-gray-500 text-sm">
+                Professional Website
+              </span>
             </div>
           </div>
         </div>

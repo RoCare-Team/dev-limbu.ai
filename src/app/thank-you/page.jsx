@@ -10,6 +10,8 @@ import {
   Phone,
   ArrowRight,
   Sparkles,
+  ArrowLeft,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -21,157 +23,142 @@ function ThankYouContent() {
 
   const name = searchParams.get("name") || "Guest";
   const date = searchParams.get("date") || new Date().toDateString();
-  const phone = searchParams.get("phone") || "Registered Number";
+  const phone = searchParams.get("phone") || "Registered Node";
 
   return (
-    <>
+    <div className="relative w-full overflow-hidden m-0 p-0" style={{ backgroundColor: "var(--background)" }}>
       <Navbar />
 
-      <div className="min-h-screen flex items-start sm:items-center justify-center bg-[#050505] text-white font-sans py-16 sm:py-20">
-        {/* Background Glow */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-[#FDE047]/5 blur-[120px] rounded-full" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-[#FDE047]/5 blur-[120px] rounded-full" />
+      {/* ── Subtle background grid ── */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+          backgroundSize: "40px 40px"
+        }}
+      />
+
+      {/* ── Ambient glows ── */}
+      <div
+        className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] z-0 opacity-10"
+        style={{
+          background: "radial-gradient(ellipse at top right, var(--lemon-glow) 0%, transparent 65%)",
+        }}
+      />
+
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-16 sm:py-24 flex flex-col items-center">
+        
+        {/* Success Icon */}
+        <div className="mb-6 relative group">
+          <div className="absolute inset-0 bg-lemon-glow/20 blur-2xl rounded-full animate-pulse group-hover:bg-lemon-glow/40 transition-all" />
+          <div className="relative bg-black p-5 rounded-[1.5rem] shadow-xl border border-black/10">
+            <CheckCircle className="w-10 h-10 text-lemon-glow" />
+          </div>
+          <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-lemon-hover animate-bounce" />
         </div>
 
-        {/* Main Container */}
-        <div className="relative z-10 w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-          {/* Icon */}
-          <div className="mb-4 relative">
-            <div className="absolute inset-0 bg-[#FDE047] blur-2xl opacity-20 animate-pulse"></div>
-            <CheckCircle className="w-14 h-14 sm:w-16 sm:h-16 text-[#FDE047] relative z-10" />
-          </div>
-
-          {/* Heading */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-3 tracking-tight text-center">
-            Thank <span className="text-[#FDE047]">You!</span>
+        {/* Heading */}
+        <div className="text-center mb-16">
+          <h1 
+            className="font-black text-3xl uppercase tracking-tight text-black mb-3" 
+            style={{ fontFamily: "var(--font-heading)"}}
+          >
+            Thank You <span className="text-lemon-hover">For Registration</span>
           </h1>
+          <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Your slot is synchronized • One final step remaining</p>
+        </div>
 
-          <p className="text-sm sm:text-base text-white/50 mb-8 uppercase tracking-widest text-center">
-            You are all set for the AI Masterclass
-          </p>
-
-          {/* Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-            {/* LEFT: Details */}
-            <div className="bg-[#0F0F0F] border border-white/10 rounded-3xl p-5 sm:p-6 md:p-8 shadow-2xl">
-              <h2 className="text-[#FDE047] text-xs sm:text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" /> Your Booking Details
-              </h2>
-
-              <div className="space-y-6">
-                {/* Name */}
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] sm:text-xs text-white/30 uppercase font-semibold tracking-wide">
-                      Attendee
-                    </p>
-                    <p className="text-base sm:text-lg font-semibold">{name}</p>
-                  </div>
+        {/* Main Grid - Community Focused */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-stretch">
+          
+          {/* LEFT: Community CTA (PRIMARY FOCUS) */}
+          <div className="lg:col-span-7 flex flex-col">
+            <div className="bg-black rounded-[3rem] p-10 sm:p-14 shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex-1 border border-lemon-glow/30 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-lemon-glow/10 rounded-full blur-[100px] -mr-32 -mt-32 transition-all group-hover:bg-lemon-glow/20" />
+              
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full bg-lemon-glow/10 border border-lemon-glow/20">
+                  <span className="w-2 h-2 rounded-full bg-lemon-hover animate-ping" />
+                  <span className="text-[10px] font-black uppercase text-lemon-glow tracking-widest">Action Required</span>
                 </div>
 
-                {/* Phone */}
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] sm:text-xs text-white/30 uppercase font-semibold tracking-wide">
-                      Contact
-                    </p>
-                    <p className="text-base sm:text-lg font-semibold">
-                      {phone}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Date */}
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FDE047]/10 rounded-xl flex items-center justify-center border border-[#FDE047]/20">
-                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#FDE047]" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] sm:text-xs text-[#FDE047]/50 uppercase font-semibold tracking-wide">
-                      Date
-                    </p>
-                    <p className="text-base sm:text-lg font-semibold">{date}</p>
-                  </div>
-                </div>
-
-                {/* Time */}
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FDE047]/10 rounded-xl flex items-center justify-center border border-[#FDE047]/20">
-                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#FDE047]" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] sm:text-xs text-[#FDE047]/50 uppercase font-semibold tracking-wide">
-                      Time
-                    </p>
-                    <p className="text-base sm:text-lg font-semibold">
-                      04:00 PM (IST)
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT: CTA */}
-            <div className="flex flex-col gap-6">
-              <div className="bg-[#0F0F0F] border border-white/10 rounded-3xl p-5 sm:p-6 md:p-8 flex-1">
-                <h2 className="text-lg sm:text-xl font-bold mb-3">
-                  Final Step: Join the Community
+                <h2 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight mb-6 leading-none" style={{ fontFamily: "var(--font-heading)" }}>
+                  Join Our <br/> <span className="text-lemon-glow">VIP Community</span>
                 </h2>
 
-                <p className="text-sm sm:text-base text-white/50 mb-6 leading-relaxed">
-                  Thank you for choosing{" "}
-                  <span className="text-white font-semibold">Limbu AI</span> 🙌{" "}
-                  <br />
-                  We’ll share your{" "}
-                  <span className="text-white font-semibold">
-                    Google Meet link
-                  </span>{" "}
-                  along with exclusive{" "}
-                  <span className="text-white font-semibold">
-                    AI prompts & tips
-                  </span>{" "}
-                  inside our WhatsApp community. <br />
-                  <br />
-                  Make sure to join so you don’t miss any updates 🚀
+                <p className="text-sm sm:text-base text-slate-400 font-medium leading-relaxed mb-10 max-w-md">
+                  We'll transmit your <span className="text-white">Live Webinar Link</span>, exclusive <span className="text-lemon-glow">AI Prompts</span>, and automation tips inside our verified WhatsApp community.
                 </p>
 
-                <a
-                  href="https://chat.whatsapp.com/Dk8wZjTMxQL4CT8MrhxUgD"
-                  target="_blank"
-                  className="group w-full py-3 sm:py-4 text-sm sm:text-base bg-[#25D366] text-white rounded-2xl font-bold uppercase tracking-wide flex items-center justify-center gap-3 hover:scale-[1.02] transition-all"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Join Community
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                </a>
+                <div className="space-y-4">
+                  <a
+                    href="https://chat.whatsapp.com/Dk8wZjTMxQL4CT8MrhxUgD"
+                    target="_blank"
+                    className="group w-full py-5 bg-lemon-glow text-black rounded-[1.5rem] font-black text-xs sm:text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white hover:scale-[1.02] transition-all shadow-2xl"
+                  >
+                    <MessageCircle className="w-6 h-6" />
+                    Enter WhatsApp Community ↗
+                  </a>
+                  <p className="text-center text-[10px] text-slate-500 font-black uppercase tracking-widest">Verified access for registered nodes only</p>
+                </div>
               </div>
-
-              <Link
-                href="/"
-                className="py-4 sm:py-5 bg-white/5 border border-white/10 rounded-2xl text-center font-semibold hover:bg-white/10 transition uppercase tracking-wide text-xs sm:text-sm"
-              >
-                Back to Home
-              </Link>
             </div>
+          </div>
+
+          {/* RIGHT: Deployment Details */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-white border border-black/5 rounded-[2.5rem] p-8 sm:p-10 shadow-xl relative overflow-hidden h-full flex flex-col justify-center">
+               <div className="absolute top-0 left-0 w-full h-1 bg-slate-100" />
+               
+               <h2 className="text-[11px] font-black text-black uppercase tracking-widest mb-8 flex items-center gap-3">
+                 <div className="p-1.5 bg-slate-50 rounded-lg border border-black/5 text-slate-400"><Users className="w-4 h-4" /></div>
+                 Registry Status
+               </h2>
+
+               <div className="space-y-6">
+                  <DetailRow icon={<User/>} label="Identity" value={name} />
+                  <DetailRow icon={<Phone/>} label="Uplink" value={phone} />
+                  <DetailRow icon={<Calendar/>} label="Sync" value={date} themed />
+                  <DetailRow icon={<Clock/>} label="Window" value="04:00 PM IST" themed />
+               </div>
+            </div>
+
+            <Link
+              href="/"
+              className="py-5 bg-white border border-black/5 rounded-[1.5rem] text-center font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" /> Return to Dashboard
+            </Link>
           </div>
         </div>
       </div>
 
       <FooterSection />
-    </>
+    </div>
   );
 }
 
+function DetailRow({ icon, label, value, themed }) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center border shrink-0 ${themed ? 'bg-lemon-glow/10 border-lemon-glow/20 text-lemon-hover' : 'bg-slate-50 border-black/5 text-black'}`}>
+        {cloneElement(icon, { size: 18 })}
+      </div>
+      <div>
+        <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${themed ? 'text-lemon-hover/60' : 'text-slate-400'}`}>
+          {label}
+        </p>
+        <p className="text-sm font-black text-black tracking-tight">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+import { cloneElement } from "react";
+
 export default function ThankYouPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#050505]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
       <ThankYouContent />
     </Suspense>
   );

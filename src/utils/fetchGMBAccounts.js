@@ -5,6 +5,8 @@ export async function fetchGMBAccounts(accessToken) {
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
+    console.log("Fetch Accounts Response Status in Fetch GMB Accounts:", res);
+
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`Failed to fetch accounts: ${res.status} ${errText}`);

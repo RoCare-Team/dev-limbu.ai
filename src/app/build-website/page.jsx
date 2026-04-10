@@ -6,9 +6,9 @@ import GoLiveButton from "@/components/GoLiveButton";
 import { Edit, Save, Plus, Trash2, Loader2, X, ArrowLeft, Phone, MapPin, Mail, Clock, MessageCircle, Rocket } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-// ✅ Consistent Slug Generator
-const createSlug = (title = "", locality = "", address = "") => {
-  return [title, locality, address]
+// ✅ Consistent Slug Generator (business name + locality only)
+const createSlug = (title = "", locality = "") => {
+  return [title, locality]
     .filter(Boolean)
     .join("-")
     .toLowerCase()
@@ -38,6 +38,7 @@ export default function BuildWebsitePage() {
     name: 'Ocean Blue'
   });
   const { data: session } = useSession();
+  const [userId, setUserId] = useState(null);
 
   // Predefined Color Themes
   const colorThemes = [
@@ -94,8 +95,13 @@ export default function BuildWebsitePage() {
   // ✅ Load Locations from localStorage
   useEffect(() => {
     const stored = localStorage.getItem("locationDetails");
+    const storedUserId = localStorage.getItem("userId");
 
     if (!stored) {
+      // Still set userId even if no locations found
+      if (storedUserId) {
+        setUserId(storedUserId);
+      }
       return;
     }
 
@@ -108,6 +114,10 @@ export default function BuildWebsitePage() {
       }
     } catch (e) {
       console.error("Failed to parse locations", e);
+    }
+
+    if (storedUserId) {
+      setUserId(storedUserId);
     }
   }, []);
 
@@ -150,12 +160,15 @@ export default function BuildWebsitePage() {
   // ✅ Save Site Data
   const handleSave = async () => {
     if (!business || !aiContent) return;
+    if (!userId) {
+      setError("User ID missing. Please log in again.");
+      return;
+    }
     setIsSaving(true);
     try {
       let slugToSave = currentSlug;
       if (!slugToSave) {
-        const address = business.address || business.storefrontAddress?.addressLines?.[0] || "";
-        slugToSave = createSlug(business.title, business.locality, address);
+        slugToSave = createSlug(business.title, business.locality);
       }
 
       const res = await fetch("/api/save-site", {
@@ -166,7 +179,7 @@ export default function BuildWebsitePage() {
           business,
           aiContent,
           mediaImages,
-          userId: session?.user?.email,
+          userId,
           locationId: selectedLocation?.locationId,
         }),
       });
@@ -219,6 +232,10 @@ export default function BuildWebsitePage() {
   // ✅ Generate Website
   const handleGenerate = async () => {
     if (!selectedLocation) return;
+    if (!userId) {
+      setError("User ID missing. Please log in again.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -230,13 +247,10 @@ export default function BuildWebsitePage() {
         session?.user?.token ||
         null;
 
-      const locality =
-        selectedLocation.storefrontAddress?.locality?.trim() || "";
-
-      const address =
-        selectedLocation.storefrontAddress?.addressLines?.[0]?.trim() || "";
-
-      const slugToUse = createSlug(selectedLocation.title, selectedLocation.locality, address);
+      const slugToUse = createSlug(
+        selectedLocation.title,
+        selectedLocation.locality
+      );
 
       console.log("Generated slug:", slugToUse);
 
@@ -350,7 +364,7 @@ export default function BuildWebsitePage() {
             business: businessData,
             aiContent: aiData.content,
             mediaImages: images,
-            userId: session?.user?.email,
+            userId,
             locationId: selectedLocation?.locationId,
           }),
         });

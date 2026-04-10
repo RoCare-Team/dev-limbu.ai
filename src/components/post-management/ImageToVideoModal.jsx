@@ -678,7 +678,7 @@ export default function ImageToVideoModal({
             type="button"
             onClick={handleGenerate}
             disabled={loading || uploadingToCloudinary}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-2.5 text-sm shadow-md disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-900 font-semibold px-6 py-2.5 text-sm shadow-md disabled:opacity-60 disabled:cursor-not-allowed transition-all"
           >
             {loading ? (
               <>

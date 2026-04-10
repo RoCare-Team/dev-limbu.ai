@@ -121,11 +121,12 @@ export default function InsightsModal({
   }, [insights]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-2 sm:p-4 animate-fadeIn mt-10 sm:mt-14">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-2 sm:p-4 animate-fadeIn mt-10 sm:mt-14">
       <div
         id="insights-modal-content"
         className="
-      bg-white rounded-2xl shadow-2xl 
+      bg-[#0e0e0e]/95 backdrop-blur-xl rounded-2xl shadow-[0_0_50px_rgba(253,224,71,0.1)] 
+      border border-white/10
       w-full max-w-5xl 
       max-h-[92vh] 
       flex flex-col 
@@ -135,7 +136,7 @@ export default function InsightsModal({
         {/* HEADER */}
         <div
           className="
-        bg-gradient-to-r from-yellow-500 to-purple-600 text-white 
+        bg-black/40 border-b border-white/10
         px-4 sm:px-6 py-4 
         flex justify-between items-center 
         rounded-t-2xl 
@@ -143,19 +144,21 @@ export default function InsightsModal({
       "
         >
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
+            <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-[#FDE047]" />
             <div>
-              <h2 className="text-lg sm:text-xl font-bold">
-                Performance Insightss
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Performance Insights
               </h2>
-              <p className="text-xs sm:text-sm text-blue-100">{listingTitle}</p>
+              <p className="text-xs sm:text-sm text-slate-400 font-medium">
+                {listingTitle}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="hover:bg-white/20 p-2 rounded-lg transition"
+              className="text-slate-400 hover:text-[#FDE047] hover:bg-white/5 p-2 rounded-lg transition-all duration-300"
             >
               <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
@@ -165,26 +168,25 @@ export default function InsightsModal({
         {/* BODY */}
         <div
           id="insights-scroll-container"
-          className="p-4 sm:p-6 overflow-y-auto flex-1"
+          className="p-4 sm:p-6 overflow-y-auto flex-1 custom-scroll"
         >
           {/* DATE RANGE */}
           <div
             className="
-            bg-gradient-to-br from-blue-50 to-purple-50 
-            border-2 border-blue-200 rounded-xl 
+            bg-white/5 border border-white/10 rounded-xl 
             p-4 sm:p-5 mb-6
           "
           >
             <div className="flex items-center gap-2 sm:gap-3 mb-4">
-              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-              <h3 className="text-base sm:text-lg font-bold text-gray-900">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#FDE047]" />
+              <h3 className="text-base sm:text-lg font-bold text-white tracking-wide uppercase">
                 Select Date Range
               </h3>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-bold text-slate-400 mb-2 uppercase tracking-widest">
                   Start Date
                 </label>
                 <input
@@ -196,15 +198,16 @@ export default function InsightsModal({
                   max={formatDate(endDate)}
                   className="
                 w-full px-3 py-2 sm:px-4 sm:py-2 
-                border-2 border-blue-300 
+                bg-black/50 text-white
+                border border-white/20 
                 rounded-lg 
-                focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                focus:ring-2 focus:ring-[#FDE047]/50 focus:border-[#FDE047] transition-all
               "
                 />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-bold text-slate-400 mb-2 uppercase tracking-widest">
                   End Date
                 </label>
                 <input
@@ -217,15 +220,16 @@ export default function InsightsModal({
                   max={formatDate(new Date())}
                   className="
                 w-full px-3 py-2 sm:px-4 sm:py-2 
-                border-2 border-blue-300 
+                bg-black/50 text-white
+                border border-white/20 
                 rounded-lg 
-                focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                focus:ring-2 focus:ring-[#FDE047]/50 focus:border-[#FDE047] transition-all
               "
                 />
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+            <div className="mt-4 flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
               <AlertCircle className="w-4 h-4" />
               <span>Showing data for {getDaysDifference()} days</span>
             </div>
@@ -237,9 +241,9 @@ export default function InsightsModal({
               <CircularProgress
                 size={50}
                 thickness={4}
-                sx={{ color: "#3b82f6" }}
+                sx={{ color: "#FDE047" }}
               />
-              <p className="text-gray-600 mt-4 font-semibold">
+              <p className="text-[#FDE047] mt-4 font-bold uppercase tracking-widest animate-pulse text-xs">
                 Loading insights...
               </p>
             </div>
@@ -250,25 +254,30 @@ export default function InsightsModal({
                 {/* TOTAL IMPRESSIONS */}
                 <div
                   className="
-                bg-gradient-to-br from-purple-50 to-purple-100 
-                border-2 border-purple-200 rounded-xl 
-                p-4 sm:p-5 hover:shadow-lg transition
+                bg-white/5 border border-white/10 rounded-xl 
+                p-4 sm:p-5 hover:border-[#FDE047]/30 transition-all duration-300 group
               "
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-purple-600 p-3 rounded-lg">
-                      <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className="bg-white/5 p-3 rounded-lg border border-white/10 group-hover:bg-[#FDE047]/10 group-hover:border-[#FDE047]/20 transition-all">
+                      <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:text-[#FDE047]" />
                     </div>
-                    <span className="text-2xl sm:text-3xl font-bold text-purple-700">
+                    <span
+                      className="text-2xl sm:text-3xl font-bold text-white"
+                      style={{
+                        fontFamily: "Anton, sans-serif",
+                        tracking: "wider",
+                      }}
+                    >
                       {totalImpressions.toLocaleString()}
                     </span>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-widest">
                     Total Impressions
                   </h3>
 
-                  <div className="flex gap-2 text-xs text-gray-600">
+                  <div className="flex gap-2 text-xs text-slate-500 font-medium">
                     <span>Maps: {totalMapsImpressions.toLocaleString()}</span>
                     <span>•</span>
                     <span>
@@ -280,25 +289,30 @@ export default function InsightsModal({
                 {/* WEBSITE CLICKS */}
                 <div
                   className="
-                bg-gradient-to-br from-blue-50 to-blue-100 
-                border-2 border-blue-200 rounded-xl 
-                p-4 sm:p-5 hover:shadow-lg transition
+                bg-white/5 border border-white/10 rounded-xl 
+                p-4 sm:p-5 hover:border-[#FDE047]/30 transition-all duration-300 group
               "
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-blue-600 p-3 rounded-lg">
-                      <MousePointer className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className="bg-white/5 p-3 rounded-lg border border-white/10 group-hover:bg-[#FDE047]/10 group-hover:border-[#FDE047]/20 transition-all">
+                      <MousePointer className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:text-[#FDE047]" />
                     </div>
-                    <span className="text-2xl sm:text-3xl font-bold text-blue-700">
+                    <span
+                      className="text-2xl sm:text-3xl font-bold text-white"
+                      style={{
+                        fontFamily: "Anton, sans-serif",
+                        tracking: "wider",
+                      }}
+                    >
                       {totalWebsiteClicks.toLocaleString()}
                     </span>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-widest">
                     Website Clicks
                   </h3>
 
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-slate-500 font-medium">
                     Users visited your website
                   </p>
                 </div>
@@ -306,49 +320,61 @@ export default function InsightsModal({
                 {/* CALL CLICKS */}
                 <div
                   className="
-                bg-gradient-to-br from-green-50 to-green-100 
-                border-2 border-green-200 rounded-xl 
-                p-4 sm:p-5 hover:shadow-lg transition
+                bg-white/5 border border-white/10 rounded-xl 
+                p-4 sm:p-5 hover:border-[#FDE047]/30 transition-all duration-300 group
               "
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-green-600 p-3 rounded-lg">
-                      <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className="bg-white/5 p-3 rounded-lg border border-white/10 group-hover:bg-[#FDE047]/10 group-hover:border-[#FDE047]/20 transition-all">
+                      <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:text-[#FDE047]" />
                     </div>
-                    <span className="text-2xl sm:text-3xl font-bold text-green-700">
+                    <span
+                      className="text-2xl sm:text-3xl font-bold text-white"
+                      style={{
+                        fontFamily: "Anton, sans-serif",
+                        tracking: "wider",
+                      }}
+                    >
                       {totalCalls.toLocaleString()}
                     </span>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-widest">
                     Call Clicks
                   </h3>
 
-                  <p className="text-xs text-gray-600">Users clicked to call</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Users clicked to call
+                  </p>
                 </div>
 
                 {/* DIRECTIONS */}
                 <div
                   className="
-                bg-gradient-to-br from-orange-50 to-orange-100 
-                border-2 border-orange-200 rounded-xl 
-                p-4 sm:p-5 hover:shadow-lg transition
+                bg-white/5 border border-white/10 rounded-xl 
+                p-4 sm:p-5 hover:border-[#FDE047]/30 transition-all duration-300 group
               "
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-orange-600 p-3 rounded-lg">
-                      <Navigation className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className="bg-white/5 p-3 rounded-lg border border-white/10 group-hover:bg-[#FDE047]/10 group-hover:border-[#FDE047]/20 transition-all">
+                      <Navigation className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:text-[#FDE047]" />
                     </div>
-                    <span className="text-2xl sm:text-3xl font-bold text-orange-700">
+                    <span
+                      className="text-2xl sm:text-3xl font-bold text-white"
+                      style={{
+                        fontFamily: "Anton, sans-serif",
+                        tracking: "wider",
+                      }}
+                    >
                       {totalDirections.toLocaleString()}
                     </span>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-widest">
                     Direction Requests
                   </h3>
 
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-slate-500 font-medium">
                     Users requested directions
                   </p>
                 </div>
@@ -357,9 +383,9 @@ export default function InsightsModal({
               {/* CHARTS SECTION */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 {/* Visibility Chart */}
-                <div className="bg-white border-2 border-gray-100 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-purple-600" />
+                <div className="bg-black/30 border border-white/10 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-wide">
+                    <Eye className="w-4 h-4 text-[#FDE047]" />
                     Visibility Trends
                   </h3>
                   <div className="h-64 w-full">
@@ -375,12 +401,12 @@ export default function InsightsModal({
                           >
                             <stop
                               offset="5%"
-                              stopColor="#9333ea"
-                              stopOpacity={0.1}
+                              stopColor="#FDE047"
+                              stopOpacity={0.2}
                             />
                             <stop
                               offset="95%"
-                              stopColor="#9333ea"
+                              stopColor="#FDE047"
                               stopOpacity={0}
                             />
                           </linearGradient>
@@ -393,12 +419,12 @@ export default function InsightsModal({
                           >
                             <stop
                               offset="5%"
-                              stopColor="#3b82f6"
+                              stopColor="#ffffff"
                               stopOpacity={0.1}
                             />
                             <stop
                               offset="95%"
-                              stopColor="#3b82f6"
+                              stopColor="#ffffff"
                               stopOpacity={0}
                             />
                           </linearGradient>
@@ -406,17 +432,17 @@ export default function InsightsModal({
                         <CartesianGrid
                           strokeDasharray="3 3"
                           vertical={false}
-                          stroke="#f0f0f0"
+                          stroke="rgba(255,255,255,0.05)"
                         />
                         <XAxis
                           dataKey="displayDate"
-                          tick={{ fontSize: 10, fill: "#9ca3af" }}
+                          tick={{ fontSize: 10, fill: "#94a3b8" }}
                           tickLine={false}
                           axisLine={false}
                           minTickGap={30}
                         />
                         <YAxis
-                          tick={{ fontSize: 10, fill: "#9ca3af" }}
+                          tick={{ fontSize: 10, fill: "#94a3b8" }}
                           tickLine={false}
                           axisLine={false}
                           tickFormatter={(value) =>
@@ -428,21 +454,24 @@ export default function InsightsModal({
                         <Tooltip
                           contentStyle={{
                             borderRadius: "8px",
-                            border: "none",
-                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            backgroundColor: "rgba(14,14,14,0.9)",
+                            color: "#fff",
+                            backdropFilter: "blur(10px)",
                           }}
-                          itemStyle={{ fontSize: "12px" }}
+                          itemStyle={{ fontSize: "12px", color: "#fff" }}
                         />
                         <Legend
                           wrapperStyle={{
                             fontSize: "12px",
                             paddingTop: "10px",
+                            color: "#cbd5e1",
                           }}
                         />
                         <Area
                           type="monotone"
                           dataKey="Maps"
-                          stroke="#9333ea"
+                          stroke="#FDE047"
                           fillOpacity={1}
                           fill="url(#colorMaps)"
                           name="Maps Views"
@@ -450,7 +479,7 @@ export default function InsightsModal({
                         <Area
                           type="monotone"
                           dataKey="Search"
-                          stroke="#3b82f6"
+                          stroke="#ffffff"
                           fillOpacity={1}
                           fill="url(#colorSearch)"
                           name="Search Views"
@@ -461,9 +490,9 @@ export default function InsightsModal({
                 </div>
 
                 {/* Engagement Chart */}
-                <div className="bg-white border-2 border-gray-100 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                    <MousePointer className="w-4 h-4 text-blue-600" />
+                <div className="bg-black/30 border border-white/10 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-wide">
+                    <MousePointer className="w-4 h-4 text-[#FDE047]" />
                     Engagement Trends
                   </h3>
                   <div className="h-64 w-full">
@@ -472,38 +501,41 @@ export default function InsightsModal({
                         <CartesianGrid
                           strokeDasharray="3 3"
                           vertical={false}
-                          stroke="#f0f0f0"
+                          stroke="rgba(255,255,255,0.05)"
                         />
                         <XAxis
                           dataKey="displayDate"
-                          tick={{ fontSize: 10, fill: "#9ca3af" }}
+                          tick={{ fontSize: 10, fill: "#94a3b8" }}
                           tickLine={false}
                           axisLine={false}
                           minTickGap={30}
                         />
                         <YAxis
-                          tick={{ fontSize: 10, fill: "#9ca3af" }}
+                          tick={{ fontSize: 10, fill: "#94a3b8" }}
                           tickLine={false}
                           axisLine={false}
                         />
                         <Tooltip
                           contentStyle={{
                             borderRadius: "8px",
-                            border: "none",
-                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            backgroundColor: "rgba(14,14,14,0.9)",
+                            color: "#fff",
+                            backdropFilter: "blur(10px)",
                           }}
-                          itemStyle={{ fontSize: "12px" }}
+                          itemStyle={{ fontSize: "12px", color: "#fff" }}
                         />
                         <Legend
                           wrapperStyle={{
                             fontSize: "12px",
                             paddingTop: "10px",
+                            color: "#cbd5e1",
                           }}
                         />
                         <Line
                           type="monotone"
                           dataKey="Website"
-                          stroke="#2563eb"
+                          stroke="#3b82f6"
                           strokeWidth={2}
                           dot={false}
                           name="Website Clicks"
@@ -511,7 +543,7 @@ export default function InsightsModal({
                         <Line
                           type="monotone"
                           dataKey="Calls"
-                          stroke="#16a34a"
+                          stroke="#22c55e"
                           strokeWidth={2}
                           dot={false}
                           name="Calls"
@@ -519,7 +551,7 @@ export default function InsightsModal({
                         <Line
                           type="monotone"
                           dataKey="Directions"
-                          stroke="#ea580c"
+                          stroke="#FDE047"
                           strokeWidth={2}
                           dot={false}
                           name="Directions"
@@ -533,28 +565,33 @@ export default function InsightsModal({
               {/* ENGAGEMENT SUMMARY */}
               <div
                 className="
-              bg-gradient-to-br from-indigo-50 to-indigo-100 
-              border-2 border-indigo-200 rounded-xl 
+              bg-white/5 border border-white/10 rounded-xl 
               p-4 sm:p-6 mb-6
             "
               >
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#FDE047]" />
                   Engagement Summary
                 </h3>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-indigo-700">
+                  <div className="text-center bg-black/30 p-4 rounded-xl border border-white/5">
+                    <div
+                      className="text-xl sm:text-2xl font-bold text-white"
+                      style={{ fontFamily: "Anton, sans-serif" }}
+                    >
                       {totalImpressions.toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
                       Total Views
                     </div>
                   </div>
 
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-indigo-700">
+                  <div className="text-center bg-black/30 p-4 rounded-xl border border-white/5">
+                    <div
+                      className="text-xl sm:text-2xl font-bold text-white"
+                      style={{ fontFamily: "Anton, sans-serif" }}
+                    >
                       {totalImpressions > 0
                         ? (
                             ((totalWebsiteClicks +
@@ -565,27 +602,37 @@ export default function InsightsModal({
                           ).toFixed(2) + "%"
                         : "0%"}
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">Click Rate</div>
+                    <div className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
+                      Click Rate
+                    </div>
                   </div>
 
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-indigo-700">
+                  <div className="text-center bg-black/30 p-4 rounded-xl border border-white/5">
+                    <div
+                      className="text-xl sm:text-2xl font-bold text-white"
+                      style={{ fontFamily: "Anton, sans-serif" }}
+                    >
                       {(
                         totalWebsiteClicks +
                         totalCalls +
                         totalDirections
                       ).toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
                       Total Actions
                     </div>
                   </div>
 
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-indigo-700">
+                  <div className="text-center bg-black/30 p-4 rounded-xl border border-white/5">
+                    <div
+                      className="text-xl sm:text-2xl font-bold text-white"
+                      style={{ fontFamily: "Anton, sans-serif" }}
+                    >
                       {getDaysDifference()}
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">Days</div>
+                    <div className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
+                      Days
+                    </div>
                   </div>
                 </div>
               </div>
@@ -593,13 +640,12 @@ export default function InsightsModal({
               {/* KEYWORDS */}
               <div
                 className="
-              bg-gradient-to-br from-cyan-50 to-cyan-100 
-              border-2 border-cyan-200 rounded-xl 
+              bg-white/5 border border-white/10 rounded-xl 
               p-4 sm:p-6 mb-6
             "
               >
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Search className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600" />
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5 text-[#FDE047]" />
                   Top Search Keywords
                 </h3>
 
@@ -608,7 +654,7 @@ export default function InsightsModal({
                     <CircularProgress
                       size={40}
                       thickness={4}
-                      sx={{ color: "#0891b2" }}
+                      sx={{ color: "#FDE047" }}
                     />
                   </div>
                 ) : topKeywords.length > 0 ? (
@@ -622,33 +668,39 @@ export default function InsightsModal({
                       return (
                         <div
                           key={idx}
-                          className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition"
+                          className="bg-black/30 rounded-lg p-4 border border-white/5 hover:border-[#FDE047]/30 transition-all duration-300"
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <span className="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+                              <span className="bg-white/10 text-[#FDE047] w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-[#FDE047]/20">
                                 {idx + 1}
                               </span>
-                              <span className="font-semibold text-gray-900">
+                              <span className="font-bold text-white">
                                 {keyword.searchKeyword}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Hash className="w-4 h-4 text-cyan-600" />
+                              <Hash className="w-4 h-4 text-[#FDE047]" />
                               <div className="flex flex-col items-end">
-                                <span className="text-lg font-bold text-cyan-700">
+                                <span
+                                  className="text-lg font-bold text-white"
+                                  style={{ fontFamily: "Anton, sans-serif" }}
+                                >
                                   {value.toLocaleString()}
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
                                   Impressions
                                 </span>
                               </div>
                             </div>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
                             <div
-                              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${percentage}%` }}
+                              className="bg-[#FDE047] h-1.5 rounded-full transition-all duration-500"
+                              style={{
+                                width: `${percentage}%`,
+                                boxShadow: "0 0 10px rgba(253,224,71,0.5)",
+                              }}
                             ></div>
                           </div>
                         </div>
@@ -657,8 +709,8 @@ export default function InsightsModal({
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600">
+                    <Search className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">
                       No search keyword data available
                     </p>
                   </div>
@@ -667,11 +719,11 @@ export default function InsightsModal({
 
               {/* RECENT DAILY ACTIVITY */}
               {callClicks?.timeSeries?.datedValues && (
-                <div className="bg-white border-2 border-gray-200 rounded-xl p-5">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                  <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wide">
                     Recent Daily Activity
                   </h3>
-                  <div className="max-h-48 overflow-y-auto">
+                  <div className="max-h-48 overflow-y-auto custom-scroll pr-2">
                     <div className="space-y-2">
                       {callClicks.timeSeries.datedValues
                         .slice(-10)
@@ -687,12 +739,12 @@ export default function InsightsModal({
                           return (
                             <div
                               key={idx}
-                              className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                              className="flex justify-between items-center py-2 px-3 bg-black/30 rounded-lg border border-white/5 hover:border-[#FDE047]/20 transition-all"
                             >
-                              <span className="text-sm font-medium text-gray-700">
+                              <span className="text-sm font-bold text-slate-300">
                                 {dateStr}
                               </span>
-                              <span className="text-sm font-bold text-blue-600">
+                              <span className="text-sm font-bold text-[#FDE047]">
                                 {value} calls
                               </span>
                             </div>
@@ -705,11 +757,11 @@ export default function InsightsModal({
             </>
           ) : (
             <div className="text-center py-12">
-              <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
+              <AlertCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">
                 No Insights Available
               </h3>
-              <p className="text-gray-600">
+              <p className="text-slate-500 font-medium">
                 Unable to load performance data for this listing.
               </p>
             </div>

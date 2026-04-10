@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+const MONGO_URI = process.env.MONGODB_URI;
+
 let cached = global.mongoose;
 
 if (!cached) {
@@ -7,27 +9,36 @@ if (!cached) {
 }
 
 export default async function dbConnect() {
-  const MONGO_URI = process.env.MONGODB_URI;
+  console.log("👉 DB CONNECT FUNCTION CALLED");
 
-  // Build time par crash na ho
   if (!MONGO_URI) {
-    console.warn("⚠️ MONGODB_URI not defined. Skipping DB connection.");
-    return null;
+    console.error("❌ MONGODB_URI missing in ENV");
+    throw new Error("MONGODB_URI not defined");
   }
 
-  if (cached.conn) return cached.conn;
+  console.log("🔗 MONGO URI:", MONGO_URI);
+
+  if (cached.conn) {
+    console.log("✅ Using cached DB connection");
+    return cached.conn;
+  }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGO_URI);
+    console.log("⏳ Creating new DB connection...");
+
+    cached.promise = mongoose.connect(MONGO_URI, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 10000, // fast fail
+    });
   }
 
   try {
     cached.conn = await cached.promise;
-  } catch (error) {
-    // Reset so the next request retries instead of replaying a failed promise
+    console.log("✅ MongoDB Connected Successfully");
+  } catch (e) {
+    console.error("❌ MongoDB Connection Error:", e.message);
     cached.promise = null;
-    console.error("MongoDB connection error:", error);
-    throw error;
+    throw e;
   }
 
   return cached.conn;

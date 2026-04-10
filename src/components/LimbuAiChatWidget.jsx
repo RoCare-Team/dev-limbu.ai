@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -124,6 +125,7 @@ function FilePreviewPill({ attachment, onRemove, isUser = false }) {
 }
 
 export default function LimbuAiChatWidget() {
+  const pathname = usePathname();
   const { data: session } = useSession();
   const firstName =
     session?.user?.name?.trim()?.split(/\s+/)[0] ||
@@ -383,6 +385,9 @@ export default function LimbuAiChatWidget() {
     (message.trim().length > 0 || attachments.length > 0) &&
     !isSending &&
     !uploadPhase;
+
+  /* Marketing home only — hide on /admin, /dashboard, etc. */
+  if (pathname !== "/") return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-[1000] font-sans antialiased flex flex-col items-end gap-3">

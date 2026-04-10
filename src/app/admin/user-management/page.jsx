@@ -52,9 +52,12 @@ import {
   MenuItem,
   Paper,
   Select,
+  Stack,
   TableContainer,
   TextField,
+  Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -64,10 +67,10 @@ export default function UserManagement() {
   const [selectedPlan, setSelectedPlan] = useState("");
   const [addingUser, setAddingUser] = useState(false);
   const [newUser, setNewUser] = useState({
-    userId: "",
+    fullName: "",
     email: "",
     phone: "",
-    plan: "Basic",
+    plan: "Free",
   });
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
@@ -165,6 +168,7 @@ const [callStats, setCallStats] = useState(null);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
   const [followUpTableUsers, setFollowUpTableUsers] = useState([]);
   const [loadingFollowUpTable, setLoadingFollowUpTable] = useState(false);
+  const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
   const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
   const [byAgentOpen, setByAgentOpen] = useState(false);
   const [adminFollowUpLeadsOpen, setAdminFollowUpLeadsOpen] = useState(false);
@@ -332,30 +336,6 @@ const [callStats, setCallStats] = useState(null);
       setCurrentPage(1);
     } else {
       fetchUsers();
-    }
-  };
-
-  const handleRefreshMetaLeads = async (manual = false) => {
-    if (manual) setIsRefreshingMetaLeads(true);
-    try {
-      const res = await fetch("/api/meta-leads-import?formId=1393275835835157");
-      const data = await res.json();
-      if (data.success) {
-        if (manual) {
-          showToast("Meta Leads refreshed successfully!", "success");
-          fetchUsers();
-        } else if (data.stats?.inserted > 0) {
-          fetchUsers(true);
-        }
-      } else {
-        if (manual)
-          showToast(data.error || "Failed to refresh Meta Leads", "error");
-      }
-    } catch (error) {
-      console.error("Error refreshing Meta Leads:", error);
-      if (manual) showToast("Error refreshing Meta Leads", "error");
-    } finally {
-      if (manual) setIsRefreshingMetaLeads(false);
     }
   };
 
@@ -776,16 +756,6 @@ const [callStats, setCallStats] = useState(null);
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
-    handleRefreshMetaLeads(false);
-
-    const interval = setInterval(() => {
-      handleRefreshMetaLeads(false);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     fetchChatStats();
     fetchIssues();
     fetchTodayUsersCount();
@@ -1018,7 +988,100 @@ const [callStats, setCallStats] = useState(null);
     }
   };
 
-  
+  const scrollToLeadsTable = () => {
+    document.getElementById("admin-leads-table-section")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const handleRefreshLeadsList = async (opts = { manual: false }) => {
+    const { manual } = opts;
+    if (manual) setIsRefreshingMetaLeads(true);
+    try {
+      await fetchUsers(true);
+      await fetchTodayUsersCount();
+      const adminEmail = localStorage.getItem("email");
+      const r = localStorage.getItem("role") || role;
+      if (
+        adminEmail &&
+        ["superAdmin", "admin", "agent", "manager"].includes(r)
+      ) {
+        const [callRes, followUpRes] = await Promise.all([
+          fetch(
+            `/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`,
+          ),
+          fetch(
+            `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`,
+          ),
+        ]);
+        const callData = await callRes.json();
+        const followUpData = await followUpRes.json();
+        if (callData.success) setCallStats(callData.stats);
+        if (followUpData.success) {
+          setFollowUpLeads(followUpData.stats.leads || []);
+          setFollowUpStats((prev) => ({ ...prev, ...followUpData.stats }));
+        }
+      }
+      await fetchAgentStats();
+      if (manual) showToast("Leads refreshed", "success");
+    } catch (error) {
+      console.error("Error refreshing leads list:", error);
+      if (manual) showToast("Failed to refresh leads", "error");
+    } finally {
+      if (manual) setIsRefreshingMetaLeads(false);
+    }
+  };
+
+  const handleRefreshMetaLeads = async (manual = false) => {
+    const r = localStorage.getItem("role") || role;
+    const canMetaImport = r === "superAdmin" || r === "admin";
+
+    if (!canMetaImport) {
+      if (manual) await handleRefreshLeadsList({ manual: true });
+      return;
+    }
+
+    if (manual) setIsRefreshingMetaLeads(true);
+    try {
+      const email = localStorage.getItem("email");
+      if (!email) {
+        if (manual) showToast("Not logged in", "error");
+        return;
+      }
+      const res = await fetch(
+        `/api/meta-leads-import?formId=1393275835835157&email=${encodeURIComponent(email)}`,
+      );
+      const data = await res.json();
+      if (data.success) {
+        if (manual) {
+          showToast("Meta Leads refreshed successfully!", "success");
+          await fetchUsers(true);
+          await fetchAgentStats();
+          await fetchTodayUsersCount();
+        } else if (data.stats?.inserted > 0) {
+          await fetchUsers(true);
+        }
+      } else {
+        if (manual)
+          showToast(data.error || "Failed to refresh Meta Leads", "error");
+      }
+    } catch (error) {
+      console.error("Error refreshing Meta Leads:", error);
+      if (manual) showToast("Error refreshing Meta Leads", "error");
+    } finally {
+      if (manual) setIsRefreshingMetaLeads(false);
+    }
+  };
+
+  useEffect(() => {
+    if (role !== "superAdmin" && role !== "admin") return;
+    handleRefreshMetaLeads(false);
+    const interval = setInterval(() => {
+      handleRefreshMetaLeads(false);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [role]);
 
   const handleResolveIssue = async (id) => {
     try {
@@ -2064,23 +2127,44 @@ const handleVoiceCall = async (phone) => {
         </div>
       )}
 
-      <div className="max-w-[98vw] mx-auto">
+      <div className="w-full min-w-0 max-w-full mx-auto">
 
         {/* ── Agent Performance Dashboard ──────────────────────────────── */}
         {isAgent && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 space-y-3">
 
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
                   <Phone className="text-indigo-600" size={16} />
                 </div>
                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">My Performance</h3>
               </div>
-              <span className="text-xs text-gray-400">
-                {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={scrollToLeadsTable}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors"
+                >
+                  Leads
+                </button>
+                <button
+                  type="button"
+                  disabled={isRefreshingMetaLeads}
+                  onClick={() => handleRefreshMetaLeads(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60 transition-colors"
+                >
+                  <RefreshCw
+                    size={14}
+                    className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                  />
+                  Refresh
+                </button>
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </div>
             </div>
 
             {/* ── Row 1: Leads & Calls ── */}
@@ -2230,7 +2314,12 @@ const handleVoiceCall = async (phone) => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "2fr repeat(4, minmax(0, 1fr)) auto" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
+                xl: "minmax(220px, 2fr) auto repeat(4, minmax(0, 1fr))",
+              },
               gap: 1.5,
               alignItems: "center",
             }}
@@ -2376,17 +2465,131 @@ const handleVoiceCall = async (phone) => {
           </Box>
         </Paper>
 
-        <Paper elevation={0} sx={{ border: "1px solid #dbe1ea", borderRadius: "16px", overflow: "hidden", backgroundColor: "#fff" }}>
+        <Paper
+          id="admin-leads-table-section"
+          elevation={0}
+          sx={{
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: "16px",
+            overflow: "hidden",
+            maxWidth: "100%",
+            minWidth: 0,
+            bgcolor: "background.paper",
+            boxShadow: (theme) =>
+              theme.palette.mode === "dark"
+                ? "0 1px 0 rgba(255,255,255,0.06) inset"
+                : "0 1px 3px rgba(15, 23, 42, 0.06)",
+          }}
+        >
+          {(role === "superAdmin" ||
+            role === "admin" ||
+            role === "superfranchiseAdmin") && (
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                px: { xs: 2, sm: 2.5 },
+                py: { xs: 1.75, sm: 2 },
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                background: (theme) =>
+                  `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 800,
+                    letterSpacing: "-0.02em",
+                    color: "text.primary",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Leads
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                  Manage records and sync from Meta
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Button
+                  variant="contained"
+                  onClick={() => setAddingUser(true)}
+                  startIcon={<Plus size={18} strokeWidth={2.5} />}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 2,
+                    px: 2.5,
+                    py: 1,
+                    boxShadow: (theme) => `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
+                    background: (theme) =>
+                      `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                    "&:hover": {
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                      boxShadow: (theme) => `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
+                    },
+                  }}
+                >
+                  Add Lead
+                </Button>
+                <Button
+                  variant="outlined"
+                  disabled={isRefreshingMetaLeads}
+                  onClick={() => handleRefreshMetaLeads(true)}
+                  startIcon={
+                    <RefreshCw
+                      size={16}
+                      className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                    />
+                  }
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 2,
+                    px: 2.25,
+                    py: 1,
+                    borderWidth: 2,
+                    borderColor: "primary.main",
+                    color: "primary.main",
+                    "&:hover": {
+                      borderWidth: 2,
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                      borderColor: "primary.dark",
+                    },
+                    "&.Mui-disabled": {
+                      borderWidth: 2,
+                    },
+                  }}
+                >
+                  Refresh
+                </Button>
+              </Stack>
+            </Box>
+          )}
           <TableContainer
             sx={{
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
               maxHeight: { xs: "60vh", md: "72vh" },
-              "&::-webkit-scrollbar": { height: 8, width: 8 },
-              "&::-webkit-scrollbar-thumb": { backgroundColor: "#9ca3af", borderRadius: 99 },
+              overflow: "auto",
+              WebkitOverflowScrolling: "touch",
+              "&::-webkit-scrollbar": { height: 10, width: 10 },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#9ca3af",
+                borderRadius: 99,
+              },
             }}
           >
-          <div className="overflow-x-auto pb-1">
-            <table className="min-w-[2200px]">
-              <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
+            <table className="min-w-[2200px] w-max border-collapse">
+              <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur supports-[backdrop-filter]:bg-slate-100/90">
                 <tr>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     {isAgent && followUpFilter !== "all" ? "Follow-up" : "Joined Date"}
@@ -2426,10 +2629,6 @@ const handleVoiceCall = async (phone) => {
                   </th>
                 </tr>
               </thead>
-            </table>
-          </div>
-          <div className="overflow-y-auto overflow-x-auto flex-grow">
-            <table className="min-w-[2200px]">
               <tbody className="divide-y divide-gray-100">
                 {loadingFollowUpTable &&
                 isAgent &&
@@ -2957,7 +3156,6 @@ const handleVoiceCall = async (phone) => {
                 )}
               </tbody>
             </table>
-          </div>
           </TableContainer>
         </Paper>
         {/* Pagination Controls */}
@@ -3630,7 +3828,7 @@ const handleVoiceCall = async (phone) => {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                Add New User
+                Add Lead
               </h2>
               <button
                 onClick={() => setAddingUser(false)}
@@ -3739,7 +3937,7 @@ const handleVoiceCall = async (phone) => {
                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
                      transition-all font-medium"
               >
-                Add User
+                Add Lead
               </button>
             </div>
           </div>

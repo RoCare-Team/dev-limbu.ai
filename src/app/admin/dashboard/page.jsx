@@ -161,10 +161,25 @@ useEffect(() => {
     if (data.success) {
       console.log("FULL DATA:", data);
 
-      // ✅ YAHI MAIN FIX HAI
-      const breakdown = data.detailedStats.filter(
+      const stageItems = data.detailedStats.filter(
         (item) => item.stage === stage
       );
+
+      // Merge duplicate rows (same agent split by leadStatus) into one total row.
+      const grouped = stageItems.reduce((acc, item) => {
+        const key = item.agentId || "Unassigned";
+        if (!acc[key]) {
+          acc[key] = {
+            agentId: item.agentId || "Unassigned",
+            agentName: item.agentName || item.agentId || "Unknown",
+            count: 0,
+          };
+        }
+        acc[key].count += Number(item.count) || 0;
+        return acc;
+      }, {});
+
+      const breakdown = Object.values(grouped).sort((a, b) => b.count - a.count);
 
       console.log("FINAL BREAKDOWN:", breakdown);
 

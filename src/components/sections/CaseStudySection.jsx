@@ -51,10 +51,7 @@ const caseStudies = [
   },
 ];
 
-// Track layout: [clone-of-last, real-0, real-1, real-2, clone-of-first]
-// Indices:           0              1       2       3         4
-// When we reach index 4 (clone-of-first), after animation silently jump to index 1 (real-0)
-// When we reach index 0 (clone-of-last),  after animation silently jump to index 3 (real-2)
+// Clone track: [clone-of-last, real-0, real-1, real-2, clone-of-first]
 const CLONE_ITEMS = [
   { ...caseStudies[caseStudies.length - 1], _key: "clone-last" },
   ...caseStudies.map((s) => ({ ...s, _key: `real-${s.id}` })),
@@ -73,14 +70,19 @@ const BarChart = ({ data }) => {
       {data.map((item, i) => {
         const heightPct = Math.round((item.growth / maxVal) * 100);
         return (
-          <div key={i} className="flex flex-col items-center gap-1.5 flex-1 h-full">
+          <div
+            key={i}
+            className="flex flex-col items-center gap-1.5 flex-1 h-full"
+          >
             <div className="flex-1 flex items-end w-full">
               <div
                 className="w-full rounded-t-lg rounded-b-md"
                 style={{ height: `${heightPct}%`, backgroundColor: item.color }}
               />
             </div>
-            <span className="text-xs font-bold text-slate-800">+{item.growth}%</span>
+            <span className="text-xs font-bold text-slate-800">
+              +{item.growth}%
+            </span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
               {item.name}
             </span>
@@ -96,54 +98,65 @@ const CaseStudySection = () => {
   const trackRef = useRef(null);
   const timerRef = useRef(null);
   const pausedRef = useRef(false);
-  const trackIdxRef = useRef(REAL_OFFSET); // current position in CLONE_ITEMS
-  const [dotIndex, setDotIndex] = useState(0); // 0-based real card index for dots
+  const isTransitioningRef = useRef(false);
 
-  // ── helpers ──
-  const setTrackPosition = useCallback(
-    (idx, animate) => {
-      if (!trackRef.current) return;
-      const cards = trackRef.current.querySelectorAll("[data-card]");
-      if (!cards.length) return;
+  // FIX: Use STATE (not just ref) for trackIdx so cards re-render with correct active styles
+  const trackIdxRef = useRef(REAL_OFFSET);
+  const [activeTrackIdx, setActiveTrackIdx] = useState(REAL_OFFSET);
+  const [dotIndex, setDotIndex] = useState(0);
 
-      const cardWidth = cards[0].offsetWidth;
-      const containerWidth = trackRef.current.parentElement.offsetWidth;
-      // Center the card: offset = (distance to card) - (remaining space / 2)
-      const offset = (cardWidth + GAP) * idx - (containerWidth - cardWidth) / 2;
+  // FIX: track whether we've mounted + measured DOM
+  const [ready, setReady] = useState(false);
 
-      trackRef.current.style.transition = animate
-        ? "transform 0.72s cubic-bezier(0.77, 0, 0.175, 1)"
-        : "none";
-      trackRef.current.style.transform = `translateX(-${offset}px)`;
-    },
-    []
-  );
+  // ── Set position on the DOM track element ──────────────────────────────────
+  const setTrackPosition = useCallback((idx, animate) => {
+    const track = trackRef.current;
+    if (!track) return;
 
+    const cards = track.querySelectorAll("[data-card]");
+    if (!cards.length) return;
+
+    const cardWidth = cards[0].offsetWidth;
+    const containerWidth =
+      track.parentElement?.offsetWidth ?? window.innerWidth;
+    const offset = (cardWidth + GAP) * idx - (containerWidth - cardWidth) / 2;
+
+    track.style.transition = animate
+      ? "transform 0.72s cubic-bezier(0.77, 0, 0.175, 1)"
+      : "none";
+    track.style.transform = `translateX(-${Math.max(0, offset)}px)`;
+  }, []);
+
+  // ── Core navigation ────────────────────────────────────────────────────────
   const goTo = useCallback(
     (idx, animate = true) => {
       trackIdxRef.current = idx;
-      // Map track index → real dot index
+      // FIX: sync state so JSX re-renders active card highlight
+      setActiveTrackIdx(idx);
+
       const realIdx =
-        ((idx - REAL_OFFSET) + caseStudies.length) % caseStudies.length;
+        (idx - REAL_OFFSET + caseStudies.length) % caseStudies.length;
       setDotIndex(realIdx);
+
       setTrackPosition(idx, animate);
     },
-    [setTrackPosition]
+    [setTrackPosition],
   );
 
-  // ── After each animated transition: silently teleport from clone → real ──
+  // ── Teleport from clone → real after animated transition ──────────────────
   const onTransitionEnd = useCallback(() => {
+    isTransitioningRef.current = false;
     const idx = trackIdxRef.current;
     if (idx === LAST_CLONE_IDX) {
-      // Clone-of-first → silently jump to real first (index REAL_OFFSET)
       goTo(REAL_OFFSET, false);
     } else if (idx === 0) {
-      // Clone-of-last → silently jump to real last (index caseStudies.length)
       goTo(caseStudies.length, false);
     }
   }, [goTo]);
 
   const next = useCallback(() => {
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
     goTo(trackIdxRef.current + 1, true);
   }, [goTo]);
 
@@ -154,9 +167,14 @@ const CaseStudySection = () => {
     }, 3200);
   }, [next]);
 
+  // ── Mount: wait one frame for DOM to paint, then position + start ─────────
   useEffect(() => {
-    goTo(REAL_OFFSET, false); // start at real card 0, no animation
-    startTimer();
+    // rAF ensures cards have rendered and have measurable offsetWidth
+    const raf = requestAnimationFrame(() => {
+      goTo(REAL_OFFSET, false);
+      setReady(true); // reveal the carousel
+      startTimer();
+    });
 
     const track = trackRef.current;
     track?.addEventListener("transitionend", onTransitionEnd);
@@ -165,6 +183,7 @@ const CaseStudySection = () => {
     window.addEventListener("resize", onResize);
 
     return () => {
+      cancelAnimationFrame(raf);
       clearInterval(timerRef.current);
       track?.removeEventListener("transitionend", onTransitionEnd);
       window.removeEventListener("resize", onResize);
@@ -172,8 +191,8 @@ const CaseStudySection = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <section className="py-12 bg-slate-50/30 overflow-hidden border-t border-black/5">
-      {/* ── Header ── */}
+    <section className="py-12 bg-white overflow-hidden border-t border-black/5">
+      {/* Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
@@ -192,22 +211,34 @@ const CaseStudySection = () => {
         </div>
       </div>
 
-      {/* ── Carousel ── */}
+      {/* Carousel */}
       <div className="relative w-full">
         {/* Edge fades */}
-        <div className="absolute left-0 top-0 bottom-8 w-12 md:w-24 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-8 w-12 md:w-24 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-8 w-12 md:w-24 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-8 w-12 md:w-24 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
 
-        {/* Overflow clip wrapper */}
+        {/*
+          FIX: opacity-0 until `ready` so there's no flash of un-positioned cards.
+          Without this, cards briefly show in their un-translated default position
+          (all stacked at x=0) before the first goTo() runs.
+        */}
         <div
-          className="overflow-hidden pb-8 pt-2"
-          onMouseEnter={() => { pausedRef.current = true; }}
-          onMouseLeave={() => { pausedRef.current = false; }}
+          className={`overflow-hidden pb-8 pt-2 transition-opacity duration-300 ${
+            ready ? "opacity-100" : "opacity-0"
+          }`}
+          onMouseEnter={() => {
+            pausedRef.current = true;
+          }}
+          onMouseLeave={() => {
+            pausedRef.current = false;
+          }}
         >
-          {/* Sliding track — contains clones + real cards */}
           <div ref={trackRef} className="flex" style={{ gap: `${GAP}px` }}>
             {CLONE_ITEMS.map((study, trackIdx) => {
-              const isActive = trackIdx === trackIdxRef.current;
+              // FIX: compare against activeTrackIdx (state), not trackIdxRef.current (ref)
+              // Refs don't cause re-renders; state does — this was the root blank-card bug.
+              const isActive = trackIdx === activeTrackIdx;
+
               return (
                 <div
                   key={study._key}
@@ -222,7 +253,6 @@ const CaseStudySection = () => {
                   }}
                 >
                   <div className="relative bg-white rounded-[2rem] border border-black/5 shadow-xl shadow-black/5 overflow-hidden">
-                    {/* Subtle glow */}
                     <div className="absolute top-0 right-0 w-80 h-80 bg-yellow-300/5 rounded-full blur-3xl -mr-40 -mt-40 pointer-events-none" />
 
                     <div className="relative z-10 flex flex-col lg:flex-row items-stretch">
@@ -248,7 +278,7 @@ const CaseStudySection = () => {
                           </div>
                           <div>
                             <h4
-                              className=" text-[12px] sm:text-lg font-black text-black leading-none mb-1 uppercase"
+                              className="text-[12px] sm:text-lg font-black text-black leading-none mb-1 uppercase"
                               style={{ fontFamily: "var(--font-heading)" }}
                             >
                               {study.clientName}
@@ -258,7 +288,10 @@ const CaseStudySection = () => {
                             </p>
                             <div className="hidden sm:flex gap-0.5 mt-2">
                               {[...Array(5)].map((_, i) => (
-                                <Star key={i} className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                                <Star
+                                  key={i}
+                                  className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400"
+                                />
                               ))}
                             </div>
                           </div>
@@ -317,7 +350,7 @@ const CaseStudySection = () => {
           </div>
         </div>
 
-        {/* Dots — only 3, mapped to real cards */}
+        {/* Dots */}
         <div className="flex justify-center gap-2.5 mt-2">
           {caseStudies.map((_, i) => (
             <button

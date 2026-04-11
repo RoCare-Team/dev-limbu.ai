@@ -280,7 +280,7 @@ export default function ProfileWithStats() {
               className="btn-lemon px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest gap-2 mx-auto md:mx-0 shadow-lg"
             >
               <Activity className="w-3.5 h-3.5" />
-              Intelligence Log ↗
+              Activity Log ↗
             </button>
           </div>
 

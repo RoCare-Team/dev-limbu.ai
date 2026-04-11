@@ -8,8 +8,7 @@ import HeroSection from "../components/sections/HeroSection";
 
 // ── Icons — always eager (tiny, no split needed) ──
 import { Clock, MessageSquare, PenTool, Star } from "lucide-react";
-import SEOSection from "@/components/sections/SEOSection";
-import PersantationSection from "@/components/sections/PersantationSection";
+// import SEOSection from "@/components/sections/SEOSection";
 
 // ── Lazily loaded sections ──
 const ExamplesSection = lazy(
@@ -689,12 +688,6 @@ export default function LimbuAILanding() {
       <Suspense fallback={<SectionSkeleton />}>
         <FeaturesSection features={features} />
       </Suspense>
-
-      <div className="hidden md:block">
-        <Suspense fallback={<SectionSkeleton />}>
-          <PersantationSection />
-        </Suspense>
-      </div>
 
       <Suspense fallback={<SectionSkeleton />}>
         <ClientGrowthSection />

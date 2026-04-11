@@ -14,6 +14,11 @@ import { useState } from "react";
 import Navbar from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 
+/* ─── Validators ─── */
+const validatePhone = (v) => /^[6-9]\d{9}$/.test(v.trim());
+const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const validateName = (v) => /^[A-Za-z\s]{2,40}$/.test(v.trim());
+
 export default function ContactUs() {
   const [formData, setFormData] = useState({
     name: "",
@@ -23,16 +28,45 @@ export default function ContactUs() {
     consent: false,
   });
 
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
 
   const handleChange = (e) => {
-    const value =
-      e.target.type === "checkbox" ? e.target.checked : e.target.value;
-    setFormData({ ...formData, [e.target.name]: value });
+    let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    const name = e.target.name;
+
+    // Real-time filtering
+    if (name === "phone") {
+      value = value.replace(/\D/g, "").slice(0, 10); // Numbers only, max 10
+    }
+    
+    if (name === "name") {
+      value = value.replace(/[^a-zA-Z\s]/g, ""); // Text only
+    }
+
+    setFormData({ ...formData, [name]: value });
+    
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!validateName(formData.name)) newErrors.name = "Enter a valid name (2-40 chars)";
+    if (!validateEmail(formData.email)) newErrors.email = "Enter a valid email address";
+    if (!validatePhone(formData.phone)) newErrors.phone = "Enter a 10-digit mobile number";
+    if (formData.message.trim().length < 10) newErrors.message = "Message must be at least 10 characters";
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
     setSubmitStatus(null);
 
@@ -85,15 +119,7 @@ export default function ContactUs() {
           }}
         />
 
-        {/* ── Ambient glow — top right ── */}
-        <div
-          className="pointer-events-none absolute top-0 right-0 w-[500px] h-[400px] z-0 opacity-10"
-          style={{
-            background: "radial-gradient(ellipse at top right, rgba(250, 204, 21, 0.3) 0%, transparent 65%)",
-          }}
-        />
-
-        <div className="max-w-6xl mx-auto relative z-10">
+        <div className="max-w-6xl mx-auto relative z-10 pt-10">
 
           {/* Back */}
           <button
@@ -105,7 +131,6 @@ export default function ContactUs() {
 
           {/* ── Section Header ── */}
           <div className="text-center mb-16">
-            {/* Label chip */}
             <div
               className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full"
               style={{
@@ -120,13 +145,13 @@ export default function ContactUs() {
               </span>
             </div>
 
-            {/* Headline */}
+            {/* Headline - Slightly Smaller */}
             <h1
               className="font-bold uppercase leading-[0.95] tracking-tight mb-4"
               style={{
                 fontFamily: "var(--font-heading)",
                 color: "var(--foreground)",
-                fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
+                fontSize: "clamp(2rem, 5vw, 3.5rem)",
               }}
             >
               Get In <span style={{ color: "var(--lemon-hover)" }}>Touch</span>
@@ -163,7 +188,7 @@ export default function ContactUs() {
                   Submission Failed
                 </p>
                 <p className="text-red-600/80 text-xs font-semibold mt-1">
-                  Something went wrong on our end. Please try again later or email us directly.
+                  Something went wrong. Please check your network or email us directly.
                 </p>
               </div>
             </div>
@@ -190,13 +215,12 @@ export default function ContactUs() {
                   <input
                     type="text"
                     name="name"
-                    required
-                    minLength={3}
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Enter your name"
-                    className="input"
+                    className={`input ${errors.name ? 'border-red-400 ring-1 ring-red-100' : ''}`}
                   />
+                  {errors.name && <p className="text-[10px] font-bold text-red-500 ml-1 mt-1 uppercase tracking-tight">{errors.name}</p>}
                 </div>
 
                 {/* Email */}
@@ -205,12 +229,12 @@ export default function ContactUs() {
                   <input
                     type="email"
                     name="email"
-                    required
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="name@company.com"
-                    className="input"
+                    className={`input ${errors.email ? 'border-red-400 ring-1 ring-red-100' : ''}`}
                   />
+                  {errors.email && <p className="text-[10px] font-bold text-red-500 ml-1 mt-1 uppercase tracking-tight">{errors.email}</p>}
                 </div>
 
                 {/* Phone */}
@@ -219,13 +243,12 @@ export default function ContactUs() {
                   <input
                     type="tel"
                     name="phone"
-                    required
-                    pattern="[0-9]{10}"
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="10 digit mobile number"
-                    className="input"
+                    className={`input ${errors.phone ? 'border-red-400 ring-1 ring-red-100' : ''}`}
                   />
+                  {errors.phone && <p className="text-[10px] font-bold text-red-500 ml-1 mt-1 uppercase tracking-tight">{errors.phone}</p>}
                 </div>
 
                 {/* Message */}
@@ -233,14 +256,13 @@ export default function ContactUs() {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Your Message</label>
                   <textarea
                     name="message"
-                    required
-                    minLength={10}
                     rows="4"
                     value={formData.message}
                     onChange={handleChange}
                     placeholder="How can we help you?"
-                    className="input resize-none"
+                    className={`input resize-none ${errors.message ? 'border-red-400 ring-1 ring-red-100' : ''}`}
                   />
+                  {errors.message && <p className="text-[10px] font-bold text-red-500 ml-1 mt-1 uppercase tracking-tight">{errors.message}</p>}
                 </div>
 
                 {/* Consent */}
@@ -250,7 +272,7 @@ export default function ContactUs() {
                     name="consent"
                     checked={formData.consent}
                     onChange={handleChange}
-                    className="mt-0.5 accent-[var(--lemon-hover)] w-4 h-4"
+                    className="mt-0.5 accent-[var(--lemon-hover)] w-4 h-4 shrink-0"
                   />
                   <span>I agree to receive communications from Limbu AI regarding my inquiry.</span>
                 </div>
@@ -259,7 +281,7 @@ export default function ContactUs() {
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !formData.consent}
-                  className="w-full py-4 rounded-2xl text-xs font-bold tracking-[0.15em] uppercase transition-all duration-300 hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:hover:scale-100 mt-4"
+                  className="w-full py-4 rounded-2xl text-xs font-black tracking-[0.15em] uppercase transition-all duration-300 hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:hover:scale-100 mt-4"
                   style={{
                     background: "var(--lemon-hover)",
                     color: "#fff",
@@ -326,7 +348,7 @@ export default function ContactUs() {
                 </div>
               ))}
 
-              {/* Social or Extra Card */}
+              {/* Promo Card */}
               <div 
                 className="p-8 rounded-3xl bg-slate-950 text-white overflow-hidden relative"
               >

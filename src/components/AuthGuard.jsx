@@ -41,6 +41,7 @@ export default function AuthGuard({ children }) {
       "/franchise-panel/login",
       "/work-with-us",
       "/thank-you",
+      "/pricing"
     ];
 
     const allowedAdminRoles = [

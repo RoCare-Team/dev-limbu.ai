@@ -181,7 +181,7 @@ export default function KeywordPage() {
           <div className="lg:col-span-8 space-y-8">
             
             {/* Search Box */}
-            <div className="bg-white rounded-[2rem] shadow-sm border border-black/5 p-6 sm:p-10 transition-all hover:shadow-md">
+            <div className="bg-white rounded-[2rem] shadow-sm border-2 border-black/10 p-6 sm:p-10 transition-all hover:shadow-md">
               <div className="flex items-center gap-2 mb-6">
                 <div className="p-2 bg-slate-50 rounded-lg">
                   <Search className="w-4 h-4 text-black" />
@@ -209,7 +209,7 @@ export default function KeywordPage() {
             </div>
 
             {/* Suggestions Table */}
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-black/5 p-6 sm:p-8 min-h-[500px] flex flex-col">
+            <div className="bg-white rounded-[2.5rem] shadow-sm border-2 border-black/10 p-6 sm:p-8 min-h-[500px] flex flex-col">
               <div className="flex items-center justify-between mb-8 px-2">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-lemon-glow/10 rounded-lg border border-lemon-glow/20">

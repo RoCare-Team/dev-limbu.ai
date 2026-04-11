@@ -17,6 +17,8 @@ import {
   Loader2,
   Video,
   Image as ImageIconLucide,
+  MoreVertical,
+  ChevronRight,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import { postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
@@ -24,16 +26,12 @@ import Image from "next/image";
 
 const PostCard = ({
   post,
-  scheduleDates,
-  onDateChange,
   onUpdateStatus,
   onReject,
   handleDownload,
   handleShare,
   handlePost,
   onEditDescription,
-  handleDeleteFromGMB,
-  onToggleCheckmark,
   handleFacebookPost,
   handleInstagramPost,
   onConvertToVideo,
@@ -45,730 +43,247 @@ const PostCard = ({
   const [activeDesc, setActiveDesc] = useState("gmb");
   const [cardMediaTab, setCardMediaTab] = useState("image");
 
-  const isPostedGmb =
-    post.locations?.some((l) => l.isPosted) || post.whenPosted?.gmb;
-  const isPostedFb =
-    !!post.facebookPostId ||
-    post.whenPosted?.facebook ||
-    post.fbPages?.some((p) => p.isPosted);
-  const isPostedIg =
-    post.whenPosted?.instagram || post.igPages?.some((p) => p.isPosted);
+  const isPostedGmb = post.locations?.some((l) => l.isPosted) || post.whenPosted?.gmb;
+  const isPostedFb = !!post.facebookPostId || post.whenPosted?.facebook || post.fbPages?.some((p) => p.isPosted);
+  const isPostedIg = post.whenPosted?.instagram || post.igPages?.some((p) => p.isPosted);
 
-  // Helper to get current values from post
   const getDescriptions = () => ({
     gmb: post?.gmbDescription ?? post?.description ?? "",
     fb: post?.fbDescription ?? post?.description ?? "",
     ig: post?.igDescription ?? post?.description ?? "",
   });
 
-  // State to hold drafts for all platforms
   const [drafts, setDrafts] = useState(getDescriptions());
-  const [fbStats, setFbStats] = useState(null);
 
-  // Sync drafts with post only when NOT editing to avoid overwriting user input
   useEffect(() => {
-    if (!isEditing) {
-      setDrafts(getDescriptions());
-    }
+    if (!isEditing) setDrafts(getDescriptions());
   }, [post, isEditing]);
-
-  const handleSave = () => {
-    const field =
-      activeDesc === "gmb"
-        ? "gmbDescription"
-        : activeDesc === "fb"
-          ? "fbDescription"
-          : "igDescription";
-    onEditDescription(post._id, { [field]: drafts[activeDesc] });
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setDrafts(getDescriptions());
-    setIsEditing(false);
-  };
-
-  useEffect(() => {
-    setCardMediaTab("image");
-  }, [post._id]);
-
-  useEffect(() => {
-    const fetchFbStats = async () => {
-      if (
-        post.status === "posted" &&
-        post.facebookPostId &&
-        post.facebookPageAccessToken
-      ) {
-        try {
-          // Fetch Likes
-          const likesRes = await fetch(
-            `https://graph.facebook.com/v19.0/${post.facebookPostId}/likes?summary=true&limit=0&access_token=${post.facebookPageAccessToken}`,
-          );
-          const likesData = await likesRes.json();
-
-          // Fetch Comments
-          const commentsRes = await fetch(
-            `https://graph.facebook.com/v19.0/${post.facebookPostId}/comments?summary=true&limit=0&access_token=${post.facebookPageAccessToken}`,
-          );
-          const commentsData = await commentsRes.json();
-
-          setFbStats({
-            likes: likesData.summary?.total_count || 0,
-            comments: commentsData.summary?.total_count || 0,
-          });
-        } catch (error) {
-          console.error("Failed to fetch FB stats", error);
-        }
-      }
-    };
-    fetchFbStats();
-  }, [post]);
 
   const imgUrl = postImageUrl(post);
   const vidUrl = postVideoUrl(post);
   const dualCardMedia = Boolean(imgUrl && vidUrl);
-  const displayMediaUrl = dualCardMedia
-    ? cardMediaTab === "video"
-      ? vidUrl
-      : imgUrl
-    : vidUrl || post?.aiOutput || "";
-  const cardShowVideo =
-    dualCardMedia && cardMediaTab === "video"
-      ? true
-      : !dualCardMedia && isPostVideoMedia(post);
+  const displayMediaUrl = dualCardMedia ? (cardMediaTab === "video" ? vidUrl : imgUrl) : vidUrl || post?.aiOutput || "";
+  const cardShowVideo = dualCardMedia ? cardMediaTab === "video" : isPostVideoMedia(post);
+  const isConvertingThisPost = convertingVideoPostId != null && String(convertingVideoPostId) === String(post._id);
 
-  const postForDownloadShare = () => ({
-    ...post,
-    aiOutput: displayMediaUrl || post.aiOutput,
-  });
-
-  const canConvertImageToVideo = Boolean(
-    onConvertToVideo &&
-    imgUrl &&
-    !post?.videoOutput &&
-    !isPostVideoMedia(post) &&
-    post.status !== "rejected" &&
-    post.status !== "processing",
-  );
-  const isConvertingThisPost =
-    convertingVideoPostId != null &&
-    String(convertingVideoPostId) === String(post._id);
-
-  const convertToVideoButton = canConvertImageToVideo ? (
-    <button
-      type="button"
-      disabled={isConvertingThisPost}
-      onClick={() => onConvertToVideo(post)}
-      className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#EAB308]/50 bg-slate-50 backdrop-blur hover:bg-[#EAB308] hover:text-black px-4 py-2.5 text-sm font-bold text-[#EAB308] shadow-[0_0_15px_rgba(253,224,71,0.1)] transition-all disabled:opacity-50 disabled:cursor-wait font-inter"
-    >
-      {isConvertingThisPost ? (
-        <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-      ) : (
-        <Video className="w-4 h-4 shrink-0" />
-      )}
-      {isConvertingThisPost
-        ? "Generating video…"
-        : `Convert to video (${videoGenerationCoins} coins)`}
-    </button>
-  ) : null;
+  const statusColors = {
+    pending: "bg-yellow-50 text-yellow-600 border-yellow-100",
+    approved: "bg-blue-50 text-blue-600 border-blue-100",
+    posted: "bg-green-50 text-green-600 border-green-100",
+    failed: "bg-red-50 text-red-600 border-red-100",
+    scheduled: "bg-purple-50 text-purple-600 border-purple-100",
+  };
 
   return (
-    <div className="group bg-slate-50 rounded-2xl shadow-2xl shadow-yellow-400/5 border border-slate-200 overflow-hidden hover:scale-[1.01] transition-all duration-300 flex flex-col font-inter">
-      {/* Image | Video tabs — top of card */}
-      {dualCardMedia && (
-        <div className="flex gap-1.5 p-2 bg-slate-50 backdrop-blur border-b border-slate-200 shrink-0">
-          <button
-            type="button"
-            onClick={() => setCardMediaTab("image")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all ${
-              cardMediaTab === "image"
-                ? "bg-[#EAB308] text-black shadow-[0_0_20px_rgba(253,224,71,0.3)]"
-                : "text-slate-900/60 hover:text-slate-900 hover:bg-slate-100"
-            }`}
-          >
-            <ImageIconLucide className="w-4 h-4" />
-            Image
-          </button>
-          <button
-            type="button"
-            onClick={() => setCardMediaTab("video")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all ${
-              cardMediaTab === "video"
-                ? "bg-[#EAB308] text-black shadow-[0_0_20px_rgba(253,224,71,0.3)]"
-                : "text-slate-900/60 hover:text-slate-900 hover:bg-slate-100"
-            }`}
-          >
-            <Video className="w-4 h-4" />
-            Video
-          </button>
-        </div>
-      )}
+    <div className="group relative bg-white rounded-[2rem] border border-black/5 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-1 flex flex-col font-inter">
+      {/* ── Media Engine ── */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+        {/* Media Tabs */}
+        {dualCardMedia && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex p-1 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 z-20 shadow-xl">
+            {["image", "video"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setCardMediaTab(tab)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  cardMediaTab === tab ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
+                }`}
+              >
+                {tab === "image" ? <ImageIconLucide size={12} /> : <Video size={12} />}
+                {tab}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* Image / Video preview */}
-      <div className="relative w-full h-52 overflow-hidden bg-white aspect-[4/3]">
-        <a
-          href={displayMediaUrl || post.aiOutput}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full h-full"
-        >
+        <a href={displayMediaUrl || post.aiOutput} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
           {cardShowVideo ? (
-            <video
-              src={displayMediaUrl}
-              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 bg-black"
-              controls
-              playsInline
-              muted
-              preload="metadata"
-            />
+            <video src={displayMediaUrl} className="w-full h-full object-cover" controls playsInline muted preload="metadata" />
           ) : (
             <Image
-              src={
-                displayMediaUrl && displayMediaUrl.startsWith("http")
-                  ? displayMediaUrl
-                  : "https://via.placeholder.com/400"
-              }
+              src={displayMediaUrl?.startsWith("http") ? displayMediaUrl : "https://via.placeholder.com/400"}
               width={400}
               height={300}
-              alt="Post content"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+              alt="Post Content"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           )}
         </a>
 
-        {/* Status Badge */}
-        <div className="absolute top-3 left-3 z-10">
-          <span
-            className={`px-3 py-1 rounded-full text-[10px] font-anton uppercase tracking-[0.1em] shadow-sm backdrop-blur-md border ${
-              post.status === "pending"
-                ? "bg-yellow-400/20 text-yellow-400 border-yellow-400/30"
-                : post.status === "approved"
-                  ? "bg-green-400/20 text-green-400 border-green-400/30"
-                  : post.status === "posted"
-                    ? "bg-blue-400/20 text-blue-400 border-blue-400/30"
-                    : post.status === "failed"
-                      ? "bg-red-400/20 text-red-400 border-red-400/30"
-                      : "bg-slate-100 text-slate-900/80 border-slate-200"
-            }`}
-          >
-            {post.status}
-          </span>
+        {/* Status Chip */}
+        <div className="absolute top-4 left-4 z-10">
+          <div className={`px-3 py-1 rounded-full border backdrop-blur-md flex items-center gap-1.5 shadow-sm ${statusColors[post.status] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
+            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${post.status === "posted" ? "bg-green-500" : "bg-current"}`} />
+            <span className="text-[9px] font-black uppercase tracking-widest">{post.status}</span>
+          </div>
         </div>
 
-        {/* Posted Platforms Badges */}
-        {(isPostedGmb || isPostedFb || isPostedIg) && (
-          <div className="absolute top-3 right-3 flex gap-1 z-10">
-            {isPostedGmb && (
-              <div
-                className="bg-slate-100 backdrop-blur-md text-[#EAB308] p-1.5 rounded-full border border-slate-200 shadow-lg"
-                title="Posted on GMB"
-              >
-                <MapPin className="w-3 h-3" />
-              </div>
-            )}
-            {isPostedFb && (
-              <div
-                className="bg-slate-100 backdrop-blur-md text-[#EAB308] p-1.5 rounded-full border border-slate-200 shadow-lg"
-                title="Posted on Facebook"
-              >
-                <Facebook className="w-3 h-3" />
-              </div>
-            )}
-            {isPostedIg && (
-              <div
-                className="bg-slate-100 backdrop-blur-md text-[#EAB308] p-1.5 rounded-full border border-slate-200 shadow-lg"
-                title="Posted on Instagram"
-              >
-                <Instagram className="w-3 h-3" />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Overlay Actions (Download/Share) */}
-        <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+        {/* Floating Icons (Download/Share) */}
+        <div className="absolute bottom-4 right-4 flex flex-col gap-2 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300">
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleDownload(postForDownloadShare());
-            }}
-            className="p-2 bg-black/60 hover:bg-[#EAB308] text-slate-900 hover:text-black border border-slate-200 rounded-full shadow-xl backdrop-blur-sm transition-all hover:scale-110"
-            title="Download"
+            onClick={(e) => { e.preventDefault(); handleDownload({ ...post, aiOutput: displayMediaUrl }); }}
+            className="p-3 bg-white/90 backdrop-blur text-black rounded-2xl shadow-xl hover:bg-[#EAB308] hover:text-black transition-all"
           >
-            <Download className="w-4 h-4" />
+            <Download size={16} />
           </button>
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleShare(postForDownloadShare());
-            }}
-            className="p-2 bg-black/60 hover:bg-[#EAB308] text-slate-900 hover:text-black border border-slate-200 rounded-full shadow-xl backdrop-blur-sm transition-all hover:scale-110"
-            title="Share"
+            onClick={(e) => { e.preventDefault(); handleShare({ ...post, aiOutput: displayMediaUrl }); }}
+            className="p-3 bg-white/90 backdrop-blur text-black rounded-2xl shadow-xl hover:bg-[#EAB308] hover:text-black transition-all"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 size={16} />
           </button>
         </div>
       </div>
 
-      {/* Content Section */}
-      <div className="p-4 flex flex-col flex-1 space-y-4">
-        {/* Description Header */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
-            <button
-              onClick={() => setActiveDesc("gmb")}
-              className={`px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-md flex items-center gap-1.5 transition-all ${activeDesc === "gmb" ? "bg-[#EAB308] text-black font-bold shadow-[0_0_10px_rgba(253,224,71,0.2)]" : "text-slate-900/50 hover:text-slate-900"}`}
-            >
-              <MapPin className="w-3 h-3" /> GMB
-            </button>
-            <button
-              onClick={() => setActiveDesc("fb")}
-              className={`px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-md flex items-center gap-1.5 transition-all ${activeDesc === "fb" ? "bg-[#EAB308] text-black font-bold shadow-[0_0_10px_rgba(253,224,71,0.2)]" : "text-slate-900/50 hover:text-slate-900"}`}
-            >
-              <Facebook className="w-3 h-3" /> FB
-            </button>
-            <button
-              onClick={() => setActiveDesc("ig")}
-              className={`px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-md flex items-center gap-1.5 transition-all ${activeDesc === "ig" ? "bg-[#EAB308] text-black font-bold shadow-[0_0_10px_rgba(253,224,71,0.2)]" : "text-slate-900/50 hover:text-slate-900"}`}
-            >
-              <Instagram className="w-3 h-3" /> Insta
-            </button>
+      {/* ── Content Area ── */}
+      <div className="p-6 flex flex-col flex-1">
+        {/* Platform Selector & Edit */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex p-1 bg-slate-50 rounded-xl border border-black/5">
+            {[
+              { id: "gmb", icon: MapPin, label: "GMB" },
+              { id: "fb", icon: Facebook, label: "FB" },
+              { id: "ig", icon: Instagram, label: "Insta" },
+            ].map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setActiveDesc(p.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  activeDesc === p.id ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50"
+                }`}
+              >
+                <p.icon size={12} className={activeDesc === p.id ? "text-[#EAB308]" : ""} />
+                {p.label}
+              </button>
+            ))}
           </div>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="text-[10px] font-bold uppercase tracking-wider text-[#EAB308] hover:bg-[#EAB308]/10 px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-[#EAB308]/20"
+              className="p-2 text-black/30 hover:text-[#EAB308] hover:bg-[#EAB308]/5 rounded-xl transition-all"
             >
-              <Edit3 className="w-3 h-3" /> Edit
+              <Edit3 size={16} />
             </button>
           )}
         </div>
 
-        {/* Description Text */}
-        <div className="flex-grow">
+        {/* Text Body */}
+        <div className="flex-1 mb-6">
           {isEditing ? (
-            <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
+            <div className="space-y-3">
               <textarea
                 value={drafts[activeDesc]}
-                onChange={(e) =>
-                  setDrafts((prev) => ({
-                    ...prev,
-                    [activeDesc]: e.target.value,
-                  }))
-                }
-                className="w-full p-3 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-[#EAB308] focus:border-transparent outline-none resize-none bg-slate-50 text-slate-900/90 placeholder:text-slate-900/20"
+                onChange={(e) => setDrafts((prev) => ({ ...prev, [activeDesc]: e.target.value }))}
+                className="w-full p-4 text-sm bg-slate-50 border border-black/5 rounded-2xl focus:ring-2 focus:ring-[#EAB308]/20 outline-none resize-none transition-all font-inter"
                 rows={4}
               />
               <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  className="flex-1 py-2 bg-[#EAB308] text-black rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-[#EAB308]/90 transition-colors shadow-lg"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="flex-1 py-2 bg-slate-100 text-slate-900 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200"
-                >
-                  Cancel
-                </button>
+                <button onClick={() => { const field = activeDesc === "gmb" ? "gmbDescription" : activeDesc === "fb" ? "fbDescription" : "igDescription"; onEditDescription(post._id, { [field]: drafts[activeDesc] }); setIsEditing(false); }} className="flex-1 py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EAB308] hover:text-black transition-all">Save Changes</button>
+                <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-slate-100 text-black/50 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-200 transition-all">Cancel</button>
               </div>
             </div>
           ) : (
-            <div className="relative">
-              <p
-                className={`text-sm text-slate-900/70 leading-relaxed font-inter ${showFull ? "" : "line-clamp-3"}`}
-              >
-                {drafts[activeDesc] ||
-                  "No description available for this platform."}
+            <div className="space-y-2">
+              <p className={`text-sm text-black/60 leading-relaxed font-inter ${showFull ? "" : "line-clamp-3"}`}>
+                {drafts[activeDesc] || `No specific content generated for ${activeDesc.toUpperCase()}.`}
               </p>
               {drafts[activeDesc]?.length > 120 && (
-                <button
-                  onClick={() => setShowFull(!showFull)}
-                  className="mt-1 text-xs font-bold text-[#EAB308] hover:text-[#EAB308]/80 flex items-center gap-1 uppercase tracking-tighter"
-                >
-                  {showFull ? "Show Less" : "Read More"}
+                <button onClick={() => setShowFull(!showFull)} className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
+                  {showFull ? "Show Less" : "Read More"} <ChevronRight size={10} />
                 </button>
               )}
             </div>
           )}
         </div>
 
-        {/* Date */}
-        <div className="pt-3 border-t border-slate-100 flex items-center text-[10px] uppercase tracking-[0.1em] text-slate-900/40 font-medium">
-          <Calendar className="w-3 h-3 mr-1.5 text-[#EAB308]/50" />
-          {post.status === "posted"
-            ? `Posted: ${new Date(post.locations?.[0]?.postedAt || post.updatedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}`
-            : post.createdAt
-              ? new Date(post.createdAt).toLocaleDateString(undefined, {
-                  dateStyle: "medium",
-                })
-              : "Date unknown"}
-        </div>
-
-        {/* Action Buttons Area */}
-        <div className="pt-1 mt-auto">
-          {post.status === "processing" && (
-            <div className="space-y-3">
-              <div className="flex flex-col items-center justify-center p-4 bg-blue-500/5 rounded-xl border border-blue-500/20 mb-2 backdrop-blur-sm">
-                <div className="flex items-center gap-2 text-blue-400 font-bold uppercase text-xs tracking-wider">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Processing...</span>
-                </div>
-                <p className="text-[10px] text-blue-400/60 text-center mt-1 uppercase">
-                  Post is being published. You can retry if stuck.
-                </p>
-              </div>
-
-              {/* Status Indicators */}
-              <div className="flex flex-wrap gap-2 mb-1">
-                {isPostedGmb && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> GMB
-                  </span>
-                )}
-                {isPostedFb && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> FB
-                  </span>
-                )}
-                {isPostedIg && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> IG
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handlePost(post)}
-                  className="flex items-center justify-center gap-2 bg-slate-50 text-slate-900/80 border border-slate-200 hover:bg-slate-100 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  Retry GMB
-                </button>
-
-                <button
-                  onClick={() => handleFacebookPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedFb ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Facebook className="w-3 h-3" />
-                  {isPostedFb ? "Repost FB" : "Post FB "}
-                </button>
-
-                <button
-                  onClick={() => handleInstagramPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedIg ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Instagram className="w-3 h-3" />
-                  {isPostedIg ? "Repost IG" : "Post IG"}
-                </button>
-
-                <button
-                  onClick={() => onUpdateStatus(post)}
-                  className="flex items-center justify-center gap-2 bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 hover:bg-yellow-400/20 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                >
-                  <Calendar className="w-3 h-3" />
-                  Schedule
-                </button>
-              </div>
-            </div>
-          )}
-
+        {/* Action Zone */}
+        <div className="space-y-4 pt-4 border-t border-black/5">
+          {/* Status Specific Actions */}
           {post.status === "pending" && (
-            <div className="space-y-2">
-              {convertToVideoButton}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => onUpdateStatus(post._id, "approved")}
-                  className="flex items-center justify-center gap-2 bg-[#EAB308] text-black border border-[#EAB308] hover:bg-[#EAB308]/90 px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-200 shadow-[0_0_15px_rgba(253,224,71,0.2)]"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Approve
-                </button>
-                <button
-                  onClick={() => onReject(post._id)}
-                  className="flex items-center justify-center gap-2 bg-slate-50 text-slate-900/80 border border-slate-200 hover:bg-slate-100 px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-200"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Reject
-                </button>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => onUpdateStatus(post._id, "approved")} className="py-4 bg-[#EAB308] text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#EAB308]/10 hover:brightness-105 transition-all">Approve</button>
+              <button onClick={() => onReject(post._id)} className="py-4 border border-black/5 text-black/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all">Reject</button>
             </div>
           )}
 
           {post.status === "approved" && (
-            <div className="space-y-2">
-              {convertToVideoButton}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  onClick={() => handlePost(post)}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-[#EAB308] text-[#EAB308] hover:text-black border border-[#EAB308]/30 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap"
-                >
-                  <Send className="w-4 h-4" />
-                  Post GMB
+            <div className="space-y-3">
+              <button onClick={() => handlePost(post)} className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#EAB308] hover:text-black transition-all group/btn shadow-lg shadow-black/10">
+                <Send size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" /> Post to GMB
+              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => handleFacebookPost(post)} className="py-3.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                  <Facebook size={14} /> Facebook
                 </button>
-
-                <button
-                  onClick={() => handleInstagramPost(post)}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-[#EAB308] text-[#EAB308] hover:text-black border border-[#EAB308]/30 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap"
-                >
-                  <Instagram size={16} />
-                  Post Instagram
+                <button onClick={() => handleInstagramPost(post)} className="py-3.5 bg-pink-50 border border-pink-100 text-pink-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-pink-600 hover:text-white transition-all shadow-sm">
+                  <Instagram size={14} /> Instagram
                 </button>
+              </div>
+              <button onClick={() => onUpdateStatus(post)} className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm">
+                <Calendar size={14} className="text-[#EAB308]" /> Schedule Post
+              </button>
+            </div>
+          )}
 
-                <button
-                  onClick={() => handleFacebookPost(post)}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-[#EAB308] text-[#EAB308] hover:text-black border border-[#EAB308]/30 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap"
-                >
-                  <Facebook size={16} />
-                  Post Facebook
+          {post.status === "posted" && (
+            <div className="space-y-3">
+               <div className="flex flex-wrap gap-2">
+                  {isPostedGmb && <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-green-100">GMB Live</span>}
+                  {isPostedFb && <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">FB Live</span>}
+                  {isPostedIg && <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">IG Live</span>}
+               </div>
+               <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => handlePost(post)} className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm">
+                  <RefreshCw size={14} className="text-[#EAB308] group-hover:text-black" /> Repost GMB
                 </button>
-
-                <button
-                  onClick={() => onUpdateStatus(post)}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-[#EAB308] text-[#EAB308] hover:text-black border border-[#EAB308]/30 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200"
-                >
-                  <Calendar className="w-4 h-4" />
-                  Schedule
+                <button onClick={() => handleFacebookPost(post)} className="py-3.5 bg-white border-2 border-blue-600 text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                  <Facebook size={14} className="text-blue-600 group-hover:text-white" /> Repost FB
                 </button>
               </div>
             </div>
           )}
 
           {post.status === "scheduled" && (
-            <div className="space-y-3">
-              <div className="bg-slate-50 border border-slate-200 backdrop-blur rounded-xl p-3 flex items-start gap-3 transition-all">
-                {/* Calendar Icon */}
-                <div className="bg-[#EAB308]/10 p-2 rounded-lg border border-[#EAB308]/20">
-                  <Calendar className="w-5 h-5 text-[#EAB308]" />
+            <div className="p-4 bg-[#EAB308]/5 rounded-3xl border border-[#EAB308]/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                   <p className="text-[8px] font-black text-[#EAB308] uppercase tracking-widest mb-0.5">Scheduled For</p>
+                   <p className="text-xs font-black text-black/80">{post.scheduledDate ? new Date(post.scheduledDate).toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : "N/A"}</p>
                 </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <p className="text-[10px] text-[#EAB308]/80 font-bold uppercase tracking-[0.1em]">
-                    Scheduled For
-                  </p>
-
-                  <p className="text-sm font-bold text-slate-900/90">
-                    {post.scheduledDate
-                      ? new Date(post.scheduledDate).toLocaleString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Date not set"}
-                  </p>
-
-                  {post.locations?.length > 0 && (
-                    <p className="text-[10px] text-[#EAB308]/80 mt-1.5 font-bold uppercase flex items-center gap-1.5 bg-[#EAB308]/5 px-2 py-0.5 rounded-md w-fit border border-[#EAB308]/10">
-                      <MapPin className="w-3 h-3" />
-                      {post.locations.length === 1
-                        ? `${post.locations[0].name || post.locations[0].title || "1 Location"} ${
-                            post.locations[0].locality
-                              ? `(${post.locations[0].locality})`
-                              : ""
-                          }`
-                        : `${post.locations.length} Locations`}
-                    </p>
-                  )}
-                </div>
-
-                {/* ✏️ Edit Schedule Button */}
-                <button
-                  onClick={() => onUpdateStatus(post)}
-                  title="Edit Schedule"
-                  className="p-2 rounded-lg bg-slate-50 text-[#EAB308] hover:bg-[#EAB308] hover:text-black border border-slate-200 transition-all"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
+                <button onClick={() => onUpdateStatus(post)} className="p-2 bg-white rounded-full text-[#EAB308] shadow-sm hover:scale-110 transition-transform"><Pencil size={14} /></button>
               </div>
-
-              {/* Platform Checkboxes Section */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <p className="text-[10px] font-bold text-slate-900/40 uppercase tracking-[0.1em] mb-3">
-                  Scheduled On Platforms
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  {/* GMB Checkbox */}
-                  <div className="flex items-center gap-2 p-2.5 bg-black/40 border border-slate-100 rounded-lg hover:border-[#EAB308]/30 transition-colors group/chk">
-                    <input
-                      type="checkbox"
-                      checked={post.locations && post.locations.length > 0}
-                      readOnly
-                      className="w-4 h-4 accent-[#EAB308] cursor-not-allowed bg-transparent border-slate-200"
-                    />
-                    <div className="flex items-center gap-1.5 flex-1">
-                      <MapPin className="w-3.5 h-3.5 text-slate-900/40 group-hover/chk:text-[#EAB308] transition-colors" />
-                    </div>
-                  </div>
-
-                  {/* Facebook Checkbox */}
-                  <div className="flex items-center gap-2 p-2.5 bg-black/40 border border-slate-100 rounded-lg hover:border-[#EAB308]/30 transition-colors group/chk">
-                    <input
-                      type="checkbox"
-                      checked={post.fbPages && post.fbPages.length > 0}
-                      readOnly
-                      className="w-4 h-4 accent-[#EAB308] cursor-not-allowed bg-transparent border-slate-200"
-                    />
-                    <div className="flex items-center gap-1.5 flex-1">
-                      <Facebook className="w-3.5 h-3.5 text-slate-900/40 group-hover/chk:text-[#EAB308] transition-colors" />
-                    </div>
-                  </div>
-
-                  {/* Instagram Checkbox */}
-                  <div className="flex items-center gap-2 p-2.5 bg-black/40 border border-slate-100 rounded-lg hover:border-[#EAB308]/30 transition-colors group/chk">
-                    <input
-                      type="checkbox"
-                      checked={post.igPages && post.igPages.length > 0}
-                      readOnly
-                      className="w-4 h-4 accent-[#EAB308] cursor-not-allowed bg-transparent border-slate-200"
-                    />
-                    <div className="flex items-center gap-1.5 flex-1">
-                      <Instagram className="w-3.5 h-3.5 text-slate-900/40 group-hover/chk:text-[#EAB308] transition-colors" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {convertToVideoButton}
-
-              {/* Post Now Button */}
-              <button
-                onClick={() => handlePost(post)}
-                className="w-full flex items-center justify-center gap-2 bg-[#EAB308] text-black hover:bg-[#EAB308]/90 px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-200 shadow-lg shadow-yellow-400/10"
-              >
-                <Send className="w-4 h-4" />
-                Post Now
-              </button>
+              <button onClick={() => handlePost(post)} className="w-full py-3 bg-black text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Post Now</button>
             </div>
           )}
 
           {post.status === "failed" && (
-            <div className="space-y-3">
-              {convertToVideoButton}
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3 backdrop-blur-sm">
-                <p className="text-[10px] text-red-400 font-bold uppercase flex items-center gap-1 tracking-wider">
-                  <XCircle className="w-3 h-3" /> Posting Failed
-                </p>
-                <p className="text-xs text-slate-900/70 mt-1 font-medium">
-                  {post.error || "Unknown error occurred"}
-                </p>
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
+                <XCircle size={18} className="text-red-500 shrink-0" />
+                <p className="text-[10px] text-red-700 font-bold uppercase line-clamp-1">{post.error || "Failed to publish"}</p>
               </div>
-
-              {/* Status Indicators */}
-              <div className="flex flex-wrap gap-2 mb-1">
-                {isPostedGmb && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> GMB
-                  </span>
-                )}
-                {isPostedFb && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> FB
-                  </span>
-                )}
-                {isPostedIg && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> IG
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handlePost(post)}
-                  className="flex items-center justify-center gap-2 bg-slate-50 text-slate-900 border border-slate-200 hover:bg-slate-100 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  Retry GMB
-                </button>
-
-                <button
-                  onClick={() => handleFacebookPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedFb ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Facebook className="w-3 h-3" />
-                  {isPostedFb ? "Repost FB" : "Post FB "}
-                </button>
-
-                <button
-                  onClick={() => handleInstagramPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedIg ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Instagram className="w-3 h-3" />
-                  {isPostedIg ? "Repost IG" : "Post IG"}
-                </button>
-
-                <button
-                  onClick={() => onUpdateStatus(post)}
-                  className="flex items-center justify-center gap-2 bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 hover:bg-yellow-400/20 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                >
-                  <Calendar className="w-3 h-3" />
-                  Schedule
-                </button>
-              </div>
+              <button onClick={() => handlePost(post)} className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"><RefreshCw size={14} /> Retry Delivery</button>
             </div>
           )}
 
-          {post.status === "posted" && (
-            <div className="space-y-3">
-              {convertToVideoButton}
-              {/* Status Indicators */}
-              <div className="flex flex-wrap gap-2 mb-1">
-                {isPostedGmb && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> GMB
-                  </span>
-                )}
-                {isPostedFb && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> FB
-                  </span>
-                )}
-                {isPostedIg && (
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-50 text-slate-900/80 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-bold">
-                    <CheckCircle className="w-3 h-3 text-green-400" /> IG
-                  </span>
-                )}
+          {/* AI Video Conversion Mini-CTA */}
+          {imgUrl && !vidUrl && post.status !== "rejected" && (
+            <button
+              disabled={isConvertingThisPost}
+              onClick={() => onConvertToVideo(post)}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 border border-black/[0.03] rounded-2xl hover:border-[#EAB308] hover:bg-white transition-all group/v"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white rounded-xl shadow-sm text-black group-hover/v:text-[#EAB308] transition-colors">
+                  {isConvertingThisPost ? <Loader2 size={16} className="animate-spin" /> : <Video size={16} />}
+                </div>
+                <div className="text-left">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-black/80">Enhance Content</p>
+                  <p className="text-[8px] font-bold text-black/30 uppercase tracking-tighter">AI Video Motion • {videoGenerationCoins} Coins</p>
+                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handlePost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedGmb ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Send className="w-3 h-3" />
-                  {isPostedGmb ? "Repost GMB" : "Post GMB"}
-                </button>
-
-                <button
-                  onClick={() => handleFacebookPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedFb ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Facebook className="w-3 h-3" />
-                  {isPostedFb ? "Repost FB" : "Post FB"}
-                </button>
-
-                <button
-                  onClick={() => handleInstagramPost(post)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${isPostedIg ? "bg-slate-50 text-slate-900/40 border-slate-100" : "bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100"}`}
-                >
-                  <Instagram className="w-3 h-3" />
-                  {isPostedIg ? "Repost IG" : "Post IG"}
-                </button>
-
-                <button
-                  onClick={() => onUpdateStatus(post)}
-                  className="flex items-center justify-center gap-2 bg-[#EAB308] text-black border border-[#EAB308] hover:bg-[#EAB308]/90 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                >
-                  <Calendar className="w-3 h-3" />
-                  Schedule
-                </button>
-              </div>
-            </div>
+              <ChevronRight size={14} className="text-black/10 group-hover/v:translate-x-1 transition-transform" />
+            </button>
           )}
         </div>
       </div>

@@ -10,32 +10,31 @@ export default function SignupPopup({
   if (!showSignupPopup || isLoggedIn) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in duration-300">
       <div
-        className="relative rounded-[2rem] p-8 max-w-md w-full border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] text-center overflow-hidden"
-        style={{ backgroundColor: "var(--cyber-black)" }}
+        className="relative bg-white rounded-[2.5rem] p-8 md:p-12 max-w-md w-full border border-black/[0.03] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] text-center overflow-hidden"
       >
         {/* ── Subtle background grid ── */}
         <div
-          className="pointer-events-none absolute inset-0 z-0 opacity-[0.05]"
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
           style={{
-            backgroundImage: "linear-gradient(rgba(250, 204, 21, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(250, 204, 21, 0.2) 1px, transparent 1px)",
+            backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
             backgroundSize: "30px 30px"
           }}
         />
 
         {/* Ambient Glow */}
         <div 
-          className="absolute -top-20 -right-20 w-60 h-60 blur-[100px] rounded-full opacity-20" 
+          className="absolute -top-20 -right-20 w-60 h-60 blur-[100px] rounded-full opacity-10" 
           style={{ background: "var(--lemon-glow)" }}
         />
 
         {/* Close Button */}
         <button
           onClick={() => setShowSignupPopup(false)}
-          className="absolute top-6 right-6 text-white/40 hover:text-[var(--lemon-glow)] transition-colors z-20 cursor-pointer"
+          className="absolute top-6 right-6 text-black/20 hover:text-lemon-hover hover:rotate-90 transition-all z-20 cursor-pointer p-2 rounded-full hover:bg-slate-50"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
 
         <div className="relative z-10">
@@ -43,41 +42,33 @@ export default function SignupPopup({
           <div className="relative mb-8 flex justify-center">
             <div className="relative">
               <div 
-                className="w-20 h-20 rounded-2xl flex items-center justify-center rotate-12 border"
-                style={{ 
-                  background: "rgba(250, 204, 21, 0.1)",
-                  borderColor: "rgba(250, 204, 21, 0.2)"
-                }}
+                className="w-20 h-20 rounded-[1.5rem] flex items-center justify-center rotate-12 bg-lemon-glow/10 border border-lemon-glow/20 shadow-sm"
               >
                 <Gift 
-                  className="w-10 h-10 -rotate-12 animate-pulse" 
-                  style={{ color: "var(--lemon-glow)" }}
+                  className="w-10 h-10 -rotate-12 animate-pulse text-lemon-hover" 
                 />
               </div>
-              <Sparkles 
-                className="absolute -top-3 -right-3 w-8 h-8 animate-bounce" 
-                style={{ color: "var(--lemon-glow)" }}
-              />
+              <div className="absolute -top-4 -right-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-black/[0.03] animate-bounce">
+                 <Sparkles 
+                    className="w-6 h-6 text-lemon-hover" 
+                 />
+              </div>
             </div>
           </div>
 
           {/* Text Content */}
           <h2 
-            className="font-bold uppercase leading-[0.95] tracking-tight mb-4"
-            style={{ 
-              fontFamily: "var(--font-heading)",
-              color: "var(--pure-white)",
-              fontSize: "clamp(2rem, 5vw, 2.5rem)"
-            }}
+            className="font-black uppercase leading-[0.95] tracking-tight mb-4 font-heading text-black"
+            style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}
           >
-            Hurry <span style={{ color: "var(--lemon-glow)" }}>Up!</span> 🚀
+            Hurry <span className="text-lemon-hover">Up!</span> 🚀
           </h2>
 
           <p 
-            className="text-white/70 text-base mb-8 leading-relaxed font-medium mx-auto max-w-[280px]"
+            className="text-black/60 text-base mb-10 leading-relaxed font-medium mx-auto max-w-[300px] font-inter"
           >
             Sign up now to get{" "}
-            <span style={{ color: "var(--lemon-glow)" }} className="font-bold underline decoration-2 underline-offset-4">
+            <span className="text-black font-black underline decoration-[3px] decoration-lemon-glow underline-offset-4">
               500 bonus coins
             </span>{" "}
             and create amazing posts instantly!
@@ -86,11 +77,7 @@ export default function SignupPopup({
           {/* Action Button */}
           <button
             onClick={() => (window.location.href = "/login")}
-            className="w-full py-5 rounded-2xl text-xs font-bold tracking-[0.2em] uppercase transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-[0_10px_25px_-5px_rgba(234,179,8,0.3)]"
-            style={{
-              background: "var(--lemon-glow)",
-              color: "#000",
-            }}
+            className="w-full py-5 rounded-2xl text-[11px] font-black tracking-[0.25em] uppercase transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-xl shadow-lemon-glow/20 bg-lemon-glow text-black hover:bg-lemon-hover"
           >
             Claim My Coins Now ↗
           </button>
@@ -98,7 +85,7 @@ export default function SignupPopup({
           {/* Secondary Close Option */}
           <button
             onClick={() => setShowSignupPopup(false)}
-            className="mt-6 text-white/30 hover:text-white/60 text-[10px] font-bold tracking-widest uppercase transition-all cursor-pointer"
+            className="mt-8 text-black/30 hover:text-black/60 text-[10px] font-bold tracking-[0.2em] uppercase transition-all cursor-pointer"
           >
             No thanks, I&apos;ll pay full price later
           </button>

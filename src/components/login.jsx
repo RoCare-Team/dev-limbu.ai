@@ -25,7 +25,7 @@ import Image from "next/image";
 
 /* ─── Validators ─── */
 const validatePhone = (v) => /^[6-9]\d{9}$/.test(v.trim());
-const validateOtp = (v) => /^\d{4,6}$/.test(v.trim());
+const validateOtp = (v) => /^\d{4}$/.test(v.trim());
 const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const validateName = (v) => v.trim().length >= 2 && v.trim().length <= 30;
 
@@ -390,11 +390,11 @@ export default function LoginPage() {
                     icon={Lock}
                     type="text"
                     inputMode="numeric"
-                    placeholder="• • • • • •"
+                    placeholder="• • • •"
                     value={otp}
-                    maxLength={6}
+                    maxLength={4}
                     onChange={(e) => {
-                      setOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
+                      setOtp(e.target.value.replace(/\D/g, "").slice(0, 4));
                       if (errors.otp) setErrors({});
                     }}
                     onKeyPress={(e) => hk(e, verifyOtp)}

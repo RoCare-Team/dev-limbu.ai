@@ -29,6 +29,7 @@ import {
   XCircle,
   Video,
   Film,
+  Zap,
 } from "lucide-react";
 
 import ScheduleModal from "../../components/post-management/ScheduleModal";
@@ -2048,7 +2049,6 @@ export default function PostManagementPage() {
   };
 
   const handlePost = async (post) => {
-    // First check if user has approved the post
     if (
       post.status !== "approved" &&
       post.status !== "scheduled" &&
@@ -2059,7 +2059,13 @@ export default function PostManagementPage() {
       return;
     }
 
-    // Set the post to be actioned and open the location modal
+    // ✅ Refresh wallet BEFORE opening modal so balance is current
+    const userId = localStorage.getItem("userId");
+    const userData = await getUserWalletAction(userId);
+    const freshBalance = userData.wallet || 0;
+    setUserWallet(freshBalance);
+    localStorage.setItem("walletBalance", freshBalance);
+
     setPostToAction(post);
     setShowLocationModal(true);
   };
@@ -2352,6 +2358,7 @@ export default function PostManagementPage() {
             onConfirm={handleLocationConfirm}
             title="Select Locations to Post"
             confirmText="Post"
+            isPostAction={true}
             walletBalance={userWallet}
             initialSelected={
               postToAction?.locations?.map((l) => {
@@ -2476,24 +2483,57 @@ export default function PostManagementPage() {
           <FirstPostModal onClose={() => setShowFirstPostModal(false)} />
         )}
         {isPosting && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-lg z-50 flex items-center justify-center p-4">
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-10 flex flex-col items-center space-y-4 sm:space-y-6 max-w-md w-full border-4 border-slate-200">
-              <div className="relative">
-                <div className="absolute inset-0 bg-orange-300/40 rounded-full blur-2xl animate-pulse"></div>
-                <div className="text-6xl sm:text-8xl animate-bounce-slow">
-                  🚀
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="relative bg-white border border-black/[0.03] rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] max-w-md w-full p-8 sm:p-12 overflow-hidden flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+              {/* Background Decorations */}
+              <div className="absolute top-0 right-0 w-48 h-48 bg-lemon-glow/10 rounded-full blur-3xl -mr-12 -mt-12" />
+
+              {/* Subtle grid background */}
+              <div
+                className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+                  backgroundSize: "24px 24px",
+                }}
+              />
+
+              <div className="relative z-10 w-full flex flex-col items-center">
+                {/* Icon Header */}
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-lemon-glow/40 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative bg-black p-5 rounded-[1.5rem] border border-black/10 shadow-2xl">
+                    <Send className="w-10 h-10 text-lemon-glow animate-bounce" />
+                  </div>
+                  <div className="absolute -top-3 -right-3 w-10 h-10 bg-white rounded-full shadow-lg border border-black/[0.03] flex items-center justify-center animate-bounce">
+                    <Zap className="w-6 h-6 text-lemon-hover" />
+                  </div>
                 </div>
-              </div>
-              <div className="text-center space-y-2 sm:space-y-3">
-                <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
-                  Publishing Post...
-                </h3>
-                <p className="text-blue-100 text-xs sm:text-sm">
-                  Sending to Google My Business
-                </p>
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-300 via-yellow-300 to-green-300 h-full rounded-full animate-shimmer"></div>
+
+                {/* Title */}
+                <div className="space-y-3 mb-10 w-full">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                    Transmission in Progress
+                  </p>
+                  <h3 className="text-2xl md:text-3xl font-black text-black uppercase tracking-tight leading-[0.95] font-heading">
+                    Publishing{" "}
+                    <span className="text-lemon-hover block mt-2">
+                      Your Post ✨
+                    </span>
+                  </h3>
+                  <p className="text-sm text-black/50 font-medium font-inter px-4 leading-relaxed mt-4">
+                    Sending your content to Google My Business. This usually
+                    takes just a few seconds.
+                  </p>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner border border-black/[0.03]">
+                  <div
+                    className="bg-lemon-glow h-full rounded-full animate-shimmer"
+                    style={{ width: "70%" }}
+                  ></div>
+                </div>
               </div>
             </div>
           </div>

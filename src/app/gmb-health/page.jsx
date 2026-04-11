@@ -186,7 +186,7 @@ export default function AuditPage() {
                 <select
                   value={selectedLocationId}
                   onChange={(e) => setSelectedLocationId(e.target.value)}
-                  className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-black/5 rounded-xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
+                  className="w-full pl-12 pr-5 py-3 bg-slate-50 border border-black/10 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
                   disabled={loading || locations.length === 0}
                 >
                   {locations.length === 0 ? (

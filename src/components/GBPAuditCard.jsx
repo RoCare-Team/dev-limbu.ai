@@ -13,6 +13,14 @@ import {
   Trophy,
   Activity,
   Zap,
+  Star,
+  MessageSquare,
+  Clock,
+  Image as ImageIcon,
+  AlertCircle,
+  ShieldAlert,
+  TrendingDown,
+  ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toPng, toBlob } from "html-to-image";
@@ -60,15 +68,33 @@ export default function GBPAuditCard({ audit }) {
 
   const getStatusColor = (score) => {
     if (score >= 90)
-      return { bg: "rgba(34, 197, 94, 0.1)", text: "#16a34a", label: "Elite Ranking" };
+      return {
+        bg: "rgba(34, 197, 94, 0.1)",
+        text: "#16a34a",
+        label: "Elite Ranking",
+        icon: <Trophy className="w-4 h-4" />,
+      };
     if (score >= 60)
-      return { bg: "rgba(250, 204, 21, 0.1)", text: "var(--lemon-hover)", label: "Moderate Visibility" };
-    return { bg: "rgba(239, 68, 68, 0.1)", text: "#dc2626", label: "Critical Attention Required" };
+      return {
+        bg: "rgba(250, 204, 21, 0.1)",
+        text: "var(--lemon-hover)",
+        label: "Moderate Visibility",
+        icon: <Zap className="w-4 h-4" />,
+      };
+    return {
+      bg: "rgba(239, 68, 68, 0.1)",
+      text: "#dc2626",
+      label: "Critical Attention Required",
+      icon: <ShieldAlert className="w-4 h-4" />,
+    };
   };
 
   const statusInfo = getStatusColor(totalScore);
 
   const date = new Date().toLocaleString();
+  const reportId = `GBP-AUDIT-${Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0")}`;
 
   const handleDownloadPDF = async () => {
     const pdf = new jsPDF("p", "mm", "a4");
@@ -242,22 +268,68 @@ export default function GBPAuditCard({ audit }) {
             <div
               className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
               style={{
-                backgroundImage: "linear-gradient(rgba(250, 204, 21, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(250, 204, 21, 0.3) 1px, transparent 1px)",
-                backgroundSize: "30px 30px"
+                backgroundImage:
+                  "linear-gradient(rgba(250, 204, 21, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(250, 204, 21, 0.3) 1px, transparent 1px)",
+                backgroundSize: "30px 30px",
               }}
             />
 
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg" style={{ background: "rgba(250, 204, 21, 0.1)", border: "1px solid rgba(250, 204, 21, 0.2)" }}>
-                   <Trophy className="w-4 h-4" style={{ color: "var(--lemon-hover)" }} />
-                </div>
-                <h2 
-                  className="font-bold uppercase tracking-tight"
-                  style={{ fontFamily: "var(--font-heading)", fontSize: "1.1rem" }}
+                <div
+                  className="p-2 rounded-lg"
+                  style={{
+                    background: "rgba(250, 204, 21, 0.1)",
+                    border: "1px solid rgba(250, 204, 21, 0.2)",
+                  }}
                 >
-                  GBP <span style={{ color: "var(--lemon-hover)" }}>Performance Audit</span> Report
+                  <Trophy
+                    className="w-4 h-4"
+                    style={{ color: "var(--lemon-hover)" }}
+                  />
+                </div>
+                <h2
+                  className="font-bold uppercase tracking-tight"
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "1.1rem",
+                  }}
+                >
+                  GBP{" "}
+                  <span style={{ color: "var(--lemon-hover)" }}>
+                    Performance Audit
+                  </span>{" "}
+                  Report
                 </h2>
+                {/* Audit Meta */}
+                <div className="flex justify-between items-end gap-3">
+                  {/* Report ID */}
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase border border-slate-200"
+                    style={{ backgroundColor: "#f8fafc", color: "#64748b" }}
+                  >
+                    <Calendar
+                      className="w-3.5 h-3.5"
+                      style={{ color: "var(--lemon-hover)" }}
+                    />
+                    <span>
+                      Report ID:{" "}
+                      {Math.random().toString(36).substr(2, 9).toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Generated Date + Time (Same UI) */}
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase border border-slate-200"
+                    style={{ backgroundColor: "#f8fafc", color: "#64748b" }}
+                  >
+                    <Calendar
+                      className="w-3.5 h-3.5"
+                      style={{ color: "var(--lemon-hover)" }}
+                    />
+                    <span>Generated On: {new Date().toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col lg:flex-row justify-between items-stretch gap-4">
@@ -281,30 +353,19 @@ export default function GBPAuditCard({ audit }) {
                     <div className="flex flex-wrap gap-4 pt-3 border-t border-slate-200 mt-2">
                       <div className="flex items-center gap-1.5">
                         <Phone className="w-3.5 h-3.5 text-[var(--lemon-hover)]" />
-                        <span className="text-[11px] text-slate-600 font-bold">{dataSnapshot.phone}</span>
+                        <span className="text-[11px] text-slate-600 font-bold">
+                          {dataSnapshot.phone}
+                        </span>
                       </div>
                       {dataSnapshot.website && (
                         <div className="flex items-center gap-1.5">
                           <Globe className="w-3.5 h-3.5 text-[var(--lemon-hover)]" />
-                          <span className="text-[11px] text-slate-600 font-bold truncate max-w-[150px]">{dataSnapshot.website}</span>
+                          <span className="text-[11px] text-slate-600 font-bold truncate max-w-[150px]">
+                            {dataSnapshot.website}
+                          </span>
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-
-                {/* Audit Meta */}
-                <div className="flex flex-col justify-between items-end gap-3">
-                  <div
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase border border-slate-200"
-                    style={{ backgroundColor: "#f8fafc", color: "#64748b" }}
-                  >
-                    <Calendar className="w-3.5 h-3.5" style={{ color: "var(--lemon-hover)" }} />
-                    <span>Report ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-0.5 font-bold">Generated On</p>
-                    <p className="text-[11px] font-black text-slate-800">{date}</p>
                   </div>
                 </div>
               </div>
@@ -324,65 +385,83 @@ export default function GBPAuditCard({ audit }) {
               </div>
 
               <div className="text-center mt-4">
-                <div 
-                   className="font-black leading-none mb-2"
-                   style={{ 
-                     fontFamily: "var(--font-heading)", 
-                     fontSize: "clamp(3rem, 6vw, 4rem)",
-                     color: "var(--cyber-black)"
-                   }}
-                >
-                  {animatedScore}<span className="text-2xl opacity-30">/100</span>
-                </div>
-                
                 <div
-                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase"
+                  className="font-black leading-none mb-2"
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "clamp(3rem, 6vw, 4rem)",
+                    color: "var(--cyber-black)",
+                  }}
+                >
+                  {animatedScore}
+                  <span className="text-2xl opacity-30">/100</span>
+                </div>
+
+                <div
+                  className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-[11px] font-black tracking-widest uppercase shadow-sm transition-all duration-500"
                   style={{
                     backgroundColor: statusInfo.bg,
                     color: statusInfo.text,
-                    border: `1px solid ${statusInfo.text}20`
+                    border: `1.5px solid ${statusInfo.text}30`,
                   }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: statusInfo.text }} />
+                  {statusInfo.icon}
                   {statusInfo.label}
+                  <span
+                    className="w-2 h-2 rounded-full animate-pulse"
+                    style={{ backgroundColor: statusInfo.text }}
+                  />
                 </div>
               </div>
 
               <p
-                className="mt-6 text-[11px] max-w-md mx-auto text-center font-medium leading-relaxed"
+                className="mt-6 text-[12px] max-w-md mx-auto text-center font-semibold leading-relaxed"
                 style={{ color: "var(--tech-gray)" }}
               >
-                Based on <span className="text-black font-bold">24 distinct signals</span>, your profile currently captures <span className="text-black font-bold">{animatedScore}%</span> of its local search potential.
+                Based on{" "}
+                <span className="text-black font-black underline decoration-[var(--lemon-glow)] decoration-2 underline-offset-4">
+                  24 distinct signals
+                </span>
+                , your profile currently captures{" "}
+                <span className="text-black font-black text-sm">
+                  {animatedScore}%
+                </span>{" "}
+                of its local search potential.
               </p>
             </div>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 px-6 pb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 px-6 pb-10">
             <StatCard
-              icon={<Activity className="w-3.5 h-3.5" />}
+              icon={<MessageSquare className="w-5 h-5" />}
               title="Reviews"
               value={dataSnapshot.totalReviews}
+              color="#3b82f6"
             />
             <StatCard
-              icon={<Zap className="w-3.5 h-3.5" />}
+              icon={<Star className="w-5 h-5" />}
               title="Rating"
               value={dataSnapshot.averageRating ?? "N/A"}
+              color="#eab308"
             />
             <StatCard
-              icon={<Activity className="w-3.5 h-3.5" />}
+              icon={<FileText className="w-5 h-5" />}
               title="Posts"
               value={dataSnapshot.totalPosts}
+              color="#8b5cf6"
             />
             <StatCard
-              icon={<Zap className="w-3.5 h-3.5" />}
+              icon={<Clock className="w-5 h-5" />}
               title="Recent"
               value={dataSnapshot.postsLast30Days}
+              color="#10b981"
             />
             <StatCard
-              icon={<Activity className="w-3.5 h-3.5" />}
+              icon={<ImageIcon className="w-5 h-5" />}
               title="Media"
               value={dataSnapshot.totalMedia}
+              color="#ec4899"
             />
           </div>
         </div>
@@ -393,9 +472,12 @@ export default function GBPAuditCard({ audit }) {
             {categories.length > 0 && (
               <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 
+                  <h3
                     className="text-[10px] font-black uppercase tracking-[0.2em]"
-                    style={{ fontFamily: "var(--font-heading)", color: "var(--tech-silver)" }}
+                    style={{
+                      fontFamily: "var(--font-heading)",
+                      color: "var(--tech-silver)",
+                    }}
                   >
                     Core Categories
                   </h3>
@@ -433,9 +515,12 @@ export default function GBPAuditCard({ audit }) {
             {services.length > 0 && (
               <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 
+                  <h3
                     className="text-[10px] font-black uppercase tracking-[0.2em]"
-                    style={{ fontFamily: "var(--font-heading)", color: "var(--tech-silver)" }}
+                    style={{
+                      fontFamily: "var(--font-heading)",
+                      color: "var(--tech-silver)",
+                    }}
                   >
                     Identified Services
                   </h3>
@@ -470,16 +555,21 @@ export default function GBPAuditCard({ audit }) {
           {/* Score Breakdown */}
           <div>
             <div className="text-center mb-10">
-              <h3 
+              <h3
                 className="font-bold uppercase tracking-tight mb-2"
-                style={{ fontFamily: "var(--font-heading)", fontSize: "1.75rem", color: "var(--cyber-black)" }}
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "1.75rem",
+                  color: "var(--cyber-black)",
+                }}
               >
-                Deep <span style={{ color: "var(--lemon-hover)" }}>Signal</span> Analysis
+                Deep <span style={{ color: "var(--lemon-hover)" }}>Signal</span>{" "}
+                Analysis
               </h3>
               <div className="w-12 h-1 bg-black mx-auto rounded-full" />
             </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <div className="flex flex-nowrap overflow-x-auto gap-4 pb-6 px-1 snap-x custom-scroll">
               {scoreBreakdown.map((item) => (
                 <ScoreItem
                   key={item.factor}
@@ -498,15 +588,14 @@ export default function GBPAuditCard({ audit }) {
           {/* AI Guidance Section */}
           {guidanceText && (
             <div className="mb-8">
-              <div
-                className="rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-slate-50"
-              >
+              <div className="rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-slate-50">
                 {/* Subtle Grid */}
                 <div
                   className="pointer-events-none absolute inset-0 z-0 opacity-50"
                   style={{
-                    backgroundImage: "radial-gradient(#e2e8f0 1px, transparent 1px)",
-                    backgroundSize: "16px 16px"
+                    backgroundImage:
+                      "radial-gradient(#e2e8f0 1px, transparent 1px)",
+                    backgroundSize: "16px 16px",
                   }}
                 />
 
@@ -519,13 +608,14 @@ export default function GBPAuditCard({ audit }) {
                       className="text-lg font-bold uppercase tracking-widest text-slate-900"
                       style={{ fontFamily: "var(--font-heading)" }}
                     >
-                      Strategic <span style={{ color: "var(--lemon-hover)" }}>Insights</span>
+                      Strategic{" "}
+                      <span style={{ color: "var(--lemon-hover)" }}>
+                        Insights
+                      </span>
                     </h3>
                   </div>
-                  
-                  <div
-                    className="prose prose-sm max-w-none text-slate-600 leading-relaxed font-medium"
-                  >
+
+                  <div className="prose prose-sm max-w-none text-slate-600 leading-relaxed font-medium">
                     {guidanceText.split("\n").map((line, i) => {
                       if (line.startsWith("###"))
                         return (
@@ -548,10 +638,7 @@ export default function GBPAuditCard({ audit }) {
                         );
                       if (line.startsWith("•"))
                         return (
-                          <li
-                            key={i}
-                            className="ml-5 list-disc mb-2"
-                          >
+                          <li key={i} className="ml-5 list-disc mb-2">
                             {line.replace("•", "").trim()}
                           </li>
                         );
@@ -563,7 +650,9 @@ export default function GBPAuditCard({ audit }) {
                         <p key={i} className="mb-2">
                           {parts.map((part, j) =>
                             part.startsWith("**") ? (
-                              <strong key={j} className="text-slate-800">{part.replace(/\*/g, "")}</strong>
+                              <strong key={j} className="text-slate-800">
+                                {part.replace(/\*/g, "")}
+                              </strong>
                             ) : (
                               part
                             ),
@@ -593,15 +682,19 @@ export default function GBPAuditCard({ audit }) {
 
       {/* CTA Buttons */}
       <div className="flex flex-col sm:flex-row justify-center gap-3 pb-8 px-6">
-        <Link href="/dashboard" target="_blank" className="flex-1 max-w-[240px]">
-          <button 
+        <Link
+          href="/dashboard"
+          target="_blank"
+          className="flex-1 max-w-[240px]"
+        >
+          <button
             className="w-full h-full py-3.5 rounded-xl text-[11px] font-bold tracking-[0.2em] uppercase transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-md"
             style={{ background: "var(--lemon-glow)", color: "#000" }}
           >
             Improve Rank ↗
           </button>
         </Link>
-        
+
         <button
           onClick={handleDownloadPDF}
           className="flex-1 max-w-[240px] py-3.5 rounded-xl text-[10px] font-bold tracking-[0.2em] uppercase transition-all border-2 border-slate-200 hover:border-slate-300 text-slate-700 bg-white flex items-center justify-center gap-2 cursor-pointer"
@@ -630,7 +723,10 @@ export default function GBPAuditCard({ audit }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-bold uppercase tracking-wider text-sm" style={{ fontFamily: "var(--font-heading)" }}>
+              <h3
+                className="font-bold uppercase tracking-wider text-sm"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
                 Business Categories
               </h3>
               <button
@@ -649,7 +745,9 @@ export default function GBPAuditCard({ audit }) {
                   >
                     {cat}{" "}
                     {i === 0 && (
-                      <span className="opacity-50 ml-1 text-[10px] font-medium">(Primary)</span>
+                      <span className="opacity-50 ml-1 text-[10px] font-medium">
+                        (Primary)
+                      </span>
                     )}
                   </span>
                 ))}
@@ -670,7 +768,10 @@ export default function GBPAuditCard({ audit }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-bold uppercase tracking-wider text-sm" style={{ fontFamily: "var(--font-heading)" }}>
+              <h3
+                className="font-bold uppercase tracking-wider text-sm"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
                 Service Inventory
               </h3>
               <button
@@ -899,20 +1000,35 @@ function Speedometer({ score }) {
 }
 
 /* Stat Card */
-function StatCard({ icon, title, value }) {
+function StatCard({ icon, title, value, color }) {
   return (
     <div
-      className="p-5 rounded-xl border-2 border-gray-100 text-center hover:shadow-md transition-shadow"
+      className="group p-5 rounded-2xl border border-slate-100 text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden bg-white"
       style={{
-        background: "linear-gradient(to bottom right, #f9fafb, #ffffff)",
-        borderColor: "#f3f4f6",
+        boxShadow: "0 4px 20px -5px rgba(0,0,0,0.05)",
       }}
     >
-      <div className="text-2xl mb-2">{icon}</div>
-      <div className="text-2xl font-bold" style={{ color: "#1f2937" }}>
+      {/* Decorative background circle */}
+      <div
+        className="absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-[0.03] group-hover:scale-150 transition-transform duration-500"
+        style={{ backgroundColor: color }}
+      />
+
+      <div
+        className="inline-flex p-2.5 rounded-xl mb-3 transition-colors duration-300"
+        style={{
+          backgroundColor: `${color}10`,
+          color: color,
+        }}
+      >
+        {icon}
+      </div>
+
+      <div className="text-2xl font-black text-slate-900 leading-none">
         {value}
       </div>
-      <div className="text-xs mt-1 font-medium" style={{ color: "#6b7280" }}>
+
+      <div className="text-[10px] mt-1.5 font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">
         {title}
       </div>
     </div>
@@ -968,31 +1084,38 @@ function ActionBox({ title, items, danger, onRedirect }) {
           return (
             <li
               key={i}
-              className={`flex gap-3 items-start ${danger && signalKey ? "cursor-pointer hover:bg-red-100 p-1.5 -mx-1.5 rounded-lg transition-colors" : ""}`}
+              className={`flex gap-3 items-start ${danger && signalKey ? "cursor-pointer hover:bg-red-100 p-1.5 -mx-1.5 rounded-lg transition-colors group" : ""}`}
               onClick={() => {
                 if (danger && signalKey && onRedirect) onRedirect(signalKey);
               }}
             >
-              {danger ? (
-                <XCircle
-                  className="w-5 h-5 flex-shrink-0 mt-0.5"
-                  style={{ color: "#dc2626" }}
-                />
-              ) : (
-                <CheckCircle
-                  className="w-5 h-5 flex-shrink-0 mt-0.5"
-                  style={{ color: "#16a34a" }}
-                />
-              )}
+              <div className="mt-0.5">
+                {danger ? (
+                  <AlertCircle
+                    className="w-5 h-5 flex-shrink-0"
+                    style={{ color: "#dc2626" }}
+                  />
+                ) : (
+                  <CheckCircle
+                    className="w-5 h-5 flex-shrink-0"
+                    style={{ color: "#16a34a" }}
+                  />
+                )}
+              </div>
               <div className="flex flex-col gap-1 w-full">
                 <div className="flex items-center justify-between gap-2 w-full">
-                  <span className="font-medium" style={{ color: "#374151" }}>
+                  <span className="font-bold text-slate-800 flex items-center gap-1">
                     {text}
+                    {danger && signalKey && (
+                      <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
                   </span>
                   {severityBadge}
                 </div>
                 {subtext && (
-                  <span className="text-xs text-gray-500">{subtext}</span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {subtext}
+                  </span>
                 )}
               </div>
             </li>
@@ -1000,7 +1123,8 @@ function ActionBox({ title, items, danger, onRedirect }) {
         })}
       </ul>
       {danger && (
-        <p className="text-xs mt-4 italic" style={{ color: "#4b5563" }}>
+        <p className="text-[11px] mt-4 font-bold flex items-center gap-2 text-red-600/70 italic uppercase tracking-wider">
+          <TrendingDown className="w-3.5 h-3.5" />
           Fixing these can significantly improve your local ranking.
         </p>
       )}

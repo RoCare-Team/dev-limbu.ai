@@ -132,7 +132,7 @@ export default function UserManagement() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
-const [callStats, setCallStats] = useState(null);
+  const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
   const [agentCallHistory, setAgentCallHistory] = useState([]);
   const [callingUserId, setCallingUserId] = useState(null);
@@ -157,7 +157,7 @@ const [callStats, setCallStats] = useState(null);
   const [byAgentOpen, setByAgentOpen] = useState(false);
   const [adminFollowUpLeadsOpen, setAdminFollowUpLeadsOpen] = useState(false);
 
-// Revenue tracking state
+  // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
   const [userOnboardCount, setUserOnboardCount] = useState(0);
@@ -223,7 +223,14 @@ const [callStats, setCallStats] = useState(null);
       return assignment ? assignment.count : 0;
     }
     return todayUsersCount;
-  }, [isAgent, isManager, currentAgentId, agentTodayLeads, todayStats, todayUsersCount]);
+  }, [
+    isAgent,
+    isManager,
+    currentAgentId,
+    agentTodayLeads,
+    todayStats,
+    todayUsersCount,
+  ]);
 
   const displayTotalChatsCount = useMemo(() => {
     if (isAgent || isManager) {
@@ -234,7 +241,14 @@ const [callStats, setCallStats] = useState(null);
       ).length;
     }
     return chatStats.total;
-  }, [isAgent, isManager, chatStats, users, followUpFilter, followUpTableUsers]);
+  }, [
+    isAgent,
+    isManager,
+    chatStats,
+    users,
+    followUpFilter,
+    followUpTableUsers,
+  ]);
 
   /** Agent: table rows loaded via byUserIds (paginated `users` often omits follow-up leads) */
   const filteredUsers = useMemo(() => {
@@ -243,18 +257,13 @@ const [callStats, setCallStats] = useState(null);
     if (isAgent && followUpFilter !== "all" && searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((u) => {
-        const hay = `${u.email || ""} ${u.userId || ""} ${u.phone || ""} ${u.mobileNumber || ""} ${u.fullName || ""}`.toLowerCase();
+        const hay =
+          `${u.email || ""} ${u.userId || ""} ${u.phone || ""} ${u.mobileNumber || ""} ${u.fullName || ""}`.toLowerCase();
         return hay.includes(q);
       });
     }
     return list;
-  }, [
-    users,
-    isAgent,
-    followUpFilter,
-    followUpTableUsers,
-    searchQuery,
-  ]);
+  }, [users, isAgent, followUpFilter, followUpTableUsers, searchQuery]);
 
   const followUpMetaByUserId = useMemo(() => {
     const m = new Map();
@@ -399,7 +408,9 @@ const [callStats, setCallStats] = useState(null);
 
   useEffect(() => {
     setRole(localStorage.getItem("role"));
-    setCurrentAgentId(localStorage.getItem("adminId") || localStorage.getItem("userId"));
+    setCurrentAgentId(
+      localStorage.getItem("adminId") || localStorage.getItem("userId"),
+    );
   }, []);
 
   useEffect(() => {
@@ -458,12 +469,17 @@ const [callStats, setCallStats] = useState(null);
   useEffect(() => {
     const fetchCallStats = async () => {
       const adminEmail = localStorage.getItem("email");
-      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
+      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
+        return;
 
       try {
         const [callRes, followUpRes] = await Promise.all([
-          fetch(`/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`),
-          fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`),
+          fetch(
+            `/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`,
+          ),
+          fetch(
+            `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`,
+          ),
         ]);
         const callData = await callRes.json();
         const followUpData = await followUpRes.json();
@@ -482,18 +498,19 @@ const [callStats, setCallStats] = useState(null);
   useEffect(() => {
     const fetchFollowUpLeads = async () => {
       const adminEmail = localStorage.getItem("email");
-      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
+      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
+        return;
 
       setLoadingFollowUps(true);
       try {
         const res = await fetch(
-          `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`
+          `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`,
         );
         const data = await res.json();
         if (data.success) {
           setFollowUpLeads(data.stats.leads || []);
           // Update bucket counts without overwriting leads
-          setFollowUpStats(prev => ({ ...prev, ...data.stats }));
+          setFollowUpStats((prev) => ({ ...prev, ...data.stats }));
         }
       } catch (err) {
         console.error("Failed to fetch follow-up leads:", err);
@@ -514,7 +531,10 @@ const [callStats, setCallStats] = useState(null);
     const adminEmail = localStorage.getItem("email");
     const uniqueIds = [
       ...new Set(
-        followUpLeads.map((l) => l?.userId).filter(Boolean).map(String),
+        followUpLeads
+          .map((l) => l?.userId)
+          .filter(Boolean)
+          .map(String),
       ),
     ];
     if (!adminEmail || uniqueIds.length === 0) {
@@ -554,9 +574,7 @@ const [callStats, setCallStats] = useState(null);
     ).length;
     const active = connectedBusinessUsers.length;
     const isMetaLeadSource = (src) =>
-      src === "bulk-upload" ||
-      src === "Meta Leads" ||
-      src === "Meta";
+      src === "bulk-upload" || src === "Meta Leads" || src === "Meta";
     const isTodayLocalBrowser = (createdAt) =>
       new Date(createdAt).toDateString() === new Date().toDateString();
     const useApiTodayBreakdown =
@@ -573,8 +591,7 @@ const [callStats, setCallStats] = useState(null);
     const todaySignups = useApiTodayBreakdown
       ? todayUsersSignups
       : users.filter(
-          (u) =>
-            u.source === "signup" && isTodayLocalBrowser(u.createdAt),
+          (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
     console.log("usersusers", users);
 
@@ -635,7 +652,9 @@ const [callStats, setCallStats] = useState(null);
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
         setDetailedStats(data.detailedStats || []);
-        setLeadStatusStats(data.leadStatusStats || { Hot: 0, Warm: 0, Cold: 0 });
+        setLeadStatusStats(
+          data.leadStatusStats || { Hot: 0, Warm: 0, Cold: 0 },
+        );
 
         if (data.todayLeads !== undefined) {
           setTodayStats({
@@ -1720,9 +1739,10 @@ const [callStats, setCallStats] = useState(null);
 
     let followUpIso = null;
     if (followUpDate) {
-      const rawT = followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim())
-        ? followUpTime.trim()
-        : "09:00";
+      const rawT =
+        followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim())
+          ? followUpTime.trim()
+          : "09:00";
       const [hh, mm] = rawT.split(":");
       const d = new Date(
         `${followUpDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`,
@@ -1781,15 +1801,21 @@ const [callStats, setCallStats] = useState(null);
         setRemarksModalUser(null);
         const trimmedR = remarksInput.trim();
         const refreshFu =
-          (followUpIso &&
-            !Number.isNaN(new Date(followUpIso).getTime())) ||
+          (followUpIso && !Number.isNaN(new Date(followUpIso).getTime())) ||
           FOLLOW_UP_REMARKS.some((r) => trimmedR.startsWith(r));
         if (refreshFu) {
           const adminEmail = localStorage.getItem("email");
           if (adminEmail) {
-            fetch(`/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`)
-              .then(r => r.json())
-              .then(d => { if (d.success) { setFollowUpLeads(d.stats.leads || []); setFollowUpStats(prev => ({ ...prev, ...d.stats })); } })
+            fetch(
+              `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`,
+            )
+              .then((r) => r.json())
+              .then((d) => {
+                if (d.success) {
+                  setFollowUpLeads(d.stats.leads || []);
+                  setFollowUpStats((prev) => ({ ...prev, ...d.stats }));
+                }
+              })
               .catch(() => {});
           }
         }
@@ -1802,37 +1828,37 @@ const [callStats, setCallStats] = useState(null);
     }
   };
 
-const handleVoiceCall = async (phone) => {
-  if (!phone) {
-    showToast("Phone number not found", "error");
-    return;
-  }
-
-  setCallingUserId(phone);
-
-  try {
-    const res = await fetch("/api/twillo", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ phone }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to initiate call");
+  const handleVoiceCall = async (phone) => {
+    if (!phone) {
+      showToast("Phone number not found", "error");
+      return;
     }
 
-    showToast("📞 Voice call initiated successfully!", "success");
-  } catch (error) {
-    console.error("Voice Call Error:", error);
-    showToast(error.message || "Error initiating call", "error");
-  } finally {
-    setCallingUserId(null);
-  }
-};
+    setCallingUserId(phone);
+
+    try {
+      const res = await fetch("/api/twillo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to initiate call");
+      }
+
+      showToast("📞 Voice call initiated successfully!", "success");
+    } catch (error) {
+      console.error("Voice Call Error:", error);
+      showToast(error.message || "Error initiating call", "error");
+    } finally {
+      setCallingUserId(null);
+    }
+  };
   const handleMeetingSubmit = async () => {
     if (!meetingData.date || !meetingData.link || !meetingData.meetingId) {
       showToast("Please enter Date, Meeting Link and Meeting ID", "error");
@@ -2062,12 +2088,17 @@ const handleVoiceCall = async (phone) => {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              title={isRefreshingMetaLeads ? "Refreshing…" : "Refresh Meta Leads"}
+              title={
+                isRefreshingMetaLeads ? "Refreshing…" : "Refresh Meta Leads"
+              }
               onClick={() => handleRefreshMetaLeads(true)}
               disabled={isRefreshingMetaLeads}
               className="p-2 rounded-lg border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 shadow-sm transition-all disabled:opacity-50"
             >
-              <RefreshCw size={18} className={isRefreshingMetaLeads ? "animate-spin" : ""} />
+              <RefreshCw
+                size={18}
+                className={isRefreshingMetaLeads ? "animate-spin" : ""}
+              />
             </button>
             <button
               type="button"
@@ -2117,129 +2148,21 @@ const handleVoiceCall = async (phone) => {
         </div>
 
         {/* Main Stats Cards — hidden for agents (they have their own performance panel below) */}
-        {!isAgent && <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
-          {/* Total Users */}
-          <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">
-                  Total Users
-                </p>
-                <p className="text-lg font-bold text-indigo-800 mt-1">
-                  {stats.total}
-                </p>
-              </div>
-              <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <User className="text-indigo-600" size={18} />
-              </div>
-            </div>
-            {filterLabel && (
-              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={11} />
-                {filterLabel}
-              </div>
-            )}
-          </div>
-
-          {/* Active Users */}
-          {!isAgent && !isManager && (
-            <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+        {!isAgent && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
+            {/* Total Users */}
+            <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
-                    Active Users
+                  <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">
+                    Total Users
                   </p>
-                  <p className="text-lg font-bold text-green-800 mt-1">
-                    {stageStats["Active"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="text-green-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Follow Up */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setStageModal("Follow Up")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">
-                    Follow Up
-                  </p>
-                  <p className="text-lg font-bold text-yellow-800 mt-1">
-                    {stageStats["Follow Up"] || 0}
+                  <p className="text-lg font-bold text-indigo-800 mt-1">
+                    {stats.total}
                   </p>
                 </div>
-                <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Clock className="text-yellow-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inactive */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setStageModal("Inactive")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">
-                    Inactive
-                  </p>
-                  <p className="text-lg font-bold text-gray-800 mt-1">
-                    {stageStats["Inactive"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <UserX className="text-gray-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Onboarded */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setStageModal("Onboard")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                    Onboarded
-                  </p>
-                  <p className="text-lg font-bold text-blue-800 mt-1">
-                    {stageStats["Onboard"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Rocket className="text-blue-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Total Posts */}
-          {!isAgent && (
-            <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 font-medium">
-                    Total Posts
-                  </p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
-                    {totalPostsCount}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <ImageIcon className="text-blue-600" size={18} />
+                <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <User className="text-indigo-600" size={18} />
                 </div>
               </div>
               {filterLabel && (
@@ -2249,149 +2172,310 @@ const handleVoiceCall = async (phone) => {
                 </div>
               )}
             </div>
-          )}
 
-          {/* Users Today — Meta (bulk-upload) vs Signup vs total (IST / APP_TIMEZONE via API) */}
-          <div
-            className={`bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all ${
-              (role === "superAdmin" ||
-                role === "admin" ||
-                role === "superfranchiseAdmin") &&
-              !isManager
-                ? "md:col-span-2"
-                : ""
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-teal-700 font-medium">
-                  {isAgent ? "Calls Today" : "Users Today"}
-                </p>
-                {(role === "superAdmin" ||
-                  role === "admin" ||
-                  role === "superfranchiseAdmin") &&
-                !isAgent &&
-                !isManager ? (
-                  <>
-                    <p
-                      className="text-[10px] text-teal-600/90 leading-tight mt-0.5 line-clamp-2"
-                      title={todayLeadWindowLabel}
-                    >
-                      {todayLeadWindowLabel ||
-                        "Calendar day (Asia/Kolkata / app timezone)"}
+            {/* Active Users */}
+            {!isAgent && !isManager && (
+              <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
+                      Active Users
                     </p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
-                      <span title="Meta instant form + imports tagged bulk-upload">
-                        Meta Leads:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersMetaLeads}
-                        </b>
-                      </span>
-                      <span>
-                        Signup:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersSignups}
-                        </b>
-                      </span>
-                      <span>
-                        Total:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersCount}
-                        </b>
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-lg font-bold text-teal-800 ">
-                    {displayTodayUsersCount}
-                  </p>
+                    <p className="text-lg font-bold text-green-800 mt-1">
+                      {stageStats["Active"] || 0}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="text-green-600" size={18} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Follow Up */}
+            {!isAgent && (
+              <div
+                className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => setStageModal("Follow Up")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wide">
+                      Follow Up
+                    </p>
+                    <p className="text-lg font-bold text-yellow-800 mt-1">
+                      {stageStats["Follow Up"] || 0}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Clock className="text-yellow-600" size={18} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Inactive */}
+            {!isAgent && (
+              <div
+                className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => setStageModal("Inactive")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">
+                      Inactive
+                    </p>
+                    <p className="text-lg font-bold text-gray-800 mt-1">
+                      {stageStats["Inactive"] || 0}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <UserX className="text-gray-600" size={18} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Onboarded */}
+            {!isAgent && (
+              <div
+                className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => setStageModal("Onboard")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                      Onboarded
+                    </p>
+                    <p className="text-lg font-bold text-blue-800 mt-1">
+                      {stageStats["Onboard"] || 0}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Rocket className="text-blue-600" size={18} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Total Posts */}
+            {!isAgent && (
+              <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 font-medium">
+                      Total Posts
+                    </p>
+                    <p className="text-lg font-bold text-gray-900 mt-1">
+                      {totalPostsCount}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <ImageIcon className="text-blue-600" size={18} />
+                  </div>
+                </div>
+                {filterLabel && (
+                  <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                    <Calendar size={11} />
+                    {filterLabel}
+                  </div>
                 )}
               </div>
-              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
-                <User className="text-teal-700" size={18} />
-              </div>
-            </div>
-          </div>
+            )}
 
-          {/* Total Calls Assigned — Agent only */}
-          {isAgent && (
-            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
-                    Total Assigned
-                  </p>
-                  <p className="text-lg font-bold text-indigo-800 mt-1">
-                    {stats.total ?? 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
-                  <UserCheck className="text-indigo-700" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Total Revenue - Role-based visibility */}
-          {(role === "superAdmin" ||
-            role === "franchiseAdmin" ||
-            role === "agent") && (
+            {/* Users Today — Meta (bulk-upload) vs Signup vs total (IST / APP_TIMEZONE via API) */}
             <div
-              className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
-              onClick={() => {
-                fetchRevenueUsers();
-                setShowRevenueUsersModal(true);
-              }}
-              title="Click to view onboarded users details"
+              className={`bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all ${
+                (role === "superAdmin" ||
+                  role === "admin" ||
+                  role === "superfranchiseAdmin") &&
+                !isManager
+                  ? "md:col-span-2"
+                  : ""
+              }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-emerald-700 font-medium group-hover:underline">
-                    {role === "superAdmin" || role === "superFranchiseAdmin"
-                      ? "User Onboard Revenue"
-                      : "My Revenue"}
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-teal-700 font-medium">
+                    {isAgent ? "Calls Today" : "Users Today"}
                   </p>
-                  <p className="text-lg font-bold text-emerald-800 mt-1">
-                    ₹{totalRevenue.toLocaleString()}
-                  </p>
+                  {(role === "superAdmin" ||
+                    role === "admin" ||
+                    role === "superfranchiseAdmin") &&
+                  !isAgent &&
+                  !isManager ? (
+                    <>
+                      <p
+                        className="text-[10px] text-teal-600/90 leading-tight mt-0.5 line-clamp-2"
+                        title={todayLeadWindowLabel}
+                      >
+                        {todayLeadWindowLabel ||
+                          "Calendar day (Asia/Kolkata / app timezone)"}
+                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
+                        <span title="Meta instant form + imports tagged bulk-upload">
+                          Meta Leads:{" "}
+                          <b className="text-base text-teal-950 tabular-nums">
+                            {todayUsersMetaLeads}
+                          </b>
+                        </span>
+                        <span>
+                          Signup:{" "}
+                          <b className="text-base text-teal-950 tabular-nums">
+                            {todayUsersSignups}
+                          </b>
+                        </span>
+                        <span>
+                          Total:{" "}
+                          <b className="text-base text-teal-950 tabular-nums">
+                            {todayUsersCount}
+                          </b>
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-lg font-bold text-teal-800 ">
+                      {displayTodayUsersCount}
+                    </p>
+                  )}
                 </div>
-                <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Wallet className="text-emerald-700" size={18} />
+                <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
+                  <User className="text-teal-700" size={18} />
                 </div>
               </div>
             </div>
-          )}
-        </div>}
+
+            {/* Total Calls Assigned — Agent only */}
+            {isAgent && (
+              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
+                      Total Assigned
+                    </p>
+                    <p className="text-lg font-bold text-indigo-800 mt-1">
+                      {stats.total ?? 0}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
+                    <UserCheck className="text-indigo-700" size={18} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Total Revenue - Role-based visibility */}
+            {(role === "superAdmin" ||
+              role === "franchiseAdmin" ||
+              role === "agent") && (
+              <div
+                className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
+                onClick={() => {
+                  fetchRevenueUsers();
+                  setShowRevenueUsersModal(true);
+                }}
+                title="Click to view onboarded users details"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-emerald-700 font-medium group-hover:underline">
+                      {role === "superAdmin" || role === "superFranchiseAdmin"
+                        ? "User Onboard Revenue"
+                        : "My Revenue"}
+                    </p>
+                    <p className="text-lg font-bold text-emerald-800 mt-1">
+                      ₹{totalRevenue.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Wallet className="text-emerald-700" size={18} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Agent Performance Dashboard ──────────────────────────────── */}
         {isAgent && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4 space-y-3">
-
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
                   <Phone className="text-indigo-600" size={16} />
                 </div>
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">My Performance</h3>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                  My Performance
+                </h3>
               </div>
               <span className="text-xs text-gray-400">
-                {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                {new Date().toLocaleDateString("en-IN", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
               </span>
             </div>
 
             {/* ── Row 1: Leads & Calls ── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {[
-                { label: "Today's Leads",  value: agentTodayLeads,              sub: "assigned today",   from: "from-teal-50",   to: "to-cyan-50",   border: "border-teal-100",   text: "text-teal-600",   bold: "text-teal-800"   },
-                { label: "Total Leads",    value: stats.total ?? 0,             sub: "all-time assigned", from: "from-indigo-50", to: "to-blue-50",   border: "border-indigo-100", text: "text-indigo-600", bold: "text-indigo-800" },
-                { label: "Calls Today",    value: callStats?.myCallsToday ?? 0, sub: "handled today",    from: "from-violet-50", to: "to-purple-50", border: "border-violet-100", text: "text-violet-600", bold: "text-violet-800" },
-                { label: "Total Calls",    value: callStats?.myCallsTotal ?? 0, sub: "all-time calls",   from: "from-blue-50",   to: "to-sky-50",    border: "border-blue-100",   text: "text-blue-600",   bold: "text-blue-800"   },
+                {
+                  label: "Today's Leads",
+                  value: agentTodayLeads,
+                  sub: "assigned today",
+                  from: "from-teal-50",
+                  to: "to-cyan-50",
+                  border: "border-teal-100",
+                  text: "text-teal-600",
+                  bold: "text-teal-800",
+                },
+                {
+                  label: "Total Leads",
+                  value: stats.total ?? 0,
+                  sub: "all-time assigned",
+                  from: "from-indigo-50",
+                  to: "to-blue-50",
+                  border: "border-indigo-100",
+                  text: "text-indigo-600",
+                  bold: "text-indigo-800",
+                },
+                {
+                  label: "Calls Today",
+                  value: callStats?.myCallsToday ?? 0,
+                  sub: "handled today",
+                  from: "from-violet-50",
+                  to: "to-purple-50",
+                  border: "border-violet-100",
+                  text: "text-violet-600",
+                  bold: "text-violet-800",
+                },
+                {
+                  label: "Total Calls",
+                  value: callStats?.myCallsTotal ?? 0,
+                  sub: "all-time calls",
+                  from: "from-blue-50",
+                  to: "to-sky-50",
+                  border: "border-blue-100",
+                  text: "text-blue-600",
+                  bold: "text-blue-800",
+                },
               ].map(({ label, value, sub, from, to, border, text, bold }) => (
-                <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}>
-                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}>{label}</p>
+                <div
+                  key={label}
+                  className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}
+                >
+                  <p
+                    className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}
+                  >
+                    {label}
+                  </p>
                   <p className={`text-lg font-bold mt-0.5 ${bold}`}>{value}</p>
-                  <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>{sub}</p>
+                  <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>
+                    {sub}
+                  </p>
                 </div>
               ))}
             </div>
@@ -2399,11 +2483,41 @@ const handleVoiceCall = async (phone) => {
             {/* ── Row 2: Follow-up quick stats (clickable → filter leads below) ── */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {[
-                { key: "today",     label: "Today",        count: followUpStats.todayFollowUps,     bg: "bg-amber-500",  ring: "ring-amber-400"  },
-                { key: "tomorrow",  label: "Tomorrow",     count: followUpStats.tomorrowFollowUps,  bg: "bg-rose-500",   ring: "ring-rose-400"   },
-                { key: "next7days", label: "Next 7 days",  count: followUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
-                { key: "thisMonth", label: "This Month",   count: followUpStats.thisMonthFollowUps, bg: "bg-emerald-500",ring: "ring-emerald-400"},
-                { key: "all",       label: "All Time",     count: followUpStats.totalFollowUps,     bg: "bg-gray-600",   ring: "ring-gray-400"   },
+                {
+                  key: "today",
+                  label: "Today",
+                  count: followUpStats.todayFollowUps,
+                  bg: "bg-amber-500",
+                  ring: "ring-amber-400",
+                },
+                {
+                  key: "tomorrow",
+                  label: "Tomorrow",
+                  count: followUpStats.tomorrowFollowUps,
+                  bg: "bg-rose-500",
+                  ring: "ring-rose-400",
+                },
+                {
+                  key: "next7days",
+                  label: "Next 7 days",
+                  count: followUpStats.next7DaysFollowUps,
+                  bg: "bg-violet-500",
+                  ring: "ring-violet-400",
+                },
+                {
+                  key: "thisMonth",
+                  label: "This Month",
+                  count: followUpStats.thisMonthFollowUps,
+                  bg: "bg-emerald-500",
+                  ring: "ring-emerald-400",
+                },
+                {
+                  key: "all",
+                  label: "All Time",
+                  count: followUpStats.totalFollowUps,
+                  bg: "bg-gray-600",
+                  ring: "ring-gray-400",
+                },
               ].map(({ key, label, count, bg, ring }) => {
                 const active = followUpFilter === key;
                 return (
@@ -2416,32 +2530,80 @@ const handleVoiceCall = async (phone) => {
                         : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
                     }`}
                   >
-                    <p className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}>Follow-ups</p>
-                    <p className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}>{count}</p>
-                    <p className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}>{label}</p>
+                    <p
+                      className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}
+                    >
+                      Follow-ups
+                    </p>
+                    <p
+                      className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}
+                    >
+                      {count}
+                    </p>
+                    <p
+                      className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}
+                    >
+                      {label}
+                    </p>
                   </button>
                 );
               })}
             </div>
 
             {/* Pending follow-ups — same bucket as the table filter */}
-           
 
             <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Stages &amp; temperature</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                Stages &amp; temperature
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  { label: "Active", v: stageStats["Active"] ?? 0, cls: "bg-green-50 text-green-800 border-green-200" },
-                  { label: "Follow Up", v: stageStats["Follow Up"] ?? 0, cls: "bg-amber-50 text-amber-900 border-amber-200" },
-                  { label: "Inactive", v: stageStats["Inactive"] ?? 0, cls: "bg-gray-50 text-gray-800 border-gray-200" },
-                  { label: "Onboard", v: stageStats["Onboard"] ?? 0, cls: "bg-blue-50 text-blue-800 border-blue-200" },
-                  { label: "Hot", v: leadStatusStats.Hot ?? 0, cls: "bg-red-50 text-red-800 border-red-200" },
-                  { label: "Warm", v: leadStatusStats.Warm ?? 0, cls: "bg-orange-50 text-orange-800 border-orange-200" },
-                  { label: "Cold", v: leadStatusStats.Cold ?? 0, cls: "bg-sky-50 text-sky-800 border-sky-200" },
+                  {
+                    label: "Active",
+                    v: stageStats["Active"] ?? 0,
+                    cls: "bg-green-50 text-green-800 border-green-200",
+                  },
+                  {
+                    label: "Follow Up",
+                    v: stageStats["Follow Up"] ?? 0,
+                    cls: "bg-amber-50 text-amber-900 border-amber-200",
+                  },
+                  {
+                    label: "Inactive",
+                    v: stageStats["Inactive"] ?? 0,
+                    cls: "bg-gray-50 text-gray-800 border-gray-200",
+                  },
+                  {
+                    label: "Onboard",
+                    v: stageStats["Onboard"] ?? 0,
+                    cls: "bg-blue-50 text-blue-800 border-blue-200",
+                  },
+                  {
+                    label: "Hot",
+                    v: leadStatusStats.Hot ?? 0,
+                    cls: "bg-red-50 text-red-800 border-red-200",
+                  },
+                  {
+                    label: "Warm",
+                    v: leadStatusStats.Warm ?? 0,
+                    cls: "bg-orange-50 text-orange-800 border-orange-200",
+                  },
+                  {
+                    label: "Cold",
+                    v: leadStatusStats.Cold ?? 0,
+                    cls: "bg-sky-50 text-sky-800 border-sky-200",
+                  },
                 ].map(({ label, v, cls }) => (
-                  <div key={label} className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}>
-                    <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">{label}</p>
-                    <p className="text-sm font-black leading-tight tabular-nums">{v}</p>
+                  <div
+                    key={label}
+                    className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}
+                  >
+                    <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">
+                      {label}
+                    </p>
+                    <p className="text-sm font-black leading-tight tabular-nums">
+                      {v}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -2462,7 +2624,9 @@ const handleVoiceCall = async (phone) => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Chats</p>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                  Total Chats
+                </p>
                 <p className="text-lg font-bold text-gray-900 mt-0.5">
                   {displayTotalChatsCount}
                 </p>
@@ -2497,8 +2661,6 @@ const handleVoiceCall = async (phone) => {
               </div>
             </div>
           )}
-
-        
 
           {/* Chats Today */}
           {!isAgent && (
@@ -2564,66 +2726,73 @@ const handleVoiceCall = async (phone) => {
           </div> */}
         </div>
         {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
-      {(role === "superAdmin" || role === "admin") && todayStats.assignments.length > 0 && (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-2">
-
-    {/* Header */}
-    <div className="flex items-center justify-between mb-1">
-      <div className="flex items-center gap-1">
-        <div className="w-6 h-6 bg-teal-100 rounded-md flex items-center justify-center">
-          <UserCheck className="text-teal-600" size={12} />
-        </div>
-        <h3 className="text-[11px] font-semibold text-gray-700 uppercase">
-        Today  Lead Assignments
-        </h3>
-      </div>
-
-      <span className="bg-teal-50 text-teal-700 text-[10px] font-medium px-2 py-[2px] rounded-full border border-teal-200">
-        {todayStats.assignments.reduce((s, a) => s + (a.count || 0), 0)}
-      </span>
-    </div>
-
-    {/* Cards */}
-    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-      {todayStats.assignments
-        .slice()
-        .sort((a, b) => (b.count || 0) - (a.count || 0))
-        .map((agent, idx) => {
-          const colors = [
-            ["bg-indigo-100", "text-indigo-800", "bg-indigo-500"],
-            ["bg-teal-100", "text-teal-800", "bg-teal-500"],
-            ["bg-blue-100", "text-blue-800", "bg-blue-500"],
-            ["bg-purple-100", "text-purple-800", "bg-purple-500"],
-          ];
-          const [bg, text, badge] = colors[idx % colors.length];
-
-          return (
-            <div
-              key={agent._id || idx}
-              className={`min-w-[110px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
-            >
-              <div className="flex items-center gap-1">
-                <div className={`w-4 h-4 rounded-full ${badge} flex items-center justify-center text-white text-[9px]`}>
-                  {(agent.agentName || "?")[0]}
+        {(role === "superAdmin" || role === "admin") &&
+          todayStats.assignments.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-2">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-6 bg-teal-100 rounded-md flex items-center justify-center">
+                    <UserCheck className="text-teal-600" size={12} />
+                  </div>
+                  <h3 className="text-[11px] font-semibold text-gray-700 uppercase">
+                    Today Lead Assignments
+                  </h3>
                 </div>
-                <span className={`text-[10px] truncate ${text}`}>
-                  {agent.agentName}
+
+                <span className="bg-teal-50 text-teal-700 text-[10px] font-medium px-2 py-[2px] rounded-full border border-teal-200">
+                  {todayStats.assignments.reduce(
+                    (s, a) => s + (a.count || 0),
+                    0,
+                  )}
                 </span>
               </div>
 
-              <span className={`text-sm font-bold leading-tight ${text}`}>
-                {agent.count || 0}
-              </span>
+              {/* Cards */}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {todayStats.assignments
+                  .slice()
+                  .sort((a, b) => (b.count || 0) - (a.count || 0))
+                  .map((agent, idx) => {
+                    const colors = [
+                      ["bg-indigo-100", "text-indigo-800", "bg-indigo-500"],
+                      ["bg-teal-100", "text-teal-800", "bg-teal-500"],
+                      ["bg-blue-100", "text-blue-800", "bg-blue-500"],
+                      ["bg-purple-100", "text-purple-800", "bg-purple-500"],
+                    ];
+                    const [bg, text, badge] = colors[idx % colors.length];
 
-              <span className="text-[9px] text-gray-400 leading-none">
-                leads
-              </span>
+                    return (
+                      <div
+                        key={agent._id || idx}
+                        className={`min-w-[110px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
+                      >
+                        <div className="flex items-center gap-1">
+                          <div
+                            className={`w-4 h-4 rounded-full ${badge} flex items-center justify-center text-white text-[9px]`}
+                          >
+                            {(agent.agentName || "?")[0]}
+                          </div>
+                          <span className={`text-[10px] truncate ${text}`}>
+                            {agent.agentName}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`text-sm font-bold leading-tight ${text}`}
+                        >
+                          {agent.count || 0}
+                        </span>
+
+                        <span className="text-[9px] text-gray-400 leading-none">
+                          leads
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
-          );
-        })}
-    </div>
-  </div>
-)}
+          )}
 
         {callStats && (role === "superAdmin" || role === "admin") && (
           <div className="mb-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -2632,249 +2801,408 @@ const handleVoiceCall = async (phone) => {
                 <Phone className="text-indigo-600" size={16} />
               </div>
               <div>
-                <h2 className="text-sm md:text-base font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
-                <p className="text-[10px] text-gray-500 leading-snug">Today&apos;s call volume and scheduled follow-ups across agents</p>
+                <h2 className="text-sm md:text-base font-bold text-gray-900 leading-tight">
+                  Calls &amp; follow-ups
+                </h2>
+                <p className="text-[10px] text-gray-500 leading-snug">
+                  Today&apos;s call volume and scheduled follow-ups across
+                  agents
+                </p>
               </div>
             </div>
 
             <div className="p-3 md:p-3.5 space-y-3">
-            {/* Calls today: summary + per-agent scroll */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Calls today</p>
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
-                <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-lg p-2.5 min-w-[120px] flex flex-col justify-center">
-                  <span className="text-[10px] text-blue-700 font-semibold uppercase">Total</span>
-                  <span className="text-xl font-bold text-blue-900 tabular-nums leading-tight">{callStats.totalCallsToday}</span>
-                  <span className="text-[9px] text-blue-600/80">all agents</span>
-                </div>
-                <div className="flex-1 min-w-0 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
-                  <div className="flex gap-1.5 min-w-min">
-                    {(callStats.todayCallsByAgent || []).map((agent) => (
-                      <div
-                        key={agent.agentId || agent.agentName}
-                        className="min-w-[100px] max-w-[128px] bg-gray-50 border border-gray-200 rounded-lg p-2 flex flex-col"
-                      >
-                        <span className="text-[9px] text-gray-500 truncate capitalize" title={agent.agentName}>
-                          {agent.agentName || "—"}
-                        </span>
-                        <span className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{agent.count}</span>
-                        <span className="text-[8px] text-gray-400">calls</span>
-                      </div>
-                    ))}
+              {/* Calls today: summary + per-agent scroll */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  Calls today
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
+                  <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-lg p-2.5 min-w-[120px] flex flex-col justify-center">
+                    <span className="text-[10px] text-blue-700 font-semibold uppercase">
+                      Total
+                    </span>
+                    <span className="text-xl font-bold text-blue-900 tabular-nums leading-tight">
+                      {callStats.totalCallsToday}
+                    </span>
+                    <span className="text-[9px] text-blue-600/80">
+                      all agents
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+                    <div className="flex gap-1.5 min-w-min">
+                      {(callStats.todayCallsByAgent || []).map((agent) => (
+                        <div
+                          key={agent.agentId || agent.agentName}
+                          className="min-w-[100px] max-w-[128px] bg-gray-50 border border-gray-200 rounded-lg p-2 flex flex-col"
+                        >
+                          <span
+                            className="text-[9px] text-gray-500 truncate capitalize"
+                            title={agent.agentName}
+                          >
+                            {agent.agentName || "—"}
+                          </span>
+                          <span className="text-lg font-bold text-gray-900 tabular-nums leading-tight">
+                            {agent.count}
+                          </span>
+                          <span className="text-[8px] text-gray-400">
+                            calls
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Follow-up buckets */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Follow-up schedule</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {[
-                { label: "Total",      value: followUpStats.totalFollowUps,     bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  bold: "text-amber-800",  sub: "text-amber-500",  note: "all follow-ups"  },
-                { label: "Today",      value: followUpStats.todayFollowUps,     bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    bold: "text-sky-800",    sub: "text-sky-500",    note: "due today"       },
-                { label: "Tomorrow",   value: followUpStats.tomorrowFollowUps,  bg: "bg-rose-50",   border: "border-rose-200",   text: "text-rose-700",   bold: "text-rose-800",   sub: "text-rose-500",   note: "due tomorrow"    },
-                { label: "Next 7 Days",value: followUpStats.next7DaysFollowUps, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", bold: "text-violet-800", sub: "text-violet-500", note: "upcoming"        },
-                { label: "This Month", value: followUpStats.thisMonthFollowUps, bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  bold: "text-green-800",  sub: "text-green-500",  note: "this month"      },
-              ].map(({ label, value, bg, border, text, bold, sub, note }) => (
-                <div key={label} className={`${bg} border ${border} rounded-lg p-2 flex flex-col min-h-[72px] justify-center`}>
-                  <span className={`text-[10px] font-semibold ${text}`}>{label}</span>
-                  <span className={`text-lg font-bold ${bold} tabular-nums mt-0.5 leading-tight`}>{value}</span>
-                  <span className={`text-[9px] ${sub} mt-auto leading-tight`}>{note}</span>
+              {/* Follow-up buckets */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  Follow-up schedule
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {[
+                    {
+                      label: "Total",
+                      value: followUpStats.totalFollowUps,
+                      bg: "bg-amber-50",
+                      border: "border-amber-200",
+                      text: "text-amber-700",
+                      bold: "text-amber-800",
+                      sub: "text-amber-500",
+                      note: "all follow-ups",
+                    },
+                    {
+                      label: "Today",
+                      value: followUpStats.todayFollowUps,
+                      bg: "bg-sky-50",
+                      border: "border-sky-200",
+                      text: "text-sky-700",
+                      bold: "text-sky-800",
+                      sub: "text-sky-500",
+                      note: "due today",
+                    },
+                    {
+                      label: "Tomorrow",
+                      value: followUpStats.tomorrowFollowUps,
+                      bg: "bg-rose-50",
+                      border: "border-rose-200",
+                      text: "text-rose-700",
+                      bold: "text-rose-800",
+                      sub: "text-rose-500",
+                      note: "due tomorrow",
+                    },
+                    {
+                      label: "Next 7 Days",
+                      value: followUpStats.next7DaysFollowUps,
+                      bg: "bg-violet-50",
+                      border: "border-violet-200",
+                      text: "text-violet-700",
+                      bold: "text-violet-800",
+                      sub: "text-violet-500",
+                      note: "upcoming",
+                    },
+                    {
+                      label: "This Month",
+                      value: followUpStats.thisMonthFollowUps,
+                      bg: "bg-green-50",
+                      border: "border-green-200",
+                      text: "text-green-700",
+                      bold: "text-green-800",
+                      sub: "text-green-500",
+                      note: "this month",
+                    },
+                  ].map(
+                    ({ label, value, bg, border, text, bold, sub, note }) => (
+                      <div
+                        key={label}
+                        className={`${bg} border ${border} rounded-lg p-2 flex flex-col min-h-[72px] justify-center`}
+                      >
+                        <span className={`text-[10px] font-semibold ${text}`}>
+                          {label}
+                        </span>
+                        <span
+                          className={`text-lg font-bold ${bold} tabular-nums mt-0.5 leading-tight`}
+                        >
+                          {value}
+                        </span>
+                        <span
+                          className={`text-[9px] ${sub} mt-auto leading-tight`}
+                        >
+                          {note}
+                        </span>
+                      </div>
+                    ),
+                  )}
                 </div>
-              ))}
-            </div>
-            </div>
+              </div>
 
-            {/* ── Per-agent follow-up breakdown table (collapsible) ── */}
-            {(followUpStats.byAgent || []).length > 0 && (
-              <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
-                {/* Toggle header */}
+              {/* ── Per-agent follow-up breakdown table (collapsible) ── */}
+              {(followUpStats.byAgent || []).length > 0 && (
+                <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
+                  {/* Toggle header */}
+                  <button
+                    onClick={() => setByAgentOpen((prev) => !prev)}
+                    className="w-full bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UserCheck size={13} className="text-indigo-500" />
+                      <span className="text-xs font-bold text-gray-700">
+                        Follow-ups by Agent
+                      </span>
+                      <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
+                        {(followUpStats.byAgent || []).length} agents
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
+                      <span>{byAgentOpen ? "Hide" : "Show"}</span>
+                      <ChevronDown
+                        size={14}
+                        className={`transition-transform duration-200 ${byAgentOpen ? "rotate-180" : ""}`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Collapsible content */}
+                  {byAgentOpen && (
+                    <div className="overflow-x-auto max-h-[min(70vh,520px)] border-t border-gray-100">
+                      <table className="w-full text-xs min-w-[640px]">
+                        <thead className="sticky top-0 z-10 shadow-sm">
+                          <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
+                            <th className="px-4 py-2.5 text-left">Agent</th>
+                            <th className="px-3 py-2.5 text-center text-sky-600">
+                              Today
+                            </th>
+                            <th className="px-3 py-2.5 text-center text-rose-600">
+                              Tomorrow
+                            </th>
+                            <th className="px-3 py-2.5 text-center text-violet-600">
+                              7 Days
+                            </th>
+                            <th className="px-3 py-2.5 text-center text-green-600">
+                              Month
+                            </th>
+                            <th className="px-3 py-2.5 text-center text-amber-600">
+                              Total
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {(followUpStats.byAgent || []).map((agent, idx) => {
+                            const colors = [
+                              "bg-indigo-500",
+                              "bg-teal-500",
+                              "bg-violet-500",
+                              "bg-rose-500",
+                              "bg-amber-500",
+                              "bg-blue-500",
+                            ];
+                            const c = colors[idx % colors.length];
+                            const name = agent.agentName || "Unknown";
+                            return (
+                              <tr
+                                key={agent._id || idx}
+                                className="hover:bg-gray-50 transition-colors"
+                              >
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}
+                                    >
+                                      {name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="font-medium text-gray-800 capitalize truncate max-w-[100px]">
+                                      {name}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span
+                                    className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                  >
+                                    {agent.today || 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span
+                                    className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                  >
+                                    {agent.tomorrow || 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span
+                                    className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                  >
+                                    {agent.next7days || 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span
+                                    className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                  >
+                                    {agent.thisMonth || 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                                    {agent.total || 0}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
+                            <td className="px-4 py-2 text-xs text-gray-600 font-bold">
+                              ALL AGENTS
+                            </td>
+                            <td className="px-3 py-2 text-center text-sky-700 font-black">
+                              {followUpStats.todayFollowUps}
+                            </td>
+                            <td className="px-3 py-2 text-center text-rose-700 font-black">
+                              {followUpStats.tomorrowFollowUps}
+                            </td>
+                            <td className="px-3 py-2 text-center text-violet-700 font-black">
+                              {followUpStats.next7DaysFollowUps}
+                            </td>
+                            <td className="px-3 py-2 text-center text-green-700 font-black">
+                              {followUpStats.thisMonthFollowUps}
+                            </td>
+                            <td className="px-3 py-2 text-center text-amber-700 font-black">
+                              {followUpStats.totalFollowUps}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Follow-up leads (all agents) — collapsible */}
+              <div className="mt-1 rounded-xl border border-gray-200 overflow-hidden">
                 <button
-                  onClick={() => setByAgentOpen(prev => !prev)}
-                  className="w-full bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors group"
+                  type="button"
+                  onClick={() => setAdminFollowUpLeadsOpen((o) => !o)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
                 >
-                  <div className="flex items-center gap-2">
-                    <UserCheck size={13} className="text-indigo-500" />
-                    <span className="text-xs font-bold text-gray-700">Follow-ups by Agent</span>
-                    <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
-                      {(followUpStats.byAgent || []).length} agents
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Calendar size={13} className="text-violet-500 shrink-0" />
+                    <span className="text-xs font-bold text-gray-700">
+                      Follow-up Leads
+                    </span>
+                    <span className="text-[10px] text-gray-500 truncate">
+                      (
+                      {
+                        {
+                          today: "Today",
+                          tomorrow: "Tomorrow",
+                          next7days: "Next 7 Days",
+                          thisMonth: "This Month",
+                          all: "All",
+                        }[followUpFilter]
+                      }
+                      )
+                    </span>
+                    <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
+                      {followUpLeads.length} leads
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
-                    <span>{byAgentOpen ? "Hide" : "Show"}</span>
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-violet-600 shrink-0 ml-2">
+                    <span>{adminFollowUpLeadsOpen ? "Hide" : "Show"}</span>
                     <ChevronDown
                       size={14}
-                      className={`transition-transform duration-200 ${byAgentOpen ? "rotate-180" : ""}`}
+                      className={`transition-transform duration-200 ${adminFollowUpLeadsOpen ? "rotate-180" : ""}`}
                     />
                   </div>
                 </button>
-
-                {/* Collapsible content */}
-                {byAgentOpen && (
-                  <div className="overflow-x-auto max-h-[min(70vh,520px)] border-t border-gray-100">
-                    <table className="w-full text-xs min-w-[640px]">
-                      <thead className="sticky top-0 z-10 shadow-sm">
-                        <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
-                          <th className="px-4 py-2.5 text-left">Agent</th>
-                          <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
-                          <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
-                          <th className="px-3 py-2.5 text-center text-violet-600">7 Days</th>
-                          <th className="px-3 py-2.5 text-center text-green-600">Month</th>
-                          <th className="px-3 py-2.5 text-center text-amber-600">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {(followUpStats.byAgent || []).map((agent, idx) => {
-                          const colors = ["bg-indigo-500","bg-teal-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-blue-500"];
-                          const c = colors[idx % colors.length];
-                          const name = agent.agentName || "Unknown";
-                          return (
-                            <tr key={agent._id || idx} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-2.5">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
-                                    {name.charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="font-medium text-gray-800 capitalize truncate max-w-[100px]">{name}</span>
-                                </div>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.today || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.tomorrow || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.next7days || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}>{agent.thisMonth || 0}</span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{agent.total || 0}</span>
-                              </td>
+                {adminFollowUpLeadsOpen && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5 px-3 py-2 bg-white border-b border-gray-100">
+                      {[
+                        { key: "today", label: "Today" },
+                        { key: "tomorrow", label: "Tomorrow" },
+                        { key: "next7days", label: "7 days" },
+                        { key: "thisMonth", label: "Month" },
+                        { key: "all", label: "All" },
+                      ].map(({ key, label }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setFollowUpFilter(key)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                            followUpFilter === key
+                              ? "bg-violet-600 text-white border-violet-600"
+                              : "bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-auto">
+                      {loadingFollowUps ? (
+                        <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+                          <Clock size={14} className="animate-spin" /> Loading…
+                        </div>
+                      ) : followUpLeads.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
+                          No leads for this filter
+                        </div>
+                      ) : (
+                        <table className="w-full text-xs min-w-[720px]">
+                          <thead className="sticky top-0 bg-gray-100 border-b border-gray-200 z-[1]">
+                            <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500">
+                              <th className="px-3 py-2 font-semibold">Lead</th>
+                              <th className="px-3 py-2 font-semibold">Phone</th>
+                              <th className="px-3 py-2 font-semibold">Agent</th>
+                              <th className="px-3 py-2 font-semibold">
+                                Remark
+                              </th>
+                              <th className="px-3 py-2 font-semibold text-right">
+                                Follow-up
+                              </th>
                             </tr>
-                          );
-                        })}
-                        <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
-                          <td className="px-4 py-2 text-xs text-gray-600 font-bold">ALL AGENTS</td>
-                          <td className="px-3 py-2 text-center text-sky-700 font-black">{followUpStats.todayFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-rose-700 font-black">{followUpStats.tomorrowFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-violet-700 font-black">{followUpStats.next7DaysFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-green-700 font-black">{followUpStats.thisMonthFollowUps}</td>
-                          <td className="px-3 py-2 text-center text-amber-700 font-black">{followUpStats.totalFollowUps}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {followUpLeads.map((lead, idx) => (
+                              <tr key={idx} className="hover:bg-violet-50/40">
+                                <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                                  {lead.fullName || lead.userId || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                  {lead.phone || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
+                                  {lead.agentName || "—"}
+                                </td>
+                                <td
+                                  className="px-3 py-2 text-gray-500 max-w-[200px] truncate"
+                                  title={lead.remark}
+                                >
+                                  {lead.remark || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
+                                  {lead.followUpDate
+                                    ? new Date(
+                                        lead.followUpDate,
+                                      ).toLocaleDateString("en-IN", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "2-digit",
+                                      })
+                                    : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
-            )}
-
-            {/* Follow-up leads (all agents) — collapsible */}
-            <div className="mt-1 rounded-xl border border-gray-200 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setAdminFollowUpLeadsOpen((o) => !o)}
-                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Calendar size={13} className="text-violet-500 shrink-0" />
-                  <span className="text-xs font-bold text-gray-700">Follow-up Leads</span>
-                  <span className="text-[10px] text-gray-500 truncate">
-                    (
-                    {{ today: "Today", tomorrow: "Tomorrow", next7days: "Next 7 Days", thisMonth: "This Month", all: "All" }[followUpFilter]}
-                    )
-                  </span>
-                  <span className="text-[10px] font-semibold bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shrink-0">
-                    {followUpLeads.length} leads
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 group-hover:text-violet-600 shrink-0 ml-2">
-                  <span>{adminFollowUpLeadsOpen ? "Hide" : "Show"}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${adminFollowUpLeadsOpen ? "rotate-180" : ""}`}
-                  />
-                </div>
-              </button>
-              {adminFollowUpLeadsOpen && (
-                <>
-                  <div className="flex flex-wrap gap-1.5 px-3 py-2 bg-white border-b border-gray-100">
-                    {[
-                      { key: "today", label: "Today" },
-                      { key: "tomorrow", label: "Tomorrow" },
-                      { key: "next7days", label: "7 days" },
-                      { key: "thisMonth", label: "Month" },
-                      { key: "all", label: "All" },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setFollowUpFilter(key)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
-                          followUpFilter === key
-                            ? "bg-violet-600 text-white border-violet-600"
-                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-auto">
-                    {loadingFollowUps ? (
-                      <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
-                        <Clock size={14} className="animate-spin" /> Loading…
-                      </div>
-                    ) : followUpLeads.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-xs">
-                        No leads for this filter
-                      </div>
-                    ) : (
-                      <table className="w-full text-xs min-w-[720px]">
-                        <thead className="sticky top-0 bg-gray-100 border-b border-gray-200 z-[1]">
-                          <tr className="text-left text-[10px] uppercase tracking-wide text-gray-500">
-                            <th className="px-3 py-2 font-semibold">Lead</th>
-                            <th className="px-3 py-2 font-semibold">Phone</th>
-                            <th className="px-3 py-2 font-semibold">Agent</th>
-                            <th className="px-3 py-2 font-semibold">Remark</th>
-                            <th className="px-3 py-2 font-semibold text-right">Follow-up</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {followUpLeads.map((lead, idx) => (
-                            <tr key={idx} className="hover:bg-violet-50/40">
-                              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
-                                {lead.fullName || lead.userId || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
-                              <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
-                                {lead.agentName || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate" title={lead.remark}>
-                                {lead.remark || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
-                                {lead.followUpDate
-                                  ? new Date(lead.followUpDate).toLocaleDateString("en-IN", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "2-digit",
-                                    })
-                                  : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </>
-              )}
             </div>
-          </div>
           </div>
         )}
 
@@ -2883,7 +3211,9 @@ const handleVoiceCall = async (phone) => {
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
                 <span className="text-indigo-600/90">Table filter:</span>
-                <span className="text-rose-700">{agentFollowUpFilterLabel}</span>
+                <span className="text-rose-700">
+                  {agentFollowUpFilterLabel}
+                </span>
               </span>
             </div>
           )}
@@ -3031,7 +3361,9 @@ const handleVoiceCall = async (phone) => {
               <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {isAgent && followUpFilter !== "all" ? "Follow-up" : "Joined Date"}
+                    {isAgent && followUpFilter !== "all"
+                      ? "Follow-up"
+                      : "Joined Date"}
                   </th>
                   <th className="px-6 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     User Name
@@ -3073,9 +3405,7 @@ const handleVoiceCall = async (phone) => {
           <div className="overflow-y-auto flex-grow">
             <table className="min-w-full">
               <tbody className="divide-y divide-gray-100">
-                {loadingFollowUpTable &&
-                isAgent &&
-                followUpFilter !== "all" ? (
+                {loadingFollowUpTable && isAgent && followUpFilter !== "all" ? (
                   <tr>
                     <td colSpan={12} className="text-center py-14">
                       <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
@@ -3091,67 +3421,100 @@ const handleVoiceCall = async (phone) => {
                   </tr>
                 ) : (
                   <>
-                {filteredUsers.map((user) => {
-                  const postData = userPostsData[user.userId] || {
-                    total: 0,
-                    posted: 0,
-                    rejected: 0,
-                  };
-                  return (
-                    <tr
-                      key={user._id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => handleViewPosts(user)}
-                    >
-                      <td className="px-6 py-5">
-                        {isAgent && followUpFilter !== "all" ? (
-                          (() => {
-                            const raw = followUpMetaByUserId.get(
-                              String(user.userId),
-                            );
-                            const d = raw ? new Date(raw) : null;
-                            const valid = d && !Number.isNaN(d.getTime());
-                            const now = new Date();
-                            const tmr = new Date(now);
-                            tmr.setDate(tmr.getDate() + 1);
-                            const sameDay = (a, b) =>
-                              valid &&
-                              a.getFullYear() === b.getFullYear() &&
-                              a.getMonth() === b.getMonth() &&
-                              a.getDate() === b.getDate();
-                            const isFuToday = sameDay(d, now);
-                            const isFuTomorrow = sameDay(d, tmr);
-                            return (
+                    {filteredUsers.map((user) => {
+                      const postData = userPostsData[user.userId] || {
+                        total: 0,
+                        posted: 0,
+                        rejected: 0,
+                      };
+                      return (
+                        <tr
+                          key={user._id}
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => handleViewPosts(user)}
+                        >
+                          <td className="px-6 py-5">
+                            {isAgent && followUpFilter !== "all" ? (
+                              (() => {
+                                const raw = followUpMetaByUserId.get(
+                                  String(user.userId),
+                                );
+                                const d = raw ? new Date(raw) : null;
+                                const valid = d && !Number.isNaN(d.getTime());
+                                const now = new Date();
+                                const tmr = new Date(now);
+                                tmr.setDate(tmr.getDate() + 1);
+                                const sameDay = (a, b) =>
+                                  valid &&
+                                  a.getFullYear() === b.getFullYear() &&
+                                  a.getMonth() === b.getMonth() &&
+                                  a.getDate() === b.getDate();
+                                const isFuToday = sameDay(d, now);
+                                const isFuTomorrow = sameDay(d, tmr);
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <Clock
+                                      size={14}
+                                      className="text-gray-400 shrink-0"
+                                    />
+                                    <div className="text-sm text-gray-700">
+                                      {valid ? (
+                                        <>
+                                          <div className="font-medium">
+                                            {d.toLocaleString("en-IN", {
+                                              day: "numeric",
+                                              month: "short",
+                                              year: "numeric",
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              hour12: true,
+                                            })}
+                                          </div>
+                                          <div className="flex flex-wrap gap-1 mt-0.5">
+                                            {isFuToday && (
+                                              <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
+                                                Today
+                                              </span>
+                                            )}
+                                            {isFuTomorrow && (
+                                              <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
+                                                Tomorrow
+                                              </span>
+                                            )}
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <span className="text-gray-400 italic">
+                                          N/A
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()
+                            ) : (
                               <div className="flex items-center gap-2">
-                                <Clock
-                                  size={14}
-                                  className="text-gray-400 shrink-0"
-                                />
+                                <Calendar size={14} className="text-gray-400" />
                                 <div className="text-sm text-gray-700">
-                                  {valid ? (
+                                  {user.createdAt ? (
                                     <>
                                       <div className="font-medium">
-                                        {d.toLocaleString("en-IN", {
-                                          day: "numeric",
+                                        {new Date(
+                                          user.createdAt,
+                                        ).toLocaleDateString("en-US", {
                                           month: "short",
+                                          day: "numeric",
                                           year: "numeric",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                          hour12: true,
                                         })}
                                       </div>
-                                      <div className="flex flex-wrap gap-1 mt-0.5">
-                                        {isFuToday && (
-                                          <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
-                                            Today
-                                          </span>
-                                        )}
-                                        {isFuTomorrow && (
-                                          <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
-                                            Tomorrow
-                                          </span>
-                                        )}
-                                      </div>
+                                      {new Date(
+                                        user.createdAt,
+                                      ).toDateString() ===
+                                        new Date().toDateString() && (
+                                        <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
+                                          Today
+                                        </span>
+                                      )}
                                     </>
                                   ) : (
                                     <span className="text-gray-400 italic">
@@ -3160,439 +3523,438 @@ const handleVoiceCall = async (phone) => {
                                   )}
                                 </div>
                               </div>
-                            );
-                          })()
-                        ) : (
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-gray-400" />
-                          <div className="text-sm text-gray-700">
-                            {user.createdAt ? (
-                              <>
-                                <div className="font-medium">
-                                  {new Date(user.createdAt).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      month: "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    },
-                                  )}
-                                </div>
-                                {new Date(user.createdAt).toDateString() ===
-                                  new Date().toDateString() && (
-                                  <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
-                                    Today
+                            )}
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                {user.fullName && (
+                                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <User2Icon
+                                      size={14}
+                                      className="text-gray-400"
+                                    />
+                                    {user.fullName}
+                                  </div>
+                                )}
+                                {paidUsersStatus[user.userId] && ( // A URL exists for this user
+                                  <>
+                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                      Paid
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFullViewImage(
+                                          paidUsersStatus[user.userId],
+                                        );
+                                      }}
+                                      className="p-1 hover:bg-gray-200 rounded-full"
+                                      title="View Payment Screenshot"
+                                    >
+                                      <Eye
+                                        size={14}
+                                        className="text-gray-500"
+                                      />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={user.leadStatus || ""}
+                                  onChange={(e) =>
+                                    handleLeadStatusChange(
+                                      user.userId,
+                                      e.target.value,
+                                    )
+                                  }
+                                  className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
+                                    user.leadStatus === "Hot"
+                                      ? "bg-red-50 text-red-700 border-red-200"
+                                      : user.leadStatus === "Warm"
+                                        ? "bg-orange-50 text-orange-700 border-orange-200"
+                                        : user.leadStatus === "Cold"
+                                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                                          : "bg-gray-50 text-gray-600 border-gray-200"
+                                  }`}
+                                >
+                                  <option value="">Untagged</option>
+                                  <option value="Hot">Hot</option>
+                                  <option value="Warm">Warm</option>
+                                  <option value="Cold">Cold</option>
+                                </select>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {(user.source === "bulk-upload" ||
+                                  user.source === "Meta Leads") && (
+                                  <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
+                                    Meta Leads
                                   </span>
                                 )}
-                              </>
-                            ) : (
-                              <span className="text-gray-400 italic">N/A</span>
-                            )}
-                          </div>
-                        </div>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            {user.fullName && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <User2Icon
-                                  size={14}
-                                  className="text-gray-400"
-                                />
-                                {user.fullName}
+                                {user.paidPackage && (
+                                  <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
+                                    {user.paidPackage}
+                                  </span>
+                                )}
                               </div>
-                            )}
-                            {paidUsersStatus[user.userId] && ( // A URL exists for this user
-                              <>
-                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                  Paid
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setFullViewImage(
-                                      paidUsersStatus[user.userId],
-                                    );
-                                  }}
-                                  className="p-1 hover:bg-gray-200 rounded-full"
-                                  title="View Payment Screenshot"
-                                >
-                                  <Eye size={14} className="text-gray-500" />
-                                </button>
-                              </>
-                            )}
-                          </div>
+                            </div>
+                          </td>
 
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <select
-                              value={user.leadStatus || ""}
-                              onChange={(e) =>
-                                handleLeadStatusChange(
-                                  user.userId,
-                                  e.target.value,
-                                )
-                              }
-                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                user.leadStatus === "Hot"
-                                  ? "bg-red-50 text-red-700 border-red-200"
-                                  : user.leadStatus === "Warm"
-                                    ? "bg-orange-50 text-orange-700 border-orange-200"
-                                    : user.leadStatus === "Cold"
-                                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                                      : "bg-gray-50 text-gray-600 border-gray-200"
-                              }`}
-                            >
-                              <option value="">Untagged</option>
-                              <option value="Hot">Hot</option>
-                              <option value="Warm">Warm</option>
-                              <option value="Cold">Cold</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {(user.source === "bulk-upload" ||
-                              user.source === "Meta Leads") && (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
-                                Meta Leads
-                              </span>
-                            )}
-                            {user.paidPackage && (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
-                                {user.paidPackage}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td
-                        className="px-6 py-5 whitespace-nowrap"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {role === "superAdmin" ||
-                        role === "admin" ||
-                        role === "superfranchiseAdmin" ? (
-                          <div
-                            className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                              getAgentName(user.assignedAgentId),
-                            )}`}
+                          <td
+                            className="px-6 py-5 whitespace-nowrap"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <select
-                              className="
+                            {role === "superAdmin" ||
+                            role === "admin" ||
+                            role === "superfranchiseAdmin" ? (
+                              <div
+                                className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
+                                  getAgentName(user.assignedAgentId),
+                                )}`}
+                              >
+                                <select
+                                  className="
                              appearance-none bg-transparent 
                              px-4 py-1.5 pr-8 
                              text-xs font-bold 
                              focus:outline-none 
                              cursor-pointer
                                             "
-                              value={
-                                // ✅ Handle populated object, string ID, null, and undefined
-                                user.assignedAgentId?._id ||
-                                (typeof user.assignedAgentId === "string" &&
-                                  user.assignedAgentId) ||
-                                ""
-                              }
-                              onChange={(e) =>
-                                handleAssignChange(user.userId, e.target.value)
-                              }
+                                  value={
+                                    // ✅ Handle populated object, string ID, null, and undefined
+                                    user.assignedAgentId?._id ||
+                                    (typeof user.assignedAgentId === "string" &&
+                                      user.assignedAgentId) ||
+                                    ""
+                                  }
+                                  onChange={(e) =>
+                                    handleAssignChange(
+                                      user.userId,
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  <option value="">-- Unassigned --</option>
+
+                                  {agents.map((agent) => (
+                                    <option key={agent._id} value={agent._id}>
+                                      {agent.fullName}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {!user.assignedAgentId && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRoundRobinAssign(user.userId);
+                                    }}
+                                    className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                    title="Auto Assign (Round Robin)"
+                                  >
+                                    <RefreshCw size={12} />
+                                  </button>
+                                )}
+
+                                <span className="pointer-events-none absolute right-2 flex items-center">
+                                  <ChevronDown className="h-3 w-3" />
+                                </span>
+                              </div>
+                            ) : (
+                              <span
+                                className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
+                                  getAgentName(user.assignedAgentId),
+                                )}`}
+                              >
+                                {getAgentName(user.assignedAgentId)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenRemarksModal(user);
+                              }}
+                              className="group cursor-pointer flex flex-col items-start gap-1.5"
                             >
-                              <option value="">-- Unassigned --</option>
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
+                                  <MessageSquare size={14} className="mr-1.5" />
+                                  <span className="font-bold text-xs">
+                                    {user.remarksHistory?.length || 0}
+                                  </span>
+                                </div>
+                              </div>
 
-                              {agents.map((agent) => (
-                                <option key={agent._id} value={agent._id}>
-                                  {agent.fullName}
-                                </option>
-                              ))}
+                              {user.Remarks ? (
+                                <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
+                                  <span className="font-semibold text-gray-800 mr-1">
+                                    Latest:
+                                  </span>
+                                  <span className="truncate">
+                                    {user.Remarks}
+                                  </span>
+                                  {user.remarksHistory &&
+                                    user.remarksHistory.length > 0 &&
+                                    user.remarksHistory[
+                                      user.remarksHistory.length - 1
+                                    ].messageSent && (
+                                      <CheckCircle
+                                        size={12}
+                                        className="text-green-600 ml-1 flex-shrink-0"
+                                      />
+                                    )}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-gray-400 italic pl-1">
+                                  Tap to add...
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <select
+                              value={user.leadStage || "Active"}
+                              onChange={(e) =>
+                                handleLeadStageChange(
+                                  user.userId,
+                                  e.target.value,
+                                )
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
+                                user.leadStage === "Active"
+                                  ? "bg-green-50 text-green-700 border-green-200"
+                                  : user.leadStage === "Follow Up"
+                                    ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                    : user.leadStage === "Onboard"
+                                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                                      : "bg-gray-50 text-gray-700 border-gray-200"
+                              }`}
+                            >
+                              <option value="Active">Active</option>
+                              <option value="Follow Up">Follow Up</option>
+                              <option value="Inactive">Inactive</option>
+                              <option value="Onboard">Onboard</option>
                             </select>
+                          </td>
 
-                            {!user.assignedAgentId && (
+                          <td className="px-6 py-5">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <Mail size={14} className="text-gray-400" />
+                                {user.email}
+                              </div>
+                              {user.phone && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <Phone size={14} className="text-gray-400" />
+                                  {user.phone}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpgradePlan(user);
+                              }}
+                              className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
+                              title="Change Plan"
+                            >
+                              <Crown size={16} />
+                            </button>
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleRoundRobinAssign(user.userId);
+                                  handleOpenWalletModal(user);
                                 }}
-                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
-                                title="Auto Assign (Round Robin)"
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
                               >
-                                <RefreshCw size={12} />
+                                <Wallet size={16} />
+                                <span className="font-bold text-base">
+                                  {user.wallet || 0}
+                                </span>
+                                <span className="text-xs font-medium">
+                                  coins
+                                </span>
                               </button>
-                            )}
-
-                            <span className="pointer-events-none absolute right-2 flex items-center">
-                              <ChevronDown className="h-3 w-3" />
-                            </span>
-                          </div>
-                        ) : (
-                          <span
-                            className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                              getAgentName(user.assignedAgentId),
-                            )}`}
-                          >
-                            {getAgentName(user.assignedAgentId)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenRemarksModal(user);
-                          }}
-                          className="group cursor-pointer flex flex-col items-start gap-1.5"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
-                              <MessageSquare size={14} className="mr-1.5" />
-                              <span className="font-bold text-xs">
-                                {user.remarksHistory?.length || 0}
-                              </span>
                             </div>
-                          </div>
+                          </td>
 
-                          {user.Remarks ? (
-                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
-                              <span className="font-semibold text-gray-800 mr-1">
-                                Latest:
-                              </span>
-                              <span className="truncate">{user.Remarks}</span>
-                              {user.remarksHistory &&
-                                user.remarksHistory.length > 0 &&
-                                user.remarksHistory[
-                                  user.remarksHistory.length - 1
-                                ].messageSent && (
-                                  <CheckCircle
-                                    size={12}
-                                    className="text-green-600 ml-1 flex-shrink-0"
-                                  />
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-2">
+                              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
+                                <div className="flex items-center gap-3">
+                                  <div className="text-center">
+                                    <p className="text-xs text-gray-600">
+                                      Total
+                                    </p>
+                                    <p className="text-lg font-bold text-indigo-600">
+                                      {postData.total}
+                                    </p>
+                                  </div>
+                                  <div className="w-px h-8 bg-gray-300"></div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-green-600">
+                                      Posted
+                                    </p>
+                                    <p className="text-lg font-bold text-green-600">
+                                      {postData.posted}
+                                    </p>
+                                  </div>
+                                  <div className="w-px h-8 bg-gray-300"></div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-red-600">
+                                      Rejected
+                                    </p>
+                                    <p className="text-lg font-bold text-red-600">
+                                      {postData.rejected}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <AddAddUserActivity userId={user.userId} />
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            {user.businessListings &&
+                            user.businessListings.length > 0 ? (
+                              <div>
+                                <div className="font-semibold text-gray-800">
+                                  {user.businessListings[0].title}{" "}
+                                  {user.businessListings[0].address.locality}
+                                </div>
+                                {user.businessListings.length > 1 && (
+                                  <Link
+                                    href={`/admin/user-listings?userId=${user.userId}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-xs text-blue-600 hover:underline mt-1"
+                                  >
+                                    View More (
+                                    {user.businessListings.length - 1})
+                                  </Link>
                                 )}
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-gray-400 italic pl-1">
-                              Tap to add...
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <select
-                          value={user.leadStage || "Active"}
-                          onChange={(e) =>
-                            handleLeadStageChange(user.userId, e.target.value)
-                          }
-                          onClick={(e) => e.stopPropagation()}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
-                            user.leadStage === "Active"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : user.leadStage === "Follow Up"
-                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                : user.leadStage === "Onboard"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : "bg-gray-50 text-gray-700 border-gray-200"
-                          }`}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Follow Up">Follow Up</option>
-                          <option value="Inactive">Inactive</option>
-                          <option value="Onboard">Onboard</option>
-                        </select>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <Mail size={14} className="text-gray-400" />
-                            {user.email}
-                          </div>
-                          {user.phone && (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Phone size={14} className="text-gray-400" />
-                              {user.phone}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUpgradePlan(user);
-                          }}
-                          className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
-                          title="Change Plan"
-                        >
-                          <Crown size={16} />
-                        </button>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenWalletModal(user);
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
-                          >
-                            <Wallet size={16} />
-                            <span className="font-bold text-base">
-                              {user.wallet || 0}
-                            </span>
-                            <span className="text-xs font-medium">coins</span>
-                          </button>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
-                            <div className="flex items-center gap-3">
-                              <div className="text-center">
-                                <p className="text-xs text-gray-600">Total</p>
-                                <p className="text-lg font-bold text-indigo-600">
-                                  {postData.total}
-                                </p>
                               </div>
-                              <div className="w-px h-8 bg-gray-300"></div>
-                              <div className="text-center">
-                                <p className="text-xs text-green-600">Posted</p>
-                                <p className="text-lg font-bold text-green-600">
-                                  {postData.posted}
-                                </p>
+                            ) : (
+                              <div className="text-xs text-gray-500 italic">
+                                Waiting......
                               </div>
-                              <div className="w-px h-8 bg-gray-300"></div>
-                              <div className="text-center">
-                                <p className="text-xs text-red-600">Rejected</p>
-                                <p className="text-lg font-bold text-red-600">
-                                  {postData.rejected}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
+                            )}
+                          </td>
 
-                      <td className="px-6 py-5">
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <AddAddUserActivity userId={user.userId} />
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {user.businessListings &&
-                        user.businessListings.length > 0 ? (
-                          <div>
-                            <div className="font-semibold text-gray-800">
-                              {user.businessListings[0].title}{" "}
-                              {user.businessListings[0].address.locality}
-                            </div>
-                            {user.businessListings.length > 1 && (
-                              <Link
-                                href={`/admin/user-listings?userId=${user.userId}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-xs text-blue-600 hover:underline mt-1"
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  AdminPanelButton(user.userId);
+                                }}
+                                disabled={impersonatingUser === user.userId}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
                               >
-                                View More ({user.businessListings.length - 1})
-                              </Link>
-                            )}
+                                {impersonatingUser === user.userId ? (
+                                  <div className="flex justify-center items-center">
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                  </div>
+                                ) : (
+                                  "Login"
+                                )}
+                              </button>
+                              {(role === "superAdmin" || role === "agent") && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOnboardModalUser(user);
+                                    setShowOnboardModal(true);
+                                  }}
+                                  className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
+                                  title="Onboard Client"
+                                >
+                                  <CheckCircle size={16} />
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sendSubscriptionExpiredNotification(user);
+                                }}
+                                className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
+                                title="Send Expiry Notification"
+                              >
+                                <Bell size={16} />
+                              </button>
+                              {role === "superAdmin" && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteUserModal(user);
+                                  }}
+                                  className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
+                                  title="Delete User"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVoiceCall(
+                                    user.phone || user.mobileNumber,
+                                  );
+                                }}
+                                disabled={callingUserId === user.userId}
+                                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
+                                title="Voice Call"
+                              >
+                                {callingUserId === user.userId ? (
+                                  <RefreshCw
+                                    size={16}
+                                    className="animate-spin"
+                                  />
+                                ) : (
+                                  <Phone size={16} />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {!loadingFollowUpTable && filteredUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={12} className="text-center py-12">
+                          <div className="text-gray-400">
+                            <Search
+                              size={48}
+                              className="mx-auto mb-3 opacity-50"
+                            />
+                            <p className="text-lg font-medium">
+                              No users found
+                            </p>
+                            <p className="text-sm">
+                              Try adjusting your search or filters
+                            </p>
                           </div>
-                        ) : (
-                          <div className="text-xs text-gray-500 italic">
-                            Waiting......
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              AdminPanelButton(user.userId);
-                            }}
-                            disabled={impersonatingUser === user.userId}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
-                          >
-                            {impersonatingUser === user.userId ? (
-                              <div className="flex justify-center items-center">
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                              </div>
-                            ) : (
-                              "Login"
-                            )}
-                          </button>
-                          {(role === "superAdmin" || role === "agent") && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOnboardModalUser(user);
-                                setShowOnboardModal(true);
-                              }}
-                              className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
-                              title="Onboard Client"
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              sendSubscriptionExpiredNotification(user);
-                            }}
-                            className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
-                            title="Send Expiry Notification"
-                          >
-                            <Bell size={16} />
-                          </button>
-                          {role === "superAdmin" && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteUserModal(user);
-                              }}
-                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
-                              title="Delete User"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleVoiceCall(user.phone || user.mobileNumber);
-                            }}
-                            disabled={callingUserId === user.userId}
-                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
-                            title="Voice Call"
-                          >
-                            {callingUserId === user.userId ? (
-                              <RefreshCw size={16} className="animate-spin" />
-                            ) : (
-                              <Phone size={16} />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!loadingFollowUpTable &&
-                  filteredUsers.length === 0 && (
-                  <tr>
-                    <td colSpan={12} className="text-center py-12">
-                      <div className="text-gray-400">
-                        <Search size={48} className="mx-auto mb-3 opacity-50" />
-                        <p className="text-lg font-medium">No users found</p>
-                        <p className="text-sm">
-                          Try adjusting your search or filters
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
+                        </td>
+                      </tr>
+                    )}
                   </>
                 )}
               </tbody>
@@ -4075,11 +4437,13 @@ const handleVoiceCall = async (phone) => {
             </div>
 
             {/* Follow-up date picker — shown when remark requires a callback */}
-            {FOLLOW_UP_REMARKS.some(r => remarksInput.startsWith(r)) && (
+            {FOLLOW_UP_REMARKS.some((r) => remarksInput.startsWith(r)) && (
               <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-2">
                   <Calendar size={13} className="text-amber-600" />
-                  <span className="text-xs font-bold text-amber-700">Schedule Follow-up</span>
+                  <span className="text-xs font-bold text-amber-700">
+                    Schedule Follow-up
+                  </span>
                   {followUpDate && (
                     <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold tabular-nums">
                       {new Date(
@@ -4097,10 +4461,10 @@ const handleVoiceCall = async (phone) => {
                 {/* Quick date buttons */}
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {[
-                    { label: "Today",        days: 0 },
-                    { label: "Tomorrow",     days: 1 },
-                    { label: "Next 7 Days",  days: 7 },
-                    { label: "This Month",   days: null },
+                    { label: "Today", days: 0 },
+                    { label: "Tomorrow", days: 1 },
+                    { label: "Next 7 Days", days: 7 },
+                    { label: "This Month", days: null },
                   ].map(({ label, days }) => {
                     const getDate = () => {
                       const d = new Date();
@@ -4235,13 +4599,16 @@ const handleVoiceCall = async (phone) => {
                             <Calendar size={10} className="text-amber-500" />
                             <span className="text-[10px] text-amber-700 font-semibold">
                               Follow-up:{" "}
-                              {new Date(r.followUpDate).toLocaleString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(r.followUpDate).toLocaleString(
+                                "en-IN",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
                             </span>
                           </div>
                         )}

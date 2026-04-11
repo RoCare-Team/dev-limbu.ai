@@ -220,7 +220,7 @@ export default function OptimizationPage() {
         const msg = "Select a business with a Google location, then try again.";
         setError(msg);
         toast.error(msg);
-        return;
+        throw new Error(msg);
       }
       setSyncToGmbPending(true);
       setError("");
@@ -237,6 +237,16 @@ export default function OptimizationPage() {
             chatUrl: payload?.chatUrl,
             serviceAreaText: payload?.serviceAreaText,
             serviceAreaPlaces: Array.isArray(payload?.serviceAreaPlaces) ? payload.serviceAreaPlaces : undefined,
+            regularHours:
+              payload?.regularHours &&
+              typeof payload.regularHours === "object" &&
+              Array.isArray(payload.regularHours.periods)
+                ? payload.regularHours
+                : undefined,
+            googleAccessToken:
+              typeof payload?.googleAccessToken === "string" && payload.googleAccessToken.trim()
+                ? payload.googleAccessToken.trim()
+                : undefined,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -248,7 +258,6 @@ export default function OptimizationPage() {
         }
         const n = Array.isArray(data.results) ? data.results.length : 0;
         const refreshed = await refreshGmbLocations();
-        const locId = selectedLocations[0]?.locationId || gmbLocations[0]?.locationId;
         const loc = Array.isArray(refreshed) && locId ? refreshed.find((l) => l.locationId === locId) : null;
         if (loc && typeof loc.profileDescription === "string") {
           setProfileDescription(loc.profileDescription.trim());
@@ -262,6 +271,7 @@ export default function OptimizationPage() {
         const msg = e.message || "Google sync failed";
         setError(msg);
         toast.error(msg);
+        throw e;
       } finally {
         setSyncToGmbPending(false);
       }
@@ -303,8 +313,6 @@ export default function OptimizationPage() {
           layout="embedded"
           manageLocations={false}
           savePending={savePending}
-          platformGmb
-          setPlatformGmb={noop}
           selectedLocations={selectedLocations}
           setSelectedLocations={noop}
           gmbLocations={gmbLocations}

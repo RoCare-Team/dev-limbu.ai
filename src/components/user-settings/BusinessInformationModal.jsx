@@ -4,7 +4,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { normalizeGmbLocationRecord } from "@/lib/gmbLocationDataset";
 import { GMB_PROFILE_DESCRIPTION_MAX, clampGmbDescription } from "@/lib/gmbConstants";
-import { getNearbyServiceAreaSuggestions, parseServiceAreaPlacesFromText } from "@/lib/gmbServiceAreaSuggestions";
+import {
+  getNearbyServiceAreaSuggestions,
+  parseServiceAreaPlacesFromText,
+  parseAiServiceAreaSuggestionText,
+} from "@/lib/gmbServiceAreaSuggestions";
+import { clonePeriods } from "@/lib/gmbRegularHours";
+import OpeningHoursEditor from "@/components/user-settings/OpeningHoursEditor";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_BUSINESS = {
@@ -23,9 +29,6 @@ const MOCK_LOCATIONS = [
   { locationId: "loc2", title: "DoctorFresh – Pune", address: "7 Hydro Park", locality: "Koregaon Park, Pune", isVerified: false },
 ];
 
-const TabIconAll = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-);
 const TabIconBuilding = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
 );
@@ -43,7 +46,6 @@ const TabIconMore = () => (
 );
 
 const TABS = [
-  { id: "all", label: "All fields", Icon: TabIconAll },
   { id: "about", label: "About", Icon: TabIconBuilding },
   { id: "contact", label: "Contact", Icon: TabIconPhone },
   { id: "location", label: "Location", Icon: TabIconPin },
@@ -85,25 +87,6 @@ const CloseIcon = () => (
     <path d="M18 6L6 18M6 6l12 12"/>
   </svg>
 );
-
-// ─── Toggle ───────────────────────────────────────────────────────────────────
-function Toggle({ checked, onChange }) {
-  return (
-    <button type="button" onClick={() => onChange(!checked)} style={{
-      position: "relative", display: "inline-flex", height: 24, width: 46,
-      alignItems: "center", borderRadius: 12, border: "none", outline: "none",
-      background: checked ? "#6366f1" : "#cbd5e1",
-      cursor: "pointer", transition: "background .25s", flexShrink: 0,
-    }}>
-      <span style={{
-        position: "absolute", top: 3, left: checked ? 25 : 3,
-        width: 18, height: 18, borderRadius: "50%", background: "#fff",
-        boxShadow: "0 1px 4px rgba(0,0,0,.2)",
-        transition: "left .2s cubic-bezier(.4,0,.2,1)",
-      }} />
-    </button>
-  );
-}
 
 // ─── Typing animation hook ───────────────────────────────────────────────────
 function useTypewriter(text, speed = 16) {
@@ -327,6 +310,12 @@ function FieldRow({
   /** No AI / Edit menu — always type directly (e.g. description + WhatsApp per Google API). */
   manualOnly = false,
   manualHint = "",
+  /** With manualOnly: show “AI Suggestion” while editing (opens preview modal). */
+  suggestAiInEdit = false,
+  /** With manualOnly + website field: show “AI Website Builder” in edit mode. */
+  websiteBuilderInEdit = false,
+  onWebsiteBuilder,
+  websiteBuilderPending = false,
 }) {
   const [showChooser, setShowChooser] = useState(false);
   const [manualMode, setManualMode] = useState(false);
@@ -387,7 +376,7 @@ function FieldRow({
           fieldId,
           fieldLabel: label,
           context: ctx,
-          currentValue: value,
+          currentValue: manualMode ? draftValue : value,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -466,6 +455,7 @@ function FieldRow({
         {manualHint ? (
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{manualHint}</p>
         ) : null}
+        {loading && suggestAiInEdit ? <MagicAiLoader marginTop={10} subtitle="Generating suggestion…" /> : null}
         {manualMode ? (
           multiline ? (
             <textarea
@@ -523,7 +513,7 @@ function FieldRow({
           </div>
         )}
         {manualMode ? (
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button
               type="button"
               onClick={() => void saveEdit()}
@@ -558,7 +548,50 @@ function FieldRow({
             >
               Cancel
             </button>
+            {suggestAiInEdit ? (
+              <button
+                type="button"
+                onClick={() => void generateAI()}
+                disabled={loading}
+                style={{
+                  border: "1px solid #c7d2fe",
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  background: loading ? "#eef2ff" : "#fff",
+                  color: "#5b21b6",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: loading ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {loading ? "…" : "AI Suggestion"}
+              </button>
+            ) : null}
+            {websiteBuilderInEdit && fieldId === "website" && typeof onWebsiteBuilder === "function" ? (
+              <button
+                type="button"
+                onClick={() => void onWebsiteBuilder()}
+                disabled={websiteBuilderPending}
+                style={{
+                  border: "1px solid #bae6fd",
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  background: websiteBuilderPending ? "#e0f2fe" : "#f0f9ff",
+                  color: websiteBuilderPending ? "#7dd3fc" : "#0369a1",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: websiteBuilderPending ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {websiteBuilderPending ? "Building…" : "AI Website Builder"}
+              </button>
+            ) : null}
           </div>
+        ) : null}
+        {manualOnly && suggestAiInEdit && aiPending !== null ? (
+          <ConfirmModal field={label} aiContent={aiPending} onConfirm={confirmInsert} onCancel={() => setAiPending(null)} />
         ) : null}
         {multiline && maxLength != null ? (
           <div style={{
@@ -713,6 +746,48 @@ function FieldRow({
   );
 }
 
+/** Grey “Google fields” row — not editable from this screen. */
+function DisabledInfoRow({ label, value, hint }) {
+  return (
+    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
+          {label}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            textTransform: "uppercase",
+            letterSpacing: ".06em",
+            color: "#64748b",
+            background: "#f1f5f9",
+            border: "1px solid #e2e8f0",
+            padding: "4px 10px",
+            borderRadius: 20,
+          }}
+        >
+          Not editable
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: 14,
+          color: value ? "#64748b" : "#94a3b8",
+          padding: "11px 14px",
+          background: "#f8fafc",
+          borderRadius: 10,
+          border: "1px solid #e8edf5",
+          lineHeight: 1.65,
+        }}
+      >
+        {value || "—"}
+      </div>
+      {hint ? <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, lineHeight: 1.45 }}>{hint}</div> : null}
+    </div>
+  );
+}
+
 function ReadOnlyAddressRow({ label, value, hint, pendingReviewWarning }) {
   return (
     <div style={{ marginBottom: 16 }}>
@@ -744,42 +819,6 @@ function ReadOnlyAddressRow({ label, value, hint, pendingReviewWarning }) {
         {value || "—"}
       </div>
       {hint ? <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, lineHeight: 1.45 }}>{hint}</div> : null}
-    </div>
-  );
-}
-
-/** GMB optimization: fields we do not PATCH from this app (pending-review risk). */
-function LockedGmbFieldRow({ label, value, reason }) {
-  return (
-    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
-          {label}
-        </span>
-        <span style={{
-          fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em",
-          color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a",
-          padding: "4px 10px", borderRadius: 20,
-        }}>
-          View only
-        </span>
-      </div>
-      <div style={{
-        fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
-        borderRadius: 10, padding: "10px 12px", marginBottom: 10, lineHeight: 1.5,
-      }}>
-        {reason}
-      </div>
-      <div style={{
-        fontSize: 14, color: value ? "#334155" : "#94a3b8",
-        padding: "11px 14px",
-        background: "#f1f5f9",
-        borderRadius: 10,
-        border: "1px solid #e2e8f0",
-        lineHeight: 1.65,
-      }}>
-        {value || "—"}
-      </div>
     </div>
   );
 }
@@ -893,7 +932,7 @@ function ServiceAreaMultiSelect({
     [primaryLoc?.locality, primaryLoc?.administrativeArea, primaryLoc?.regionCode, primaryLoc?.fullAddress]
   );
 
-  const [radiusKm, setRadiusKm] = useState(4);
+  const [radiusKm, setRadiusKm] = useState(2);
   const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
   const [aiAreaSuggestions, setAiAreaSuggestions] = useState([]);
   const [aiAreaPending, setAiAreaPending] = useState(false);
@@ -950,6 +989,9 @@ function ServiceAreaMultiSelect({
             storefrontAddress: primaryLoc?.fullAddress || primaryLoc?.address || "",
             locality: primaryLoc?.locality || "",
             administrativeArea: primaryLoc?.administrativeArea || "",
+            ...(listingPinOk
+              ? { listingLatitude: Number(listingLat), listingLongitude: Number(listingLng) }
+              : {}),
           },
           currentValue: selectedPlaces.join(", "),
         }),
@@ -957,7 +999,7 @@ function ServiceAreaMultiSelect({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "AI area suggestions failed");
       const raw = String(data.value ?? "").trim();
-      const parts = raw.split(/[,;|\n]/).map((s) => s.trim()).filter(Boolean);
+      const parts = parseAiServiceAreaSuggestionText(raw);
       setAiAreaSuggestions(parts);
       if (parts.length) toast.success(`AI suggested ${parts.length} area name(s) — tap to add.`);
       else toast.error("No areas returned — try again or use Find nearby areas.");
@@ -1094,7 +1136,7 @@ function ServiceAreaMultiSelect({
                   background: "#fff",
                 }}
               >
-                {[2, 3, 4, 5, 6, 8, 10, 12].map((k) => (
+                {[2, 4, 6, 8].map((k) => (
                   <option key={k} value={k}>{k} km</option>
                 ))}
               </select>
@@ -1475,8 +1517,6 @@ export default function BusinessInformationPanel({
   layout = "page",
   manageLocations = true,
   savePending = false,
-  platformGmb: platformGmbProp = true,
-  setPlatformGmb: setPlatformGmbProp,
   selectedLocations: selectedLocationsProp = [],
   setSelectedLocations: setSelectedLocationsProp,
   gmbLocations: gmbLocationsProp,
@@ -1502,7 +1542,7 @@ export default function BusinessInformationPanel({
   const embedded = layout === "embedded";
   const gmbSyncMode = typeof onSyncToGmb === "function";
   const savePushesDescriptionAndServiceArea = Boolean(gmbSyncMode && typeof onSaveOptimization === "function");
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState("about");
   const [editorPhase, setEditorPhase] = useState("edit");
   const [activeEditorLocationId, setActiveEditorLocationId] = useState(null);
   const [pickSelectionId, setPickSelectionId] = useState(null);
@@ -1567,10 +1607,6 @@ export default function BusinessInformationPanel({
 
   const selectedLocations = manageLocations ? internalSelected : (selectedLocationsProp || []);
   const setSelectedLocations = manageLocations ? setInternalSelected : (setSelectedLocationsProp || (() => {}));
-
-  const [internalPlatformGmb, setInternalPlatformGmb] = useState(true);
-  const platformGmb = typeof setPlatformGmbProp === "function" ? platformGmbProp : internalPlatformGmb;
-  const setPlatformGmb = typeof setPlatformGmbProp === "function" ? setPlatformGmbProp : setInternalPlatformGmb;
 
   const userData = useMemo(() => {
     const u = userDataProp && typeof userDataProp === "object" ? userDataProp : {};
@@ -1666,8 +1702,9 @@ export default function BusinessInformationPanel({
     primaryCategory: "",
     chatUrl: "",
     googleOpenStatus: "",
+    regularHoursPeriods: [],
   });
-  const [aiDescriptionPending, setAiDescriptionPending] = useState(false);
+  const [hoursBaseline, setHoursBaseline] = useState("[]");
   const [websiteBuilderPending, setWebsiteBuilderPending] = useState(false);
 
   const setField = useCallback((key) => (val) => setFields((p) => ({ ...p, [key]: val })), []);
@@ -1728,6 +1765,8 @@ export default function BusinessInformationPanel({
       Object.prototype.hasOwnProperty.call(loc, "whatsappUri") && typeof loc.whatsappUri === "string"
         ? loc.whatsappUri.trim()
         : null;
+    const rp = clonePeriods(loc.regularHours?.periods || []);
+    setHoursBaseline(JSON.stringify(rp));
     setFields((f) => ({
       ...f,
       businessName: loc.title || f.businessName,
@@ -1739,33 +1778,44 @@ export default function BusinessInformationPanel({
       ...(wa !== null ? { chatUrl: wa } : {}),
       serviceAreaPlaces: saList,
       hoursSummary: loc.hoursSummaryText || f.hoursSummary,
+      regularHoursPeriods: rp,
     }));
   }, [activeEditorLocationId, gmbLocations, profileDescriptionProp]);
 
   const businessName = fields.businessName || selectedBusiness.title || "";
 
+  const hoursDirty = useMemo(
+    () => JSON.stringify(fields.regularHoursPeriods || []) !== hoursBaseline,
+    [fields.regularHoursPeriods, hoursBaseline]
+  );
+
   const handleSave = useCallback(async () => {
-    const desc = clampGmbDescription((fields.description || "").trim());
-    const places = Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [];
-    if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
-      await onSyncToGmb({
-        description: desc,
-        primaryPhone: (fields.phone || "").trim(),
-        websiteUri: (fields.website || "").trim(),
-        chatUrl: (fields.chatUrl || "").trim(),
-        serviceAreaPlaces: places,
-      });
-      return;
+    try {
+      const desc = clampGmbDescription((fields.description || "").trim());
+      const places = Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [];
+      if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
+        await onSyncToGmb({
+          description: desc,
+          primaryPhone: (fields.phone || "").trim(),
+          websiteUri: (fields.website || "").trim(),
+          chatUrl: (fields.chatUrl || "").trim(),
+          serviceAreaPlaces: places,
+          ...(hoursDirty ? { regularHours: { periods: fields.regularHoursPeriods || [] } } : {}),
+        });
+        return;
+      }
+      if (savePushesDescriptionAndServiceArea && typeof onSaveOptimization === "function") {
+        await onSaveOptimization({
+          locationId: activeEditorLocationId,
+          description: desc,
+          serviceAreaPlaces: places,
+        });
+        return;
+      }
+      if (onConfirmProfileDescription) await Promise.resolve(onConfirmProfileDescription(desc));
+    } catch (e) {
+      toast.error(e.message || "Save failed");
     }
-    if (savePushesDescriptionAndServiceArea && typeof onSaveOptimization === "function") {
-      await onSaveOptimization({
-        locationId: activeEditorLocationId,
-        description: desc,
-        serviceAreaPlaces: places,
-      });
-      return;
-    }
-    if (onConfirmProfileDescription) await Promise.resolve(onConfirmProfileDescription(desc));
   }, [
     savePushesDescriptionAndServiceArea,
     gmbSyncMode,
@@ -1778,6 +1828,8 @@ export default function BusinessInformationPanel({
     fields.phone,
     fields.website,
     fields.chatUrl,
+    hoursDirty,
+    fields.regularHoursPeriods,
   ]);
 
   const canSyncGmb =
@@ -1787,45 +1839,20 @@ export default function BusinessInformationPanel({
         (fields.phone || "").trim() ||
         (fields.website || "").trim() ||
         (fields.chatUrl || "").trim() ||
-        (Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length > 0)
+        (Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length > 0) ||
+        hoursDirty
     );
 
   const handleSaveServiceAreasToGoogle = useCallback(async () => {
     if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
-    await onSyncToGmb({
-      serviceAreaPlaces: Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [],
-    });
-  }, [gmbSyncMode, activeEditorLocationId, onSyncToGmb, fields.serviceAreaPlaces]);
-
-  const handleAiGenerateDescription = useCallback(async () => {
-    setAiDescriptionPending(true);
     try {
-      const res = await fetch("/api/user-settings/business-optimization-ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "field",
-          fieldId: "description",
-          fieldLabel: "Business description",
-          context: optimizationContext,
-          currentValue: fields.description,
-        }),
+      await onSyncToGmb({
+        serviceAreaPlaces: Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [],
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error || "Could not generate description");
-        return;
-      }
-      if (typeof data.value === "string" && data.value.trim()) {
-        setFields((f) => ({ ...f, description: clampGmbDescription(data.value) }));
-        toast.success("AI description added — review and Save changes.");
-      }
     } catch (e) {
-      toast.error(e.message || "AI request failed");
-    } finally {
-      setAiDescriptionPending(false);
+      toast.error(e.message || "Could not save service areas");
     }
-  }, [optimizationContext, fields.description]);
+  }, [gmbSyncMode, activeEditorLocationId, onSyncToGmb, fields.serviceAreaPlaces]);
 
   const handleGenerateWebsiteFromBuilder = useCallback(async () => {
     const title = (fields.businessName || primaryLoc.title || selectedBusiness.title || "").trim();
@@ -1912,34 +1939,6 @@ export default function BusinessInformationPanel({
     onSyncToGmb,
   ]);
 
-  const descriptionAiToolbar =
-    savePushesDescriptionAndServiceArea && activeEditorLocationId ? (
-      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={() => void handleAiGenerateDescription()}
-          disabled={aiDescriptionPending}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 8,
-            border: "none",
-            background: aiDescriptionPending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
-            color: aiDescriptionPending ? "#a5b4fc" : "#fff",
-            fontSize: 12,
-            fontWeight: 800,
-            cursor: aiDescriptionPending ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            boxShadow: aiDescriptionPending ? "none" : "0 2px 12px rgba(99,102,241,.3)",
-          }}
-        >
-          {aiDescriptionPending ? "Generating…" : "✨ Generate description with AI"}
-        </button>
-        <span style={{ fontSize: 11, color: "#64748b", lineHeight: 1.45, maxWidth: 420 }}>
-          Uses listing + categories (max {GMB_PROFILE_DESCRIPTION_MAX} chars). Edit if needed, then use Save on the field or Save changes.
-        </span>
-      </div>
-    ) : null;
-
   const handleFieldSave = useCallback(
     async ({ fieldId, value: nextValue }) => {
       if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
@@ -1951,7 +1950,11 @@ export default function BusinessInformationPanel({
       if (fieldId === "website") payload.websiteUri = text;
       if (fieldId === "chatUrl") payload.chatUrl = text;
       if (Object.keys(payload).length === 0) return;
-      await onSyncToGmb(payload);
+      try {
+        await onSyncToGmb(payload);
+      } catch (e) {
+        toast.error(e.message || "Could not sync this field");
+      }
     },
     [gmbSyncMode, activeEditorLocationId, onSyncToGmb]
   );
@@ -1968,18 +1971,29 @@ export default function BusinessInformationPanel({
   const categoryBlock = useMemo(
     () => (
       <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 10 }}>
-          Business categories
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
+            Business categories
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: ".06em",
+              color: "#64748b",
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              padding: "4px 10px",
+              borderRadius: 20,
+            }}
+          >
+            Not editable
+          </span>
         </div>
-        {gmbSyncMode ? (
-          <div style={{
-            fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
-            borderRadius: 10, padding: "10px 12px", marginBottom: 12, lineHeight: 1.5,
-          }}>
-            Categories cannot be updated from this screen. Editing categories in Google can send your profile into{" "}
-            <strong>pending verification</strong>. Change them in Google Business Profile if needed.
-          </div>
-        ) : null}
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+          Shown from Google. Update categories in Google Business Profile if needed.
+        </p>
         {categoryHint.length ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
             {categoryHint.map((c, i) => (
@@ -2007,7 +2021,7 @@ export default function BusinessInformationPanel({
         )}
       </div>
     ),
-    [categoryHint, gmbSyncMode]
+    [categoryHint]
   );
 
   const handleContinuePick = useCallback(() => {
@@ -2022,172 +2036,11 @@ export default function BusinessInformationPanel({
     setActiveEditorLocationId(null);
   }, [activeEditorLocationId]);
 
-  const locationPicker = (
-    <>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "14px 16px",
-          border: platformGmb ? "1.5px solid #c7d2fe" : "1.5px solid #e2e8f0",
-          borderRadius: 12,
-          background: platformGmb ? "#fafbff" : "#fafafa",
-          marginBottom: 18,
-          transition: "all .25s",
-        }}
-      >
-        <TabIconPin />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#4338ca" }}>Post to Google Business</div>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>Automation publishes to selected locations.</div>
-        </div>
-        <Toggle checked={platformGmb} onChange={setPlatformGmb} />
-      </div>
-      {manageLocations ? (
-        <>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 10 }}>
-            {["All", "None"].map((lbl) => (
-              <button
-                key={lbl}
-                type="button"
-                onClick={() =>
-                  lbl === "All"
-                    ? setSelectedLocations(
-                        gmbLocations.map((l) => ({
-                          locationId: l.locationId,
-                          name: l.title,
-                          address: l.address,
-                          locality: l.locality,
-                          websiteUrl: l.websiteUrl,
-                        }))
-                      )
-                    : setSelectedLocations([])
-                }
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: lbl === "All" ? "#6366f1" : "#64748b",
-                  background: lbl === "All" ? "#eef2ff" : "#fff",
-                  border: `1px solid ${lbl === "All" ? "#c7d2fe" : "#e2e8f0"}`,
-                  borderRadius: 7,
-                  padding: "4px 12px",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {lbl}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {gmbLocations.map((loc) => {
-              const isChecked = selectedLocations.some((l) => l.locationId === loc.locationId);
-              const toggle = () => {
-                if (isChecked) setSelectedLocations((p) => p.filter((l) => l.locationId !== loc.locationId));
-                else
-                  setSelectedLocations((p) => [
-                    ...p,
-                    {
-                      locationId: loc.locationId,
-                      name: loc.title,
-                      address: loc.address,
-                      locality: loc.locality,
-                      websiteUrl: loc.websiteUrl,
-                    },
-                  ]);
-              };
-              return (
-                <div
-                  key={loc.locationId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={toggle}
-                  onKeyDown={(e) => e.key === "Enter" && toggle()}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "13px 16px",
-                    border: isChecked ? "1.5px solid #6366f1" : "1.5px solid #e2e8f0",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    background: isChecked ? "#fafbff" : "#fafafa",
-                    transition: "all .2s",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 6,
-                      flexShrink: 0,
-                      border: isChecked ? "2px solid #6366f1" : "2px solid #cbd5e1",
-                      background: isChecked ? "#6366f1" : "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all .2s",
-                    }}
-                  >
-                    {isChecked && <CheckIcon size={12} color="#fff" />}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{loc.title}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{[loc.address, loc.locality].filter(Boolean).join(", ")}</div>
-                  </div>
-                  {loc.isVerified && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: "#059669",
-                        background: "#dcfce7",
-                        border: "1px solid #bbf7d0",
-                        borderRadius: 20,
-                        padding: "2px 8px",
-                      }}
-                    >
-                      Verified
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {(selectedLocations.length ? selectedLocations : gmbLocations).slice(0, 6).map((loc) => (
-            <div
-              key={loc.locationId || loc.name}
-              style={{
-                padding: "12px 14px",
-                borderRadius: 12,
-                border: "1px solid #e8edf5",
-                background: "#fff",
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{loc.name || loc.title}</div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{[loc.address, loc.locality].filter(Boolean).join(", ")}</div>
-            </div>
-          ))}
-          {!selectedLocations.length && !gmbLocations.length ? (
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>No locations loaded. Connect Google Business from the dashboard.</div>
-          ) : null}
-        </div>
-      )}
-    </>
-  );
-
   const shellPad = embedded ? "0" : "28px 40px 0";
   const gridPad = embedded ? "0 0 24px" : "0 40px 40px";
   const gridColumns = "minmax(0, 1fr)";
   const gridMinHeight = embedded ? "auto" : "calc(100vh - 148px)";
 
-
-  console.log("fieldsfields");
-  
 
   return (
     <>
@@ -2491,21 +2344,17 @@ export default function BusinessInformationPanel({
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", padding: "22px 26px" }}>
-              {tab === "all" && (
+              {tab === "about" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
-                  <SectionBlock title="About your business" hint={`Business description is limited to ${GMB_PROFILE_DESCRIPTION_MAX} characters on Google (enforced here).`}>
-                    {gmbSyncMode ? (
-                      <LockedGmbFieldRow
-                        label="Business name"
-                        value={fields.businessName}
-                        reason="Business title is not edited here: Google can put your profile into pending review. Change the name in Google Business Profile."
-                      />
-                    ) : (
-                      <FieldRow label="Business name" fieldId="businessName" value={fields.businessName} onChange={setField("businessName")} {...sharedFieldProps} />
-                    )}
+                  <SectionBlock title="About your business" hint={`Description is limited to ${GMB_PROFILE_DESCRIPTION_MAX} characters on Google.`}>
+                    <DisabledInfoRow
+                      label="Business name"
+                      value={fields.businessName}
+                      hint="Update the title in Google Business Profile if you need to change it."
+                    />
                     {categoryBlock}
-                    {/* <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} /> */}
-                    {descriptionAiToolbar}
+                    <FieldRow label="Tagline" fieldId="tagline" value={fields.tagline} onChange={setField("tagline")} {...sharedFieldProps} />
+                    <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} />
                     <FieldRow
                       label="Description"
                       fieldId="description"
@@ -2514,17 +2363,22 @@ export default function BusinessInformationPanel({
                       multiline
                       maxLength={GMB_PROFILE_DESCRIPTION_MAX}
                       manualOnly
+                      suggestAiInEdit
                       onSaveField={handleFieldSave}
                       manualHint={
                         savePushesDescriptionAndServiceArea
-                          ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Use Save on the field or Save changes to PATCH Google and refetch.`
-                          : "From the business: Google field profile.description (Business Information API v1, updateMask profile.description). Hard limit 750 characters — type here, then Save / Sync."
+                          ? `Google profile.description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Tap Edit, then Save, Cancel, or AI Suggestion. Save changes syncs everything.`
+                          : "Google profile.description — tap Edit, then Save, Cancel, or AI Suggestion."
                       }
                       noBottomRule
                     />
                   </SectionBlock>
+                </div>
+              )}
 
-                  <SectionBlock title="Contact" hint="Shown on Google; keep consistent with your live profile.">
+              {tab === "contact" && (
+                <div style={{ animation: "slideIn .25s ease" }}>
+                  <SectionBlock title="Contact" hint="Phone is manual only. Website and WhatsApp use Edit → Save / Cancel; website can use AI Website Builder while editing.">
                     <FieldRow
                       label="Phone number"
                       fieldId="phone"
@@ -2532,7 +2386,7 @@ export default function BusinessInformationPanel({
                       onChange={setField("phone")}
                       manualOnly
                       onSaveField={handleFieldSave}
-                      manualHint="Edit and use Save on the field, or Save changes, to sync phone to Google."
+                      manualHint="Manual update only. Save on the field or Save changes syncs to Google (primaryPhone)."
                     />
                     <FieldRow
                       label="Chat / WhatsApp"
@@ -2541,36 +2395,19 @@ export default function BusinessInformationPanel({
                       onChange={setField("chatUrl")}
                       manualOnly
                       onSaveField={handleFieldSave}
-                      manualHint="Google attribute attributes/url_whatsapp — PATCH .../locations/{locationId}/attributes?attributeMask=attributes/url_whatsapp. Example: https://wa.me/919876543210"
+                      manualHint="https://wa.me/… or full WhatsApp URL. Saved to Google attribute url_whatsapp."
                     />
-                    <div style={{ marginBottom: 12 }}>
-                      <button
-                        type="button"
-                        onClick={() => void handleGenerateWebsiteFromBuilder()}
-                        disabled={websiteBuilderPending}
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 8,
-                          border: "1px solid #bae6fd",
-                          background: websiteBuilderPending ? "#e0f2fe" : "#f0f9ff",
-                          color: websiteBuilderPending ? "#7dd3fc" : "#0369a1",
-                          fontSize: 12,
-                          fontWeight: 800,
-                          cursor: websiteBuilderPending ? "not-allowed" : "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        {websiteBuilderPending ? "Generating website…" : "Website Builder: Generate & fill URL"}
-                      </button>
-                    </div>
                     <FieldRow
                       label="Website"
                       fieldId="website"
                       value={fields.website}
                       onChange={setField("website")}
                       manualOnly
+                      websiteBuilderInEdit
+                      websiteBuilderPending={websiteBuilderPending}
+                      onWebsiteBuilder={() => void handleGenerateWebsiteFromBuilder()}
                       onSaveField={handleFieldSave}
-                      manualHint="Use Website Builder (saves site to DB + can sync URL) or edit manually; Save on the field or Save changes updates Google."
+                      manualHint="Edit the URL, or use AI Website Builder (generates a hosted page and can sync the URL to Google)."
                     />
                     <FieldRow
                       label="Booking / appointment link"
@@ -2578,23 +2415,25 @@ export default function BusinessInformationPanel({
                       value={fields.bookingUrl}
                       onChange={setField("bookingUrl")}
                       manualOnly
-                      manualHint="Manual only. AI suggestions are disabled in Contact."
+                      manualHint="Not synced to Google from here — keep for your own reference."
                       noBottomRule
                     />
                   </SectionBlock>
+                </div>
+              )}
 
-                  <SectionBlock title="Location and areas" hint="Storefront address is from Google. Use radius search from that address, AI area names, or custom lines for service areas.">
-                    <ReadOnlyAddressRow
+              {tab === "location" && (
+                <div style={{ animation: "slideIn .25s ease" }}>
+                  <SectionBlock
+                    title="Location and areas"
+                    hint="Storefront address is read-only. Service areas load from Google; use radius (2–8 km), AI names, or custom lines, then Save changes."
+                  >
+                    <DisabledInfoRow
                       label="Business address (storefront)"
                       value={primaryLoc.fullAddress || [primaryLoc.address, primaryLoc.locality].filter(Boolean).join(", ")}
-                      hint="To change the address in Google, use Google Business Profile."
-                      pendingReviewWarning={
-                        gmbSyncMode
-                          ? "Address and storefront location are not updated from this app — Google may flag changes and move your profile to pending verification."
-                          : undefined
-                      }
+                      hint="Not editable here — change in Google Business Profile."
                     />
-                    <ReadOnlyLinkRow label="Google Maps" href={primaryLoc.mapsUri} hint="Opens your business on Google Maps." />
+                    <ReadOnlyLinkRow label="View on Google Maps" href={primaryLoc.mapsUri} />
                     <ServiceAreaMultiSelect
                       primaryLoc={primaryLoc}
                       listingLat={activeEnriched?.lat}
@@ -2608,186 +2447,41 @@ export default function BusinessInformationPanel({
                       noBottomRule
                     />
                   </SectionBlock>
-
-                  <SectionBlock title="Opening hours" hint="Summary and special hours for drafts; official hours are edited in Google.">
-                    <FieldRow label="Hours (summary)" fieldId="hoursSummary" value={fields.hoursSummary} onChange={setField("hoursSummary")} multiline {...sharedFieldProps} />
-                    <FieldRow label="Special hours" fieldId="specialHours" value={fields.specialHours} onChange={setField("specialHours")} multiline {...sharedFieldProps} />
-                    <FieldRow label="From the business / established" fieldId="yearEstablished" value={fields.yearEstablished} onChange={setField("yearEstablished")} {...sharedFieldProps} noBottomRule />
-                  </SectionBlock>
-
-                  <SectionBlock title="More" hint="Google metadata and extras.">
-                    <ReadOnlyAddressRow label="Open status (Google)" value={fields.googleOpenStatus || primaryLoc.openStatus || "—"} hint="Reflects your listing in Google." />
-                    <ReadOnlyAddressRow label="Place ID" value={primaryLoc.placeId || "—"} />
-                    <ReadOnlyLinkRow label="Write a review (link)" href={primaryLoc.newReviewUri} hint="Share with customers." />
-                    <FieldRow label="Accessibility and amenities" fieldId="accessibility" value={fields.accessibility} onChange={setField("accessibility")} multiline {...sharedFieldProps} />
-                    <FieldRow label="Additional details" fieldId="additionalInfo" value={fields.additionalInfo} onChange={setField("additionalInfo")} multiline {...sharedFieldProps} noBottomRule />
-                  </SectionBlock>
-
-                  <SectionBlock title="Locations and posting" hint="Choose where automation posts when enabled.">
-                    {locationPicker}
-                  </SectionBlock>
-                </div>
-              )}
-
-              {tab === "about" && (
-                <div style={{ animation: "slideIn .25s ease" }}>
-                  {gmbSyncMode ? (
-                    <LockedGmbFieldRow
-                      label="Business name"
-                      value={fields.businessName}
-                      reason="Business title is not edited here: Google can put your profile into pending review. Change the name in Google Business Profile."
-                    />
-                  ) : (
-                    <FieldRow label="Business name" fieldId="businessName" value={fields.businessName} onChange={setField("businessName")} {...sharedFieldProps} />
-                  )}
-                  {gmbSyncMode ? (
-                    <LockedGmbFieldRow
-                      label="Primary category"
-                      value={fields.primaryCategory || categoryHint[0] || ""}
-                      reason="Categories are not updated from this screen; changes in Google can send your profile to pending verification."
-                    />
-                  ) : (
-                    <FieldRow label="Primary category" fieldId="primaryCategory" value={fields.primaryCategory} onChange={setField("primaryCategory")} {...sharedFieldProps} />
-                  )}
-                  <FieldRow label="Tagline" fieldId="tagline" value={fields.tagline} onChange={setField("tagline")} {...sharedFieldProps} />
-                  {categoryBlock}
-                  <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} />
-                  {descriptionAiToolbar}
-                  <FieldRow
-                    label="Description"
-                    fieldId="description"
-                    value={fields.description}
-                    onChange={setField("description")}
-                    multiline
-                    maxLength={GMB_PROFILE_DESCRIPTION_MAX}
-                    manualOnly
-                    onSaveField={handleFieldSave}
-                    manualHint={
-                      savePushesDescriptionAndServiceArea
-                        ? `Google profile / description (max ${GMB_PROFILE_DESCRIPTION_MAX} chars). Save on the field or Save changes PATCHes Google and refetches.`
-                        : "Google profile.description (max 750 characters). Manual entry only — no AI."
-                    }
-                    noBottomRule
-                  />
-                </div>
-              )}
-
-              {tab === "contact" && (
-                <div style={{ animation: "slideIn .25s ease" }}>
-                  <FieldRow
-                    label="Phone number"
-                    fieldId="phone"
-                    value={fields.phone}
-                    onChange={setField("phone")}
-                    manualOnly
-                    onSaveField={handleFieldSave}
-                    manualHint="Edit and use Save on the field, or Save changes, to sync phone to Google."
-                  />
-                  <FieldRow
-                    label="Chat / WhatsApp"
-                    fieldId="chatUrl"
-                    value={fields.chatUrl}
-                    onChange={setField("chatUrl")}
-                    manualOnly
-                    onSaveField={handleFieldSave}
-                    manualHint="Google attributes/url_whatsapp — full https URL only. Manual entry only."
-                  />
-                  <div style={{ marginBottom: 12 }}>
-                    <button
-                      type="button"
-                      onClick={() => void handleGenerateWebsiteFromBuilder()}
-                      disabled={websiteBuilderPending}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 8,
-                        border: "1px solid #bae6fd",
-                        background: websiteBuilderPending ? "#e0f2fe" : "#f0f9ff",
-                        color: websiteBuilderPending ? "#7dd3fc" : "#0369a1",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        cursor: websiteBuilderPending ? "not-allowed" : "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      {websiteBuilderPending ? "Generating website…" : "Website Builder: Generate & fill URL"}
-                    </button>
-                  </div>
-                  <FieldRow
-                    label="Website"
-                    fieldId="website"
-                    value={fields.website}
-                    onChange={setField("website")}
-                    manualOnly
-                    onSaveField={handleFieldSave}
-                    manualHint="Use Website Builder (saves site to DB + can sync URL) or edit manually; Save on the field or Save changes updates Google."
-                  />
-                  <FieldRow
-                    label="Booking / appointment link"
-                    fieldId="bookingUrl"
-                    value={fields.bookingUrl}
-                    onChange={setField("bookingUrl")}
-                    manualOnly
-                    manualHint="Manual only. AI suggestions are disabled in Contact."
-                    noBottomRule
-                  />
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#64748b",
-                      lineHeight: 1.65,
-                      marginTop: 4,
-                      padding: "12px 14px",
-                      background: "#f8fafc",
-                      borderRadius: 10,
-                      border: "1px solid #e8edf5",
-                    }}
-                  >
-                    Live phone and website on Google are controlled in Google Business Profile. This editor stores your automation description and drafts.
-                  </div>
-                </div>
-              )}
-
-              {tab === "location" && (
-                <div style={{ animation: "slideIn .25s ease" }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#202124", marginBottom: 16 }}>Location and areas</div>
-                  <ReadOnlyAddressRow
-                    label="Business address (storefront)"
-                    value={primaryLoc.fullAddress || [primaryLoc.address, primaryLoc.locality].filter(Boolean).join(", ")}
-                    hint="Update in Google Business Profile to change the address."
-                    pendingReviewWarning={
-                      gmbSyncMode
-                        ? "Address is not updated from this app — risky edits can move your profile to pending verification."
-                        : undefined
-                    }
-                  />
-                  <ReadOnlyLinkRow label="View on Google Maps" href={primaryLoc.mapsUri} />
-                  <ServiceAreaMultiSelect
-                    primaryLoc={primaryLoc}
-                    listingLat={activeEnriched?.lat}
-                    listingLng={activeEnriched?.lng}
-                    enableRadiusSearch={gmbSyncMode}
-                    aiContext={optimizationContext}
-                    onSaveServiceAreas={gmbSyncMode ? handleSaveServiceAreasToGoogle : undefined}
-                    saveServiceAreasPending={syncToGmbPending}
-                    selectedPlaces={fields.serviceAreaPlaces}
-                    onChange={setField("serviceAreaPlaces")}
-                    noBottomRule
-                  />
-                  <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #eef2f6" }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b", marginBottom: 12 }}>Automation</div>
-                    {locationPicker}
-                  </div>
                 </div>
               )}
 
               {tab === "hours" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#202124", marginBottom: 14 }}>Opening hours</div>
-                  <p style={{ fontSize: 12, color: "#64748b", marginBottom: 16, lineHeight: 1.55 }}>
-                    Set official hours in Google Business Profile. Use these fields for notes, AI drafts, and internal summaries.
-                  </p>
-                  <FieldRow label="Hours" fieldId="hoursSummary" value={fields.hoursSummary} onChange={setField("hoursSummary")} multiline {...sharedFieldProps} />
-                  <FieldRow label="Special hours" fieldId="specialHours" value={fields.specialHours} onChange={setField("specialHours")} multiline {...sharedFieldProps} noBottomRule />
+                  <SectionBlock
+                    title="Opening hours"
+                    hint="Open with main hours — each weekday has its own Edit. Save pushes regularHours to Google (Business Information API)."
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 4 }}>Open with main hours</div>
+                    <OpeningHoursEditor
+                      periods={fields.regularHoursPeriods}
+                      onChange={(p) => setFields((f) => ({ ...f, regularHoursPeriods: p }))}
+                      aiContext={optimizationContext}
+                      onSyncToGmb={gmbSyncMode ? onSyncToGmb : undefined}
+                      syncPending={syncToGmbPending}
+                      disabled={!gmbSyncMode || !activeEditorLocationId}
+                    />
+                    <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #eef2f6" }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>
+                        Special hours
+                      </div>
+                      <FieldRow
+                        label="Notes (holidays / exceptions)"
+                        fieldId="specialHours"
+                        value={fields.specialHours}
+                        onChange={setField("specialHours")}
+                        multiline
+                        manualOnly
+                        suggestAiInEdit
+                        manualHint="Draft notes; structured special hours are managed in Google Business Profile."
+                        noBottomRule
+                      />
+                    </div>
+                  </SectionBlock>
                 </div>
               )}
 

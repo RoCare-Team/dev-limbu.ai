@@ -15,6 +15,7 @@ import {
   buildStorefrontAddressPatchBody,
   buildLatLngPatchBody,
   buildServiceAreaPatchBody,
+  buildRegularHoursPatchBody,
   parseServiceAreaFromText,
 } from '@/lib/gmbLocationApiActions';
 
@@ -22,7 +23,9 @@ export const dynamic = 'force-dynamic';
 
 const GMB_BASE = GMB_BUSINESS_INFORMATION_V1_BASE;
 
-async function resolveAccessToken(session, accountId, email) {
+async function resolveAccessToken(session, accountId, email, bodyToken) {
+  const fromBody = typeof bodyToken === 'string' ? bodyToken.trim() : '';
+  if (fromBody) return fromBody;
   if (session?.accessToken) return session.accessToken;
   const gmb = await GmbUser.findOne({ email }).lean();
   const proj = gmb?.projects?.find((p) => p.googleId === accountId) || gmb?.projects?.[0];
@@ -146,7 +149,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'accountId does not match connected business' }, { status: 403 });
     }
 
-    const accessToken = await resolveAccessToken(session, accountId, session.user.email);
+    const platformToken =
+      typeof body.googleAccessToken === 'string'
+        ? body.googleAccessToken
+        : typeof body.accessToken === 'string'
+          ? body.accessToken
+          : '';
+    const accessToken = await resolveAccessToken(session, accountId, session.user.email, platformToken);
     if (!accessToken) {
       return NextResponse.json({ error: 'No Google access token — sign in again.' }, { status: 401 });
     }
@@ -178,6 +187,10 @@ export async function POST(request) {
     const storefrontAddress =
       body.storefrontAddress && typeof body.storefrontAddress === 'object' ? body.storefrontAddress : null;
 
+    const hasRegularHoursPayload =
+      body.regularHours && typeof body.regularHours === 'object' && Array.isArray(body.regularHours.periods);
+    const regularHoursPeriods = hasRegularHoursPayload ? body.regularHours.periods : null;
+
     const serviceAreaFromText = !serviceAreaPlaces.length ? parseServiceAreaFromText(serviceAreaText) : null;
     const serviceAreaBody =
       serviceAreaPlaces.length > 0
@@ -194,7 +207,8 @@ export async function POST(request) {
       Boolean(serviceAreaBody) ||
       (latlng && Number.isFinite(latlng.latitude) && Number.isFinite(latlng.longitude)) ||
       title ||
-      storefrontAddress;
+      storefrontAddress ||
+      Boolean(hasRegularHoursPayload);
 
     if (!hasAny) {
       return NextResponse.json(
@@ -277,6 +291,16 @@ export async function POST(request) {
       results.push({ field: 'serviceArea', ...r });
     }
 
+    if (hasRegularHoursPayload) {
+      const r = await patchLocationResource(
+        accessToken,
+        locationId,
+        LOCATION_UPDATE_MASKS.regularHours,
+        buildRegularHoursPatchBody(regularHoursPeriods)
+      );
+      results.push({ field: 'regularHours', ...r });
+    }
+
     if (whatsappUri) {
       const r = await patchWhatsappAttribute(accessToken, locationId, whatsappUri);
       results.push({ field: 'attributes/url_whatsapp', ...r });
@@ -344,7 +368,8 @@ export async function GET(request) {
       return NextResponse.json({ error: 'accountId does not match connected business' }, { status: 403 });
     }
 
-    const accessToken = await resolveAccessToken(session, accountId, session.user.email);
+    const platformToken = searchParams.get('googleAccessToken')?.trim() || searchParams.get('accessToken')?.trim() || '';
+    const accessToken = await resolveAccessToken(session, accountId, session.user.email, platformToken);
     if (!accessToken) {
       return NextResponse.json({ error: 'No Google access token — sign in again.' }, { status: 401 });
     }

@@ -129,6 +129,9 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
   if (!locationId) locationId = resourceName || title;
   if (!locationId) return null;
 
+  const regularHours = loc.regularHours && typeof loc.regularHours === 'object' ? loc.regularHours : null;
+  const specialHours = Array.isArray(loc.specialHours) ? loc.specialHours : null;
+
   return {
     locationId,
     resourceName,
@@ -180,5 +183,7 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
       lng,
     }),
     serviceAreaPlaces,
+    regularHours,
+    specialHours,
   };
 }

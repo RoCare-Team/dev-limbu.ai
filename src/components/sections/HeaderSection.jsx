@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/useAuthStore";
 
-import { ChevronDown, BookOpen, User, Info, Link as LinkIcon, MessageSquare, QrCode, Send } from "lucide-react";
+import { ChevronDown, BookOpen, User, Info, Link as LinkIcon, MessageSquare, QrCode, Send, PhoneCall } from "lucide-react";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,11 +25,11 @@ export default function Navbar() {
   ];
 
   const resourceLinks = [
-    { 
-      name: "How To Connect GMB", 
+    {
+      name: "How To Connect GMB",
       sub: "Step-by-step connection guide",
-      href: "/how-to-connect-gmb", 
-      icon: LinkIcon 
+      href: "/how-to-connect-gmb",
+      icon: LinkIcon
     },
     { name: "Create AI Post", href: "/how-to-create-post", icon: BookOpen },
     { name: "Reply to Reviews", href: "/how-to-reply-review", icon: MessageSquare },
@@ -68,19 +67,19 @@ export default function Navbar() {
                 </Link>
               </li>
             ))}
-            
+
             {/* Resources Dropdown */}
             <li className="relative group">
-              <button 
+              <button
                 onMouseEnter={() => setDropdownOpen(true)}
                 onMouseLeave={() => setDropdownOpen(false)}
                 className="flex items-center gap-1 text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition cursor-pointer"
               >
                 GMB Guide <ChevronDown size={14} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {/* Dropdown Menu */}
-              <div 
+              <div
                 onMouseEnter={() => setDropdownOpen(true)}
                 onMouseLeave={() => setDropdownOpen(false)}
                 className={`absolute top-full -left-4 pt-4 transition-all duration-300 ${dropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}
@@ -107,12 +106,12 @@ export default function Navbar() {
           <div className="w-px h-5 bg-black/15" />
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setModalOpen(true)}
-              className="btn-ghost btn-sm text-black border-black/20 hover:bg-black/5"
+            <a
+              href="tel:+919283344726"
+              className="btn-ghost btn-sm text-black border-black/20 hover:bg-black/5 flex items-center gap-2"
             >
-              Book Free Demo
-            </button>
+              <PhoneCall size={14} /> +91 92833 44726
+            </a>
 
             {isLoggedIn ? (
               <>
@@ -187,15 +186,13 @@ export default function Navbar() {
           </div>
 
           <div className="flex flex-col gap-3 mt-4">
-            <button
-              onClick={() => {
-                setModalOpen(true);
-                setMenuOpen(false);
-              }}
-              className="btn-ghost btn-md justify-center text-black border-black/20"
+            <a
+              href="tel:+919283344726"
+              onClick={() => setMenuOpen(false)}
+              className="btn-ghost btn-md justify-center text-black border-black/20 flex items-center gap-2"
             >
-              Book Free Demo
-            </button>
+               <PhoneCall size={16} /> +91 92833 44726
+            </a>
 
             {isLoggedIn ? (
               <Link

@@ -27,8 +27,8 @@ export default function FooterSection() {
   ];
 
   return (
-    <footer 
-      className="relative pt-20 pb-10 overflow-hidden border-t border-slate-200" 
+    <footer
+      className="relative pt-20 pb-10 overflow-hidden border-t border-slate-200"
       style={{ backgroundColor: "#fafafa" }} // Soft off-white/light gray background
     >
       {/* ── Subtle background grid ── */}
@@ -150,7 +150,10 @@ export default function FooterSection() {
                 <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
                   <MapPin className="w-4 h-4 text-slate-400" />
                 </div>
-                <span className="mt-1.5">JMD Megapolish , Gurugram</span>
+                <span className="mt-1.5 leading-snug">
+                  8th Floor, Unit No. 831,<br />
+                  JMD Megapolis, Gurugram
+                </span>
               </li>
             </ul>
 
@@ -182,7 +185,7 @@ export default function FooterSection() {
         {/* ── Bottom Bar ── */}
         <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-slate-200 gap-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-            © 2026 Limbu.ai. All rights reserved. 
+            © 2026 Limbu.ai. All rights reserved.
           </p>
         </div>
       </div>

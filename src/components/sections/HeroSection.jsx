@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -17,16 +17,6 @@ const clientLogos = [
 export default function HeroSection() {
   const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);
   const { isLoggedIn } = useAuthStore();
-
-  const [platformIndex, setPlatformIndex] = useState(0);
-  const platforms = ["GMB", "Facebook", "Instagram"];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPlatformIndex((prev) => (prev + 1) % platforms.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <section
@@ -97,30 +87,23 @@ export default function HeroSection() {
         {/* Headline */}
         <div className="max-w-4xl">
           <h1
-            className="font-bold uppercase leading-[0.92] tracking-tight"
+            className="font-bold uppercase leading-[1.1] tracking-tight"
             style={{
               fontFamily: "var(--font-heading)",
               color: "#ffffff",
               fontSize: "clamp(1.8rem, 5vw, 3.8rem)",
             }}
           >
-            One Platform. <br />
-            All Your <span className="text-lemon-hover">AI Marketing.</span>
+            <span className="block text-[0.6em]">
+              Grow Your Business on Google
+            </span>
+
+            <span className="block text-[0.85em] mt-2">
+              Manage Your <span className="text-lemon-hover">GMB with <br/> Limbu AI</span>
+            </span>
           </h1>
 
-          {/* Dynamic Small Text Switcher */}
-          <div className="flex items-center gap-3 mt-4 overflow-hidden h-10">
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.25em] text-white/60">
-              Optimized for
-            </span>
-            <span
-              key={platformIndex}
-              className="text-lg sm:text-xl font-black uppercase tracking-widest text-lemon-hover animate-in slide-in-from-bottom-full duration-500"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {platforms[platformIndex]}
-            </span>
-          </div>
+
 
           {/* CTA Buttons */}
           <div className="flex flex-wrap items-center gap-4 mt-10">

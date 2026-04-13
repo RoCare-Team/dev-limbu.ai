@@ -66,7 +66,7 @@ export default function VideoExamplesSection({ videoExamples = [] }) {
               fontSize: "clamp(1.8rem, 4.5vw, 3.5rem)",
             }}
           >
-            Stunning{" "}
+            Limbu AI{" "}
             <span
               style={{
                 color: "var(--lemon-hover)",

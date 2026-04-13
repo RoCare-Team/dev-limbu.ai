@@ -18,8 +18,16 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LabelList,
 } from "recharts";
+import { 
+  Activity, 
+  Map as MapIcon, 
+  Search, 
+  Phone, 
+  Globe, 
+  Loader2,
+  MapPin
+} from "lucide-react";
 
 /* ══════════════════════════════════════════
    SUB-COMPONENTS (Tailwind Optimized)
@@ -55,7 +63,7 @@ const MetricCard = ({
   prevValue,
   prevKnown,
   showComparison,
-  icon,
+  icon: Icon,
   accentClass,
   softBgClass,
 }) => (
@@ -64,9 +72,9 @@ const MetricCard = ({
   >
     <div className="flex justify-between items-center mb-3">
       <div
-        className={`w-10 h-10 rounded-xl ${softBgClass} flex items-center justify-center text-xl`}
+        className={`w-10 h-10 rounded-xl ${softBgClass} flex items-center justify-center`}
       >
-        {icon}
+        <Icon size={20} strokeWidth={2.5} />
       </div>
       <DeltaBadge
         curr={value}
@@ -287,7 +295,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
       {loading && (
         <div className="absolute inset-0 z-50 bg-pure-white/60 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300">
           <div className="bg-cyber-black text-lemon-glow px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-pulse">
-            <div className="w-5 h-5 border-2 border-lemon-glow border-t-transparent rounded-full animate-spin"></div>
+            <Loader2 className="w-5 h-5 text-lemon-glow animate-spin" />
             <span className="font-heading font-black uppercase tracking-widest text-sm">
               Syncing Data...
             </span>
@@ -309,7 +317,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
             {businessName || "Business Profile"}
           </h1>
           <p className="text-tech-silver font-medium flex items-center gap-2">
-            <span className="text-lg">📍</span> {locationName}{" "}
+            <MapPin size={18} /> {locationName}{" "}
             {city && <span className="text-slate-300">/</span>} {city}
           </p>
         </div>
@@ -318,7 +326,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           <p className="text-[10px] text-tech-gray font-bold uppercase tracking-widest mb-1">
             Report window
           </p>
-          <p className="font-mono text-lemon-glow font-bold text-sm">
+          <p className="font-mono text-white  font-bold text-sm">
             {drLabel}
           </p>
         </div>
@@ -332,7 +340,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           prevValue={prev.totalImpressions}
           prevKnown={prevHasData}
           showComparison={!!windows}
-          icon="📊"
+          icon={Activity}
           accentClass="border-t-blue-600"
           softBgClass="bg-blue-50 text-blue-600"
         />
@@ -342,7 +350,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           prevValue={prev.totalMapsImpressions}
           prevKnown={prevHasData}
           showComparison={!!windows}
-          icon="🗺️"
+          icon={MapIcon}
           accentClass="border-t-emerald-600"
           softBgClass="bg-emerald-50 text-emerald-600"
         />
@@ -352,7 +360,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           prevValue={prev.totalSearchImpressions}
           prevKnown={prevHasData}
           showComparison={!!windows}
-          icon="🔍"
+          icon={Search}
           accentClass="border-t-amber-500"
           softBgClass="bg-amber-50 text-amber-600"
         />
@@ -362,7 +370,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           prevValue={prev.totalCalls}
           prevKnown={prevHasData}
           showComparison={!!windows}
-          icon="☎️"
+          icon={Phone}
           accentClass="border-t-violet-600"
           softBgClass="bg-violet-50 text-violet-600"
         />
@@ -372,7 +380,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           prevValue={prev.totalWebsiteClicks}
           prevKnown={prevHasData}
           showComparison={!!windows}
-          icon="🌐"
+          icon={Globe}
           accentClass="border-t-rose-500"
           softBgClass="bg-rose-50 text-rose-600"
         />

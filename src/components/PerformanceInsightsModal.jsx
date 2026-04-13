@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { X, Download, Calendar, AlertCircle, RefreshCw, BarChart3 } from "lucide-react";
+import { X, Download, Calendar, AlertCircle, RefreshCw, BarChart3, Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import PerformanceInsightsReport from "./PerformanceInsightsReport";
 import { generatePerformanceInsightsPDF } from "@/lib/performancePdfGenerator";
 import { savePerformanceInsights, calculateMetricsInRange } from "@/lib/performanceInsightsUtils";
-import CircularProgress from "@mui/material/CircularProgress";
 
 const PerformanceInsightsModal = ({
   isOpen,
@@ -122,7 +121,7 @@ const PerformanceInsightsModal = ({
         });
 
         const checkUrl = `/api/performance-insights?${queryParams.toString()}`;
-        
+
         const checkResponse = await fetch(checkUrl, {
           cache: "no-store",
           headers: {
@@ -176,13 +175,13 @@ const PerformanceInsightsModal = ({
               "Cache-Control": "no-cache, no-store, must-revalidate",
             },
           });
-          
+
           if (!fetchResponse.ok) {
             throw new Error(`Fetch failed: ${fetchResponse.status}`);
           }
 
           const fetchedData = await fetchResponse.json();
-          
+
           if (fetchedData.success && fetchedData.data && fetchedData.data.length > 0) {
             const latestRecord = fetchedData.data[0];
             setDisplayData(latestRecord);
@@ -231,7 +230,7 @@ const PerformanceInsightsModal = ({
       };
 
       await generatePerformanceInsightsPDF(reportRef.current, metadata);
-      
+
       toast.success(
         `✓ PDF Downloaded! (Calls: ${displayData.metrics?.totalCalls || 0}, Maps: ${displayData.metrics?.totalMapsImpressions || 0})`,
         { id: "download-success", duration: 4000 }
@@ -249,7 +248,7 @@ const PerformanceInsightsModal = ({
       // Ensure dates are proper Date objects
       const startDate = localStartDate instanceof Date ? localStartDate : new Date(localStartDate);
       const endDate = localEndDate instanceof Date ? localEndDate : new Date(localEndDate);
-      
+
       onDateChange({
         startDate: startDate,
         endDate: endDate,
@@ -456,7 +455,7 @@ const PerformanceInsightsModal = ({
               <BarChart3 className="text-black w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+              <h2 className="text-xl sm:text-2xl text-white font-black uppercase tracking-tight leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
                 {businessName}
               </h2>
               <p className="text-yellow-400 text-xs font-bold uppercase tracking-widest opacity-80">{locationName}</p>
@@ -522,7 +521,7 @@ const PerformanceInsightsModal = ({
               className="btn-lemon px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest gap-2 shadow-xl hover:scale-[1.02]"
             >
               {isDownloading ? (
-                <CircularProgress size={14} sx={{ color: "black" }} />
+                <Loader2 size={14} className="animate-spin text-black" />
               ) : (
                 <Download size={14} />
               )}
@@ -582,8 +581,8 @@ const PerformanceInsightsModal = ({
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-8 custom-scroll">
           {loading || isSaving ? (
             <div className="h-full flex items-center justify-center min-h-[400px]">
-              <div className="text-center bg-white p-12 rounded-[2rem] shadow-xl border border-black/5">
-                <CircularProgress size={50} thickness={4} sx={{ color: "#eab308", marginBottom: "24px" }} />
+              <div className="text-center bg-white p-12 rounded-[2rem] shadow-xl border border-black/5 flex flex-col items-center">
+                <Loader2 size={50} className="text-yellow-500 animate-spin mb-6" strokeWidth={3} />
                 <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">
                   {isSaving ? "Saving Report..." : "Generating Insights..."}
                 </p>

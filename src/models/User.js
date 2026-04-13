@@ -7,6 +7,14 @@ const userSchema = new mongoose.Schema(
     email: { type: String },
     phone: { type: String, unique: true }, // removed `required: true`
 
+  //   paidSession: [
+  //   {
+  //     serviceName: String,
+  //     amount: Number,
+  //     date: { type: Date, default: Date.now }
+  //   }
+  // ],
+
     wallet: { type: Number, default: 0 },
     // imgGeneratePrice: {default: 80, type: Number},
     // igPrice: {type:Number, default: 0},
@@ -15,7 +23,7 @@ const userSchema = new mongoose.Schema(
     freeUsedCount: { type: Number },
     GstNumber: { type: String },
     Remarks: { type: String },
-    paidService: { type: String },
+    paidService: { type: String},
     paidPackage: { type: String },
     planDuration: { type: String },
 

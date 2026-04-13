@@ -1,15 +1,38 @@
-# Franchise Leads Fix TODO
+# Admin Dashboard Redesign TODO
+Status: 🚀 In Progress
 
-## Plan Breakdown
-1. **[x]** Edit src/app/admin/franchise/franchise-lead/page.jsx:
-   - Disable FU table filtering for franchiseAdmin (tabs/stats only).
-   - Remove "Table filter" banner for franchiseAdmin.
-   - Ensure default "all" tab.
-2. **[x]** Test as franchiseAdmin:
-   - Full leads table always visible.
-   - FU tabs show correct stats (0 if none).
-   - Add FU remark → stats update.
-3. **[ ]** attempt_completion
+## Step 1: Create/Update TODO.md [✅ DONE]
 
-Progress: All edits complete. Test: franchiseAdmin login → table always full own leads (no "Today" filter), stats update on tabs.
+## Step 2: Redesign src/app/admin/dashboard/page.jsx
+- [✅] Fix imports and define missing KpiCard component
+- [✅] Modern hero header with date/breadcrumbs
+- [✅] Responsive KPI grid with gradients/shadows
+- [ ] Organize sections: Stats | Performance | Agents | Revenue/Chats
+
+- [ ] Organize sections: Stats | Performance | Agents | Revenue/Chats
+
+- [ ] Organize sections: Stats | Performance | Agents | Revenue/Chats
+- [ ] Responsive tables (horizontal scroll, sticky headers)
+- [ ] Fix charts (group userGrowth by month, responsive Recharts)
+- [ ] Improve modals (blur backdrop, smooth animations)
+- [ ] Mobile-first: Stack cards, touch-friendly buttons
+- [ ] Consistent Tailwind (rounded-xl, shadow-sm/md, hover effects)
+- [ ] Remove console.logs, fix broken classes (`w-30` -> `w-12`)
+
+## Step 3: Refine src/app/admin/dashboard/UserStats.jsx
+- [✅] Uniform responsive KPI cards
+
+- [ ] Fix revenue modal (add image viewer state/modal)
+- [ ] Consistent spacing/typography
+- [ ] Hover/click effects
+
+## Step 4: Testing & Polish
+- [ ] Run `npm run dev`, test responsive (Chrome DevTools)
+- [ ] Check all modals/tables/charts on mobile/desktop
+- [ ] Fix any console errors
+- [ ] Update TODO progress
+- [ ] Final attempt_completion
+
+## Step 5: Completion
+- [ ] attempt_completion with demo command (if needed)
 

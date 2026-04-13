@@ -125,16 +125,21 @@ export default function AdminLayout({ children }) {
     <div
       className={`flex min-h-screen transition-colors ${
         theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900"
-      } overflow-hidden`}
+      } `}
     >
       {/* Sidebar */}
-     <aside
+      <aside
   className={`${
     open ? "w-64" : "w-20"
-  } transition-all duration-300 flex flex-col h-screen sticky top-0 overflow-y-auto shrink-0 ${
-    theme === "dark" ? "bg-[#0b141a] text-white" : "bg-white text-slate-900 border-r border-slate-200"
+  } fixed left-0 top-0 h-screen z-50
+  transition-all duration-300 flex flex-col
+  overflow-y-hidden hover:overflow-y-auto
+  ${
+    theme === "dark"
+      ? "bg-[#0b141a] text-white"
+      : "bg-white text-slate-900 border-r border-slate-200"
   }`}
-> 
+>
         {/* Header */}
         <div className={`p-4 ${theme === "dark" ? "border-b border-gray-800" : "border-b border-slate-200"}`}>
           <div className="flex items-center gap-3">
@@ -207,7 +212,13 @@ export default function AdminLayout({ children }) {
       </aside> 
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 p-6 overflow-y-auto">{children}</main>
+      <main
+  className={`flex-1 min-w-0 p-6 overflow-y-auto ${
+    open ? "ml-64" : "ml-20"
+  }`}
+>
+  {children}
+</main>
     </div>
   );
 }

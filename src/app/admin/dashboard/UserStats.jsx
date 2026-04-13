@@ -13,7 +13,68 @@ import {
   Eye,
   MessageSquare,
   Shield,
+  TrendingUp,
+  AlertCircle,
 } from "lucide-react";
+
+const StatCard = ({ 
+  title, 
+  value, 
+  subtitle, 
+  icon: Icon, 
+  colorClass = "blue",
+  onClick,
+  isClickable = false 
+}) => {
+  const colorStyles = {
+    green: "from-green-50 to-emerald-50 border-green-200",
+    teal: "from-teal-50 to-cyan-50 border-teal-200",
+    red: "from-red-50 to-orange-50 border-red-200",
+    blue: "from-blue-50 to-indigo-50 border-blue-200",
+    purple: "from-purple-50 to-indigo-50 border-purple-200",
+  };
+
+  const iconColors = {
+    green: "bg-green-100 text-green-700",
+    teal: "bg-teal-100 text-teal-700",
+    red: "bg-orange-100 text-orange-600",
+    blue: "bg-blue-100 text-blue-700",
+    purple: "bg-purple-100 text-purple-700",
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className={`
+        bg-gradient-to-br ${colorStyles[colorClass]} 
+        border rounded-2xl p-5 
+        shadow-md hover:shadow-lg
+        ${isClickable ? "cursor-pointer hover:scale-105 transition-all duration-200" : "cursor-default"}
+        flex flex-col
+      `}
+    >
+      {/* Top Row - Title */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">
+          {title}
+        </p>
+        
+        <div className={`w-8 h-8 ${iconColors[colorClass]} rounded-lg flex items-center justify-center`}>
+          <Icon size={18} />
+        </div>
+      </div>
+
+      {/* Bottom Row - Value */}
+      <p className="text-2xl md:text-2.5xl font-bold text-gray-900">
+        {value}
+      </p>
+      
+      {subtitle && (
+        <p className="text-xs text-gray-500 mt-2">{subtitle}</p>
+      )}
+    </div>
+  );
+};
 
 export default function UserStats({
   stats,
@@ -37,259 +98,222 @@ export default function UserStats({
   fetchStageData,
   chatStats,
   fetchChatStats,
-  setChatModalFilter, // ✅ ADD
+  setChatModalFilter,
   setShowChatStatsModal,
-
-  // ✅ YE ADD KAR
+  displayTodayUsersCount,
+    stageModal,
+  setStageModal,
+  stageData,
+  loadingStage
 }) {
   return (
     <>
       {!isAgent && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
-          {/* Total Users */}
-          <div className="bg-white w-50 h-15 rounded-lg p-3  shadow-sm border border-gray-200 hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-dark font-semibold uppercase tracking-wide">
-                  Total Users
-                </p>
-                <p className="text-lg font-bold text-dark mt-1">
-                  {stats?.totalUsers || 0}
-                </p>
-              </div>
-              <div className="w-9 h-9 bg-neutral-300 rounded-lg flex items-center justify-center">
-                <User className="text-dark" size={18} />
-              </div>
-            </div>
-            {filterLabel && (
-              <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={11} />
-                {filterLabel}
-              </div>
-            )}
+        <>
+          {/* Main Stats Grid - 6 Cards */}
+          <div className="grid  grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            {/* Total Leads */}
+            <StatCard
+              title="Total Leads"
+              value={stats?.totalUsers || 0}
+              icon={User}
+              colorClass="green"
+            />
+
+            {/* Active Leads */}
+            <StatCard
+              title="Active Leads"
+              value={stageStats["Active"] || 0}
+              icon={CheckCircle}
+              colorClass="teal"
+              onClick={() => fetchStageData("Active")}
+              isClickable={true}
+            />
+
+            {/* Total Revenue */}
+            <StatCard
+  title="Total Revenue"
+  value={`₹${(totalRevenue || 0).toLocaleString()}`}
+  icon={Wallet}
+  colorClass="purple"
+  onClick={() => {
+    fetchRevenueUsers();
+    setShowRevenueUsersModal(true);
+  }}
+  isClickable={true}
+/>
+
+            {/* Heading Due */}
+            <StatCard
+              title="Follow Due"
+              value={stageStats["Follow Up"] || 0}
+              icon={Clock}
+              colorClass="red"
+              onClick={() => {
+  fetchStageData("Follow Up");
+  setStageModal("Follow Up");
+}}
+              isClickable={true}
+            />
+
+            {/* Inactive Leads */}
+            <StatCard
+              title="Inactive"
+              value={stageStats["Inactive"] || 0}
+              icon={UserX}
+              colorClass="blue"
+              onClick={() => {
+  console.log("CLICK WORKING");
+  fetchStageData("Inactive");
+  setStageModal("Inactive"); // ✅ ADD BACK
+}}
+              isClickable={true}
+            />
+
+            {/* Onboarded */}
+            <StatCard
+              title="Onboarded"
+              value={stageStats["Onboard"] || 0}
+              icon={Rocket}
+              colorClass="purple"
+              onClick={() => {
+  fetchStageData("Onboard");
+  setStageModal("Onboard");
+}}
+              isClickable={true}
+            />
           </div>
 
-          {/* Active Users */}
-          {!isAgent && !isManager && (
-            <div className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+          {/* Secondary Stats Grid - Compact */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+            {/* Total Posts */}
+            <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
-                    Active Users
-                  </p>
-                  <p className="text-lg font-bold text-green-800 mt-1">
-                    {stageStats["Active"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="text-green-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Follow Up */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => fetchStageData("Follow Up")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-dark font-semibold uppercase tracking-wide">
-                    Follow Up
-                  </p>
-                  <p className="text-lg font-bold text-dark mt-1">
-                    {stageStats["Follow Up"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-neutral-300 rounded-lg flex items-center justify-center">
-                  <Clock className="text-dark" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inactive */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => {
-                console.log("CLICKED INACTIVE"); // 👈 add kar
-                fetchStageData("Inactive");
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">
-                    Inactive
-                  </p>
-                  <p className="text-lg font-bold text-gray-800 mt-1">
-                    {stageStats["Inactive"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <UserX className="text-gray-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Onboarded */}
-          {!isAgent && (
-            <div
-              className="bg-white w-50 h-15 rounded-lg p-2.5 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
-              onClick={() => fetchStageData("Onboard")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                    Onboarded
-                  </p>
-                  <p className="text-lg font-bold text-blue-800 mt-1">
-                    {stageStats["Onboard"] || 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Rocket className="text-blue-600" size={18} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Total Posts */}
-          {!isAgent && (
-            <div className="bg-white w-50 h-15  rounded-lg p-2.5 shadow-sm border border-gray-100 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 font-medium">
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
                     Total Posts
                   </p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
+                  <p className="text-2xl font-bold text-gray-900">
                     {totalPostsCount}
                   </p>
                 </div>
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <ImageIcon className="text-blue-600" size={18} />
-                </div>
-              </div>
-              {filterLabel && (
-                <div className="mt-1 pt-1 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                  <Calendar size={11} />
-                  {filterLabel}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Users Today — Meta (bulk-upload) vs Signup vs total (IST / APP_TIMEZONE via API) */}
-          <div
-            className={`bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-2.5 shadow-sm border border-teal-200 hover:shadow-md transition-all ${
-              (role === "superAdmin" ||
-                role === "admin" ||
-                role === "superfranchiseAdmin") &&
-              !isManager
-                ? "md:col-span-2"
-                : ""
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-teal-700 font-medium">
-                  {isAgent ? "Calls Today" : "Users Today"}
-                </p>
-                {(role === "superAdmin" ||
-                  role === "admin" ||
-                  role === "superfranchiseAdmin") &&
-                !isAgent &&
-                !isManager ? (
-                  <>
-                    <p
-                      className="text-[10px] text-teal-600/90 leading-tight mt-0.5 line-clamp-2"
-                      title={todayLeadWindowLabel}
-                    ></p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-teal-900">
-                      <span title="Meta instant form + imports tagged bulk-upload">
-                        Meta Leads:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersMetaLeads}
-                        </b>
-                      </span>
-                      <span>
-                        Signup:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersSignups}
-                        </b>
-                      </span>
-                      <span>
-                        Total:{" "}
-                        <b className="text-base text-teal-950 tabular-nums">
-                          {todayUsersCount}
-                        </b>
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-lg font-bold text-teal-800 ">
-                        {displayTodayUsersCount}
-                  </p>
-                )}
-              </div>
-              <div className="w-9 h-9 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
-                <User className="text-teal-700" size={18} />
-              </div>
-            </div>
-          </div>
-
-          {/* Total Calls Assigned — Agent only */}
-          {isAgent && (
-            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 w-50 h-15 rounded-lg p-2.5 shadow-sm border border-indigo-200 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-indigo-700 font-semibold uppercase tracking-wide">
-                    Total Assigned
-                  </p>
-                  <p className="text-lg font-bold text-indigo-800 mt-1">
-                    {stats.total ?? 0}
-                  </p>
-                </div>
-                <div className="w-9 h-9 bg-indigo-200 rounded-lg flex items-center justify-center">
-                  <UserCheck className="text-indigo-700" size={18} />
+                <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center">
+                  <ImageIcon size={20} />
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Total Revenue - Role-based visibility */}
-          {(role === "superAdmin" ||
-            role === "franchiseAdmin" ||
-            role === "agent") && (
+            {/* Total Chats */}
             <div
-              className=" w-50 h-15 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2.5 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
               onClick={() => {
-                fetchRevenueUsers();
-                setShowRevenueUsersModal(true);
+                setChatModalFilter("all");
+                setShowChatStatsModal(true);
+                fetchChatStats();
               }}
-              title="Click to view onboarded users details"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-emerald-700 font-medium group-hover:underline">
-                    {role === "superAdmin" || role === "superFranchiseAdmin"
-                      ? "User Onboard Revenue"
-                      : "My Revenue"}
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                    Total Chats
                   </p>
-                  <p className="text-lg font-bold text-emerald-800 mt-1">
-                    ₹{totalRevenue.toLocaleString()}
+                  <p className="text-2xl font-bold text-gray-900">
+                    {chatStats?.total || 0}
                   </p>
                 </div>
-                <div className="w-9 h-9 bg-emerald-200 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Wallet className="text-emerald-700" size={18} />
+                <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center shrink-0">
+                  <MessageSquare size={20} />
                 </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Chats Today */}
+            <div
+              className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
+              onClick={() => {
+                setChatModalFilter("today");
+                setShowChatStatsModal(true);
+                fetchChatStats();
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                    Chats Today
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {chatStats?.today || 0}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-teal-100 text-teal-700 rounded-lg flex items-center justify-center shrink-0">
+                  <MessageSquare size={20} />
+                </div>
+              </div>
+            </div>
+
+            {/* Resolved Chats */}
+            <div
+              className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
+              onClick={() => {
+                setChatModalFilter("resolved");
+                setShowChatStatsModal(true);
+                fetchChatStats();
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                    Resolved
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {chatStats?.resolved || 0}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-green-100 text-green-600 rounded-lg flex items-center justify-center shrink-0">
+                  <Shield size={20} />
+                </div>
+              </div>
+            </div>
+
+            {/* Users Today - Compact Card */}
+            <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-4 shadow-md border border-teal-200 hover:shadow-lg transition-all">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-teal-700 uppercase tracking-wide mb-2">
+                    Users Today
+                  </p>
+                  {(role === "superAdmin" ||
+                    role === "admin" ||
+                    role === "superfranchiseAdmin") &&
+                  !isAgent &&
+                  !isManager ? (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-teal-600 font-medium">Meta:</span>
+                        <span className="font-bold text-teal-900">{todayUsersMetaLeads}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-teal-600 font-medium">Sign:</span>
+                        <span className="font-bold text-teal-900">{todayUsersSignups}</span>
+                      </div>
+                      <div className="border-t border-teal-300 pt-1 mt-1 flex justify-between text-xs">
+                        <span className="text-teal-700 font-bold">Total:</span>
+                        <span className="font-bold text-teal-900">{todayUsersCount}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-bold text-teal-900">
+                      {displayTodayUsersCount || todayUsersCount || 0}
+                    </p>
+                  )}
+                </div>
+                <div className="w-10 h-10 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
+                  <User className="text-teal-700" size={20} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {showRevenueUsersModal && (
@@ -337,9 +361,6 @@ export default function UserStats({
                     No users with `user_onboard` revenue entries found for your
                     account.
                   </p>
-                  <p className="text-sm mt-1 text-gray-400">
-                    Onboard users using the ✅ button in the user table
-                  </p>
                 </div>
               ) : (
                 <>
@@ -361,24 +382,13 @@ export default function UserStats({
                             Date
                           </th>
                           <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Screenshot
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Notes
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Remark
+                            Type
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-
-                      {revenueUsersList.map((revenue, index) => {
-                      console.log("TYPE:", revenue.type);
-                       console.log("PLAN:", revenue.plan);
-
-                      return (
-                      <tr
+                        {revenueUsersList.map((revenue, index) => (
+                          <tr
                             key={revenue._id || index}
                             className="hover:bg-gray-50 transition-colors"
                           >
@@ -389,9 +399,6 @@ export default function UserStats({
                               <div className="text-sm text-gray-500">
                                 ID: {revenue.leadId}
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                UTR: {revenue.utrNumber || "N/A"}
-                              </div>
                             </td>
                             <td className="px-6 py-4">
                               <span className="inline-flex px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
@@ -399,7 +406,7 @@ export default function UserStats({
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <div className="text-xl font-bold text-emerald-700">
+                              <div className="text-lg font-bold text-emerald-700">
                                 ₹{revenue.amount?.toLocaleString() || 0}
                               </div>
                             </td>
@@ -409,43 +416,14 @@ export default function UserStats({
                                   "en-IN",
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500">
-                                {new Date(revenue.createdAt).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              {revenue.paymentScreenshot ? (
-                                <button
-                                  onClick={() =>
-                                    setFullViewImage(revenue.paymentScreenshot)
-                                  }
-                                  className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
-                                >
-                                  <Eye size={14} />
-                                  View Proof
-                                </button>
-                              ) : (
-                                <span className="text-sm text-gray-400 italic">
-                                  No screenshot
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 max-w-xs">
-                              <div className="text-sm text-gray-900 line-clamp-2">
-                                {revenue.notes || "No notes"}
-                              </div>
                             </td>
                             <td className="px-6 py-4">
                               <span
-                                className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full
-                               ${
+                                className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                                   revenue.type === "seo_plan"
-                                ? "bg-purple-100 text-purple-800"
-                                 : "bg-gray-100 text-gray-700"
-                               }`}
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
                               >
                                 {revenue.type === "seo_plan"
                                   ? "SEO Plan"
@@ -453,9 +431,7 @@ export default function UserStats({
                               </span>
                             </td>
                           </tr>
-                      );
-                    })}
-
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -487,109 +463,10 @@ export default function UserStats({
             </div>
           </div>
         </div>
-      )} 
+      )}
 
     
 
-      {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        {/* Total Chats */}
-        <div
-          className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
-          onClick={() => {
-            setChatModalFilter("all");
-            setShowChatStatsModal(true);
-            fetchChatStats();
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                Total Chats
-              </p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">
-                {chatStats?.total || 0}
-              </p>
-            </div>
-            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
-              <MessageSquare className="text-orange-600" size={20} />
-            </div>
-          </div>
-        </div>
-
-        {isAgent && (
-          <div
-            className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-3 shadow-sm border border-emerald-200 hover:shadow-md transition-all cursor-pointer min-h-[72px] group"
-            onClick={() => {
-              fetchRevenueUsers();
-              setShowRevenueUsersModal(true);
-            }}
-            title="Click to view onboarded users"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide group-hover:underline">
-                  My Revenue
-                </p>
-                <p className="text-lg font-bold text-emerald-800 mt-0.5">
-                  ₹{totalRevenue.toLocaleString()}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0">
-                <Wallet className="text-emerald-700" size={18} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Chats Today */}
-        {!isAgent && (
-          <div
-            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
-            onClick={() => {
-              setChatModalFilter("today");
-              setShowChatStatsModal(true);
-              fetchChatStats();
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Chats Today</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">
-                  {chatStats?.today || 0}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="text-teal-600" size={20} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Resolved */}
-        {!isAgent && (
-          <div
-            className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer min-h-[72px]"
-            onClick={() => {
-              setChatModalFilter("resolved");
-              setShowChatStatsModal(true);
-              fetchChatStats();
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Resolved</p>
-                <p className="text-lg font-bold text-gray-900 mt-1">
-                  {chatStats?.resolved || 0}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <Shield className="text-green-600" size={20} />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
     </>
   );
 }

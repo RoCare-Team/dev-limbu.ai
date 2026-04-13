@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,7 +15,6 @@ import {
   User,
   X,
   Upload,
-  Building2,
 } from "lucide-react";
 
 const USER_ID_KEY = "limbu_ai_chat_user_id";
@@ -52,53 +51,12 @@ function getOrCreateUserId() {
   }
 }
 
-function mapListingsToLocationDetails(listings) {
-  return listings.map((item) => {
-    const locationId = item.name.split("/")[1];
-    const accountId = item.accountId || "";
-    const locality = item.storefrontAddress?.locality || "";
-    const address = item.storefrontAddress?.addressLines?.[0] || "";
-    const title = item.title || "";
-    const isVerified = item.hasVoiceOfMerchant === true;
-    const websiteUrl = item.websiteUri || "";
-    const reviewUri = item.metadata?.newReviewUri || "";
-    const businessProfileId = item.name || "";
-    return {
-      locationId,
-      accountId,
-      locality,
-      address,
-      title,
-      websiteUrl,
-      reviewUri,
-      isVerified,
-      businessProfileId,
-      name: item.name,
-      websiteUri: item.websiteUri,
-      storefrontAddress: item.storefrontAddress,
-      phoneNumbers: item.phoneNumbers,
-      categories: item.categories,
-      openInfo: item.openInfo,
-      metadata: item.metadata,
-    };
-  });
-}
-
 /** User asked how to link / save Google Business — answer locally with connect URL */
 function wantsBusinessConnectHelp(text) {
   if (!text?.trim()) return false;
   return /connect.*(business|gmb|google)|business.*connect|gmb.*(link|connect)|google business|save.*(listing|business)|बिजनेस.*कनेक्ट|कनेक्ट.*बिजनेस|link.*gmb|url.*connect/i.test(
     text
   );
-}
-
-function greetingLine(firstName) {
-  const h = new Date().getHours();
-  let part = "Good evening";
-  if (h < 12) part = "Good morning";
-  else if (h < 17) part = "Good afternoon";
-  const nameBit = firstName ? `, ${firstName}` : "";
-  return `${part}${nameBit}! Main Limbu AI hoon — bilkul real assistant ki tarah yahin hoon.\n\nGMB, local SEO, ya Limbu.ai par kuch bhi poochho. 📎 Files ya images paste (Ctrl+V) ya drag & drop bhi kar sakte ho.\n\nNeeche se Google Business Profile connect kar sakte ho — sign-in ke baad yahin chat par wapas aa kar listings save ho jati hain.`;
 }
 
 function TypingIndicator() {
@@ -170,9 +128,8 @@ function FilePreviewPill({ attachment, onRemove, isUser = false }) {
 
 export default function LimbuAiChatWidget() {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const firstName =
     session?.user?.name?.trim()?.split(/\s+/)[0] ||
     session?.user?.email?.split("@")[0] ||
@@ -181,7 +138,6 @@ export default function LimbuAiChatWidget() {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
-  const gmbSyncStartedRef = useRef(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -191,7 +147,6 @@ export default function LimbuAiChatWidget() {
   const [attachments, setAttachments] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [gmbSyncBusy, setGmbSyncBusy] = useState(false);
   const [siteOrigin, setSiteOrigin] = useState("");
 
   const connectHref = LIMBU_CONNECT_BUSINESS_PATH;
@@ -200,21 +155,18 @@ export default function LimbuAiChatWidget() {
     if (typeof window !== "undefined") setSiteOrigin(window.location.origin);
   }, []);
 
-  // Welcome message (updates when firstName changes)
+  // Welcome: text only (no Business setup button — flow is on /connect-google-business)
   useEffect(() => {
+    if (!siteOrigin) return;
     setMessages((prev) => {
       const createdAt =
         prev.find((m) => m.id === WELCOME_MSG_ID)?.createdAt ||
         new Date().toISOString();
+      const nameBit = firstName ? `Hi ${firstName}, ` : "";
       const welcome = {
         id: WELCOME_MSG_ID,
         role: "assistant",
-        text: greetingLine(firstName || ""),
-        linkCta: {
-          href: connectHref,
-          label: "Continue with Google",
-          sub: "Same window · wapas yahin chat",
-        },
+        text: `${nameBit}Main Limbu AI hoon — GMB, local SEO ya marketing par poochho.\n\nGoogle Business setup: ${siteOrigin}${connectHref}`,
         createdAt,
       };
       if (prev.length === 0) return [welcome];
@@ -223,97 +175,13 @@ export default function LimbuAiChatWidget() {
       }
       return prev;
     });
-  }, [firstName, connectHref]);
+  }, [connectHref, siteOrigin, firstName]);
 
   // Deep link: open chat from ?limbu_chat=1 (e.g. after OAuth return)
   useEffect(() => {
     if (pathname !== "/") return;
     if (searchParams.get("limbu_chat") === "1") setIsOpen(true);
   }, [pathname, searchParams]);
-
-  // After Google OAuth: sync GMB + saveBussiness, then strip query (keep chat open)
-  useEffect(() => {
-    if (pathname !== "/") return;
-    if (searchParams.get("gmb_sync") !== "1") return;
-    if (status === "loading") return;
-    if (status !== "authenticated" || !session?.accessToken) {
-      if (status === "unauthenticated") {
-        router.replace("/?limbu_chat=1", { scroll: false });
-      }
-      return;
-    }
-    if (gmbSyncStartedRef.current) return;
-    gmbSyncStartedRef.current = true;
-    setIsOpen(true);
-    setGmbSyncBusy(true);
-
-    (async () => {
-      try {
-        const res = await fetch("/api/gmb/sync-and-save", { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) {
-          if (res.status === 401) gmbSyncStartedRef.current = false;
-          throw new Error(data?.error || "Sync failed");
-        }
-
-        if (data.listings?.length) {
-          try {
-            localStorage.setItem(
-              "locationDetails",
-              JSON.stringify(mapListingsToLocationDetails(data.listings))
-            );
-            localStorage.setItem(
-              "reviewUrl",
-              data.listings[0]?.metadata?.newReviewUri || ""
-            );
-          } catch {}
-        }
-
-        const n = data.count ?? data.listings?.length ?? 0;
-        const line =
-          n > 0
-            ? `Google Business connect ho gaya. ${n} listing${n === 1 ? "" : "s"} save ho chuki hain (saveBussiness). Ab aap GMB / dashboard features use kar sakte ho.`
-            : "Sign-in ho gaya, lekin is account mein koi Business Profile location nahi mili. Google Business Center mein check karke dubara try karein.";
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            text: line,
-            linkCta: {
-              href: connectHref,
-              label: "Dobara connect / refresh",
-              sub: "Agar multiple accounts hon",
-            },
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      } catch (e) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            text:
-              e?.message ||
-              "Listings save nahi ho payin — thodi der baad dubara try karein.",
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      } finally {
-        setGmbSyncBusy(false);
-        router.replace("/?limbu_chat=1", { scroll: false });
-      }
-    })();
-  }, [
-    pathname,
-    searchParams,
-    status,
-    session?.accessToken,
-    router,
-    connectHref,
-  ]);
 
   useEffect(() => {
     setUserId(getOrCreateUserId());
@@ -422,18 +290,16 @@ export default function LimbuAiChatWidget() {
     };
 
     if (wantsBusinessConnectHelp(text) && pending.length === 0) {
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const setupUrl = origin ? `${origin}${connectHref}` : connectHref;
       setMessages((prev) => [
         ...prev,
         userMsg,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: "Ek hi clean link — Google sign-in ke baad aap seedhe isi chat par wapas aa jate ho; listings backend par save ho jati hain (saveBussiness).",
-          linkCta: {
-            href: connectHref,
-            label: "Continue with Google",
-            sub: "Limbu.ai / localhost — same flow",
-          },
+          text: `Google Business setup ke liye yeh page kholein:\n${setupUrl}`,
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -645,16 +511,6 @@ export default function LimbuAiChatWidget() {
               </button>
             </header>
 
-            {gmbSyncBusy && (
-              <div className="flex shrink-0 items-center gap-2 border-b border-amber-200/60 bg-amber-50 px-4 py-2.5 text-[12px] text-amber-950">
-                <Loader2
-                  className="h-3.5 w-3.5 shrink-0 animate-spin"
-                  strokeWidth={2.5}
-                />
-                Google Business listings save ho rahi hain…
-              </div>
-            )}
-
             {/* Messages */}
             <div
               ref={scrollRef}
@@ -750,42 +606,14 @@ export default function LimbuAiChatWidget() {
                           </p>
                         )}
                         {item.role === "assistant" && item.linkCta?.href && (
-                          <div className="mt-3 rounded-xl border border-slate-200/90 bg-gradient-to-br from-slate-50 to-white p-3 shadow-sm ring-1 ring-slate-100/80">
-                            <div className="flex items-start gap-2.5">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B0F19] text-[#FFC107] shadow-inner">
-                                <Building2
-                                  className="h-4 w-4"
-                                  strokeWidth={2.25}
-                                />
-                              </div>
-                              <div className="min-w-0 flex-1 pt-0.5">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                  Google Business Profile
-                                </p>
-                                {item.linkCta.sub && (
-                                  <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
-                                    {item.linkCta.sub}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <a
-                              href={item.linkCta.href}
-                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B0F19] px-3 py-2.5 text-center text-[13px] font-semibold text-[#FFC107] shadow-md transition hover:bg-slate-800"
-                            >
-                              {item.linkCta.label || "Continue"}
-                            </a>
-                            {siteOrigin &&
-                              item.linkCta.href === LIMBU_CONNECT_BUSINESS_PATH && (
-                                <p
-                                  className="mt-2 break-all text-center font-mono text-[10px] leading-snug text-slate-400"
-                                  title="Is link ko team / clients ko bhej sakte ho"
-                                >
-                                  {siteOrigin}
-                                  {item.linkCta.href}
-                                </p>
-                              )}
-                          </div>
+                          <a
+                            href={item.linkCta.href}
+                            className={`inline-flex w-full items-center justify-center rounded-xl bg-[#0B0F19] px-4 py-2.5 text-center text-[13px] font-semibold text-[#FFC107] shadow-sm transition hover:bg-slate-800 ${
+                              item.text ? "mt-2" : "mt-0"
+                            }`}
+                          >
+                            {item.linkCta.label || "Open"}
+                          </a>
                         )}
                       </div>
 

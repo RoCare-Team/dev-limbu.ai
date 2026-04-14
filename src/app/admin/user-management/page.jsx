@@ -2483,7 +2483,7 @@ const handleVoiceCall = async (phone) => {
           }}
         >
           {(role === "superAdmin" ||
-            role === "admin" ||
+            role === "admin" || role === "agent" ||
             role === "superfranchiseAdmin") && (
             <Box
               sx={{

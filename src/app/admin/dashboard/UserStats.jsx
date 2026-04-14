@@ -39,6 +39,7 @@ export default function UserStats({
   fetchChatStats,
   setChatModalFilter, // ✅ ADD
   setShowChatStatsModal,
+  displayTodayUsersCount
 
   // ✅ YE ADD KAR
 }) {

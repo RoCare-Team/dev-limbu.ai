@@ -771,7 +771,7 @@ export default function AutomationSettings({ onNavigateBack }) {
         const [userR, plansR, settingsR, kwR, assetsR] = await Promise.allSettled([
           fetch(`/api/auth/signup?userId=${encodeURIComponent(userId)}`),
           fetch("/api/home-data?type=subscriptionPlans"),
-          fetch("/api/user-settings"),
+          fetch(`/api/user-settings?userId=${encodeURIComponent(userId)}`),
           fetch(`/api/keyword-research?userId=${encodeURIComponent(userId)}`),
           fetch(`/api/assets-manage?userId=${encodeURIComponent(userId)}`),
         ]);

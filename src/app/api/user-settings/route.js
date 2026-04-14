@@ -9,6 +9,48 @@ import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import AutomationPlan from '@/models/AutomationPlan';
 import Post from '@/models/PostStatus';
 
+function normEmail(e) {
+  return String(e || '').trim().toLowerCase();
+}
+
+function emailRegexFor(e) {
+  const n = normEmail(e);
+  if (!n) return null;
+  return new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+}
+
+/**
+ * Resolve Mongoose User for settings: session email (case-insensitive), or client userId
+ * when that row clearly belongs to the signed-in account (email / connectedBusinessEmail / GMB link).
+ */
+async function resolveUserForSettings(session, requestedUserId) {
+  const sessionEmail = normEmail(session?.user?.email);
+  if (!sessionEmail) return null;
+
+  const rid = typeof requestedUserId === 'string' ? requestedUserId.trim() : '';
+  const rx = emailRegexFor(sessionEmail);
+
+  let user = rx ? await User.findOne({ email: rx }) : null;
+  if (user) return user;
+
+  if (rid) {
+    const byId = await User.findOne({ userId: rid });
+    if (!byId) return null;
+    const uem = normEmail(byId.email);
+    const cem = normEmail(byId.connectedBusinessEmail);
+    if (uem === sessionEmail || cem === sessionEmail) return byId;
+
+    if (byId.gmbProjectId) {
+      const gmb = rx ? await GmbUser.findOne({ email: rx }).lean() : null;
+      const linked =
+        gmb?.projects?.some((p) => p.googleId === byId.gmbProjectId) ?? false;
+      if (linked) return byId;
+    }
+  }
+
+  return null;
+}
+
 export async function GET(request) {
   try {
     await dbConnect();
@@ -18,23 +60,35 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await User.findOne({ email: session.user.email }).lean();
-    if (!user) {
+    const { searchParams } = new URL(request.url);
+    const queryUserId = searchParams.get('userId')?.trim() || '';
+
+    const userDoc = await resolveUserForSettings(session, queryUserId);
+    if (!userDoc) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    const user = userDoc.toObject ? userDoc.toObject({ versionKey: false }) : userDoc;
 
-    const gmbUser = await GmbUser.findOne({ email: session.user.email }).lean();
+    const gmbRx = emailRegexFor(user.email || session.user.email);
+    const gmbUser = gmbRx ? await GmbUser.findOne({ email: gmbRx }).lean() : null;
     const gmbProjects = gmbUser?.projects || [];
 
     const planLimit  = getPlanPostLimit(user.paidPackage, user.planDuration);
     const isValidPlan =
       user.packageExpiryDate && new Date(user.packageExpiryDate) > new Date();
 
+    const planLookupIds = [...new Set([queryUserId, user.userId, user._id?.toString()].filter(Boolean))];
+
     // Prefer active AutomationPlan, fallback to empty defaults
     const activePlan = await AutomationPlan.findOne({
-      userId: user.userId || user._id.toString(),
       active: true,
-    }).lean();
+      $or: [
+        ...planLookupIds.map((id) => ({ userId: id })),
+        { userRef: user._id },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
     const automationSettings = activePlan || { automationEnabled: false };
 
@@ -44,7 +98,7 @@ export async function GET(request) {
     const remaining = Math.max(0, planLimit - postsUsed);
 
     // Successful automation/manual posts by platform (same userId variants as posts collection)
-    const postUserIds = [user.userId, user._id.toString()].filter(Boolean);
+    const postUserIds = [...new Set([...planLookupIds, user.userId, user._id?.toString()].filter(Boolean))];
     const postedDocs = await Post.find({
       userId: { $in: postUserIds },
       status: 'posted',
@@ -164,7 +218,7 @@ export async function POST(request) {
       postingTimezone,
     } = body;
 
-    let user = await User.findOne({ email: session.user.email });
+    let user = await resolveUserForSettings(session, userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -222,7 +276,8 @@ export async function POST(request) {
 
     // Persist selectedBusiness to User if provided and valid
     if (selectedBusiness && (selectedBusiness.googleId || selectedBusiness.projectId || selectedBusiness.locationId)) {
-      const gmbUser = await GmbUser.findOne({ email: session.user.email });
+      const gmbEmailRx = emailRegexFor(user.email || session.user.email);
+      const gmbUser = gmbEmailRx ? await GmbUser.findOne({ email: gmbEmailRx }) : null;
       const incomingId =
         selectedBusiness.googleId ||
         selectedBusiness.projectId ||
@@ -388,8 +443,9 @@ export async function POST(request) {
       expiryDate:   user.packageExpiryDate,
     };
 
-    const gmbUserPostQueue = user.gmbProjectId
-      ? await GmbUser.findOne({ email: session.user.email }).select('projects').lean()
+    const gmbEmailRxPost = emailRegexFor(user.email || session.user.email);
+    const gmbUserPostQueue = user.gmbProjectId && gmbEmailRxPost
+      ? await GmbUser.findOne({ email: gmbEmailRxPost }).select('projects').lean()
       : null;
     const projectPostQueue =
       gmbUserPostQueue?.projects?.find((p) => p.googleId === user.gmbProjectId) || null;
@@ -420,7 +476,8 @@ export async function POST(request) {
       // 2. Fallback: look in GmbUser projects
       console.warn('[user-settings] ⚠ No session.accessToken — falling back to GmbUser lookup');
       try {
-        const gmbUserForTokens = await GmbUser.findOne({ email: session.user.email }).lean();
+        const gmbTokRx = emailRegexFor(user.email || session.user.email);
+        const gmbUserForTokens = gmbTokRx ? await GmbUser.findOne({ email: gmbTokRx }).lean() : null;
         if (gmbUserForTokens?.projects?.length) {
           const accountId = user.gmbProjectId || safeLocations[0]?.accountId || '';
           const project =

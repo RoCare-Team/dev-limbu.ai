@@ -52,18 +52,18 @@ function AssetThumb({ src, alt }) {
   }
   return (
     <img
-  src={src}
-  alt={alt || ""}
-  onError={() => setBroken(true)}
-  style={{
-    width: "100%",
-    height: "120px", // 👈 aur chhoti
-    objectFit: "cover",
-    borderRadius: 8,
-    background: "#e5e7eb",
-    display: "block"
-  }}
-/>
+      src={src}
+      alt={alt || ""}
+      onError={() => setBroken(true)}
+      style={{
+        width: "100%",
+        height: "120px", // 👈 aur chhoti
+        objectFit: "cover",
+        borderRadius: 8,
+        background: "#e5e7eb",
+        display: "block"
+      }}
+    />
   );
 }
 
@@ -124,10 +124,10 @@ function matchPlanDetail(subPlans, paidPackage, planDuration) {
 
 function calculatePostingSchedule({ startDate, frequency, postsLimit, expiryDate, skippedDates = [] }) {
   if (!startDate || !postsLimit) return [];
-  const dates   = [];
-  let current   = new Date(startDate);
-  const expiry  = expiryDate ? new Date(expiryDate) : null;
-  const step    = { daily: 1, alternate: 2, weekly: 7 }[frequency] ?? 1;
+  const dates = [];
+  let current = new Date(startDate);
+  const expiry = expiryDate ? new Date(expiryDate) : null;
+  const step = { daily: 1, alternate: 2, weekly: 7 }[frequency] ?? 1;
   const skipped = new Set(skippedDates);
   while (dates.length < postsLimit) {
     if (expiry && current > expiry) break;
@@ -231,10 +231,10 @@ function SkipDatePicker({ startDate, expiryDate, skippedDates, onChange }) {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  const start  = startDate  ? new Date(startDate)  : null;
+  const start = startDate ? new Date(startDate) : null;
   const expiry = expiryDate ? new Date(expiryDate) : null;
-  const today  = new Date(new Date().setHours(0, 0, 0, 0));
-  const daysInMonth  = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const today = new Date(new Date().setHours(0, 0, 0, 0));
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const firstWeekday = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
 
   const toggleDate = date => {
@@ -254,19 +254,19 @@ function SkipDatePicker({ startDate, expiryDate, skippedDates, onChange }) {
           style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 8, padding: "3px 10px", cursor: "pointer", color: "#6b7280", fontSize: 16 }}>›</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
-        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
           <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: "#9ca3af" }}>{d}</div>
         ))}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
         {Array.from({ length: firstWeekday }).map((_, i) => <div key={`e${i}`} />)}
         {Array.from({ length: daysInMonth }).map((_, i) => {
-          const date    = new Date(month.getFullYear(), month.getMonth(), i + 1);
-          const key     = toInputDate(date);
+          const date = new Date(month.getFullYear(), month.getMonth(), i + 1);
+          const key = toInputDate(date);
           const skipped = skippedDates.includes(key);
           const isToday = key === toInputDate(new Date());
           const inRange = (!start || date >= start) && (!expiry || date <= expiry);
-          const isPast  = date < today;
+          const isPast = date < today;
           return (
             <button key={i} onClick={() => inRange && !isPast && toggleDate(date)} disabled={!inRange || isPast}
               style={{
@@ -344,12 +344,12 @@ function DragKeywordList({ selectedKeywords, onChange }) {
           >
             {/* drag handle */}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" style={{ flexShrink: 0 }}>
-              <circle cx="9" cy="6" r="1.5" fill="#9ca3af" stroke="none"/>
-              <circle cx="9" cy="12" r="1.5" fill="#9ca3af" stroke="none"/>
-              <circle cx="9" cy="18" r="1.5" fill="#9ca3af" stroke="none"/>
-              <circle cx="15" cy="6" r="1.5" fill="#9ca3af" stroke="none"/>
-              <circle cx="15" cy="12" r="1.5" fill="#9ca3af" stroke="none"/>
-              <circle cx="15" cy="18" r="1.5" fill="#9ca3af" stroke="none"/>
+              <circle cx="9" cy="6" r="1.5" fill="#9ca3af" stroke="none" />
+              <circle cx="9" cy="12" r="1.5" fill="#9ca3af" stroke="none" />
+              <circle cx="9" cy="18" r="1.5" fill="#9ca3af" stroke="none" />
+              <circle cx="15" cy="6" r="1.5" fill="#9ca3af" stroke="none" />
+              <circle cx="15" cy="12" r="1.5" fill="#9ca3af" stroke="none" />
+              <circle cx="15" cy="18" r="1.5" fill="#9ca3af" stroke="none" />
             </svg>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#d97706", minWidth: 22 }}>#{i + 1}</span>
             <span style={{ fontSize: 13, color: "#111", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{kw}</span>
@@ -372,12 +372,12 @@ function DragKeywordList({ selectedKeywords, onChange }) {
 // ─── Keyword Picker Panel ─────────────────────────────────────────────────────
 
 function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, planLimit }) {
-  const [search, setSearch]         = useState("");
-  const [customKw, setCustomKw]     = useState("");
+  const [search, setSearch] = useState("");
+  const [customKw, setCustomKw] = useState("");
   const [showCustom, setShowCustom] = useState(false);
 
   const allKeywords = useMemo(() => keywords.map(k => k.keyword || k), [keywords]);
-  const filtered    = useMemo(() => allKeywords.filter(kw => kw.toLowerCase().includes(search.toLowerCase())), [allKeywords, search]);
+  const filtered = useMemo(() => allKeywords.filter(kw => kw.toLowerCase().includes(search.toLowerCase())), [allKeywords, search]);
 
   const toggle = kw => onChange(
     selectedKeywords.includes(kw) ? selectedKeywords.filter(k => k !== kw) : [...selectedKeywords, kw]
@@ -399,7 +399,7 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
               </svg>
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Keywords</span>
@@ -445,7 +445,7 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
       {/* Search */}
       <div style={{ padding: "10px 20px", borderBottom: "1px solid #f3f4f6", position: "relative" }}>
         <svg style={{ position: "absolute", left: 32, top: "50%", transform: "translateY(-50%)" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5">
-          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
         </svg>
         <input type="text" placeholder="Search keywords…" value={search} onChange={e => setSearch(e.target.value)}
           style={{ width: "100%", paddingLeft: 32, paddingRight: search ? 32 : 12, paddingTop: 8, paddingBottom: 8, borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 13, color: "#374151", outline: "none", background: "#f9fafb", boxSizing: "border-box", fontFamily: "inherit" }}
@@ -495,7 +495,7 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
           </div>
         ) : (
           <button onClick={() => setShowCustom(true)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d97706", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
             Add custom keyword
           </button>
         )}
@@ -628,47 +628,47 @@ function SuccessModal({ summary, onClose }) {
 
 export default function AutomationSettings({ onNavigateBack }) {
   const router = useRouter();
-  const [pageLoading,  setPageLoading]  = useState(true);
-  const [kwLoading,    setKwLoading]    = useState(false);
-  const [saving,       setSaving]       = useState(false);
-  const [saveStatus,   setSaveStatus]   = useState(null);
-  const [error,        setError]        = useState("");
+  const [pageLoading, setPageLoading] = useState(true);
+  const [kwLoading, setKwLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [error, setError] = useState("");
   const { data: session } = useSession();
 
-  
- 
+
+
 
   // API data
-  const [userData,   setUserData]   = useState(null);
-  const [subPlans,   setSubPlans]   = useState(null);
-  const [savedKws,   setSavedKws]   = useState([]);
-  const [planLimit,  setPlanLimit]  = useState(0);
+  const [userData, setUserData] = useState(null);
+  const [subPlans, setSubPlans] = useState(null);
+  const [savedKws, setSavedKws] = useState([]);
+  const [planLimit, setPlanLimit] = useState(0);
 
   // GMB locations (selected under Google toggle in Step 1)
-  const [selectedBusiness,  setSelectedBusiness]  = useState(null);
-  const [gmbLocations,      setGmbLocations]      = useState([]); // all locations from localStorage
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [gmbLocations, setGmbLocations] = useState([]); // all locations from localStorage
   const [selectedLocations, setSelectedLocations] = useState([]); // checked locations to post to
 
   // Posts used as tracked by the AutomationPlan (more accurate than User model)
-  const [planPostsUsed,     setPlanPostsUsed]     = useState(null);
-  const [autoStatus,        setAutoStatus]        = useState(null); // automationStatus from API
+  const [planPostsUsed, setPlanPostsUsed] = useState(null);
+  const [autoStatus, setAutoStatus] = useState(null); // automationStatus from API
 
   // Form state (Steps 2–6)
   const [automationEnabled, setAutomationEnabled] = useState(false);
-  const [frequency,         setFrequency]         = useState("daily");
-  const [startDate,         setStartDate]         = useState(() => toInputDate(new Date()));
-  const [endDate,           setEndDate]           = useState("");
-  const [skippedDates,      setSkippedDates]      = useState([]);
-  const [showCalendar,      setShowCalendar]      = useState(false);
-  const [customDates,       setCustomDates]       = useState([]); // for "custom" frequency
-  const [customDateInput,   setCustomDateInput]   = useState(""); // date being typed
-  const [selectedKeywords,  setSelectedKeywords]  = useState([]);
+  const [frequency, setFrequency] = useState("daily");
+  const [startDate, setStartDate] = useState(() => toInputDate(new Date()));
+  const [endDate, setEndDate] = useState("");
+  const [skippedDates, setSkippedDates] = useState([]);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [customDates, setCustomDates] = useState([]); // for "custom" frequency
+  const [customDateInput, setCustomDateInput] = useState(""); // date being typed
+  const [selectedKeywords, setSelectedKeywords] = useState([]);
 
   // Multi-platform state
-  const [facebookPages,    setFacebookPages]    = useState([]);
-  const [instagramPages,   setInstagramPages]   = useState([]);
-  const [selectedFbPages,  setSelectedFbPages]  = useState([]); // pageIds
-  const [selectedIgPages,  setSelectedIgPages]  = useState([]); // igIds
+  const [facebookPages, setFacebookPages] = useState([]);
+  const [instagramPages, setInstagramPages] = useState([]);
+  const [selectedFbPages, setSelectedFbPages] = useState([]); // pageIds
+  const [selectedIgPages, setSelectedIgPages] = useState([]); // igIds
 
   const [platformGmb, setPlatformGmb] = useState(true);
   const [platformFb, setPlatformFb] = useState(false);
@@ -680,13 +680,13 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [postingHour, setPostingHour] = useState(11);
   const [postingMinute, setPostingMinute] = useState(0);
 
-  const [latestAssets,     setLatestAssets]     = useState([]);
+  const [latestAssets, setLatestAssets] = useState([]);
   const [savedImageConfig, setSavedImageConfig] = useState(null);
-  const [assetInclude,     setAssetInclude]     = useState(defaultAssetInclude);
-  const [assetPreview,     setAssetPreview]     = useState(null); // { label, src } | null
+  const [assetInclude, setAssetInclude] = useState(defaultAssetInclude);
+  const [assetPreview, setAssetPreview] = useState(null); // { label, src } | null
 
   // Success modal
-  const [showModal,    setShowModal]    = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [savedSummary, setSavedSummary] = useState(null);
   const [passkeyVerified, setPasskeyVerified] = useState(false);
   const [passkeyInput, setPasskeyInput] = useState("");
@@ -739,7 +739,7 @@ export default function AutomationSettings({ onNavigateBack }) {
     if (!userId) return;
     setKwLoading(true);
     try {
-      const res  = await fetch(`/api/keyword-research?userId=${userId}`);
+      const res = await fetch(`/api/keyword-research?userId=${userId}`);
       const data = await res.json();
       if (Array.isArray(data.data)) setSavedKws(data.data);
     } catch (e) {
@@ -785,7 +785,7 @@ export default function AutomationSettings({ onNavigateBack }) {
         }
 
         if (settingsR.status === "fulfilled" && settingsR.value.ok) {
-          const s  = await settingsR.value.json();
+          const s = await settingsR.value.json();
           const as = s.automationSettings;
 
           // Restore plan limit
@@ -804,9 +804,9 @@ export default function AutomationSettings({ onNavigateBack }) {
             setAutomationEnabled(as.automationEnabled ?? false);
             setFrequency(as.frequency || "daily");
             if (as.startDate) setStartDate(toInputDate(as.startDate));
-            if (as.endDate)   setEndDate(toInputDate(as.endDate));
-            setSelectedKeywords(as.keywords   || []);
-            setSkippedDates(as.skippedDates   || []);
+            if (as.endDate) setEndDate(toInputDate(as.endDate));
+            setSelectedKeywords(as.keywords || []);
+            setSkippedDates(as.skippedDates || []);
             if (as.frequency === "custom" && Array.isArray(as.schedule)) {
               setCustomDates(as.schedule.map(d => toInputDate(new Date(d))));
             }
@@ -881,14 +881,14 @@ export default function AutomationSettings({ onNavigateBack }) {
     if (!selectedBusiness) {
       const loc = gmbLocations[0];
       setSelectedBusiness({
-        name:       loc.title     || loc.name || "Your Business",
-        title:      loc.title     || loc.name || "Your Business",
-        address:    loc.address   || "",
-        locality:   loc.locality  || "",
+        name: loc.title || loc.name || "Your Business",
+        title: loc.title || loc.name || "Your Business",
+        address: loc.address || "",
+        locality: loc.locality || "",
         locationId: loc.locationId || "",
-        accountId:  loc.accountId  || "",
-        projectId:  loc.accountId  || loc.locationId || "",
-        googleId:   loc.accountId  || loc.locationId || "",
+        accountId: loc.accountId || "",
+        projectId: loc.accountId || loc.locationId || "",
+        googleId: loc.accountId || loc.locationId || "",
         websiteUrl: loc.websiteUrl || "",
       });
     }
@@ -897,10 +897,10 @@ export default function AutomationSettings({ onNavigateBack }) {
     if (selectedLocations.length === 0) {
       setSelectedLocations(gmbLocations.map(loc => ({
         locationId: loc.locationId || "",
-        accountId:  loc.accountId  || "",
-        name:       loc.title      || loc.name || "",
-        address:    loc.address    || "",
-        locality:   loc.locality   || "",
+        accountId: loc.accountId || "",
+        name: loc.title || loc.name || "",
+        address: loc.address || "",
+        locality: loc.locality || "",
         websiteUrl: loc.websiteUrl || "",
         isVerified: loc.isVerified || false,
       })));
@@ -914,21 +914,21 @@ export default function AutomationSettings({ onNavigateBack }) {
   );
 
   const totalPosts = planDetail?.posts ?? 0;
-  const citations  = planDetail?.citations ?? 0;
+  const citations = planDetail?.citations ?? 0;
   // Prefer AutomationPlan.planDetails.postsUsed (updated by cron after each post)
   // Fall back to User.postsUsed from auth/signup API
-  const postsUsed  = planPostsUsed !== null ? planPostsUsed : (Number(userData?.postsUsed) || 0);
-  const postsLeft  = Math.max(0, totalPosts - postsUsed);
-  const usagePct   = totalPosts > 0 ? Math.min(100, (postsUsed / totalPosts) * 100) : 0;
+  const postsUsed = planPostsUsed !== null ? planPostsUsed : (Number(userData?.postsUsed) || 0);
+  const postsLeft = Math.max(0, totalPosts - postsUsed);
+  const usagePct = totalPosts > 0 ? Math.min(100, (postsUsed / totalPosts) * 100) : 0;
   const usageByPlatform = autoStatus?.usageByPlatform || { gmb: 0, fb: 0, ig: 0 };
 
   const latestAssetRow = Array.isArray(latestAssets) && latestAssets.length > 0 ? latestAssets[0] : null;
-  const hasAssetImages  = hasUsableAssetImages({ userData, savedImageConfig, latestAssetRow, include: assetInclude });
-  const pkgStart   = userData?.packageStartDate  ?? null;
-  const pkgExpiry  = userData?.packageExpiryDate ?? null;
-  const planLive   = isPlanActive(pkgExpiry);
-  const days       = daysLeftFn(pkgExpiry);
-  const hasPlan    = !!(userData?.paidPackage && pkgExpiry);
+  const hasAssetImages = hasUsableAssetImages({ userData, savedImageConfig, latestAssetRow, include: assetInclude });
+  const pkgStart = userData?.packageStartDate ?? null;
+  const pkgExpiry = userData?.packageExpiryDate ?? null;
+  const planLive = isPlanActive(pkgExpiry);
+  const days = daysLeftFn(pkgExpiry);
+  const hasPlan = !!(userData?.paidPackage && pkgExpiry);
 
   // When plan limit is not yet loaded from API, derive from planDetail
   const effectivePlanLimit = planLimit > 0 ? planLimit : totalPosts;
@@ -947,8 +947,8 @@ export default function AutomationSettings({ onNavigateBack }) {
   useEffect(() => {
     if (!startDate || !postsLeft || frequency === "custom") return;
     const stepMap = { daily: 1, alternate: 2, weekly: 7, monthly: 30 };
-    const step    = stepMap[frequency] ?? 1;
-    const end     = new Date(startDate);
+    const step = stepMap[frequency] ?? 1;
+    const end = new Date(startDate);
     // postsLeft posts * step days each
     end.setDate(end.getDate() + postsLeft * step);
     // Never exceed package expiry
@@ -1088,8 +1088,8 @@ export default function AutomationSettings({ onNavigateBack }) {
 
       // Show success modal with summary
       setSavedSummary({
-        locations:   selectedLocations,
-        keywords:    selectedKeywords,
+        locations: selectedLocations,
+        keywords: selectedKeywords,
         schedule,
         frequency,
         startDate,
@@ -1316,7 +1316,7 @@ export default function AutomationSettings({ onNavigateBack }) {
               Optimization
             </button>
             {saveStatus === "success" && <span style={{ fontSize: 12, background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", padding: "4px 12px", borderRadius: 20, fontWeight: 600 }}>✓ Saved</span>}
-            {saveStatus === "error"   && <span style={{ fontSize: 12, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", padding: "4px 12px", borderRadius: 20, fontWeight: 600 }}>✗ Failed</span>}
+            {saveStatus === "error" && <span style={{ fontSize: 12, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", padding: "4px 12px", borderRadius: 20, fontWeight: 600 }}>✗ Failed</span>}
             <button onClick={handleSave} disabled={saving || !planLive}
               style={{ display: "flex", alignItems: "center", gap: 8, background: saving || !planLive ? "#d1d5db" : "#111", color: "#fff", border: "none", padding: "8px 20px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: saving || !planLive ? "not-allowed" : "pointer" }}>
               {saving ? <><span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff", animation: "spin .7s linear infinite", display: "block" }} />Saving…</> : "Save settings"}
@@ -1350,10 +1350,10 @@ export default function AutomationSettings({ onNavigateBack }) {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, padding: 20 }}>
-            <StatCard label="Package"    value={userData?.paidPackage || "—"} accent="#d97706" />
-            <StatCard label="Service"    value={userData?.paidService || "—"} />
+            <StatCard label="Package" value={userData?.paidPackage || "—"} accent="#d97706" />
+            <StatCard label="Service" value={userData?.paidService || "—"} />
             <StatCard label="Start Date" value={fmtDate(pkgStart)} />
-            <StatCard label="Expiry"     value={fmtDate(pkgExpiry)} accent={planLive ? "#1f2937" : "#dc2626"} />
+            <StatCard label="Expiry" value={fmtDate(pkgExpiry)} accent={planLive ? "#1f2937" : "#dc2626"} />
           </div>
 
           <div style={{ margin: "0 20px 20px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 14, padding: "14px 18px" }}>
@@ -1546,24 +1546,39 @@ export default function AutomationSettings({ onNavigateBack }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: platformGmb ? 12 : 16 }}>
             <div style={{ border: platformGmb ? "2px solid #4285f4" : "2px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: platformGmb ? "#f0f4ff" : "#fff", display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 22 }}>🗺</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 22 }}>
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg"
+                  alt="Google"
+                  style={{ width: 22, height: 22 }}
+                />
+              </span>              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "#1d4ed8" }}>Google Business</div>
                 <div style={{ fontSize: 11, color: "#64748b" }}>Maps &amp; Search posts</div>
               </div>
               <Toggle checked={platformGmb} onChange={setPlatformGmb} />
             </div>
             <div style={{ border: platformFb ? "2px solid #1877f2" : "2px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: platformFb ? "#eff6ff" : "#fff", display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 22 }}>📘</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 22 }}>
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg"
+                  alt="Facebook"
+                  style={{ width: 22, height: 22 }}
+                />
+              </span>              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "#1877f2" }}>Facebook</div>
                 <div style={{ fontSize: 11, color: "#64748b" }}>Pages you manage</div>
               </div>
               <Toggle checked={platformFb} onChange={setPlatformFb} />
             </div>
             <div style={{ border: platformIg ? "2px solid #e1306c" : "2px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: platformIg ? "#fdf2f8" : "#fff", display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 22 }}>📸</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 22 }}>
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png"
+                  alt="Instagram"
+                  style={{ width: 22, height: 22 }}
+                />
+              </span>              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "#db2777" }}>Instagram</div>
                 <div style={{ fontSize: 11, color: "#64748b" }}>Business / creator accounts</div>
               </div>
@@ -1633,176 +1648,176 @@ export default function AutomationSettings({ onNavigateBack }) {
                 }}
               >
                 <div style={{ padding: "0 16px 16px" }}>
-              {gmbLocations.length > 0 ? (
-                <>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-                    <p style={{ fontSize: 13, color: "#374151", fontWeight: 600, margin: 0 }}>
-                      Choose which locations receive automated posts:
-                    </p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedLocations(
-                            gmbLocations.map((loc) => ({
-                              locationId: loc.locationId || "",
-                              accountId: loc.accountId || "",
-                              name: loc.title || loc.name || "",
-                              address: loc.address || "",
-                              locality: loc.locality || "",
-                              websiteUrl: loc.websiteUrl || "",
-                              isVerified: loc.isVerified || false,
-                            }))
-                          )
-                        }
-                        style={{
-                          fontSize: 11,
-                          color: "#059669",
-                          background: "#f0fdf4",
-                          border: "1px solid #bbf7d0",
-                          borderRadius: 6,
-                          padding: "4px 10px",
-                          cursor: "pointer",
-                          fontWeight: 600,
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLocations([])}
-                        style={{
-                          fontSize: 11,
-                          color: "#6b7280",
-                          background: "#f9fafb",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 6,
-                          padding: "4px 10px",
-                          cursor: "pointer",
-                          fontWeight: 600,
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        None
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {gmbLocations.map((loc, i) => {
-                      const locId = loc.locationId || "";
-                      const isChecked = selectedLocations.some((l) => l.locationId === locId);
-                      const toggle = () => {
-                        if (isChecked) {
-                          setSelectedLocations((prev) => prev.filter((l) => l.locationId !== locId));
-                        } else {
-                          setSelectedLocations((prev) => [
-                            ...prev,
-                            {
-                              locationId: locId,
-                              accountId: loc.accountId || "",
-                              name: loc.title || loc.name || "",
-                              address: loc.address || "",
-                              locality: loc.locality || "",
-                              websiteUrl: loc.websiteUrl || "",
-                              isVerified: loc.isVerified || false,
-                            },
-                          ]);
-                        }
-                      };
-                      return (
-                        <div
-                          key={i}
-                          onClick={toggle}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                            padding: "12px 14px",
-                            border: isChecked ? "2px solid #f59e0b" : "1.5px solid #e5e7eb",
-                            borderRadius: 12,
-                            cursor: "pointer",
-                            background: isChecked ? "#fffbeb" : "#fff",
-                            transition: "all .15s",
-                          }}
-                        >
-                          <div
+                  {gmbLocations.length > 0 ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                        <p style={{ fontSize: 13, color: "#374151", fontWeight: 600, margin: 0 }}>
+                          Choose which locations receive automated posts:
+                        </p>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedLocations(
+                                gmbLocations.map((loc) => ({
+                                  locationId: loc.locationId || "",
+                                  accountId: loc.accountId || "",
+                                  name: loc.title || loc.name || "",
+                                  address: loc.address || "",
+                                  locality: loc.locality || "",
+                                  websiteUrl: loc.websiteUrl || "",
+                                  isVerified: loc.isVerified || false,
+                                }))
+                              )
+                            }
                             style={{
-                              width: 20,
-                              height: 20,
+                              fontSize: 11,
+                              color: "#059669",
+                              background: "#f0fdf4",
+                              border: "1px solid #bbf7d0",
                               borderRadius: 6,
-                              flexShrink: 0,
-                              border: isChecked ? "2px solid #f59e0b" : "2px solid #d1d5db",
-                              background: isChecked ? "#f59e0b" : "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              padding: "4px 10px",
+                              cursor: "pointer",
+                              fontWeight: 600,
+                              fontFamily: "inherit",
                             }}
                           >
-                            {isChecked && (
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                <polyline
-                                  points="2,6 5,9 10,3"
-                                  stroke="#fff"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                          <span style={{ fontSize: 18 }}>📍</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                color: "#111",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                            >
-                              {loc.title || loc.name || "Unnamed Location"}
-                            </div>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>
-                              {[loc.address, loc.locality].filter(Boolean).join(", ") || loc.locationId}
-                            </div>
-                          </div>
-                          {isChecked && (
-                            <span
-                              style={{
-                                fontSize: 11,
-                                background: "#fef3c7",
-                                color: "#92400e",
-                                borderRadius: 6,
-                                padding: "2px 8px",
-                                fontWeight: 700,
-                                flexShrink: 0,
-                              }}
-                            >
-                              Will post
-                            </span>
-                          )}
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLocations([])}
+                            style={{
+                              fontSize: 11,
+                              color: "#6b7280",
+                              background: "#f9fafb",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 6,
+                              padding: "4px 10px",
+                              cursor: "pointer",
+                              fontWeight: 600,
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            None
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <div
-                  style={{
-                    background: "#fffbeb",
-                    border: "1px solid #fde68a",
-                    borderRadius: 12,
-                    padding: "14px 16px",
-                    fontSize: 13,
-                    color: "#92400e",
-                  }}
-                >
-                  No GMB locations found. Connect Google Business from the dashboard, then reload this page.
-                </div>
-              )}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {gmbLocations.map((loc, i) => {
+                          const locId = loc.locationId || "";
+                          const isChecked = selectedLocations.some((l) => l.locationId === locId);
+                          const toggle = () => {
+                            if (isChecked) {
+                              setSelectedLocations((prev) => prev.filter((l) => l.locationId !== locId));
+                            } else {
+                              setSelectedLocations((prev) => [
+                                ...prev,
+                                {
+                                  locationId: locId,
+                                  accountId: loc.accountId || "",
+                                  name: loc.title || loc.name || "",
+                                  address: loc.address || "",
+                                  locality: loc.locality || "",
+                                  websiteUrl: loc.websiteUrl || "",
+                                  isVerified: loc.isVerified || false,
+                                },
+                              ]);
+                            }
+                          };
+                          return (
+                            <div
+                              key={i}
+                              onClick={toggle}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12,
+                                padding: "12px 14px",
+                                border: isChecked ? "2px solid #f59e0b" : "1.5px solid #e5e7eb",
+                                borderRadius: 12,
+                                cursor: "pointer",
+                                background: isChecked ? "#fffbeb" : "#fff",
+                                transition: "all .15s",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 6,
+                                  flexShrink: 0,
+                                  border: isChecked ? "2px solid #f59e0b" : "2px solid #d1d5db",
+                                  background: isChecked ? "#f59e0b" : "#fff",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                {isChecked && (
+                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                    <polyline
+                                      points="2,6 5,9 10,3"
+                                      stroke="#fff"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                              <span style={{ fontSize: 18 }}>📍</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                    color: "#111",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {loc.title || loc.name || "Unnamed Location"}
+                                </div>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                  {[loc.address, loc.locality].filter(Boolean).join(", ") || loc.locationId}
+                                </div>
+                              </div>
+                              {isChecked && (
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    background: "#fef3c7",
+                                    color: "#92400e",
+                                    borderRadius: 6,
+                                    padding: "2px 8px",
+                                    fontWeight: 700,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  Will post
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div
+                      style={{
+                        background: "#fffbeb",
+                        border: "1px solid #fde68a",
+                        borderRadius: 12,
+                        padding: "14px 16px",
+                        fontSize: 13,
+                        color: "#92400e",
+                      }}
+                    >
+                      No GMB locations found. Connect Google Business from the dashboard, then reload this page.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2182,7 +2197,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                   <div style={S.label}>Step 2 — Posting Frequency</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {getValidFrequencies(userData?.paidPackage).map(o => {
-                      const isSelected    = frequency === o.v;
+                      const isSelected = frequency === o.v;
                       const isRecommended = getRecommendedFrequency(userData?.paidPackage) === o.v;
                       return (
                         <button key={o.v}
@@ -2259,12 +2274,12 @@ export default function AutomationSettings({ onNavigateBack }) {
                   <div>
                     <div style={S.label}>Step 3 — Start Date</div>
                     <input type="date" value={startDate}
-                      min={pkgStart  ? toInputDate(pkgStart)  : toInputDate(new Date())}
+                      min={pkgStart ? toInputDate(pkgStart) : toInputDate(new Date())}
                       max={pkgExpiry ? toInputDate(pkgExpiry) : undefined}
                       onChange={e => setStartDate(e.target.value)}
                       style={S.input}
                       onFocus={e => e.currentTarget.style.borderColor = "#f59e0b"}
-                      onBlur={e  => e.currentTarget.style.borderColor = "#e5e7eb"} />
+                      onBlur={e => e.currentTarget.style.borderColor = "#e5e7eb"} />
                     {pkgStart && pkgExpiry && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Plan range: {fmtDate(pkgStart)} – {fmtDate(pkgExpiry)}</div>}
                   </div>
 
@@ -2279,7 +2294,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                       onChange={e => setEndDate(e.target.value)}
                       style={{ ...S.input, borderColor: "#bfdbfe" }}
                       onFocus={e => e.currentTarget.style.borderColor = "#3b82f6"}
-                      onBlur={e  => e.currentTarget.style.borderColor = "#bfdbfe"} />
+                      onBlur={e => e.currentTarget.style.borderColor = "#bfdbfe"} />
                     <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
                       Auto-set for {postsLeft} posts at {frequency === "alternate" ? "every 2 days" : frequency} pace. You can override manually.
                     </div>
@@ -2287,21 +2302,21 @@ export default function AutomationSettings({ onNavigateBack }) {
                 </div>}
 
                 {/* Step 5: Skip dates (hidden for custom frequency) */}
-                {frequency !== "custom" && 
-                <div>
-                  <div style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
-                    Step 5 — Skip Specific Dates
-                    <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af" }}>(optional)</span>
-                    <button onClick={() => setShowCalendar(p => !p)}
-                      style={{ fontSize: 11, padding: "3px 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: showCalendar ? "#fef3c7" : "#fff", color: showCalendar ? "#d97706" : "#6b7280", cursor: "pointer", fontWeight: 600, fontFamily: "inherit", marginLeft: 4 }}>
-                      {showCalendar ? "Hide" : "Pick dates"}
-                    </button>
-                    {skippedDates.length > 0 && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>{skippedDates.length} skipped</span>}
-                  </div>
-                  {showCalendar && (
-                    <SkipDatePicker startDate={startDate} expiryDate={endDate || pkgExpiry} skippedDates={skippedDates} onChange={setSkippedDates} />
-                  )}
-                </div>}
+                {frequency !== "custom" &&
+                  <div>
+                    <div style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
+                      Step 5 — Skip Specific Dates
+                      <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af" }}>(optional)</span>
+                      <button onClick={() => setShowCalendar(p => !p)}
+                        style={{ fontSize: 11, padding: "3px 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: showCalendar ? "#fef3c7" : "#fff", color: showCalendar ? "#d97706" : "#6b7280", cursor: "pointer", fontWeight: 600, fontFamily: "inherit", marginLeft: 4 }}>
+                        {showCalendar ? "Hide" : "Pick dates"}
+                      </button>
+                      {skippedDates.length > 0 && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>{skippedDates.length} skipped</span>}
+                    </div>
+                    {showCalendar && (
+                      <SkipDatePicker startDate={startDate} expiryDate={endDate || pkgExpiry} skippedDates={skippedDates} onChange={setSkippedDates} />
+                    )}
+                  </div>}
               </div>
             </div>
 

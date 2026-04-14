@@ -42,6 +42,11 @@ scheduledDateSource: {
     igPages:[],    
     
     scheduledDate: { type: Date },
+    /** When set, automation-fill-queue generates image+copy at this time; then status → scheduled for publish-scheduled. */
+    generateContentAt: { type: Date },
+    /** True for rows created by user-settings “delay generate + publish” pipeline (safe to replace on re-save). */
+    automationQueued: { type: Boolean, default: false },
+    automationPlanId: { type: mongoose.Schema.Types.ObjectId, ref: "AutomationPlan", default: null },
     rejectReason: { type: String, default: "" },
     error: { type: String, default: "" },
     facebookPostId: { type: String, default: "" },

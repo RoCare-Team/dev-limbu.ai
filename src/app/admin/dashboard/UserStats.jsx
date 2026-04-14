@@ -316,6 +316,7 @@ export default function UserStats({
         </>
       )}
 
+      {/* User Onboard Revenue Details Modal ✅ NEW */}
       {showRevenueUsersModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-6xl max-h-[90vh] w-full flex flex-col overflow-hidden">
@@ -361,6 +362,9 @@ export default function UserStats({
                     No users with `user_onboard` revenue entries found for your
                     account.
                   </p>
+                  <p className="text-sm mt-1 text-gray-400">
+                    Onboard users using the ✅ button in the user table
+                  </p>
                 </div>
               ) : (
                 <>
@@ -382,7 +386,13 @@ export default function UserStats({
                             Date
                           </th>
                           <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Type
+                            Screenshot
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Notes
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Remarks
                           </th>
                         </tr>
                       </thead>
@@ -399,6 +409,9 @@ export default function UserStats({
                               <div className="text-sm text-gray-500">
                                 ID: {revenue.leadId}
                               </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                UTR: {revenue.utrNumber || "N/A"}
+                              </div>
                             </td>
                             <td className="px-6 py-4">
                               <span className="inline-flex px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
@@ -406,7 +419,7 @@ export default function UserStats({
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <div className="text-lg font-bold text-emerald-700">
+                              <div className="text-xl font-bold text-emerald-700">
                                 ₹{revenue.amount?.toLocaleString() || 0}
                               </div>
                             </td>
@@ -416,19 +429,37 @@ export default function UserStats({
                                   "en-IN",
                                 )}
                               </div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(revenue.createdAt).toLocaleTimeString(
+                                  [],
+                                  { hour: "2-digit", minute: "2-digit" },
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4">
-                              <span
-                                className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                                  revenue.type === "seo_plan"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {revenue.type === "seo_plan"
-                                  ? "SEO Plan"
-                                  : "General"}
-                              </span>
+                              {revenue.paymentScreenshot ? (
+                                <button
+                                  onClick={() =>
+                                    setFullViewImage(revenue.paymentScreenshot)
+                                  }
+                                  className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
+                                >
+                                  <Eye size={14} />
+                                  View Proof
+                                </button>
+                              ) : (
+                                <span className="text-sm text-gray-400 italic">
+                                  No screenshot
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 max-w-xs">
+                              <div className="text-sm text-gray-900 line-clamp-2">
+                                {revenue.notes || "No notes"}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-700">
+                             {revenue.remarks || "—"}
                             </td>
                           </tr>
                         ))}

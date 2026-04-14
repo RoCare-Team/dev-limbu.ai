@@ -127,7 +127,7 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    const { leadId, leadName, amount, paymentScreenshot, email, notes, plan, type } = body;
+    const { leadId, leadName, amount, paymentScreenshot, email, notes, remarks, plan, type } = body;
 
     // Validation
     if (!leadId || !leadName || !amount || !paymentScreenshot || !email) {
@@ -152,18 +152,21 @@ export async function POST(req) {
 
     // Create new revenue entry
     const newRevenue = new FranchiseRevenue({
-      leadId,
-      leadName,
-      amount: parseFloat(amount),
-      paymentScreenshot,
-      onboardedBy: admin._id,
-      onboardedByName: admin.fullName,
-      onboardedByRole: admin.role,
-      notes: notes || "",
-      plan: plan || "",
-      type: type || "franchise_lead", // "user_onboard" or "franchise_lead"
-      status: "active",
-    });
+  leadId,
+  leadName,
+  amount: parseFloat(amount),
+  paymentScreenshot,
+  onboardedBy: admin._id,
+  onboardedByName: admin.fullName,
+  onboardedByRole: admin.role,
+
+  notes: notes || "",
+  remarks: remarks || "", // 🔥 ADD THIS
+  plan: plan || "",
+
+  type: type || "franchise_lead",
+  status: "active",
+});
 
     await newRevenue.save();
 

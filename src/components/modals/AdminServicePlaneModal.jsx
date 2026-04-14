@@ -150,11 +150,16 @@ export default function AdminServicepaneModal({ service, onClose }) {
   if (!service) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
-        {/* HEADER */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 py-10">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[85vh]">
+
+            {/* scrollable content */}
+             <div className="overflow-y-auto max-h-[85vh]">
+              
+                    
+                    {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-5 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">Service Plan</h2>
+          <h3 className="text-2xl  text-gray-800">Service Plan</h3>
           <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-gray-100 transition"
@@ -168,14 +173,14 @@ export default function AdminServicepaneModal({ service, onClose }) {
           {/* USER INFO */}
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-2xl">
             <p className="text-xs text-gray-500">Customer</p>
-            <p className="font-semibold text-gray-800 text-lg">
+            <p className="font-normal text-gray-800 text-lg">
               {service?.email}
             </p>
           </div>
 
           {/* SERVICE PLANS */}
           <div>
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-blue-500">
               Select Plan
             </label>
 
@@ -319,6 +324,11 @@ export default function AdminServicepaneModal({ service, onClose }) {
             Confirm Booking
           </button>
         </div>
+
+
+            </div>
+
+          
       </div>
     </div>
   );

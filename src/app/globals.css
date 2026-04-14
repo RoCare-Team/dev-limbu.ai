@@ -84,4 +84,20 @@ body {
 }
 
 
+/* Scrollbar thin */
+::-webkit-scrollbar {
+  width: 3px; /* 🔥 yaha se width control */
+}
 
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* light gray */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

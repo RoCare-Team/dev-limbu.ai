@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Loader2,
   Zap,
@@ -36,14 +36,6 @@ export default function DashboardPage() {
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [userPlan, setUserPlan] = useState(null);
-  const [checkingPlan, setCheckingPlan] = useState(true);
-
-  useEffect(() => {
-    const plan = localStorage.getItem("Plan");
-    setUserPlan(plan ? plan.trim() : null);
-    setCheckingPlan(false);
-  }, []);
 
   const showToast = useCallback((message, type) => {
     if (type === "error") toast.error(message);
@@ -64,7 +56,7 @@ export default function DashboardPage() {
 
   const handleFetchReviews = useCallback(() => fetchReviews(false, true), [fetchReviews]);
 
-  if (checkingPlan || status === "loading") {
+  if (status === "loading") {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />

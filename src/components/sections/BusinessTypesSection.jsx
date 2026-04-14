@@ -1,68 +1,69 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 const BusinessTypesSection = () => {
   const businessTypes = [
     {
       title: "Gym & Fitness Centres",
-      image:
-        "/images/category/jim.png", // Placeholder
+      image: "/images/category/jim.png",
       bgColor: "bg-blue-50/50",
+      slug: "/gym-marketing-software",
     },
     {
       title: "Doctors & Health Clinics",
-      image:
-        "/images/category/doctor.png", // Placeholder
+      image: "/images/category/doctor.png",
       bgColor: "bg-slate-50",
+      slug: "/clinic-marketing-software",
     },
     {
       title: "Bakers & Cake Shops",
-      image:
-        "/images/category/cake.png", // Placeholder
+      image: "/images/category/cake.png",
       bgColor: "bg-orange-50/30",
+      slug: "/bakery-marketing-software",
     },
     {
       title: "Salon Owners",
-      image:
-        "/images/category/salon.png", // Placeholder
+      image: "/images/category/salon.png",
       bgColor: "bg-rose-50/40",
+      slug: "/salon-marketing-software",
     },
     {
       title: "Restaurants & Bars",
-      image:
-        "/images/category/restorent.png", // Placeholder
+      image: "/images/category/restorent.png",
       bgColor: "bg-amber-50/40",
+      slug: "/restaurant-marketing-software",
     },
     {
       title: "Pest Control Businesses",
-      image:
-        "/images/category/pest.png", // Placeholder
+      image: "/images/category/pest.png",
       bgColor: "bg-emerald-50/30",
+      slug: "/pest-control-marketing-software",
     },
     {
       title: "Car Garages & Mechanics",
-      image:
-        "/images/category/car.png", // Placeholder
+      image: "/images/category/car.png",
       bgColor: "bg-zinc-50",
+      slug: "/car-garage-marketing-software",
     },
     {
       title: "Tours & Travels",
-      image:
-        "/images/category/tour.png", // Placeholder
+      image: "/images/category/tour.png",
       bgColor: "bg-sky-50/40",
+      slug: "/tour-travel-marketing-software",
     },
     {
       title: "Yoga & Wellness",
-      image:
-        "/images/category/yoga.png", // Placeholder
+      image: "/images/category/yoga.png",
       bgColor: "bg-indigo-50/30",
+      slug: "/yoga-wellness-marketing-software",
     },
     {
       title: "Handyman Services",
-      image:
-        "/images/category/handyman.png", // Placeholder
+      image: "/images/category/handyman.png",
       bgColor: "bg-stone-50",
+      slug: "/handyman-marketing-software",
     },
   ];
 
@@ -98,9 +99,10 @@ const BusinessTypesSection = () => {
         {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {businessTypes.map((type, index) => (
-            <div
+            <Link
+              href={type.slug}
               key={index}
-              className={`relative group h-40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex items-center ${type.bgColor} border border-black/5`}
+              className={`relative group h-40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex items-center ${type.bgColor} border border-black/5 cursor-pointer`}
             >
               <div className="flex-1 p-6 z-10">
                 <h3 className="text-lg font-bold leading-tight text-black group-hover:text-black transition-colors">
@@ -114,7 +116,7 @@ const BusinessTypesSection = () => {
                   className="absolute bottom-0 right-0 w-full h-auto object-contain object-bottom translate-y-2 group-hover:scale-110 transition-transform duration-500 origin-bottom"
                 />
               </div>
-            </div>
+            </Link>
           ))}
 
           {/* CTA Card */}

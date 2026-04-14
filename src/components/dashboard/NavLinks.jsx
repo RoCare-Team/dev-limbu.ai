@@ -1,4 +1,4 @@
-import { Activity, FolderKey, Globe, PlusSquare, QrCode, SquareChartGantt, Star } from "lucide-react";
+import { Activity, FolderKey, Globe, PlusSquare, QrCode, SquareChartGantt, Star, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
@@ -48,12 +48,7 @@ const navItems = [
     {
         href: "/post-management",
         icon: <PlusSquare className="h-4 w-4 sm:h-5 sm:w-5" />,
-        label: (
-            <>
-                Create & Publish <br />
-                Post
-            </>
-        ),
+        label: "Create Post",
     },
 ];
 
@@ -83,19 +78,19 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                     const Card = (
                         <div
                             onClick={handleClick}
-                            className={`group relative flex flex-col items-center justify-center p-5 rounded-3xl transition-all duration-300 cursor-pointer border-2 
+                            className={`group relative flex flex-col items-center justify-center p-4 rounded-3xl transition-all duration-300 cursor-pointer border-2 w-full aspect-square
               
               ${isActive
                                     ? "bg-slate-900 border-yellow-400 shadow-lg scale-105"
-                                    : "bg-white border-slate-100 hover:border-yellow-400 hover:shadow-lg hover:bg-slate-900 hover:scale-105"
+                                    : "bg-white border-slate-100 hover:border-yellow-300 hover:shadow-lg hover:scale-105"
                                 }
               `}
                         >
                             {/* FREE Badge */}
                             {item.isFree && (
-                                <span className="absolute top-3 right-3 bg-green-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter">
-                                    Free
-                                </span>
+                                <div className="absolute top-3 right-3 text-green-500 animate-pulse" title="Free Tool">
+                                    <Sparkles size={14} />
+                                </div>
                             )}
 
                             {/* ICON */}
@@ -115,7 +110,7 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                                 className={`text-[11px] font-bold uppercase tracking-tight text-center leading-tight transition-colors duration-300
                 ${isActive
                                         ? "text-white"
-                                        : "text-slate-600 group-hover:text-white"
+                                        : "text-slate-600 group-hover:text-black font-extrabold"
                                     }
               `}
                             >

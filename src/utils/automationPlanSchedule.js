@@ -49,8 +49,11 @@ export function getNextPublishDateRef(plan, now = new Date()) {
   const tz = plan.postingTimezone || 'Asia/Kolkata';
   const schedule = plan.schedule || [];
   const todayYmd = zonedYmdString(now, tz);
-  const lastYmd = plan.lastPostDate ? zonedYmdString(plan.lastPostDate, tz) : null;
+  const rawLastYmd = plan.lastPostDate ? zonedYmdString(plan.lastPostDate, tz) : null;
   const startYmd = plan.startDate ? zonedYmdString(plan.startDate, tz) : null;
+  // Ignore lastPostDate if it predates automation startDate (stale / migrated rows)
+  const lastYmd =
+    rawLastYmd && startYmd && rawLastYmd < startYmd ? null : rawLastYmd;
   const endYmd = plan.endDate ? zonedYmdString(plan.endDate, tz) : null;
   const skipped = new Set(Array.isArray(plan.skippedDates) ? plan.skippedDates : []);
 
@@ -143,7 +146,10 @@ export function isPostingDayTodayZoned(plan, now = new Date()) {
     return false;
   }
 
-  if (!plan.lastPostDate) {
+  const rawLastYmd = plan.lastPostDate ? zonedYmdString(plan.lastPostDate, tz) : null;
+  const lastYmdStale = !!(rawLastYmd && startYmd && rawLastYmd < startYmd);
+
+  if (!plan.lastPostDate || lastYmdStale) {
     return !startYmd || todayYmd >= startYmd;
   }
 

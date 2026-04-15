@@ -110,6 +110,12 @@ const automationPlanSchema = new mongoose.Schema(
       pageAccessToken: { type: String },
     }],
 
+    /**
+     * legacy / unset — existing prefetch + automation-plans crons.
+     * delay_generate_publish — posts live in Post collection: generateContentAt (+10m chain) then publish +12h via crons.
+     */
+    postQueueMode: { type: String, enum: ['legacy', 'delay_generate_publish'], default: 'legacy' },
+
     // Plan metadata
     planDetails: {
       package: { type: String },

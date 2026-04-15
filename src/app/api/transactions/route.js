@@ -16,12 +16,12 @@ export async function GET(req) {
   try {
     const transactions = await Transaction.find({ userId })
       .sort({ createdAt: -1 })
+      .limit(100) // ✅ yaha limit lagayi
       .lean();
 
     const formatted = transactions.map((tx) => {
       let detailMessage = "Wallet updated";
 
-      // Create readable messages
       if (tx.reason === "wallet_add") {
         detailMessage = `Added ${tx.amount} coins`;
       } else if (tx.reason === "wallet_deduct") {
@@ -36,16 +36,12 @@ export async function GET(req) {
 
       return {
         id: tx._id,
-        type: tx.type,            // credit/debit
-        amount: tx.amount,        
+        type: tx.type,
+        amount: tx.amount,
         balanceAfter: tx.balanceAfter,
         reason: tx.reason,
         metadata: tx.metadata || {},
-
-        // readable messages
         message: detailMessage,
-
-        // formatted date/time
         date: new Date(tx.createdAt).toLocaleDateString(),
         time: new Date(tx.createdAt).toLocaleTimeString(),
         timestamp: tx.createdAt,

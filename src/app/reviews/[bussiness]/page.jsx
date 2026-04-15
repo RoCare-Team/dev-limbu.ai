@@ -26,6 +26,19 @@ export default function CustomerReviewPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
+  /**
+   * Must run synchronously inside the user's tap (before any await) or iOS Safari blocks pop-ups.
+   * If a new tab is blocked, same-tab navigation still reaches Google Review.
+   */
+  const openGoogleReviewNow = (url) => {
+    if (!url || typeof window === "undefined") return;
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    // Blocked pop-up (typical on iOS if not in direct tap handler) → same-tab works
+    if (w == null) {
+      window.location.assign(url);
+    }
+  };
+
   // Decode location data from URL slug
   useEffect(() => {
     // Get slug from params (folder is [bussiness])
@@ -142,37 +155,51 @@ export default function CustomerReviewPage() {
     }
   };
 
-  // Handle copy and redirect flow
+  // Handle copy and redirect flow (open Google synchronously first — iOS blocks delayed window.open)
   const handleCopyAndRedirect = async (review, index) => {
+    if (!reviewUri) {
+      setErrorMsg("⚠ Google review link is not available.");
+      return;
+    }
+
+    setCopiedIndex(index);
+
+    // 1) Open Google Reviews in the same user gesture (critical for iPhone Safari)
+    openGoogleReviewNow(reviewUri);
+
+    // 2) Clipboard + DB after (may use async; does not affect pop-up permission)
     try {
-      // 1. Copy to clipboard
-      await navigator.clipboard.writeText(review);
-      setCopiedIndex(index);
-      
-      // 2. Save to DB
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(review);
+      }
+    } catch (e) {
+      console.warn("Clipboard copy failed (ok on some iOS browsers)", e);
+    }
+
+    try {
       await saveReviewToDB({
         name: customerName,
         rating,
         feedback: review,
       });
-
-      // 3. Redirect after brief delay
-      setTimeout(() => {
-        setCopiedIndex(null);
-        setShowReviewModal(false);
-        if (reviewUri) {
-          window.open(reviewUri, "_blank");
-          setShowSuccess(true);
-        }
-      }, 1000);
     } catch (e) {
-      console.error("Copy failed", e);
-      setCopiedIndex(null);
-      // Fallback redirect if copy fails
-      if (reviewUri) {
-        window.open(reviewUri, "_blank");
-      }
+      console.error("Save review failed", e);
     }
+
+    setCopiedIndex(null);
+    setShowReviewModal(false);
+    setShowSuccess(true);
+  };
+
+  /** Skip AI text — go straight to Google (same synchronous open rule). */
+  const handleSkipToGoogle = () => {
+    if (!reviewUri) {
+      setErrorMsg("⚠ Google review link is not available.");
+      return;
+    }
+    openGoogleReviewNow(reviewUri);
+    setShowReviewModal(false);
+    setShowSuccess(true);
   };
 
   // Submit low-rating feedback
@@ -284,10 +311,18 @@ max-h-[38vh] md:max-h-[48vh]
         Reviews written by <span className="font-semibold text-gray-500">Limbu AI</span>
       </p>
 
-      {/* Close */}
       <button
+        type="button"
+        className="mt-3 w-full py-2.5 md:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs md:text-sm shadow-md"
+        onClick={handleSkipToGoogle}
+      >
+        Skip — open Google Reviews only
+      </button>
+
+      <button
+        type="button"
         className="
-          mt-3 md:mt-5 w-full
+          mt-2 w-full
           py-2.5 md:py-3
           rounded-xl bg-gray-100 hover:bg-gray-200
           text-gray-700 font-bold text-xs md:text-sm

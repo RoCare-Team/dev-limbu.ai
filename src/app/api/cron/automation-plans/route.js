@@ -25,7 +25,8 @@
  *   Validates start/end, frequency/schedule day, quota, locations — skips clock window only.
  * postingHour / postingMinute gate scheduled cron; prefetch runs 24h before (prefetchOffsetMinutes, default 1440).
  * With prefetchOffsetMinutes >= 1440: local startDate is prefetch-only; first publish is next IST day using the
- * same prefetched image+copy for GMB, Facebook, and Instagram in one publish run.
+ * same prefetched image+copy for GMB, Facebook, and Instagram in one publish run when prefetch ran; if the bundle
+ * is missing, image+copy are generated inline so a missed /api/cron/auto-post window does not block publishing.
  */
 
 import { NextResponse } from 'next/server';
@@ -274,6 +275,7 @@ export async function GET(request) {
       userId:              manualUserId,
       active:              true,
       automationEnabled:   true,
+      $nor:                 [{ postQueueMode: 'delay_generate_publish' }],
     }).lean();
     if (!one) {
       return NextResponse.json(
@@ -287,8 +289,9 @@ export async function GET(request) {
     log(`Manual trigger for userId=${manualUserId} — schedule/frequency/start/end enforced; clock window skipped`);
   } else {
     activePlans = await AutomationPlan.find({
-      active:            true,
-      automationEnabled: true,
+      active:              true,
+      automationEnabled:   true,
+      $nor:                 [{ postQueueMode: 'delay_generate_publish' }],
     }).lean();
   }
 
@@ -325,9 +328,11 @@ export async function GET(request) {
       const u = await User.findById(userRef).select('paidPackage planDuration packageExpiryDate').lean();
       if (u) {
         const computed = getPlanPostLimit(u.paidPackage, u.planDuration);
-        if (computed > 0) {
-          limit = computed;
-          log(`Hydrated planDetails.limit=${limit} from User package`);
+        const fallback = Math.max((keywords || []).length, 1);
+        const limitToUse = computed > 0 ? computed : fallback;
+        if (limitToUse > 0) {
+          limit = limitToUse;
+          log(`Hydrated planDetails.limit=${limit} from User package${computed ? '' : ' (package unknown — keyword count floor)'}`);
           await AutomationPlan.updateOne(
             { _id: planId },
             {
@@ -375,9 +380,20 @@ export async function GET(request) {
     const tz = plan.postingTimezone || 'Asia/Kolkata';
 
     if (endDate && zonedYmdString(runNow, tz) > zonedYmdString(endDate, tz)) {
-      log(`Skip — end date passed: ${endDate}`);
-      await AutomationPlan.updateOne({ _id: planId }, { $set: { active: false, automationEnabled: false } });
-      results.skipped++; continue;
+      let pkgExp = null;
+      if (userRef) {
+        const uPkg = await User.findById(userRef).select('packageExpiryDate').lean();
+        if (uPkg?.packageExpiryDate) pkgExp = new Date(uPkg.packageExpiryDate);
+      }
+      if (pkgExp && pkgExp.getTime() > runNow.getTime()) {
+        await AutomationPlan.updateOne({ _id: planId }, { $set: { endDate: pkgExp } });
+        plan.endDate = pkgExp;
+        log(`Extended endDate to package expiry (${pkgExp.toISOString()}) — plan end was stale`);
+      } else {
+        log(`Skip — end date passed: ${endDate}`);
+        await AutomationPlan.updateOne({ _id: planId }, { $set: { active: false, automationEnabled: false } });
+        results.skipped++; continue;
+      }
     }
 
     if (!forceRun) {
@@ -391,7 +407,15 @@ export async function GET(request) {
         results.skipped++; continue;
       }
 
-      if (lastPostDate && zonedYmdString(lastPostDate, tz) === zonedYmdString(runNow, tz)) {
+      const lastPostBeforeStart =
+        lastPostDate &&
+        startDate &&
+        zonedYmdString(lastPostDate, tz) < zonedYmdString(startDate, tz);
+      if (
+        !lastPostBeforeStart &&
+        lastPostDate &&
+        zonedYmdString(lastPostDate, tz) === zonedYmdString(runNow, tz)
+      ) {
         log(`Skip — already posted today. lastPostDate=${lastPostDate}  (add ?force=1 to override)`);
         results.skipped++; continue;
       }
@@ -440,12 +464,10 @@ export async function GET(request) {
         await AutomationPlan.updateOne({ _id: planId }, { $unset: { prefetchPost: 1 } });
         log('Removed stale prefetch (missed publish day)');
       }
-      if (!forceRun && !dryRun && !hasPrefetchForToday) {
+      if (!hasPrefetchForToday && !forceRun && !dryRun) {
         log(
-          'Skip publish — 24h prefetch mode: need prefetched image+copy for today (run GET /api/cron/auto-post in the prefetch window; GMB/FB/IG use the same bundle)'
+          '⚠ Prefetch bundle missing for today — generating image+copy inline (schedule /api/cron/auto-post for 24h-ahead prefetch to avoid duplicate AI work)'
         );
-        results.skipped++;
-        continue;
       }
     }
 

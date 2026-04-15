@@ -64,6 +64,7 @@ export async function GET(request) {
   const activePlans = await AutomationPlan.find({
     active: true,
     automationEnabled: true,
+    $nor: [{ postQueueMode: 'delay_generate_publish' }],
   }).lean();
 
   log(`Found ${activePlans.length} active plan(s)`);

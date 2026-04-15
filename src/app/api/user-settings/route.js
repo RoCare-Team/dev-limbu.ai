@@ -4,9 +4,52 @@ import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getPlanPostLimit, calculatePostingSchedule } from '@/utils/userSettingsHelpers';
+import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep } from '@/utils/userSettingsHelpers';
+import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import AutomationPlan from '@/models/AutomationPlan';
 import Post from '@/models/PostStatus';
+
+function normEmail(e) {
+  return String(e || '').trim().toLowerCase();
+}
+
+function emailRegexFor(e) {
+  const n = normEmail(e);
+  if (!n) return null;
+  return new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+}
+
+/**
+ * Resolve Mongoose User for settings: session email (case-insensitive), or client userId
+ * when that row clearly belongs to the signed-in account (email / connectedBusinessEmail / GMB link).
+ */
+async function resolveUserForSettings(session, requestedUserId) {
+  const sessionEmail = normEmail(session?.user?.email);
+  if (!sessionEmail) return null;
+
+  const rid = typeof requestedUserId === 'string' ? requestedUserId.trim() : '';
+  const rx = emailRegexFor(sessionEmail);
+
+  let user = rx ? await User.findOne({ email: rx }) : null;
+  if (user) return user;
+
+  if (rid) {
+    const byId = await User.findOne({ userId: rid });
+    if (!byId) return null;
+    const uem = normEmail(byId.email);
+    const cem = normEmail(byId.connectedBusinessEmail);
+    if (uem === sessionEmail || cem === sessionEmail) return byId;
+
+    if (byId.gmbProjectId) {
+      const gmb = rx ? await GmbUser.findOne({ email: rx }).lean() : null;
+      const linked =
+        gmb?.projects?.some((p) => p.googleId === byId.gmbProjectId) ?? false;
+      if (linked) return byId;
+    }
+  }
+
+  return null;
+}
 
 export async function GET(request) {
   try {
@@ -17,23 +60,35 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await User.findOne({ email: session.user.email }).lean();
-    if (!user) {
+    const { searchParams } = new URL(request.url);
+    const queryUserId = searchParams.get('userId')?.trim() || '';
+
+    const userDoc = await resolveUserForSettings(session, queryUserId);
+    if (!userDoc) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    const user = userDoc.toObject ? userDoc.toObject({ versionKey: false }) : userDoc;
 
-    const gmbUser = await GmbUser.findOne({ email: session.user.email }).lean();
+    const gmbRx = emailRegexFor(user.email || session.user.email);
+    const gmbUser = gmbRx ? await GmbUser.findOne({ email: gmbRx }).lean() : null;
     const gmbProjects = gmbUser?.projects || [];
 
     const planLimit  = getPlanPostLimit(user.paidPackage, user.planDuration);
     const isValidPlan =
       user.packageExpiryDate && new Date(user.packageExpiryDate) > new Date();
 
+    const planLookupIds = [...new Set([queryUserId, user.userId, user._id?.toString()].filter(Boolean))];
+
     // Prefer active AutomationPlan, fallback to empty defaults
     const activePlan = await AutomationPlan.findOne({
-      userId: user.userId || user._id.toString(),
       active: true,
-    }).lean();
+      $or: [
+        ...planLookupIds.map((id) => ({ userId: id })),
+        { userRef: user._id },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
     const automationSettings = activePlan || { automationEnabled: false };
 
@@ -43,7 +98,7 @@ export async function GET(request) {
     const remaining = Math.max(0, planLimit - postsUsed);
 
     // Successful automation/manual posts by platform (same userId variants as posts collection)
-    const postUserIds = [user.userId, user._id.toString()].filter(Boolean);
+    const postUserIds = [...new Set([...planLookupIds, user.userId, user._id?.toString()].filter(Boolean))];
     const postedDocs = await Post.find({
       userId: { $in: postUserIds },
       status: 'posted',
@@ -163,7 +218,7 @@ export async function POST(request) {
       postingTimezone,
     } = body;
 
-    let user = await User.findOne({ email: session.user.email });
+    let user = await resolveUserForSettings(session, userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -203,7 +258,12 @@ export async function POST(request) {
         }))
       : [];
 
-    const planLimit = getPlanPostLimit(user.paidPackage, user.planDuration);
+    const planLimitBase = getPlanPostLimit(user.paidPackage, user.planDuration);
+    // Unknown package name in DB → 0 posts; still allow automation using keyword count as floor
+    const planLimit =
+      automationEnabled && planLimitBase === 0
+        ? Math.max(safeKeywords.length, 1)
+        : planLimitBase;
 
     // ── Business resolution ────────────────────────────────────────────────────
     // Priority: (1) selectedBusiness from request, (2) already saved on user
@@ -216,7 +276,8 @@ export async function POST(request) {
 
     // Persist selectedBusiness to User if provided and valid
     if (selectedBusiness && (selectedBusiness.googleId || selectedBusiness.projectId || selectedBusiness.locationId)) {
-      const gmbUser = await GmbUser.findOne({ email: session.user.email });
+      const gmbEmailRx = emailRegexFor(user.email || session.user.email);
+      const gmbUser = gmbEmailRx ? await GmbUser.findOne({ email: gmbEmailRx }) : null;
       const incomingId =
         selectedBusiness.googleId ||
         selectedBusiness.projectId ||
@@ -332,7 +393,21 @@ export async function POST(request) {
     // ── Build schedule ─────────────────────────────────────────────────────────
     let schedule = [];
     const scheduleStartDate = startDate ? new Date(startDate) : new Date();
-    const scheduleEndDate   = endDate   ? new Date(endDate)   : null;
+    let scheduleEndDate = endDate ? new Date(endDate) : null;
+
+    // Stale endDate (e.g. old save) blocks all crons while package may still be valid — extend on save
+    if (automationEnabled && user.packageExpiryDate) {
+      const pkgExp = new Date(user.packageExpiryDate);
+      const pkgOk = pkgExp.getTime() > Date.now();
+      const todayYmd = zonedYmdString(new Date(), postingTz);
+      if (pkgOk && scheduleEndDate) {
+        const endYmd = zonedYmdString(scheduleEndDate, postingTz);
+        if (endYmd < todayYmd) {
+          scheduleEndDate = pkgExp;
+          console.warn('[user-settings] endDate was in the past — extended to packageExpiryDate so automation can run');
+        }
+      }
+    }
 
     if (automationEnabled) {
       if (safeFrequency === 'custom' && Array.isArray(customDates) && customDates.length > 0) {
@@ -349,7 +424,7 @@ export async function POST(request) {
         schedule = calculatePostingSchedule({
           startDate:   scheduleStartDate,
           frequency:   safeFrequency,
-          postsLimit:  planLimit,
+          postsLimit:  Math.max(planLimit, 1),
           expiryDate:  effectiveExpiry,
           skippedDates: safeSkippedDates,
         });
@@ -367,6 +442,15 @@ export async function POST(request) {
       remaining:    Math.max(0, planLimit - preservedPostsUsed),
       expiryDate:   user.packageExpiryDate,
     };
+
+    const gmbEmailRxPost = emailRegexFor(user.email || session.user.email);
+    const gmbUserPostQueue = user.gmbProjectId && gmbEmailRxPost
+      ? await GmbUser.findOne({ email: gmbEmailRxPost }).select('projects').lean()
+      : null;
+    const projectPostQueue =
+      gmbUserPostQueue?.projects?.find((p) => p.googleId === user.gmbProjectId) || null;
+    const useDelayPostQueue =
+      !!(automationEnabled && schedule.length > 0 && projectPostQueue && hasGmb);
 
     // ── Upsert AutomationPlan (one record per userId, always) ─────────────────
     // IMPORTANT: Do NOT deactivate first and then search active:true — that
@@ -392,7 +476,8 @@ export async function POST(request) {
       // 2. Fallback: look in GmbUser projects
       console.warn('[user-settings] ⚠ No session.accessToken — falling back to GmbUser lookup');
       try {
-        const gmbUserForTokens = await GmbUser.findOne({ email: session.user.email }).lean();
+        const gmbTokRx = emailRegexFor(user.email || session.user.email);
+        const gmbUserForTokens = gmbTokRx ? await GmbUser.findOne({ email: gmbTokRx }).lean() : null;
         if (gmbUserForTokens?.projects?.length) {
           const accountId = user.gmbProjectId || safeLocations[0]?.accountId || '';
           const project =
@@ -428,10 +513,22 @@ export async function POST(request) {
         ? businessProfileDescription.slice(0, 20000)
         : (existingPlan?.businessProfileDescription ?? '');
 
+    const rawLastPost = existingPlan?.lastPostDate ? new Date(existingPlan.lastPostDate) : null;
+    let resolvedLastPostDate = rawLastPost;
+    if (rawLastPost && !Number.isNaN(rawLastPost.getTime())) {
+      const lastY = zonedYmdString(rawLastPost, postingTz);
+      const startY = zonedYmdString(scheduleStartDate, postingTz);
+      if (lastY < startY) {
+        resolvedLastPostDate = null;
+        console.warn('[user-settings] Cleared lastPostDate before startDate (fixes stuck daily cadence)');
+      }
+    }
+
     const automationPlanData = {
       userId:           finalUserId,
       userRef:          user._id,
       active:           true,
+      postQueueMode:    useDelayPostQueue ? 'delay_generate_publish' : 'legacy',
       automationEnabled,
       frequency:        safeFrequency,
       keywords:         safeKeywords,
@@ -456,7 +553,7 @@ export async function POST(request) {
       endDate:          scheduleEndDate,
       skippedDates:     safeSkippedDates,
       schedule,
-      lastPostDate:     existingPlan?.lastPostDate || null,
+      lastPostDate:     resolvedLastPostDate,
       postIndex:        keywordsChanged ? 0 : (existingPlan?.postIndex || 0),
       planDetails,
       businessName,
@@ -523,57 +620,108 @@ export async function POST(request) {
       }
     );
 
-    // ── Bulk-create PostStatus records for the full schedule ───────────────────
-    if (automationEnabled && schedule.length > 0 && user.gmbProjectId) {
-      const Post    = (await import('@/models/PostStatus.js')).default;
-      const gmbUser = await GmbUser.findOne({ email: session.user.email });
-      const project = gmbUser?.projects?.find(
-        (p) => p.googleId === user.gmbProjectId
+    // ── Bulk-create PostStatus records (delay queue: generate → then publish +12h) ──
+    const PostModel = (await import('@/models/PostStatus.js')).default;
+    const postUserIds = [...new Set([finalUserId, user.userId, user._id.toString()].filter(Boolean))];
+
+    if (!automationEnabled) {
+      await PostModel.deleteMany({ userId: { $in: postUserIds }, automationQueued: true });
+    } else if (automationEnabled && !useDelayPostQueue) {
+      await PostModel.deleteMany({ userId: { $in: postUserIds }, automationQueued: true });
+    }
+
+    if (useDelayPostQueue && projectPostQueue) {
+      const locations = Array.isArray(resolvedBusiness?.locations)
+        ? resolvedBusiness.locations
+        : resolvedBusiness?.locationId
+          ? [{ locationId: resolvedBusiness.locationId, accountId: resolvedBusiness.accountId, name: businessName, address: resolvedBusiness.address || '', isPosted: false }]
+          : [];
+
+      const scheduledPlatforms = safePlatforms.filter((p) => ['gmb', 'fb', 'ig'].includes(p));
+      const platformsForPost = scheduledPlatforms.length > 0 ? scheduledPlatforms : ['gmb'];
+
+      const genDelayMin = Math.min(
+        120,
+        Math.max(1, Number(process.env.AUTOMATION_QUEUE_GENERATE_DELAY_MINUTES) || 10)
       );
+      const pubAfterH = Math.min(
+        168,
+        Math.max(1, Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_HOURS) || 12)
+      );
+      const GEN_MS = genDelayMin * 60 * 1000;
+      const PUB_MS = pubAfterH * 60 * 60 * 1000;
+      const SAVE_TS = Date.now();
+      const stepDays = getFrequencyStep(safeFrequency);
 
-      if (project) {
-        // Build location list from selectedBusiness
-        const locations = Array.isArray(resolvedBusiness?.locations)
-          ? resolvedBusiness.locations
-          : resolvedBusiness?.locationId
-            ? [{ locationId: resolvedBusiness.locationId, accountId: resolvedBusiness.accountId, name: businessName, address: resolvedBusiness.address || '', isPosted: false }]
-            : [];
+      let genTs = SAVE_TS + GEN_MS;
+      const postsData = [];
+      for (let idx = 0; idx < schedule.length; idx++) {
+        if (idx > 0) {
+          if (safeFrequency === 'custom') {
+            const d0 = new Date(schedule[idx - 1]);
+            d0.setHours(0, 0, 0, 0);
+            const d1 = new Date(schedule[idx]);
+            d1.setHours(0, 0, 0, 0);
+            genTs += d1.getTime() - d0.getTime();
+          } else {
+            genTs += stepDays * 86400000;
+          }
+        }
 
-        const scheduledPlatforms = safePlatforms.filter((p) => ['gmb', 'fb', 'ig'].includes(p));
-        const platformsForPost = scheduledPlatforms.length > 0 ? scheduledPlatforms : ['gmb'];
-        const postUserIds = [...new Set([finalUserId, user.userId, user._id.toString()].filter(Boolean))];
+        const generateContentAt = new Date(genTs);
+        const publishAt = new Date(genTs + PUB_MS);
+        const keyword = safeKeywords[idx] || safeKeywords[idx % safeKeywords.length];
+        const line = `${keyword} — ${businessName || 'your business'}`;
 
-        const postsData = schedule.map((scheduledDate, idx) => {
-          const keyword = safeKeywords[idx] || safeKeywords[idx % safeKeywords.length];
-          const line = `${keyword} — ${businessName || 'your business'}`;
-          return {
-            userId:              finalUserId,
-            promat:              keyword,
-            description:         `Automated post about ${keyword}`,
-            gmbDescription:      line,
-            fbDescription:       line,
-            igDescription:       line,
-            scheduledDateSource:   [...platformsForPost],
-            status:              'scheduled',
-            scheduledDate,
-            accessToken:         project.accessToken || '',
-            refreshToken:        project.refreshToken || '',
-            checkmark:           'post',
-            locations,
-          };
+        postsData.push({
+          userId:              finalUserId,
+          promat:              keyword,
+          description:         `Automated post about ${keyword}`,
+          gmbDescription:      line,
+          fbDescription:       line,
+          igDescription:       line,
+          scheduledDateSource: [...platformsForPost],
+          status:              'pending',
+          generateContentAt,
+          scheduledDate:       publishAt,
+          automationQueued:    true,
+          automationPlanId:    plan._id,
+          aiOutput:            '',
+          accessToken:         projectPostQueue.accessToken || '',
+          refreshToken:        projectPostQueue.refreshToken || '',
+          checkmark:           'post',
+          locations,
+          fbPages: hasFb && Array.isArray(fbPages)
+            ? fbPages.filter((p) => p?.pageId).map((p) => ({
+                pageId:          p.pageId,
+                pageName:        p.pageName || '',
+                pageAccessToken: p.pageAccessToken || '',
+                caption:         line,
+                isPosted:        false,
+              }))
+            : [],
+          igPages: hasIg && Array.isArray(igPages)
+            ? igPages.filter((a) => a?.igId).map((a) => ({
+                igId:            a.igId,
+                igUsername:      a.igUsername || '',
+                pageAccessToken: a.pageAccessToken || '',
+                caption:         line,
+                isPosted:        false,
+              }))
+            : [],
         });
-
-        // Remove any existing unprocessed scheduled posts for this user before inserting new ones
-        await Post.deleteMany({
-          userId: { $in: postUserIds },
-          status: 'scheduled',
-        });
-
-        await Post.insertMany(postsData, { ordered: false });
-        console.log(`✅ Created ${postsData.length} scheduled Posts for userId=${finalUserId}`);
-      } else {
-        console.warn('[user-settings] No GmbUser project found for bulk post creation');
       }
+
+      await PostModel.deleteMany({
+        userId: { $in: postUserIds },
+        automationQueued: true,
+        status:           { $in: ['pending', 'scheduled'] },
+      });
+
+      await PostModel.insertMany(postsData, { ordered: false });
+      console.log(
+        `[user-settings] ✅ Created ${postsData.length} queued Posts (generate +${genDelayMin}m, publish +${pubAfterH}h) userId=${finalUserId}`
+      );
     }
 
     return NextResponse.json({

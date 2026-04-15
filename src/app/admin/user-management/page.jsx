@@ -47,6 +47,7 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneModal";
 
 import {
+  alpha,
   Box,
   Button,
   FormControl,
@@ -55,8 +56,10 @@ import {
   MenuItem,
   Paper,
   Select,
+  Stack,
   TableContainer,
   TextField,
+  Typography,
 } from "@mui/material";
 
 export default function UserManagement() {
@@ -218,6 +221,8 @@ export default function UserManagement() {
   // const [openServiceModal, setOpenServiceModal] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [serviceUser, setServiceUser] = useState(null);
+
+  const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
 
   // remark
   const [planRemarks, setplanRemarks] = useState("");
@@ -2590,6 +2595,97 @@ export default function UserManagement() {
             backgroundColor: "#fff",
           }}
         >
+             {(role === "superAdmin" ||
+                      role === "admin" || role === "agent" ||
+                      role === "superfranchiseAdmin") && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 2,
+                          px: { xs: 2, sm: 2.5 },
+                          py: { xs: 1.75, sm: 2 },
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
+                          background: (theme) =>
+                            `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            variant="subtitle1"
+                            sx={{
+                              fontWeight: 800,
+                              letterSpacing: "-0.02em",
+                              color: "text.primary",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            Leads
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                            Manage records and sync from Meta
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
+                          <Button
+                            variant="contained"
+                            onClick={() => setAddingUser(true)}
+                            startIcon={<Plus size={18} strokeWidth={2.5} />}
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: 700,
+                              borderRadius: 2,
+                              px: 2.5,
+                              py: 1,
+                              boxShadow: (theme) => `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
+                              background: (theme) =>
+                                `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                              "&:hover": {
+                                background: (theme) =>
+                                  `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                                boxShadow: (theme) => `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
+                              },
+                            }}
+                          >
+                            Add Lead
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            disabled={isRefreshingMetaLeads}
+                            onClick={() => handleRefreshMetaLeads(true)}
+                            startIcon={
+                              <RefreshCw
+                                size={16}
+                                className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                              />
+                            }
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: 700,
+                              borderRadius: 2,
+                              px: 2.25,
+                              py: 1,
+                              borderWidth: 2,
+                              borderColor: "primary.main",
+                              color: "primary.main",
+                              "&:hover": {
+                                borderWidth: 2,
+                                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                                borderColor: "primary.dark",
+                              },
+                              "&.Mui-disabled": {
+                                borderWidth: 2,
+                              },
+                            }}
+                          >
+                            Refresh
+                          </Button>
+                        </Stack>
+                      </Box>
+                    )}
           <TableContainer
             sx={{
               maxHeight: { xs: "60vh", md: "72vh" },

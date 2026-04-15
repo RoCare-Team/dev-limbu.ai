@@ -18,6 +18,7 @@ const KNOWN_APP_ROUTES = new Set([
   "refund-policy",
   "work-with-us",
   "thank-you",
+  "connect-google-business",
 ]);
 
 function isTenantSlugPath(pathname) {
@@ -96,6 +97,7 @@ export default function AuthGuard({ children }) {
       "/franchise-panel/login",
       "/work-with-us",
       "/thank-you",
+      "/connect-google-business",
     ]);
 
     const allowedAdminRoles = new Set([

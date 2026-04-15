@@ -5,6 +5,8 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
 import InitAuth from "@/components/InitAuth";
+import { Suspense } from "react";
+import LimbuAiChatWidget from "@/components/LimbuAiChatWidget";
 import { headers } from "next/headers";
 
 const inter = Inter({
@@ -127,6 +129,9 @@ export default async function RootLayout({ children }) {
           <ClientLayout>
             <AuthGuard>{children}</AuthGuard>
           </ClientLayout>
+          <Suspense fallback={null}>
+            <LimbuAiChatWidget />
+          </Suspense>
         </SessionProviderWrapper>
       </body>
     </html>

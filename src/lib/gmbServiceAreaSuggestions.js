@@ -136,3 +136,49 @@ export function parseServiceAreaPlacesFromText(text) {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+/**
+ * Parse AI service-area output: bullets, numbered lines, comma blocks — dedupe case-insensitively.
+ */
+export function parseAiServiceAreaSuggestionText(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return [];
+  const chunks = s.split(/\r?\n|;/);
+  const seen = new Set();
+  const out = [];
+  for (let chunk of chunks) {
+    const line = chunk
+      .split('|')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .join(' — ');
+    if (!line) continue;
+    let t = line
+      .replace(/^\s*[-*•]\s*/u, '')
+      .replace(/^\s*\d+[.)]\s*/, '')
+      .trim();
+    if (!t) continue;
+    if (/^(output format|at least|at most|area\s*\d)/i.test(t)) continue;
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+    if (out.length >= 12) break;
+  }
+  if (out.length < 2 && /,/.test(s) && !/\r?\n/.test(s)) {
+    const commaParts = s.split(/[,]+/).map((p) => p.replace(/^\s*[-*•\d.)]+\s*/i, '').trim()).filter(Boolean);
+    if (commaParts.length >= 2) {
+      const cSeen = new Set();
+      const cOut = [];
+      for (const t of commaParts) {
+        const k = t.toLowerCase();
+        if (cSeen.has(k)) continue;
+        cSeen.add(k);
+        cOut.push(t);
+        if (cOut.length >= 12) break;
+      }
+      return cOut;
+    }
+  }
+  return out;
+}

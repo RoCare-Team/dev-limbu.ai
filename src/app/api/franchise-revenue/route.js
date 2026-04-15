@@ -127,7 +127,8 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    const { leadId, leadName, amount, paymentScreenshot, email, notes, remarks, plan, type } = body;
+    console.log("API RECEIVED:", body);
+    const { leadId, leadName, amount, paymentScreenshot, email, notes, planRemarks, plan, type } = body;
 
     // Validation
     if (!leadId || !leadName || !amount || !paymentScreenshot || !email) {
@@ -161,7 +162,7 @@ export async function POST(req) {
   onboardedByRole: admin.role,
 
   notes: notes || "",
-  remarks: remarks || "", // 🔥 ADD THIS
+  planRemarks: planRemarks || "", // 🔥 ADD THIS
   plan: plan || "",
 
   type: type || "franchise_lead",

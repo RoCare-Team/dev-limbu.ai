@@ -45,82 +45,115 @@ export default function PackageBookingList() {
 
       {/* Desktop Table */}
      {/* Desktop Table */}
-<div className="hidden md:block bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+    <div className="hidden md:block bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+
+  {/* Header */}
+  <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-white flex items-center justify-between">
+    <h2 className="text-lg font-bold text-gray-800">Customer Transactions</h2>
+    <span className="text-sm text-gray-500">{data.length} Records</span>
+  </div>
+
   <div className="overflow-x-auto">
     <table className="min-w-full text-sm text-gray-700">
+
+      {/* THEAD */}
       <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
-        <tr>
-          <th className="px-5 py-4 text-left font-semibold">Customer</th>
-          <th className="px-5 py-4 text-left">Contact</th>
-          <th className="px-5 py-4 text-left">Plan</th>
-          <th className="px-5 py-4 text-right">Amount</th>
-          <th className="px-5 py-4 text-left">GST No.</th>
-          <th className="px-5 py-4 text-center">Status</th>
-          <th className="px-5 py-4 text-right">Date</th>
+        <tr className="text-xs uppercase tracking-wider">
+          <th className="px-6 py-4 text-left font-semibold">Customer</th>
+          <th className="px-6 py-4 text-left">Contact</th>
+          <th className="px-6 py-4 text-left">Plan</th>
+          <th className="px-6 py-4 text-right">Amount</th>
+          <th className="px-6 py-4 text-left">GST No.</th>
+          <th className="px-6 py-4 text-center">Status</th>
+          <th className="px-6 py-4 text-right">Date</th>
         </tr>
       </thead>
 
-      <tbody>
-        {data.map((item, index) => (
+      {/* TBODY */}
+      <tbody className="divide-y divide-gray-100">
+
+        {data.map((item) => (
           <tr
             key={item._id}
-            className={`border-b transition ${
-              index % 2 === 0 ? "bg-gray-50" : "bg-white"
-            } hover:bg-blue-50`}
+            className="group hover:bg-blue-50 transition duration-200"
           >
-            {/* Name */}
-            <td className="px-5 py-4">
-              <div className="font-semibold text-gray-900">
-                {item.name}
-              </div>
-              <div className="text-xs text-gray-500">
-                {item.email}
+
+            {/* Customer */}
+            <td className="px-6 py-5">
+              <div className="flex items-center gap-4">
+
+                {/* Avatar */}
+                <div className="w-11 h-11 flex items-center justify-center rounded-full 
+                bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-semibold text-sm
+                shadow-md ring-2 ring-blue-100">
+                  {item.name?.charAt(0)}
+                </div>
+
+                {/* Info */}
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {item.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {item.email}
+                  </div>
+                </div>
+
               </div>
             </td>
 
             {/* Contact */}
-            <td className="px-5 py-4">
-              <div className="text-gray-800">{item.phone}</div>
+            <td className="px-6 py-5 text-gray-700 font-medium">
+              {item.phone}
             </td>
 
-            {/* Plan */}
-            <td className="px-5 py-4 font-medium text-indigo-600">
-              {item.planTitle}
+            {/* Plan FIX */}
+            <td className="px-6 py-5">
+              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+                {item.planTitle}
+              </span>
             </td>
 
-            {/* Amount */}
-            <td className="px-5 py-4 text-right font-bold text-gray-900">
-              {item.totalAmount}
+            {/* Amount FIX (₹ remove) */}
+            <td className="px-6 py-5 text-right">
+              <span className="font-bold text-gray-900 text-base">
+                {item.totalAmount}
+              </span>
             </td>
 
             {/* GST */}
-            <td className="px-5 py-4 text-gray-700">
+            <td className="px-6 py-5 text-gray-600">
               {item.gstNumber || "—"}
             </td>
 
             {/* Status */}
-            <td className="px-5 py-4 text-center">
+            <td className="px-6 py-5 text-center">
               <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
                   item.status === "paid"
                     ? "bg-green-100 text-green-700"
                     : "bg-yellow-100 text-yellow-700"
                 }`}
               >
+                <span className={`w-2 h-2 rounded-full ${
+                  item.status === "paid" ? "bg-green-500" : "bg-yellow-500"
+                }`}></span>
                 {item.status.toUpperCase()}
               </span>
             </td>
 
             {/* Date */}
-            <td className="px-5 py-4 text-right text-gray-600">
+            <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
               {new Date(item.createdAt).toLocaleDateString("en-IN", {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
               })}
             </td>
+
           </tr>
         ))}
+
       </tbody>
     </table>
   </div>

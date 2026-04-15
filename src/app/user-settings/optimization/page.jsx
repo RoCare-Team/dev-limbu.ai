@@ -220,7 +220,7 @@ export default function OptimizationPage() {
         const msg = "Select a business with a Google location, then try again.";
         setError(msg);
         toast.error(msg);
-        return;
+        throw new Error(msg);
       }
       setSyncToGmbPending(true);
       setError("");
@@ -237,7 +237,16 @@ export default function OptimizationPage() {
             chatUrl: payload?.chatUrl,
             serviceAreaText: payload?.serviceAreaText,
             serviceAreaPlaces: Array.isArray(payload?.serviceAreaPlaces) ? payload.serviceAreaPlaces : undefined,
-            latlng: payload?.latlng,
+            regularHours:
+              payload?.regularHours &&
+              typeof payload.regularHours === "object" &&
+              Array.isArray(payload.regularHours.periods)
+                ? payload.regularHours
+                : undefined,
+            googleAccessToken:
+              typeof payload?.googleAccessToken === "string" && payload.googleAccessToken.trim()
+                ? payload.googleAccessToken.trim()
+                : undefined,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -249,7 +258,6 @@ export default function OptimizationPage() {
         }
         const n = Array.isArray(data.results) ? data.results.length : 0;
         const refreshed = await refreshGmbLocations();
-        const locId = selectedLocations[0]?.locationId || gmbLocations[0]?.locationId;
         const loc = Array.isArray(refreshed) && locId ? refreshed.find((l) => l.locationId === locId) : null;
         if (loc && typeof loc.profileDescription === "string") {
           setProfileDescription(loc.profileDescription.trim());
@@ -263,6 +271,7 @@ export default function OptimizationPage() {
         const msg = e.message || "Google sync failed";
         setError(msg);
         toast.error(msg);
+        throw e;
       } finally {
         setSyncToGmbPending(false);
       }
@@ -283,10 +292,9 @@ export default function OptimizationPage() {
           Data loads from the Google Business Information API (<code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>GET …/locations/&#123;id&#125;</code>
           ) and attributes for WhatsApp. Updates use the official PATCH masks (<code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>title</code>,{" "}
           <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>profile</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>phoneNumbers</code>,{" "}
-          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>websiteUri</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>storefrontAddress</code>,{" "}
-          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>latlng</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>serviceArea</code>).{" "}
-          <strong>Save changes</strong> PATCHes only description and service area (no DB write), then refetches live data.{" "}
-          <strong style={{ color: "#0f766e" }}>Sync to Google</strong> sends the other fields, then refetches.
+          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>websiteUri</code>,           <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>storefrontAddress</code>,{" "}
+          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>serviceArea</code>). Map coordinates are not edited here; service-area search uses your Google address or listing coordinates.{" "}
+          <strong>Save changes</strong> (or per-field <strong>Save</strong>) PATCHes Google, then refetches live data. Website Builder saves generated HTML to your account and can push the URL to Google.
         </p>
         {gmbRefreshPending && (
           <p style={{ margin: "8px 0 0", fontSize: 12, color: "#6366f1", fontWeight: 600 }}>
@@ -305,8 +313,6 @@ export default function OptimizationPage() {
           layout="embedded"
           manageLocations={false}
           savePending={savePending}
-          platformGmb
-          setPlatformGmb={noop}
           selectedLocations={selectedLocations}
           setSelectedLocations={noop}
           gmbLocations={gmbLocations}

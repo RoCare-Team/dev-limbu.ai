@@ -220,7 +220,7 @@ export default function UserManagement() {
   const [serviceUser, setServiceUser] = useState(null);
 
   // remark
-  const [remark, setRemark] = useState("");
+  const [planRemarks, setplanRemarks] = useState("");
 
   const isServiceModalOpen = activeModal === "service";
 
@@ -362,28 +362,33 @@ export default function UserManagement() {
   };
 
   const handleRefreshMetaLeads = async (manual = false) => {
-    if (manual) setIsRefreshingMetaLeads(true);
-    try {
-      const res = await fetch("/api/meta-leads-import?formId=1393275835835157");
-      const data = await res.json();
-      if (data.success) {
-        if (manual) {
-          showToast("Meta Leads refreshed successfully!", "success");
-          fetchUsers();
-        } else if (data.stats?.inserted > 0) {
-          fetchUsers(true);
-        }
-      } else {
-        if (manual)
-          showToast(data.error || "Failed to refresh Meta Leads", "error");
-      }
-    } catch (error) {
-      console.error("Error refreshing Meta Leads:", error);
-      if (manual) showToast("Error refreshing Meta Leads", "error");
-    } finally {
-      if (manual) setIsRefreshingMetaLeads(false);
+  if (!manual) return; // 🔥 IMPORTANT
+
+  setIsRefreshingMetaLeads(true);
+
+  try {
+    const email = localStorage.getItem("email");
+    console.log("EMAIL FROM LS:", email);
+
+    const res = await fetch(
+      `/api/meta-leads-import?formId=1393275835835157&email=${email}`
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      showToast("Meta Leads refreshed successfully!", "success");
+      fetchUsers();
+    } else {
+      showToast(data.error || "Failed to refresh Meta Leads", "error");
     }
-  };
+  } catch (error) {
+    console.error("Error refreshing Meta Leads:", error);
+    showToast("Error refreshing Meta Leads", "error");
+  } finally {
+    setIsRefreshingMetaLeads(false);
+  }
+};
 
   const [stats, setStats] = useState({
     total: 0,
@@ -815,7 +820,7 @@ export default function UserManagement() {
 
     const interval = setInterval(() => {
       handleRefreshMetaLeads(false);
-    }, 10000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, []);
@@ -1347,6 +1352,11 @@ export default function UserManagement() {
       // 1. Handle revenue recording if amount is provided
       if (planAmount && parseFloat(planAmount) > 0) {
         screenshotUrl = await uploadToCloudinary(planScreenshot);
+        console.log("SENDING DATA:", {
+  planRemarks: planRemarks,
+  selectedPlan,
+  amount: planAmount,
+});
 
         const revenueRes = await fetch("/api/franchise-revenue", {
           method: "POST",
@@ -1359,7 +1369,7 @@ export default function UserManagement() {
             email: localStorage.getItem("email"),
             plan: selectedPlan,
             notes: `Plan upgrade to ${selectedPlan}`, // auto
-            remarks: remark, 
+             planRemarks: planRemarks,
             type: selectedPlan.toLowerCase().includes("seo")
               ? "selectedPlan"
               : "user_onboard",
@@ -3653,8 +3663,8 @@ export default function UserManagement() {
                </label>
 
                <textarea
-                value={remark}
-                  onChange={(e) => setRemark(e.target.value)}
+                value={planRemarks}
+                  onChange={(e) => setplanRemarks(e.target.value)}
                  placeholder="Enter remark..."
                  rows={2}
                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"

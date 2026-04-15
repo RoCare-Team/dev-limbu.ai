@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
-const DB_NAME = "gmb_dashboard";
-
 function getRequiredEnv(name) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} not defined in environment`);
@@ -15,24 +13,33 @@ const AdminBusinessSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
-/** Dedicated connection so listings always land in gmb_dashboard (same as users collection). */
+/** Dedicated connection */
 let dashboardConn = null;
 
 async function getDashboardConnection() {
   if (dashboardConn && dashboardConn.readyState === 1) {
     return dashboardConn;
   }
+
   const mongoUri = getRequiredEnv("MONGODB_URI");
-  dashboardConn = mongoose.createConnection(mongoUri, { dbName: DB_NAME });
+
+  dashboardConn = mongoose.createConnection(mongoUri);
+
   await dashboardConn.asPromise();
   return dashboardConn;
 }
 
 async function getAdminBusinessModel() {
   const conn = await getDashboardConnection();
-  return conn.models.AdminBusiness || conn.model("AdminBusiness", AdminBusinessSchema);
+  return (
+    conn.models.AdminBusiness ||
+    conn.model("AdminBusiness", AdminBusinessSchema)
+  );
 }
 
+//
+// ✅ POST API (SAVE / UPDATE)
+//
 export async function POST(req) {
   try {
     const AdminBusiness = await getAdminBusinessModel();
@@ -77,7 +84,9 @@ export async function POST(req) {
   }
 }
 
-
+//
+// ✅ GET API (FETCH LISTINGS)
+//
 export async function GET(req) {
   try {
     const AdminBusiness = await getAdminBusinessModel();
@@ -87,7 +96,7 @@ export async function GET(req) {
 
     if (!userEmail) {
       return NextResponse.json(
-        { error: "userEmail is required" },
+        { error: "userEmail is required in query" },
         { status: 400 }
       );
     }
@@ -98,7 +107,7 @@ export async function GET(req) {
 
     if (!business) {
       return NextResponse.json(
-        { error: "No data found" },
+        { error: "No business found" },
         { status: 404 }
       );
     }
@@ -107,9 +116,8 @@ export async function GET(req) {
       success: true,
       listings: business.listings,
     });
-
   } catch (err) {
-    console.error("Fetch listings error:", err);
+    console.error("Get listings error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

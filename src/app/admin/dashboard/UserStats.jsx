@@ -459,7 +459,7 @@ export default function UserStats({
                               </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-700">
-                             {revenue.remarks || "—"}
+                             {revenue.planRemarks || "—"}
                             </td>
                           </tr>
                         ))}

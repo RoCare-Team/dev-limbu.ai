@@ -28,7 +28,7 @@ const FIELD_INSTRUCTIONS = {
   bookingUrl:
     'Suggest one short booking or appointment https URL. Return ONLY the URL.',
   serviceArea:
-    'List cities/areas served (from context serviceAreas/hours/locality). Comma-separated, plain text only.',
+    'Use the dedicated service-area task in the user message (address + radius). Follow that format exactly.',
   hoursSummary:
     'Summarize opening hours in Google Business style from context hoursSummary if present; otherwise infer from category. Plain text only.',
   specialHours:
@@ -43,6 +43,8 @@ const FIELD_INSTRUCTIONS = {
     'Return the primary Google-style category display name (e.g. "Water Purification Company"). Return ONLY that phrase.',
   chatUrl:
     'WhatsApp or messaging URL if inferable; else NONE. Return ONLY URL or NONE.',
+  singleDayHours:
+    'Return ONLY compact JSON for ONE weekday (context.targetDay like MONDAY). Use one of: {"closed":true} OR {"open24":true} OR {"open":"HH:MM","close":"HH:MM"} with 24h clock strings, no prose.',
 };
 
 function buildFieldUserPrompt(fieldId, fieldLabel, context, currentValue) {
@@ -53,6 +55,44 @@ function buildFieldUserPrompt(fieldId, fieldLabel, context, currentValue) {
       : '';
   const instr = FIELD_INSTRUCTIONS[fieldId] || `Generate content for field "${fieldLabel}". Return ONLY the value.`;
   return `${base}${cur}Task: ${instr}`;
+}
+
+/** Structured nearby-localities task (matches product spec: address + radius → 5–7 clean area lines). */
+function buildServiceAreaUserPrompt(context, currentValue) {
+  const ctx = context && typeof context === 'object' ? context : {};
+  const address =
+    String(ctx.storefrontAddress || ctx.fullAddress || '').trim() ||
+    [ctx.locality, ctx.administrativeArea, ctx.regionCode].filter(Boolean).join(', ') ||
+    '(infer center from JSON context only)';
+  const radiusRaw = Number(ctx.searchRadiusKm);
+  const radius = Number.isFinite(radiusRaw) && radiusRaw > 0 ? Math.round(radiusRaw) : 4;
+  const lat = ctx.listingLatitude;
+  const lng = ctx.listingLongitude;
+  const coordLine =
+    lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
+      ? `\nAnchor coordinates (center point — use these instead of guessing): latitude ${Number(lat).toFixed(5)}, longitude ${Number(lng).toFixed(5)}\n`
+      : '\n(No coordinates in context — estimate the center from the address text, then reason about nearby localities.)\n';
+
+  const cur =
+    currentValue != null && String(currentValue).trim()
+      ? `Already selected by the user (do not repeat these; you may suggest adjacent areas):\n${String(currentValue).trim()}\n\n`
+      : '';
+
+  return `${cur}Given a business address: "${address}"
+${coordLine}
+1. Use the address (and anchor coordinates if given) as the business center.
+2. Find nearby areas — localities, neighborhoods, sublocalities only — within ${radius} km of that center. Do not list shops, brands, POIs, or businesses.
+3. Return only area / locality names as human-readable lines suitable for Google Business Profile service areas (include city and state/country when it improves clarity).
+4. Remove duplicates; keep results clean; prioritize well-known locality names.
+5. Return at least 5 and at most 7 distinct suggestions.
+
+Reference JSON (facts only; do not echo keys in the answer):
+${JSON.stringify(ctx, null, 2)}
+
+Output format (exactly this style — one area per line, leading hyphen, no extra prose before or after the list):
+- Area 1
+- Area 2
+- Area 3`;
 }
 
 export async function POST(request) {
@@ -107,22 +147,24 @@ export async function POST(request) {
       return NextResponse.json({ error: 'fieldId required for mode=field' }, { status: 400 });
     }
 
-    const userPrompt = buildFieldUserPrompt(
-      fieldId,
-      fieldLabel || fieldId,
-      context,
-      currentValue
-    );
+    const userPrompt =
+      fieldId === 'serviceArea'
+        ? buildServiceAreaUserPrompt(context, currentValue)
+        : buildFieldUserPrompt(fieldId, fieldLabel || fieldId, context, currentValue);
+
+    const systemContent =
+      fieldId === 'serviceArea'
+        ? 'You suggest Google Business Profile service-area locality lines. Follow the user task exactly. Output ONLY the hyphen bullet list (5–7 lines). No preamble, no markdown fences, no numbering other than the hyphen bullets shown in the example.'
+        : 'You optimize Google Business Profile fields. Follow the user task exactly. No preamble, no markdown unless JSON array was requested.';
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       temperature: 0.7,
-      max_tokens: fieldId === 'description' ? 900 : 500,
+      max_tokens: fieldId === 'description' ? 900 : fieldId === 'serviceArea' ? 450 : 500,
       messages: [
         {
           role: 'system',
-          content:
-            'You optimize Google Business Profile fields. Follow the user task exactly. No preamble, no markdown unless JSON array was requested.',
+          content: systemContent,
         },
         { role: 'user', content: userPrompt },
       ],

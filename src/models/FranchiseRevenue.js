@@ -34,6 +34,7 @@ const FranchiseRevenueSchema = new mongoose.Schema(
     },
     
     notes: { type: String, default: "" },
+    planRemarks: { type: String, default: "" },
     type: { type: String, default: "franchise_lead" },
   },
   { timestamps: true }

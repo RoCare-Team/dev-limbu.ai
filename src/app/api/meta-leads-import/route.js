@@ -114,10 +114,35 @@ export async function GET(req) {
   try {
     await connectDB();
 
+    const { searchParams } = new URL(req.url);
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.get("authorization");
+    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+    const isCronAuthOk =
+      isVercelCron ||
+      (cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+    if (!isCronAuthOk) {
+      const adminEmail = searchParams.get("email");
+      if (!adminEmail) {
+        return NextResponse.json(
+          { success: false, error: "email required" },
+          { status: 401 }
+        );
+      }
+
+      const admin = await Admin.findOne({ email: adminEmail }).select("role");
+      if (!admin || !["superAdmin", "admin"].includes(admin.role)) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Fetch active agents for Round Robin
     const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 });
 
-    const { searchParams } = new URL(req.url);
     const formId = process.env.META_FORM_ID || searchParams.get("formId");
 
     if (!formId) {

@@ -21,6 +21,7 @@ export const LOCATION_UPDATE_MASKS = {
   storefrontAddress: 'storefrontAddress',
   latlng: 'latlng',
   serviceArea: 'serviceArea',
+  regularHours: 'regularHours',
 };
 
 export function locationResourceUrl(locationId) {
@@ -55,6 +56,11 @@ export function buildLatLngPatchBody(latitude, longitude) {
       longitude: Number(longitude),
     },
   };
+}
+
+export function buildRegularHoursPatchBody(periods) {
+  const p = Array.isArray(periods) ? periods : [];
+  return { regularHours: { periods: p } };
 }
 
 export function buildServiceAreaPatchBody(placeNames) {

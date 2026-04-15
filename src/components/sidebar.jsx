@@ -59,9 +59,6 @@ import { CassetteTape } from 'lucide-react';
 
 const drawerWidth = 260;
 
-/** Only these localStorage `userId` values see Settings in the sidebar / account menu. */
-const SETTINGS_NAV_USER_IDS = new Set(['USR1761994068831']);
-
 const openedMixin = (theme) => ({
   width: drawerWidth,
   background: '#ffffff',
@@ -533,12 +530,8 @@ export default function Sidebar({ children, user }) {
     { text: 'Settings', icon: <SettingsIcon size={20} />, path: '/user-settings' },
   ];
 
-  const SETTINGS_RELATED_PATHS = new Set(['/user-settings', '/user-settings/optimization']);
-  const navUserId = typeof userId === 'string' ? userId.trim() : '';
-  const showSettingsNav = SETTINGS_NAV_USER_IDS.has(navUserId);
-  const visibleMenuItems = showSettingsNav
-    ? menuItems
-    : menuItems.filter((item) => !SETTINGS_RELATED_PATHS.has(item.path));
+  const showSettingsNav = true;
+  const visibleMenuItems = menuItems;
 
   // const getPlanConfig = (plan) => {
   //   const planLower = plan?.toLowerCase() || 'free';

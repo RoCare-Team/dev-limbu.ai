@@ -109,7 +109,12 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
   const isVerified = Boolean(loc.metadata?.hasVoiceOfMerchant ?? loc.isVerified);
   const acc = accountId || loc.accountId || '';
   const title = loc.title || '';
-  const profileDescription = typeof loc.profile?.description === 'string' ? loc.profile.description : '';
+  const profileDescription =
+    typeof loc.profile?.description === 'string'
+      ? loc.profile.description
+      : typeof loc.profileDescription === 'string'
+        ? loc.profileDescription
+        : '';
   const serviceAreaPlaceInfos = loc.serviceArea?.places?.placeInfos;
   const serviceAreaPlaces = Array.isArray(serviceAreaPlaceInfos)
     ? serviceAreaPlaceInfos.map((p) => p.placeName || p.placeId || '').filter(Boolean)
@@ -123,6 +128,9 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
 
   if (!locationId) locationId = resourceName || title;
   if (!locationId) return null;
+
+  const regularHours = loc.regularHours && typeof loc.regularHours === 'object' ? loc.regularHours : null;
+  const specialHours = Array.isArray(loc.specialHours) ? loc.specialHours : null;
 
   return {
     locationId,
@@ -175,5 +183,7 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
       lng,
     }),
     serviceAreaPlaces,
+    regularHours,
+    specialHours,
   };
 }

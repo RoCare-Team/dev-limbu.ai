@@ -175,24 +175,40 @@ const fetchStageData = async (stage) => {
       return;
     }
 
+    
     const data = await res.json();
 
-    console.log("FULL API DATA:", data);
+console.log("FULL API DATA:", data);
 
-    // ✅ SAFE CHECK
-    if (data?.success && Array.isArray(data?.detailedStats)) {
-      // ✅ FILTER BY STAGE
-      const breakdown = data.detailedStats.filter(
-        (item) => item.stage === stage
-      );
+if (data.detailedStats && Array.isArray(data.detailedStats)) {
 
-      console.log("FILTERED DATA:", breakdown);
+  const stageItems = data.detailedStats.filter(
+    (item) => item.stage === stage
+  );
 
-      setStageData(breakdown);
-    } else {
-      console.warn("No detailedStats found");
-      setStageData([]);
+  const grouped = stageItems.reduce((acc, item) => {
+    const key = item.agentId || "Unassigned";
+    if (!acc[key]) {
+      acc[key] = {
+        agentId: item.agentId || "Unassigned",
+        agentName: item.agentName || item.agentId || "Unknown",
+        count: 0,
+      };
     }
+    acc[key].count += Number(item.count) || 0;
+    return acc;
+  }, {});
+
+  const breakdown = Object.values(grouped).sort((a, b) => b.count - a.count);
+
+  console.log("FINAL BREAKDOWN:", breakdown);
+
+  setStageData(breakdown);
+
+} else {
+  console.warn("No detailedStats found");
+  setStageData([]);
+}
   } catch (err) {
     console.error("FETCH ERROR:", err);
     setStageData([]);

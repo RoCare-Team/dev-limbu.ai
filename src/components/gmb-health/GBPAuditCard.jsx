@@ -22,18 +22,15 @@ import {
   TrendingDown,
   ChevronRight,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { toPng, toBlob } from "html-to-image";
-import jsPDF from "jspdf";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function GBPAuditCard({ audit }) {
-  const [animatedScore, setAnimatedScore] = useState(0);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Handle potential nested structure from input (audit[""] or direct audit)
   const router = useRouter();
   const auditData = audit[""] || audit;
   const guidanceText = audit.output?.[0]?.content?.[0]?.text || "";
@@ -46,131 +43,94 @@ export default function GBPAuditCard({ audit }) {
     recommendationSignals,
   } = auditData;
 
-  // Animate score on mount
-  useEffect(() => {
-    let start = 0;
-    const end = totalScore;
-    const duration = 2000; // 2 seconds
-    const increment = end / (duration / 16); // 60fps
-
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        setAnimatedScore(end);
-        clearInterval(timer);
-      } else {
-        setAnimatedScore(Math.floor(start));
-      }
-    }, 16);
-
-    return () => clearInterval(timer);
-  }, [totalScore]);
-
-  const getStatusColor = (score) => {
-    if (score >= 90)
-      return {
-        bg: "rgba(34, 197, 94, 0.1)",
-        text: "#16a34a",
-        label: "Elite Ranking",
-        icon: <Trophy className="w-4 h-4" />,
-      };
-    if (score >= 60)
-      return {
-        bg: "rgba(250, 204, 21, 0.1)",
-        text: "var(--lemon-hover)",
-        label: "Moderate Visibility",
-        icon: <Zap className="w-4 h-4" />,
-      };
-    return {
-      bg: "rgba(239, 68, 68, 0.1)",
-      text: "#dc2626",
-      label: "Critical Attention Required",
-      icon: <ShieldAlert className="w-4 h-4" />,
-    };
-  };
-
-  const statusInfo = getStatusColor(totalScore);
-
   const date = new Date().toLocaleString();
-  const reportId = `GBP-AUDIT-${Math.floor(Math.random() * 1000000)
-    .toString()
-    .padStart(6, "0")}`;
 
-  const handleDownloadPDF = async () => {
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const options = {
-      quality: 0.98,
-      backgroundColor: "#ffffff",
-      pixelRatio: 2.5,
-    };
-
-    // --- Load Logo ---
-    const logoUrl = "/images/bg-logo.png";
-    let logoDataUrl = "";
+  const handleDownloadPDF = useCallback(async () => {
     try {
-      const response = await fetch(logoUrl);
-      const blob = await response.blob();
-      logoDataUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error("Could not load logo for PDF", error);
-    }
+      setIsExporting(true);
+      // Dynamically import heavy libraries only when user clicks download
+      const { jsPDF } = await import("jspdf");
+      const { toPng } = await import("html-to-image");
 
-    // --- PDF Page Generation Helpers ---
-    const addPageFromElement = async (elementId, pdfInstance) => {
-      const element = document.getElementById(elementId);
-      if (!element) return;
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const options = {
+        quality: 0.98,
+        backgroundColor: "#ffffff",
+        pixelRatio: 2.5,
+      };
 
-      const dataUrl = await toPng(element, options);
-      const imgProps = pdfInstance.getImageProperties(dataUrl);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdfInstance.addImage(dataUrl, "PNG", 0, 0, pdfWidth, imgHeight);
-    };
-
-    const addFooter = (pdfInstance, pageNum, totalPages) => {
-      const pageHeight = pdfInstance.internal.pageSize.getHeight();
-      if (logoDataUrl) {
-        pdfInstance.addImage(logoDataUrl, "PNG", 15, pageHeight - 20, 15, 15);
+      const logoUrl = "/images/bg-logo.png";
+      let logoDataUrl = "";
+      try {
+        const response = await fetch(logoUrl);
+        const blob = await response.blob();
+        logoDataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error("Could not load logo for PDF", error);
       }
-      pdfInstance.setFontSize(9);
-      pdfInstance.setTextColor(150, 150, 150);
-      pdfInstance.text("Powered by Limbu.ai", 35, pageHeight - 13);
-      pdfInstance.text(
-        `Page ${pageNum} of ${totalPages}`,
-        pdfWidth - 30,
-        pageHeight - 13,
-      );
-    };
 
-    // --- Generate Pages ---
-    await addPageFromElement("pdf-page-1", pdf);
-    addFooter(pdf, 1, 3);
+      const addPageFromElement = async (elementId, pdfInstance) => {
+        const element = document.getElementById(elementId);
+        if (!element) return;
 
-    pdf.addPage();
-    await addPageFromElement("pdf-page-2", pdf);
-    addFooter(pdf, 2, 3);
+        const dataUrl = await toPng(element, options);
+        const imgProps = pdfInstance.getImageProperties(dataUrl);
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdfInstance.addImage(dataUrl, "PNG", 0, 0, pdfWidth, imgHeight);
+      };
 
-    pdf.addPage();
-    await addPageFromElement("pdf-page-3", pdf);
-    addFooter(pdf, 3, 3);
+      const addFooter = (pdfInstance, pageNum, totalPages) => {
+        const pageHeight = pdfInstance.internal.pageSize.getHeight();
+        if (logoDataUrl) {
+          pdfInstance.addImage(logoDataUrl, "PNG", 15, pageHeight - 20, 15, 15);
+        }
+        pdfInstance.setFontSize(9);
+        pdfInstance.setTextColor(150, 150, 150);
+        pdfInstance.text("Powered by Limbu.ai", 35, pageHeight - 13);
+        pdfInstance.text(
+          `Page ${pageNum} of ${totalPages}`,
+          pdfWidth - 30,
+          pageHeight - 13,
+        );
+      };
 
-    // --- Save PDF ---
-    pdf.save(`GBP-Audit-${dataSnapshot.businessName.replace(/\s+/g, "-")}.pdf`);
-  };
+      await addPageFromElement("pdf-page-1", pdf);
+      addFooter(pdf, 1, 3);
 
-  const handleShare = async () => {
+      pdf.addPage();
+      await addPageFromElement("pdf-page-2", pdf);
+      addFooter(pdf, 2, 3);
+
+      pdf.addPage();
+      await addPageFromElement("pdf-page-3", pdf);
+      addFooter(pdf, 3, 3);
+
+      pdf.save(`Business-Health-${dataSnapshot.businessName.replace(/\s+/g, "-")}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [dataSnapshot.businessName]);
+
+  const handleShare = useCallback(async () => {
     if (!navigator.share) {
       alert("Web Share API is not supported in your browser.");
       return;
     }
-    const element = document.getElementById("audit-card-content");
-    if (!element) return;
 
     try {
+      setIsExporting(true);
+      const { toBlob } = await import("html-to-image");
+      const element = document.getElementById("audit-card-content");
+      if (!element) return;
+
       const blob = await toBlob(element, {
         quality: 0.95,
         backgroundColor: "#ffffff",
@@ -178,13 +138,13 @@ export default function GBPAuditCard({ audit }) {
       });
       const file = new File(
         [blob],
-        `GBP-Audit-${dataSnapshot.businessName}.png`,
+        `Business-Health-${dataSnapshot.businessName}.png`,
         { type: blob.type },
       );
 
       await navigator.share({
-        title: `Google Business Profile Audit for ${dataSnapshot.businessName}`,
-        text: `Here is the GMB audit report for ${dataSnapshot.businessName}, generated by Limbu.ai.`,
+        title: `Business Health Report for ${dataSnapshot.businessName}`,
+        text: `Here is the health check report for ${dataSnapshot.businessName}, generated by Limbu.ai.`,
         files: [file],
       });
     } catch (error) {
@@ -192,10 +152,12 @@ export default function GBPAuditCard({ audit }) {
         console.error("Share failed:", error);
         alert("Oops! Something went wrong while trying to share the report.");
       }
+    } finally {
+      setIsExporting(false);
     }
-  };
+  }, [dataSnapshot.businessName]);
 
-  // Process Recommendation Signals for "Action Required"
+  // Process Recommendation Signals
   const actionItems = [];
   if (recommendationSignals) {
     Object.entries(recommendationSignals).forEach(([key, data]) => {
@@ -210,7 +172,6 @@ export default function GBPAuditCard({ audit }) {
     });
   }
 
-  // Sort by severity: High -> Medium -> Low
   const severityRank = { high: 1, medium: 2, low: 3 };
   actionItems.sort(
     (a, b) =>
@@ -218,11 +179,9 @@ export default function GBPAuditCard({ audit }) {
       (severityRank[b.severity?.toLowerCase()] || 99),
   );
 
-  // Process Successes for "What You're Doing Right"
   const successItems = [];
   if (scoreBreakdown) {
     scoreBreakdown.forEach((item) => {
-      // If score is perfect or high (>= 80%)
       if (item.outOf > 0 && item.score / item.outOf >= 0.8) {
         successItems.push(item.factor);
       }
@@ -236,7 +195,7 @@ export default function GBPAuditCard({ audit }) {
 
   const services = dataSnapshot.services || [];
 
-  const handleRedirect = (key) => {
+  const handleRedirect = useCallback((key) => {
     const routes = {
       reviews: "/review-management",
       posts: "/post-management",
@@ -250,7 +209,7 @@ export default function GBPAuditCard({ audit }) {
         router.push(routes[key]);
       }
     }
-  };
+  }, [router]);
 
   return (
     <div className="max-w-7xl mx-auto font-sans">
@@ -283,7 +242,7 @@ export default function GBPAuditCard({ audit }) {
                     border: "1px solid rgba(250, 204, 21, 0.2)",
                   }}
                 >
-                  <Trophy
+                  <Activity
                     className="w-4 h-4"
                     style={{ color: "var(--lemon-hover)" }}
                   />
@@ -295,15 +254,14 @@ export default function GBPAuditCard({ audit }) {
                     fontSize: "1.1rem",
                   }}
                 >
-                  GBP{" "}
+                  Business{" "}
                   <span style={{ color: "var(--lemon-hover)" }}>
-                    Performance Audit
+                    Health
                   </span>{" "}
                   Report
                 </h2>
                 {/* Audit Meta */}
                 <div className="flex justify-between items-end gap-3">
-                  {/* Report ID */}
                   <div
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase border border-slate-200"
                     style={{ backgroundColor: "#f8fafc", color: "#64748b" }}
@@ -312,57 +270,49 @@ export default function GBPAuditCard({ audit }) {
                       className="w-3.5 h-3.5"
                       style={{ color: "var(--lemon-hover)" }}
                     />
-                    <span>
-                      Report ID:{" "}
-                      {Math.random().toString(36).substr(2, 9).toUpperCase()}
-                    </span>
-                  </div>
-
-                  {/* Generated Date + Time (Same UI) */}
-                  <div
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase border border-slate-200"
-                    style={{ backgroundColor: "#f8fafc", color: "#64748b" }}
-                  >
-                    <Calendar
-                      className="w-3.5 h-3.5"
-                      style={{ color: "var(--lemon-hover)" }}
-                    />
-                    <span>Generated On: {new Date().toLocaleString()}</span>
+                    <span>Generated On: {date}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col lg:flex-row justify-between items-stretch gap-4">
+              <div className="flex flex-col gap-4">
                 {/* Business Info Glass Card */}
-                <div className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-sm">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                        <MapPin className="w-4 h-4 text-[var(--lemon-hover)]" />
+                <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 shadow-sm">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm shrink-0">
+                        <MapPin className="w-5 h-5 text-[var(--lemon-hover)]" />
                       </div>
-                      <div className="flex flex-col leading-tight">
-                        <span className="font-bold text-base text-slate-900 mb-1">
+                      <div className="flex flex-col w-full">
+                        <h3 className="font-bold text-lg text-slate-900 mb-1 leading-tight">
                           {dataSnapshot.businessName}
-                        </span>
-                        <span className="text-xs text-slate-500 leading-relaxed max-w-sm">
+                        </h3>
+                        <p className="text-sm text-slate-500 leading-relaxed w-full">
                           {dataSnapshot.storeAddress}
-                        </span>
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 pt-3 border-t border-slate-200 mt-2">
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-[var(--lemon-hover)]" />
-                        <span className="text-[11px] text-slate-600 font-bold">
-                          {dataSnapshot.phone}
-                        </span>
-                      </div>
-                      {dataSnapshot.website && (
-                        <div className="flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-[var(--lemon-hover)]" />
-                          <span className="text-[11px] text-slate-600 font-bold truncate max-w-[150px]">
-                            {dataSnapshot.website}
+                    <div className="flex flex-wrap gap-6 pt-4 border-t border-slate-200 mt-2">
+                      {dataSnapshot.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-[var(--lemon-hover)]" />
+                          <span className="text-xs text-slate-700 font-bold">
+                            {dataSnapshot.phone}
                           </span>
+                        </div>
+                      )}
+                      {dataSnapshot.website && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-[var(--lemon-hover)]" />
+                          <a 
+                            href={dataSnapshot.website} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-slate-700 font-bold truncate hover:text-blue-600 transition-colors"
+                          >
+                            {dataSnapshot.website}
+                          </a>
                         </div>
                       )}
                     </div>
@@ -373,63 +323,7 @@ export default function GBPAuditCard({ audit }) {
           </div>
 
           {/* Speedometer Gauge Section */}
-          <div
-            className="flex flex-col items-center py-10 relative overflow-hidden"
-            style={{
-              background: "linear-gradient(to bottom, #ffffff, #f8fafc)",
-            }}
-          >
-            <div className="relative z-10 w-full max-w-xl mx-auto px-6">
-              <div className="relative w-80 h-48 mx-auto">
-                <Speedometer score={animatedScore} />
-              </div>
-
-              <div className="text-center mt-4">
-                <div
-                  className="font-black leading-none mb-2"
-                  style={{
-                    fontFamily: "var(--font-heading)",
-                    fontSize: "clamp(3rem, 6vw, 4rem)",
-                    color: "var(--cyber-black)",
-                  }}
-                >
-                  {animatedScore}
-                  <span className="text-2xl opacity-30">/100</span>
-                </div>
-
-                <div
-                  className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-[11px] font-black tracking-widest uppercase shadow-sm transition-all duration-500"
-                  style={{
-                    backgroundColor: statusInfo.bg,
-                    color: statusInfo.text,
-                    border: `1.5px solid ${statusInfo.text}30`,
-                  }}
-                >
-                  {statusInfo.icon}
-                  {statusInfo.label}
-                  <span
-                    className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ backgroundColor: statusInfo.text }}
-                  />
-                </div>
-              </div>
-
-              <p
-                className="mt-6 text-[12px] max-w-md mx-auto text-center font-semibold leading-relaxed"
-                style={{ color: "var(--tech-gray)" }}
-              >
-                Based on{" "}
-                <span className="text-black font-black underline decoration-[var(--lemon-glow)] decoration-2 underline-offset-4">
-                  24 distinct signals
-                </span>
-                , your profile currently captures{" "}
-                <span className="text-black font-black text-sm">
-                  {animatedScore}%
-                </span>{" "}
-                of its local search potential.
-              </p>
-            </div>
-          </div>
+          <AnimatedSpeedometer targetScore={totalScore} />
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 px-6 pb-10">
@@ -563,22 +457,22 @@ export default function GBPAuditCard({ audit }) {
                   color: "var(--cyber-black)",
                 }}
               >
-                Deep <span style={{ color: "var(--lemon-hover)" }}>Signal</span>{" "}
-                Analysis
+                Detailed <span style={{ color: "var(--lemon-hover)" }}>Performance</span> Check
               </h3>
               <div className="w-12 h-1 bg-black mx-auto rounded-full" />
             </div>
 
-            <div className="flex flex-nowrap overflow-x-auto gap-4 pb-6 px-1 snap-x custom-scroll">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-6 px-1">
               {scoreBreakdown.map((item) => (
-                <ScoreItem
-                  key={item.factor}
-                  factor={item.factor}
-                  score={item.score}
-                  outOf={item.outOf}
-                  details={item.details || []}
-                  dataSnapshot={dataSnapshot}
-                />
+                <div key={item.factor} className="w-full">
+                  <ScoreItem
+                    factor={item.factor}
+                    score={item.score}
+                    outOf={item.outOf}
+                    details={item.details || []}
+                    dataSnapshot={dataSnapshot}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -589,7 +483,6 @@ export default function GBPAuditCard({ audit }) {
           {guidanceText && (
             <div className="mb-8">
               <div className="rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-slate-50">
-                {/* Subtle Grid */}
                 <div
                   className="pointer-events-none absolute inset-0 z-0 opacity-50"
                   style={{
@@ -608,10 +501,7 @@ export default function GBPAuditCard({ audit }) {
                       className="text-lg font-bold uppercase tracking-widest text-slate-900"
                       style={{ fontFamily: "var(--font-heading)" }}
                     >
-                      Strategic{" "}
-                      <span style={{ color: "var(--lemon-hover)" }}>
-                        Insights
-                      </span>
+                      Smart <span style={{ color: "var(--lemon-hover)" }}>Advice</span>
                     </h3>
                   </div>
 
@@ -697,18 +587,20 @@ export default function GBPAuditCard({ audit }) {
 
         <button
           onClick={handleDownloadPDF}
-          className="flex-1 max-w-[240px] py-3.5 rounded-xl text-[10px] font-bold tracking-[0.2em] uppercase transition-all border-2 border-slate-200 hover:border-slate-300 text-slate-700 bg-white flex items-center justify-center gap-2 cursor-pointer"
+          disabled={isExporting}
+          className="flex-1 max-w-[240px] py-3.5 rounded-xl text-[10px] font-bold tracking-[0.2em] uppercase transition-all border-2 border-slate-200 hover:border-slate-300 text-slate-700 bg-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <Download className="w-3.5 h-3.5" />
-          Save PDF
+          {isExporting ? "Processing..." : "Save PDF"}
         </button>
 
         <button
           onClick={handleShare}
-          className="flex-1 max-w-[240px] py-3.5 rounded-xl text-[10px] font-bold tracking-[0.2em] uppercase transition-all bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2 cursor-pointer"
+          disabled={isExporting}
+          className="flex-1 max-w-[240px] py-3.5 rounded-xl text-[10px] font-bold tracking-[0.2em] uppercase transition-all bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <Share2 className="w-3.5 h-3.5" />
-          Share Link
+          {isExporting ? "Processing..." : "Share Link"}
         </button>
       </div>
 
@@ -802,10 +694,202 @@ export default function GBPAuditCard({ audit }) {
   );
 }
 
+/* -------------------- OPTIMIZED SUB-COMPONENTS -------------------- */
+
+const AnimatedSpeedometer = React.memo(({ targetScore }) => {
+  const [animatedScore, setAnimatedScore] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const duration = 2000; // 2 seconds
+    const increment = targetScore / (duration / 16); // 60fps
+
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= targetScore) {
+        setAnimatedScore(targetScore);
+        clearInterval(timer);
+      } else {
+        setAnimatedScore(Math.floor(start));
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [targetScore]);
+
+  const getStatusColor = (score) => {
+    if (score >= 90)
+      return {
+        bg: "rgba(34, 197, 94, 0.1)",
+        text: "#16a34a",
+        label: "Great Shape",
+        icon: <Trophy className="w-4 h-4" />,
+      };
+    if (score >= 60)
+      return {
+        bg: "rgba(250, 204, 21, 0.1)",
+        text: "var(--lemon-hover)",
+        label: "Needs Work",
+        icon: <Zap className="w-4 h-4" />,
+      };
+    return {
+      bg: "rgba(239, 68, 68, 0.1)",
+      text: "#dc2626",
+      label: "Needs Urgent Fixes",
+      icon: <ShieldAlert className="w-4 h-4" />,
+    };
+  };
+
+  const statusInfo = getStatusColor(targetScore);
+
+  return (
+    <div
+      className="flex flex-col items-center py-10 relative overflow-hidden"
+      style={{ background: "linear-gradient(to bottom, #ffffff, #f8fafc)" }}
+    >
+      <div className="relative z-10 w-full max-w-xl mx-auto px-6">
+        <div className="relative w-80 h-48 mx-auto">
+          <Speedometer score={animatedScore} />
+        </div>
+
+        <div className="text-center mt-4">
+          <div
+            className="font-black leading-none mb-2"
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "clamp(3rem, 6vw, 4rem)",
+              color: "var(--cyber-black)",
+            }}
+          >
+            {animatedScore}
+            <span className="text-2xl opacity-30">/100</span>
+          </div>
+
+          <div
+            className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-[11px] font-black tracking-widest uppercase shadow-sm transition-all duration-500"
+            style={{
+              backgroundColor: statusInfo.bg,
+              color: statusInfo.text,
+              border: `1.5px solid ${statusInfo.text}30`,
+            }}
+          >
+            {statusInfo.icon}
+            {statusInfo.label}
+            <span
+              className="w-2 h-2 rounded-full animate-pulse"
+              style={{ backgroundColor: statusInfo.text }}
+            />
+          </div>
+        </div>
+
+        <p
+          className="mt-6 text-[12px] max-w-md mx-auto text-center font-semibold leading-relaxed"
+          style={{ color: "var(--tech-gray)" }}
+        >
+          Based on{" "}
+          <span className="text-black font-black underline decoration-[var(--lemon-glow)] decoration-2 underline-offset-4">
+            24 key success factors
+          </span>
+          , your profile currently captures{" "}
+          <span className="text-black font-black text-sm">
+            {animatedScore}%
+          </span>{" "}
+          of its potential customers.
+        </p>
+      </div>
+    </div>
+  );
+});
+AnimatedSpeedometer.displayName = "AnimatedSpeedometer";
+
+/* Speedometer Component */
+const Speedometer = React.memo(({ score }) => {
+  const radius = 140;
+  const strokeWidth = 24;
+  const center = 160;
+
+  const getCoords = (angleInDegrees) => {
+    const angleInRadians = (angleInDegrees * Math.PI) / 180;
+    return {
+      x: center + radius * Math.cos(angleInRadians),
+      y: center + radius * Math.sin(angleInRadians),
+    };
+  };
+
+  const start = getCoords(180);
+  const endRed = getCoords(288);
+  const endOrange = getCoords(324);
+  const endGreen = getCoords(360);
+
+  const needleAngle = 180 + (score / 100) * 180;
+  const needleRad = (needleAngle * Math.PI) / 180;
+  const needleLength = radius - 20;
+  const needleX = center + needleLength * Math.cos(needleRad);
+  const needleY = center + needleLength * Math.sin(needleRad);
+
+  const labels = [0, 25, 50, 75, 100];
+
+  return (
+    <svg width="320" height="200" viewBox="0 0 320 200" className="mx-auto">
+      <path
+        d={`M ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${endRed.x} ${endRed.y}`}
+        fill="none"
+        stroke="#ef4444"
+        strokeWidth={strokeWidth}
+      />
+      <path
+        d={`M ${endRed.x} ${endRed.y} A ${radius} ${radius} 0 0 1 ${endOrange.x} ${endOrange.y}`}
+        fill="none"
+        stroke="#fb923c"
+        strokeWidth={strokeWidth}
+      />
+      <path
+        d={`M ${endOrange.x} ${endOrange.y} A ${radius} ${radius} 0 0 1 ${endGreen.x} ${endGreen.y}`}
+        fill="none"
+        stroke="#22c55e"
+        strokeWidth={strokeWidth}
+      />
+      {labels.map((val) => {
+        const a = 180 + (val / 100) * 180;
+        const textRad = (a * Math.PI) / 180;
+        const textR = radius - 35;
+        const tx = center + textR * Math.cos(textRad);
+        const ty = center + textR * Math.sin(textRad);
+        return (
+          <text
+            key={val}
+            x={tx}
+            y={ty}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="text-xs font-bold"
+            fill="#6b7280"
+            style={{ fontSize: "12px" }}
+          >
+            {val}
+          </text>
+        );
+      })}
+      <circle cx={center} cy={center} r="45" fill="#1f2937" />
+      <line
+        x1={center}
+        y1={center}
+        x2={needleX}
+        y2={needleY}
+        stroke="#1f2937"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <circle cx={center} cy={center} r="6" fill="#ef4444" />
+    </svg>
+  );
+});
+Speedometer.displayName = "Speedometer";
+
 /* Score Breakdown Item */
-const ScoreItem = ({ factor, score, outOf, details, dataSnapshot }) => {
+const ScoreItem = React.memo(({ factor, score, outOf, details, dataSnapshot }) => {
   const percentage = outOf > 0 ? Math.round((score / outOf) * 100) : 0;
-  const circumference = 2 * Math.PI * 28; // 2 * pi * r
+  const circumference = 2 * Math.PI * 28;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   const getStrokeColor = (percentage) => {
@@ -817,7 +901,7 @@ const ScoreItem = ({ factor, score, outOf, details, dataSnapshot }) => {
   const strokeColor = getStrokeColor(percentage);
 
   return (
-    <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col text-center transition-all hover:shadow-lg hover:scale-105 h-full">
+    <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col text-center transition-all hover:shadow-lg hover:scale-105 min-w-[200px] h-full">
       <div className="flex-grow">
         <div className="relative w-20 h-20 mb-3 mx-auto">
           <svg className="w-full h-full" viewBox="0 0 60 60">
@@ -891,116 +975,11 @@ const ScoreItem = ({ factor, score, outOf, details, dataSnapshot }) => {
       )}
     </div>
   );
-};
-
-/* Speedometer Component */
-function Speedometer({ score }) {
-  const radius = 140;
-  const strokeWidth = 24;
-  const center = 160;
-
-  // Helper to calculate coordinates
-  const getCoords = (angleInDegrees) => {
-    const angleInRadians = (angleInDegrees * Math.PI) / 180;
-    return {
-      x: center + radius * Math.cos(angleInRadians),
-      y: center + radius * Math.sin(angleInRadians),
-    };
-  };
-
-  // Angles (0 score = 180 deg, 100 score = 360 deg)
-  // Red: 0-60 score -> 180 to 288 deg
-  // Orange: 60-80 score -> 288 to 324 deg
-  // Green: 80-100 score -> 324 to 360 deg
-
-  const start = getCoords(180);
-  const endRed = getCoords(288);
-  const endOrange = getCoords(324);
-  const endGreen = getCoords(360);
-
-  // Needle
-  const needleAngle = 180 + (score / 100) * 180;
-  const needleRad = (needleAngle * Math.PI) / 180;
-  const needleLength = radius - 20;
-  const needleX = center + needleLength * Math.cos(needleRad);
-  const needleY = center + needleLength * Math.sin(needleRad);
-
-  // Labels
-  const labels = [0, 25, 50, 75, 100];
-
-  return (
-    <svg width="320" height="200" viewBox="0 0 320 200" className="mx-auto">
-      {/* Red section (0-60) */}
-      <path
-        d={`M ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${endRed.x} ${endRed.y}`}
-        fill="none"
-        stroke="#ef4444"
-        strokeWidth={strokeWidth}
-      />
-
-      {/* Orange section (60-80) */}
-      <path
-        d={`M ${endRed.x} ${endRed.y} A ${radius} ${radius} 0 0 1 ${endOrange.x} ${endOrange.y}`}
-        fill="none"
-        stroke="#fb923c"
-        strokeWidth={strokeWidth}
-      />
-
-      {/* Green section (80-100) */}
-      <path
-        d={`M ${endOrange.x} ${endOrange.y} A ${radius} ${radius} 0 0 1 ${endGreen.x} ${endGreen.y}`}
-        fill="none"
-        stroke="#22c55e"
-        strokeWidth={strokeWidth}
-      />
-
-      {/* Labels */}
-      {labels.map((val) => {
-        const a = 180 + (val / 100) * 180;
-        // Adjust text position slightly inward
-        const textRad = (a * Math.PI) / 180;
-        const textR = radius - 35;
-        const tx = center + textR * Math.cos(textRad);
-        const ty = center + textR * Math.sin(textRad);
-        return (
-          <text
-            key={val}
-            x={tx}
-            y={ty}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="text-xs font-bold"
-            fill="#6b7280"
-            style={{ fontSize: "12px" }}
-          >
-            {val}
-          </text>
-        );
-      })}
-
-      {/* Center circle (decorative, darker) */}
-      <circle cx={center} cy={center} r="45" fill="#1f2937" />
-
-      {/* Needle */}
-      <line
-        x1={center}
-        y1={center}
-        x2={needleX}
-        y2={needleY}
-        stroke="#1f2937"
-        strokeWidth="4"
-        strokeLinecap="round"
-        className="transition-all duration-2000 ease-out"
-      />
-
-      {/* Center dot */}
-      <circle cx={center} cy={center} r="6" fill="#ef4444" />
-    </svg>
-  );
-}
+});
+ScoreItem.displayName = "ScoreItem";
 
 /* Stat Card */
-function StatCard({ icon, title, value, color }) {
+const StatCard = React.memo(({ icon, title, value, color }) => {
   return (
     <div
       className="group p-5 rounded-2xl border border-slate-100 text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden bg-white"
@@ -1008,12 +987,10 @@ function StatCard({ icon, title, value, color }) {
         boxShadow: "0 4px 20px -5px rgba(0,0,0,0.05)",
       }}
     >
-      {/* Decorative background circle */}
       <div
         className="absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-[0.03] group-hover:scale-150 transition-transform duration-500"
         style={{ backgroundColor: color }}
       />
-
       <div
         className="inline-flex p-2.5 rounded-xl mb-3 transition-colors duration-300"
         style={{
@@ -1023,29 +1000,28 @@ function StatCard({ icon, title, value, color }) {
       >
         {icon}
       </div>
-
       <div className="text-2xl font-black text-slate-900 leading-none">
         {value}
       </div>
-
       <div className="text-[10px] mt-1.5 font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">
         {title}
       </div>
     </div>
   );
-}
+});
+StatCard.displayName = "StatCard";
 
 /* Action Box */
-function ActionBox({ title, items, danger, onRedirect }) {
+const ActionBox = React.memo(({ title, items, danger, onRedirect }) => {
   const bgStyle = danger
     ? {
-        background: "linear-gradient(to bottom right, #fef2f2, #fff7ed)",
-        borderColor: "#fecaca",
-      }
+      background: "linear-gradient(to bottom right, #fef2f2, #fff7ed)",
+      borderColor: "#fecaca",
+    }
     : {
-        background: "linear-gradient(to bottom right, #f0fdf4, #ecfdf5)",
-        borderColor: "#bbf7d0",
-      };
+      background: "linear-gradient(to bottom right, #f0fdf4, #ecfdf5)",
+      borderColor: "#bbf7d0",
+    };
 
   const titleColor = danger ? "#b91c1c" : "#15803d";
 
@@ -1130,4 +1106,5 @@ function ActionBox({ title, items, danger, onRedirect }) {
       )}
     </div>
   );
-}
+});
+ActionBox.displayName = "ActionBox";

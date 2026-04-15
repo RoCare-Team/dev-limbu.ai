@@ -53,7 +53,7 @@ const navItems = [
 ];
 
 const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
-      const pathname = usePathname();
+    const pathname = usePathname();
     return (
         <div className="w-full py-2 px-3  rounded-2xl  mb-8">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-5">
@@ -86,12 +86,7 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                                 }
               `}
                         >
-                            {/* FREE Badge */}
-                            {item.isFree && (
-                                <div className="absolute top-3 right-3 text-green-500 animate-pulse" title="Free Tool">
-                                    <Sparkles size={14} />
-                                </div>
-                            )}
+
 
                             {/* ICON */}
                             <div

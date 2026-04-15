@@ -182,6 +182,7 @@ export async function PUT(req) {
       whenPosted,
       scheduledDateSource,
       fbPages,
+      aiOutput,
       igPages,
       videoOutput,
       videoPrompt,
@@ -197,6 +198,7 @@ export async function PUT(req) {
       checkmark,
       hasRefreshToken: !!refreshToken,
       whenPosted,
+      aiOutput,
       scheduledDateSource
     });
 
@@ -273,6 +275,11 @@ export async function PUT(req) {
     if (typeof description === "string") {
       updateData.description = description;
     }
+
+    if (typeof aiOutput === "string") {
+      updateData.aiOutput = aiOutput;
+    }
+
     if (typeof gmbDescription === "string") {
       updateData.gmbDescription = gmbDescription;
     }
@@ -303,6 +310,7 @@ export async function PUT(req) {
       updateData.error = postError;
     }
 
+    
     if (whenPosted !== undefined && whenPosted !== null) {
       // Handle partial updates for whenPosted object (e.g. { facebook: "..." })
       if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {

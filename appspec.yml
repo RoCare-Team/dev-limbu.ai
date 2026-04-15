@@ -3,7 +3,7 @@ os: linux
 file_exists_behavior: OVERWRITE
 files:
   - source: /
-    destination: /home/ec2-user/waterpurifiercareindia
+    destination: /home/ec2-user/gmb-automation
    
 hooks:
   ApplicationStop:

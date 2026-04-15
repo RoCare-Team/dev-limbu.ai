@@ -3,16 +3,19 @@ os: linux
 file_exists_behavior: OVERWRITE
 files:
   - source: /
-    destination: /home/ec2-user/gmb-automation
+    destination: /home/ec2-user/waterpurifiercareindia
+   
 hooks:
   ApplicationStop:
     - location: scripts/stop.sh
       timeout: 300
       runas: ec2-user
-  BeforeInstall:
+
+  AfterInstall:
     - location: scripts/install.sh
       timeout: 300
       runas: ec2-user
+
   ApplicationStart:
     - location: scripts/start.sh
       timeout: 300

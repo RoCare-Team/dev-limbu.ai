@@ -5,8 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bot,
   FileText,
+  Headset,
   Loader2,
   MessageCircle,
   Paperclip,
@@ -16,6 +16,64 @@ import {
   X,
   Upload,
 } from "lucide-react";
+
+/** Add `public/limbu-customer-executive.png` (customer executive headshot) for the chat avatar. */
+const EXECUTIVE_AVATAR_SRC = "/limbu-customer-executive.png";
+
+const URL_SPLIT_RE = /(https?:\/\/[^\s<>"']+)/gi;
+
+function renderTextWithLinks(text, linkClassName) {
+  if (!text) return null;
+  const segments = text.split(URL_SPLIT_RE);
+  return segments.map((seg, i) => {
+    if (/^https?:\/\//i.test(seg)) {
+      let href = seg.replace(/[),.;:!?]+$/, "");
+      const trailing = seg.slice(href.length);
+      return (
+        <span key={i}>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClassName}
+          >
+            {href}
+          </a>
+          {trailing}
+        </span>
+      );
+    }
+    return <span key={i}>{seg}</span>;
+  });
+}
+
+function ExecutiveAvatar({
+  sizeClass = "h-8 w-8",
+  iconClass = "h-4 w-4",
+  ringClass = "ring-2 ring-white",
+}) {
+  const [useFallback, setUseFallback] = useState(false);
+  if (useFallback) {
+    return (
+      <div
+        className={`flex shrink-0 items-center justify-center rounded-full bg-[#FFC107] text-[#0B0F19] shadow-sm ${ringClass} ${sizeClass}`}
+        aria-hidden
+      >
+        <Headset className={iconClass} strokeWidth={2.25} />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={EXECUTIVE_AVATAR_SRC}
+      alt=""
+      width={64}
+      height={64}
+      className={`shrink-0 rounded-full object-cover shadow-sm ${ringClass} ${sizeClass}`}
+      onError={() => setUseFallback(true)}
+    />
+  );
+}
 
 const USER_ID_KEY = "limbu_ai_chat_user_id";
 const WELCOME_MSG_ID = "limbu-welcome";
@@ -67,9 +125,7 @@ function TypingIndicator() {
       exit={{ opacity: 0 }}
       className="flex items-end gap-2"
     >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FFC107] text-[#0B0F19] ring-2 ring-white shadow-sm">
-        <Bot className="h-4 w-4" strokeWidth={2.5} />
-      </div>
+      <ExecutiveAvatar sizeClass="h-8 w-8" iconClass="h-4 w-4" />
       <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <span
           className="h-2 w-2 rounded-full bg-[#FFC107] animate-bounce"
@@ -166,7 +222,7 @@ export default function LimbuAiChatWidget() {
       const welcome = {
         id: WELCOME_MSG_ID,
         role: "assistant",
-        text: `${nameBit}Main Limbu AI hoon — GMB, local SEO ya marketing par poochho.\n\nGoogle Business setup: ${siteOrigin}${connectHref}`,
+        text: `${nameBit}Hi Welcome to Limbu Ai`,
         createdAt,
       };
       if (prev.length === 0) return [welcome];
@@ -299,7 +355,7 @@ export default function LimbuAiChatWidget() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: `Google Business setup ke liye yeh page kholein:\n${setupUrl}`,
+          text: `Google Business setup ke liye yeh page kholein:\n${setupUrl}\n\nFlow complete karke Continue dabane ke baad yahi chat khulega — result chatbot / backend ko webhook ya poll API se mil jata hai (same chat user id).`,
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -441,9 +497,11 @@ export default function LimbuAiChatWidget() {
             className="flex items-center gap-2.5 rounded-full bg-[#0B0F19] px-5 py-3.5 text-white shadow-[0_12px_40px_-8px_rgba(11,15,25,0.55)]"
             aria-label="Open Limbu AI chat"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFC107] text-[#0B0F19] ring-2 ring-amber-200/50 shadow-inner">
-              <Bot className="h-5 w-5" strokeWidth={2.25} />
-            </span>
+            <ExecutiveAvatar
+              sizeClass="h-9 w-9"
+              iconClass="h-5 w-5"
+              ringClass="ring-2 ring-amber-200/50"
+            />
             <span className="text-sm font-semibold tracking-tight">
               Limbu AI
             </span>
@@ -532,19 +590,13 @@ export default function LimbuAiChatWidget() {
                     }`}
                   >
                     {/* Avatar */}
-                    <div
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-2 ring-white shadow-sm ${
-                        item.role === "user"
-                          ? "bg-[#374151] text-white"
-                          : "bg-[#FFC107] text-[#0B0F19]"
-                      }`}
-                    >
-                      {item.role === "user" ? (
+                    {item.role === "user" ? (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#374151] text-white ring-2 ring-white shadow-sm">
                         <User className="h-4 w-4" />
-                      ) : (
-                        <Bot className="h-4 w-4" strokeWidth={2.5} />
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <ExecutiveAvatar sizeClass="h-8 w-8" iconClass="h-4 w-4" />
+                    )}
 
                     {/* Bubble */}
                     <div
@@ -602,7 +654,12 @@ export default function LimbuAiChatWidget() {
                         {/* Text */}
                         {item.text && (
                           <p className="whitespace-pre-wrap break-words">
-                            {item.text}
+                            {renderTextWithLinks(
+                              item.text,
+                              item.role === "user"
+                                ? "font-medium text-[#0B0F19] underline decoration-[#0B0F19]/40 underline-offset-2 break-all"
+                                : "font-medium text-blue-600 underline decoration-blue-600/40 underline-offset-2 break-all hover:text-blue-700"
+                            )}
                           </p>
                         )}
                         {item.role === "assistant" && item.linkCta?.href && (

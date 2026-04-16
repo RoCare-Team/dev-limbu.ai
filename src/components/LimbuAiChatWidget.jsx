@@ -76,7 +76,39 @@ function ExecutiveAvatar({
 }
 
 const USER_ID_KEY = "limbu_ai_chat_user_id";
+const MESSAGES_STORAGE_KEY = "limbu_ai_chat_messages_v1";
 const WELCOME_MSG_ID = "limbu-welcome";
+
+/** Persistable copy: drop blob URLs so session survives full page reload (e.g. Google OAuth). */
+function serializeMessagesForStorage(messages) {
+  return messages.map((m) => ({
+    id: m.id,
+    role: m.role,
+    text: m.text,
+    createdAt: m.createdAt,
+    intent: m.intent,
+    linkCta: m.linkCta,
+    attachments: (m.attachments || [])
+      .map((a) => {
+        const url = a.url && !String(a.url).startsWith("blob:") ? a.url : null;
+        const previewUrl =
+          a.previewUrl && !String(a.previewUrl).startsWith("blob:")
+            ? a.previewUrl
+            : null;
+        const kept = url || previewUrl;
+        if (!kept && a.isImage) return null;
+        return {
+          id: a.id,
+          name: a.name,
+          isImage: a.isImage,
+          ...(kept
+            ? { url: url || previewUrl, previewUrl: previewUrl || url || undefined }
+            : {}),
+        };
+      })
+      .filter(Boolean),
+  }));
+}
 /** Clean entry: OAuth → home with chat + GMB sync (saveBussiness) */
 export const LIMBU_CONNECT_BUSINESS_PATH = "/connect-google-business";
 const MAX_FILES = 6;
@@ -194,6 +226,7 @@ export default function LimbuAiChatWidget() {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const scrollRef = useRef(null);
+  const wasChatOpenRef = useRef(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -211,12 +244,22 @@ export default function LimbuAiChatWidget() {
     if (typeof window !== "undefined") setSiteOrigin(window.location.origin);
   }, []);
 
-  // Welcome: text only (no Business setup button — flow is on /connect-google-business)
+  // Restore transcript after full reload (OAuth), then merge welcome line when needed
   useEffect(() => {
     if (!siteOrigin) return;
     setMessages((prev) => {
+      let base = prev;
+      if (prev.length === 0 && typeof window !== "undefined") {
+        try {
+          const raw = sessionStorage.getItem(MESSAGES_STORAGE_KEY);
+          const arr = raw ? JSON.parse(raw) : null;
+          if (Array.isArray(arr) && arr.length > 0) base = arr;
+        } catch {
+          /* ignore */
+        }
+      }
       const createdAt =
-        prev.find((m) => m.id === WELCOME_MSG_ID)?.createdAt ||
+        base.find((m) => m.id === WELCOME_MSG_ID)?.createdAt ||
         new Date().toISOString();
       const nameBit = firstName ? `Hi ${firstName}, ` : "";
       const welcome = {
@@ -225,19 +268,49 @@ export default function LimbuAiChatWidget() {
         text: `${nameBit}Hi Welcome to Limbu Ai`,
         createdAt,
       };
-      if (prev.length === 0) return [welcome];
-      if (prev[0]?.id === WELCOME_MSG_ID) {
-        return [welcome, ...prev.slice(1)];
+      if (base.length === 0) return [welcome];
+      if (base[0]?.id === WELCOME_MSG_ID) {
+        return [welcome, ...base.slice(1)];
       }
-      return prev;
+      return base;
     });
   }, [connectHref, siteOrigin, firstName]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (messages.length === 0) return;
+    try {
+      sessionStorage.setItem(
+        MESSAGES_STORAGE_KEY,
+        JSON.stringify(serializeMessagesForStorage(messages))
+      );
+    } catch {
+      /* quota or private mode */
+    }
+  }, [messages]);
 
   // Deep link: open chat from ?limbu_chat=1 (e.g. after OAuth return)
   useEffect(() => {
     if (pathname !== "/") return;
     if (searchParams.get("limbu_chat") === "1") setIsOpen(true);
   }, [pathname, searchParams]);
+
+  // Focus composer when chat opens or when landing on home with ?limbu_chat=1 (e.g. after connect)
+  useEffect(() => {
+    if (pathname !== "/" || !isOpen) {
+      wasChatOpenRef.current = isOpen;
+      return;
+    }
+    const wasOpen = wasChatOpenRef.current;
+    wasChatOpenRef.current = true;
+    const justOpened = !wasOpen && isOpen;
+    const fromConnectReturn = searchParams.get("limbu_chat") === "1";
+    if (!justOpened && !fromConnectReturn) return;
+    const id = window.setTimeout(() => {
+      textareaRef.current?.focus({ preventScroll: true });
+    }, 100);
+    return () => clearTimeout(id);
+  }, [isOpen, pathname, searchParams]);
 
   useEffect(() => {
     setUserId(getOrCreateUserId());
@@ -730,8 +803,14 @@ export default function LimbuAiChatWidget() {
               </div>
             )}
 
-            {/* Footer / input */}
-            <footer className="shrink-0 border-t border-slate-100 bg-white px-3 pb-3 pt-2.5">
+            {/* Footer / input — hover focuses textarea so typing works without extra clicks */}
+            <footer
+              className="shrink-0 border-t border-slate-100 bg-white px-3 pb-3 pt-2.5"
+              onMouseEnter={() => {
+                if (isSending) return;
+                textareaRef.current?.focus({ preventScroll: true });
+              }}
+            >
               <div className="flex items-end gap-2">
                 <button
                   type="button"

@@ -23,8 +23,8 @@ function rand(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/* ─── CALENDAR COMPONENT ─── */
-function CalendarPicker({ value, onChange, onClose }) {
+/* ─── CALENDAR DROPDOWN ─── */
+function CalendarDropdown({ value, onChange, onClose }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -48,10 +48,7 @@ function CalendarPicker({ value, onChange, onClose }) {
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const isPast = (d) => {
-    const cell = new Date(year, month, d);
-    return cell < today;
-  };
+  const isPast = (d) => new Date(year, month, d) < today;
 
   const isSelected = (d) => {
     if (!value || !d) return false;
@@ -59,74 +56,47 @@ function CalendarPicker({ value, onChange, onClose }) {
     return sel.getFullYear() === year && sel.getMonth() === month && sel.getDate() === d;
   };
 
-  const isToday = (d) => {
-    return today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
-  };
+  const isToday = (d) =>
+    today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
   const handleSelect = (d) => {
     if (!d || isPast(d)) return;
-    const selected = new Date(year, month, d);
-    onChange(selected);
+    onChange(new Date(year, month, d));
     onClose();
   };
 
   return (
     <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-[#111] border border-white/15 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
-      {/* Calendar Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
-        <button
-          type="button"
-          onClick={prevMonth}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/50 hover:text-white transition-all"
-        >
+        <button type="button" onClick={prevMonth}
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/50 hover:text-white transition-all">
           <ChevronLeft size={15} />
         </button>
-        <span className="text-sm font-bold text-white tracking-wide">
-          {MONTHS[month]} {year}
-        </span>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/50 hover:text-white transition-all"
-        >
+        <span className="text-sm font-bold text-white tracking-wide">{MONTHS[month]} {year}</span>
+        <button type="button" onClick={nextMonth}
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/50 hover:text-white transition-all">
           <ChevronRight size={15} />
         </button>
       </div>
-
       <div className="p-3">
-        {/* Day Labels */}
         <div className="grid grid-cols-7 mb-1">
           {DAYS.map((d) => (
-            <div key={d} className="text-center text-[11px] font-semibold text-white/25 py-1">
-              {d}
-            </div>
+            <div key={d} className="text-center text-[11px] font-semibold text-white/25 py-1">{d}</div>
           ))}
         </div>
-
-        {/* Date Grid */}
         <div className="grid grid-cols-7 gap-y-0.5">
           {cells.map((d, i) => {
             const past = d ? isPast(d) : false;
             const selected = isSelected(d);
             const todayCell = isToday(d);
-
             return (
-              <button
-                key={i}
-                type="button"
-                disabled={!d || past}
-                onClick={() => handleSelect(d)}
-                className={`
-                  relative w-full aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
+              <button key={i} type="button" disabled={!d || past} onClick={() => handleSelect(d)}
+                className={`relative w-full aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
                   ${!d ? "invisible" : ""}
                   ${past ? "text-white/15 cursor-not-allowed" : "cursor-pointer"}
                   ${selected
                     ? "bg-gradient-to-br from-yellow-400 to-amber-400 text-black font-black shadow-lg shadow-yellow-400/20"
-                    : !past && d
-                    ? "hover:bg-white/8 text-white/80 hover:text-white"
-                    : ""}
-                `}
-              >
+                    : !past && d ? "hover:bg-white/8 text-white/80 hover:text-white" : ""}`}>
                 {d}
                 {todayCell && !selected && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-yellow-400" />
@@ -136,22 +106,145 @@ function CalendarPicker({ value, onChange, onClose }) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Time Slot Row */}
-      <div className="border-t border-white/8 px-4 py-3">
-        <p className="text-[11px] text-white/30 font-semibold uppercase tracking-widest mb-2">Available Times</p>
-        <div className="flex gap-2 flex-wrap">
-          {["10:00 AM", "12:00 PM", "4:00 PM", "7:00 PM"].map((t) => (
-            <button
-              key={t}
-              type="button"
-              className="px-3 py-1.5 rounded-lg text-[12px] font-semibold border border-white/10 text-white/50 hover:border-yellow-400/50 hover:text-yellow-300 hover:bg-yellow-400/5 transition-all"
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+/* ─── DATE PICKER FIELD — manual typing + calendar ─── */
+function DatePickerField({ value, onChange }) {
+  const [calOpen, setCalOpen] = useState(false);
+  const [textVal, setTextVal] = useState(() => {
+    if (!value) return "";
+    const d = new Date(value);
+    return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
+  });
+  const [inputError, setInputError] = useState("");
+  const wrapRef = useRef(null);
+
+  /* sync text when calendar picks a date */
+  useEffect(() => {
+    if (!value) return;
+    const d = new Date(value);
+    setTextVal(`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`);
+  }, [value]);
+
+  /* outside click closes calendar */
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setCalOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* auto-insert slashes: DD/MM/YYYY */
+  const handleTextChange = (e) => {
+    let raw = e.target.value.replace(/\D/g, "");
+    if (raw.length > 8) raw = raw.slice(0, 8);
+
+    let formatted = raw;
+    if (raw.length >= 3) formatted = raw.slice(0,2) + "/" + raw.slice(2);
+    if (raw.length >= 5) formatted = raw.slice(0,2) + "/" + raw.slice(2,4) + "/" + raw.slice(4);
+
+    setTextVal(formatted);
+    setInputError("");
+
+    if (raw.length === 8) {
+      const dd   = parseInt(raw.slice(0,2), 10);
+      const mm   = parseInt(raw.slice(2,4), 10) - 1;
+      const yyyy = parseInt(raw.slice(4,8), 10);
+      const parsed = new Date(yyyy, mm, dd);
+      const todayCheck = new Date(); todayCheck.setHours(0,0,0,0);
+
+      if (parsed.getFullYear() !== yyyy || parsed.getMonth() !== mm || parsed.getDate() !== dd) {
+        setInputError("Invalid date — use DD/MM/YYYY");
+        return;
+      }
+      if (parsed < todayCheck) {
+        setInputError("Date cannot be in the past");
+        return;
+      }
+      onChange(parsed);
+    } else {
+      if (value) onChange(null);
+    }
+  };
+
+  const handleClear = () => {
+    setTextVal("");
+    setInputError("");
+    onChange(null);
+  };
+
+  const formatDisplay = (d) =>
+    d ? d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : null;
+
+  const hasError = !!inputError;
+
+  return (
+    <div className="relative" ref={wrapRef}>
+
+      {/* Input row */}
+      <div className={`flex items-center rounded-xl border overflow-hidden transition-all
+        ${hasError ? "border-red-500/50 bg-red-950/10" : value ? "border-yellow-400/40 bg-yellow-400/5" : "border-white/10 bg-white/5"}
+        focus-within:border-yellow-400/60`}>
+
+        {/* Calendar icon — opens/closes dropdown */}
+        <button type="button" onClick={() => setCalOpen((v) => !v)}
+          className="flex items-center justify-center w-10 h-11 flex-shrink-0 transition-colors"
+          title="Pick from calendar">
+          <CalendarDays size={15} className={value ? "text-yellow-400" : "text-white/30"} />
+        </button>
+
+        {/* Manual text input */}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={textVal}
+          onChange={handleTextChange}
+          onFocus={() => setCalOpen(false)}
+          placeholder="DD/MM/YYYY"
+          maxLength={10}
+          className="flex-1 bg-transparent py-3 text-sm text-white placeholder:text-white/25 focus:outline-none"
+        />
+
+        {/* Clear X */}
+        {(value || textVal) && (
+          <button type="button" onClick={handleClear}
+            className="w-9 h-11 flex items-center justify-center text-white/25 hover:text-white/60 transition-colors flex-shrink-0">
+            <X size={13} />
+          </button>
+        )}
+
+        {/* Chevron hint when empty */}
+        {!value && !textVal && (
+          <button type="button" onClick={() => setCalOpen((v) => !v)}
+            className="w-9 h-11 flex items-center justify-center text-white/20 flex-shrink-0">
+            <ChevronRight size={13} className={`transition-transform duration-200 ${calOpen ? "rotate-90" : ""}`} />
+          </button>
+        )}
       </div>
+
+      {/* Friendly parsed date label */}
+      {value && !hasError && (
+        <p className="text-[11px] text-yellow-400/70 mt-1.5 px-1 flex items-center gap-1">
+          <span>📅</span> {formatDisplay(value)}
+        </p>
+      )}
+
+      {/* Inline validation error */}
+      {hasError && (
+        <p className="text-[11px] text-red-400 mt-1.5 px-1 font-semibold">{inputError}</p>
+      )}
+
+      {/* Calendar dropdown */}
+      {calOpen && (
+        <CalendarDropdown
+          value={value}
+          onChange={(d) => { onChange(d); setCalOpen(false); }}
+          onClose={() => setCalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -161,50 +254,31 @@ function FormCard() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({ name: "", contact: "", business: "", selectedDate: null });
-  const [calOpen, setCalOpen]     = useState(false);
-  const [error, setError]         = useState("");
+  const [error, setError]       = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const calRef = useRef(null);
 
-  /* helpers */
+  const formatDateISO = (d) => {
+    if (!d) return "";
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+
   const formatDate = (d) => {
     if (!d) return null;
     return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "long" });
   };
 
-  const formatDateISO = (d) => {
-    if (!d) return "";
-    const dd   = String(d.getDate()).padStart(2, "0");
-    const mm   = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const isSunday  = formData.selectedDate ? new Date(formData.selectedDate).getDay() === 0 : false;
-  const day       = formData.selectedDate ? new Date(formData.selectedDate).getDay() : null;
+  const isSunday    = formData.selectedDate ? new Date(formData.selectedDate).getDay() === 0 : false;
+  const day         = formData.selectedDate ? new Date(formData.selectedDate).getDay() : null;
   const webinarTime = day === 5 ? "5:30 PM IST" : "4:00 PM IST";
 
-  /* close calendar on outside click */
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (calRef.current && !calRef.current.contains(e.target)) setCalOpen(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  /* input change */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError("");
   };
 
-  /* submit */
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    /* basic validation */
     if (!formData.name.trim())    return setError("Please enter your full name.");
     if (!formData.contact.trim()) return setError("Please enter your WhatsApp number.");
     if (!/^\d{10}$/.test(formData.contact.trim())) return setError("Enter a valid 10-digit WhatsApp number.");
@@ -227,9 +301,7 @@ function FormCard() {
           status:       "Not Attended",
         }),
       });
-
       const result = await response.json();
-
       if (result.success) {
         const query = new URLSearchParams({
           name:  formData.name.trim(),
@@ -250,11 +322,8 @@ function FormCard() {
 
   return (
     <div className="relative bg-[#111] rounded-2xl overflow-visible shadow-2xl">
-
-      {/* Gold top bar */}
       <div className="h-1 w-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-t-2xl" />
 
-      {/* Urgency strip */}
       <div className="bg-red-950/60 border-b border-red-500/20 px-5 py-3 flex items-center gap-3">
         <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
         <p className="text-xs text-red-300 font-semibold">
@@ -264,8 +333,6 @@ function FormCard() {
       </div>
 
       <div className="p-5 sm:p-6">
-
-        {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="font-black text-lg text-white">Book Your Free Seat</h2>
@@ -278,101 +345,41 @@ function FormCard() {
           </div>
         </div>
 
-        {/* ── Form ── */}
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-3">
 
             {/* Name */}
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 text-sm select-none">👤</span>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Your full name"
-                autoComplete="name"
-                className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-yellow-400/60 focus:bg-yellow-400/5 transition-all"
-              />
+              <input type="text" name="name" value={formData.name} onChange={handleInputChange}
+                placeholder="Your full name" autoComplete="name"
+                className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-yellow-400/60 focus:bg-yellow-400/5 transition-all" />
             </div>
 
             {/* WhatsApp */}
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 text-sm select-none">📱</span>
-              <input
-                type="tel"
-                name="contact"
-                value={formData.contact}
-                onChange={handleInputChange}
-                placeholder="WhatsApp number (10 digits)"
-                maxLength={10}
-                autoComplete="tel"
-                className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-yellow-400/60 focus:bg-yellow-400/5 transition-all"
-              />
+              <input type="tel" name="contact" value={formData.contact} onChange={handleInputChange}
+                placeholder="WhatsApp number (10 digits)" maxLength={10} autoComplete="tel"
+                className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-yellow-400/60 focus:bg-yellow-400/5 transition-all" />
             </div>
 
             {/* Business */}
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 text-sm select-none">🏢</span>
-              <input
-                type="text"
-                name="business"
-                value={formData.business}
-                onChange={handleInputChange}
+              <input type="text" name="business" value={formData.business} onChange={handleInputChange}
                 placeholder="Business name (optional)"
-                className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-yellow-400/60 focus:bg-yellow-400/5 transition-all"
-              />
+                className="w-full pl-9 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-yellow-400/60 focus:bg-yellow-400/5 transition-all" />
             </div>
 
-            {/* ── Calendar Date Picker ── */}
-            <div className="relative" ref={calRef}>
-              <button
-                type="button"
-                onClick={() => setCalOpen((v) => !v)}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm border transition-all text-left
-                  ${formData.selectedDate
-                    ? "bg-yellow-400/8 border-yellow-400/40 text-white"
-                    : "bg-white/5 border-white/10 text-white/40 hover:border-white/20"}
-                `}
-              >
-                <CalendarDays
-                  size={15}
-                  className={formData.selectedDate ? "text-yellow-400 flex-shrink-0" : "text-white/25 flex-shrink-0"}
-                />
-                <span className={`flex-1 ${formData.selectedDate ? "font-semibold text-white" : ""}`}>
-                  {formData.selectedDate ? formatDate(formData.selectedDate) : "Select preferred date"}
-                </span>
-                {formData.selectedDate ? (
-                  <span
-                    className="text-white/30 hover:text-white/60 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFormData((p) => ({ ...p, selectedDate: null }));
-                      if (error) setError("");
-                    }}
-                  >
-                    <X size={13} />
-                  </span>
-                ) : (
-                  <ChevronRight
-                    size={13}
-                    className={`transition-transform duration-200 text-white/25 ${calOpen ? "rotate-90" : ""}`}
-                  />
-                )}
-              </button>
-
-              {calOpen && (
-                <CalendarPicker
-                  value={formData.selectedDate}
-                  onChange={(d) => {
-                    setFormData((p) => ({ ...p, selectedDate: d }));
-                    if (error) setError("");
-                  }}
-                  onClose={() => setCalOpen(false)}
-                />
-              )}
-            </div>
+            {/* ── NEW Date Picker ── */}
+            <DatePickerField
+              value={formData.selectedDate}
+              onChange={(d) => {
+                setFormData((p) => ({ ...p, selectedDate: d }));
+                if (error) setError("");
+              }}
+            />
 
             {/* Sunday warning */}
             {isSunday && (
@@ -400,7 +407,7 @@ function FormCard() {
               </div>
             )}
 
-            {/* Error message */}
+            {/* Error */}
             {error && (
               <div className="flex items-start gap-2 bg-red-950/60 border border-red-500/30 rounded-xl px-4 py-2.5 animate-fadeIn">
                 <span className="text-red-400 text-sm mt-0.5 flex-shrink-0">⚠</span>
@@ -409,33 +416,21 @@ function FormCard() {
             )}
 
             {/* CTA */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 disabled:opacity-60 disabled:cursor-not-allowed text-black font-black rounded-xl text-sm sm:text-base transition-all active:scale-[0.98] shadow-lg shadow-yellow-400/20 mt-1 flex items-center justify-center gap-2"
-            >
+            <button type="submit" disabled={isSubmitting}
+              className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 disabled:opacity-60 disabled:cursor-not-allowed text-black font-black rounded-xl text-sm sm:text-base transition-all active:scale-[0.98] shadow-lg shadow-yellow-400/20 mt-1 flex items-center justify-center gap-2">
               {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Booking your seat…</span>
-                </>
-              ) : (
-                "🚀 Reserve My FREE Seat Now"
-              )}
+                <><Loader2 size={16} className="animate-spin" /><span>Booking your seat…</span></>
+              ) : "🚀 Reserve My FREE Seat Now"}
             </button>
 
-            {/* Seats warning */}
             <div className="flex items-center justify-center gap-1.5 pt-1">
               <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-              <p className="text-[11px] text-red-400 font-semibold text-center">
-                Limited seats — register before it fills up
-              </p>
+              <p className="text-[11px] text-red-400 font-semibold text-center">Limited seats — register before it fills up</p>
             </div>
 
           </div>
         </form>
 
-        {/* Trust row */}
         <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-white/5 text-[11px] text-white/25">
           <span className="flex items-center gap-1"><ShieldCheck size={10} /> No spam</span>
           <span>·</span>
@@ -544,9 +539,50 @@ function LiveToast({ user }) {
   );
 }
 
+/* ─── AUTO MODAL ─── */
+function AutoModal({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.88)" }}
+    >
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl">
+        {/* Close button — near-black so user doesn't spot it quickly */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "-28px",
+            right: "4px",
+            color: "#1c1c1c",
+            fontSize: "11px",
+            fontWeight: "600",
+            letterSpacing: "0.05em",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px 8px",
+            zIndex: 10,
+            userSelect: "none",
+          }}
+        >
+          ✕ close
+        </button>
+        <FormCard />
+      </div>
+    </div>
+  );
+}
+
 /* ─── PAGE ─── */
 export default function WebinarPage() {
   const [liveUser, setLiveUser] = useState(rand(names) + " from " + rand(cities) + " just joined");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setModalOpen(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -567,6 +603,7 @@ export default function WebinarPage() {
       </div>
       <FooterSection />
       <LiveToast user={liveUser} />
+      {modalOpen && <AutoModal onClose={() => setModalOpen(false)} />}
     </>
   );
 }

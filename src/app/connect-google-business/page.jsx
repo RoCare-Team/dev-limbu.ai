@@ -156,7 +156,7 @@ function ConnectGoogleBusinessInner() {
         } catch {}
       }
 
-      router.push("/?limbu_chat=1");
+      router.replace("/?limbu_chat=1");
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {

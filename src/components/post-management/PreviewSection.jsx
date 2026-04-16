@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   CheckCircle,
   Calendar,
@@ -28,7 +28,16 @@ import {
 } from "@/lib/postMediaUrls";
 import Image from "next/image";
 
-const PreviewSection = ({
+const STATUS_CONFIG = {
+  approved: "bg-green-500/10 text-green-400 border-green-500/30",
+  pending: "bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/30",
+  posted: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+  scheduled: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  failed: "bg-red-500/10 text-red-400 border-red-500/30",
+  default: "bg-blue-500/10 text-blue-400 border-blue-500/30"
+};
+
+const PreviewSection = React.memo(({
   isGenerating,
   previewData,
   onDownload,
@@ -54,14 +63,13 @@ const PreviewSection = ({
     if (previewData) {
       setEditedDesc(previewData.description || "");
     }
-  }, [previewData]);
+  }, [previewData?.description]);
 
   useEffect(() => {
     setMediaTab("image");
     lastVideoOutputRef.current = "";
   }, [previewData?._id]);
 
-  /** When a video is first attached to this post, open the Video tab. */
   useEffect(() => {
     const vo = previewData?.videoOutput || "";
     const img = postImageUrl(previewData);
@@ -69,18 +77,59 @@ const PreviewSection = ({
       lastVideoOutputRef.current = vo;
       setMediaTab("video");
     }
-  }, [previewData?.videoOutput, previewData?._id]);
+  }, [previewData?.videoOutput, previewData?._id, previewData]);
+
+  const imgUrl = useMemo(() => postImageUrl(previewData), [previewData]);
+  const vidUrl = useMemo(() => postVideoUrl(previewData), [previewData]);
+  const dualMedia = useMemo(() => Boolean(imgUrl && vidUrl), [imgUrl, vidUrl]);
+  
+  const showVideoOffer = useMemo(() => Boolean(
+    imgUrl &&
+    !previewData?.videoOutput &&
+    !isPostVideoMedia(previewData) &&
+    typeof onRequestImageToVideo === "function"
+  ), [imgUrl, previewData?.videoOutput, previewData, onRequestImageToVideo]);
+
+  const activeMediaUrl = useMemo(() => {
+    if (!previewData) return "";
+    return dualMedia
+      ? (mediaTab === "video" ? vidUrl : imgUrl)
+      : (vidUrl || imgUrl || previewData.aiOutput);
+  }, [dualMedia, mediaTab, vidUrl, imgUrl, previewData]);
+
+  const activeIsVideo = useMemo(() => {
+    return dualMedia && mediaTab === "video"
+      ? true
+      : !dualMedia && postHasVideoAsset(previewData) && !imgUrl;
+  }, [dualMedia, mediaTab, previewData, imgUrl]);
+
+  const handleSaveDescription = useCallback(() => {
+    if (previewData?._id) {
+      onEditDescription(previewData._id, editedDesc);
+    }
+    setIsEditing(false);
+  }, [onEditDescription, previewData?._id, editedDesc]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditedDesc(previewData?.description || "");
+  }, [previewData?.description]);
+
+  const handleDownloadClick = useCallback((e) => {
+    e.preventDefault();
+    if (previewData && activeMediaUrl) {
+      onDownload({
+        ...previewData,
+        aiOutput: activeMediaUrl,
+      });
+    }
+  }, [onDownload, previewData, activeMediaUrl]);
 
   if (isGenerating) {
     return (
       <div className="bg-white rounded-2xl shadow-lg border border-slate-200 w-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center space-y-6">
         <div className="relative">
-          <Lottie
-            animationData={animationData}
-            loop
-            autoplay
-            className="w-24 h-24"
-          />
+          <Lottie animationData={animationData} loop autoplay className="w-24 h-24" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-slate-900 font-anton">Generating Magic...</h3>
@@ -108,31 +157,7 @@ const PreviewSection = ({
   }
 
   const status = previewData.status || 'pending';
-  const handleSaveDescription = () => {
-    onEditDescription(previewData._id, editedDesc);
-    setIsEditing(false);
-  };
-
-  const imgUrl = postImageUrl(previewData);
-  const vidUrl = postVideoUrl(previewData);
-  const dualMedia = Boolean(imgUrl && vidUrl);
-  const showVideoOffer =
-    Boolean(
-      imgUrl &&
-        !previewData?.videoOutput &&
-        !isPostVideoMedia(previewData) &&
-        typeof onRequestImageToVideo === "function"
-    );
-
-  const activeMediaUrl = dualMedia
-    ? mediaTab === "video"
-      ? vidUrl
-      : imgUrl
-    : vidUrl || imgUrl || previewData.aiOutput;
-  const activeIsVideo =
-    dualMedia && mediaTab === "video"
-      ? true
-      : !dualMedia && postHasVideoAsset(previewData) && !imgUrl;
+  const statusClasses = STATUS_CONFIG[status] || STATUS_CONFIG.default;
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans">
@@ -140,18 +165,10 @@ const PreviewSection = ({
         <h3 className="font-bold text-slate-900 flex items-center gap-2 font-anton tracking-wide">
           <Eye className="w-5 h-5 text-[#EAB308]" /> Live Preview
         </h3>
-        <span className={`text-[10px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 uppercase tracking-widest ${
-          status === "approved" ? "bg-green-500/10 text-green-400 border-green-500/30" :
-          status === "pending" ? "bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/30" :
-          status === "posted" ? "bg-purple-500/10 text-purple-400 border-purple-500/30" :
-          status === "scheduled" ? "bg-blue-500/10 text-blue-400 border-blue-500/30" :
-          status === "failed" ? "bg-red-500/10 text-red-400 border-red-500/30" :
-          "bg-blue-500/10 text-blue-400 border-blue-500/30"
-        }`}>
+        <span className={`text-[10px] font-bold px-3 py-1 rounded-full border flex items-center gap-1 uppercase tracking-widest ${statusClasses}`}>
           {status}
         </span>
       </div>
-
 
       <div className="w-full bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
         {dualMedia && (
@@ -232,7 +249,6 @@ const PreviewSection = ({
           </div>
         )}
 
-        {/* Media preview */}
         <a
           href={activeMediaUrl}
           target="_blank"
@@ -278,13 +294,7 @@ const PreviewSection = ({
             <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
               <button
                 type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onDownload({
-                    ...previewData,
-                    aiOutput: activeMediaUrl,
-                  });
-                }}
+                onClick={handleDownloadClick}
                 className="p-2 bg-black/60 backdrop-blur-md border border-slate-200 rounded-full shadow-lg hover:scale-110 transition-all hover:bg-black/80"
               >
                 <Download className="w-3.5 h-3.5 text-[#EAB308]" />
@@ -320,7 +330,6 @@ const PreviewSection = ({
             </div>
           )}
 
-        {/* DESCRIPTION */}
         <div className="px-3 py-2.5 border-t border-slate-200 relative group/desc bg-white">
           {isEditing ? (
             <div className="space-y-2">
@@ -332,10 +341,7 @@ const PreviewSection = ({
               />
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditedDesc(previewData.description);
-                  }}
+                  onClick={handleCancelEdit}
                   className="text-[10px] px-3 py-1 bg-slate-50 text-slate-900/70 rounded border border-slate-200 hover:bg-slate-100 transition-colors"
                 >
                   Cancel
@@ -353,7 +359,6 @@ const PreviewSection = ({
               <div className="max-h-[56px] sm:max-h-[72px] overflow-y-auto text-[11px] text-slate-900/80 leading-relaxed whitespace-pre-line pr-5 custom-scrollbar">
                 {previewData.description}
               </div>
-
               <button
                 onClick={() => setIsEditing(true)}
                 className="absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover/desc:opacity-100 hover:bg-[#EAB308]/10 transition-all border border-slate-100"
@@ -496,6 +501,8 @@ const PreviewSection = ({
       </div>
     </div>
   );
-};
+});
+
+PreviewSection.displayName = "PreviewSection";
 
 export default PreviewSection;

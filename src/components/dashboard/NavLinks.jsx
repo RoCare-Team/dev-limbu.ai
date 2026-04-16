@@ -1,9 +1,8 @@
 import { Activity, FolderKey, Globe, PlusSquare, QrCode, SquareChartGantt, Star, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React from "react";
-
-
+import React, { memo } from "react";
+import { signIn } from "next-auth/react";
 
 const navItems = [
     {
@@ -43,7 +42,6 @@ const navItems = [
         icon: <Globe className="h-4 w-4 sm:h-5 sm:w-5" />,
         label: "Website Builder",
         isFree: true,
-        //  specialTag: "Launched Today",
     },
     {
         href: "/post-management",
@@ -52,10 +50,11 @@ const navItems = [
     },
 ];
 
-const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
+const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
     const pathname = usePathname();
+
     return (
-        <div className="w-full py-2 px-3  rounded-2xl  mb-8">
+        <div className="w-full py-2 px-3 rounded-2xl mb-8">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-5">
                 {navItems.map((item) => {
                     const isPublic =
@@ -66,11 +65,13 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                     const isGmbInsights = item.label === "GMB Insights";
                     const isActive = pathname === item.href && isAuthenticated;
 
-                    const handleClick = () => {
+                    const handleClick = (e) => {
                         if (!isEnabled) {
+                            e.preventDefault();
                             return signIn("google", { callbackUrl: item.href });
                         }
                         if (isGmbInsights) {
+                            e.preventDefault();
                             return onGmbInsightsClick();
                         }
                     };
@@ -79,14 +80,18 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                         <div
                             onClick={handleClick}
                             className={`group relative flex flex-col items-center justify-center p-4 rounded-3xl transition-all duration-300 cursor-pointer border-2 w-full aspect-square
-              
               ${isActive
                                     ? "bg-slate-900 border-yellow-400 shadow-lg scale-105"
                                     : "bg-white border-slate-100 hover:border-yellow-300 hover:shadow-lg hover:scale-105"
                                 }
               `}
                         >
-
+                            {/* FREE TAG */}
+                            {item.isFree && (
+                                <div className="absolute -top-1 -right-1 bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm uppercase tracking-widest z-10">
+                                    Free
+                                </div>
+                            )}
 
                             {/* ICON */}
                             <div
@@ -113,20 +118,35 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
                             </span>
 
                             {/* Verified by Google */}
+                            {/* Verified by Google */}
                             {isKeywordPlanner && (
-                                <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-black/10 px-2 py-0.5 rounded-full shadow-sm text-[7px] text-slate-500 font-bold whitespace-nowrap uppercase tracking-tighter">
-                                    <span>Verified by</span>
-                                    <img
-                                        src="https://1000logos.net/wp-content/uploads/2021/05/Google-logo.png"
-                                        alt="Google"
-                                        className="h-2 w-auto grayscale opacity-70"
-                                    />
-                                </span>
+                                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-20">
+
+                                    <div className="flex flex-col items-center justify-center bg-white/95 backdrop-blur-md border border-slate-200 px-3 py-2 rounded-xl shadow-lg shadow-black/10">
+
+                                        {/* Text */}
+                                        <span className="text-[6px] sm:text-[6px] text-slate-500 font-semibold tracking-wide leading-none">
+                                            Verified by
+                                        </span>
+
+                                        {/* Logo */}
+                                        <img
+                                            src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg"
+                                            alt="Google"
+                                            className="mt-1 h-3.5 sm:h-3 w-auto object-contain"
+                                        />
+
+                                    </div>
+
+                                </div>
                             )}
                         </div>
                     );
 
                     if (isEnabled) {
+                        if (isGmbInsights) {
+                            return <div key={item.label}>{Card}</div>;
+                        }
                         return (
                             <Link key={item.label} href={item.href}>
                                 {Card}
@@ -139,7 +159,8 @@ const NavLinks = ({ isAuthenticated, onGmbInsightsClick }) => {
             </div>
         </div>
     );
-};
+});
 
+NavLinks.displayName = "NavLinks";
 
 export default NavLinks;

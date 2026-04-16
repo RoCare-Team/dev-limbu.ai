@@ -35,7 +35,24 @@ export async function GET(req) {
     if (userId) {
       query.userId = userId;
     }
-    if (status) {
+
+    if (status === "videos") {
+      query.$or = [
+        { mediaType: "video" },
+        { videoOutput: { $ne: "", $exists: true, $ne: null } },
+        { 
+          aiOutput: { 
+            $regex: "\\.(mp4|webm|mov)$", 
+            $options: "i"
+          } 
+        }
+      ];
+      // Only show non-rejected videos in the video tab by default, 
+      // or should we show all? Usually tabs filter by one thing.
+      // Let's match the "total" tab's behavior of excluding rejected if needed,
+      // but the user didn't specify. For now, let's just filter by video criteria.
+      query.status = { $ne: "rejected" }; 
+    } else if (status) {
       query.status = status;
     }
 
@@ -116,11 +133,42 @@ export async function POST(req) {
         {
           $group: {
             _id: "$userId",
-            total: { $sum: 1 },
+            total: { 
+              $sum: { 
+                $cond: [{ $ne: ["$status", "rejected"] }, 1, 0] 
+              } 
+            },
             posted: { $sum: { $cond: [{ $eq: ["$status", "posted"] }, 1, 0] } },
             approved: { $sum: { $cond: [{ $eq: ["$status", "approved"] }, 1, 0] } },
             rejected: { $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] } },
             pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+            scheduled: { $sum: { $cond: [{ $eq: ["$status", "scheduled"] }, 1, 0] } },
+            videos: { 
+              $sum: { 
+                $cond: [
+                  { 
+                    $and: [
+                      { $ne: ["$status", "rejected"] },
+                      { 
+                        $or: [
+                          { $eq: ["$mediaType", "video"] },
+                          { $gt: [{ $strLenCP: { $ifNull: ["$videoOutput", ""] } }, 0] },
+                          { 
+                            $regexMatch: { 
+                              input: { $ifNull: ["$aiOutput", ""] }, 
+                              regex: "\\.(mp4|webm|mov)$",
+                              options: "i" 
+                            } 
+                          }
+                        ]
+                      }
+                    ]
+                  }, 
+                  1, 
+                  0
+                ] 
+              } 
+            },
           },
         },
       ]);

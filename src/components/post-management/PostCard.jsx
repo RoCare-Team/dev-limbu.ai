@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   MapPin,
   Facebook,
@@ -11,20 +11,26 @@ import {
   Calendar,
   Send,
   RefreshCw,
-  CheckCircle,
   XCircle,
   Pencil,
   Loader2,
   Video,
   Image as ImageIconLucide,
-  MoreVertical,
   ChevronRight,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import { postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
 import Image from "next/image";
 
-const PostCard = ({
+const STATUS_COLORS = {
+  pending: "bg-yellow-50 text-yellow-600 border-yellow-100",
+  approved: "bg-blue-50 text-blue-600 border-blue-100",
+  posted: "bg-green-50 text-green-600 border-green-100",
+  failed: "bg-red-50 text-red-600 border-red-100",
+  scheduled: "bg-purple-50 text-purple-600 border-purple-100",
+};
+
+const PostCard = React.memo(({
   post,
   onUpdateStatus,
   onReject,
@@ -43,41 +49,50 @@ const PostCard = ({
   const [activeDesc, setActiveDesc] = useState("gmb");
   const [cardMediaTab, setCardMediaTab] = useState("image");
 
-  const isPostedGmb = post.locations?.some((l) => l.isPosted) || post.whenPosted?.gmb;
-  const isPostedFb = !!post.facebookPostId || post.whenPosted?.facebook || post.fbPages?.some((p) => p.isPosted);
-  const isPostedIg = post.whenPosted?.instagram || post.igPages?.some((p) => p.isPosted);
+  const { isPostedGmb, isPostedFb, isPostedIg } = useMemo(() => ({
+    isPostedGmb: post.locations?.some((l) => l.isPosted) || post.whenPosted?.gmb,
+    isPostedFb: !!post.facebookPostId || post.whenPosted?.facebook || post.fbPages?.some((p) => p.isPosted),
+    isPostedIg: post.whenPosted?.instagram || post.igPages?.some((p) => p.isPosted),
+  }), [post.locations, post.whenPosted, post.facebookPostId, post.fbPages, post.igPages]);
 
-  const getDescriptions = () => ({
+  const initialDescriptions = useMemo(() => ({
     gmb: post?.gmbDescription ?? post?.description ?? "",
     fb: post?.fbDescription ?? post?.description ?? "",
     ig: post?.igDescription ?? post?.description ?? "",
-  });
+  }), [post]);
 
-  const [drafts, setDrafts] = useState(getDescriptions());
+  const [drafts, setDrafts] = useState(initialDescriptions);
 
   useEffect(() => {
-    if (!isEditing) setDrafts(getDescriptions());
-  }, [post, isEditing]);
+    if (!isEditing) setDrafts(initialDescriptions);
+  }, [initialDescriptions, isEditing]);
 
-  const imgUrl = postImageUrl(post);
-  const vidUrl = postVideoUrl(post);
+  const imgUrl = useMemo(() => postImageUrl(post), [post]);
+  const vidUrl = useMemo(() => postVideoUrl(post), [post]);
   const dualCardMedia = Boolean(imgUrl && vidUrl);
-  const displayMediaUrl = dualCardMedia ? (cardMediaTab === "video" ? vidUrl : imgUrl) : vidUrl || post?.aiOutput || "";
-  const cardShowVideo = dualCardMedia ? cardMediaTab === "video" : isPostVideoMedia(post);
-  const isConvertingThisPost = convertingVideoPostId != null && String(convertingVideoPostId) === String(post._id);
 
-  const statusColors = {
-    pending: "bg-yellow-50 text-yellow-600 border-yellow-100",
-    approved: "bg-blue-50 text-blue-600 border-blue-100",
-    posted: "bg-green-50 text-green-600 border-green-100",
-    failed: "bg-red-50 text-red-600 border-red-100",
-    scheduled: "bg-purple-50 text-purple-600 border-purple-100",
-  };
+  const displayMediaUrl = useMemo(() => {
+    return dualCardMedia ? (cardMediaTab === "video" ? vidUrl : imgUrl) : vidUrl || post?.aiOutput || "";
+  }, [dualCardMedia, cardMediaTab, vidUrl, imgUrl, post?.aiOutput]);
+
+  const cardShowVideo = useMemo(() => {
+    return dualCardMedia ? cardMediaTab === "video" : isPostVideoMedia(post);
+  }, [dualCardMedia, cardMediaTab, post]);
+
+  const isConvertingThisPost = useMemo(() => {
+    return convertingVideoPostId != null && String(convertingVideoPostId) === String(post._id);
+  }, [convertingVideoPostId, post._id]);
+
+  const handleSaveDescription = useCallback(() => {
+    const field = activeDesc === "gmb" ? "gmbDescription" : activeDesc === "fb" ? "fbDescription" : "igDescription";
+    onEditDescription(post._id, { [field]: drafts[activeDesc] });
+    setIsEditing(false);
+  }, [activeDesc, drafts, onEditDescription, post._id]);
 
   return (
-    <div className="group relative bg-white rounded-[2rem] border border-black/5 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-1 flex flex-col font-inter">
+    <div className="group relative bg-white rounded-4xl border border-black/5 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-1 flex flex-col font-inter">
       {/* ── Media Engine ── */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+      <div className="relative aspect-4/3 overflow-hidden bg-slate-100">
         {/* Media Tabs */}
         {dualCardMedia && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 flex p-1 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 z-20 shadow-xl">
@@ -85,9 +100,8 @@ const PostCard = ({
               <button
                 key={tab}
                 onClick={() => setCardMediaTab(tab)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  cardMediaTab === tab ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
-                }`}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${cardMediaTab === tab ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
+                  }`}
               >
                 {tab === "image" ? <ImageIconLucide size={12} /> : <Video size={12} />}
                 {tab}
@@ -112,7 +126,7 @@ const PostCard = ({
 
         {/* Status Chip */}
         <div className="absolute top-4 left-4 z-10">
-          <div className={`px-3 py-1 rounded-full border backdrop-blur-md flex items-center gap-1.5 shadow-sm ${statusColors[post.status] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
+          <div className={`px-3 py-1 rounded-full border backdrop-blur-md flex items-center gap-1.5 shadow-sm ${STATUS_COLORS[post.status] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
             <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${post.status === "posted" ? "bg-green-500" : "bg-current"}`} />
             <span className="text-[9px] font-black uppercase tracking-widest">{post.status}</span>
           </div>
@@ -148,9 +162,8 @@ const PostCard = ({
               <button
                 key={p.id}
                 onClick={() => setActiveDesc(p.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeDesc === p.id ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50"
-                }`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeDesc === p.id ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50"
+                  }`}
               >
                 <p.icon size={12} className={activeDesc === p.id ? "text-[#EAB308]" : ""} />
                 {p.label}
@@ -178,7 +191,7 @@ const PostCard = ({
                 rows={4}
               />
               <div className="flex gap-2">
-                <button onClick={() => { const field = activeDesc === "gmb" ? "gmbDescription" : activeDesc === "fb" ? "fbDescription" : "igDescription"; onEditDescription(post._id, { [field]: drafts[activeDesc] }); setIsEditing(false); }} className="flex-1 py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EAB308] hover:text-black transition-all">Save Changes</button>
+                <button onClick={handleSaveDescription} className="flex-1 py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EAB308] hover:text-black transition-all">Save Changes</button>
                 <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-slate-100 text-black/50 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-200 transition-all">Cancel</button>
               </div>
             </div>
@@ -227,12 +240,12 @@ const PostCard = ({
 
           {post.status === "posted" && (
             <div className="space-y-3">
-               <div className="flex flex-wrap gap-2">
-                  {isPostedGmb && <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-green-100">GMB Live</span>}
-                  {isPostedFb && <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">FB Live</span>}
-                  {isPostedIg && <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">IG Live</span>}
-               </div>
-               <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap gap-2">
+                {isPostedGmb && <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-green-100">GMB Live</span>}
+                {isPostedFb && <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">FB Live</span>}
+                {isPostedIg && <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">IG Live</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => handlePost(post)} className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm">
                   <RefreshCw size={14} className="text-[#EAB308] group-hover:text-black" /> Repost GMB
                 </button>
@@ -247,8 +260,8 @@ const PostCard = ({
             <div className="p-4 bg-[#EAB308]/5 rounded-3xl border border-[#EAB308]/10 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                   <p className="text-[8px] font-black text-[#EAB308] uppercase tracking-widest mb-0.5">Scheduled For</p>
-                   <p className="text-xs font-black text-black/80">{post.scheduledDate ? new Date(post.scheduledDate).toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : "N/A"}</p>
+                  <p className="text-[8px] font-black text-[#EAB308] uppercase tracking-widest mb-0.5">Scheduled For</p>
+                  <p className="text-xs font-black text-black/80">{post.scheduledDate ? new Date(post.scheduledDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "N/A"}</p>
                 </div>
                 <button onClick={() => onUpdateStatus(post)} className="p-2 bg-white rounded-full text-[#EAB308] shadow-sm hover:scale-110 transition-transform"><Pencil size={14} /></button>
               </div>
@@ -289,6 +302,8 @@ const PostCard = ({
       </div>
     </div>
   );
-};
+});
+
+PostCard.displayName = "PostCard";
 
 export default PostCard;

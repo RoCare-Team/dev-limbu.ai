@@ -278,11 +278,8 @@ export default function DashboardPage() {
       toast.error("No locations found.");
       return;
     }
-    if (allListings.length === 1) {
-      handleViewPerformanceInsights(allListings[0]);
-    } else {
-      setUiState((prev) => ({ ...prev, showLocationSelectorModal: true }));
-    }
+    // Directly open the Performance Insights Modal for the first location
+    handleViewPerformanceInsights(allListings[0]);
   }, [accounts, handleViewPerformanceInsights]);
 
   const handleLocationSelect = useCallback((listing) => {
@@ -414,7 +411,7 @@ export default function DashboardPage() {
 
       <div className=" border-b border-black/5">
         <div className="w-full ">
-          <NavLinks isAuthenticated={true} />
+          <NavLinks isAuthenticated={status === "authenticated"} onGmbInsightsClick={handleGmbInsightsClick} />
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mt-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">

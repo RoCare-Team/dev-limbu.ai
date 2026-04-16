@@ -8,7 +8,7 @@ export default function AppDownloadSection() {
       <div className="max-w-7xl mx-auto">
         <div className="relative w-full rounded-lg overflow-hidden shadow-2xl border border-black/5" style={{ aspectRatio: "1280/300" }}>
           <Image
-            src="/images/app_template.jpg"
+            src="/images/app_template.png"
             alt="Limbu AI App Download"
             fill
             quality={100}

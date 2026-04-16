@@ -34,13 +34,32 @@ export async function fetchPostsAction(userId, status) {
     return await res.json();
 }
 
-export async function fetchAllPostsAction(userId, page = 1, limit = 0, status = "") {
+export async function fetchAllPostsAction(userId, page = 1, limit = 12, status = "total") {
     let url = `${API_URL}/api/post-status?userId=${userId}&page=${page}&limit=${limit}`;
-    if (status && status !== "total" && status !== "videos") {
+    if (status && status !== "total") {
         url += `&status=${status}`;
     }
     const res = await fetch(url);
-    return await res.json();
+    const data = await res.json();
+
+    // Fetch counts across all posts for this user for the tabs
+    if (data.success && page === 1) {
+        try {
+            const countsRes = await fetch(`${API_URL}/api/post-status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIds: [userId] })
+            });
+            const countsData = await countsRes.json();
+            if (countsData.success && countsData.data && countsData.data[userId]) {
+                data.counts = countsData.data[userId];
+            }
+        } catch (e) {
+            console.error("Failed to fetch counts", e);
+        }
+    }
+
+    return data;
 }
 
 export async function getUserWalletAction(userId) {

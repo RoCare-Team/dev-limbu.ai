@@ -5,7 +5,6 @@ import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
 import { useRef } from "react";
 
-
 /* user-management */
 import {
   Search,
@@ -227,28 +226,31 @@ export default function UserManagement() {
 
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
 
+  // table
+  const [selectedUsers, setSelectedUsers] = useState([]);
+
   // remark
   const [planRemarks, setplanRemarks] = useState("");
 
   const isServiceModalOpen = activeModal === "service";
 
   const tableRef = useRef(null);
-const bottomRef = useRef(null);
+  const bottomRef = useRef(null);
 
-useEffect(() => {
-  const table = tableRef.current;
-  const bottom = bottomRef.current;
+  useEffect(() => {
+    const table = tableRef.current;
+    const bottom = bottomRef.current;
 
-  if (!table || !bottom) return;
+    if (!table || !bottom) return;
 
-  const handleScroll = () => {
-    bottom.scrollLeft = table.scrollLeft;
-  };
+    const handleScroll = () => {
+      bottom.scrollLeft = table.scrollLeft;
+    };
 
-  table.addEventListener("scroll", handleScroll);
+    table.addEventListener("scroll", handleScroll);
 
-  return () => table.removeEventListener("scroll", handleScroll);
-}, []);
+    return () => table.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleOpenServiceModal = (user) => {
     setViewingUserPosts(null);
@@ -388,33 +390,33 @@ useEffect(() => {
   };
 
   const handleRefreshMetaLeads = async (manual = false) => {
-  if (!manual) return; // 🔥 IMPORTANT
+    if (!manual) return; // 🔥 IMPORTANT
 
-  setIsRefreshingMetaLeads(true);
+    setIsRefreshingMetaLeads(true);
 
-  try {
-    const email = localStorage.getItem("email");
-    console.log("EMAIL FROM LS:", email);
+    try {
+      const email = localStorage.getItem("email");
+      console.log("EMAIL FROM LS:", email);
 
-    const res = await fetch(
-      `/api/meta-leads-import?formId=1393275835835157&email=${email}`
-    );
+      const res = await fetch(
+        `/api/meta-leads-import?formId=1393275835835157&email=${email}`,
+      );
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.success) {
-      showToast("Meta Leads refreshed successfully!", "success");
-      fetchUsers();
-    } else {
-      showToast(data.error || "Failed to refresh Meta Leads", "error");
+      if (data.success) {
+        showToast("Meta Leads refreshed successfully!", "success");
+        fetchUsers();
+      } else {
+        showToast(data.error || "Failed to refresh Meta Leads", "error");
+      }
+    } catch (error) {
+      console.error("Error refreshing Meta Leads:", error);
+      showToast("Error refreshing Meta Leads", "error");
+    } finally {
+      setIsRefreshingMetaLeads(false);
     }
-  } catch (error) {
-    console.error("Error refreshing Meta Leads:", error);
-    showToast("Error refreshing Meta Leads", "error");
-  } finally {
-    setIsRefreshingMetaLeads(false);
-  }
-};
+  };
 
   const [stats, setStats] = useState({
     total: 0,
@@ -644,7 +646,6 @@ useEffect(() => {
       : users.filter(
           (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
-    console.log("usersusers", users);
 
     setStats({
       total,
@@ -1360,6 +1361,9 @@ useEffect(() => {
   };
 
   const confirmPlanChange = async () => {
+    console.log("🔥 CLICKED USER:", service);
+    console.log("🔥 USER ID SENT:", service?.userId);
+    console.log("🔥 EMAIL:", service?.email);
     if (!selectedUser || !selectedPlan) return;
 
     // If amount is entered, screenshot is mandatory
@@ -1379,10 +1383,10 @@ useEffect(() => {
       if (planAmount && parseFloat(planAmount) > 0) {
         screenshotUrl = await uploadToCloudinary(planScreenshot);
         console.log("SENDING DATA:", {
-  planRemarks: planRemarks,
-  selectedPlan,
-  amount: planAmount,
-});
+          planRemarks: planRemarks,
+          selectedPlan,
+          amount: planAmount,
+        });
 
         const revenueRes = await fetch("/api/franchise-revenue", {
           method: "POST",
@@ -1395,7 +1399,7 @@ useEffect(() => {
             email: localStorage.getItem("email"),
             plan: selectedPlan,
             notes: `Plan upgrade to ${selectedPlan}`, // auto
-             planRemarks: planRemarks,
+            planRemarks: planRemarks,
             type: selectedPlan.toLowerCase().includes("seo")
               ? "selectedPlan"
               : "user_onboard",
@@ -2069,10 +2073,6 @@ useEffect(() => {
     }
   };
 
-  console.log("agentsagents", agents);
-  console.log("agentStatsagentStatsagentStats", stageStats);
-  console.log("callStats", callStats);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -2616,110 +2616,140 @@ useEffect(() => {
             backgroundColor: "#fff",
           }}
         >
-             {(role === "superAdmin" ||
-                      role === "admin" || role === "agent" ||
-                      role === "superfranchiseAdmin") && (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 2,
-                          px: { xs: 2, sm: 2.5 },
-                          py: { xs: 1.75, sm: 2 },
-                          borderBottom: "1px solid",
-                          borderColor: "divider",
-                          background: (theme) =>
-                            `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
-                        }}
-                      >
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography
-                            variant="subtitle1"
-                            sx={{
-                              fontWeight: 800,
-                              letterSpacing: "-0.02em",
-                              color: "text.primary",
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            Leads
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-                            Manage records and sync from Meta
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
-                          <Button
-                            variant="contained"
-                            onClick={() => setAddingUser(true)}
-                            startIcon={<Plus size={18} strokeWidth={2.5} />}
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: 700,
-                              borderRadius: 2,
-                              px: 2.5,
-                              py: 1,
-                              boxShadow: (theme) => `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
-                              background: (theme) =>
-                                `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                              "&:hover": {
-                                background: (theme) =>
-                                  `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
-                                boxShadow: (theme) => `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
-                              },
-                            }}
-                          >
-                            Add Lead
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            disabled={isRefreshingMetaLeads}
-                            onClick={() => handleRefreshMetaLeads(true)}
-                            startIcon={
-                              <RefreshCw
-                                size={16}
-                                className={isRefreshingMetaLeads ? "animate-spin" : ""}
-                              />
-                            }
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: 700,
-                              borderRadius: 2,
-                              px: 2.25,
-                              py: 1,
-                              borderWidth: 2,
-                              borderColor: "primary.main",
-                              color: "primary.main",
-                              "&:hover": {
-                                borderWidth: 2,
-                                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-                                borderColor: "primary.dark",
-                              },
-                              "&.Mui-disabled": {
-                                borderWidth: 2,
-                              },
-                            }}
-                          >
-                            Refresh
-                          </Button>
-                        </Stack>
-                      </Box>
-                    )}
+          {(role === "superAdmin" ||
+            role === "admin" ||
+            role === "agent" ||
+            role === "superfranchiseAdmin") && (
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                px: { xs: 2, sm: 2.5 },
+                py: { xs: 1.75, sm: 2 },
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                background: (theme) =>
+                  `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 800,
+                    letterSpacing: "-0.02em",
+                    color: "text.primary",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Leads
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mt: 0.25 }}
+                >
+                  Manage records and sync from Meta
+                </Typography>
+              </Box>
+              <Stack
+                direction="row"
+                spacing={1.25}
+                alignItems="center"
+                flexWrap="wrap"
+                useFlexGap
+              >
+                <Button
+                  variant="contained"
+                  onClick={() => setAddingUser(true)}
+                  startIcon={<Plus size={18} strokeWidth={2.5} />}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 2,
+                    px: 2.5,
+                    py: 1,
+                    boxShadow: (theme) =>
+                      `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
+                    background: (theme) =>
+                      `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                    "&:hover": {
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                      boxShadow: (theme) =>
+                        `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
+                    },
+                  }}
+                >
+                  Add Lead
+                </Button>
+                <Button
+                  variant="outlined"
+                  disabled={isRefreshingMetaLeads}
+                  onClick={() => handleRefreshMetaLeads(true)}
+                  startIcon={
+                    <RefreshCw
+                      size={16}
+                      className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                    />
+                  }
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 2,
+                    px: 2.25,
+                    py: 1,
+                    borderWidth: 2,
+                    borderColor: "primary.main",
+                    color: "primary.main",
+                    "&:hover": {
+                      borderWidth: 2,
+                      bgcolor: (theme) =>
+                        alpha(theme.palette.primary.main, 0.08),
+                      borderColor: "primary.dark",
+                    },
+                    "&.Mui-disabled": {
+                      borderWidth: 2,
+                    },
+                  }}
+                >
+                  Refresh
+                </Button>
+              </Stack>
+            </Box>
+          )}
           <TableContainer
             sx={{
               maxHeight: { xs: "60vh", md: "72vh" },
               overflowX: "auto",
-              
             }}
           >
-
-             
-            <div ref={tableRef} className="overflow-x-auto pb-1">
-              <table className="min-w-[2200px]  ">
-                <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
+            <div ref={tableRef} className="max-h-[500px] overflow-x-auto pb-1">
+              <table className="min-w-full">
+                <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur"> 
                   <tr>
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers(
+                              filteredUsers.map((u) => u.userId),
+                            );
+                          } else {
+                            setSelectedUsers([]);
+                          }
+                        }}
+                        checked={
+                          selectedUsers.length === filteredUsers.length &&
+                          filteredUsers.length > 0
+                        }
+                      />
+                    </th>
+
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                       {isAgent && followUpFilter !== "all"
                         ? "Follow-up"
@@ -2764,12 +2794,19 @@ useEffect(() => {
                   </tr>
                 </thead>
 
-                 <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100">
                   {loadingFollowUpTable &&
                   isAgent &&
                   followUpFilter !== "all" ? (
-                    <tr>
-                      <td colSpan={12} className="text-center py-14">
+                    <tr
+                      key={user._id}
+                      className={`cursor-pointer transition-colors
+    ${selectedUsers.includes(user.userId) ? "bg-indigo-100" : ""}
+    ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}
+    hover:bg-indigo-50/50`}
+                      onClick={() => handleViewPosts(user)}
+                    >
+                      <td colSpan={13} className="text-center py-14">
                         <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
                           <RefreshCw
                             size={28}
@@ -2797,6 +2834,30 @@ useEffect(() => {
                             } hover:bg-indigo-50/50`}
                             onClick={() => handleViewPosts(user)}
                           >
+                            <td
+                              className="px-4 py-3"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedUsers.includes(user.userId)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedUsers([
+                                      ...selectedUsers,
+                                      user.userId,
+                                    ]);
+                                  } else {
+                                    setSelectedUsers(
+                                      selectedUsers.filter(
+                                        (id) => id !== user.userId,
+                                      ),
+                                    );
+                                  }
+                                }}
+                              />
+                            </td>
+
                             <td className="px-6 py-5">
                               {isAgent && followUpFilter !== "all" ? (
                                 (() => {
@@ -3149,7 +3210,8 @@ useEffect(() => {
                             <td className="px-6 py-4">
                               <button
                                 onClick={(e) => {
-                                  e.stopPropagation(); // 🔥 IMPORTANT
+                                  e.stopPropagation();
+
                                   handleOpenServiceModal(user);
                                 }}
                                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -3348,10 +3410,9 @@ useEffect(() => {
                 </tbody>
               </table>
             </div>
-            
           </TableContainer>
 
-    <div
+          <div
   ref={bottomRef}
   className="overflow-x-auto h-[15px]"
   onScroll={() => {
@@ -3360,11 +3421,16 @@ useEffect(() => {
     }
   }}
 >
-  <div style={{ width: "2200px" }} />
+  <div
+    style={{
+      width: tableRef.current?.scrollWidth || "2000px"
+    }}
+    className="h-[1px]"
+  />
 </div>
-
-
           
+
+
         </Paper>
         {/* Pagination Controls */}
         {isAgent && followUpFilter !== "all" ? (
@@ -3784,26 +3850,23 @@ useEffect(() => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 />
               </div>
-                
-                     {/* Remark Field */}
-              <div className="mt-4">
-               <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Remark
-               </label>
 
-               <textarea
-                value={planRemarks}
+              {/* Remark Field */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Remark
+                </label>
+
+                <textarea
+                  value={planRemarks}
                   onChange={(e) => setplanRemarks(e.target.value)}
-                 placeholder="Enter remark..."
-                 rows={2}
-               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-              />
+                  placeholder="Enter remark..."
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                />
               </div>
-              
             </div>
 
-       
-            
             <div className="flex gap-3">
               <button
                 onClick={() => setSelectedUser(null)}

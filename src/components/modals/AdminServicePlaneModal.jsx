@@ -82,7 +82,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
       const data = await res.json();
 
-      console.log("API RESPONSE:", data);
+      console.log("API RESPONSE: serive modal data ", data);
 
       if (res.ok) {
         alert("Service added successfully");
@@ -95,48 +95,46 @@ export default function AdminServicepaneModal({ service, onClose }) {
     }
   };
 
-  const handleConfirmService = async () => {
-    const formData = new FormData();
+ const handleConfirmService = async () => {
 
-    formData.append("userId", service?.userId);
-    formData.append("paidService", selectedPlan.title);
-    formData.append("startDate", serviceDate);
-    formData.append("expiryDate", expiryDate);
+  console.log("🔥 STEP 1:", selectedPlan);
 
-    if (paymentScreenshot) {
-      formData.append("screenshot", paymentScreenshot);
-    }
+  if (!selectedPlan) {
+    alert("Please select a plan");
+    return;
+  }
 
-    if (!selectedPlan) {
-      alert("Please select a plan");
-      return;
-    }
-
-    try {
-      await fetch(`/api/users`, {
-        method: "PUT",
-        body: formData,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          paidService: selectedPlan.title,
-          userId: service?.userId,
-          startDate: serviceDate, // 🔥 ye
-          expiryDate: expiryDate,
-        }),
-      });
-
-      console.log();
-
-      alert("Service booked successfully ✅");
-
-      onClose(); // modal band
-    } catch (err) {
-      console.error(err);
-      alert("Error booking service");
-    }
+  const payload = {
+    userId: service?.userId,
+    paidService: selectedPlan.title,
+    isServiceBooked: true,
+    planDuration: "monthly",
+    packageStartDate: serviceDate,
+    packageExpiryDate: expiryDate,
   };
+
+  console.log("🔥 FINAL PAYLOAD:", payload);
+
+  try {
+    const res = await fetch(`/api/users`, {
+      method: "PUT",   // 🔥 CHANGE THIS
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload), // 🔥 ONLY THIS BODY
+    });
+
+    const data = await res.json();
+    console.log("🔥 RESPONSE:", data);
+
+    alert("Service booked successfully ✅");
+    onClose();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error booking service");
+  }
+};
 
   const handleScreenshotChange = (e) => {
     const file = e.target.files[0];

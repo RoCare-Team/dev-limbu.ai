@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
+import { useRef } from "react";
+
+
 /* user-management */
 import {
   Search,
@@ -228,6 +231,24 @@ export default function UserManagement() {
   const [planRemarks, setplanRemarks] = useState("");
 
   const isServiceModalOpen = activeModal === "service";
+
+  const tableRef = useRef(null);
+const bottomRef = useRef(null);
+
+useEffect(() => {
+  const table = tableRef.current;
+  const bottom = bottomRef.current;
+
+  if (!table || !bottom) return;
+
+  const handleScroll = () => {
+    bottom.scrollLeft = table.scrollLeft;
+  };
+
+  table.addEventListener("scroll", handleScroll);
+
+  return () => table.removeEventListener("scroll", handleScroll);
+}, []);
 
   const handleOpenServiceModal = (user) => {
     setViewingUserPosts(null);
@@ -2689,15 +2710,14 @@ export default function UserManagement() {
           <TableContainer
             sx={{
               maxHeight: { xs: "60vh", md: "72vh" },
-              "&::-webkit-scrollbar": { height: 8, width: 8 },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "#9ca3af",
-                borderRadius: 99,
-              },
+              overflowX: "auto",
+              
             }}
           >
-            <div className="overflow-x-auto pb-1">
-              <table className="min-w-[2200px]">
+
+             
+            <div ref={tableRef} className="overflow-x-auto pb-1">
+              <table className="min-w-[2200px]  ">
                 <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                   <tr>
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
@@ -2743,11 +2763,8 @@ export default function UserManagement() {
                     </th>
                   </tr>
                 </thead>
-              </table>
-            </div>
-            <div className="overflow-y-auto overflow-x-auto flex-grow">
-              <table className="min-w-[2200px]">
-                <tbody className="divide-y divide-gray-100">
+
+                 <tbody className="divide-y divide-gray-100">
                   {loadingFollowUpTable &&
                   isAgent &&
                   followUpFilter !== "all" ? (
@@ -3331,7 +3348,23 @@ export default function UserManagement() {
                 </tbody>
               </table>
             </div>
+            
           </TableContainer>
+
+    <div
+  ref={bottomRef}
+  className="overflow-x-auto h-[15px]"
+  onScroll={() => {
+    if (tableRef.current && bottomRef.current) {
+      tableRef.current.scrollLeft = bottomRef.current.scrollLeft;
+    }
+  }}
+>
+  <div style={{ width: "2200px" }} />
+</div>
+
+
+          
         </Paper>
         {/* Pagination Controls */}
         {isAgent && followUpFilter !== "all" ? (

@@ -142,6 +142,7 @@ export function formatGmbSessionResponse(row) {
   }
   return {
     status:        row.status === "success" ? "success" : "not_found",
+    email:         row.userEmail || "",
     message:       row.message || "",
     locationsData: Array.isArray(row.locationsData) ? row.locationsData : [],
   };

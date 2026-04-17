@@ -366,34 +366,41 @@ export default function UserManagement() {
     }
   };
 
-  const handleRefreshMetaLeads = async (manual = false) => {
-  if (!manual) return; // 🔥 IMPORTANT
+  const handleRefreshMetaLeads = async ({ silent = false } = {}) => {
+    const adminRole = localStorage.getItem("role");
+    if (!["superAdmin", "admin"].includes(adminRole)) return;
 
-  setIsRefreshingMetaLeads(true);
-
-  try {
     const email = localStorage.getItem("email");
-    console.log("EMAIL FROM LS:", email);
+    if (!email) return;
 
-    const res = await fetch(
-      `/api/meta-leads-import?formId=1393275835835157&email=${email}`
-    );
+    if (!silent) setIsRefreshingMetaLeads(true);
 
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `/api/meta-leads-import?formId=1393275835835157&email=${encodeURIComponent(email)}`,
+      );
 
-    if (data.success) {
-      showToast("Meta Leads refreshed successfully!", "success");
-      fetchUsers();
-    } else {
-      showToast(data.error || "Failed to refresh Meta Leads", "error");
+      const data = await res.json();
+
+      if (data.success) {
+        if (!silent) {
+          showToast("Meta Leads refreshed successfully!", "success");
+        }
+        fetchUsers();
+      } else {
+        if (!silent) {
+          showToast(data.error || "Failed to refresh Meta Leads", "error");
+        } else {
+          console.warn("Meta leads sync:", data.error || data);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing Meta Leads:", error);
+      if (!silent) showToast("Error refreshing Meta Leads", "error");
+    } finally {
+      if (!silent) setIsRefreshingMetaLeads(false);
     }
-  } catch (error) {
-    console.error("Error refreshing Meta Leads:", error);
-    showToast("Error refreshing Meta Leads", "error");
-  } finally {
-    setIsRefreshingMetaLeads(false);
-  }
-};
+  };
 
   const [stats, setStats] = useState({
     total: 0,
@@ -696,8 +703,10 @@ export default function UserManagement() {
         }
 
         setLeadSourceStats({
-          metaLeads: data.metaLeadsCount || 0,
-          signupLeads: data.signupLeadsCount || 0,
+          metaLeads:
+            data.metaLeadsCount ?? data.totalMetaLeads ?? data.totalMetaLeadUsers ?? 0,
+          signupLeads:
+            data.signupLeadsCount ?? data.totalSignupUsers ?? data.totalSignups ?? 0,
         });
       }
     } catch (error) {
@@ -821,14 +830,16 @@ export default function UserManagement() {
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
-    handleRefreshMetaLeads(false);
+    if (!["superAdmin", "admin"].includes(role)) return;
+
+    handleRefreshMetaLeads({ silent: true });
 
     const interval = setInterval(() => {
-      handleRefreshMetaLeads(false);
-    }, 60000);
+      handleRefreshMetaLeads({ silent: true });
+    }, 2 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     fetchChatStats();
@@ -2655,7 +2666,7 @@ export default function UserManagement() {
                           <Button
                             variant="outlined"
                             disabled={isRefreshingMetaLeads}
-                            onClick={() => handleRefreshMetaLeads(true)}
+                            onClick={() => handleRefreshMetaLeads({ silent: false })}
                             startIcon={
                               <RefreshCw
                                 size={16}

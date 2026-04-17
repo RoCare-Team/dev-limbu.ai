@@ -22,19 +22,50 @@ const EXECUTIVE_AVATAR_SRC = "/limbu-customer-executive.png";
 
 const URL_SPLIT_RE = /(https?:\/\/[^\s<>"']+)/gi;
 
-function renderTextWithLinks(text, linkClassName) {
+/**
+ * Bot / n8n often returns absolute https://limbu.ai/... links. On localhost that sends
+ * users to production and clears this origin’s chat. Rewrite prod host to current origin.
+ */
+function rewriteLimbuProductionUrlToCurrentOrigin(href, siteOrigin) {
+  if (!href || !siteOrigin) return href;
+  try {
+    const u = new URL(href);
+    const host = u.hostname.replace(/^www\./i, "");
+    if (host !== "limbu.ai") return href;
+    const base = new URL(siteOrigin);
+    return `${base.origin}${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return href;
+  }
+}
+
+/** Same-origin links stay in this tab so session + transcript survive (incl. after connect). */
+function shouldOpenHrefInSameTab(href, siteOrigin) {
+  if (!href || !siteOrigin) return false;
+  try {
+    const base = new URL(siteOrigin);
+    const u = new URL(href);
+    return u.origin === base.origin;
+  } catch {
+    return false;
+  }
+}
+
+function renderTextWithLinks(text, linkClassName, siteOrigin) {
   if (!text) return null;
   const segments = text.split(URL_SPLIT_RE);
   return segments.map((seg, i) => {
     if (/^https?:\/\//i.test(seg)) {
-      let href = seg.replace(/[),.;:!?]+$/, "");
-      const trailing = seg.slice(href.length);
+      let raw = seg.replace(/[),.;:!?]+$/, "");
+      const trailing = seg.slice(raw.length);
+      const href = rewriteLimbuProductionUrlToCurrentOrigin(raw, siteOrigin);
+      const sameTab = shouldOpenHrefInSameTab(href, siteOrigin);
       return (
         <span key={i}>
           <a
             href={href}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={sameTab ? "_self" : "_blank"}
+            rel={sameTab ? undefined : "noopener noreferrer"}
             className={linkClassName}
           >
             {href}
@@ -77,6 +108,8 @@ function ExecutiveAvatar({
 
 const USER_ID_KEY = "limbu_ai_chat_user_id";
 const MESSAGES_STORAGE_KEY = "limbu_ai_chat_messages_v1";
+/** Mirrors transcript so returning from connect flow still restores if sessionStorage was cleared */
+const MESSAGES_LOCAL_BACKUP_KEY = "limbu_ai_chat_messages_v1_backup";
 const WELCOME_MSG_ID = "limbu-welcome";
 
 /** Persistable copy: drop blob URLs so session survives full page reload (e.g. Google OAuth). */
@@ -252,7 +285,11 @@ export default function LimbuAiChatWidget() {
       if (prev.length === 0 && typeof window !== "undefined") {
         try {
           const raw = sessionStorage.getItem(MESSAGES_STORAGE_KEY);
-          const arr = raw ? JSON.parse(raw) : null;
+          let arr = raw ? JSON.parse(raw) : null;
+          if (!Array.isArray(arr) || arr.length === 0) {
+            const rawLocal = localStorage.getItem(MESSAGES_LOCAL_BACKUP_KEY);
+            arr = rawLocal ? JSON.parse(rawLocal) : null;
+          }
           if (Array.isArray(arr) && arr.length > 0) base = arr;
         } catch {
           /* ignore */
@@ -280,10 +317,15 @@ export default function LimbuAiChatWidget() {
     if (typeof window === "undefined") return;
     if (messages.length === 0) return;
     try {
-      sessionStorage.setItem(
-        MESSAGES_STORAGE_KEY,
-        JSON.stringify(serializeMessagesForStorage(messages))
+      const serialized = JSON.stringify(
+        serializeMessagesForStorage(messages),
       );
+      sessionStorage.setItem(MESSAGES_STORAGE_KEY, serialized);
+      try {
+        localStorage.setItem(MESSAGES_LOCAL_BACKUP_KEY, serialized);
+      } catch {
+        /* ignore */
+      }
     } catch {
       /* quota or private mode */
     }
@@ -731,13 +773,17 @@ export default function LimbuAiChatWidget() {
                               item.text,
                               item.role === "user"
                                 ? "font-medium text-[#0B0F19] underline decoration-[#0B0F19]/40 underline-offset-2 break-all"
-                                : "font-medium text-blue-600 underline decoration-blue-600/40 underline-offset-2 break-all hover:text-blue-700"
+                                : "font-medium text-blue-600 underline decoration-blue-600/40 underline-offset-2 break-all hover:text-blue-700",
+                              siteOrigin,
                             )}
                           </p>
                         )}
                         {item.role === "assistant" && item.linkCta?.href && (
                           <a
-                            href={item.linkCta.href}
+                            href={rewriteLimbuProductionUrlToCurrentOrigin(
+                              item.linkCta.href,
+                              siteOrigin,
+                            )}
                             className={`inline-flex w-full items-center justify-center rounded-xl bg-[#0B0F19] px-4 py-2.5 text-center text-[13px] font-semibold text-[#FFC107] shadow-sm transition hover:bg-slate-800 ${
                               item.text ? "mt-2" : "mt-0"
                             }`}

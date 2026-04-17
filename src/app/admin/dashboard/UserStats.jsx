@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   User,
   CheckCircle,
@@ -106,6 +107,59 @@ export default function UserStats({
   stageData,
   loadingStage
 }) {
+  const [fullViewImage, setFullViewImage] = useState(null);
+  const [approvalBusyId, setApprovalBusyId] = useState(null);
+
+  const normalizeProofImageUrl = (raw) => {
+    if (!raw || typeof raw !== "string") return "";
+    const t = raw.trim();
+    if (!t) return "";
+    if (/^https?:\/\//i.test(t)) return t;
+    if (typeof window !== "undefined" && t.startsWith("/")) {
+      return `${window.location.origin}${t}`;
+    }
+    return t;
+  };
+
+  const handleOnboardApproval = async (revenue, decision) => {
+    const id = revenue?._id;
+    if (!id) return;
+    setApprovalBusyId(String(id));
+    try {
+      const res = await fetch("/api/franchise-revenue/onboard-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: typeof window !== "undefined" ? localStorage.getItem("email") : "",
+          revenueId: String(id),
+          decision,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRevenueUsersList((list) =>
+          (list || []).map((r) =>
+            String(r._id) === String(id)
+              ? {
+                  ...r,
+                  planApprovalStatus:
+                    decision === "approved" ? "approved" : "rejected",
+                }
+              : r,
+          ),
+        );
+      } else if (typeof window !== "undefined") {
+        window.alert(data.message || "Could not update approval");
+      }
+    } catch (e) {
+      if (typeof window !== "undefined") {
+        window.alert(e?.message || "Request failed");
+      }
+    } finally {
+      setApprovalBusyId(null);
+    }
+  };
+
   return (
     <>
       {!isAgent && (
@@ -394,6 +448,11 @@ export default function UserStats({
                           <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                             Remarks
                           </th>
+                          {role === "superAdmin" && (
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Plan approval
+                            </th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -440,7 +499,11 @@ export default function UserStats({
                               {revenue.paymentScreenshot ? (
                                 <button
                                   onClick={() =>
-                                    setFullViewImage(revenue.paymentScreenshot)
+                                    setFullViewImage(
+                                      normalizeProofImageUrl(
+                                        revenue.paymentScreenshot,
+                                      ),
+                                    )
                                   }
                                   className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
                                 >
@@ -461,6 +524,65 @@ export default function UserStats({
                             <td className="px-6 py-4 text-sm text-gray-700">
                              {revenue.planRemarks || "—"}
                             </td>
+                            {role === "superAdmin" && (
+                              <td className="px-6 py-4 align-top text-sm">
+                                {revenue.type === "user_onboard" ? (
+                                  (() => {
+                                    const st =
+                                      revenue.planApprovalStatus || "pending";
+                                    if (st === "approved") {
+                                      return (
+                                        <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                          Approved
+                                        </span>
+                                      );
+                                    }
+                                    if (st === "rejected") {
+                                      return (
+                                        <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                          Not approved
+                                        </span>
+                                      );
+                                    }
+                                    const busy =
+                                      approvalBusyId ===
+                                      String(revenue._id);
+                                    return (
+                                      <div className="flex flex-wrap gap-2">
+                                        <button
+                                          type="button"
+                                          disabled={busy}
+                                          onClick={() =>
+                                            handleOnboardApproval(
+                                              revenue,
+                                              "approved",
+                                            )
+                                          }
+                                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                                        >
+                                          {busy ? "…" : "Approved"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={busy}
+                                          onClick={() =>
+                                            handleOnboardApproval(
+                                              revenue,
+                                              "rejected",
+                                            )
+                                          }
+                                          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                                        >
+                                          Not approved
+                                        </button>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -496,7 +618,28 @@ export default function UserStats({
         </div>
       )}
 
-    
+      {fullViewImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setFullViewImage(null)}
+          role="presentation"
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 z-10 rounded-full bg-white p-2 text-gray-800 shadow-lg transition hover:bg-gray-100"
+            onClick={() => setFullViewImage(null)}
+            aria-label="Close preview"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={fullViewImage}
+            alt="Payment proof"
+            className="max-h-[90vh] max-w-[min(100%,896px)] rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
     </>
   );

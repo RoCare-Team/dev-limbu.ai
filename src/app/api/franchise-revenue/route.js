@@ -164,6 +164,7 @@ export async function POST(req) {
   notes: notes || "",
   planRemarks: planRemarks || "", // 🔥 ADD THIS
   plan: plan || "",
+  ...(type === "user_onboard" ? { planApprovalStatus: "pending" } : {}),
 
   type: type || "franchise_lead",
   status: "active",

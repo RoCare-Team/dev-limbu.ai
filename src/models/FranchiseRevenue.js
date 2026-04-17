@@ -35,6 +35,12 @@ const FranchiseRevenueSchema = new mongoose.Schema(
     
     notes: { type: String, default: "" },
     planRemarks: { type: String, default: "" },
+    plan: { type: String, default: "" },
+    /** user_onboard: superAdmin approves before subscription is activated on the user */
+    planApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+    },
     type: { type: String, default: "franchise_lead" },
   },
   { timestamps: true }

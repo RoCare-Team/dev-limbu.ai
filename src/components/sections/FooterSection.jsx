@@ -12,6 +12,7 @@ export default function FooterSection() {
         { label: "Post Management", href: "/post-management" },
         { label: "Review Management", href: "/review-management" },
         { label: "Magic QR", href: "/get-magic-qr" },
+        { label: "Blog", href: "/blog" },
         { label: "Dashboard", href: "/dashboard" },
       ],
     },

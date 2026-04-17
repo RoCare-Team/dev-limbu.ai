@@ -18,7 +18,7 @@ const testimonials = [
   },
   {
     id: 2,
-    videoUrl: "/videos/testimonial/2.mp4",
+    videoUrl: "https://limbuai.s3.ap-south-1.amazonaws.com/testimonials/Your+paragraph+text+(2).png",
     quote:
       "When we started being found on Google, I knew we were building real value for our local customers.",
     author: "Seth Shoultes",

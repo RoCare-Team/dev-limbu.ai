@@ -41,7 +41,24 @@ export default function AuthGuard({ children }) {
       "/franchise-panel/login",
       "/work-with-us",
       "/thank-you",
-      "/pricing"
+      "/pricing",
+      "/blog",
+      "/how-to-connect-gmb",
+      "/how-to-create-post",
+      "/how-to-reply-review",
+      "/how-to-generate-magic-qr",
+      "/how-to-post-on-gmb",
+      "/gym-marketing-software",
+      "/restaurant-marketing-software",
+      "/clinic-marketing-software",
+      "/bakery-marketing-software",
+      "/salon-marketing-software",
+      "/pest-control-marketing-software",
+      "/car-garage-marketing-software",
+      "/tour-travel-marketing-software",
+      "/yoga-wellness-marketing-software",
+      "/handyman-marketing-software"
+
     ];
 
     const allowedAdminRoles = [

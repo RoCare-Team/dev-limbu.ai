@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* ── Tailwind v4: Register custom tokens ── */
 @theme inline {
@@ -60,6 +61,13 @@
     font-weight: 700;
     color: #000000;
   }
+}
+
+/* Fix for empty paragraphs coming from Rich Text Editor */
+.prose p:empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* ── Components ── */

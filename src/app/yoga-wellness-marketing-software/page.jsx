@@ -1,8 +1,8 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
-import { Heart, Users, Sparkles } from "lucide-react";
+import { Heart, Users, Sparkles, TrendingUp, Flower2, Star, MessageSquare, Activity } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Yoga & Wellness Centers | Limbu AI",
+  title: "Marketing Software for Yoga & Wellness Centers | Limbu.ai",
   description: "Attract more wellness clients, automate mindful social posts, and manage center reviews with Limbu AI.",
 };
 
@@ -25,6 +25,57 @@ export default function YogaMarketingPage() {
     }
   ];
 
+  const howItWorksSteps = [
+    {
+      step: "01",
+      title: "Connect Your Wellness Profile",
+      description: "Link your Google Business Profile in one click. Our AI audits your local ranking for terms like 'Yoga classes near me' or 'Meditation center' and builds a custom growth strategy.",
+      icon: <TrendingUp className="w-5 h-5" />,
+    },
+    {
+      step: "02",
+      title: "AI Generates Mindful Content",
+      description: "Stop stressing about social media. Limbu AI automatically creates and schedules calming posts about your upcoming retreats, class schedules, and wellness tips.",
+      icon: <Flower2 className="w-5 h-5" />,
+    },
+    {
+      step: "03",
+      title: "Capture Post-Class Reviews",
+      description: "Students scan your custom Magic QR code on their way out of the studio to leave a glowing 5-star review while they are feeling centered and relaxed.",
+      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+    },
+    {
+      step: "04",
+      title: "Smart Review Replies",
+      description: "Limbu AI drafts peaceful, personalized replies to every student review instantly. It thanks 5-star clients and politely addresses any 1-star concerns privately.",
+      icon: <MessageSquare className="w-5 h-5" />,
+    },
+    {
+      step: "05",
+      title: "Watch Class Bookings Grow",
+      description: "As your 5-star reviews and weekly active mindful posts compound, your wellness center climbs to the #1 spot on Google Maps, driving consistent daily class signups.",
+      icon: <Activity className="w-5 h-5" />,
+    },
+  ];
+
+  const yogaPostImages = [
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764404571/tmpx28dvfi__qxwt1c.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1768026391/LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767776297/output_yd9alt.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767973055/Nutritionvalue_21_on_google_m2etix.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767694542/output_n1ahcx.jpg",
+  ];
+
+  const videoExamples = [
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
+  ];
+
   return (
     <IndustryLandingTemplate
       industryName="Yoga & Wellness Centers"
@@ -33,6 +84,10 @@ export default function YogaMarketingPage() {
       heroImage="/images/category/yoga.png"
       heroimage2="/images/bussiness/yoga.png"
       benefitsList={benefits}
+      howItWorks={howItWorksSteps}
+      postImages={yogaPostImages}
+      videoExamples={videoExamples}
+      whatsappLink="https://wa.me/919283344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Yoga%20Center."
     />
   );
 }

@@ -1,8 +1,8 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
-import { Wrench, MapPin, ShieldAlert } from "lucide-react";
+import { Wrench, MapPin, ShieldAlert, TrendingUp, PenTool, Star, MessageSquare, Car } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Car Garages & Mechanics | Limbu AI",
+  title: "Marketing Software for Car Garages & Mechanics | Limbu.ai",
   description: "Get more repair jobs, manage mechanic reviews, and boost local SEO for your car garage with Limbu AI.",
 };
 
@@ -25,6 +25,57 @@ export default function CarGarageMarketingPage() {
     }
   ];
 
+  const howItWorksSteps = [
+    {
+      step: "01",
+      title: "Connect Your Garage Profile",
+      description: "Link your Google Business Profile in one click. Our AI audits your local ranking for high-intent terms like 'Car mechanic near me' or 'Oil change' and builds a custom growth strategy.",
+      icon: <TrendingUp className="w-5 h-5" />,
+    },
+    {
+      step: "02",
+      title: "AI Generates Auto Content",
+      description: "Stop stressing about updating your profile. Limbu AI automatically creates posts showing your before-and-after work, seasonal maintenance tips, and available repair services.",
+      icon: <PenTool className="w-5 h-5" />,
+    },
+    {
+      step: "03",
+      title: "Capture Drive-Away Reviews",
+      description: "Ask the driver to scan your custom Magic QR code on the front desk or their invoice to leave a glowing 5-star review while they are thrilled to have their car back on the road.",
+      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+    },
+    {
+      step: "04",
+      title: "Smart Review Replies",
+      description: "Limbu AI drafts professional, personalized replies to every customer review instantly. It thanks 5-star drivers and politely addresses any 1-star complaints to protect your garage's reputation.",
+      icon: <MessageSquare className="w-5 h-5" />,
+    },
+    {
+      step: "05",
+      title: "Watch Repair Jobs Explode",
+      description: "As your 5-star reviews and weekly active posts compound, your auto repair shop climbs to the #1 spot on Google Maps, driving consistent, high-intent repair calls and walk-ins.",
+      icon: <Car className="w-5 h-5" />,
+    },
+  ];
+
+  const carGaragePostImages = [
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764404571/tmpx28dvfi__qxwt1c.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1768026391/LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767776297/output_yd9alt.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767973055/Nutritionvalue_21_on_google_m2etix.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767694542/output_n1ahcx.jpg",
+  ];
+
+  const videoExamples = [
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
+  ];
+
   return (
     <IndustryLandingTemplate
       industryName="Car Garages & Mechanics"
@@ -33,6 +84,10 @@ export default function CarGarageMarketingPage() {
       heroImage="/images/category/car.png"
       heroimage2="/images/bussiness/engine.png"
       benefitsList={benefits}
+      howItWorks={howItWorksSteps}
+      postImages={carGaragePostImages}
+      videoExamples={videoExamples}
+      whatsappLink="https://wa.me/919283344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Car%20Garage."
     />
   );
 }

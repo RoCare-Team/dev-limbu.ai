@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast, Toaster } from "react-hot-toast";
 import SupportModal from "@/components/SupportModal";
 import { useMagicQR } from "@/hooks/useMagicQR";
+import Select from "react-select";
 
 // Sub-components
 import QRPreviewCard from "@/components/magic-qr/QRPreviewCard";
@@ -39,6 +40,71 @@ export default function BusinessQR() {
   if (!isMounted) {
     return null; // Prevent hydration mismatch on initial render
   }
+
+  // Format locations for react-select
+  const locationOptions = allLocations.map((loc) => {
+    const title = loc.title || "";
+    const locality = loc.storefrontAddress?.locality || loc.locality || "";
+    const label = locality ? `${title} - ${locality}` : title;
+    return { value: loc.locationId, label };
+  });
+
+  const selectedOption = locationOptions.find((opt) => opt.value === selectedLocationId) || null;
+
+  // Custom styles for react-select to match the design system
+  const customStyles = {
+    control: (provided, state) => ({
+      ...provided,
+      backgroundColor: "white",
+      borderColor: state.isFocused ? "var(--lemon-glow)" : "rgba(0, 0, 0, 0.05)",
+      boxShadow: state.isFocused ? "0 0 0 2px var(--lemon-glow)" : "none",
+      borderRadius: "0.75rem", // rounded-xl
+      padding: "0.2rem",
+      fontSize: "0.75rem", // text-xs
+      fontWeight: "700", // font-bold
+      color: "black",
+      transition: "all 0.2s ease",
+      cursor: "pointer",
+      "&:hover": {
+        borderColor: "var(--lemon-glow)",
+      },
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected 
+        ? "var(--lemon-glow)" 
+        : state.isFocused 
+          ? "rgba(250, 204, 21, 0.1)" 
+          : "white",
+      color: state.isSelected ? "black" : "black",
+      fontSize: "0.75rem",
+      fontWeight: "600",
+      cursor: "pointer",
+      "&:active": {
+        backgroundColor: "var(--lemon-hover)",
+      },
+    }),
+    menu: (provided) => ({
+      ...provided,
+      borderRadius: "0.75rem",
+      overflow: "hidden",
+      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+      border: "1px solid rgba(0, 0, 0, 0.05)",
+      zIndex: 50,
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: "black",
+    }),
+    input: (provided) => ({
+      ...provided,
+      color: "black",
+      margin: "0px",
+    }),
+    indicatorSeparator: () => ({
+      display: "none",
+    }),
+  };
 
   if (!business) {
     return (
@@ -128,21 +194,16 @@ export default function BusinessQR() {
           {allLocations.length > 1 && (
             <div className="max-w-xs mx-auto mt-4">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Change Location</label>
-              <select
-                value={selectedLocationId}
-                onChange={(e) => handleLocationChange(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-white border border-black/5 text-xs font-bold text-black outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
-              >
-                {allLocations.map((loc) => {
-                  const title = loc.title || "";
-                  const locality = loc.storefrontAddress?.locality || loc.locality || "";
-                  return (
-                    <option key={loc.locationId} value={loc.locationId}>
-                      {locality ? `${title} - ${locality}` : title}
-                    </option>
-                  );
-                })}
-              </select>
+              <Select
+                value={selectedOption}
+                onChange={(option) => handleLocationChange(option.value)}
+                options={locationOptions}
+                styles={customStyles}
+                placeholder="Search locations..."
+                isSearchable={true}
+                blurInputOnSelect={true}
+                menuPlacement="auto"
+              />
             </div>
           )}
         </div>

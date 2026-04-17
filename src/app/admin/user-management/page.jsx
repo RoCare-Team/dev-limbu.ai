@@ -39,6 +39,7 @@ import {
   Globe,
   Bell,
   Upload,
+  Send,
 } from "lucide-react";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
@@ -226,8 +227,12 @@ export default function UserManagement() {
 
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
 
-  // table
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  /** SuperAdmin only — bulk Tata-style WhatsApp (same campaign as Tata Dialer). */
+  const [bulkWaSelectedUserIds, setBulkWaSelectedUserIds] = useState([]);
+  const [bulkWaShowPanel, setBulkWaShowPanel] = useState(false);
+  const [bulkWaSendDate, setBulkWaSendDate] = useState("");
+  const [bulkWaSending, setBulkWaSending] = useState(false);
+  const [bulkWaResult, setBulkWaResult] = useState(null);
 
   // remark
   const [planRemarks, setplanRemarks] = useState("");
@@ -313,6 +318,13 @@ export default function UserManagement() {
     return list;
   }, [users, isAgent, followUpFilter, followUpTableUsers, searchQuery]);
 
+  const bulkWaEligibleIdsOnPage = useMemo(() => {
+    if (role !== "superAdmin") return [];
+    return filteredUsers
+      .filter((u) => u.phone || u.mobileNumber)
+      .map((u) => String(u.userId));
+  }, [role, filteredUsers]);
+
   const followUpMetaByUserId = useMemo(() => {
     const m = new Map();
     for (const l of followUpLeads) {
@@ -389,32 +401,39 @@ export default function UserManagement() {
     }
   };
 
-  const handleRefreshMetaLeads = async (manual = false) => {
-    if (!manual) return; // 🔥 IMPORTANT
+  const handleRefreshMetaLeads = async ({ silent = false } = {}) => {
+    const adminRole = localStorage.getItem("role");
+    if (!["superAdmin", "admin"].includes(adminRole)) return;
 
-    setIsRefreshingMetaLeads(true);
+    const email = localStorage.getItem("email");
+    if (!email) return;
+
+    if (!silent) setIsRefreshingMetaLeads(true);
 
     try {
-      const email = localStorage.getItem("email");
-      console.log("EMAIL FROM LS:", email);
-
       const res = await fetch(
-        `/api/meta-leads-import?formId=1393275835835157&email=${email}`,
+        `/api/meta-leads-import?formId=1393275835835157&email=${encodeURIComponent(email)}`,
       );
 
       const data = await res.json();
 
       if (data.success) {
-        showToast("Meta Leads refreshed successfully!", "success");
+        if (!silent) {
+          showToast("Meta Leads refreshed successfully!", "success");
+        }
         fetchUsers();
       } else {
-        showToast(data.error || "Failed to refresh Meta Leads", "error");
+        if (!silent) {
+          showToast(data.error || "Failed to refresh Meta Leads", "error");
+        } else {
+          console.warn("Meta leads sync:", data.error || data);
+        }
       }
     } catch (error) {
       console.error("Error refreshing Meta Leads:", error);
-      showToast("Error refreshing Meta Leads", "error");
+      if (!silent) showToast("Error refreshing Meta Leads", "error");
     } finally {
-      setIsRefreshingMetaLeads(false);
+      if (!silent) setIsRefreshingMetaLeads(false);
     }
   };
 
@@ -480,6 +499,18 @@ export default function UserManagement() {
         .catch((err) => console.error("Error fetching agents:", err));
     }
   }, [role]);
+
+  useEffect(() => {
+    if (role && role !== "superAdmin") {
+      setBulkWaSelectedUserIds([]);
+      setBulkWaShowPanel(false);
+      setBulkWaResult(null);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (bulkWaSelectedUserIds.length === 0) setBulkWaShowPanel(false);
+  }, [bulkWaSelectedUserIds.length]);
 
   useEffect(() => {
     const fetchTotalPosts = async () => {
@@ -718,8 +749,10 @@ export default function UserManagement() {
         }
 
         setLeadSourceStats({
-          metaLeads: data.metaLeadsCount || 0,
-          signupLeads: data.signupLeadsCount || 0,
+          metaLeads:
+            data.metaLeadsCount ?? data.totalMetaLeads ?? data.totalMetaLeadUsers ?? 0,
+          signupLeads:
+            data.signupLeadsCount ?? data.totalSignupUsers ?? data.totalSignups ?? 0,
         });
       }
     } catch (error) {
@@ -843,14 +876,16 @@ export default function UserManagement() {
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
-    handleRefreshMetaLeads(false);
+    if (!["superAdmin", "admin"].includes(role)) return;
+
+    handleRefreshMetaLeads({ silent: true });
 
     const interval = setInterval(() => {
-      handleRefreshMetaLeads(false);
-    }, 60000);
+      handleRefreshMetaLeads({ silent: true });
+    }, 2 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     fetchChatStats();
@@ -1523,6 +1558,117 @@ export default function UserManagement() {
     } catch (error) {
       console.error("Error sending WhatsApp:", error);
       showToast("Failed to send notification", "error");
+    }
+  };
+
+  const getBulkWaCampaignByDate = (dateStr) => {
+    const day = new Date(dateStr).getDay();
+    if (day === 0) return null;
+    return "demo_session_confirmation1";
+  };
+
+  const toggleBulkWaUserId = (userId) => {
+    const id = String(userId);
+    setBulkWaSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const selectAllBulkWaOnPage = () => {
+    if (!bulkWaEligibleIdsOnPage.length) return;
+    setBulkWaSelectedUserIds((prev) => {
+      const allSelected = bulkWaEligibleIdsOnPage.every((id) =>
+        prev.includes(id),
+      );
+      return allSelected ? [] : [...bulkWaEligibleIdsOnPage];
+    });
+  };
+
+  const sendBulkUserManagementWhatsApp = async () => {
+    if (role !== "superAdmin") return;
+    if (!bulkWaSendDate) {
+      setBulkWaResult({
+        success: false,
+        message: "Please select a date for scheduling",
+      });
+      return;
+    }
+    const campaignName = getBulkWaCampaignByDate(bulkWaSendDate);
+    if (!campaignName) {
+      setBulkWaResult({
+        success: false,
+        message: "WhatsApp sending is disabled on Sunday",
+      });
+      return;
+    }
+
+    const usersPayload = filteredUsers
+      .filter((u) => bulkWaSelectedUserIds.includes(String(u.userId)))
+      .map((u) => {
+        let num = u.phone || u.mobileNumber;
+        if (!num) return null;
+        num = String(num).replace(/\D/g, "");
+        if (num.length === 10) num = `91${num}`;
+        if (num.length !== 12) return null;
+        return {
+          customer_no_with_prefix: num,
+          name: u.fullName || "User",
+        };
+      })
+      .filter(Boolean);
+
+    if (!usersPayload.length) {
+      setBulkWaResult({
+        success: false,
+        message: "No valid phone numbers in selection",
+      });
+      return;
+    }
+
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) {
+      setBulkWaResult({ success: false, message: "Not logged in" });
+      return;
+    }
+
+    setBulkWaSending(true);
+    setBulkWaResult(null);
+    try {
+      const response = await fetch("/api/admin/user-management-bulk-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          users: usersPayload,
+          campaignName,
+          scheduleDate: bulkWaSendDate,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        setBulkWaResult({
+          success: false,
+          message: json?.message || "Server error occurred",
+        });
+      } else {
+        setBulkWaResult({
+          success: json.success,
+          message: json.message || "Message processed",
+          sent: json.sent ?? 0,
+        });
+        if (json.success) {
+          setBulkWaSelectedUserIds([]);
+          setBulkWaShowPanel(false);
+        }
+      }
+    } catch (error) {
+      console.error("Bulk WhatsApp error:", error);
+      setBulkWaResult({
+        success: false,
+        message: "Something went wrong while sending",
+      });
+    } finally {
+      setBulkWaSending(false);
     }
   };
 
@@ -2616,110 +2762,209 @@ export default function UserManagement() {
             backgroundColor: "#fff",
           }}
         >
-          {(role === "superAdmin" ||
-            role === "admin" ||
-            role === "agent" ||
-            role === "superfranchiseAdmin") && (
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 2,
-                px: { xs: 2, sm: 2.5 },
-                py: { xs: 1.75, sm: 2 },
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                background: (theme) =>
-                  `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
-              }}
-            >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    fontWeight: 800,
-                    letterSpacing: "-0.02em",
-                    color: "text.primary",
-                    lineHeight: 1.3,
-                  }}
+             {(role === "superAdmin" ||
+                      role === "admin" || role === "agent" ||
+                      role === "superfranchiseAdmin") && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 2,
+                          px: { xs: 2, sm: 2.5 },
+                          py: { xs: 1.75, sm: 2 },
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
+                          background: (theme) =>
+                            `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            variant="subtitle1"
+                            sx={{
+                              fontWeight: 800,
+                              letterSpacing: "-0.02em",
+                              color: "text.primary",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            Leads
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                            Manage records and sync from Meta
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
+                          <Button
+                            variant="contained"
+                            onClick={() => setAddingUser(true)}
+                            startIcon={<Plus size={18} strokeWidth={2.5} />}
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: 700,
+                              borderRadius: 2,
+                              px: 2.5,
+                              py: 1,
+                              boxShadow: (theme) => `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
+                              background: (theme) =>
+                                `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                              "&:hover": {
+                                background: (theme) =>
+                                  `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                                boxShadow: (theme) => `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
+                              },
+                            }}
+                          >
+                            Add Lead
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            disabled={isRefreshingMetaLeads}
+                            onClick={() => handleRefreshMetaLeads({ silent: false })}
+                            startIcon={
+                              <RefreshCw
+                                size={16}
+                                className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                              />
+                            }
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: 700,
+                              borderRadius: 2,
+                              px: 2.25,
+                              py: 1,
+                              borderWidth: 2,
+                              borderColor: "primary.main",
+                              color: "primary.main",
+                              "&:hover": {
+                                borderWidth: 2,
+                                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                                borderColor: "primary.dark",
+                              },
+                              "&.Mui-disabled": {
+                                borderWidth: 2,
+                              },
+                            }}
+                          >
+                            Refresh
+                          </Button>
+                        </Stack>
+                      </Box>
+                    )}
+          {role === "superAdmin" && (
+            <>
+              {bulkWaSelectedUserIds.length > 0 && (
+                <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    <div className="flex items-center gap-3 text-white">
+                      <div className="bg-white/20 rounded-full p-3">
+                        <MessageSquare className="text-white" size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-90">Selected leads</p>
+                        <p className="text-2xl font-bold">
+                          {bulkWaSelectedUserIds.length}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setBulkWaShowPanel(true)}
+                        className="flex items-center justify-center gap-2 bg-white text-green-600 px-4 py-3 rounded-lg font-medium hover:bg-green-50 transition shadow-md min-w-[160px]"
+                      >
+                        <MessageSquare size={20} />
+                        WhatsApp
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {bulkWaShowPanel && bulkWaSelectedUserIds.length > 0 && (
+                <div className="bg-white px-4 py-6 md:px-8 border-b border-indigo-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <MessageSquare className="text-green-600" size={22} />
+                      Send WHATSAPP to {bulkWaSelectedUserIds.length} leads
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setBulkWaShowPanel(false)}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100"
+                      aria-label="Close"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Schedule Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                        value={bulkWaSendDate}
+                        onChange={(e) => setBulkWaSendDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={sendBulkUserManagementWhatsApp}
+                        disabled={bulkWaSending}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {bulkWaSending ? (
+                          <>
+                            <RefreshCw size={18} className="animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={18} />
+                            Send WHATSAPP
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {bulkWaResult && (
+                <div
+                  className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
+                    bulkWaResult.success
+                      ? "bg-green-50 text-green-800 border-green-500"
+                      : "bg-red-50 text-red-800 border-red-500"
+                  }`}
                 >
-                  Leads
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: 0.25 }}
-                >
-                  Manage records and sync from Meta
-                </Typography>
-              </Box>
-              <Stack
-                direction="row"
-                spacing={1.25}
-                alignItems="center"
-                flexWrap="wrap"
-                useFlexGap
-              >
-                <Button
-                  variant="contained"
-                  onClick={() => setAddingUser(true)}
-                  startIcon={<Plus size={18} strokeWidth={2.5} />}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderRadius: 2,
-                    px: 2.5,
-                    py: 1,
-                    boxShadow: (theme) =>
-                      `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
-                    background: (theme) =>
-                      `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                    "&:hover": {
-                      background: (theme) =>
-                        `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
-                      boxShadow: (theme) =>
-                        `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
-                    },
-                  }}
-                >
-                  Add Lead
-                </Button>
-                <Button
-                  variant="outlined"
-                  disabled={isRefreshingMetaLeads}
-                  onClick={() => handleRefreshMetaLeads(true)}
-                  startIcon={
-                    <RefreshCw
-                      size={16}
-                      className={isRefreshingMetaLeads ? "animate-spin" : ""}
-                    />
-                  }
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderRadius: 2,
-                    px: 2.25,
-                    py: 1,
-                    borderWidth: 2,
-                    borderColor: "primary.main",
-                    color: "primary.main",
-                    "&:hover": {
-                      borderWidth: 2,
-                      bgcolor: (theme) =>
-                        alpha(theme.palette.primary.main, 0.08),
-                      borderColor: "primary.dark",
-                    },
-                    "&.Mui-disabled": {
-                      borderWidth: 2,
-                    },
-                  }}
-                >
-                  Refresh
-                </Button>
-              </Stack>
-            </Box>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <p className="font-bold text-lg mb-1">
+                        {bulkWaResult.success ? "✓ Success" : "✗ Error"}
+                      </p>
+                      <p>{bulkWaResult.message}</p>
+                      {bulkWaResult.sent !== undefined && (
+                        <p className="mt-2 font-semibold">
+                          Messages sent: {bulkWaResult.sent}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBulkWaResult(null)}
+                      className="text-gray-500 hover:text-gray-700 p-1"
+                      aria-label="Dismiss"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <TableContainer
             sx={{
@@ -2731,25 +2976,22 @@ export default function UserManagement() {
               <table className="min-w-full">
                 <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur"> 
                   <tr>
-                    <th className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedUsers(
-                              filteredUsers.map((u) => u.userId),
-                            );
-                          } else {
-                            setSelectedUsers([]);
+                    {role === "superAdmin" && (
+                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
+                        <input
+                          type="checkbox"
+                          title="Select all leads with phone on this page"
+                          checked={
+                            bulkWaEligibleIdsOnPage.length > 0 &&
+                            bulkWaEligibleIdsOnPage.every((id) =>
+                              bulkWaSelectedUserIds.includes(id),
+                            )
                           }
-                        }}
-                        checked={
-                          selectedUsers.length === filteredUsers.length &&
-                          filteredUsers.length > 0
-                        }
-                      />
-                    </th>
-
+                          onChange={selectAllBulkWaOnPage}
+                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                       {isAgent && followUpFilter !== "all"
                         ? "Follow-up"
@@ -2798,15 +3040,11 @@ export default function UserManagement() {
                   {loadingFollowUpTable &&
                   isAgent &&
                   followUpFilter !== "all" ? (
-                    <tr
-                      key={user._id}
-                      className={`cursor-pointer transition-colors
-    ${selectedUsers.includes(user.userId) ? "bg-indigo-100" : ""}
-    ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}
-    hover:bg-indigo-50/50`}
-                      onClick={() => handleViewPosts(user)}
-                    >
-                      <td colSpan={13} className="text-center py-14">
+                    <tr>
+                      <td
+                        colSpan={role === "superAdmin" ? 13 : 12}
+                        className="text-center py-14"
+                      >
                         <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
                           <RefreshCw
                             size={28}
@@ -2834,30 +3072,27 @@ export default function UserManagement() {
                             } hover:bg-indigo-50/50`}
                             onClick={() => handleViewPosts(user)}
                           >
-                            <td
-                              className="px-4 py-3"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedUsers.includes(user.userId)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedUsers([
-                                      ...selectedUsers,
-                                      user.userId,
-                                    ]);
-                                  } else {
-                                    setSelectedUsers(
-                                      selectedUsers.filter(
-                                        (id) => id !== user.userId,
-                                      ),
-                                    );
+                            {role === "superAdmin" && (
+                              <td
+                                className="px-3 py-5 w-14 align-middle"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={!(user.phone || user.mobileNumber)}
+                                  title={
+                                    user.phone || user.mobileNumber
+                                      ? "Select for WhatsApp"
+                                      : "No phone on record"
                                   }
-                                }}
-                              />
-                            </td>
-
+                                  checked={bulkWaSelectedUserIds.includes(
+                                    String(user.userId),
+                                  )}
+                                  onChange={() => toggleBulkWaUserId(user.userId)}
+                                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                />
+                              </td>
+                            )}
                             <td className="px-6 py-5">
                               {isAgent && followUpFilter !== "all" ? (
                                 (() => {
@@ -3389,7 +3624,10 @@ export default function UserManagement() {
                       })}
                       {!loadingFollowUpTable && filteredUsers.length === 0 && (
                         <tr>
-                          <td colSpan={12} className="text-center py-12">
+                          <td
+                            colSpan={role === "superAdmin" ? 13 : 12}
+                            className="text-center py-12"
+                          >
                             <div className="text-gray-400">
                               <Search
                                 size={48}

@@ -440,6 +440,8 @@ export async function GET(req) {
           totalMetaLeadUsers,
           totalSignups: totalSignupUsers,
           totalMetaLeads: totalMetaLeadUsers,
+          metaLeadsCount: totalMetaLeadUsers,
+          signupLeadsCount: totalSignupUsers,
           todayLeads,
           todayAgentAssignments,
         };
@@ -618,6 +620,8 @@ export async function GET(req) {
         totalMetaLeadUsers,
         totalSignups: totalSignupUsers,
         totalMetaLeads: totalMetaLeadUsers,
+        metaLeadsCount: totalMetaLeadUsers,
+        signupLeadsCount: totalSignupUsers,
         todayLeads,
         todayAgentAssignments,
       };

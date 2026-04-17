@@ -8,7 +8,7 @@ import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 5000;
+const LIMIT = 10000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const TATA_TOKEN = process.env.TATA_TOKEN;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -27,8 +27,44 @@ async function connectDB() {
 }
 
 /* ================= HELPERS ================= */
-function getField(fields = [], name) {
-  return fields.find(f => f.name === name)?.values?.[0] || "";
+function normalizeFieldKey(n) {
+  return String(n || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+}
+
+/** Match Meta field_data `name` to standard keys (handles custom question labels). */
+function getFieldByAliases(fields = [], aliases = []) {
+  const want = new Set(aliases.map(normalizeFieldKey));
+  for (const f of fields) {
+    if (want.has(normalizeFieldKey(f.name))) {
+      const v = f.values?.[0];
+      if (v != null && String(v).trim() !== "") return String(v).trim();
+    }
+  }
+  return "";
+}
+
+const EMAIL_IN_TEXT = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+
+function extractEmailFromFields(fields = []) {
+  const direct = getFieldByAliases(fields, [
+    "email",
+    "work_email",
+    "business_email",
+    "email_address",
+    "contact_email",
+  ]);
+  if (direct) return direct.toLowerCase().trim();
+
+  for (const f of fields) {
+    for (const val of f.values || []) {
+      const m = String(val).match(EMAIL_IN_TEXT);
+      if (m) return m[0].toLowerCase().trim();
+    }
+  }
+  return "";
 }
 
 function cleanPhone(phone) {
@@ -36,6 +72,60 @@ function cleanPhone(phone) {
   phone = String(phone).replace(/\D/g, "");
   if (phone.startsWith("91") && phone.length === 12) phone = phone.slice(2);
   return phone.length === 10 ? phone : "";
+}
+
+function extractPhoneFromFields(fields = []) {
+  const direct = getFieldByAliases(fields, [
+    "phone_number",
+    "phone",
+    "mobile",
+    "mobile_number",
+    "contact_number",
+    "whatsapp",
+    "whatsapp_number",
+  ]);
+  let p = cleanPhone(direct);
+  if (p) return p;
+
+  for (const f of fields) {
+    for (const val of f.values || []) {
+      p = cleanPhone(val);
+      if (p) return p;
+    }
+  }
+  return "";
+}
+
+function extractFullNameFromFields(fields = []) {
+  let name = getFieldByAliases(fields, [
+    "full_name",
+    "full name",
+    "name",
+    "your_name",
+    "business_owner_name",
+  ]);
+  if (name) return name;
+
+  const first = getFieldByAliases(fields, ["first_name", "first name", "given_name"]);
+  const last = getFieldByAliases(fields, ["last_name", "last name", "surname"]);
+  if (first || last) return [first, last].filter(Boolean).join(" ").trim();
+
+  for (const f of fields) {
+    const v = f.values?.[0];
+    if (v == null || !String(v).trim()) continue;
+    const s = String(v).trim();
+    if (EMAIL_IN_TEXT.test(s)) continue;
+    if (cleanPhone(s)) continue;
+    if (/^(yes|no)$/i.test(s)) continue;
+    if (s.length > 1) return s;
+  }
+  return "Meta Lead";
+}
+
+function parseMetaCreatedAt(createdTime) {
+  if (!createdTime) return new Date();
+  const d = new Date(createdTime);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
 /** Atomic round-robin counter. Avoids $inc + $setOnInsert on same path (MongoDB conflict on `value`). */
@@ -191,10 +281,10 @@ export async function GET(req) {
       for (const lead of leads) {
         const fields = lead.field_data || [];
 
-        const fullName = getField(fields, "full_name");
-        const email = getField(fields, "email").toLowerCase().trim();
-        const phone = cleanPhone(getField(fields, "phone_number"));
-        const city = getField(fields, "city");
+        const fullName = extractFullNameFromFields(fields);
+        const email = extractEmailFromFields(fields);
+        const phone = extractPhoneFromFields(fields);
+        const city = getFieldByAliases(fields, ["city", "location", "area", "district"]);
 
         if (!email || !phone) {
           skipped++;
@@ -206,6 +296,8 @@ export async function GET(req) {
           skipped++;
           continue;
         }
+
+        const createdAt = parseMetaCreatedAt(lead.created_time);
 
         // Round Robin Logic
         let assignedAgentId = null;
@@ -235,6 +327,8 @@ export async function GET(req) {
           whatsappSent: true,
           tataCallSent: true,
           assignedAgentId,
+          createdAt,
+          updatedAt: createdAt,
         });
 
         inserted++;
@@ -253,7 +347,7 @@ export async function GET(req) {
       { upsert: true }
     );
 
-    const [usersSignup, usersBulkUpload] = await Promise.all([
+    const [usersSignup, usersMetaSources] = await Promise.all([
       User.countDocuments({ source: "signup" }),
       User.countDocuments({ source: "bulk-upload" }),
     ]);
@@ -267,7 +361,7 @@ export async function GET(req) {
         inserted,
         skipped,
         usersInDbSignup: usersSignup,
-        usersInDbBulkUpload: usersBulkUpload,
+        usersInDbBulkUpload: usersMetaSources,
       },
     });
 

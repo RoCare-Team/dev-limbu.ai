@@ -135,6 +135,7 @@ export function formatGmbSessionResponse(row) {
   if (!row) {
     return {
       status: "not_found",
+      
       message:
         "Session not found. Open the connect-google-business link from chat, sign in with Google, and tap Continue to chatbot.",
       locationsData: [],
@@ -142,6 +143,7 @@ export function formatGmbSessionResponse(row) {
   }
   return {
     status:        row.status === "success" ? "success" : "not_found",
+    email:         row.userEmail || "",
     message:       row.message || "",
     locationsData: Array.isArray(row.locationsData) ? row.locationsData : [],
   };

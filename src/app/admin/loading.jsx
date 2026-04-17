@@ -1,14 +1,21 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-
 export default function AdminLoading() {
   return (
-    <div className="flex min-h-[70vh] items-center justify-center">
-      <div className="rounded-2xl border border-slate-200 bg-white/90 px-8 py-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Loading admin dashboard...</p>
+    <div className="flex items-center justify-center min-h-[70vh] bg-gradient-to-br from-indigo-50 to-purple-50">
+      
+      <div className="flex flex-col items-center gap-4">
+        
+        {/* 🔥 Spinner */}
+        <div className="w-30 h-30 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+
+        {/* 🔥 Text */}
+        <p className="text-gray-600 font-medium animate-pulse">
+          Loading users...
+        </p>
+
       </div>
+
     </div>
   );
 }

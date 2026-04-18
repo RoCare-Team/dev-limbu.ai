@@ -95,10 +95,10 @@ const AdminSchema = new mongoose.Schema(
     },
 
     assignedFranchiseAdminId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Admin",
-  default: null,
-},
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
 
     permissions: {
       manageUsers: Boolean,

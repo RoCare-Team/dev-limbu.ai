@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { loadAssetsFromServerAction, saveAssetsToServerAction } from "@/app/actions/assetActions";
 import { Upload, Image, Palette, X, Check, Download, Copy, Loader, Server, AlertCircle } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 
 export default function AssetsManager() {
   const [assets, setAssets] = useState({
@@ -23,20 +23,20 @@ export default function AssetsManager() {
   const [userId, setUserId] = useState(null);
   const [assetId, setAssetId] = useState(null);
   const [error, setError] = useState(null);
-  
-const sizeOptions = [
-  { label: "1:1", value: "1:1" },
-  { label: "2:3", value: "2:3" },
-  { label: "3:2", value: "3:2" },
-  { label: "3:4", value: "3:4" },
-  { label: "4:3", value: "4:3" },
-  { label: "4:5", value: "4:5" },
-  { label: "5:4", value: "5:4" },
-  { label: "9:16", value: "9:16" },
-  { label: "16:9", value: "16:9" },
-  { label: "21:9", value: "21:9" },
-  { label: "Custom", value: "custom" }
-];
+
+  const sizeOptions = [
+    { label: "1:1", value: "1:1" },
+    { label: "2:3", value: "2:3" },
+    { label: "3:2", value: "3:2" },
+    { label: "3:4", value: "3:4" },
+    { label: "4:3", value: "4:3" },
+    { label: "4:5", value: "4:5" },
+    { label: "5:4", value: "5:4" },
+    { label: "9:16", value: "9:16" },
+    { label: "16:9", value: "16:9" },
+    { label: "21:9", value: "21:9" },
+    { label: "Custom", value: "custom" }
+  ];
 
 
   const colorPalettes = [
@@ -75,16 +75,16 @@ const sizeOptions = [
   const loadAssetsFromServer = async (currentUserId) => {
     try {
       const result = await loadAssetsFromServerAction(currentUserId);
-      
+
       if (result.success && result.data.length > 0) {
         const latestAssets = result.data[0];
         setAssetId(latestAssets._id);
-        
+
         // Convert productImage to array if it's a string
-        const productImageArray = latestAssets.productImage 
-          ? (Array.isArray(latestAssets.productImage) 
-              ? latestAssets.productImage 
-              : [latestAssets.productImage])
+        const productImageArray = latestAssets.productImage
+          ? (Array.isArray(latestAssets.productImage)
+            ? latestAssets.productImage
+            : [latestAssets.productImage])
           : [];
 
         const loadedAssets = {
@@ -98,7 +98,7 @@ const sizeOptions = [
         };
 
         setAssets(loadedAssets);
-        
+
         // Set previews for all loaded images
         const newPreviews = {
           characterImage: latestAssets.characterImage,
@@ -107,7 +107,7 @@ const sizeOptions = [
           logoImage: latestAssets.logoImage,
           productImage: productImageArray
         };
-        
+
         setPreviews(newPreviews);
       }
     } catch (error) {
@@ -118,7 +118,7 @@ const sizeOptions = [
 
   const saveAssetsToServer = useCallback(async (updatedAssets) => {
     if (!userId) return;
-    
+
     setIsSaving(true);
     setIsSaved(false);
     setError(null);
@@ -170,9 +170,9 @@ const sizeOptions = [
             ...assets,
             productImage: [...assets.productImage, base64String]
           };
-          setPreviews(prev => ({ 
-            ...prev, 
-            productImage: [...(prev.productImage || []), base64String] 
+          setPreviews(prev => ({
+            ...prev,
+            productImage: [...(prev.productImage || []), base64String]
           }));
         } else {
           updatedAssets = { ...assets, [key]: base64String };
@@ -292,7 +292,7 @@ const sizeOptions = [
                 Upload and manage all your design assets in one place. Changes are saved automatically.
               </p>
             </div>
-            
+
             <div className="flex items-center gap-3 flex-wrap">
               {isSaving && <Loader className="w-5 h-5 animate-spin text-purple-600" />}
               {isSaved && (
@@ -342,7 +342,7 @@ const sizeOptions = [
                 </div>
                 <h2 className="text-lg font-semibold text-dark">Color Palette</h2>
               </div>
-              
+
               <div className="space-y-3">
                 {/* Color Picker */}
                 <div className="p-4 border-2 border-dark rounded-xl">
@@ -372,11 +372,10 @@ const sizeOptions = [
                   <button
                     key={palette.value}
                     onClick={() => handleColorPaletteChange(palette.value)}
-                    className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                      assets.colourPalette === palette.value
+                    className={`w-full p-4 rounded-xl border-2 transition-all text-left ${assets.colourPalette === palette.value
                         ? 'border-purple-500 bg-purple-50'
                         : 'border-gray-200 hover:border-purple-300 bg-white'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -394,7 +393,7 @@ const sizeOptions = [
                     </div>
                   </button>
                 ))}
-                
+
                 <input
                   type="text"
                   value={assets.colourPalette}
@@ -408,17 +407,16 @@ const sizeOptions = [
             {/* Size Selector */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Canvas Size</h2>
-              
+
               <div className="space-y-2">
                 {sizeOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handleSizeChange(option.value)}
-                    className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
-                      assets.size === option.value
+                    className={`w-full p-3 rounded-xl border-2 transition-all text-left ${assets.size === option.value
                         ? 'border-gray-500 bg-gray-50'
                         : 'border-lightPrimary hover:border-primary  bg-white'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -431,7 +429,7 @@ const sizeOptions = [
                     </div>
                   </button>
                 ))}
-                
+
                 <input
                   type="text"
                   value={assets.size}
@@ -447,7 +445,7 @@ const sizeOptions = [
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Image Assets</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {imageFields.map((field) => (
                   <div key={field.key} className="border-2 border-gray-200 rounded-xl p-5 hover:border-purple-300 transition-all">
@@ -541,7 +539,7 @@ const sizeOptions = [
 
                   {/* Upload new product image card */}
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col justify-center items-center text-center h-full min-h-[140px]">
-                     <label className="block mb-2 w-full">
+                    <label className="block mb-2 w-full">
                       <input
                         type="file"
                         accept="image/*"
@@ -568,11 +566,11 @@ const sizeOptions = [
                     </div>
                     <input
                       type="text"
-                      onKeyDown={(e) => { 
-                        if (e.key === 'Enter' && e.target.value) { 
-                          handleUrlInput('productImage', e.target.value); 
-                          e.target.value = ''; 
-                        } 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.target.value) {
+                          handleUrlInput('productImage', e.target.value);
+                          e.target.value = '';
+                        }
                       }}
                       placeholder="Paste URL and press Enter"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-purple-400 focus:outline-none transition-all"
@@ -616,24 +614,23 @@ const sizeOptions = [
         </div>
       </div>
 
-      <SupportModal showToast={showToast} />
-      
+
       {/* Floating WhatsApp Button */}
-<a
-  href="https://wa.me/919289344726"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
-  aria-label="Chat on WhatsApp"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 32 32"
-    className="w-9 h-9 fill-white"
-  >
-    <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
-  </svg>
-</a>
+      <a
+        href="https://wa.me/919289344726"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
+        aria-label="Chat on WhatsApp"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 32 32"
+          className="w-9 h-9 fill-white"
+        >
+          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z" />
+        </svg>
+      </a>
     </div>
   );
 }

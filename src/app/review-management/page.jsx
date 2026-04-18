@@ -26,7 +26,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast, Toaster } from "react-hot-toast";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 
 const TOAST_POSITION = "top-center";
 
@@ -43,21 +43,21 @@ export default function DashboardPage() {
   const reviewsPerPage = 5;
 
   const { data: session, status } = useSession();
-  
+
   const router = useRouter();
 
   // Load reviews from localStorage on mount
   useEffect(() => {
     const savedReviews = localStorage.getItem("cachedReviews");
     const savedTimestamp = localStorage.getItem("reviewsFetchedAt");
-    
+
     if (savedReviews) {
       try {
         const parsedReviews = JSON.parse(savedReviews);
         setReviews(parsedReviews);
         setHasLoadedReviews(true);
         console.log(`Loaded ${parsedReviews.length} cached reviews from localStorage`);
-        
+
         if (savedTimestamp) {
           const fetchedDate = new Date(parseInt(savedTimestamp));
           console.log(`Reviews last fetched at: ${fetchedDate.toLocaleString()}`);
@@ -74,11 +74,11 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Get location details from localStorage
       const locationDetailsStr = localStorage.getItem("locationDetails");
       console.log("Raw locationDetails from localStorage:", locationDetailsStr);
-      
+
       if (!locationDetailsStr) {
         throw new Error("LOCATION_NOT_FOUND");
       }
@@ -126,7 +126,7 @@ export default function DashboardPage() {
 
         const res = await fetch("https://n8n.srv968758.hstgr.cloud/webhook/b3f4dda4-aef1-4e87-a426-b503cee3612b", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(requestBody),
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         if (reviewsToAutoReply.length > 0) {
           toast.success(`${reviewsToAutoReply.length} new reviews found. Generating AI replies...`, { icon: '🤖' });
           for (const review of reviewsToAutoReply) {
-            await handleAIReply(review, () => {}, () => {}, () => {}, true);
+            await handleAIReply(review, () => { }, () => { }, () => { }, true);
           }
           toast.success("Auto-reply process complete. Refreshing review list.", { icon: '🔄' });
           setTimeout(() => fetchReviews(), 2000);
@@ -219,12 +219,12 @@ export default function DashboardPage() {
       console.error("Error fetching reviews:", err);
       setError(err.message);
       setHasLoadedReviews(true);
-      
+
       // Don't show error toast in auto mode to avoid spamming
       if (!isAutoMode) {
         // User-friendly error messages
         let userMessage = "Unable to load reviews. Please try again.";
-        
+
         if (err.message === "LOCATION_NOT_FOUND" || err.message === "LOCATION_EMPTY") {
           userMessage = "Please set up your business location first.";
         } else if (err.message === "AUTH_TOKEN_MISSING") {
@@ -236,7 +236,7 @@ export default function DashboardPage() {
         } else if (err.message === "API_PARSE_ERROR") {
           userMessage = "Received invalid data from server. Please try again.";
         }
-        
+
         toast.error(userMessage, {
           duration: 5000,
           position: TOAST_POSITION,
@@ -289,13 +289,13 @@ export default function DashboardPage() {
     const normalizedPlan = plan ? plan.trim() : null;
     setUserPlan(normalizedPlan);
     setCheckingPlan(false);
-    
+
     console.log("User plan detected:", normalizedPlan);
   }, []);
 
-  const handleReplyModeToggle = async () => {  
+  const handleReplyModeToggle = async () => {
     const newMode = replyMode === "manual" ? "auto" : "manual";
-    
+
     // Get locations first to validate
     const locationsStr = localStorage.getItem("locationDetails");
     const locations = locationsStr ? JSON.parse(locationsStr) : null;
@@ -362,15 +362,15 @@ export default function DashboardPage() {
   const handleAIReply = async (review, setLocalReply, setShowReplyInput, setGeneratingAI, isAuto = false) => {
     try {
       setGeneratingAI(true);
-      
-      const { 
-        name, 
-        reviewId, 
-        comment, 
-        starRating, 
-        reviewer 
+
+      const {
+        name,
+        reviewId,
+        comment,
+        starRating,
+        reviewer
       } = review;
-      
+
       const starRatingMap = {
         "FIVE": "Five",
         "FOUR": "Four",
@@ -412,7 +412,7 @@ export default function DashboardPage() {
       const data = await res.json();
 
       console.log("AI Reply Response:", data);
-      
+
       if (data.status === true) {
         if (!isAuto) {
           toast.success("AI reply sent successfully!", {
@@ -450,10 +450,10 @@ export default function DashboardPage() {
       try {
         const locationDetailsStr = localStorage.getItem("locationDetails");
         if (!locationDetailsStr) return null;
-        
+
         const locationDetails = JSON.parse(locationDetailsStr);
         const [, , , locationId] = review.name?.split('/') || [];
-        
+
         const location = locationDetails.find(loc => loc.locationId === locationId);
         return location;
       } catch (err) {
@@ -472,7 +472,7 @@ export default function DashboardPage() {
 
       try {
         setReplyingTo(review.reviewId);
-        
+
         const { name, reviewId, starRating, reviewer } = review;
         const starRatingMap = {
           "FIVE": "Five",
@@ -481,14 +481,14 @@ export default function DashboardPage() {
           "TWO": "Two",
           "ONE": "One"
         };
-        
+
         const [, accountId, , locationId] = name?.split('/') || [];
         const token = session?.accessToken;
-        
+
         if (!token) {
           throw new Error("Session expired. Please log in again.");
         }
-        
+
         const res = await fetch("https://n8n.srv968758.hstgr.cloud/webhook/45f3a8db-b8d2-46ec-b692-4ec5fe90acc7", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -503,10 +503,10 @@ export default function DashboardPage() {
             reply_review: localReply
           }),
         });
-        
+
         const data = await res.json();
         console.log("Manual Reply Response:", data);
-        
+
         if (res.ok && data.status === true) {
           toast.success("Reply posted successfully!", {
             duration: 3000,
@@ -552,7 +552,7 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
-        
+
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
             <div className="flex-shrink-0">
@@ -704,17 +704,17 @@ export default function DashboardPage() {
             </div>
             <h3 className="text-2xl font-bold text-dark mb-3">Unable to Load Reviews</h3>
             <p className="text-dark mb-6 text-lg">
-              {error === "LOCATION_NOT_FOUND" || error === "LOCATION_EMPTY" 
+              {error === "LOCATION_NOT_FOUND" || error === "LOCATION_EMPTY"
                 ? "Please set up your business location to view reviews."
                 : error === "AUTH_TOKEN_MISSING"
-                ? "Your session has expired. Please log in again."
-                : error === "ACCOUNT_ID_MISSING" || error === "LOCATION_IDS_MISSING"
-                ? "Business information is incomplete. Please reconfigure your location."
-                : error.startsWith("API_ERROR")
-                ? "We're having trouble connecting to the server. Please try again in a moment."
-                : error === "API_PARSE_ERROR"
-                ? "Received invalid data from the server. Please try again."
-                : "Something went wrong. Please try again."}
+                  ? "Your session has expired. Please log in again."
+                  : error === "ACCOUNT_ID_MISSING" || error === "LOCATION_IDS_MISSING"
+                    ? "Business information is incomplete. Please reconfigure your location."
+                    : error.startsWith("API_ERROR")
+                      ? "We're having trouble connecting to the server. Please try again in a moment."
+                      : error === "API_PARSE_ERROR"
+                        ? "Received invalid data from the server. Please try again."
+                        : "Something went wrong. Please try again."}
             </p>
             <div className="space-y-3">
               <button
@@ -861,8 +861,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <SupportModal showToast={showToast} />
-      
       {/* Floating WhatsApp Button */}
       <a
         href="https://wa.me/919289344726"
@@ -876,7 +874,7 @@ export default function DashboardPage() {
           viewBox="0 0 32 32"
           className="w-9 h-9 fill-white"
         >
-          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
+          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z" />
         </svg>
       </a>
     </div>

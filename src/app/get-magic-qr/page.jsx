@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { toPng } from "html-to-image";
-import { 
-  Star, Download, Copy, Check, Sparkles, QrCode, 
+import {
+  Star, Download, Copy, Check, Sparkles, QrCode,
   Share2, Printer, ArrowLeft,
   Phone, X,
   MessageSquare
@@ -11,17 +11,17 @@ import Link from "next/link";
 import Image from "next/image";
 import PowerRedLogo from "../../../public/images/bg-logo.png"
 import { toast, Toaster } from "react-hot-toast";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 
 export default function BusinessQR() {
   const [business, setBusiness] = useState("");
   const [reviewUri, setReviewUri] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
   const [qrImage, setQrImage] = useState("");
-  
+
   const [copied, setCopied] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
-  
+
   const [allLocations, setAllLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const qrCardRef = useRef(null);
@@ -31,7 +31,7 @@ export default function BusinessQR() {
     try {
       const raw = localStorage.getItem("locationDetails");
       if (!raw) return [];
-      
+
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         return parsed;
@@ -67,7 +67,7 @@ export default function BusinessQR() {
     // Get locality from storefrontAddress (matching MongoDB structure)
     const locality = location.storefrontAddress?.locality || location.locality || "";
     const address = location.address || "";
-    
+
     // Create slug for SEO-friendly URL with locality
     const slug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
       .toLowerCase()
@@ -75,15 +75,15 @@ export default function BusinessQR() {
       .replace(/[^a-z0-9-]/g, "")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
-    
+
     const baseUrl = window.location.origin;
     return `${baseUrl}/reviews/${slug}`;
   };
 
   // Create display name with locality
   const getDisplayName = (location) => {
-    console.log("locationlocation",location);
-    
+    console.log("locationlocation", location);
+
     const title = location.title || "";
     const locality = location.storefrontAddress?.locality || location.locality || "";
     return locality ? `${title} - ${locality}` : title;
@@ -92,22 +92,22 @@ export default function BusinessQR() {
   // Init Load
   useEffect(() => {
     const locations = getAllLocations();
-    console.log("locationslocationslocations",locations);
-    
+    console.log("locationslocationslocations", locations);
+
     setAllLocations(locations);
 
     if (locations.length === 0) return;
 
     const firstLocation = locations[0];
-    console.log("firstLocationfirstLocation",firstLocation);
-    
+    console.log("firstLocationfirstLocation", firstLocation);
+
     setSelectedLocationId(firstLocation.locationId);
 
     const displayName = getDisplayName(firstLocation);
     setBusiness(displayName);
 
     if (!firstLocation.title) return;
-    
+
     // Use stored reviewUri if available
     if (firstLocation.reviewUri) {
       setReviewUri(firstLocation.reviewUri);
@@ -138,7 +138,7 @@ export default function BusinessQR() {
   // Handle location change
   const handleLocationChange = (locationId) => {
     setSelectedLocationId(locationId);
-    
+
     const selected = allLocations.find(loc => loc.locationId === locationId);
     if (!selected) return;
 
@@ -303,7 +303,7 @@ export default function BusinessQR() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        {/* Back button for mobile view */}
+      {/* Back button for mobile view */}
       <div className="sm:hidden fixed top-25 left-5 z-50">
         <Link href="/dashboard" passHref>
           <button
@@ -364,84 +364,84 @@ export default function BusinessQR() {
               <h2 className="text-2xl font-bold text-gray-800">Your QR Code</h2>
             </div>
 
-           <div className="mb-8 flex justify-center">
-  <div ref={qrCardRef} className="relative w-[340px] rounded-3xl overflow-hidden shadow-xl">
+            <div className="mb-8 flex justify-center">
+              <div ref={qrCardRef} className="relative w-[340px] rounded-3xl overflow-hidden shadow-xl">
 
-    {/* Google Color Background */}
-    <div className="absolute inset-0">
-      <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-yellow-400 rounded-br-[120px]" />
-      <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-red-500 rounded-bl-[120px]" />
-      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-green-500 rounded-tr-[120px]" />
-      <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-fullLight rounded-tl-[120px]" />
-    </div>
+                {/* Google Color Background */}
+                <div className="absolute inset-0">
+                  <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-yellow-400 rounded-br-[120px]" />
+                  <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-red-500 rounded-bl-[120px]" />
+                  <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-green-500 rounded-tr-[120px]" />
+                  <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-fullLight rounded-tl-[120px]" />
+                </div>
 
-    {/* White Card */}
-    <div className="relative bg-white m-4 rounded-2xl p-6 text-center">
+                {/* White Card */}
+                <div className="relative bg-white m-4 rounded-2xl p-6 text-center">
 
-      {/* Google Logo */}
-      <div className="flex justify-center mb-2">
-        <span className="text-4xl font-extrabold">
-          <span className="text-blue-500">G</span>
-          <span className="text-red-500">o</span>
-          <span className="text-yellow-500">o</span>
-          <span className="text-blue-500">g</span>
-          <span className="text-green-500">l</span>
-          <span className="text-red-500">e</span>
-        </span>
-      </div>
+                  {/* Google Logo */}
+                  <div className="flex justify-center mb-2">
+                    <span className="text-4xl font-extrabold">
+                      <span className="text-blue-500">G</span>
+                      <span className="text-red-500">o</span>
+                      <span className="text-yellow-500">o</span>
+                      <span className="text-blue-500">g</span>
+                      <span className="text-green-500">l</span>
+                      <span className="text-red-500">e</span>
+                    </span>
+                  </div>
 
-      {/* Stars */}
-      <div className="flex justify-center gap-1 text-yellow-400 mb-2">
-        ★ ★ ★ ★ ★
-      </div>
+                  {/* Stars */}
+                  <div className="flex justify-center gap-1 text-yellow-400 mb-2">
+                    ★ ★ ★ ★ ★
+                  </div>
 
-      {/* Heading */}
-      <p className="text-sm font-semibold text-gray-700">
-        Scan to Rate Us on <span className="font-bold">Google</span>
-      </p>
+                  {/* Heading */}
+                  <p className="text-sm font-semibold text-gray-700">
+                    Scan to Rate Us on <span className="font-bold">Google</span>
+                  </p>
 
-      {/* Business Name */}
-      <h3 className="text-base font-bold text-gray-900 mt-2 mb-4">
-        {business}
-      </h3>
+                  {/* Business Name */}
+                  <h3 className="text-base font-bold text-gray-900 mt-2 mb-4">
+                    {business}
+                  </h3>
 
-      {/* QR Code Box */}
-      {qrImage && (
-        <div className="relative inline-block bg-white p-4 rounded-xl shadow-md">
-          <img
-            src={qrImage}
-            alt="Google Review QR"
-            className="w-52 h-52 mx-auto"
-          />
+                  {/* QR Code Box */}
+                  {qrImage && (
+                    <div className="relative inline-block bg-white p-4 rounded-xl shadow-md">
+                      <img
+                        src={qrImage}
+                        alt="Google Review QR"
+                        className="w-52 h-52 mx-auto"
+                      />
 
-          {/* Corner Accents */}
-          <span className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-red-500 rounded-tl-lg" />
-          <span className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-blue-500 rounded-tr-lg" />
-          <span className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-yellow-400 rounded-bl-lg" />
-          <span className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-green-500 rounded-br-lg" />
-        </div>
-      )}
+                      {/* Corner Accents */}
+                      <span className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-red-500 rounded-tl-lg" />
+                      <span className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-blue-500 rounded-tr-lg" />
+                      <span className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-yellow-400 rounded-bl-lg" />
+                      <span className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-green-500 rounded-br-lg" />
+                    </div>
+                  )}
 
-      {/* Review URL (Optional) */}
-      <p className="text-[11px] text-gray-500 mt-3 break-all px-2">
-        {reviewUrl}
-      </p>
+                  {/* Review URL (Optional) */}
+                  <p className="text-[11px] text-gray-500 mt-3 break-all px-2">
+                    {reviewUrl}
+                  </p>
 
-      {/* Footer */}
-      <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-center gap-1.5">
-        <p className="text-[10px] text-gray-500">Powered by</p>
-        <Image
-          src={PowerRedLogo}
-          alt="LimbuAI Logo"
-          width={18}
-          height={18}
-        />
-        <p className="text-xs font-bold text-indigo-700">LimbuAI</p>
-      </div>
+                  {/* Footer */}
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-center gap-1.5">
+                    <p className="text-[10px] text-gray-500">Powered by</p>
+                    <Image
+                      src={PowerRedLogo}
+                      alt="LimbuAI Logo"
+                      width={18}
+                      height={18}
+                    />
+                    <p className="text-xs font-bold text-indigo-700">LimbuAI</p>
+                  </div>
 
-    </div>
-  </div>
-</div>
+                </div>
+              </div>
+            </div>
 
 
             <div className="grid grid-cols-2 gap-3 mb-8">
@@ -453,7 +453,7 @@ export default function BusinessQR() {
                 <Download size={20} />
                 Download
               </button>
-              
+
               <button
                 onClick={printQR}
                 className="bg-lightPrimary text-dark py-3.5 rounded-xl flex items-center justify-center gap-2 
@@ -627,24 +627,22 @@ export default function BusinessQR() {
         </div>
       )}
 
-      <SupportModal showToast={showToast} />
-      
       {/* Floating WhatsApp Button */}
-<a
-  href="https://wa.me/919289344726"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
-  aria-label="Chat on WhatsApp"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 32 32"
-    className="w-9 h-9 fill-white"
-  >
-    <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z"/>
-  </svg>
-</a>
+      <a
+        href="https://wa.me/919289344726"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-5 right-5 z-50 w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
+        aria-label="Chat on WhatsApp"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 32 32"
+          className="w-9 h-9 fill-white"
+        >
+          <path d="M16 .667C7.64.667.667 7.64.667 16c0 2.77.72 5.47 2.08 7.87L.667 31.333 7.2 29.28c2.31 1.26 4.93 1.92 7.6 1.92 8.36 0 15.333-6.973 15.333-15.333S24.36.667 16 .667zm0 27.2c-2.42 0-4.78-.64-6.85-1.87l-.49-.29-4.07 1.07 1.09-3.97-.32-.51c-1.24-1.94-1.9-4.18-1.9-6.6 0-6.91 5.61-12.533 12.533-12.533 6.91 0 12.533 5.623 12.533 12.533S22.91 27.867 16 27.867zm7.15-9.63c-.39-.2-2.31-1.14-2.67-1.27-.36-.13-.62-.2-.88.2-.26.39-1 1.27-1.23 1.53-.23.26-.46.29-.85.1-.39-.2-1.64-.6-3.12-1.91-1.15-1.03-1.93-2.31-2.15-2.7-.23-.39-.02-.6.17-.79.17-.17.39-.46.59-.69.2-.23.26-.39.39-.65.13-.26.07-.49-.03-.69-.1-.2-.88-2.12-1.21-2.9-.32-.78-.65-.67-.88-.68h-.76c-.26 0-.69.1-1.05.49-.36.39-1.37 1.34-1.37 3.27 0 1.93 1.41 3.79 1.61 4.05.2.26 2.78 4.24 6.73 5.95 3.95 1.72 3.95 1.15 4.66 1.08.72-.07 2.31-.94 2.64-1.85.33-.92.33-1.71.23-1.85-.1-.13-.36-.23-.75-.39z" />
+        </svg>
+      </a>
     </div>
   );
 }

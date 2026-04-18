@@ -876,18 +876,6 @@ export default function UserManagement() {
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
-    if (!["superAdmin", "admin"].includes(role)) return;
-
-    handleRefreshMetaLeads({ silent: true });
-
-    const interval = setInterval(() => {
-      handleRefreshMetaLeads({ silent: true });
-    }, 2 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [role]);
-
-  useEffect(() => {
     fetchChatStats();
     fetchIssues();
     fetchTodayUsersCount();

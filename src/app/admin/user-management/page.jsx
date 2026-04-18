@@ -1395,10 +1395,7 @@ export default function UserManagement() {
     setPlanScreenshot(null); // Reset screenshot
   };
 
-  const confirmPlanChange = async () => {
-    console.log("🔥 CLICKED USER:", service);
-    console.log("🔥 USER ID SENT:", service?.userId);
-    console.log("🔥 EMAIL:", service?.email);
+ const confirmPlanChange = async () => {
     if (!selectedUser || !selectedPlan) return;
 
     // If amount is entered, screenshot is mandatory

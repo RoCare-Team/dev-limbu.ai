@@ -59,11 +59,11 @@ export default function CarGarageMarketingPage() {
   ];
 
   const carGaragePostImages = [
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764404571/tmpx28dvfi__qxwt1c.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1768026391/LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767776297/output_yd9alt.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767973055/Nutritionvalue_21_on_google_m2etix.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767694542/output_n1ahcx.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776488785/Pest_vg1nc6.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776488888/Car_nwnbal.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776488980/Car_z8z9pk.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489049/Car_dwk1ze.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489128/Car_f1zzlk.jpg",
   ];
 
   const videoExamples = [

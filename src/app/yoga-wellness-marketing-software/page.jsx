@@ -59,11 +59,11 @@ export default function YogaMarketingPage() {
   ];
 
   const yogaPostImages = [
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764404571/tmpx28dvfi__qxwt1c.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1768026391/LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767776297/output_yd9alt.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767973055/Nutritionvalue_21_on_google_m2etix.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767694542/output_n1ahcx.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776490222/tour_and_travel_uupfn2.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776490290/tour_and_travel_hnkb3r.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776490360/tour_and_travel_gllxxx.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776490481/tour_and_travel_nsjm0o.jpg",
+    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776490612/tour_and_travel_exicr1.jpg",
   ];
 
   const videoExamples = [

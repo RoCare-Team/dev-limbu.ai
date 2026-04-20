@@ -186,8 +186,12 @@ export async function POST(req) {
     const allowedPlatforms = ["instagram", "facebook", "both"];
     const allowedAudioFolders = ["dharmik", "motivational", "basic"];
     const trimmedPrompt = typeof prompt === "string" ? prompt.trim() : "";
+    const trimmedVideoPrompt =
+      typeof video_prompt === "string" ? video_prompt.trim() : "";
     const effectivePrompt =
-      trimmedPrompt || "Create an engaging business promotional video.";
+      trimmedPrompt ||
+      trimmedVideoPrompt ||
+      "Create an engaging business promotional video.";
 
     const d = Number(duration);
     if (!Number.isFinite(d) || !allowedDurations.includes(d)) {

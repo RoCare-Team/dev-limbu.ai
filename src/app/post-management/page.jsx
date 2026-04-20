@@ -18,7 +18,6 @@ import {
 } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
-import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
   Loader2,
@@ -554,41 +553,22 @@ export default function PostManagementPage() {
 
       let imageUrl = image;
 
-      if (
-        (typeof image === "string" && image.startsWith("data:")) ||
-        (typeof image === "object" && image !== null)
-      ) {
-        // 1. Get Secure Signature from Server
-        const sigData = await getCloudinarySignatureAction();
-        if (!sigData.success) {
-          throw new Error(sigData.error || "Failed to get upload signature");
-        }
-
-        // 2. Upload directly to Cloudinary using the signature
+      if (typeof image === "string" && image.startsWith("data:")) {
+        const blobRes = await fetch(image);
+        const blob = await blobRes.blob();
         const formData = new FormData();
-        formData.append("file", image);
-        formData.append("api_key", sigData.apiKey);
-        formData.append("timestamp", sigData.timestamp);
-        formData.append("signature", sigData.signature);
-        formData.append("folder", sigData.folder);
-
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-          {
-            method: "POST",
-            body: formData,
-          },
-        );
-
-        if (!res.ok) {
-          const errorData = await res.json();
+        formData.append("image", blob, "manual-post.jpg");
+        const res = await fetch("/api/manual-upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success || !data.url) {
           throw new Error(
-            errorData.error?.message || "Failed to upload image to Cloudinary",
+            data.message || "Failed to upload image (S3 / server upload)",
           );
         }
-
-        const data = await res.json();
-        imageUrl = data.secure_url;
+        imageUrl = data.url;
       }
 
       // Save Post
@@ -858,7 +838,10 @@ export default function PostManagementPage() {
         instructions: instructionsField,
       });
 
-      clearInterval(timer);
+      console.log("apiResponseapiResponse",apiResponse);
+      
+
+        (timer);
 
       // The direct response from n8n is now the data we need
       if (apiResponse.status !== "true" && !apiResponse.success) {
@@ -919,7 +902,7 @@ export default function PostManagementPage() {
       // Save Post Immediately
       const savedPostResponse = await savePostAction({
         userId,
-        aiOutput: data.image || data.output,
+        aiOutput: data.output || data.output,
         description: finalDescription,
         gmbDescription: gmbDesc,
         fbDescription: fbDesc,
@@ -1591,8 +1574,16 @@ export default function PostManagementPage() {
           prompt: "",
         }) || "Business";
 
+      const motionPrompt =
+        (post?.promat && String(post.promat).trim()) ||
+        (post?.description && String(post.description).trim()) ||
+        "Create an engaging business promotional video.";
+
       const body = {
         image_url: null,
+        image: null,
+        prompt: motionPrompt,
+        video_prompt: motionPrompt,
         business_name: businessName,
         duration: Number(options?.duration) || 5,
         platform: "both",
@@ -1610,10 +1601,10 @@ export default function PostManagementPage() {
       }
       if (source.startsWith("http://") || source.startsWith("https://")) {
         body.image_url = source;
+      } else if (source.startsWith("data:image")) {
+        body.image = source;
       } else {
-        throw new Error(
-          "Image URL is invalid. Please use a post with a public image URL.",
-        );
+        body.image = `data:image/png;base64,${source}`;
       }
 
       const ivRes = await fetch("/api/image-to-video", {
@@ -1661,7 +1652,7 @@ export default function PostManagementPage() {
       const merged = { ...post, ...ivData.post };
       setPosts((prev) => prev.map((p) => (p._id === post._id ? merged : p)));
       setPreviewData((prev) =>
-        prev?._id === post._id ? { ...prev, ...upd.data } : prev,
+        prev?._id === post._id ? { ...prev, ...merged } : prev,
       );
       showToast("Video ready — tap the Video tab");
       await fetchPosts(true);

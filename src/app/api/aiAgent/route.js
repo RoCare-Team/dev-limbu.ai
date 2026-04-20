@@ -1,4 +1,5 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary } from "cloudinary";
+import { normalizeGenerateAdResponse } from "@/lib/normalizeGenerateAdResponse";
 
 // Cloudinary Configuration (Aap ise file ke top par ya kisi config file mein rakh sakte hain)
 cloudinary.config({
@@ -55,13 +56,33 @@ export async function POST(req) {
 
     
 
-    const data  = await response.json()
-    
+    const responseText = await response.text();
+    let parsed;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "AI agent webhook returned non-JSON",
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-    // 5. Webhook se response ka intezaar karein
-    // const data = await response.json();
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: parsed?.message || parsed?.error || `Webhook ${response.status}`,
+          data: parsed,
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-    // 6. Response ko frontend ko return karein
+    const data = normalizeGenerateAdResponse(parsed);
+
     return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

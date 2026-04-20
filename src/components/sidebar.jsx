@@ -51,7 +51,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
-import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp, User, Sparkles } from 'lucide-react';
+import { Activity, Home, Menu as MenuIcon, Package, Wand, CheckCircle, X, LayoutDashboard, FileText, Star, Image as LucideImage, KeyRound, History, ChevronDown, ChevronUp, User, Sparkles, BookOpen } from 'lucide-react';
 import logoDash from "../../public/images/bg-logo.png"
 import Image from 'next/image';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
@@ -526,6 +526,7 @@ export default function Sidebar({ children, user }) {
     // { text: 'Build Website', icon: <Activity size={20} />, path: '/build-website' },
     // { text: 'User Activity', icon: <History size={20} />, path: '/user-activity' },
     { text: 'User Profile', icon: <User size={20} />, path: '/profile' },
+        { text: 'Instructions', icon: <BookOpen size={20} />, path: '/instructions' },
     // { text: 'Optimization', icon: <Sparkles size={20} />, path: '/user-settings/optimization' },
     { text: 'Settings', icon: <SettingsIcon size={20} />, path: '/user-settings' },
   ];

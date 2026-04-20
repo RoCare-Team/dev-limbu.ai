@@ -364,15 +364,20 @@ export default function ImageToVideoModal({
     setLoading(true);
     setResult(null);
     try {
+      const motionPrompt =
+        ivPrompt.trim() ||
+        "Create an engaging business promotional video.";
       const body = {
         image_url: null,
+        image: null,
+        prompt: motionPrompt,
+        video_prompt: ivPrompt.trim(),
         business_name: resolvedBusinessName || "Business",
         duration: ivDuration,
         platform: ivPlatform,
         audio_file_url: null,
         audio_folder: voiceMode === "use-voice" ? null : audioFolder || null,
         userId,
-        video_prompt: ivPrompt.trim(),
         ...(mergeTargetPostId ? { postId: mergeTargetPostId } : {}),
       };
       if (voiceMode === "use-voice") {
@@ -383,9 +388,11 @@ export default function ImageToVideoModal({
       }
       if (effectiveImagePayload.image_url) {
         body.image_url = effectiveImagePayload.image_url;
+      } else if (effectiveImagePayload.image) {
+        body.image = effectiveImagePayload.image;
       } else {
         throw new Error(
-          "Image URL is invalid. Please use a source with a public image URL."
+          "No valid image source. Pick a creative, upload an image, or use a public URL.",
         );
       }
 

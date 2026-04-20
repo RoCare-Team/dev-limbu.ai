@@ -59,20 +59,33 @@ const PostCard = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all flex flex-col">
-      <a href={post.aiOutput} target="_blank" rel="noopener noreferrer">
+      <a
+        href={post.aiOutput || "#"}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => {
+          if (!post?.aiOutput) e.preventDefault();
+        }}
+      >
         <div className="relative">
-          {imageLoading && (
+          {imageLoading && post?.aiOutput && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 w-full h-56 md:h-64">
               <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
             </div>
           )}
-          <img
-            src={post?.aiOutput || "https://via.placeholder.com/400"}
-            alt="Post"
-            className={`w-full h-56 md:h-64 object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-            onLoad={() => setImageLoading(false)}
-            onError={() => setImageLoading(false)}
-          />
+          {post?.aiOutput ? (
+            <img
+              src={post.aiOutput}
+              alt="Post"
+              className={`w-full h-56 md:h-64 object-cover transition-opacity duration-300 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+              onLoad={() => setImageLoading(false)}
+              onError={() => setImageLoading(false)}
+            />
+          ) : (
+            <div className="flex w-full h-56 md:h-64 items-center justify-center bg-gray-100 text-sm text-gray-500">
+              No image
+            </div>
+          )}
           <div
             className={`absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getStatusChip(
               post.status

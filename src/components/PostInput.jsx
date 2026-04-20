@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { deleteAssetAction, saveAssetsToServerAction } from "@/app/actions/assetActions";
 import {
   Loader2,
@@ -18,6 +19,14 @@ import {
   MicOff,
   FileText,
 } from "lucide-react";
+import {
+  readIncludedMap,
+  readExtraNotes,
+  readAppendToPrompt,
+  writeAppendToPrompt,
+  mergeIncludedMapForIds,
+  PM_INSTRUCTIONS_UPDATED,
+} from "@/lib/postManagementInstructionsStorage";
 
 const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
   
@@ -35,9 +44,12 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const [activeTab, setActiveTab] = useState("ai");
   /** ai = guided flow (keywords required); manual = free-form prompt */
   const [creationMode, setCreationMode] = useState("ai");
-  const [assetInstructions, setAssetInstructions] = useState("");
+  /** Saved instructions from /api/instructions (MongoDB) */
+  const [dbInstructions, setDbInstructions] = useState([]);
+  /** id -> false means excluded from prompt; undefined/true means included */
+  const [includedInstructionMap, setIncludedInstructionMap] = useState({});
+  const [instructionExtraNotes, setInstructionExtraNotes] = useState("");
   const [includeInstructionsInPrompt, setIncludeInstructionsInPrompt] = useState(false);
-  const [instructionsSidebarOpen, setInstructionsSidebarOpen] = useState(false);
   const [manualImage, setManualImage] = useState(null);
   const [manualDescription, setManualDescription] = useState("");
   const [showKeywordModal, setShowKeywordModal] = useState(false);
@@ -146,6 +158,50 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   useEffect(() => {
     fetchSavedKeywords();
   }, []);
+
+  const loadDbInstructions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/instructions");
+      const data = await res.json();
+      if (!data.success) return;
+      const list = data.instructions || [];
+      setDbInstructions(list);
+      const ids = list.map((item) => item._id).filter(Boolean);
+      setIncludedInstructionMap(mergeIncludedMapForIds(readIncludedMap(), ids));
+    } catch (e) {
+      console.error("loadDbInstructions:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    setIncludeInstructionsInPrompt(readAppendToPrompt());
+    setInstructionExtraNotes(readExtraNotes());
+    loadDbInstructions();
+  }, [loadDbInstructions]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onUpdate = () => {
+      setInstructionExtraNotes(readExtraNotes());
+      setIncludeInstructionsInPrompt(readAppendToPrompt());
+      loadDbInstructions();
+    };
+    window.addEventListener(PM_INSTRUCTIONS_UPDATED, onUpdate);
+    return () => window.removeEventListener(PM_INSTRUCTIONS_UPDATED, onUpdate);
+  }, [loadDbInstructions]);
+
+  const compiledInstructionsForPrompt = useMemo(() => {
+    const parts = dbInstructions
+      .filter((item) => includedInstructionMap[item._id] !== false)
+      .map(
+        (item) =>
+          `${(item.title || "").trim()}\n${(item.description || "").trim()}`.trim(),
+      )
+      .filter(Boolean);
+    const extra = instructionExtraNotes.trim();
+    if (extra) parts.push(extra);
+    return parts.join("\n\n");
+  }, [dbInstructions, includedInstructionMap, instructionExtraNotes]);
 
   const handleAddKeyword = async (keyword) => {
     const trimmedKeyword = keyword.trim();
@@ -440,7 +496,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
 
     onGenerate(assetsToSend, showAssets, businessName, selectedKeywords, {
       mode: creationMode,
-      instructions: assetInstructions,
+      instructions: compiledInstructionsForPrompt,
       includeInstructionsInPrompt,
     });
   };
@@ -763,34 +819,37 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   <div className="space-y-1.5">
     <p className="text-xs font-semibold text-gray-700">Your Assets</p>
 
-    <div className="rounded-md border border-amber-200 bg-amber-50/60 p-2 space-y-2">
-      <div className="flex items-start justify-between gap-2">
+    <div className="rounded-md border border-gray-200 bg-gray-50 p-2 space-y-2">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <FileText className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+          <FileText className="w-3.5 h-3.5 text-gray-600 shrink-0" />
           <span className="text-[11px] font-semibold text-gray-800">Instructions</span>
         </div>
-        <button
-          type="button"
-          onClick={() => setInstructionsSidebarOpen(true)}
+        <Link
+          href="/instructions"
           className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 shrink-0"
         >
-          Edit
-        </button>
+          Manage
+        </Link>
       </div>
-      <p className="text-[10px] text-gray-600 line-clamp-2 leading-snug">
-        {assetInstructions.trim()
-          ? assetInstructions
-          : "Add brand rules, must-have copy, or layout notes — open the sidebar to write them."}
+      <p className="text-[10px] text-gray-600 leading-snug line-clamp-2">
+        {dbInstructions.length === 0
+          ? "None saved yet. Open Manage to add instructions and choose what goes into your generate prompt."
+          : `${dbInstructions.length} saved — use Manage to edit, pick checkboxes, and optional extra note (this device).`}
       </p>
       <label className="flex items-start gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={includeInstructionsInPrompt}
-          onChange={(e) => setIncludeInstructionsInPrompt(e.target.checked)}
+          onChange={(e) => {
+            const v = e.target.checked;
+            setIncludeInstructionsInPrompt(v);
+            writeAppendToPrompt(v);
+          }}
           className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
         <span className="text-[10px] text-gray-700 leading-snug">
-          Add instructions to prompt when generating (appends under &quot;Instructions:&quot;)
+          Append checked instructions (and extra note) under &quot;Instructions:&quot; when generating
         </span>
       </label>
     </div>
@@ -1105,52 +1164,6 @@ font-semibold text-sm"
           </div>
         )}
       </div>
-
-      {/* Instructions sidebar */}
-      {instructionsSidebarOpen && (
-        <>
-          <div
-            role="presentation"
-            className="fixed inset-0 bg-black/40 z-[60]"
-            onClick={() => setInstructionsSidebarOpen(false)}
-          />
-          <div className="fixed top-0 right-0 z-[70] h-full w-full max-w-md bg-white shadow-2xl border-l border-gray-200 flex flex-col animate-in slide-in-from-right duration-200">
-            <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-600" />
-                <h3 className="font-semibold text-sm text-gray-900">Instructions</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInstructionsSidebarOpen(false)}
-                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 p-3 overflow-hidden flex flex-col min-h-0">
-              <p className="text-[11px] text-gray-500 mb-2">
-                Saved here for Your Assets. Check &quot;Add instructions to prompt&quot; to append this text when you generate.
-              </p>
-              <textarea
-                value={assetInstructions}
-                onChange={(e) => setAssetInstructions(e.target.value)}
-                placeholder="e.g. Always use our tagline, keep text in Hindi, no stock faces..."
-                className="flex-1 min-h-[240px] w-full p-3 border border-gray-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-y placeholder:text-gray-400"
-              />
-            </div>
-            <div className="p-3 border-t border-gray-100 bg-gray-50">
-              <button
-                type="button"
-                onClick={() => setInstructionsSidebarOpen(false)}
-                className="w-full py-2.5 rounded-lg bg-lightPrimary text-dark font-semibold text-sm hover:shadow-md transition-all"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Keyword Selection Modal */}
       {showKeywordModal && (

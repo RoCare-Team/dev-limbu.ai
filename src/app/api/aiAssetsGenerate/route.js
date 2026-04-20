@@ -1,3 +1,5 @@
+import { normalizeGenerateAdResponse } from "@/lib/normalizeGenerateAdResponse";
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -14,8 +16,8 @@ export async function POST(req) {
       backgroundImage,
       logoImage,
       platform,
-      mode
-      // instructions,
+      mode,
+      instructions,
     } = body;
 
     const cleanBase64 = (str) => {
@@ -49,17 +51,46 @@ export async function POST(req) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }
+      },
     );
 
-    const finalData = await n8nResponse.json();
+    const responseText = await n8nResponse.text();
+    let parsed;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "generate-ad returned non-JSON",
+          detail: responseText?.slice?.(0, 300) ?? "",
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!n8nResponse.ok) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            parsed?.message ||
+            parsed?.error ||
+            `generate-ad HTTP ${n8nResponse.status}`,
+          data: parsed,
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const normalized = normalizeGenerateAdResponse(parsed);
 
     return new Response(
-      JSON.stringify({ success: true, data: finalData }),
+      JSON.stringify({ success: true, data: normalized }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
 
   } catch (error) {

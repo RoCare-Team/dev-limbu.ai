@@ -11,13 +11,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
+import { postHasVideoAsset } from "@/lib/postMediaUrls";
 import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
-import {
-  savePostAction,
-  updatePostStatusAction,
-  getUserWalletAction,
-  deductFromWalletAction,
-} from "@/app/actions/postActions";
+import { getUserWalletAction } from "@/app/actions/postActions";
 
 const DURATION_OPTIONS = [5, 8, 10];
 const PLATFORM_OPTIONS = ["instagram", "facebook", "both"];
@@ -336,6 +332,15 @@ export default function ImageToVideoModal({
       return;
     }
 
+    if (
+      mergeTargetPostId &&
+      mergeTargetPost &&
+      postHasVideoAsset(mergeTargetPost)
+    ) {
+      showToast?.("This post already has a video — no need to generate again.", "info");
+      return;
+    }
+
     const userId =
       typeof window !== "undefined"
         ? localStorage.getItem("userId")
@@ -366,6 +371,9 @@ export default function ImageToVideoModal({
         platform: ivPlatform,
         audio_file_url: null,
         audio_folder: voiceMode === "use-voice" ? null : audioFolder || null,
+        userId,
+        video_prompt: ivPrompt.trim(),
+        ...(mergeTargetPostId ? { postId: mergeTargetPostId } : {}),
       };
       if (voiceMode === "use-voice") {
         const trimmedAudioUrl = audioFileUrl.trim();
@@ -388,6 +396,16 @@ export default function ImageToVideoModal({
       });
       const data = await res.json().catch(() => ({}));
 
+      if (res.status === 402) {
+        onVideoInsufficientBalance?.();
+        showToast?.(
+          typeof data.error === "string"
+            ? data.error
+            : "Insufficient balance for video generation.",
+          "error"
+        );
+        return;
+      }
       if (!res.ok) {
         const msg =
           typeof data.error === "string"
@@ -403,85 +421,33 @@ export default function ImageToVideoModal({
         throw new Error(msg);
       }
 
-      setResult(data);
+      const videoUrl = String(
+        data.drive_link || data.video_url || ""
+      ).trim();
+      if (!videoUrl) {
+        throw new Error("No video URL returned from generator");
+      }
 
-      if (userId && data.drive_link) {
-        const wd = await deductFromWalletAction(userId, {
-          amount: videoGenerationCoins,
-          type: "deduct",
-          reason: "video_generated",
-          metadata: {
-            source: mergeTargetPostId ? "image_to_video_merge" : "image_to_video_new",
-          },
-        });
-        if (wd.error) {
-          showToast?.(wd.error, "error");
+      setResult({ ...data, drive_link: videoUrl, video_url: videoUrl });
+
+      if (data.post) {
+        onVideoSaved?.(data.post);
+        if (data.alreadySaved) {
+          showToast?.("This video is already saved on this post.", "info");
         } else {
+          showToast?.(
+            mergeTargetPostId
+              ? "Video saved — use Image / Video tabs in preview"
+              : "Video saved — see Videos tab",
+            "success"
+          );
+        }
+        if (Number(data.coinsDeducted) > 0) {
           onVideoChargeApplied?.();
           showToast?.(
             `${videoGenerationCoins} coins deducted for video generation ✅`,
             "success"
           );
-        }
-
-        const ig =
-          typeof data.instagram_caption === "string"
-            ? data.instagram_caption.trim()
-            : "";
-        const fb =
-          typeof data.facebook_caption === "string"
-            ? data.facebook_caption.trim()
-            : "";
-        const description =
-          [ig, fb].filter(Boolean).join("\n\n").trim() ||
-          ivPrompt.trim() ||
-          "Video creative";
-
-        const mergeId = mergeTargetPostId;
-        if (mergeId) {
-          const st = mergeTargetPost?.status || "pending";
-          const patch = {
-            id: mergeId,
-            userId,
-            status: st,
-            videoOutput: data.drive_link,
-            videoPrompt: ivPrompt.trim(),
-          };
-          if (fb) patch.fbDescription = fb;
-          if (ig) patch.igDescription = ig;
-          const upd = await updatePostStatusAction(patch);
-          if (upd.success && upd.data) {
-            onVideoSaved?.(upd.data);
-            showToast?.("Video added — use Image / Video tabs in preview", "success");
-          } else {
-            showToast?.(
-              upd.error || "Video generated but could not attach to this post.",
-              "error"
-            );
-          }
-        } else {
-          const saveRes = await savePostAction({
-            userId,
-            aiOutput: data.drive_link,
-            description,
-            promat: "Image to Video",
-            status: "pending",
-            mediaType: "video",
-            gmbDescription: ig || description,
-            fbDescription: fb || description,
-            igDescription: ig || description,
-          });
-
-          if (saveRes.success && saveRes.data) {
-            onVideoSaved?.(saveRes.data);
-            showToast?.("Video saved — see Videos tab", "success");
-          } else {
-            showToast?.(
-              saveRes.error ||
-                "Video generated but could not save to your library.",
-              "error"
-            );
-          }
         }
       } else {
         showToast?.("Video generated successfully", "success");

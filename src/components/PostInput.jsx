@@ -15,7 +15,8 @@ import {
   Palette,
   Plus,
   Mic,
-  MicOff
+  MicOff,
+  FileText,
 } from "lucide-react";
 
 const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
@@ -32,6 +33,11 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
   const [showKeywordDropdown, setShowKeywordDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
+  /** ai = guided flow (keywords required); manual = free-form prompt */
+  const [creationMode, setCreationMode] = useState("ai");
+  const [assetInstructions, setAssetInstructions] = useState("");
+  const [includeInstructionsInPrompt, setIncludeInstructionsInPrompt] = useState(false);
+  const [instructionsSidebarOpen, setInstructionsSidebarOpen] = useState(false);
   const [manualImage, setManualImage] = useState(null);
   const [manualDescription, setManualDescription] = useState("");
   const [showKeywordModal, setShowKeywordModal] = useState(false);
@@ -432,7 +438,11 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
       assetsToSend.push(sizeAsset);
     }
 
-    onGenerate(assetsToSend, showAssets, businessName, selectedKeywords);
+    onGenerate(assetsToSend, showAssets, businessName, selectedKeywords, {
+      mode: creationMode,
+      instructions: assetInstructions,
+      includeInstructionsInPrompt,
+    });
   };
 
   const handleManualSubmit = async () => {
@@ -494,14 +504,44 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
         <div className="space-y-2">
           {/* Prompt Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-dark flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-dark" />
-              What would you like to create?
-            </label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <label className="text-xs font-semibold text-dark flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-dark" />
+                What would you like to create?
+              </label>
+              <div className="flex p-0.5 bg-gray-100 rounded-lg shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("ai")}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                    creationMode === "ai"
+                      ? "bg-white shadow text-dark"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("manual")}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                    creationMode === "manual"
+                      ? "bg-white shadow text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Manual
+                </button>
+              </div>
+            </div>
             <div className="relative">
               <textarea
                 ref={textareaRef}
-                placeholder="Describe your post idea..."
+                placeholder={
+                  creationMode === "manual"
+                    ? "Write any prompt you want — full freedom for your banner or post."
+                    : "Describe your post idea..."
+                }
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 className="w-full p-2 pr-24 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all min-h-[40px] resize-none placeholder:text-gray-400"
@@ -616,7 +656,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                     }}
                     onFocus={() => setShowKeywordDropdown(true)}
                     onBlur={() => setTimeout(() => setShowKeywordDropdown(false), 200)}
-                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm  focus:ring-primary outline-none`}
+                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 && creationMode !== "manual" ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm  focus:ring-primary outline-none`}
                     placeholder={selectedKeywords.length > 0 ? "Add more keywords..." : "Enter & save keywords"}
                   />
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -630,7 +670,10 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                   Add 
                 </button>
               </div>
-              {keywordError && selectedKeywords.length === 0 && (
+              {creationMode === "manual" && (
+                <p className="text-[10px] text-gray-500 mt-0.5">Keywords are optional in Manual mode.</p>
+              )}
+              {keywordError && selectedKeywords.length === 0 && creationMode !== "manual" && (
                 <p className="text-red-500 text-xs mt-1 ml-1">{keywordError}</p>
               )}
               {showKeywordDropdown && filteredKeywords.length > 0 && (
@@ -719,6 +762,38 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
        {assets && showAssets && (
   <div className="space-y-1.5">
     <p className="text-xs font-semibold text-gray-700">Your Assets</p>
+
+    <div className="rounded-md border border-amber-200 bg-amber-50/60 p-2 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <FileText className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+          <span className="text-[11px] font-semibold text-gray-800">Instructions</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setInstructionsSidebarOpen(true)}
+          className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 shrink-0"
+        >
+          Edit
+        </button>
+      </div>
+      <p className="text-[10px] text-gray-600 line-clamp-2 leading-snug">
+        {assetInstructions.trim()
+          ? assetInstructions
+          : "Add brand rules, must-have copy, or layout notes — open the sidebar to write them."}
+      </p>
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={includeInstructionsInPrompt}
+          onChange={(e) => setIncludeInstructionsInPrompt(e.target.checked)}
+          className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        <span className="text-[10px] text-gray-700 leading-snug">
+          Add instructions to prompt when generating (appends under &quot;Instructions:&quot;)
+        </span>
+      </label>
+    </div>
 
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
       {assets.map((asset, index) => {
@@ -1030,6 +1105,52 @@ font-semibold text-sm"
           </div>
         )}
       </div>
+
+      {/* Instructions sidebar */}
+      {instructionsSidebarOpen && (
+        <>
+          <div
+            role="presentation"
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => setInstructionsSidebarOpen(false)}
+          />
+          <div className="fixed top-0 right-0 z-[70] h-full w-full max-w-md bg-white shadow-2xl border-l border-gray-200 flex flex-col animate-in slide-in-from-right duration-200">
+            <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-amber-600" />
+                <h3 className="font-semibold text-sm text-gray-900">Instructions</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInstructionsSidebarOpen(false)}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 p-3 overflow-hidden flex flex-col min-h-0">
+              <p className="text-[11px] text-gray-500 mb-2">
+                Saved here for Your Assets. Check &quot;Add instructions to prompt&quot; to append this text when you generate.
+              </p>
+              <textarea
+                value={assetInstructions}
+                onChange={(e) => setAssetInstructions(e.target.value)}
+                placeholder="e.g. Always use our tagline, keep text in Hindi, no stock faces..."
+                className="flex-1 min-h-[240px] w-full p-3 border border-gray-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-y placeholder:text-gray-400"
+              />
+            </div>
+            <div className="p-3 border-t border-gray-100 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setInstructionsSidebarOpen(false)}
+                className="w-full py-2.5 rounded-lg bg-lightPrimary text-dark font-semibold text-sm hover:shadow-md transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Keyword Selection Modal */}
       {showKeywordModal && (

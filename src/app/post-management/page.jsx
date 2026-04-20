@@ -471,13 +471,27 @@ export default function PostManagementPage() {
     useAssetsFlow,
     businessName,
     keywords,
+    generateOptions = {},
   ) => {
+    const mode = generateOptions.mode === "manual" ? "manual" : "ai";
+    const instructionsRaw =
+      typeof generateOptions.instructions === "string"
+        ? generateOptions.instructions
+        : "";
+    const includeInstructionsInPrompt =
+      !!generateOptions.includeInstructionsInPrompt;
+
+    const effectivePrompt =
+      includeInstructionsInPrompt && instructionsRaw.trim()
+        ? `${prompt.trim()}\n\nInstructions:\n${instructionsRaw.trim()}`
+        : prompt;
+
     const resolvedBusinessName = resolveBusinessNameForGeneration({
       fromInput: typeof businessName === "string" ? businessName : "",
       selectedBusinessName: selectedBusiness?.name,
       bussinessTitle,
       availableLocations,
-      prompt,
+      prompt: effectivePrompt,
     });
 
     // Auto-scroll to preview section on mobile
@@ -504,7 +518,7 @@ export default function PostManagementPage() {
       processedKeywords = String(keywords);
     }
 
-    if (!hasKeywords) {
+    if (mode !== "manual" && !hasKeywords) {
       setKeywordError("Please fill at least one keyword");
       return;
     }
@@ -516,14 +530,20 @@ export default function PostManagementPage() {
     }
 
     setLastUsedAssetsFlow(useAssetsFlow);
+    const genPayload = {
+      effectivePrompt,
+      mode,
+      instructions: instructionsRaw,
+    };
     if (useAssetsFlow) {
       await handleImageGenerateWithAssets(
         selectedAssets,
         resolvedBusinessName,
         processedKeywords,
+        genPayload,
       );
     } else {
-      await handleAiAgent(selectedAssets);
+      await handleAiAgent(selectedAssets, genPayload);
     }
   };
 
@@ -603,8 +623,12 @@ export default function PostManagementPage() {
     }
   };
 
-  const handleAiAgent = async (selectedAssets = []) => {
-    if (!prompt.trim()) {
+  const handleAiAgent = async (selectedAssets = [], genOptions = {}) => {
+    const effectivePrompt = genOptions.effectivePrompt ?? prompt;
+    const mode = genOptions.mode ?? "ai";
+    const instructionsField = genOptions.instructions ?? "";
+
+    if (!effectivePrompt.trim()) {
       showToast("Please enter a prompt before generating!", "error");
       return;
     }
@@ -652,9 +676,10 @@ export default function PostManagementPage() {
 
       // Call AI Agent API (single generation, not per location)
       const apiResponse = await generateWithAiAgentAction(
-        prompt,
+        effectivePrompt,
         strippedLogo,
         strippedAssets,
+        { mode, instructions: instructionsField },
       );
 
       clearInterval(timer);
@@ -685,7 +710,7 @@ export default function PostManagementPage() {
         type: "deduct",
         reason: "image_generated",
         metadata: {
-          aiPrompt: prompt,
+          aiPrompt: effectivePrompt,
           logoUsed: !!logo,
         },
       });
@@ -716,7 +741,7 @@ export default function PostManagementPage() {
         igDescription: igDesc,
         logoUrl: data.logoUrl,
         status: "pending",
-        promat: data.user_input || prompt,
+        promat: data.user_input || effectivePrompt,
         locations: [],
       });
 
@@ -750,8 +775,13 @@ export default function PostManagementPage() {
     selectedAssets = [],
     businessName,
     keywords,
+    genOptions = {},
   ) => {
-    if (!prompt.trim()) {
+    const effectivePrompt = genOptions.effectivePrompt ?? prompt;
+    const mode = genOptions.mode ?? "ai";
+    const instructionsField = genOptions.instructions ?? "";
+
+    if (!effectivePrompt.trim()) {
       showToast("Please enter a prompt before generating!", "error");
       return;
     }
@@ -794,12 +824,12 @@ export default function PostManagementPage() {
         selectedBusinessName: selectedBusiness?.name,
         bussinessTitle,
         availableLocations,
-        prompt,
+        prompt: effectivePrompt,
       });
 
       // Call the asset generation API (bussiness_name must match /api/aiAssetsGenerate)
       const apiResponse = await generateWithAssetsAction({
-        topic: prompt,
+        topic: effectivePrompt,
         bussiness_name: effectiveBussinessName,
         keywords: keywords || "",
         colourPalette:
@@ -824,6 +854,8 @@ export default function PostManagementPage() {
         ),
         platform:
           selectedPlatforms.length > 0 ? selectedPlatforms.join(",") : "gmb",
+        mode,
+        instructions: instructionsField,
       });
 
       clearInterval(timer);
@@ -856,7 +888,7 @@ export default function PostManagementPage() {
         type: "deduct",
         reason: "image_generated",
         metadata: {
-          aiPrompt: prompt,
+          aiPrompt: effectivePrompt,
           logoUsed: !!logo,
         },
       });
@@ -894,7 +926,7 @@ export default function PostManagementPage() {
         igDescription: igDesc,
         logoUrl: data.logoUrl,
         status: "pending",
-        promat: data.user_input || prompt,
+        promat: data.user_input || effectivePrompt,
         locations: [],
       });
 
@@ -1526,6 +1558,11 @@ export default function PostManagementPage() {
     const userId = localStorage.getItem("userId");
     if (!userId || !post?._id) return;
 
+    if (postHasVideoAsset(post)) {
+      showToast("This post already has a video.", "info");
+      return;
+    }
+
     const source = postImageUrl(post);
     if (!source) {
       showToast("No still image on this post to convert.", "error");
@@ -1561,6 +1598,8 @@ export default function PostManagementPage() {
         platform: "both",
         audio_file_url: null,
         audio_folder: null,
+        userId,
+        postId: String(post._id),
       };
       const trimmedVoiceUrl =
         typeof options?.audioFileUrl === "string"
@@ -1583,6 +1622,17 @@ export default function PostManagementPage() {
         body: JSON.stringify(body),
       });
       const ivData = await ivRes.json().catch(() => ({}));
+      if (ivRes.status === 402) {
+        setRequiredCoins(VIDEO_GENERATION_COINS);
+        setShowInsufficientBalance(true);
+        showToast(
+          typeof ivData.error === "string"
+            ? ivData.error
+            : "Insufficient balance for video generation.",
+          "error",
+        );
+        return;
+      }
       if (!ivRes.ok || (ivData.success === false && !ivData.drive_link)) {
         throw new Error(
           typeof ivData.error === "string"
@@ -1592,49 +1642,23 @@ export default function PostManagementPage() {
                 "Video generation failed",
         );
       }
-      if (!ivData.drive_link) {
+      const videoUrl = String(ivData.drive_link || "").trim();
+      if (!videoUrl) {
         throw new Error("No video URL returned from generator");
       }
+      if (!ivData.post) {
+        throw new Error("Could not save video on this post");
+      }
 
-      const walletDeduct = await deductFromWalletAction(userId, {
-        amount: VIDEO_GENERATION_COINS,
-        type: "deduct",
-        reason: "video_generated",
-        metadata: { postId: post._id, source: "image_to_video_auto" },
-      });
-      if (walletDeduct.error) {
-        showToast(walletDeduct.error, "error");
-      } else {
+      if (Number(ivData.coinsDeducted) > 0) {
+        setUserWallet((prev) => Math.max(0, prev - VIDEO_GENERATION_COINS));
         showToast(
           `${VIDEO_GENERATION_COINS} coins deducted for video generation ✅`,
           "success",
         );
-        setUserWallet((prev) => Math.max(0, prev - VIDEO_GENERATION_COINS));
       }
 
-      const ig =
-        typeof ivData.instagram_caption === "string"
-          ? ivData.instagram_caption.trim()
-          : "";
-      const fb =
-        typeof ivData.facebook_caption === "string"
-          ? ivData.facebook_caption.trim()
-          : "";
-
-      const upd = await updatePostStatusAction({
-        id: post._id,
-        userId,
-        status: post.status || "pending",
-        videoOutput: ivData.drive_link,
-        ...(fb ? { fbDescription: fb } : {}),
-        ...(ig ? { igDescription: ig } : {}),
-      });
-
-      if (!upd.success) {
-        throw new Error(upd.error || "Could not save video on this post");
-      }
-
-      const merged = { ...post, ...upd.data };
+      const merged = { ...post, ...ivData.post };
       setPosts((prev) => prev.map((p) => (p._id === post._id ? merged : p)));
       setPreviewData((prev) =>
         prev?._id === post._id ? { ...prev, ...upd.data } : prev,

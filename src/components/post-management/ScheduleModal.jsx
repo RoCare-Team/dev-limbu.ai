@@ -363,7 +363,7 @@ const ScheduleModal = ({
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center">
-                            <p className={`text-sm font-medium truncate ${!isVerified ? 'text-gray-500' : 'text-gray-900'}`}>{loc.name}</p>
+                            <p className={`text-sm font-medium truncate ${!isVerified ? 'text-gray-500' : 'text-gray-900'}`}>{loc.title}</p>
                             {!isVerified && <span className="text-[10px] bg-red-100 text-lightPrimary px-1.5 py-0.5 rounded font-bold">Unverified</span>}
                         </div>
                         <p className="text-xs text-gray-500 truncate">{loc.address}</p>

@@ -14,6 +14,8 @@ export async function POST(req) {
       backgroundImage,
       logoImage,
       platform,
+      mode
+      // instructions,
     } = body;
 
     const cleanBase64 = (str) => {
@@ -35,12 +37,14 @@ export async function POST(req) {
       backgroundImage: cleanBase64(backgroundImage),
       logoImage: cleanBase64(logoImage),
       platform: platform || "",
+      mode: mode === "manual" ? "manual" : "ai",
+      // instructions: typeof instructions === "string" ? instructions : "",
     };
 
     console.log("Sending payload to n8n:", payload);
 
     const n8nResponse = await fetch(
-      "https://n8n.limbutech.in/webhook/6678555b-a0a2-4cbf-b157-7d0f831bd51c",
+      "https://assets-image.limbutech.in/generate-ad",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -5,6 +5,7 @@ import User from "@/models/User";
 import MetaSync from "@/models/MetaSync";
 import Admin from "@/models/Admin";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
+import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
 
 export const dynamic = "force-dynamic";
 
@@ -311,7 +312,7 @@ export async function GET(req) {
           assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
         }
 
-        await User.create({
+        const createdLead = await User.create({
           userId: `USR${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
           fullName,
           email,
@@ -332,6 +333,10 @@ export async function GET(req) {
         });
 
         inserted++;
+
+        void runNewUserOnboarding(createdLead.userId).catch((err) =>
+          console.error("runNewUserOnboarding", err),
+        );
 
         // 🔥 AUTOMATION
         // await sendWhatsApp(phone, fullName);

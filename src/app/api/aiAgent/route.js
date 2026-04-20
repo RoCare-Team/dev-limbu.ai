@@ -13,7 +13,7 @@ export async function POST(req) {
   try {
     // 1. Incoming Request Body (JSON) ko parse karein
     const body = await req.json();
-    const { prompt, logo } = body;
+    const { prompt, logo, assets, mode, instructions } = body;
     let finalLogoUrl = logo; // Default to the original logo URL
 
     // Postman mein dikhaye gaye format: { "promet": "...", "logo": "..." }
@@ -36,7 +36,9 @@ export async function POST(req) {
     newPayload = {
       prompt: prompt,
       logo: finalLogoUrl,
-      // Agar body mein koi aur field ho toh, aap unhe bhi yahan include kar sakte hain.
+      assets: assets ?? [],
+      mode: mode === "manual" ? "manual" : "ai",
+      instructions: typeof instructions === "string" ? instructions : "",
     };
 
     // 4. Naye payload ke saath POST request n8n webhook ko bhejein

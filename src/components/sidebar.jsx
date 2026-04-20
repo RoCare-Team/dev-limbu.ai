@@ -231,7 +231,7 @@ export default function Sidebar({ children, user }) {
         const data = await response.json();
         setSubscriptionData(data);
 
-        console.log("dataata",data);
+        // console.log("dataata",data);
         
 
         // Extract user name correctly

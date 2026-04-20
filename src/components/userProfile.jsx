@@ -176,26 +176,26 @@ export default function ProfileWithStats() {
                   Premium Member • Active Since 2024
                 </p>
                 <button
-      onClick={() => router.push("/user-activity")}
-      className="mt-4 bg-dark text-primary px-6 py-2 rounded-xl font-semibold shadow-md hover:scale-105 transition flex items-center gap-2 mx-auto md:mx-0"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-        />
-      </svg>
+                  onClick={() => router.push("/user-activity")}
+                  className="mt-4 bg-dark text-primary px-6 py-2 rounded-xl font-semibold shadow-md hover:scale-105 transition flex items-center gap-2 mx-auto md:mx-0"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
+                  </svg>
 
-      User Activity
-    </button>
+                  User Activity
+                </button>
               </div>
 
               {/* Wallet Quick Access */}
@@ -253,11 +253,10 @@ export default function ProfileWithStats() {
                   </div>
                 </div>
                 <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
-                    paidPackage !== "No active plan"
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${paidPackage !== "No active plan"
                       ? "bg-green-400 text-green-900"
                       : "bg-gray-400 text-gray-900"
-                  }`}
+                    }`}
                 >
                   <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
                   {paidPackage !== "No active plan" ? "Active" : "Inactive"}
@@ -343,11 +342,10 @@ export default function ProfileWithStats() {
                     >
                       <div className="flex items-start gap-4">
                         <div
-                          className={`p-3 rounded-xl ${
-                            tx.type === "credit"
+                          className={`p-3 rounded-xl ${tx.type === "credit"
                               ? "bg-white text-dark"
                               : "bg-lightPrimary text-dark"
-                          }`}
+                            }`}
                         >
                           {tx.type === "credit" ? (
                             <ArrowUpCircle className="w-6 h-6" />
@@ -374,9 +372,8 @@ export default function ProfileWithStats() {
                         </div>
 
                         <div
-                          className={`text-xl font-bold whitespace-nowrap ${
-                            tx.type === "credit" ? "text-lightPrimary" : "text-dark"
-                          }`}
+                          className={`text-xl font-bold whitespace-nowrap ${tx.type === "credit" ? "text-lightPrimary" : "text-dark"
+                            }`}
                         >
                           {tx.type === "credit" ? "+" : "-"}
                           {tx.amount}
@@ -484,9 +481,8 @@ function ImageCard({ image, index, onClick }) {
           <img
             src={image.url}
             alt={image.prompt}
-            className={`w-full h-full object-cover transition-all duration-500 ${
-              imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
-            }`}
+            className={`w-full h-full object-cover transition-all duration-500 ${imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
+              }`}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
           />
@@ -499,15 +495,14 @@ function ImageCard({ image, index, onClick }) {
               </p>
               <div className="flex items-center justify-between">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    image.status === "posted"
+                  className={`text-xs px-2 py-1 rounded-full ${image.status === "posted"
                       ? "bg-blue-500 text-white"
                       : image.status === "approved"
-                      ? "bg-green-500 text-white"
-                      : image.status === "scheduled"
-                      ? "bg-purple-500 text-white"
-                      : "bg-yellow-500 text-white"
-                  }`}
+                        ? "bg-green-500 text-white"
+                        : image.status === "scheduled"
+                          ? "bg-purple-500 text-white"
+                          : "bg-yellow-500 text-white"
+                    }`}
                 >
                   {image.status}
                 </span>
@@ -591,9 +586,8 @@ function ImageModal({ image, onClose }) {
           <img
             src={image.url}
             alt={image.prompt}
-            className={`max-w-full max-h-[60vh] object-contain transition-opacity duration-500 ${
-              imageLoaded ? "opacity-100" : "opacity-0"
-            }`}
+            className={`max-w-full max-h-[60vh] object-contain transition-opacity duration-500 ${imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
             onLoad={() => setImageLoaded(true)}
           />
         </div>
@@ -610,15 +604,14 @@ function ImageModal({ image, onClose }) {
               <div>
                 <h4 className="text-sm font-semibold text-gray-600 mb-1">Status</h4>
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                    image.status === "posted"
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${image.status === "posted"
                       ? "bg-blue-100 text-blue-700"
                       : image.status === "approved"
-                      ? "bg-green-100 text-green-700"
-                      : image.status === "scheduled"
-                      ? "bg-purple-100 text-purple-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }`}
+                        ? "bg-green-100 text-green-700"
+                        : image.status === "scheduled"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-yellow-100 text-yellow-700"
+                    }`}
                 >
                   {image.status}
                 </span>

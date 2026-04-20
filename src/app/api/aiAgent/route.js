@@ -1,38 +1,45 @@
-import { v2 as cloudinary } from "cloudinary";
-import { normalizeGenerateAdResponse } from "@/lib/normalizeGenerateAdResponse";
-
-// Cloudinary Configuration (Aap ise file ke top par ya kisi config file mein rakh sakte hain)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { uploadToS3 } from "@/utils/s3Config";
 
 export async function POST(req) {
   let newPayload = {};
-  
+
   try {
     // 1. Incoming Request Body (JSON) ko parse karein
     const body = await req.json();
     const { prompt, logo, assets, mode, instructions } = body;
     let finalLogoUrl = logo; // Default to the original logo URL
 
-    // Postman mein dikhaye gaye format: { "promet": "...", "logo": "..." }
-    // Cloudinary upload sirf tab hi karein jab 'logo' field available ho
+    // Cloudinary upload ki jagah ab S3 par upload karein
     if (logo) {
-      console.log("Uploading logo to Cloudinary...");
-      
-      // 2. Logo URL ko Cloudinary par upload karein
-      const uploadResult = await cloudinary.uploader.upload(logo, {
-        folder: "ai_agent_logos", // Optional: Ek specific folder mein save karein
-        resource_type: "image",
-      });
+      if (logo.startsWith("data:")) {
+        console.log("Uploading logo to S3...");
 
-      // Upload successful hone par naya secure URL use karein
-      finalLogoUrl = uploadResult.secure_url;
-      console.log("Logo uploaded successfully. New URL:", finalLogoUrl);
+        // Extract MIME type and base64 data
+        const arr = logo.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+        const base64Data = arr[1];
+
+        const buffer = Buffer.from(base64Data, "base64");
+        const extension = mimeType.split('/')[1] || 'png';
+        const fileName = `agent-logo-${Date.now()}.${extension}`;
+
+        // 2. Logo Buffer ko S3 par upload karein
+        const uploadResult = await uploadToS3(buffer, fileName, mimeType);
+
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.error || "Failed to upload logo to S3");
+        }
+
+        // Upload successful hone par S3 ka URL use karein
+        finalLogoUrl = uploadResult.url;
+        console.log("Logo uploaded successfully. New URL:", finalLogoUrl);
+      } else if (logo.startsWith("http")) {
+        // If it's already a URL, just use it directly
+        finalLogoUrl = logo;
+      }
     }
-    
+
     // 3. n8n ke liye naya payload taiyar karein
     newPayload = {
       prompt: prompt,
@@ -54,7 +61,7 @@ export async function POST(req) {
       }
     );
 
-    
+    const data = await response.json()
 
     const responseText = await response.text();
     let parsed;
@@ -81,13 +88,12 @@ export async function POST(req) {
       );
     }
 
-    const data = normalizeGenerateAdResponse(parsed);
 
     return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-    
+
   } catch (error) {
     console.error("Error in aiAgent API:", error);
     // Error hone par 500 status ke saath response return karein

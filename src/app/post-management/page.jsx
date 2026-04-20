@@ -18,6 +18,8 @@ import {
 } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
+
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
   Loader2,
@@ -123,7 +125,7 @@ export default function PostManagementPage() {
   const { data: session } = useSession();
 
   const [posts, setPosts] = useState([]);
-  console.log("Post in Post Manegement", posts);
+  // console.log("Post in Post Manegement", posts);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
   const [prompt, setPrompt] = useState("");
@@ -523,11 +525,6 @@ export default function PostManagementPage() {
     }
     setKeywordError("");
 
-    if (useAssetsFlow === "manual") {
-      await handleManualPost(selectedAssets);
-      return;
-    }
-
     setLastUsedAssetsFlow(useAssetsFlow);
     const genPayload = {
       effectivePrompt,
@@ -547,30 +544,52 @@ export default function PostManagementPage() {
   };
 
   const handleManualPost = async ({ image, description }) => {
+    console.log("🛠️ handleManualPost Started", { hasImage: !!image, description });
     const userId = localStorage.getItem("userId");
     try {
       setIsGenerating(true);
 
       let imageUrl = image;
 
-      if (typeof image === "string" && image.startsWith("data:")) {
-        const blobRes = await fetch(image);
-        const blob = await blobRes.blob();
+      if (
+        (typeof image === "string" && image.startsWith("data:")) ||
+        (typeof image === "object" && image !== null)
+      ) {
+        console.log("🛠️ Image detected, preparing FormData...");
         const formData = new FormData();
-        formData.append("image", blob, "manual-post.jpg");
-        const res = await fetch("/api/manual-upload", {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success || !data.url) {
-          throw new Error(
-            data.message || "Failed to upload image (S3 / server upload)",
-          );
+
+        if (typeof image === "string" && image.startsWith("data:")) {
+          // Convert base64 to File object
+          const arr = image.split(',');
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const file = new File([u8arr], "manual_upload.png", { type: mime });
+          formData.append("file", file);
+          console.log("🛠️ Appended Base64 file to FormData", file.name, file.type);
+        } else {
+          // It's already a File/Blob object
+          formData.append("file", image);
+          console.log("🛠️ Appended Object file to FormData");
         }
-        imageUrl = data.url;
+
+        console.log("🛠️ Calling uploadToS3Action...");
+        const uploadResult = await uploadToS3Action(formData);
+        console.log("🛠️ uploadToS3Action Result:", uploadResult);
+
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.error || "Failed to upload image to S3");
+        }
+
+        imageUrl = uploadResult.url;
+        console.log("🛠️ Upload successful, imageUrl:", imageUrl);
       }
 
+      console.log("🛠️ Calling savePostAction...");
       // Save Post
       const savedPostResponse = await savePostAction({
         userId,
@@ -581,6 +600,8 @@ export default function PostManagementPage() {
         promat: "Manual Upload",
         locations: [],
       });
+
+      console.log("🛠️ savePostAction Result:", savedPostResponse);
 
       if (!savedPostResponse.success) {
         throw new Error(savedPostResponse.error || "Failed to save post.");
@@ -595,8 +616,9 @@ export default function PostManagementPage() {
       }));
       setPreviewData(savedPost);
       showToast("Manual Post Created Successfully! 🎉");
+      console.log("🛠️ Manual Post flow completed successfully");
     } catch (error) {
-      console.error("Manual Post Error:", error);
+      console.error("🛠️ Manual Post Error:", error);
       showToast(error.message || "Failed to create post!", "error");
     } finally {
       setIsGenerating(false);
@@ -829,8 +851,8 @@ export default function PostManagementPage() {
         ),
         logoImage: stripBase64(
           selectedAssets.find((a) => a.name === "Logo")?.url ||
-            logoBase64 ||
-            "",
+          logoBase64 ||
+          "",
         ),
         platform:
           selectedPlatforms.length > 0 ? selectedPlatforms.join(",") : "gmb",
@@ -847,8 +869,8 @@ export default function PostManagementPage() {
       if (apiResponse.status !== "true" && !apiResponse.success) {
         throw new Error(
           apiResponse.error ||
-            apiResponse.message ||
-            "AI asset generation failed.",
+          apiResponse.message ||
+          "AI asset generation failed.",
         );
       }
 
@@ -979,34 +1001,34 @@ export default function PostManagementPage() {
     const selectedGmbLocations =
       selectedTargets.gmb?.length > 0
         ? availableLocations.filter((loc) =>
-            selectedTargets.gmb.includes(loc.id),
-          )
+          selectedTargets.gmb.includes(loc.id),
+        )
         : [];
 
     const selectedFbPages =
       selectedTargets.fb?.length > 0
         ? facebookPages
-            .filter((p) => selectedTargets.fb.includes(p.pageId))
-            .map((p) => ({
-              userId: post.userId,
-              pageId: p.pageId,
-              pageAccessToken: p.pageAccessToken,
-              caption: post.fbDescription || post.description,
-              imageUrl: post.aiOutput,
-            }))
+          .filter((p) => selectedTargets.fb.includes(p.pageId))
+          .map((p) => ({
+            userId: post.userId,
+            pageId: p.pageId,
+            pageAccessToken: p.pageAccessToken,
+            caption: post.fbDescription || post.description,
+            imageUrl: post.aiOutput,
+          }))
         : [];
 
     const selectedIgPages =
       selectedTargets.ig?.length > 0
         ? instagramAccounts
-            .filter((a) => selectedTargets.ig.includes(a.igId))
-            .map((a) => ({
-              userId: post.userId,
-              igUserId: a.igId,
-              accessToken: a.pageAccessToken,
-              caption: post.igDescription || post.description,
-              imageUrl: post.aiOutput,
-            }))
+          .filter((a) => selectedTargets.ig.includes(a.igId))
+          .map((a) => ({
+            userId: post.userId,
+            igUserId: a.igId,
+            accessToken: a.pageAccessToken,
+            caption: post.igDescription || post.description,
+            imageUrl: post.aiOutput,
+          }))
         : [];
 
     if (sources.length > 0) {
@@ -1073,8 +1095,8 @@ export default function PostManagementPage() {
       // Deduplicate locations based on locationId to ensure unique targets
       const uniqueLocations = Array.isArray(locations)
         ? Array.from(
-            new Map(locations.map((item) => [item.locationId, item])).values(),
-          )
+          new Map(locations.map((item) => [item.locationId, item])).values(),
+        )
         : [];
 
       // 🔹 NORMALIZED PAYLOAD
@@ -1119,14 +1141,14 @@ export default function PostManagementPage() {
         prev.map((p) =>
           p._id === postId
             ? {
-                ...p,
-                status: newStatus,
-                scheduledDate: res.data?.scheduledDate || scheduleDate,
-                locations: res.data?.locations || locations,
-                checkmark: res.data?.checkmark ?? checkmark,
-                scheduledDateSource:
-                  res.data?.scheduledDateSource || scheduledDateSource,
-              }
+              ...p,
+              status: newStatus,
+              scheduledDate: res.data?.scheduledDate || scheduleDate,
+              locations: res.data?.locations || locations,
+              checkmark: res.data?.checkmark ?? checkmark,
+              scheduledDateSource:
+                res.data?.scheduledDateSource || scheduledDateSource,
+            }
             : p,
         ),
       );
@@ -1321,7 +1343,7 @@ export default function PostManagementPage() {
         if (!feedData.id) {
           throw new Error(
             feedData.error?.message ||
-              "Failed to publish post to Facebook Feed",
+            "Failed to publish post to Facebook Feed",
           );
         }
 
@@ -1445,16 +1467,16 @@ export default function PostManagementPage() {
       const mediaContainerPayload =
         media.type === "video"
           ? {
-              video_url: media.url,
-              caption: caption || "",
-              media_type: "REELS",
-              access_token: accessToken,
-            }
+            video_url: media.url,
+            caption: caption || "",
+            media_type: "REELS",
+            access_token: accessToken,
+          }
           : {
-              image_url: media.url,
-              caption: caption || "",
-              access_token: accessToken,
-            };
+            image_url: media.url,
+            caption: caption || "",
+            access_token: accessToken,
+          };
       const mediaRes = await fetch(mediaContainerUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1466,7 +1488,7 @@ export default function PostManagementPage() {
         console.error("Instagram API Error (Media Container):", mediaData);
         throw new Error(
           mediaData.error?.message ||
-            "Failed to create Instagram media container.",
+          "Failed to create Instagram media container.",
         );
       }
 
@@ -1629,8 +1651,8 @@ export default function PostManagementPage() {
           typeof ivData.error === "string"
             ? ivData.error
             : ivData.error?.message ||
-                ivData.message ||
-                "Video generation failed",
+            ivData.message ||
+            "Video generation failed",
         );
       }
       const videoUrl = String(ivData.drive_link || "").trim();
@@ -2024,11 +2046,11 @@ export default function PostManagementPage() {
             prev.map((p) =>
               p._id === postToAction._id
                 ? {
-                    ...p,
-                    status: "failed",
-                    error: errorMsg,
-                    locations: selectedLocations,
-                  }
+                  ...p,
+                  status: "failed",
+                  error: errorMsg,
+                  locations: selectedLocations,
+                }
                 : p,
             ),
           );
@@ -2444,11 +2466,10 @@ export default function PostManagementPage() {
                     <button
                       type="button"
                       onClick={() => setUseOwnVoice(true)}
-                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
-                        useOwnVoice
-                          ? "border-violet-400 bg-violet-50 text-violet-900"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
+                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${useOwnVoice
+                        ? "border-violet-400 bg-violet-50 text-violet-900"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
                     >
                       Yes
                     </button>
@@ -2458,11 +2479,10 @@ export default function PostManagementPage() {
                         setUseOwnVoice(false);
                         setVoiceUrlInput("");
                       }}
-                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
-                        !useOwnVoice
-                          ? "border-amber-400 bg-amber-50 text-amber-900"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
+                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${!useOwnVoice
+                        ? "border-amber-400 bg-amber-50 text-amber-900"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
                     >
                       No (Skip)
                     </button>
@@ -2709,11 +2729,10 @@ export default function PostManagementPage() {
                 />
 
                 <div
-                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${
-                    selectedPlatforms.includes("gmb")
-                      ? "bg-white border-blue-200 shadow-md scale-105"
-                      : "bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100"
-                  }`}
+                  className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 ${selectedPlatforms.includes("gmb")
+                    ? "bg-white border-blue-200 shadow-md scale-105"
+                    : "bg-gray-50 border-gray-200 grayscale opacity-70 group-hover:opacity-100"
+                    }`}
                 >
                   <img
                     src="https://www.gstatic.com/images/branding/product/1x/gsa_48dp.png"
@@ -2945,8 +2964,6 @@ export default function PostManagementPage() {
           </div>
         )}
       </div>
-
-      <SupportModal showToast={showToast} />
 
       {/* Floating WhatsApp Button */}
       <a

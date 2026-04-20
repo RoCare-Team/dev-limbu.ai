@@ -69,6 +69,7 @@ export async function generateWithAiAgentAction(
 }
 
 export async function savePostAction(postPayload) {
+    console.log("Saving post with payload for menual post:", postPayload);
     const postRes = await fetch(`${API_URL}/api/post-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

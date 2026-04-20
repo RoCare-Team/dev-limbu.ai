@@ -103,14 +103,14 @@ export default function AuditPage() {
       if (!res.ok) throw new Error("Failed to fetch audit data");
 
       const data = await res.json();
-      
-      
+
+
       // Handle potential response structures
       let audit = data;
       if (Array.isArray(data) && data.length > 0) {
         audit = data[0];
       }
-      
+
       // Handle the specific key structure if present (based on previous code context)
       if (audit && typeof audit === 'object' && "" in audit) {
         audit = audit[""];
@@ -151,7 +151,7 @@ export default function AuditPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-20">
-        
+
         {/* Selection Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 mb-8">
           <div className="flex flex-col md:flex-row gap-5 items-end">
@@ -198,7 +198,7 @@ export default function AuditPage() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Generate Report 
+                  Generate Report
                 </>
               )}
             </button>
@@ -211,10 +211,10 @@ export default function AuditPage() {
             <GBPAuditCard audit={auditData} />
           </div>
         )}
-        
+
         {loading && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-12 flex flex-col items-center justify-center min-h-[400px] animate-in fade-in duration-500 mb-12">
-            
+
             {/* Scanning Animation */}
             <div className="relative w-24 h-32 bg-slate-50 rounded-lg border-2 border-slate-200 mb-8 overflow-hidden flex flex-col gap-2 p-3 shadow-inner">
               <div className="h-2 w-3/4 bg-slate-200 rounded" />
@@ -226,7 +226,7 @@ export default function AuditPage() {
               {/* Scanning Bar */}
               <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)] animate-scan-vertical" />
             </div>
-            
+
             <div className="text-center space-y-3 max-w-md">
               <h3 className="text-2xl font-bold text-gray-800 animate-pulse">
                 {loadingMessages[loadingMsgIndex]}
@@ -234,10 +234,10 @@ export default function AuditPage() {
               <p className="text-gray-500 font-medium">
                 Our AI is analyzing over 50+ data points to generate your scorecard.
               </p>
-              
+
               {/* Progress Bar */}
               <div className="w-64 h-1.5 bg-gray-100 rounded-full mt-6 overflow-hidden mx-auto">
-                 <div className="h-full bg-blue-600 rounded-full animate-progress-indeterminate" />
+                <div className="h-full bg-blue-600 rounded-full animate-progress-indeterminate" />
               </div>
             </div>
           </div>
@@ -257,10 +257,7 @@ export default function AuditPage() {
           </div>
         )}
       </div>
-      
 
-      <SupportModal showToast={showToast} />
-      
       <style jsx>{`
         @keyframes scan-vertical {
           0% { top: 0%; opacity: 0; }

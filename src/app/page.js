@@ -2,7 +2,11 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { mergePricingLanding } from "@/lib/pricingLandingDefaults"
+import {
+  expandPricingLandingForApi,
+  mergePricingLanding,
+} from "@/lib/pricingLandingDefaults"
+import { buildCheckoutUrl } from "@/lib/planCheckout"
 
 import HeaderSection from "../components/sections/HeaderSection"
 import HeroSection from "../components/sections/HeroSection"
@@ -220,7 +224,10 @@ export default function LimbuAILanding() {
     }
   }, [])
 
-  const pricing = useMemo(() => mergePricingLanding(pricingDoc), [pricingDoc])
+  const pricing = useMemo(
+    () => expandPricingLandingForApi(mergePricingLanding(pricingDoc)),
+    [pricingDoc]
+  )
 
   // =============================
   // 🟢 HANDLERS
@@ -395,7 +402,7 @@ export default function LimbuAILanding() {
     handleServiceBookClick({
         title: plan.title,
         planKey: plan.planKey,
-        purchaseLink: plan.purchaseLink || "",
+        purchaseLink: buildCheckoutUrl(plan.planKey, billingCycle),
         planType: "our-package",
         planDuration: billingCycle,
         price: `₹${price.toLocaleString()}`,

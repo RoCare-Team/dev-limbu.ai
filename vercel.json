@@ -24,6 +24,10 @@
     {
       "path": "/api/meta-leads-import?formId=1393275835835157",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/webinar-onboarding-reminders",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

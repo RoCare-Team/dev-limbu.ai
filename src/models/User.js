@@ -130,6 +130,15 @@ const userSchema = new mongoose.Schema(
     isBusinessConnected: { type: Boolean, default: false },
     isServiceBooked: { type: Boolean, default: false },
 
+    /** Automated webinar onboarding (signup + bulk-upload Meta): IST schedule + WhatsApp + optional email */
+    onboardingWebinarSessionAt: { type: Date, default: null },
+    onboardingWebinarReminderAt: { type: Date, default: null },
+    onboardingWebinarSessionLabel: { type: String, default: "" },
+    onboardingWelcomeWhatsAppSent: { type: Boolean, default: false },
+    onboardingWebinarInviteWhatsAppSent: { type: Boolean, default: false },
+    onboardingWebinarReminderSent: { type: Boolean, default: false },
+    onboardingWelcomeEmailSent: { type: Boolean, default: false },
+
     // Store OTP temporarily for verification
     otp: { type: String },
     otpExpiresAt: { type: Date },

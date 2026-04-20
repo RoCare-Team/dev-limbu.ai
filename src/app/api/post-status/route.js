@@ -122,12 +122,12 @@ export async function POST(req) {
       videoPrompt,
     } = body;
 
-    if (!userId || !aiOutput || !description) {
-      return json(
-        { success: false, error: "userId, aiOutput, and description are required" },
-        400
-      );
-    }
+    // if (!userId || !aiOutput || !description) {
+    //   return json(
+    //     { success: false, error: "userId, aiOutput, and description are required" },
+    //     400
+    //   );
+    // }
 
     const mt =
       mediaType === "video" || mediaType === "image" ? mediaType : "image";

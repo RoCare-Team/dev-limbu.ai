@@ -6,7 +6,7 @@ export async function POST(req) {
   try {
     // 1. Incoming Request Body (JSON) ko parse karein
     const body = await req.json();
-    const { prompt, logo } = body;
+    const { prompt, logo, assets, mode, instructions } = body;
     let finalLogoUrl = logo; // Default to the original logo URL
 
     // Cloudinary upload ki jagah ab S3 par upload karein
@@ -44,6 +44,9 @@ export async function POST(req) {
     newPayload = {
       prompt: prompt,
       logo: finalLogoUrl,
+      assets: assets ?? [],
+      mode: mode === "manual" ? "manual" : "ai",
+      instructions: typeof instructions === "string" ? instructions : "",
     };
 
     // 4. Naye payload ke saath POST request n8n webhook ko bhejein
@@ -60,7 +63,32 @@ export async function POST(req) {
 
     const data = await response.json()
 
-    // 5. Response ko frontend ko return karein
+    const responseText = await response.text();
+    let parsed;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "AI agent webhook returned non-JSON",
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: parsed?.message || parsed?.error || `Webhook ${response.status}`,
+          data: parsed,
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+
     return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

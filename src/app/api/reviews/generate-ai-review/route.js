@@ -6,43 +6,100 @@ function getOpenAIClient() {
   return new OpenAI({ apiKey });
 }
 
+/** Pull obvious keywords from business name for the model to weave in naturally. */
+function keywordsFromBusinessName(business) {
+  if (!business || typeof business !== "string") return [];
+  return business
+    .split(/[^a-zA-Z0-9]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 3)
+    .slice(0, 8);
+}
+
+/**
+ * Split model output into 5 review strings (handles numbered lists, blank lines, markdown).
+ */
+function parseReviewsFromText(text) {
+  if (!text || typeof text !== "string") return [];
+  let clean = text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^[\s\*#]+/gm, "")
+    .trim();
+
+  const byNumbered = clean
+    .split(/\n(?=\s*(?:Review\s*)?\d+[\.\)]\s)/i)
+    .map((r) => r.replace(/^\s*(?:Review\s*)?\d+[\.\)]\s*/i, "").trim())
+    .filter((r) => r.length > 40);
+
+  if (byNumbered.length >= 3) {
+    return byNumbered.slice(0, 5);
+  }
+
+  const paras = clean
+    .split(/\n\n+/)
+    .map((r) => r.replace(/^\s*(?:Review\s*)?\d+[\.\)]\s*/i, "").trim())
+    .filter((r) => r.length > 40);
+
+  if (paras.length >= 3) {
+    return paras.slice(0, 5);
+  }
+
+  return clean
+    .split("\n")
+    .map((r) => r.replace(/^\s*(?:Review\s*)?\d+[\.\)]\s*/i, "").trim())
+    .filter((r) => r.length > 40)
+    .slice(0, 5);
+}
+
 export async function POST(req) {
   const openai = getOpenAIClient();
   try {
-    const { business, primaryCategory, additionalCategories } = await req.json();
+    const {
+      business,
+      primaryCategory,
+      additionalCategories,
+      locality,
+      address,
+    } = await req.json();
 
-    if (!business || !primaryCategory) {
-      return Response.json(
-        { error: "Missing business or category info" },
-        { status: 400 }
-      );
+    if (!business || typeof business !== "string" || !business.trim()) {
+      return Response.json({ error: "Missing business name" }, { status: 400 });
     }
 
-    const categoryText = additionalCategories?.length
-      ? `${primaryCategory}, ${additionalCategories.join(", ")}`
-      : primaryCategory;
+    const categoryText = primaryCategory?.trim()
+      ? additionalCategories?.length
+        ? `${primaryCategory}, ${additionalCategories.join(", ")}`
+        : primaryCategory
+      : "Local business / general services";
 
-   const prompt = `
-Generate 5 completely different Google reviews.
+    const locationHint = [locality, address]
+      .filter(Boolean)
+      .join(" — ")
+      .trim();
 
-Business Name: ${business}
-Business Category: ${categoryText}
+    const nameKeywords = keywordsFromBusinessName(business);
+    const keywordLine =
+      nameKeywords.length > 0
+        ? `Naturally include these business-related words (not all in every review): ${nameKeywords.join(", ")}.`
+        : "Mention the business name or brand naturally at least once across the set of reviews.";
 
-Instructions:
+    const prompt = `
+You write authentic, varied 5-star Google Maps reviews left by happy customers.
 
-- All reviews must be 100% positive.
-- Use very simple and clear English.
-- Do NOT use any negative-sounding phrases.
-- Do NOT use phrases like "couldn’t be happier", "no complaints", "nothing bad", or any double-negative wording.
-- Each review must sound like written by a real happy customer.
-- Each review must have a different tone and structure.
-- Mention specific services, products, or qualities related to the category.
-- Add small real-life details (staff behavior, product quality, pricing, speed of service, cleanliness, etc.).
-- Keep each review between 70–100 words.
-- Make it natural and easy to understand.
-- Do NOT repeat sentences or opening lines.
-- Write in paragraph format only.
-- Make it feel like a genuine 5-star experience.
+Business name: ${business.trim()}
+Categories: ${categoryText}
+${locationHint ? `Location / area context (use only if it sounds natural; do not invent visits): ${locationHint}` : ""}
+
+Output EXACTLY 5 different reviews. For each review:
+- ${keywordLine}
+- Relate details to the category (services, products, staff, quality, timeliness, value).
+- 100% positive; realistic tone; varied openings and structure; no copy-paste repetition between reviews.
+- Simple, clear English; paragraph form only (no bullets).
+- About 70–100 words each.
+- Do not use double-negative praise (e.g. "no complaints", "couldn't be happier").
+- Do not add URLs, phone numbers, or "review swap" language.
+
+Format: number each review 1. through 5. with a blank line between reviews.
 `;
 
     const completion = await openai.chat.completions.create({
@@ -51,23 +108,25 @@ Instructions:
         {
           role: "system",
           content:
-            "You are a real, satisfied customer writing detailed and engaging Google reviews.",
+            "You write believable Google Maps reviews as a satisfied customer. You follow the user's formatting and count exactly.",
         },
         { role: "user", content: prompt },
       ],
-      max_tokens: 600,
-      temperature: 0.9,
+      max_tokens: 900,
+      temperature: 0.85,
     });
 
     const text = completion.choices[0].message.content;
+    const reviews = parseReviewsFromText(text);
 
-    // Split reviews cleanly (assuming model separates with line breaks)
-    const reviews = text
-      .split("\n")
-      .filter((r) => r.trim().length > 30);
+    if (!reviews.length) {
+      return Response.json(
+        { error: "Could not parse generated reviews" },
+        { status: 502 }
+      );
+    }
 
     return Response.json({ reviews });
-
   } catch (err) {
     console.error("OpenAI Review Error:", err);
     return Response.json(

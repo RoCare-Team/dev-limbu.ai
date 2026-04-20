@@ -13,26 +13,52 @@ const nextConfig = {
       },
     ];
   },
+
   images: {
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "limbuai.s3.ap-south-1.amazonaws.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "limbuai.s3.amazonaws.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "s3.ap-south-1.amazonaws.com",
+        pathname: "/limbuai/**",
+      },
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
         pathname: "/**",
       },
+      // CloudFront example — apna domain uncomment karke set karo:
+      // {
+      //   protocol: "https",
+      //   hostname: "dxxxxxxxxxx.cloudfront.net",
+      //   pathname: "/**",
+      // },
     ],
   },
+
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb',
+      bodySizeLimit: "10mb",
     },
   },
-  // Fix for recharts SSR issue: (0 , R.default) is not a function
-  // This ensures recharts is properly transpiled for client-side rendering
-  transpilePackages: ['recharts', 'react-hot-toast', 'jspdf', 'html2canvas'],
-  // Ensure proper webpack configuration for these packages
+
+  transpilePackages: [
+    "recharts",
+    "react-hot-toast",
+    "jspdf",
+    "html2canvas",
+  ],
+
   webpack: (config, { isServer }) => {
-    // Fix for jspdf and html2canvas SSR issues
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

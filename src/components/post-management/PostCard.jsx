@@ -190,27 +190,40 @@ const PostCard = ({
       {/* Image / Video preview */}
       <div className="relative w-full h-52 overflow-hidden bg-gray-100 aspect-[4/3]">
         <a
-          href={displayMediaUrl || post.aiOutput}
+          href={displayMediaUrl || post.aiOutput || "#"}
           target="_blank"
           rel="noopener noreferrer"
           className="block w-full h-full"
+          onClick={(e) => {
+            if (!(displayMediaUrl || post.aiOutput)) e.preventDefault();
+          }}
         >
           {cardShowVideo ? (
-            <video
-              src={displayMediaUrl}
-              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 bg-black"
-              controls
-              playsInline
-              muted
-              preload="metadata"
-            />
-          ) : (
+            displayMediaUrl ? (
+              <video
+                src={displayMediaUrl}
+                className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 bg-black"
+                controls
+                playsInline
+                muted
+                preload="metadata"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-100 text-xs text-gray-500 px-2 text-center">
+                No video URL
+              </div>
+            )
+          ) : displayMediaUrl || post.aiOutput ? (
             <img
-              src={displayMediaUrl || "https://via.placeholder.com/400"}
+              src={displayMediaUrl || post.aiOutput}
               alt="Post content"
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
             />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gray-100 text-xs text-gray-500 px-2 text-center">
+              No image yet
+            </div>
           )}
         </a>
 
@@ -500,7 +513,7 @@ const PostCard = ({
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                       </svg>
                       {post.locations.length === 1
-                        ? `${post.locations[0].name || post.locations[0].title || "1 Location"} ${post.locations[0].locality
+                        ? `${post.locations[0].title || post.locations[0].title || "1 Location"} ${post.locations[0].locality
                           ? `(${post.locations[0].locality})`
                           : ""
                         }`

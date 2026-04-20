@@ -229,16 +229,13 @@ const PerformanceInsightsModal = ({
         endDate: new Date(displayData.dateRange.endDate),
       };
 
+      // The generator now handles its own toasts for success/error
       await generatePerformanceInsightsPDF(reportRef.current, metadata);
 
-      toast.success(
-        `✓ PDF Downloaded! (Calls: ${displayData.metrics?.totalCalls || 0}, Maps: ${displayData.metrics?.totalMapsImpressions || 0})`,
-        { id: "download-success", duration: 4000 }
-      );
       setIsDownloading(false);
     } catch (error) {
       console.error("Error downloading PDF:", error);
-      toast.error("Failed to generate PDF");
+      // Don't show duplicate toast here as generator already shows one
       setIsDownloading(false);
     }
   };
@@ -449,7 +446,7 @@ const PerformanceInsightsModal = ({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
       <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-5xl w-full my-8 flex flex-col max-h-[92vh] overflow-hidden border border-black/5 animate-scaleUp">
         {/* Header */}
-        <div className="bg-black text-white px-6 sm:px-8 py-6 flex justify-between items-center flex-shrink-0">
+        <div className="bg-black text-white px-6 sm:px-8 py-6 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/20">
               <BarChart3 className="text-black w-6 h-6" />
@@ -494,7 +491,7 @@ const PerformanceInsightsModal = ({
               6 Month Report
             </button>
 
-            <div className="h-6 w-[1px] bg-black/10 mx-2 hidden sm:block" />
+            <div className="h-6 w-px bg-black/10 mx-2 hidden sm:block" />
 
             <button
               onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
@@ -580,8 +577,8 @@ const PerformanceInsightsModal = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-8 custom-scroll">
           {loading || isSaving ? (
-            <div className="h-full flex items-center justify-center min-h-[400px]">
-              <div className="text-center bg-white p-12 rounded-[2rem] shadow-xl border border-black/5 flex flex-col items-center">
+            <div className="h-full flex items-center justify-center min-h-100">
+              <div className="text-center bg-white p-12 rounded-4xl shadow-xl border border-black/5 flex flex-col items-center">
                 <Loader2 size={50} className="text-yellow-500 animate-spin mb-6" strokeWidth={3} />
                 <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">
                   {isSaving ? "Saving Report..." : "Generating Insights..."}
@@ -589,8 +586,8 @@ const PerformanceInsightsModal = ({
               </div>
             </div>
           ) : !displayData ? (
-            <div className="h-full flex items-center justify-center min-h-[400px]">
-              <div className="text-center bg-white p-12 rounded-[2rem] border border-black/5 max-w-md shadow-lg">
+            <div className="h-full flex items-center justify-center min-h-100">
+              <div className="text-center bg-white p-12 rounded-4xl border border-black/5 max-w-md shadow-lg">
                 <AlertCircle className="mx-auto mb-6 text-yellow-500" size={48} />
                 <h3 className="text-black font-black uppercase tracking-tight mb-2">No Data Found</h3>
                 <p className="text-slate-400 font-bold text-sm">
@@ -599,7 +596,7 @@ const PerformanceInsightsModal = ({
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-black/5">
+            <div className="bg-white rounded-4xl shadow-2xl overflow-hidden border border-black/5">
               <PerformanceInsightsReport
                 ref={reportRef}
                 insightsData={displayData.insightsData}

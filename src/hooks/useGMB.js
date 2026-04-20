@@ -1,19 +1,41 @@
-import { getLocalStorage, getSessionStorage, setSessionStorage } from "@/utils/storage";
+import { getLocalStorage, getSessionStorage, removeSessionStorage, setSessionStorage } from "@/utils/storage";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 
-// --- API Helpers ---
-async function fetchGMBAccounts(accessToken) {
+// --- Utility for sleep/delay ---
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// --- API Helpers with Retry Logic ---
+async function fetchWithRetry(url, options, retries = 3, backoff = 1000) {
   try {
-    const res = await fetch(
-      "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const res = await fetch(url, options);
+    
+    // If rate limited (429) or server error (5xx), retry
+    if ((res.status === 429 || res.status >= 500) && retries > 0) {
+      await sleep(backoff);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Failed to fetch accounts: ${res.status} ${errText}`);
+      throw new Error(`API Error: ${res.status} ${errText}`);
     }
-    const data = await res.json();
+    return await res.json();
+  } catch (err) {
+    if (retries > 0) {
+      await sleep(backoff);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    throw err;
+  }
+}
+
+async function fetchGMBAccounts(accessToken) {
+  try {
+    const data = await fetchWithRetry(
+      "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
     return data.accounts || [];
   } catch (err) {
     console.error("Fetch Accounts Error:", err);
@@ -28,15 +50,18 @@ async function fetchAllLocationsByAccount(accessToken, accountId) {
     do {
       let url = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations?readMask=name,title,storefrontAddress,websiteUri,phoneNumbers,categories,openInfo,metadata&pageSize=100`;
       if (pageToken) url += `&pageToken=${pageToken}`;
-      const res = await fetch(url, {
+      
+      const data = await fetchWithRetry(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!res.ok) throw new Error(`Failed to fetch locations for account ${accountId}: ${res.status}`);
-      const data = await res.json();
+      
       if (data.locations && data.locations.length > 0) {
         allLocations = [...allLocations, ...data.locations];
       }
       pageToken = data.nextPageToken || null;
+      
+      // Small delay between pages if paginating
+      if (pageToken) await sleep(200);
     } while (pageToken);
     return allLocations;
   } catch (err) {
@@ -47,12 +72,11 @@ async function fetchAllLocationsByAccount(accessToken, accountId) {
 
 async function checkVoiceOfMerchant(accessToken, locationName) {
   try {
-    const res = await fetch(
+    const data = await fetchWithRetry(
       `https://mybusinessverifications.googleapis.com/v1/${locationName}/VoiceOfMerchantState`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
+      2 // Lower retries for status checks
     );
-    if (!res.ok) return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
-    const data = await res.json();
     return data;
   } catch (err) {
     return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
@@ -61,12 +85,11 @@ async function checkVoiceOfMerchant(accessToken, locationName) {
 
 async function fetchLocationLogo(accessToken, locationName) {
   try {
-    const res = await fetch(
+    const data = await fetchWithRetry(
       `https://mybusiness.googleapis.com/v4/${locationName}/media`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
+      1 // Minimal retries for media
     );
-    if (!res.ok) return null;
-    const data = await res.json();
     if (data.mediaItems && data.mediaItems.length > 0) {
       const item =
         data.mediaItems.find((i) => i.locationAssociation?.category === "LOGO") ||
@@ -92,6 +115,9 @@ async function storeUserListingsForAdmin(userEmail, listings) {
   }
 }
 
+const CACHE_EXPIRY_MS = 10 * 60 * 1000;
+const getCacheKey = (email) => `gmb_data_${email}`;
+
 export function useGMB(session, status, setUiState) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -101,8 +127,6 @@ export function useGMB(session, status, setUiState) {
   const [listings, setListings] = useState([]);
   
   const fetchInProgress = useRef(false);
-  const CACHE_EXPIRY_MS = 10 * 60 * 1000;
-  const getCacheKey = (email) => `gmb_data_${email}`;
 
   const saveToCache = useCallback((email, accountsData, noAccounts) => {
     const cacheKey = getCacheKey(email);
@@ -142,7 +166,7 @@ export function useGMB(session, status, setUiState) {
 
   const fetchInitialData = useCallback(
     async (forceRefresh = false, isBackground = false) => {
-      if (!session?.accessToken || !session?.user?.email) {
+      if (!session?.accessToken || !session?.user?.email || session?.error === "RefreshAccessTokenError") {
         if (status === "authenticated") setUiState((prev) => ({ ...prev, isSessionExpired: true }));
         return;
       }

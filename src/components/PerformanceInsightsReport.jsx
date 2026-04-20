@@ -322,7 +322,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           </p>
         </div>
 
-        <div className="bg-cyber-black p-4 rounded-xl border border-lemon-glow/30 min-w-[200px] text-right">
+        <div className="bg-cyber-black p-4 rounded-xl border border-lemon-glow/30 min-w-50 text-right">
           <p className="text-[10px] text-tech-gray font-bold uppercase tracking-widest mb-1">
             Report window
           </p>
@@ -395,7 +395,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
             sub="Organic impressions on Search & Maps"
             accentColor="bg-blue-600"
           />
-          <div className="h-[320px] w-full">
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyVis} barGap={8}>
                 <CartesianGrid
@@ -457,7 +457,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
             sub="Direct actions taken by potential customers"
             accentColor="bg-violet-600"
           />
-          <div className="h-[320px] w-full">
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyEng} barGap={6}>
                 <CartesianGrid
@@ -540,9 +540,11 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
               </div>
               <div className="text-right">
                 <span className="font-mono text-sm font-black text-cyber-black leading-none block">
-                  {Number(
-                    kw.insightsValue?.value || kw.insightsValue?.threshold || 0,
-                  ).toLocaleString()}
+                  {kw.insightsValue?.value
+                    ? Number(kw.insightsValue.value).toLocaleString()
+                    : kw.insightsValue?.threshold
+                    ? `< ${kw.insightsValue.threshold}`
+                    : "0"}
                 </span>
                 <span className="text-[9px] text-tech-gray font-bold uppercase">
                   Searches
@@ -563,15 +565,17 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
       {/* FOOTER */}
       <footer className="mt-12 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-cyber-black rounded-lg flex items-center justify-center font-black text-lemon-glow text-xs">
-            L
-          </div>
+          <img 
+            src="/images/bg-logo.png" 
+            alt="Limbu AI Logo" 
+            className="w-8 h-8 object-contain rounded-lg"
+          />
           <div>
             <p className="text-xs font-black text-cyber-black font-heading uppercase tracking-tighter">
               Limbu AI
             </p>
             <p className="text-[10px] text-tech-silver font-bold uppercase tracking-widest">
-              Performance Engine v4.0
+              Analytics Report
             </p>
           </div>
         </div>

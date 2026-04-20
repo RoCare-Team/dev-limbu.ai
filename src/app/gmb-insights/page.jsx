@@ -5,29 +5,19 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
-  Eye,
   MapPin,
-  Phone,
   Star,
   TrendingUp,
   ArrowLeft,
   BarChart3,
-  MousePointer,
-  Navigation,
-  Calendar,
   AlertCircle,
-  Search,
-  Hash,
-  X,
-  Download,
   Globe,
   Loader2,
 } from "lucide-react";
-import { CircularProgress } from "@mui/material";
 import { toast, Toaster } from "react-hot-toast";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
-
+import { getLocalStorage } from "@/utils/storage";
 
 // --- Fetch Insights API ---
 export async function fetchLocationInsights(accessToken, locationId, startDate, endDate) {
@@ -58,7 +48,6 @@ export async function fetchLocationInsights(accessToken, locationId, startDate, 
   }
 }
 
-
 // Fetch search keywords
 async function fetchSearchKeywords(accessToken, locationId, startMonth, endMonth) {
   try {
@@ -79,33 +68,6 @@ async function fetchSearchKeywords(accessToken, locationId, startMonth, endMonth
     console.error("Fetch Search Keywords Error:", err);
     throw err;
   }
-}
-
-// InsightsModal Component
-function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, startDate, endDate, onDateChange, searchKeywords, searchKeywordsLoading, location }) {
-  if (!isOpen) return null;
-
-  const fullLocationName = location?.address 
-    ? `${listingTitle} - ${location.address}` 
-    : listingTitle;
-
-  return (
-    <PerformanceInsightsModal
-      isOpen={isOpen}
-      onClose={onClose}
-      insightsData={insights}
-      businessName={listingTitle}
-      locationName={fullLocationName}
-      city={location?.locality || ""}
-      locality={location?.address || ""}
-      locationId={location?.locationId || ""}
-      businessProfileId={location?.businessProfileId || ""}
-      dateRange={{ startDate, endDate }}
-      searchKeywords={searchKeywords}
-      loading={loading}
-      onDateChange={onDateChange}
-    />
-  );
 }
 
 export default function GmbInsightsPage() {
@@ -138,20 +100,17 @@ export default function GmbInsightsPage() {
   // Load locations from localStorage
   useEffect(() => {
     if (status === "authenticated") {
-      const locationDetails = localStorage.getItem("locationDetails");
+      const locationDetails = getLocalStorage("locationDetails");
       if (locationDetails) {
         try {
           const parsedLocations = JSON.parse(locationDetails);
           setLocations(parsedLocations);
-          setLoading(false);
         } catch (err) {
           console.error("Error parsing location details:", err);
           toast.error("Failed to load locations");
-          setLoading(false);
         }
-      } else {
-        setLoading(false);
       }
+      setLoading(false);
     }
   }, [status]);
 
@@ -262,23 +221,31 @@ export default function GmbInsightsPage() {
     return null;
   }
 
+  const fullLocationName = selectedLocation?.address 
+    ? `${selectedListingTitle} - ${selectedLocation.address}` 
+    : selectedListingTitle;
+
   return (
     <div className="min-h-screen bg-slate-50/50">
       <Toaster position="top-right" />
 
-      <InsightsModal
-        isOpen={showInsightsModal}
-        onClose={() => setShowInsightsModal(false)}
-        insights={insightsData}
-        listingTitle={selectedListingTitle}
-        loading={insightsLoading}
-        startDate={startDate}
-        endDate={endDate}
-        onDateChange={handleDateChange}
-        searchKeywords={searchKeywordsData}
-        searchKeywordsLoading={searchKeywordsLoading}
-        location={selectedLocation}
-      />
+      {showInsightsModal && (
+        <PerformanceInsightsModal
+          isOpen={showInsightsModal}
+          onClose={() => setShowInsightsModal(false)}
+          insightsData={insightsData}
+          businessName={selectedListingTitle}
+          locationName={fullLocationName}
+          city={selectedLocation?.locality || ""}
+          locality={selectedLocation?.address || ""}
+          locationId={selectedLocation?.locationId || ""}
+          businessProfileId={selectedLocation?.businessProfileId || ""}
+          dateRange={{ startDate, endDate }}
+          searchKeywords={searchKeywordsData}
+          loading={insightsLoading}
+          onDateChange={handleDateChange}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
         {/* Page Header */}
@@ -332,7 +299,7 @@ export default function GmbInsightsPage() {
 
                 {/* Body */}
                 <div className="mb-8">
-                  <h3 className="font-black text-lg text-black uppercase tracking-tight line-clamp-1 mb-2" style={{ fontFamily: "var(--font-heading)" }}>
+                  <h3 className="font-black text-base text-black uppercase tracking-tight mb-2 leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
                     {location.title}
                   </h3>
                   <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest mb-4">

@@ -14,7 +14,8 @@ import {
   KeyRound,
   User,
   LogOut,
-  Wand
+  Wand,
+  BarChart3
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 
@@ -73,6 +74,7 @@ export default function Sidebar({ children }) {
     { text: "Assets Management", icon: <LucideImage size={18} />, path: "/assets-management" },
     { text: "Keyword Planner", icon: <KeyRound size={18} />, path: "/keyword-planner" },
     { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
+    { text: "GMB Insights", icon: <BarChart3 size={18} />, path: "/gmb-insights" },
     { text: "My Profile", icon: <User size={18} />, path: "/profile" },
   ], []);
 
@@ -151,7 +153,7 @@ export default function Sidebar({ children }) {
         />
 
         {/* ── Main Content Area ── */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scroll-main bg-[#fcfcfd]">
+        <main className="flex-1 overflow-y-auto p-4  custom-scroll-main">
           {children}
         </main>
       </div>

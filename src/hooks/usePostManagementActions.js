@@ -13,7 +13,6 @@ import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload"
 
 export function usePostManagementActions({
   userId,
-  session,
   fetchPosts,
   setPosts,
   setPreviewData,

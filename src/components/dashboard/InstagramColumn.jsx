@@ -1,7 +1,6 @@
 import React from "react";
 import { Instagram, LogOut, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
 
 const InstagramColumn = React.memo(({
   instagramPages,
@@ -36,7 +35,7 @@ const InstagramColumn = React.memo(({
 
       <div
         className="overflow-y-auto p-6 space-y-4 custom-scroll"
-        style={{ height: "calc(100vh - 380px)" }}
+        style={{ height: "calc(100vh - 340px)" }}
       >
         {instagramPages.length > 0 ? (
           <>

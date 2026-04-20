@@ -272,15 +272,7 @@ export default function DashboardPage() {
     }
   }, [session?.accessToken, performanceState.dateRange]);
 
-  const handleGmbInsightsClick = useCallback(() => {
-    const allListings = accounts.length > 0 ? accounts.flatMap((acc) => acc.listings) : [];
-    if (allListings.length === 0) {
-      toast.error("No locations found.");
-      return;
-    }
-    // Directly open the Performance Insights Modal for the first location
-    handleViewPerformanceInsights(allListings[0]);
-  }, [accounts, handleViewPerformanceInsights]);
+
 
   const handleLocationSelect = useCallback((listing) => {
     setUiState((prev) => ({ ...prev, showLocationSelectorModal: false }));
@@ -364,7 +356,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col">
       <PerformanceInsightsModal
         isOpen={performanceState.isOpen}
         onClose={() => setPerformanceState((prev) => ({ ...prev, isOpen: false }))}
@@ -411,7 +403,7 @@ export default function DashboardPage() {
 
       <div className=" border-b border-black/5">
         <div className="w-full ">
-          <NavLinks isAuthenticated={status === "authenticated"} onGmbInsightsClick={handleGmbInsightsClick} />
+          <NavLinks isAuthenticated={status === "authenticated"} />
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mt-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">

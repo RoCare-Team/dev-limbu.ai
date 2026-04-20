@@ -222,11 +222,123 @@ export default function PricingPage() {
     setShowServiceModal(true);
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleServicePayment = async (e) => {
     e.preventDefault();
-    // Payment logic same as page.js
-    // Simplified for now, but keeping the structure
-    alert("Payment gateway will open for: " + selectedPlan.title);
+
+    if (!serviceForm.name || !serviceForm.phone || !serviceForm.email) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const res = await loadRazorpayScript();
+    if (!res) {
+      alert("Razorpay SDK failed to load. Are you online?");
+      return;
+    }
+
+    // Safely parse the amount, handling both string ("₹2,950") and number (8850)
+    let parsedAmount = 0;
+    if (selectedPlan) {
+      const rawTotal = selectedPlan.totalPrice || selectedPlan.totalAmount || selectedPlan.basePrice;
+      if (typeof rawTotal === 'string') {
+        parsedAmount = Number(rawTotal.replace(/[^0-9.-]+/g, ""));
+      } else {
+        parsedAmount = Number(rawTotal);
+      }
+    }
+
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      alert("Invalid payment amount. Please contact support.");
+      return;
+    }
+
+    try {
+      const orderRes = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: selectedPlan?.title,
+          amount: parsedAmount,
+          receipt: `plan_${Date.now()}`,
+          notes: {
+            plan_name: selectedPlan?.title,
+            user_email: serviceForm.email,
+          },
+        }),
+      });
+
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok || !orderData || !orderData.order) {
+        console.error("Order creation failed:", { status: orderRes.status, data: orderData });
+        alert(`Error: ${orderData?.error || "Payment gateway connection failed."}`);
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "Limbu AI",
+        description: `Payment for ${selectedPlan?.title}`,
+        order_id: orderData.order.id,
+        handler: async function (response) {
+          try {
+            // Here you would typically save the transaction to your database
+            const verifyRes = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                plan: selectedPlan?.title,
+                amount: parsedAmount,
+                userData: serviceForm
+              }),
+            });
+
+            if (verifyRes.ok) {
+              setBookingSuccess(true);
+              setTimeout(() => {
+                setShowServiceModal(false);
+                setBookingSuccess(false);
+                setServiceForm({ name: "", phone: "", email: "", gstNumber: "" });
+              }, 3000);
+            } else {
+              alert("Payment verification failed on server.");
+            }
+          } catch (error) {
+            console.error("Verification Error:", error);
+            alert("Payment successful but verification failed. Please contact support.");
+          }
+        },
+        prefill: {
+          name: serviceForm.name,
+          email: serviceForm.email,
+          contact: serviceForm.phone,
+        },
+        theme: {
+          color: "#eab308",
+        },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
+    } catch (error) {
+      console.error("Payment Error:", error);
+      alert("Failed to initiate payment.");
+    }
   };
 
   return (
@@ -235,10 +347,10 @@ export default function PricingPage() {
 
       {/* Hero-like Header for Pricing */}
       <div className="pt-32 pb-16 px-4 text-center bg-slate-50/50 border-b border-black/5">
-        <h1 
-          className="font-black uppercase tracking-tight mb-6" 
-          style={{ 
-            fontFamily: "var(--font-heading)", 
+        <h1
+          className="font-black uppercase tracking-tight mb-6"
+          style={{
+            fontFamily: "var(--font-heading)",
             fontSize: "clamp(2rem, 6vw, 4.5rem)",
             lineHeight: "0.95"
           }}
@@ -263,30 +375,30 @@ export default function PricingPage() {
         </Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>
-          <ServicesSection 
-            servicePlans={servicePlans} 
-            handleServiceBookClick={handlePlanClick} 
+          <ServicesSection
+            servicePlans={servicePlans}
+            handleServiceBookClick={handlePlanClick}
           />
         </Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>
-          <WebDevelopmentSection 
-            webPlans={webDevelopmentPlans} 
-            handlePlanClick={handlePlanClick} 
+          <WebDevelopmentSection
+            webPlans={webDevelopmentPlans}
+            handlePlanClick={handlePlanClick}
           />
         </Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>
-          <SEOSection 
-            seoPlans={seoPlans} 
-            handlePlanClick={handlePlanClick} 
+          <SEOSection
+            seoPlans={seoPlans}
+            handlePlanClick={handlePlanClick}
           />
         </Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>
-          <AccountSetupSection 
-            plans={accountSetupPlans} 
-            handlePlanClick={handlePlanClick} 
+          <AccountSetupSection
+            plans={accountSetupPlans}
+            handlePlanClick={handlePlanClick}
           />
         </Suspense>
       </div>

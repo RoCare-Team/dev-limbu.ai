@@ -1,7 +1,6 @@
 import React from "react";
 import { Facebook, LogOut, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
 
 const FacebookColumn = React.memo(({
   facebookPages,
@@ -36,7 +35,7 @@ const FacebookColumn = React.memo(({
 
       <div
         className="overflow-y-auto p-6 space-y-4 custom-scroll"
-        style={{ height: "calc(100vh - 380px)" }}
+        style={{ height: "calc(100vh - 340px)" }}
       >
         {facebookPages.length > 0 ? (
           <>

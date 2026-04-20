@@ -508,6 +508,12 @@ export default function PostManagementPage() {
     if (selectedTargets.ig?.length > 0) sources.push("ig");
 
     if (sources.length > 0) {
+      // Check for GMB Session Expiry before scheduling if GMB is selected
+      if (sources.includes("gmb") && (!session || !session.accessToken || session.error === "RefreshAccessTokenError")) {
+        showToast("Google Session Expired. Please reconnect your GMB account.", "error");
+        return;
+      }
+
       const gmbLocs = availableLocations.filter(loc => selectedTargets.gmb.includes(loc.id));
       const fbPages = socialState.facebookPages.filter(p => selectedTargets.fb.includes(p.pageId)).map(p => ({ pageId: p.pageId, pageAccessToken: p.pageAccessToken }));
       const igPages = socialState.instagramAccounts.filter(a => selectedTargets.ig.includes(a.igId)).map(a => ({ igUserId: a.igId, accessToken: a.pageAccessToken }));
@@ -518,7 +524,7 @@ export default function PostManagementPage() {
     } else {
       showToast("Select platform", "error");
     }
-  }, [availableLocations, posts, socialState.facebookPages, socialState.instagramAccounts, updateUiState, showToast, handleUpdateStatus]);
+  }, [availableLocations, posts, socialState.facebookPages, socialState.instagramAccounts, updateUiState, showToast, handleUpdateStatus, session]);
 
   const handleToggleCheckmark = useCallback(async (id, type) => {
     const post = posts.find(p => p._id === id);
@@ -575,9 +581,16 @@ export default function PostManagementPage() {
 
   const handleDeleteFromGMB = useCallback((post) => {
     if (!post.locations?.length) return showToast("No locations", "error");
+
+    // Check for GMB Session Expiry before attempting to delete from GMB
+    if (!session || !session.accessToken || session.error === "RefreshAccessTokenError") {
+      showToast("Google Session Expired. Please reconnect your GMB account.", "error");
+      return;
+    }
+
     setPostToAction(post);
     updateUiState({ showDeleteLocationModal: true });
-  }, [updateUiState, showToast]);
+  }, [updateUiState, showToast, session]);
 
   const handleLocationConfirm = useCallback(async (selectedIds, checkmark) => {
     updateUiState({ showLocationModal: false });
@@ -610,11 +623,18 @@ export default function PostManagementPage() {
 
   const handlePost = useCallback(async (post) => {
     if (!["approved", "scheduled", "posted", "failed"].includes(post.status)) return showToast("Approve first", "error");
+
+    // Check for GMB Session Expiry before showing the location modal
+    if (!session || !session.accessToken || session.error === "RefreshAccessTokenError") {
+      showToast("Google Session Expired. Please reconnect your GMB account.", "error");
+      return;
+    }
+
     const userData = await getUserWalletAction(userId);
     setUserWallet(userData.wallet || 0);
     setPostToAction(post);
     updateUiState({ showLocationModal: true });
-  }, [userId, updateUiState, showToast]);
+  }, [userId, updateUiState, showToast, session]);
 
   const handleDeleteLocationConfirm = useCallback(async (selectedIds) => {
     updateUiState({ showDeleteLocationModal: false });
@@ -702,7 +722,7 @@ export default function PostManagementPage() {
         {uiState.showFirstPostModal && <FirstPostModal onClose={() => updateUiState({ showFirstPostModal: false })} />}
 
         {isPosting && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[150] flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-150 flex items-center justify-center">
             <div className="bg-white rounded-[2.5rem] p-8 flex flex-col items-center">
               <Send className="w-10 h-10 text-lemon-glow animate-bounce" />
               <h3 className="text-2xl font-black mt-4">Publishing Your Post ✨</h3>

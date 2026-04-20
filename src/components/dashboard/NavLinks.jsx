@@ -1,4 +1,4 @@
-import { Activity, FolderKey, Globe, PlusSquare, QrCode, SquareChartGantt, Star, Sparkles } from "lucide-react";
+import { Activity, FolderKey, Globe, PlusSquare, QrCode, SquareChartGantt, Star } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { memo } from "react";
@@ -70,10 +70,6 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                             e.preventDefault();
                             return signIn("google", { callbackUrl: item.href });
                         }
-                        if (isGmbInsights) {
-                            e.preventDefault();
-                            return onGmbInsightsClick();
-                        }
                     };
 
                     const Card = (
@@ -144,9 +140,6 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                     );
 
                     if (isEnabled) {
-                        if (isGmbInsights) {
-                            return <div key={item.label}>{Card}</div>;
-                        }
                         return (
                             <Link key={item.label} href={item.href}>
                                 {Card}

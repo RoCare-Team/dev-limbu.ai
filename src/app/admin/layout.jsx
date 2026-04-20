@@ -16,6 +16,7 @@ import {
   BookCheck,
   LogOut,
   LucideHeadset,
+  Link2,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 
@@ -88,6 +89,7 @@ export default function AdminLayout({ children }) {
     { name: "Tata Dialer User Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
     { name: "Create Franchise", icon: <LeaderboardSharp />, href: "/admin/create-franchise" },
         { name: "Account Manager", icon: <UserSquare size={18} />, href: "/admin/manager-assignment" },
+    { name: "Connected Nodes", icon: <Link2 size={18} />, href: "/admin/connected-node" },
 
 
     // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },

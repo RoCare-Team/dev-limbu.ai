@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Search, Plus, Tag, TrendingUp, X, BarChart3, Check, Loader2 } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
 import { useSession } from "next-auth/react";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 
 export default function KeywordPage() {
   const [input, setInput] = useState("");
@@ -287,8 +287,6 @@ export default function KeywordPage() {
 
         </div>
       </div>
-
-      <SupportModal showToast={showToast} />
 
       {/* Floating WhatsApp Button */}
       <a

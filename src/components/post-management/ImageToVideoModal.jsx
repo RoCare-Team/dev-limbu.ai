@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
-import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import {
   savePostAction,
   updatePostStatusAction,
@@ -71,8 +71,8 @@ export default function ImageToVideoModal({
   const [audioFileUrl, setAudioFileUrl] = useState("");
   const [audioFolder, setAudioFolder] = useState("basic");
   const [selectedPostId, setSelectedPostId] = useState(null);
-  const [uploadedCloudinaryUrl, setUploadedCloudinaryUrl] = useState(null);
-  const [uploadingToCloudinary, setUploadingToCloudinary] = useState(false);
+  const [uploadedS3Url, setUploadedS3Url] = useState(null);
+  const [uploadingToS3, setUploadingToS3] = useState(false);
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -101,11 +101,11 @@ export default function ImageToVideoModal({
       isLikelyImageOutput(initialOutput)
     ) {
       setSelectedPostId(initialPostId);
-      setUploadedCloudinaryUrl(null);
+      setUploadedS3Url(null);
       setMergeTargetPostId(initialPostId);
     } else {
       setSelectedPostId(null);
-      setUploadedCloudinaryUrl(null);
+      setUploadedS3Url(null);
       setMergeTargetPostId(null);
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -180,7 +180,7 @@ export default function ImageToVideoModal({
   );
 
   const selectedSourceUrl = useMemo(() => {
-    if (uploadedCloudinaryUrl) return uploadedCloudinaryUrl;
+    if (uploadedS3Url) return uploadedS3Url;
     if (!selectedPostId) return null;
     const row = generatedImageChoices.find(
       (c) => String(c.id) === String(selectedPostId)
@@ -195,7 +195,7 @@ export default function ImageToVideoModal({
     }
     return null;
   }, [
-    uploadedCloudinaryUrl,
+    uploadedS3Url,
     selectedPostId,
     generatedImageChoices,
     initialPostId,
@@ -203,8 +203,8 @@ export default function ImageToVideoModal({
   ]);
 
   const effectiveImagePayload = useMemo(() => {
-    if (uploadedCloudinaryUrl) {
-      return { image_url: uploadedCloudinaryUrl, source: "upload" };
+    if (uploadedS3Url) {
+      return { image_url: uploadedS3Url, source: "upload" };
     }
     if (!selectedSourceUrl) return null;
     const u = selectedSourceUrl;
@@ -213,7 +213,7 @@ export default function ImageToVideoModal({
     }
     const dataUrl = u.startsWith("data:") ? u : `data:image/png;base64,${u}`;
     return { image: dataUrl, source: "post" };
-  }, [uploadedCloudinaryUrl, selectedSourceUrl]);
+  }, [uploadedS3Url, selectedSourceUrl]);
 
   const previewUrl = useMemo(() => {
     if (!selectedSourceUrl) return null;
@@ -245,33 +245,17 @@ export default function ImageToVideoModal({
     setUploadedCloudinaryUrl(null);
     setMergeTargetPostId(null);
     try {
-      const sigData = await getCloudinarySignatureAction();
-      if (!sigData.success) {
-        throw new Error(sigData.error || "Failed to get upload signature");
-      }
-
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("api_key", sigData.apiKey);
-      formData.append("timestamp", sigData.timestamp);
-      formData.append("signature", sigData.signature);
-      formData.append("folder", sigData.folder);
 
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData }
-      );
+      const uploadResult = await uploadToS3Action(formData);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.error?.message || "Failed to upload image to Cloudinary"
-        );
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || "Failed to upload image to S3");
       }
 
-      const data = await res.json();
-      setUploadedCloudinaryUrl(data.secure_url);
-      showToast?.("Image uploaded to Cloudinary", "success");
+      setUploadedCloudinaryUrl(uploadResult.url);
+      showToast?.("Image uploaded to S3", "success");
     } catch (err) {
       showToast?.(err.message || "Upload failed", "error");
     } finally {
@@ -478,7 +462,7 @@ export default function ImageToVideoModal({
           } else {
             showToast?.(
               saveRes.error ||
-                "Video generated but could not save to your library.",
+              "Video generated but could not save to your library.",
               "error"
             );
           }
@@ -563,11 +547,10 @@ export default function ImageToVideoModal({
                   key={c.id}
                   type="button"
                   onClick={() => pickPost(c.id)}
-                  className={`relative w-14 h-14 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${
-                    String(selectedPostId) === String(c.id) && !uploadedCloudinaryUrl
+                  className={`relative w-14 h-14 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${String(selectedPostId) === String(c.id) && !uploadedS3Url
                       ? "border-amber-500 ring-2 ring-amber-200"
                       : "border-gray-200 hover:border-gray-300"
-                  }`}
+                    }`}
                   title={c.label}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -581,17 +564,16 @@ export default function ImageToVideoModal({
               ))}
               <button
                 type="button"
-                disabled={uploadingToCloudinary}
+                disabled={uploadingToS3}
                 onClick={() => fileInputRef.current?.click()}
-                className={`w-14 h-14 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-0.5 shrink-0 transition-colors ${
-                  uploadingToCloudinary
+                className={`w-14 h-14 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-0.5 shrink-0 transition-colors ${uploadingToS3
                     ? "border-amber-300 bg-amber-50/50 text-amber-800"
-                    : uploadedCloudinaryUrl
+                    : uploadedS3Url
                       ? "border-amber-500 bg-amber-50 text-amber-900"
                       : "text-gray-500 border-gray-300 hover:border-amber-400 hover:text-amber-700"
-                }`}
+                  }`}
               >
-                {uploadingToCloudinary ? (
+                {uploadingToS3 ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <UploadCloud className="w-4 h-4" />
@@ -706,22 +688,20 @@ export default function ImageToVideoModal({
               <button
                 type="button"
                 onClick={() => setVoiceMode("use-voice")}
-                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                  voiceMode === "use-voice"
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${voiceMode === "use-voice"
                     ? "border-amber-500 bg-amber-50 text-amber-900"
                     : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                }`}
+                  }`}
               >
                 Use my voice
               </button>
               <button
                 type="button"
                 onClick={() => setVoiceMode("skip")}
-                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                  voiceMode === "skip"
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${voiceMode === "skip"
                     ? "border-amber-500 bg-amber-50 text-amber-900"
                     : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                }`}
+                  }`}
               >
                 Skip
               </button>
@@ -778,7 +758,7 @@ export default function ImageToVideoModal({
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={loading || uploadingToCloudinary}
+            disabled={loading || uploadingToS3}
             className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-2.5 text-sm shadow-md disabled:opacity-60 disabled:cursor-not-allowed transition-all"
           >
             {loading ? (

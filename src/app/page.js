@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { mergePricingLanding } from "@/lib/pricingLandingDefaults"
 
 import HeaderSection from "../components/sections/HeaderSection"
 import HeroSection from "../components/sections/HeroSection"
@@ -11,7 +12,6 @@ import VideoExamplesSection from "../components/sections/VideoExamplesSection"
 import FeaturesSection from "../components/sections/FeaturesSection"
 import AccountSetupSection from "../components/sections/AccountSetupSection"
 import ServicesSection from "../components/sections/ServicesSection"
-import SeoPlans from "../components/sections/SeoPlans"
 import SubscriptionSection from "../components/sections/SubscriptionSection"
 import WebDevelopmentSection from "../components/sections/WebDevelopmentSection"
 import SEOSection from "../components/sections/SEOSection"
@@ -161,6 +161,8 @@ export default function LimbuAILanding() {
     gstNumber: ""
   })
 
+  const [pricingDoc, setPricingDoc] = useState(null)
+
   
   // =============================
   // 🟣 EFFECTS
@@ -204,6 +206,21 @@ export default function LimbuAILanding() {
     window.addEventListener("keydown", handleEsc)
     return () => window.removeEventListener("keydown", handleEsc)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/home-data?type=pricingLanding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((doc) => {
+        if (!cancelled && doc) setPricingDoc(doc)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const pricing = useMemo(() => mergePricingLanding(pricingDoc), [pricingDoc])
 
   // =============================
   // 🟢 HANDLERS
@@ -278,7 +295,10 @@ export default function LimbuAILanding() {
           receipt: `receipt_${Date.now()}`,
           notes: {
             plan_name: selectedPlan.title,
-            user_email: serviceForm.email
+            user_email: serviceForm.email,
+            plan_key: selectedPlan.planKey || "",
+            plan_type: selectedPlan.planType || "",
+            purchase_link: selectedPlan.purchaseLink || ""
           }
         }),
       });
@@ -309,9 +329,17 @@ export default function LimbuAILanding() {
                 ...serviceForm,
                 planTitle: selectedPlan.title,
                 planType: selectedPlan.planType,
-                planDuration: selectedPlan.planDuration,
-                planPrice: selectedPlan.price,
-                totalAmount: selectedPlan.totalPrice,
+                planDuration: selectedPlan.planDuration ?? "",
+                planKey: selectedPlan.planKey || "",
+                purchaseLink: selectedPlan.purchaseLink || "",
+                planPrice:
+                  typeof selectedPlan.price === "number"
+                    ? String(selectedPlan.price)
+                    : selectedPlan.price,
+                totalAmount:
+                  typeof selectedPlan.totalPrice === "number"
+                    ? String(selectedPlan.totalPrice)
+                    : String(selectedPlan.totalPrice ?? ""),
                 paymentId: response.razorpay_payment_id,
                 orderId: response.razorpay_order_id,
                 status: "paid"
@@ -352,192 +380,6 @@ export default function LimbuAILanding() {
   
 
   
-const accountSetupPlans = [
-  {
-    title: "Google Ads Account Setup",
-    basePrice: 2500,
-    description:
-      "Complete Google Ads account setup with keyword research, tracking, and analytics integration.",
-    staticFeatures: [
-      "New Google Ads account creation",
-      "Billing & payment configuration",
-      "Search campaign keyword research",
-      "High-intent keyword selection",
-      "Negative keyword setup",
-      "Competitor keyword analysis",
-      "Campaign structure planning (Search / Display if required)",
-      "Google Business Profile linking (if available)",
-      "Google Analytics 4 (GA4) setup & configuration",
-      "Google Tag Manager setup (if required)",
-      "Conversion tracking setup",
-      "Website conversion tracking (forms, calls, purchases, etc.)",
-      "Event tracking configuration",
-      "Call tracking setup"
-    ]
-  },
-  {
-    title: "Meta Ads Account Setup",
-    basePrice: 3500,
-    popular: true,
-    description:
-      "Complete Meta (Facebook & Instagram) ad account setup with audience research, tracking system, and creative strategy.",
-    staticFeatures: [
-      "Business Manager setup & verification",
-      "Ad account creation & configuration",
-      "Audience research & competitor analysis",
-      "Interest-based targeting research",
-      "Custom audience creation",
-      "Lookalike audience setup",
-      "Pixel setup & tracking configuration",
-      "Conversion API integration (if required)",
-      "Ad creative strategy & direction",
-      "High-converting ad copywriting",
-      "Hook-based creatives",
-      "A/B testing variations",
-      "CTA optimization setup"
-    ]
-  }
-];
-
-  const subscriptionPlans = [
-    {
-      title: "Basic Plan",
-      basePrice: 2500,
-      totalAmount: 2950,
-      basePosts: 15,
-      baseCitations: 5,
-      staticFeatures: ["Review Reply System","Magic Qr Code Generation","Insights Dashboard","Category Addition & Optimization","Website Builder"],
-      description: "Ideal for small businesses needing basic online presence",
-      color: "bg-neutral-600",
-      textColor: "text-dark",
-      borderColor: "border-lightPrimary"
-    },
-       {
-      title: "Premium Plan",
-      basePrice: 7500,
-      totalAmount: 8850,
-      basePosts: 45,
-      baseCitations: 15,
-      staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization", "Website Builder","Add Professional Services"],
-      description: "Perfect for brands focused on automation and maximum reach",
-      popular: true,
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-      borderColor: "border-neutral-200"
-    },
-    {
-      title: "Professional Plan",
-      basePrice: 5500,
-      totalAmount: 6490,
-      basePosts: 30,
-      baseCitations: 12,
-      staticFeatures: ["Review Reply Management", "Magic Qr Code Generation","Insights Dashboard", "Category Addition & Optimization","website Builder"],
-      description: "Best for growing businesses looking for better visibility",
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-      borderColor: "border-purple-200"
-    },
- 
-  ];
-  
-
-  const webDevelopmentPlans = [
-  {
-    title: "Starter Website",
-    basePrice: 9999,
-    basePages: 5,
-    staticFeatures: [
-      "Responsive Website Design",
-      "Basic SEO Setup",
-      "Contact Form Integration",
-      "Social Media Integration",
-      "1 Month Free Support"
-    ],
-    description: "Perfect for small businesses or startups",
-    color: "bg-neutral-600",
-    textColor: "text-neutral-600"
-  },
-  {
-    title: "Business Website",
-    basePrice: 25000,
-    basePages: 15,
-    staticFeatures: [
-      "Custom UI/UX Design",
-      "Advanced SEO Optimization",
-      "Admin Panel Access",
-      "Google Analytics Integration",
-      "3 Months Free Support"
-    ],
-    description: "Best for growing businesses",
-    popular: true,
-    color: "bg-neutral-600",
-    textColor: "text-neutral-600"
-  },
-  {
-    title: "Enterprise Website",
-    basePrice: 48000,
-    basePages: 35,
-    staticFeatures: [
-      "Fully Custom Design",
-      "E-commerce Integration",
-      "Payment Gateway Setup",
-      "Advanced Security",
-      "6 Months Free Support"
-    ],
-    description: "Perfect for large businesses & brands",
-    color: "bg-neutral-600",
-    textColor: "text-neutral-600"
-  }
-]
-
-const seoPlans = [
-  {
-    title: "Basic SEO",
-    basePrice: 5999,
-    staticFeatures: [
-      "Keyword Research",
-      "Meta Tags Optimization",
-      "Basic Technical SEO",
-      "Monthly Report"
-    ],
-    description: "Perfect for small websites starting SEO",
-    color: "bg-neutral-600",
-    textColor: "text-neutral-600"
-  },
-  {
-    title: "Standard SEO",
-    basePrice: 9999,
-    staticFeatures: [
-      "Technical SEO Audit",
-      "Backlink Building",
-      "Competitor Analysis",
-      "Bi-Weekly Reports"
-    ],
-    description: "Best for growing businesses",
-    popular: true,
-    color: "bg-neutral-600",
-    textColor: "text-neutral-600"
-  },
-  {
-    title: "Advanced SEO",
-    basePrice: 15999,
-    staticFeatures: [
-       "Advanced 45-Page SEO",
-      "Complete SEO Strategy",
-      "High Quality Backlinks",
-      "Technical Optimization",
-      "Local SEO",
-      "Weekly Performance Report"
-    ],
-    description: "Perfect for brands aiming for top ranking",
-    color: "bg-neutral-600",
-    textColor: "text-neutral-600"
-  }
-]
-
-
-
-
   const handleSubscriptionClick = (plan) => {
     const multiplier = getMultiplier();
     const price = calculatePrice(plan.basePrice);
@@ -552,6 +394,8 @@ const seoPlans = [
 
     handleServiceBookClick({
         title: plan.title,
+        planKey: plan.planKey,
+        purchaseLink: plan.purchaseLink || "",
         planType: "our-package",
         planDuration: billingCycle,
         price: `₹${price.toLocaleString()}`,
@@ -661,58 +505,6 @@ const seoPlans = [
       link: "/get-magic-qr"
     }
   ]
-  const servicePlans = [
-    
-    {
-      title: "GMB Assistance & Update Plan",
-      planType: "our-service",
-      planDuration: "1 Month",
-      price: "₹2,500",
-      period: "+ 18% GST",
-      totalPrice: "₹2,950",
-      gstAmount: "₹450",
-      subtitle: "Ideal for existing Google Business Profiles",
-      features: [
-        "Google Business Profile Functionality check",
-        "Website URL update",
-        "Mobile number update",
-        "Basic profile verification check",
-        "Minor corrections (name, address consistency)",
-        "1 month  support assistance"
-      ],
-      tag: (
-  <>
-    Best for: Businesses that already have a GMB listing 
-    and need  basic updates <br /> or fixes.
-  </>
-),
-      iconColor: "text-blue-500",
-      buttonColor: "bg-neutral-600"
-    },
-    {
-      title: "GMB Creation & Management Plan (From Scratch)",
-      planType: "our-service",
-      planDuration: "1 Month",
-      price: "₹3,000",
-      period: "+ 18% GST",
-      totalPrice: "₹3,540",
-      gstAmount: "₹540",
-      subtitle: "Ideal for new businesses or those without GMB",
-      features: [
-        "Google Business Profile creation from scratch",
-        "Business address setup & verification guidance",
-        "Category selection (primary & secondary)",
-        "Product listing setup",
-        "Service listing & management",
-        "Business details optimization",
-        "1-month complete assistance & support"
-      ],
-      tag: "Best for: New businesses or those without GMB",
-      iconColor: "text-dark",
-      buttonColor: "bg-lightPrimary"
-    },
-  ]
-  // const subscriptionPlans = []
   const testimonials = []
 
   // =============================
@@ -787,32 +579,38 @@ const seoPlans = [
 
 
       <ServicesSection
-        servicePlans={servicePlans}
+        servicePlans={pricing.servicePlans}
         handleServiceBookClick={handleServiceBookClick}
+        sectionCopy={pricing.sections.service}
       />
 
       <SubscriptionSection
-        subscriptionPlans={subscriptionPlans}
+        subscriptionPlans={pricing.subscriptionPlans}
         billingCycle={billingCycle}
         setBillingCycle={setBillingCycle}
         calculatePrice={calculatePrice}
         getMultiplier={getMultiplier}
         handleSubscriptionClick={handleSubscriptionClick}
+        sectionCopy={pricing.sections.subscription}
       />
 
       <WebDevelopmentSection
-  webPlans={webDevelopmentPlans}
-  handlePlanClick={handlePlanClick}
-/>
+        webPlans={pricing.webDevelopmentPlans}
+        handlePlanClick={handlePlanClick}
+        sectionCopy={pricing.sections.web}
+      />
 
-<SEOSection
-  seoPlans={seoPlans}
-  handlePlanClick={handlePlanClick}
-/>
+      <SEOSection
+        seoPlans={pricing.seoPlans}
+        handlePlanClick={handlePlanClick}
+        sectionCopy={pricing.sections.seo}
+      />
+
       <AccountSetupSection
-  plans={accountSetupPlans}
-  handlePlanClick={handlePlanClick}
-/>
+        plans={pricing.accountSetupPlans}
+        handlePlanClick={handlePlanClick}
+        sectionCopy={pricing.sections.accountSetup}
+      />
       <ComparisonSection />
 
       {/* <TestimonialsSection

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import ServiceBooking from "@/models/ServiceBooking";
 import { logApiRequest } from "@/lib/apiLogger";
+import { applyCheckoutToUser } from "@/lib/checkoutApplyUserPlan";
 
 // ✅ CREATE SERVICE BOOKING
 export async function POST(req) {
@@ -18,10 +19,46 @@ export async function POST(req) {
       );
     }
 
+    if (body.status === "paid" && body.paymentId) {
+      const applied = await applyCheckoutToUser({
+        name: body.name,
+        phone: body.phone,
+        email: body.email,
+        gstNumber: body.gstNumber,
+        planTitle: body.planTitle,
+        planType: body.planType,
+        planDuration: body.planDuration,
+        planKey: body.planKey,
+        paymentId: body.paymentId,
+        orderId: body.orderId,
+        razorpay_signature: body.razorpay_signature,
+        totalAmount: body.totalAmount,
+      });
+      if (!applied.ok) {
+        const res = NextResponse.json(
+          { success: false, error: applied.error },
+          { status: applied.status }
+        );
+        await logApiRequest({
+          path: "/api/service-booking",
+          method: "POST",
+          status: applied.status,
+          durationMs: Date.now() - startedAt,
+          errorMessage: applied.error,
+        });
+        return res;
+      }
+      body.userId = applied.user.userId;
+    }
+
     const booking = await ServiceBooking.create(body);
 
     const res = NextResponse.json(
-      { success: true, data: booking },
+      {
+        success: true,
+        data: booking,
+        ...(body.userId && { checkoutUserId: body.userId }),
+      },
       { status: 201 }
     );
     await logApiRequest({

@@ -148,9 +148,12 @@ function CheckoutContent() {
                       : String(selectedPlan.totalPrice ?? ""),
                   paymentId: response.razorpay_payment_id,
                   orderId: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
                   status: "paid",
                 }),
               })
+
+              const saveData = await saveRes.json().catch(() => ({}))
 
               if (saveRes.ok) {
                 setBookingSuccess(true)
@@ -160,9 +163,16 @@ function CheckoutContent() {
                   email: "",
                   gstNumber: "",
                 })
-                toast.success("Payment successful!")
+                toast.success(
+                  saveData.checkoutUserId
+                    ? `Payment successful. Account: ${saveData.checkoutUserId}`
+                    : "Payment successful!",
+                )
               } else {
-                toast.error("Payment succeeded but booking save failed.")
+                toast.error(
+                  saveData.error ||
+                    "Payment succeeded but we could not complete registration. Contact support with your payment ID.",
+                )
               }
             } catch (err) {
               console.error(err)

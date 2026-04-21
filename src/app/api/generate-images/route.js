@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import cloudinary from "@/lib/cloudinary";
+import { uploadToS3 } from "@/utils/s3Config";
 
 function getRequiredEnv(name) {
   const value = process.env[name];
@@ -16,7 +16,7 @@ function getOpenAIClient() {
 /**
  * POST /api/generate-images
  * Body: { businessType, businessName, locality, count, imageKeywords }
- * Returns: { images: [cloudinaryUrl, ...] }
+ * Returns: { images: [s3Url, ...] }
  */
 export async function POST(req) {
   try {
@@ -58,17 +58,23 @@ export async function POST(req) {
         const dalleUrl = response.data[0]?.url;
         if (!dalleUrl) continue;
 
-        // Upload to Cloudinary for persistence (DALL-E URLs expire after 1 hour)
-        const uploadResult = await cloudinary.uploader.upload(dalleUrl, {
-          folder: "gmb-ai-generated",
-          transformation: [
-            { width: 1200, height: 800, crop: "fill", gravity: "auto" },
-            { quality: "auto:good" },
-            { fetch_format: "auto" },
-          ],
-        });
+        // Fetch the image from DALL-E URL
+        const imageResponse = await fetch(dalleUrl);
+        if (!imageResponse.ok) throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+        
+        const arrayBuffer = await imageResponse.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const fileName = `gmb-ai-generated-${Date.now()}-${i}.png`;
+        const mimeType = "image/png";
 
-        generatedUrls.push(uploadResult.secure_url);
+        // Upload to S3 for persistence
+        const uploadResult = await uploadToS3(buffer, fileName, mimeType);
+
+        if (!uploadResult.success) {
+           throw new Error(uploadResult.error || "Failed to upload to S3");
+        }
+
+        generatedUrls.push(uploadResult.url);
       } catch (imgErr) {
         console.error(`Image ${i + 1} generation/upload error:`, imgErr);
         // Continue to next image even if one fails

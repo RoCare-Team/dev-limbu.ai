@@ -860,10 +860,10 @@ export default function PostManagementPage() {
         instructions: instructionsField,
       });
 
-      console.log("apiResponseapiResponse",apiResponse);
-      
+      console.log("apiResponseapiResponse", apiResponse);
 
-        (timer);
+
+      (timer);
 
       // The direct response from n8n is now the data we need
       if (apiResponse.status !== "true" && !apiResponse.success) {
@@ -2840,6 +2840,7 @@ export default function PostManagementPage() {
               prompt={prompt}
               setPrompt={setPrompt}
               onGenerate={handleGenerateClick}
+              onManualPost={handleManualPost}
               loading={isGenerating}
               logo={logo}
               setLogo={setLogo}

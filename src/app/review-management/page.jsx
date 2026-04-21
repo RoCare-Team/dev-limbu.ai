@@ -247,19 +247,64 @@ export default function DashboardPage() {
     }
   };
 
-  // Auto-fetch reviews when component mounts and session is ready
+  // 1. Fetch AutoReply settings from DB on mount/auth to handle incognito mode properly
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      const fetchAutoReplySettings = async () => {
+        try {
+          const userId = session?.user?.id || session?.user?.email;
+          if (!userId) return;
+
+          // Attempt to get accountId if available, but don't fail if missing
+          const locationDetailsStr = localStorage.getItem("locationDetails");
+          let acc_id = "";
+          if (locationDetailsStr) {
+            try {
+              const locationDetails = JSON.parse(locationDetailsStr);
+              acc_id = locationDetails[0]?.accountId || "";
+            } catch (e) {
+              console.error("Error parsing location details", e);
+            }
+          }
+
+          const url = acc_id 
+            ? `/api/saveAutoReply?userId=${userId}&accountId=${acc_id}`
+            : `/api/saveAutoReply?userId=${userId}`;
+
+          const res = await fetch(url);
+          const data = await res.json();
+          
+          if (data.success) {
+            const mode = data.autoReply ? "auto" : "manual";
+            setReplyMode(mode);
+            localStorage.setItem("reviewReplyMode", mode);
+          } else {
+            // Fallback to local storage if API fails or no record
+            const savedMode = localStorage.getItem("reviewReplyMode") || "manual";
+            setReplyMode(savedMode);
+          }
+        } catch (err) {
+          console.error("Failed to fetch auto reply settings", err);
+          const savedMode = localStorage.getItem("reviewReplyMode") || "manual";
+          setReplyMode(savedMode);
+        }
+      };
+      fetchAutoReplySettings();
+    }
+  }, [status, session]);
+
+  // 2. Initial review fetch
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !hasLoadedReviews) {
       fetchReviews();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session, hasLoadedReviews]);
 
-    // Load reply mode from localStorage
-    const savedMode = localStorage.getItem("reviewReplyMode") || "manual";
-    setReplyMode(savedMode);
-
-    // Setup interval for auto-reply
+  // 3. Setup interval for auto-reply based on current replyMode state
+  useEffect(() => {
     let intervalId;
-    if (savedMode === "auto" && status === "authenticated") {
+    if (replyMode === "auto" && status === "authenticated") {
       console.log("Setting up auto-reply interval (5 minutes)");
       intervalId = setInterval(() => {
         console.log("Auto-reply interval triggered: fetching reviews.");
@@ -272,7 +317,8 @@ export default function DashboardPage() {
         clearInterval(intervalId);
       }
     };
-  }, [status, session, hasLoadedReviews]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replyMode, status]);
 
   const showToast = (message, type) => {
     if (type === "error") {

@@ -349,16 +349,24 @@ export default function LimbuAILanding() {
                     : String(selectedPlan.totalPrice ?? ""),
                 paymentId: response.razorpay_payment_id,
                 orderId: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
                 status: "paid"
               }),
             });
 
+            const saveData = await saveRes.json().catch(() => ({}));
+
             if (saveRes.ok) {
               setBookingSuccess(true);
               setServiceForm({ name: '', phone: '', email: '', gstNumber: '' });
-              showToast("Payment Successful!", "success");
+              showToast(
+                saveData.checkoutUserId
+                  ? `Payment successful — your account: ${saveData.checkoutUserId}`
+                  : "Payment Successful!",
+                "success"
+              );
             } else {
-              showToast("Payment successful but failed to save booking.", "warning");
+              showToast(saveData.error || "Payment succeeded but registration step failed.", "warning");
             }
           } catch (err) {
             console.error(err);

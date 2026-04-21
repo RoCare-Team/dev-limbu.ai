@@ -1,4 +1,4 @@
-import { getPublicSiteUrl } from "@/lib/siteUrl"
+import { getPublicSiteUrl } from "./siteUrl"
 
 export function calculatePriceForCycle(basePrice, billingCycle) {
   if (billingCycle === "monthly") return basePrice

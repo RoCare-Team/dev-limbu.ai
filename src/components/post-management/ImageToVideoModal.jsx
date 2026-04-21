@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { postHasVideoAsset } from "@/lib/postMediaUrls";
-import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import {
   savePostAction,
@@ -223,7 +222,7 @@ export default function ImageToVideoModal({
   }, [selectedSourceUrl]);
 
   const pickPost = (id) => {
-    setUploadedCloudinaryUrl(null);
+    setUploadedS3Url(null);
     setSelectedPostId(id);
     setMergeTargetPostId(id != null ? String(id) : null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -242,9 +241,9 @@ export default function ImageToVideoModal({
       return;
     }
 
-    setUploadingToCloudinary(true);
+    setUploadingToS3(true);
     setSelectedPostId(null);
-    setUploadedCloudinaryUrl(null);
+    setUploadedS3Url(null);
     setMergeTargetPostId(null);
     try {
       const formData = new FormData();
@@ -256,12 +255,12 @@ export default function ImageToVideoModal({
         throw new Error(uploadResult.error || "Failed to upload image to S3");
       }
 
-      setUploadedCloudinaryUrl(uploadResult.url);
+      setUploadedS3Url(uploadResult.url);
       showToast?.("Image uploaded to S3", "success");
     } catch (err) {
       showToast?.(err.message || "Upload failed", "error");
     } finally {
-      setUploadingToCloudinary(false);
+      setUploadingToS3(false);
       e.target.value = "";
     }
   };

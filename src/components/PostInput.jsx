@@ -28,7 +28,7 @@ import {
   PM_INSTRUCTIONS_UPDATED,
 } from "@/lib/postManagementInstructionsStorage";
 
-const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
+const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, onManualPost, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
   
 
   const removeImage = () => setLogo(null);
@@ -512,8 +512,8 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
     }
 
     try {
-      const base64 = await fileToBase64(manualImage);
-      onGenerate({ image: base64, description: manualDescription }, "manual");
+      // Pass the File object directly to onManualPost
+      onManualPost({ image: manualImage, description: manualDescription });
       setManualImage(null);
       setManualDescription("");
     } catch (e) {

@@ -27,10 +27,11 @@ const getFolderName = (mimeType) => {
  * @param {Buffer|ReadableStream|File} file - The file content
  * @param {string} fileName - Original file name
  * @param {string} mimeType - File mime type
+ * @param {string} [customFolder] - Optional custom folder path
  * @returns {Promise<Object>} - S3 Upload response
  */
-export const uploadToS3 = async (file, fileName, mimeType) => {
-  const folder = getFolderName(mimeType);
+export const uploadToS3 = async (file, fileName, mimeType, customFolder = null) => {
+  const folder = customFolder || getFolderName(mimeType);
   const key = `${folder}/${Date.now()}-${fileName}`;
 
   try {

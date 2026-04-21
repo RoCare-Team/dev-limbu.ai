@@ -17,6 +17,7 @@ import {
   LogOut,
   LucideHeadset,
   Link2,
+  QrCode,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 
@@ -72,6 +73,8 @@ export default function AdminLayout({ children }) {
     { name: "Dashboard", icon: <BarChart3 size={18} />, href: "/admin/dashboard" },
 
     { name: "Leads", icon: <Users size={18} />, href: "/admin/user-management", key: "manageUsers" },
+    
+    { name: "Store Business", icon: <QrCode size={18} />, href: "/admin/store-bussiness", key: "manageUsers" },
 
     { name: "User Recharge", icon: <BookCheck size={18} />, href: "/admin/user-recharge", key: "manageUsers" },
 

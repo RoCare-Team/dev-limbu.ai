@@ -100,22 +100,6 @@ export default function ExamplesSection({ postImages = [], setSelectedImage }) {
 
         {/* ── Image Slider ── */}
         <div className="relative">
-          {/* Left fade */}
-          <div
-            className="pointer-events-none absolute left-0 top-0 h-full w-20 md:w-32 z-20"
-            style={{
-              background: "linear-gradient(to right, white, transparent)",
-            }}
-          />
-
-          {/* Right fade */}
-          <div
-            className="pointer-events-none absolute right-0 top-0 h-full w-20 md:w-32 z-20"
-            style={{
-              background: "linear-gradient(to left, white, transparent)",
-            }}
-          />
-
           {/* Scrolling track */}
           <div className="overflow-hidden rounded-2xl">
             <div className="flex gap-4 animate-scroll">

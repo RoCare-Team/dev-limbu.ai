@@ -10,9 +10,13 @@ export const dynamic = "force-dynamic";
  *
  * Response (always 200):
  * {
- *   "status":        "success" | "not_found",
- *   "message":       "...",
- *   "locationsData": [ ... ] | []
+ *   "status":             "success" | "not_found"  (GMB connection — legacy),
+ *   "businessConnected":  boolean,
+ *   "paymentStatus":      "none" | "paid",
+ *   "payment":            null | { paymentId, orderId, amount, planTitle, userId, email, paidAt },
+ *   "email":              string (connected Google account email),
+ *   "message":            "...",
+ *   "locationsData":      [ ... ] | []
  * }
  *
  * Optional auth via LIMBU_CHAT_STATUS_TOKEN:

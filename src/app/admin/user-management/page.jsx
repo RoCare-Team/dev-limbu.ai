@@ -41,6 +41,7 @@ import {
   Upload,
   Send,
 } from "lucide-react";
+import { USER_SOURCE_OPTIONS, userAcquisitionLabel } from "@/lib/bookingSource";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
@@ -1269,6 +1270,30 @@ export default function UserManagement() {
       }
     } catch (error) {
       console.error("Update lead status error:", error);
+      showToast("Something went wrong", "error");
+    }
+  };
+
+  const handleUserSourceChange = async (userId, newSource) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, source: newSource }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Source updated", "success");
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.userId === userId ? { ...user, source: newSource } : user,
+          ),
+        );
+      } else {
+        showToast(data.error || "Failed to update source", "error");
+      }
+    } catch (error) {
+      console.error("Update source error:", error);
       showToast("Something went wrong", "error");
     }
   };
@@ -3216,13 +3241,35 @@ export default function UserManagement() {
                                     <option value="Cold">Cold</option>
                                   </select>
                                 </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <select
+                                    value={
+                                      USER_SOURCE_OPTIONS.some(
+                                        (o) => o.value === (user.source || ""),
+                                      )
+                                        ? user.source || "signup"
+                                        : "signup"
+                                    }
+                                    onChange={(e) =>
+                                      handleUserSourceChange(
+                                        user.userId,
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
+                                    title="Lead source (website, chatbot, manual upload, …)"
+                                  >
+                                    {USER_SOURCE_OPTIONS.map((o) => (
+                                      <option key={o.value} value={o.value}>
+                                        {o.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                                 <div className="flex flex-wrap gap-1 mt-1">
-                                  {(user.source === "bulk-upload" ||
-                                    user.source === "Meta Leads") && (
-                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
-                                      Meta Leads
-                                    </span>
-                                  )}
+                                  <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
+                                    {userAcquisitionLabel(user.source)}
+                                  </span>
                                   {user.paidPackage && (
                                     <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
                                       {user.paidPackage}

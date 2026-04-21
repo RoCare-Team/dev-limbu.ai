@@ -3,6 +3,8 @@ import mongoose from "mongoose"
 import User from "@/models/User"
 import RazorpayTransaction from "@/models/RazorpayTransaction"
 import Admin from "@/models/Admin"
+import { bookingSourceToUserSource } from "@/lib/bookingSource"
+import { CHECKOUT_TEST_PLAN_KEY } from "@/lib/checkoutTestPlan"
 import { normalizeBillingCycle } from "@/lib/planCheckout"
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser"
 
@@ -107,7 +109,10 @@ export async function applyCheckoutToUser(body) {
     orderId,
     razorpay_signature,
     totalAmount,
+    bookingSource,
   } = body
+
+  const userSource = bookingSourceToUserSource(bookingSource)
 
   const sig = verifyRazorpaySignature(orderId, paymentId, razorpay_signature)
   if (!sig.ok) {
@@ -165,7 +170,7 @@ export async function applyCheckoutToUser(body) {
         wallet: 500,
         freeUsedCount: 2,
         assignedAgentId,
-        source: "checkout",
+        source: userSource,
         GstNumber: gstNumber ? String(gstNumber).trim() : undefined,
         subscription: {
           status: "inactive",
@@ -195,6 +200,7 @@ export async function applyCheckoutToUser(body) {
     if (gstNumber && String(gstNumber).trim()) {
       updates.GstNumber = String(gstNumber).trim()
     }
+    updates.source = userSource
     user = await User.findOneAndUpdate(
       { _id: user._id },
       { $set: updates },
@@ -209,8 +215,11 @@ export async function applyCheckoutToUser(body) {
   const gstAmount =
     totalNum > 0 ? Math.round((totalNum * 18) / 118) : 0
 
+  const resolvedPlanTitle =
+    planKey === CHECKOUT_TEST_PLAN_KEY ? "Basic Plan" : planTitle
+
   const subscriptionPaymentFields = {
-    "subscription.plan": planTitle,
+    "subscription.plan": resolvedPlanTitle,
     "subscription.status": "active",
     "subscription.paymentId": paymentId,
     "subscription.orderId": orderId,
@@ -222,20 +231,22 @@ export async function applyCheckoutToUser(body) {
     await User.findByIdAndUpdate(user._id, {
       $set: {
         ...subscriptionPaymentFields,
-        paidPackage: planTitle,
+        paidPackage: resolvedPlanTitle,
         planDuration,
         packageStartDate: start,
         packageExpiryDate: pkgEnd,
+        source: userSource,
       },
     })
   } else {
     await User.findByIdAndUpdate(user._id, {
       $set: {
         ...subscriptionPaymentFields,
-        paidService: planTitle,
+        paidService: resolvedPlanTitle,
         isServiceBooked: true,
         serviceStartDate: start,
         serviceExpiryDate: pkgEnd,
+        source: userSource,
       },
     })
   }

@@ -1,3 +1,8 @@
+import {
+  CHECKOUT_TEST_PLAN_KEY,
+  getCheckoutTestPlanForSubscriptionApi,
+  isCheckoutTestPlanEnabled,
+} from "./checkoutTestPlan"
 import { getPublicSiteUrl } from "./siteUrl"
 import { buildCheckoutUrl, normalizeBillingCycle } from "./planCheckout"
 
@@ -7,6 +12,7 @@ import { buildCheckoutUrl, normalizeBillingCycle } from "./planCheckout"
  */
 const SUBSCRIPTION_TITLE_TO_PLAN_KEY = {
   "Basic Plan": "subscription-basic",
+  "Basic Plan (Test)": "subscription-basic-test",
   "Premium Plan": "subscription-premium",
   "Professional Plan": "subscription-professional",
 }
@@ -74,10 +80,32 @@ function toAbsoluteUrl(pathOrUrl) {
  * Adds absolute `paymentLink` (and optional `planKey`) on each plan for chatbot / external APIs.
  * Stored `paymentLink` wins if it is already an absolute URL.
  */
+function injectTestPlanIntoBillingCycles(data) {
+  if (!isCheckoutTestPlanEnabled() || !data || typeof data !== "object") {
+    return data
+  }
+  if (!Array.isArray(data.billingCycles)) return data
+  const cycles = data.billingCycles.map((c) => ({
+    ...c,
+    plans: Array.isArray(c.plans) ? [...c.plans] : [],
+  }))
+  const monthlyIdx = cycles.findIndex(
+    (c) => normalizeBillingCycle(c.cycle) === "monthly",
+  )
+  if (monthlyIdx === -1) return data
+  const monthly = cycles[monthlyIdx]
+  if (monthly.plans.some((p) => p?.planKey === CHECKOUT_TEST_PLAN_KEY)) {
+    return { ...data, billingCycles: cycles }
+  }
+  monthly.plans = [...monthly.plans, getCheckoutTestPlanForSubscriptionApi()]
+  return { ...data, billingCycles: cycles }
+}
+
 export function expandSubscriptionPlansForApi(data) {
   if (!data || typeof data !== "object") return data
-  const billingCycles = data.billingCycles
-  if (!Array.isArray(billingCycles)) return data
+  const dataWithTest = injectTestPlanIntoBillingCycles(data)
+  const billingCycles = dataWithTest.billingCycles
+  if (!Array.isArray(billingCycles)) return dataWithTest
 
   const billingCyclesOut = billingCycles.map((cycle) => {
     if (!cycle || typeof cycle !== "object") return cycle
@@ -118,5 +146,5 @@ export function expandSubscriptionPlansForApi(data) {
     return { ...cycle, plans }
   })
 
-  return { ...data, billingCycles: billingCyclesOut }
+  return { ...dataWithTest, billingCycles: billingCyclesOut }
 }

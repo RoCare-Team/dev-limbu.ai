@@ -1,11 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BOOKING_SOURCE_VALUES, bookingSourceLabel } from "@/lib/bookingSource";
 
 export default function PackageBookingList() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const patchBookingSource = async (bookingId, bookingSource) => {
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("token") ||
+            localStorage.getItem("franchise_token")
+          : null;
+      const res = await fetch("/api/service-booking", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId, bookingSource }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Update failed");
+      setData((prev) =>
+        prev.map((row) =>
+          row._id === bookingId
+            ? { ...row, bookingSource: json.data.bookingSource }
+            : row,
+        ),
+      );
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Could not update source");
+    }
+  };
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -62,6 +93,7 @@ export default function PackageBookingList() {
           <th className="px-6 py-4 text-left font-semibold">Customer</th>
           <th className="px-6 py-4 text-left">Contact</th>
           <th className="px-6 py-4 text-left">Plan</th>
+          <th className="px-6 py-4 text-left">Source</th>
           <th className="px-6 py-4 text-right">Amount</th>
           <th className="px-6 py-4 text-left">GST No.</th>
           <th className="px-6 py-4 text-center">Status</th>
@@ -112,6 +144,21 @@ export default function PackageBookingList() {
               <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
                 {item.planTitle}
               </span>
+            </td>
+
+            <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
+              <select
+                value={item.bookingSource || "website"}
+                onChange={(e) => patchBookingSource(item._id, e.target.value)}
+                className="text-xs font-semibold border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none focus:ring-2 focus:ring-blue-200"
+                title="Where this booking came from"
+              >
+                {BOOKING_SOURCE_VALUES.map((v) => (
+                  <option key={v} value={v}>
+                    {bookingSourceLabel(v)}
+                  </option>
+                ))}
+              </select>
             </td>
 
             {/* Amount FIX (₹ remove) */}
@@ -183,6 +230,18 @@ export default function PackageBookingList() {
             <p className="text-sm text-gray-600">📞 {item.phone}</p>
             <p className="text-sm text-gray-600">📧 {item.email}</p>
             <p className="text-sm font-semibold">{item.planTitle}</p>
+            <label className="text-xs text-gray-500 block">Source</label>
+            <select
+              value={item.bookingSource || "website"}
+              onChange={(e) => patchBookingSource(item._id, e.target.value)}
+              className="w-full text-sm border rounded-lg px-2 py-1"
+            >
+              {BOOKING_SOURCE_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {bookingSourceLabel(v)}
+                </option>
+              ))}
+            </select>
             <div className="flex justify-between text-sm">
               <span>{item.totalAmount}</span>
               <span className="text-gray-500">

@@ -1,3 +1,4 @@
+import { appendCheckoutTestPlanToLanding } from "./checkoutTestPlan"
 import { getPublicSiteUrl } from "./siteUrl"
 
 /**
@@ -368,13 +369,14 @@ function toAbsolutePurchaseLink(plan) {
  */
 export function expandPricingLandingForApi(merged) {
   if (!merged || typeof merged !== "object") return merged
+  const mergedWithTest = appendCheckoutTestPlanToLanding(merged)
   const out = {
-    ...merged,
-    sections: merged.sections ? { ...merged.sections } : {},
+    ...mergedWithTest,
+    sections: mergedWithTest.sections ? { ...mergedWithTest.sections } : {},
   }
   for (const key of PLAN_ARRAY_KEYS) {
-    if (!Array.isArray(merged[key])) continue
-    out[key] = merged[key].map((plan) => {
+    if (!Array.isArray(mergedWithTest[key])) continue
+    out[key] = mergedWithTest[key].map((plan) => {
       if (!plan || typeof plan !== "object") return plan
       const abs = toAbsolutePurchaseLink(plan)
       return {

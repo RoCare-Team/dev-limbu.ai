@@ -1,5 +1,9 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+ 
 // import { useState, useEffect } from "react";
 import {
   LineChart,
@@ -49,6 +53,7 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     planCounts: { basic: 0, standard: 0, premium: 0 },
   });
+  
 
   const [todayUsersCount, setTodayUsersCount] = useState(0);
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
@@ -73,6 +78,8 @@ export default function AdminDashboard() {
   const [loadingStage, setLoadingStage] = useState(false);
   const [showRevenueUsersModal, setShowRevenueUsersModal] = useState(false);
 
+  const [users, setUsers] = useState([]);
+
   const [revenueUsersList, setRevenueUsersList] = useState([]);
   const [loadingRevenueUsers, setLoadingRevenueUsers] = useState(false);
 
@@ -87,11 +94,9 @@ export default function AdminDashboard() {
   const [chatModalFilter, setChatModalFilter] = useState("all");
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
 
-  //service
-  const [users, setUsers] = useState([]);
-  const [showServiceModal, setShowServiceModal] = useState(false);
+const router = useRouter(); 
 
-  const serviceUsersCount = users?.filter((u) => u.paidService).length || 0;
+
 
   // calls
   const [byAgentOpen, setByAgentOpen] = useState(false);
@@ -152,25 +157,24 @@ export default function AdminDashboard() {
   }, []);
 
   const fetchUsers = async () => {
-    try {
-      const email = localStorage.getItem("email");
+  try {
+    const email = localStorage.getItem("email");
 
-      const res = await fetch(`/api/users?email=${email}`);
-      const data = await res.json();
+    const res = await fetch(`/api/users?email=${email}`);
+    const data = await res.json();
 
-      console.log("🔥 USERS DATA:", data);
+    console.log("🔥 USERS DATA:", data);
 
-      // 🔥 SAFE HANDLING
-      if (data.success && Array.isArray(data.users)) {
-        setUsers(data.users);
-      } else {
-        setUsers([]); // fallback
-      }
-    } catch (err) {
-      console.error(err);
+    if (data.success && Array.isArray(data.users)) {
+      setUsers(data.users);
+    } else {
       setUsers([]);
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setUsers([]);
+  }
+};
 
   useEffect(() => {
     fetchUsers();
@@ -485,7 +489,7 @@ export default function AdminDashboard() {
         todayUsersCount={todayUsersCount}
         showRevenueUsersModal={showRevenueUsersModal}
         fetchRevenueUsers={fetchRevenueUsers}
-        setShowRevenueUsersModal={setShowRevenueUsersModal}
+        setShowRevenueUsersModal={() => router.push("/admin/dashboard/revenue-users")}
         loadingRevenueUsers={loadingRevenueUsers}
         revenueUsersList={revenueUsersList}
         setRevenueUsersList={setRevenueUsersList}
@@ -846,7 +850,7 @@ export default function AdminDashboard() {
               </h4>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                 Live
-              </span>
+              </span> 
             </div>
             <div className="space-y-3">
               <div className="rounded-3xl border border-amber-100 bg-amber-50 p-4">
@@ -878,92 +882,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
-          <div className="flex  gap-2 mb-4">
-            
-
-            <div
-              onClick={() => setShowServiceModal(true)}
-              className="cursor-pointer relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-3xl p-6 mt-6 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
-            >
-              {/* 🔥 Background Glow */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-
-              <div className="flex items-center justify-between relative z-10">
-                {/* LEFT */}
-                <div>
-                  <h2 className="text-xl font-semibold tracking-wide">
-                    Total Service
-                  </h2>
-
-                  <p className="text-sm text-white/80 mt-1">
-                    Click to view details
-                  </p>
-                </div>
-
-                {/* RIGHT COUNT */}
-                <div className="text-right">
-                  <p className="text-4xl font-bold leading-none">
-                    {serviceUsersCount}
-                  </p>
-                  <p className="text-xs text-white/70 mt-1">Users</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {showServiceModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white w-[90%] max-w-4xl rounded-2xl shadow-lg p-6 relative">
-                {/* CLOSE BUTTON */}
-                <button
-                  onClick={() => setShowServiceModal(false)}
-                  className="absolute top-3 right-3 text-gray-500 hover:text-black"
-                >
-                  ✕
-                </button>
-
-                <h2 className="text-xl font-semibold mb-4">Service Details</h2>
-
-                {/* 🔥 TABLE YAHI AA JAYEGA */}
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm text-gray-700">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-4 py-2 text-left">User</th>
-                        <th className="px-4 py-2 text-left">Service</th>
-                        <th className="px-4 py-2 text-left">Plan</th>
-                        <th className="px-4 py-2 text-left">Start</th>
-                        <th className="px-4 py-2 text-left">Expiry</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {users
-                        ?.filter((user) => user.paidService)
-                        .map((user, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="px-4 py-2">{user.email}</td>
-                            <td className="px-4 py-2">{user.paidService}</td>
-                            <td className="px-4 py-2">{user.planDuration}</td>
-                            <td className="px-4 py-2">
-                              {new Date(
-                                user.packageStartDate,
-                              ).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-2">
-                              {new Date(
-                                user.packageExpiryDate,
-                              ).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
+          
           <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-5">
             <h4 className="mb-4 text-sm font-semibold text-slate-800">
               Call Performance

@@ -9,6 +9,7 @@ import {
   Settings,
   BarChart3,
   Users,
+  Wallet,
   ArrowUpLeft,
   UserSquare,
   CircleUser,
@@ -71,7 +72,11 @@ export default function AdminLayout({ children }) {
   const allNavItems = [
     { name: "Dashboard", icon: <BarChart3 size={18} />, href: "/admin/dashboard" },
 
+
     { name: "Leads", icon: <Users size={18} />, href: "/admin/user-management", key: "manageUsers" },
+
+        { name: "Total Revenue", icon: <Wallet size={18} />, href: "/admin/dashboard/revenue-users" },
+
 
     { name: "User Recharge", icon: <BookCheck size={18} />, href: "/admin/user-recharge", key: "manageUsers" },
 

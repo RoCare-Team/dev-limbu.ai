@@ -84,30 +84,26 @@ body {
 }
 
 
-/* Scrollbar thin */
-::-webkit-scrollbar {
-  width: 3px; /* 🔥 yaha se width control */
-}
 
+/* track */
 ::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1; /* light gray */
+  background: #eef2ff;
   border-radius: 10px;
 }
 
+/* thumb */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #404042, #555557);
+  border-radius: 10px;
+  border: 2px solid #eef2ff;
+}
+
+/* hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: linear-gradient(180deg, #3c3b3d, #3d3c3d);
 }
 
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  height: 15px;
-}
 
-::-webkit-scrollbar-thumb {
-  background: #9ca3af;
-  border-radius: 10px;
-}
+
+  
+

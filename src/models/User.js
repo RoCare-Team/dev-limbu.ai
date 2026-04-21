@@ -112,7 +112,7 @@ const userSchema = new mongoose.Schema(
 
     source: {
       type: String,
-      enum: ["signup", "bulk-upload", "csv-import", "excel-import"],
+      enum: ["signup", "bulk-upload", "csv-import", "excel-import", "checkout"],
       default: "signup",
     },
 

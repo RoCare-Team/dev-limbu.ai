@@ -7,7 +7,10 @@ const ServiceBookingSchema = new mongoose.Schema({
   gstNumber: { type: String },
   planTitle: { type: String, required: true },
   planDuration: { type: String, required: true },
-  planType: { type: String,required: true },
+  planType: { type: String, required: true },
+  planKey: { type: String },
+  /** App userId after checkout flow (USR… / MB-…) */
+  userId: { type: String },
   planPrice: { type: String, required: true },
   totalAmount: { type: String, required: true },
   paymentId: { type: String },

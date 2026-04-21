@@ -1,4 +1,4 @@
-import { getPublicSiteUrl } from "@/lib/siteUrl"
+import { getPublicSiteUrl } from "./siteUrl"
 
 /**
  * Default landing pricing catalog. Stored in Mongo as type `pricingLanding` via /api/home-data.
@@ -364,7 +364,7 @@ function toAbsolutePurchaseLink(plan) {
 }
 
 /**
- * Ensures each plan has absolute `purchaseLink` + `purchselink` (same value) for API/chatbot.
+ * Ensures each plan has absolute `purchaseLink` + `purchselink` + `paymentLink` (same value) for API/chatbot.
  */
 export function expandPricingLandingForApi(merged) {
   if (!merged || typeof merged !== "object") return merged
@@ -377,7 +377,12 @@ export function expandPricingLandingForApi(merged) {
     out[key] = merged[key].map((plan) => {
       if (!plan || typeof plan !== "object") return plan
       const abs = toAbsolutePurchaseLink(plan)
-      return { ...plan, purchaseLink: abs, purchselink: abs }
+      return {
+        ...plan,
+        purchaseLink: abs,
+        purchselink: abs,
+        paymentLink: abs,
+      }
     })
   }
   return out

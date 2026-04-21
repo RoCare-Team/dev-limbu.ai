@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "backfill:subscription-payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { deleteAssetAction, saveAssetsToServerAction } from "@/app/actions/assetActions";
 import {
   Loader2,
@@ -15,8 +16,17 @@ import {
   Palette,
   Plus,
   Mic,
-  MicOff
+  MicOff,
+  FileText,
 } from "lucide-react";
+import {
+  readIncludedMap,
+  readExtraNotes,
+  readAppendToPrompt,
+  writeAppendToPrompt,
+  mergeIncludedMapForIds,
+  PM_INSTRUCTIONS_UPDATED,
+} from "@/lib/postManagementInstructionsStorage";
 
 const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets, logo, setLogo, assetId, fetchUserAssets, setUserAssets, showToast, selectedAssets, setSelectedAssets, bussinessTitle, availableLocations = [] }) => {
   
@@ -32,6 +42,14 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
   const [showKeywordDropdown, setShowKeywordDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
+  /** ai = guided flow (keywords required); manual = free-form prompt */
+  const [creationMode, setCreationMode] = useState("ai");
+  /** Saved instructions from /api/instructions (MongoDB) */
+  const [dbInstructions, setDbInstructions] = useState([]);
+  /** id -> false means excluded from prompt; undefined/true means included */
+  const [includedInstructionMap, setIncludedInstructionMap] = useState({});
+  const [instructionExtraNotes, setInstructionExtraNotes] = useState("");
+  const [includeInstructionsInPrompt, setIncludeInstructionsInPrompt] = useState(false);
   const [manualImage, setManualImage] = useState(null);
   const [manualDescription, setManualDescription] = useState("");
   const [showKeywordModal, setShowKeywordModal] = useState(false);
@@ -140,6 +158,50 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
   useEffect(() => {
     fetchSavedKeywords();
   }, []);
+
+  const loadDbInstructions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/instructions");
+      const data = await res.json();
+      if (!data.success) return;
+      const list = data.instructions || [];
+      setDbInstructions(list);
+      const ids = list.map((item) => item._id).filter(Boolean);
+      setIncludedInstructionMap(mergeIncludedMapForIds(readIncludedMap(), ids));
+    } catch (e) {
+      console.error("loadDbInstructions:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    setIncludeInstructionsInPrompt(readAppendToPrompt());
+    setInstructionExtraNotes(readExtraNotes());
+    loadDbInstructions();
+  }, [loadDbInstructions]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onUpdate = () => {
+      setInstructionExtraNotes(readExtraNotes());
+      setIncludeInstructionsInPrompt(readAppendToPrompt());
+      loadDbInstructions();
+    };
+    window.addEventListener(PM_INSTRUCTIONS_UPDATED, onUpdate);
+    return () => window.removeEventListener(PM_INSTRUCTIONS_UPDATED, onUpdate);
+  }, [loadDbInstructions]);
+
+  const compiledInstructionsForPrompt = useMemo(() => {
+    const parts = dbInstructions
+      .filter((item) => includedInstructionMap[item._id] !== false)
+      .map(
+        (item) =>
+          `${(item.title || "").trim()}\n${(item.description || "").trim()}`.trim(),
+      )
+      .filter(Boolean);
+    const extra = instructionExtraNotes.trim();
+    if (extra) parts.push(extra);
+    return parts.join("\n\n");
+  }, [dbInstructions, includedInstructionMap, instructionExtraNotes]);
 
   const handleAddKeyword = async (keyword) => {
     const trimmedKeyword = keyword.trim();
@@ -432,7 +494,11 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
       assetsToSend.push(sizeAsset);
     }
 
-    onGenerate(assetsToSend, showAssets, businessName, selectedKeywords);
+    onGenerate(assetsToSend, showAssets, businessName, selectedKeywords, {
+      mode: creationMode,
+      instructions: compiledInstructionsForPrompt,
+      includeInstructionsInPrompt,
+    });
   };
 
   const handleManualSubmit = async () => {
@@ -494,14 +560,44 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
         <div className="space-y-2">
           {/* Prompt Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-dark flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-dark" />
-              What would you like to create?
-            </label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <label className="text-xs font-semibold text-dark flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-dark" />
+                What would you like to create?
+              </label>
+              <div className="flex p-0.5 bg-gray-100 rounded-lg shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("ai")}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                    creationMode === "ai"
+                      ? "bg-white shadow text-dark"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("manual")}
+                  className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                    creationMode === "manual"
+                      ? "bg-white shadow text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Manual
+                </button>
+              </div>
+            </div>
             <div className="relative">
               <textarea
                 ref={textareaRef}
-                placeholder="Describe your post idea..."
+                placeholder={
+                  creationMode === "manual"
+                    ? "Write any prompt you want — full freedom for your banner or post."
+                    : "Describe your post idea..."
+                }
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 className="w-full p-2 pr-24 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all min-h-[40px] resize-none placeholder:text-gray-400"
@@ -616,7 +712,7 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                     }}
                     onFocus={() => setShowKeywordDropdown(true)}
                     onBlur={() => setTimeout(() => setShowKeywordDropdown(false), 200)}
-                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm  focus:ring-primary outline-none`}
+                    className={`w-full p-2 pr-8 border ${keywordError && selectedKeywords.length === 0 && creationMode !== "manual" ? 'border-red-500' : 'border-gray-300'} rounded-lg text-sm  focus:ring-primary outline-none`}
                     placeholder={selectedKeywords.length > 0 ? "Add more keywords..." : "Enter & save keywords"}
                   />
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -630,7 +726,10 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
                   Add 
                 </button>
               </div>
-              {keywordError && selectedKeywords.length === 0 && (
+              {creationMode === "manual" && (
+                <p className="text-[10px] text-gray-500 mt-0.5">Keywords are optional in Manual mode.</p>
+              )}
+              {keywordError && selectedKeywords.length === 0 && creationMode !== "manual" && (
                 <p className="text-red-500 text-xs mt-1 ml-1">{keywordError}</p>
               )}
               {showKeywordDropdown && filteredKeywords.length > 0 && (
@@ -719,6 +818,41 @@ const PostInput = ({ prompt, setPrompt,keywordError, onGenerate, loading, assets
        {assets && showAssets && (
   <div className="space-y-1.5">
     <p className="text-xs font-semibold text-gray-700">Your Assets</p>
+
+    <div className="rounded-md border border-gray-200 bg-gray-50 p-2 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <FileText className="w-3.5 h-3.5 text-gray-600 shrink-0" />
+          <span className="text-[11px] font-semibold text-gray-800">Instructions</span>
+        </div>
+        <Link
+          href="/instructions"
+          className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 shrink-0"
+        >
+          Manage
+        </Link>
+      </div>
+      <p className="text-[10px] text-gray-600 leading-snug line-clamp-2">
+        {dbInstructions.length === 0
+          ? "None saved yet. Open Manage to add instructions and choose what goes into your generate prompt."
+          : `${dbInstructions.length} saved — use Manage to edit, pick checkboxes, and optional extra note (this device).`}
+      </p>
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={includeInstructionsInPrompt}
+          onChange={(e) => {
+            const v = e.target.checked;
+            setIncludeInstructionsInPrompt(v);
+            writeAppendToPrompt(v);
+          }}
+          className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        <span className="text-[10px] text-gray-700 leading-snug">
+          Append checked instructions (and extra note) under &quot;Instructions:&quot; when generating
+        </span>
+      </label>
+    </div>
 
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
       {assets.map((asset, index) => {

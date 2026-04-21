@@ -1353,7 +1353,7 @@ export default function UserManagement() {
       let screenshotUrl = null;
       // 1. Handle revenue recording if amount is provided
       if (planAmount && parseFloat(planAmount) > 0) {
-        screenshotUrl = await uploadToCloudinary(planScreenshot);
+        screenshotUrl = await uploadToS3(planScreenshot);
         console.log("SENDING DATA:", {
           planRemarks: planRemarks,
           selectedPlan,

@@ -1,11 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BOOKING_SOURCE_VALUES, bookingSourceLabel } from "@/lib/bookingSource";
 
-export default function PackageBookingList() {
+export default function FranchisePackageBookingList() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const patchBookingSource = async (bookingId, bookingSource) => {
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("franchise_token") ||
+            localStorage.getItem("token")
+          : null;
+      const res = await fetch("/api/service-booking", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId, bookingSource }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Update failed");
+      setData((prev) =>
+        prev.map((row) =>
+          row._id === bookingId
+            ? { ...row, bookingSource: json.data.bookingSource }
+            : row,
+        ),
+      );
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Could not update source");
+    }
+  };
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -43,38 +74,101 @@ export default function PackageBookingList() {
     <div className="p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-6">Package Bookings</h2>
 
-      {/* Desktop Table */}
-     {/* Desktop Table */}
-<div className="hidden md:block bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-  <div className="overflow-x-auto">
-    <table className="min-w-full text-sm text-gray-700">
-      <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
-        <tr>
-          <th className="px-5 py-4 text-left font-semibold">Customer</th>
-          <th className="px-5 py-4 text-left">Contact</th>
-          <th className="px-5 py-4 text-left">Plan</th>
-          <th className="px-5 py-4 text-right">Amount</th>
-          <th className="px-5 py-4 text-left">GST No.</th>
-          <th className="px-5 py-4 text-center">Status</th>
-          <th className="px-5 py-4 text-right">Date</th>
-        </tr>
-      </thead>
+      <div className="hidden md:block bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-white flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-800">Customer Transactions</h2>
+          <span className="text-sm text-gray-500">{data.length} Records</span>
+        </div>
 
-      <tbody>
-        <h1>Loading your data</h1>
-      </tbody>
-    </table>
-  </div>
-</div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm text-gray-700">
+            <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
+              <tr className="text-xs uppercase tracking-wider">
+                <th className="px-6 py-4 text-left font-semibold">Customer</th>
+                <th className="px-6 py-4 text-left">Contact</th>
+                <th className="px-6 py-4 text-left">Plan</th>
+                <th className="px-6 py-4 text-left">Source</th>
+                <th className="px-6 py-4 text-right">Amount</th>
+                <th className="px-6 py-4 text-left">GST No.</th>
+                <th className="px-6 py-4 text-center">Status</th>
+                <th className="px-6 py-4 text-right">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.map((item) => (
+                <tr
+                  key={item._id}
+                  className="group hover:bg-blue-50 transition duration-200"
+                >
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-semibold text-sm shadow-md ring-2 ring-blue-100">
+                        {item.name?.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900">{item.name}</div>
+                        <div className="text-xs text-gray-500">{item.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-gray-700 font-medium">{item.phone}</td>
+                  <td className="px-6 py-5">
+                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+                      {item.planTitle}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={item.bookingSource || "website"}
+                      onChange={(e) => patchBookingSource(item._id, e.target.value)}
+                      className="text-xs font-semibold border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none focus:ring-2 focus:ring-blue-200"
+                    >
+                      {BOOKING_SOURCE_VALUES.map((v) => (
+                        <option key={v} value={v}>
+                          {bookingSourceLabel(v)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-6 py-5 text-right">
+                    <span className="font-bold text-gray-900 text-base">
+                      {item.totalAmount}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 text-gray-600">{item.gstNumber || "—"}</td>
+                  <td className="px-6 py-5 text-center">
+                    <span
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                        item.status === "paid"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          item.status === "paid" ? "bg-green-500" : "bg-yellow-500"
+                        }`}
+                      />
+                      {item.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
+                    {new Date(item.createdAt).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-
-      {/* Mobile Cards */}
       <div className="grid gap-4 md:hidden">
         {data.map((item) => (
-          <div
-            key={item._id}
-            className="bg-white rounded-xl shadow p-4 space-y-2"
-          >
+          <div key={item._id} className="bg-white rounded-xl shadow p-4 space-y-2">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-lg">{item.name}</h3>
               <span
@@ -87,10 +181,21 @@ export default function PackageBookingList() {
                 {item.status}
               </span>
             </div>
-
             <p className="text-sm text-gray-600">📞 {item.phone}</p>
             <p className="text-sm text-gray-600">📧 {item.email}</p>
             <p className="text-sm font-semibold">{item.planTitle}</p>
+            <label className="text-xs text-gray-500 block">Source</label>
+            <select
+              value={item.bookingSource || "website"}
+              onChange={(e) => patchBookingSource(item._id, e.target.value)}
+              className="w-full text-sm border rounded-lg px-2 py-1"
+            >
+              {BOOKING_SOURCE_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {bookingSourceLabel(v)}
+                </option>
+              ))}
+            </select>
             <div className="flex justify-between text-sm">
               <span>{item.totalAmount}</span>
               <span className="text-gray-500">

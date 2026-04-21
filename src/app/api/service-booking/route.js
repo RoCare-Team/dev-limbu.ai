@@ -1,8 +1,26 @@
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/dbConnect";
 import ServiceBooking from "@/models/ServiceBooking";
 import { logApiRequest } from "@/lib/apiLogger";
+import { normalizeBookingSource } from "@/lib/bookingSource";
+import { saveGmbSessionPayment } from "@/lib/gmbSessionStore";
 import { applyCheckoutToUser } from "@/lib/checkoutApplyUserPlan";
+
+const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
+
+function getAdminJwtPayload(req) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7).trim();
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded && decoded.role) return decoded;
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 // ✅ CREATE SERVICE BOOKING
 export async function POST(req) {
@@ -11,6 +29,15 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
+    const bookingSource = normalizeBookingSource(body.bookingSource);
+    body.bookingSource = bookingSource;
+
+    const rawSess = body.session_id ?? body.sessionId;
+    const chatSessionId =
+      typeof rawSess === "string" ? rawSess.trim() : "";
+    if (chatSessionId) {
+      body.chatbotSessionId = chatSessionId;
+    }
 
     if (!body || Object.keys(body).length === 0) {
       return NextResponse.json(
@@ -33,6 +60,7 @@ export async function POST(req) {
         orderId: body.orderId,
         razorpay_signature: body.razorpay_signature,
         totalAmount: body.totalAmount,
+        bookingSource,
       });
       if (!applied.ok) {
         const res = NextResponse.json(
@@ -49,6 +77,26 @@ export async function POST(req) {
         return res;
       }
       body.userId = applied.user.userId;
+    }
+
+    if (
+      chatSessionId &&
+      body.status === "paid" &&
+      body.paymentId &&
+      body.userId
+    ) {
+      try {
+        await saveGmbSessionPayment(chatSessionId, {
+          paymentId: body.paymentId,
+          orderId: body.orderId,
+          totalAmount: body.totalAmount,
+          planTitle: body.planTitle,
+          userId: body.userId,
+          email: body.email,
+        });
+      } catch (gmbErr) {
+        console.error("saveGmbSessionPayment:", gmbErr);
+      }
     }
 
     const booking = await ServiceBooking.create(body);
@@ -81,6 +129,62 @@ export async function POST(req) {
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
+    );
+  }
+}
+
+/** Admin: correct booking channel (website / chatbot / manual-upload). */
+export async function PATCH(req) {
+  const startedAt = Date.now();
+  try {
+    if (!getAdminJwtPayload(req)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    await dbConnect();
+    const body = await req.json();
+    const { bookingId, bookingSource: rawSource } = body;
+    if (!bookingId) {
+      return NextResponse.json(
+        { success: false, error: "bookingId required" },
+        { status: 400 },
+      );
+    }
+    const bookingSource = normalizeBookingSource(rawSource);
+    const updated = await ServiceBooking.findByIdAndUpdate(
+      bookingId,
+      { $set: { bookingSource } },
+      { new: true },
+    );
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "Booking not found" },
+        { status: 404 },
+      );
+    }
+    const res = NextResponse.json({ success: true, data: updated });
+    await logApiRequest({
+      path: "/api/service-booking",
+      method: "PATCH",
+      status: 200,
+      durationMs: Date.now() - startedAt,
+    });
+    return res;
+  } catch (error) {
+    console.error("PATCH service-booking:", error);
+    await logApiRequest({
+      path: "/api/service-booking",
+      method: "PATCH",
+      status: 500,
+      durationMs: Date.now() - startedAt,
+      errorMessage: error?.message,
+    });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
     );
   }
 }

@@ -186,9 +186,7 @@ export default function UserManagement() {
   const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
 
   // Revenue Users Modal state ✅ NEW
-  const [showRevenueUsersModal, setShowRevenueUsersModal] = useState(false);
-  const [revenueUsersList, setRevenueUsersList] = useState([]);
-  const [loadingRevenueUsers, setLoadingRevenueUsers] = useState(false);
+
 
   // Onboarded Client state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
@@ -903,34 +901,7 @@ export default function UserManagement() {
   };
 
   /* ---------------- FETCH REVENUE USERS LIST ✅ NEW ---------------- */
-  const fetchRevenueUsers = async () => {
-    setLoadingRevenueUsers(true);
-    const userEmail = localStorage.getItem("email");
-    const userRole = localStorage.getItem("role");
 
-    try {
-      const params = new URLSearchParams({
-        type: "user_onboard",
-        email: userEmail,
-        role: userRole,
-      });
-      const res = await fetch(`/api/franchise-revenue?${params.toString()}`);
-      const data = await res.json();
-
-      if (data.success && data.revenue) {
-        setRevenueUsersList(data.revenue);
-      } else {
-        setRevenueUsersList([]);
-        showToast(data.error || "No onboarded users found", "info");
-      }
-    } catch (err) {
-      console.error("Failed to fetch revenue users:", err);
-      setRevenueUsersList([]);
-      showToast("Failed to load onboarded users", "error");
-    } finally {
-      setLoadingRevenueUsers(false);
-    }
-  };
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
@@ -1401,6 +1372,7 @@ export default function UserManagement() {
             plan: selectedPlan,
             notes: `Plan upgrade to ${selectedPlan}`, // auto
             planRemarks: planRemarks,
+            utrNumber: utrNumber,
             type: selectedPlan.toLowerCase().includes("seo")
               ? "selectedPlan"
               : "user_onboard",
@@ -2938,7 +2910,7 @@ export default function UserManagement() {
               overflowX: "auto",
             }}
           >
-            <div ref={tableRef} className="max-h-[500px] overflow-x-auto pb-1">
+            <div  className="max-h-[500px] overflow-x-auto pb-1">
               <table className="min-w-full">
                 <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur"> 
                   <tr>
@@ -3410,13 +3382,14 @@ export default function UserManagement() {
 
                             <td className="px-6 py-4">
                               <button
+                                
                                 onClick={(e) => {
                                   e.stopPropagation();
 
                                   handleOpenServiceModal(user);
                                 }}
-                                className="p-2 hover:bg-gray-100 rounded-lg"
-                                title="Add Service"
+                                className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+                                title="Add Service "
                               >
                                 🛡️
                               </button>
@@ -3616,22 +3589,7 @@ export default function UserManagement() {
             </div>
           </TableContainer>
 
-          <div
-  ref={bottomRef}
-  className="overflow-x-auto h-[15px]"
-  onScroll={() => {
-    if (tableRef.current && bottomRef.current) {
-      tableRef.current.scrollLeft = bottomRef.current.scrollLeft;
-    }
-  }}
->
-  <div
-    style={{
-      width: tableRef.current?.scrollWidth || "2000px"
-    }}
-    className="h-[1px]"
-  />
-</div>
+         
           
 
 

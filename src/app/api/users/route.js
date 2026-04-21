@@ -660,6 +660,7 @@ export async function PUT(req) {
       userId,
       newPlan,
       paidService,
+       amount,
       paidPackage,
       planDuration,
       isServiceBooked,
@@ -667,6 +668,8 @@ export async function PUT(req) {
       leadStage,
       leadStatus,
       utrNumber,
+       screenshot,   // 🔥
+      notes,
     } = body;
 
     const remark = body.remark || body.remarks;
@@ -786,14 +789,25 @@ export async function PUT(req) {
     }
 
     /* -------- SERVICE UPDATE -------- */
-    if (isServiceBooked === true) {
-      updateData.$set = {
-        ...updateData.$set,
-        ...(paidService && { paidService }),
-        ...(paidPackage && { paidPackage }),
-        ...(planDuration && { planDuration }),
-      };
-    }
+    /* -------- SERVICE UPDATE -------- */
+if (isServiceBooked === true) {
+  updateData.$set = {
+    ...updateData.$set,
+
+    // 🔥 service fields
+    ...(paidService && { paidService }),
+    ...(paidPackage && { paidPackage }),
+    ...(planDuration && { planDuration }),
+
+    // 🔥 ADD THESE (IMPORTANT)
+    ...(amount && { amount }),
+    ...(screenshot && { screenshot }),
+    ...(notes && { notes }),
+
+    // 🔥 mark service booked
+    isServiceBooked: true,
+  };
+}
 
     /* -------- LEAD STAGE UPDATE -------- */
     if (leadStage) {

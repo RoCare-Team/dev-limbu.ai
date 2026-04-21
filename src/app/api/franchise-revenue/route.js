@@ -128,7 +128,7 @@ export async function POST(req) {
 
     const body = await req.json();
     console.log("API RECEIVED:", body);
-    const { leadId, leadName, amount, paymentScreenshot, email, notes, planRemarks, plan, type } = body;
+    const { leadId, leadName, amount, paymentScreenshot, email, notes, planRemarks, plan, type, utrNumber,   } = body;
 
     // Validation
     if (!leadId || !leadName || !amount || !paymentScreenshot || !email) {
@@ -152,7 +152,7 @@ export async function POST(req) {
     // (e.g., renewals, upgrades) for the same user/lead.
 
     // Create new revenue entry
-    const newRevenue = new FranchiseRevenue({
+ const newRevenue = new FranchiseRevenue({
   leadId,
   leadName,
   amount: parseFloat(amount),
@@ -164,6 +164,8 @@ export async function POST(req) {
   notes: notes || "",
   planRemarks: planRemarks || "", // 🔥 ADD THIS
   plan: plan || "",
+
+   utrNumber: utrNumber || "",
   ...(type === "user_onboard" ? { planApprovalStatus: "pending" } : {}),
 
   type: type || "franchise_lead",

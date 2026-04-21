@@ -47,10 +47,9 @@ export async function GET(req, context) {
     const collection = db.collection("adminbusinesses");
 
     const businesses = await collection.find({}).toArray();
-    console.log("businessesbusinesses",businesses);
-    
 
-    let matchedListing = null;
+    let bestMatch = null;
+    let highestScore = 0;
     let matchedAccountName = "";
 
     for (const business of businesses) {
@@ -68,23 +67,28 @@ export async function GET(req, context) {
         const fullSlug = createSlug(title, locality, address);
         const shortSlug = createSlug(title, locality);
 
-        // ✅ Strong matching logic
-        if (
-          slug === fullSlug ||
-          slug === shortSlug ||
-          fullSlug.startsWith(slug) ||
-          shortSlug.startsWith(slug)
-        ) {
-          matchedListing = listing;
+        let currentScore = 0;
+
+        // Scoring system to find the best match
+        if (slug === fullSlug) {
+          currentScore = 4; // Exact match on full legacy slug
+        } else if (slug === shortSlug) {
+          currentScore = 3; // Exact match on title + locality
+        } else if (fullSlug.startsWith(slug)) {
+          currentScore = 2; // Prefix match on full slug (for our new conflict-resolved slug)
+        } else if (shortSlug.startsWith(slug)) {
+          currentScore = 1; // Prefix match on short slug
+        }
+
+        if (currentScore > highestScore) {
+          highestScore = currentScore;
+          bestMatch = listing;
           matchedAccountName = business.accountName || "";
-          break;
         }
       }
-
-      if (matchedListing) break;
     }
 
-    if (!matchedListing) {
+    if (!bestMatch) {
       return Response.json(
         { error: "Business location not found", slug },
         { status: 404 }
@@ -92,28 +96,18 @@ export async function GET(req, context) {
     }
 
     return Response.json({
-      title: matchedListing.title || "",
-      locality:
-        matchedListing.storefrontAddress?.locality || "",
-      locationId: matchedListing.name || "",
-      placeId:
-        matchedListing.metadata?.placeId || "",
-      newReviewUri:
-        matchedListing.metadata?.newReviewUri || null,
+      title: bestMatch.title || "",
+      locality: bestMatch.storefrontAddress?.locality || "",
+      locationId: bestMatch.name || "",
+      placeId: bestMatch.metadata?.placeId || "",
+      newReviewUri: bestMatch.metadata?.newReviewUri || null,
       accountName: matchedAccountName,
-      primaryCategory:
-        matchedListing.categories?.primaryCategory
-          ?.displayName || "",
-      additionalCategories:
-        matchedListing.categories?.additionalCategories?.map(
-          (cat) => cat.displayName
-        ) || [],
-      websiteUri: matchedListing.websiteUri || null,
-      accountId: matchedListing.accountId || null,
-      phoneNumbers:
-        matchedListing.phoneNumbers || null,
-      storefrontAddress:
-        matchedListing.storefrontAddress || null,
+      primaryCategory: bestMatch.categories?.primaryCategory?.displayName || "",
+      additionalCategories: bestMatch.categories?.additionalCategories?.map((cat) => cat.displayName) || [],
+      websiteUri: bestMatch.websiteUri || null,
+      accountId: bestMatch.accountId || null,
+      phoneNumbers: bestMatch.phoneNumbers || null,
+      storefrontAddress: bestMatch.storefrontAddress || null,
     });
 
   } catch (error) {

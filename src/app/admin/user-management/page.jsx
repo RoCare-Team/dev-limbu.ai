@@ -41,6 +41,7 @@ import {
   Upload,
   Send,
 } from "lucide-react";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import AddAddUserActivity from "@/components/admin-add-activity";
@@ -882,41 +883,21 @@ export default function UserManagement() {
     fetchRevenue();
   }, []);
 
-  /* ---------------- UPLOAD TO CLOUDINARY ---------------- */
-  const uploadToCloudinary = async (file) => {
+  /* ---------------- UPLOAD TO S3 ---------------- */
+  const uploadToS3 = async (file) => {
     try {
-      // Get signature from server
-      const { getCloudinarySignatureAction } =
-        await import("@/app/actions/uploadCloudinary");
-      const signatureData = await getCloudinarySignatureAction();
-
-      if (!signatureData.success) {
-        throw new Error("Failed to get Cloudinary signature");
-      }
-
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("api_key", signatureData.apiKey);
-      formData.append("timestamp", signatureData.timestamp);
-      formData.append("signature", signatureData.signature);
-      formData.append("folder", signatureData.folder);
 
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const result = await uploadToS3Action(formData);
 
-      if (!response.ok) {
-        throw new Error("Cloudinary upload failed");
+      if (!result.success) {
+        throw new Error(result.error || "Failed to upload to S3");
       }
 
-      const data = await response.json();
-      return data.secure_url;
+      return result.url;
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      console.error("S3 upload error:", error);
       throw error;
     }
   };

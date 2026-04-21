@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import User from "@/models/User";
 import Transaction from "@/models/Transaction";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { uploadToS3 } from "@/utils/s3Config";
 
 const DEFAULT_IMAGE_TO_VIDEO_URL =
   "https://imgtovideo.limbutech.in/generate-video";
@@ -223,13 +217,21 @@ export async function POST(req) {
     if (!finalImageUrl && rawImage) {
       if (rawImage.startsWith("data:image")) {
         try {
-          const uploadRes = await cloudinary.uploader.upload(rawImage, {
-            folder: "image-to-video",
-            resource_type: "image",
-          });
-          finalImageUrl = uploadRes.secure_url;
+          const base64Data = rawImage.split(',')[1];
+          const mimeTypeMatch = rawImage.match(/^data:(image\/\w+);base64,/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
+          const extension = mimeType.split('/')[1] || "jpeg";
+          const buffer = Buffer.from(base64Data, "base64");
+          const fileName = `image-to-video-${Date.now()}.${extension}`;
+
+          const uploadRes = await uploadToS3(buffer, fileName, mimeType);
+
+          if (!uploadRes.success) {
+            throw new Error(uploadRes.error);
+          }
+          finalImageUrl = uploadRes.url;
         } catch (err) {
-          console.error("Cloudinary upload (image-to-video):", err);
+          console.error("S3 upload (image-to-video):", err);
           return NextResponse.json(
             {
               success: false,

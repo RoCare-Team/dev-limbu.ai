@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import { ALLOWED_USER_SOURCE_VALUES } from "@/lib/bookingSource";
 import { getAppDayBounds } from "@/lib/appDayBounds";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
@@ -823,6 +824,17 @@ if (isServiceBooked === true) {
         ...updateData.$set,
         leadStatus,
       };
+    }
+
+    /* -------- ACQUISITION SOURCE (admin) -------- */
+    if (body.source !== undefined && body.source !== null && body.source !== "") {
+      const src = String(body.source).trim();
+      if (ALLOWED_USER_SOURCE_VALUES.includes(src)) {
+        updateData.$set = {
+          ...updateData.$set,
+          source: src,
+        };
+      }
     }
 
     if (Object.keys(updateData).length === 0) {

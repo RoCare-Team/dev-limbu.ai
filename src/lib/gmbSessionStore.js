@@ -30,6 +30,19 @@ const GMBConnectionSchema = new mongoose.Schema({
     default: [],
   },
   userEmail: { type: String, default: "" },
+  /** Razorpay / checkout — same session_id as chatbot GMB flow */
+  paymentStatus: {
+    type: String,
+    enum: ["none", "paid"],
+    default: "none",
+  },
+  paymentId: { type: String, default: "" },
+  paymentOrderId: { type: String, default: "" },
+  paymentAmount: { type: String, default: "" },
+  paymentPlanTitle: { type: String, default: "" },
+  paymentUserId: { type: String, default: "" },
+  paymentEmail: { type: String, default: "" },
+  paidAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
@@ -129,22 +142,84 @@ export async function findGmbSession(sessionId) {
 }
 
 /**
+ * After successful checkout: attach payment to the same chatbot session document.
+ * Upserts a minimal row if GMB sync has not run yet.
+ */
+export async function saveGmbSessionPayment(sessionId, payload) {
+  if (!sessionId) throw new Error("sessionId is required");
+  const GMBConnection = await getGMBConnectionModel();
+  const now = new Date();
+  const emailNorm = String(payload.email || "")
+    .trim()
+    .toLowerCase();
+
+  return GMBConnection.findOneAndUpdate(
+    { sessionId },
+    {
+      $set: {
+        paymentStatus: "paid",
+        paymentId: String(payload.paymentId || ""),
+        paymentOrderId: String(payload.orderId || ""),
+        paymentAmount: String(payload.totalAmount ?? ""),
+        paymentPlanTitle: String(payload.planTitle || ""),
+        paymentUserId: String(payload.userId || ""),
+        paymentEmail: emailNorm,
+        paidAt: now,
+        updatedAt: now,
+      },
+      $setOnInsert: {
+        sessionId,
+        status: "pending",
+        message: "",
+        locationsData: [],
+        userEmail: "",
+        createdAt: now,
+      },
+    },
+    { upsert: true, new: true },
+  );
+}
+
+/**
  * Shape a DB row (or null) into the exact chatbot API response.
  */
 export function formatGmbSessionResponse(row) {
   if (!row) {
     return {
       status: "not_found",
-      
+      businessConnected: false,
+      paymentStatus: "none",
+      payment: null,
       message:
         "Session not found. Open the connect-google-business link from chat, sign in with Google, and tap Continue to chatbot.",
       locationsData: [],
     };
   }
+  const locationsData = Array.isArray(row.locationsData) ? row.locationsData : [];
+  const gmbOk = row.status === "success" && locationsData.length > 0;
+  const paid =
+    row.paymentStatus === "paid" ||
+    (!!row.paymentId && !!row.paidAt);
+  const paymentStatus = paid ? "paid" : "none";
+
   return {
-    status:        row.status === "success" ? "success" : "not_found",
-    email:         row.userEmail || "",
-    message:       row.message || "",
-    locationsData: Array.isArray(row.locationsData) ? row.locationsData : [],
+    status: row.status === "success" ? "success" : "not_found",
+    businessConnected: gmbOk,
+    paymentStatus,
+    payment:
+      paymentStatus === "paid"
+        ? {
+            paymentId: row.paymentId || "",
+            orderId: row.paymentOrderId || "",
+            amount: row.paymentAmount || "",
+            planTitle: row.paymentPlanTitle || "",
+            userId: row.paymentUserId || "",
+            email: row.paymentEmail || "",
+            paidAt: row.paidAt ? row.paidAt.toISOString() : null,
+          }
+        : null,
+    email: row.userEmail || "",
+    message: row.message || "",
+    locationsData,
   };
 }

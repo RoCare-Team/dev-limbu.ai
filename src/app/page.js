@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   expandPricingLandingForApi,
   mergePricingLanding,
@@ -124,7 +125,7 @@ import { Clock, MessageSquare, PenTool, Star } from "lucide-react"
 //     </section>
 // );
 
-export default function LimbuAILanding() {
+function LimbuAILanding() {
 
   // =============================
   // 🔵 STATES
@@ -164,6 +165,9 @@ export default function LimbuAILanding() {
     email: "",
     gstNumber: ""
   })
+
+  const searchParams = useSearchParams()
+  const chatSessionId = searchParams.get("session_id")?.trim() || ""
 
   const [pricingDoc, setPricingDoc] = useState(null)
 
@@ -334,6 +338,7 @@ export default function LimbuAILanding() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 ...serviceForm,
+                bookingSource: "website",
                 planTitle: selectedPlan.title,
                 planType: selectedPlan.planType,
                 planDuration: selectedPlan.planDuration ?? "",
@@ -350,7 +355,8 @@ export default function LimbuAILanding() {
                 paymentId: response.razorpay_payment_id,
                 orderId: response.razorpay_order_id,
                 razorpay_signature: response.razorpay_signature,
-                status: "paid"
+                status: "paid",
+                ...(chatSessionId ? { session_id: chatSessionId } : {}),
               }),
             });
 
@@ -686,8 +692,18 @@ export default function LimbuAILanding() {
   )
 }
 
-
-
-
+export default function LimbuAILandingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-white text-slate-600">
+          Loading…
+        </div>
+      }
+    >
+      <LimbuAILanding />
+    </Suspense>
+  )
+}
 
 

@@ -19,6 +19,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams()
   const planKey = searchParams.get("planKey")
   const cycleParam = searchParams.get("cycle")
+  const chatSessionId = searchParams.get("session_id")?.trim() || ""
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -133,6 +134,7 @@ function CheckoutContent() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   ...serviceForm,
+                  bookingSource: "website",
                   planTitle: selectedPlan.title,
                   planType: selectedPlan.planType,
                   planDuration: selectedPlan.planDuration ?? "",
@@ -150,6 +152,7 @@ function CheckoutContent() {
                   orderId: response.razorpay_order_id,
                   razorpay_signature: response.razorpay_signature,
                   status: "paid",
+                  ...(chatSessionId ? { session_id: chatSessionId } : {}),
                 }),
               })
 
@@ -194,7 +197,7 @@ function CheckoutContent() {
         toast.error("Something went wrong. Please try again.")
       }
     },
-    [selectedPlan, serviceForm]
+    [selectedPlan, serviceForm, chatSessionId]
   )
 
   if (loading) {

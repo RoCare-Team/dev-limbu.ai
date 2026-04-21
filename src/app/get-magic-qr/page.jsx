@@ -66,18 +66,36 @@ export default function BusinessQR() {
     const title = location.title || "";
     // Get locality from storefrontAddress (matching MongoDB structure)
     const locality = location.storefrontAddress?.locality || location.locality || "";
-    const address = location.address || "";
+    const address = location.storefrontAddress?.addressLines?.[0] || location.address || "";
 
-    // Create slug for SEO-friendly URL with locality
-    const slug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
+    const generateSlug = (str) => str.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+
+    const baseSlug = generateSlug(`${title}-${locality}`);
+
+    // Check if there are other locations with the same title and locality
+    const conflicts = allLocations.filter(loc => {
+      if (loc.locationId === location.locationId) return false;
+      const t = loc.title || "";
+      const l = loc.storefrontAddress?.locality || loc.locality || "";
+      return generateSlug(`${t}-${l}`) === baseSlug;
+    });
+
+    let finalSlug = baseSlug;
+
+    // If there is a conflict (multiple locations in same locality), append a portion of the address
+    if (conflicts.length > 0 && address) {
+      const addressParts = generateSlug(address).split('-');
+      // Use the first 1-2 meaningful words of the address to differentiate
+      const suffix = addressParts.slice(0, 2).join('-');
+      if (suffix) {
+        finalSlug = `${baseSlug}-${suffix}`;
+      } else {
+        finalSlug = `${baseSlug}-${location.locationId.substring(0, 5)}`;
+      }
+    }
 
     const baseUrl = window.location.origin;
-    return `${baseUrl}/reviews/${slug}`;
+    return `${baseUrl}/reviews/${finalSlug}`;
   };
 
   // Create display name with locality

@@ -6,6 +6,7 @@ import MetaSync from "@/models/MetaSync";
 import Admin from "@/models/Admin";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 
 export const dynamic = "force-dynamic";
 
@@ -325,6 +326,7 @@ export async function GET(req) {
             plan: "Free",
           },
           source: "bulk-upload",
+          leadTags: ["metaleads"],
           whatsappSent: true,
           tataCallSent: true,
           assignedAgentId,
@@ -333,6 +335,10 @@ export async function GET(req) {
         });
 
         inserted++;
+
+        void runWelcomeBonusForUserId(createdLead.userId).catch((err) =>
+          console.error("runWelcomeBonusForUserId", err),
+        );
 
         void runNewUserOnboarding(createdLead.userId).catch((err) =>
           console.error("runNewUserOnboarding", err),

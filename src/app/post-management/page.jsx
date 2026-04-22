@@ -1244,175 +1244,31 @@ export default function PostManagementPage() {
     try {
       showToast("Publishing to Facebook...", "success");
 
-      const pageId = pageData.pageId;
-      const accessToken = pageData.pageAccessToken;
-
-      let facebookPostId;
-
-      if (media.type === "video" && media.url) {
-        let videoId = null;
-        const isHttpVideo =
-          typeof media.url === "string" &&
-          /^https?:\/\//i.test(media.url.trim());
-
-        if (isHttpVideo) {
-          try {
-            const proxyRes = await fetch("/api/facebook/upload-video", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                videoUrl: media.url.trim(),
-                pageId,
-                accessToken,
-                description: caption || "",
-              }),
-            });
-            const proxyJson = await proxyRes.json().catch(() => ({}));
-            if (proxyRes.ok && proxyJson.success && proxyJson.id) {
-              videoId = proxyJson.id;
-            }
-          } catch {
-            /* fall through to file_url */
-          }
-        }
-
-        if (!videoId) {
-          const videoRes = await fetch(
-            `https://graph.facebook.com/v24.0/${pageId}/videos`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                file_url: media.url,
-                description: caption || "",
-                access_token: accessToken,
-              }),
-            },
-          );
-          const videoData = await videoRes.json();
-          if (!videoData.id) {
-            throw new Error(
-              videoData.error?.message || "Failed to publish video to Facebook",
-            );
-          }
-          videoId = videoData.id;
-        }
-        facebookPostId = videoId;
-      } else if (media.type === "image" && media.url) {
-        const imageUrl = media.url;
-        // 1. Upload photo without publishing (published=false)
-        const photoUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
-        const photoPayload = {
-          url: imageUrl,
-          published: false,
-          access_token: accessToken,
-        };
-
-        const photoRes = await fetch(photoUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(photoPayload),
-        });
-
-        const photoData = await photoRes.json();
-
-        if (!photoData.id) {
-          throw new Error(
-            photoData.error?.message || "Failed to upload photo to Facebook",
-          );
-        }
-
-        const photoId = photoData.id;
-
-        // 2. Publish to Feed with attached photo
-        const feedUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
-        const feedPayload = {
-          message: caption || "",
-          attached_media: [{ media_fbid: photoId }],
-          access_token: accessToken,
-        };
-
-        const feedRes = await fetch(feedUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(feedPayload),
-        });
-
-        const feedData = await feedRes.json();
-
-        if (!feedData.id) {
-          throw new Error(
-            feedData.error?.message ||
-            "Failed to publish post to Facebook Feed",
-          );
-        }
-
-        facebookPostId = feedData.id;
-      } else {
-        // Direct call to Facebook Graph API for Feed
-        const graphUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
-        const payload = {
-          message: caption || "",
-          access_token: accessToken,
-        };
-
-        const res = await fetch(graphUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await res.json();
-
-        if (!data.id) {
-          throw new Error(data.error?.message || "Failed to post to Facebook");
-        }
-        facebookPostId = data.id;
-      }
-
-      showToast("Post published on Facebook 🎉", "success");
-
-      // Send post published email notification for Facebook
-      try {
-        const pageName = pageData.pageName || "Facebook Page";
-
-        const emailResponse = await fetch("/api/send-post-published-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: localStorage.getItem("userId"),
-            platform: "Facebook",
-            businessName: pageName,
-            locationName: pageName,
-            postUrl: metaPublishMedia(post).url || post.aiOutput,
-          }),
-        });
-
-        const emailResult = await emailResponse.json();
-        if (emailResult.success) {
-          console.log("📧 Facebook post published email sent successfully");
-        }
-      } catch (emailError) {
-        console.log(
-          "⚠️ Error sending Facebook post published email:",
-          emailError.message,
-        );
-      }
-
-      await updatePostStatusAction({
-        id: post._id,
-        userId: localStorage.getItem("userId"),
-        facebookPostId: facebookPostId,
-        facebookPageAccessToken: accessToken,
-        status: "posted",
-        whenPosted: { ...post.whenPosted, facebook: true },
+      const response = await fetch("/api/facebook/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          post,
+          pageData,
+          caption,
+          media,
+          userId: localStorage.getItem("userId"),
+        }),
       });
-      await fetchPosts(true); // Refresh posts to get the updated data
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast("Post published on Facebook 🎉", "success");
+        await fetchPosts(true);
+      } else {
+        throw new Error(data.error || "Failed to publish to Facebook.");
+      }
     } catch (err) {
       console.error("Facebook post error:", err);
       showToast(
         err.message || "Something went wrong posting to Facebook",
-        "error",
+        "error"
       );
     }
   };
@@ -1459,99 +1315,26 @@ export default function PostManagementPage() {
     try {
       showToast("Publishing to Instagram...", "success");
 
-      const igUserId = accountData.igId;
-      const accessToken = accountData.pageAccessToken;
-
-      // Step 1: Create Media Container
-      const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
-      const mediaContainerPayload =
-        media.type === "video"
-          ? {
-            video_url: media.url,
-            caption: caption || "",
-            media_type: "REELS",
-            access_token: accessToken,
-          }
-          : {
-            image_url: media.url,
-            caption: caption || "",
-            access_token: accessToken,
-          };
-      const mediaRes = await fetch(mediaContainerUrl, {
+      const response = await fetch("/api/instagram/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mediaContainerPayload),
-      });
-      const mediaData = await mediaRes.json();
-
-      if (!mediaData.id) {
-        console.error("Instagram API Error (Media Container):", mediaData);
-        throw new Error(
-          mediaData.error?.message ||
-          "Failed to create Instagram media container.",
-        );
-      }
-
-      // Step 2: Wait for processing (longer for video)
-      if (media.type === "video") {
-        await waitForInstagramVideoContainer(mediaData.id, accessToken);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 4000));
-      }
-
-      const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
-      const publishPayload = {
-        creation_id: mediaData.id,
-        access_token: accessToken,
-      };
-      const publishRes = await fetch(publishUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(publishPayload),
-      });
-      const publishData = await publishRes.json();
-
-      if (publishData.id) {
-        showToast("Post published on Instagram 🎉", "success");
-
-        // Send post published email notification for Instagram
-        try {
-          const igUsername = accountData.igUsername || "Instagram Account";
-
-          const emailResponse = await fetch("/api/send-post-published-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: localStorage.getItem("userId"),
-              platform: "Instagram",
-              businessName: igUsername,
-              locationName: igUsername,
-              postUrl: media.url || post.aiOutput,
-            }),
-          });
-
-          const emailResult = await emailResponse.json();
-          if (emailResult.success) {
-            console.log("📧 Instagram post published email sent successfully");
-          }
-        } catch (emailError) {
-          console.log(
-            "⚠️ Error sending Instagram post published email:",
-            emailError.message,
-          );
-        }
-
-        await updatePostStatusAction({
-          id: post._id,
+        body: JSON.stringify({
+          post,
+          accountData,
+          caption,
+          media,
           userId: localStorage.getItem("userId"),
-          status: "posted",
-          whenPosted: { ...post.whenPosted, instagram: true },
-        });
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast("Post published on Instagram 🎉", "success");
         await fetchPosts(true);
-      } else
-        throw new Error(
-          publishData.error?.message || "Failed to publish to Instagram.",
-        );
+      } else {
+        throw new Error(data.error || "Failed to publish to Instagram.");
+      }
     } catch (err) {
       console.error("Instagram post error:", err);
       showToast(err.message, "error");

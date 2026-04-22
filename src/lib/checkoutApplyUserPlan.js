@@ -7,6 +7,8 @@ import { bookingSourceToUserSource } from "@/lib/bookingSource"
 import { CHECKOUT_TEST_PLAN_KEY } from "@/lib/checkoutTestPlan"
 import { normalizeBillingCycle } from "@/lib/planCheckout"
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser"
+import { mergeMetaLeadsTag } from "@/lib/bookingSource"
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp"
 
 const SettingSchema = new mongoose.Schema({
   key: String,
@@ -171,6 +173,7 @@ export async function applyCheckoutToUser(body) {
         freeUsedCount: 2,
         assignedAgentId,
         source: userSource,
+        leadTags: mergeMetaLeadsTag(userSource, []),
         GstNumber: gstNumber ? String(gstNumber).trim() : undefined,
         subscription: {
           status: "inactive",
@@ -189,6 +192,9 @@ export async function applyCheckoutToUser(body) {
       throw e
     }
     created = true
+    void runWelcomeBonusForUserId(user.userId).catch((err) =>
+      console.error("runWelcomeBonusForUserId checkout", err),
+    )
     void runNewUserOnboarding(user.userId).catch((err) =>
       console.error("runNewUserOnboarding checkout", err),
     )

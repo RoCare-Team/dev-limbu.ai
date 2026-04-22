@@ -41,7 +41,13 @@ import {
   Upload,
   Send,
 } from "lucide-react";
-import { USER_SOURCE_OPTIONS, userAcquisitionLabel } from "@/lib/bookingSource";
+import {
+  USER_SOURCE_OPTIONS,
+  userAcquisitionLabel,
+  userAcquisitionTagClassName,
+  formatLeadTagLabel,
+  leadTagPillClassName,
+} from "@/lib/bookingSource";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
@@ -3238,12 +3244,28 @@ export default function UserManagement() {
                                     ))}
                                   </select>
                                 </div>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
+                                <div className="flex flex-wrap gap-1 mt-1 items-center">
+                                  <span
+                                    className={userAcquisitionTagClassName(
+                                      user.source,
+                                    )}
+                                    title="Acquisition source"
+                                  >
                                     {userAcquisitionLabel(user.source)}
                                   </span>
+                                  {(user.leadTags || [])
+                                    .filter(Boolean)
+                                    .map((tag) => (
+                                      <span
+                                        key={String(tag)}
+                                        className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
+                                        title="Lead tag"
+                                      >
+                                        {formatLeadTagLabel(tag)}
+                                      </span>
+                                    ))}
                                   {user.paidPackage && (
-                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
+                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
                                       {user.paidPackage}
                                     </span>
                                   )}

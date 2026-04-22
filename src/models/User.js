@@ -127,6 +127,12 @@ const userSchema = new mongoose.Schema(
       default: "signup",
     },
 
+    /** e.g. `metaleads` for bulk / sheet / manual Meta imports */
+    leadTags: { type: [String], default: [] },
+
+    /** One-time welcome_bonus WhatsApp (AISensy) after registration */
+    welcomeBonusWhatsAppSent: { type: Boolean, default: false },
+
     connectedBusinessEmail: { type: String, default: null },
     selectedBusiness: {
       type: {

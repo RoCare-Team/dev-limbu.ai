@@ -23,7 +23,7 @@ export function bookingSourceToUserSource(bookingSource) {
 export function bookingSourceLabel(bookingSource) {
   const b = normalizeBookingSource(bookingSource)
   if (b === "chatbot") return "Chatbot"
-  if (b === "manual-upload") return "Manual upload"
+  if (b === "manual-upload") return "Meta Leads"
   return "Website"
 }
 
@@ -39,7 +39,7 @@ export function userAcquisitionLabel(source) {
     s === "csv-import" ||
     s === "excel-import"
   ) {
-    return "Manual upload"
+    return "Meta leads"
   }
   if (s === "signup") return "Signup"
   if (s === "Meta Leads" || s === "Meta") return "Meta leads"
@@ -50,7 +50,7 @@ export const USER_SOURCE_OPTIONS = [
   { value: "signup", label: "Signup" },
   { value: "website", label: "Website" },
   { value: "chatbot", label: "Chatbot" },
-  { value: "manual-upload", label: "Manual upload" },
+  { value: "manual-upload", label: "Meta Leads" },
   { value: "bulk-upload", label: "Bulk / sheet import" },
   { value: "csv-import", label: "CSV import" },
   { value: "excel-import", label: "Excel import" },
@@ -60,3 +60,84 @@ export const USER_SOURCE_OPTIONS = [
 ]
 
 export const ALLOWED_USER_SOURCE_VALUES = USER_SOURCE_OPTIONS.map((o) => o.value)
+
+/** Bulk / sheet / manual Meta-style imports — tag as metaleads */
+export const META_SHEET_LEAD_SOURCES = [
+  "bulk-upload",
+  "csv-import",
+  "excel-import",
+  "manual-upload",
+]
+
+export function shouldTagMetaLeads(source) {
+  return META_SHEET_LEAD_SOURCES.includes(String(source || "").trim())
+}
+
+/** Returns a new array including `metaleads` when source is a sheet/Meta import */
+export function mergeMetaLeadsTag(source, existingLeadTags = []) {
+  const base = Array.isArray(existingLeadTags) ? [...existingLeadTags] : []
+  if (!shouldTagMetaLeads(source)) return base
+  const s = new Set([...base, "metaleads"])
+  return [...s]
+}
+
+const TAG_BASE =
+  "inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm"
+
+/**
+ * Tailwind classes for the main acquisition pill (User.source) in admin tables.
+ * Each channel has a distinct, accessible color.
+ */
+export function userAcquisitionTagClassName(source) {
+  const s = String(source || "").trim()
+  if (
+    s === "manual-upload" ||
+    s === "bulk-upload" ||
+    s === "csv-import" ||
+    s === "excel-import" ||
+    s === "Meta Leads" ||
+    s === "Meta"
+  ) {
+    return `${TAG_BASE} bg-violet-100 text-violet-900 border-violet-300/70`
+  }
+  if (s === "website" || s === "checkout") {
+    return `${TAG_BASE} bg-sky-100 text-sky-900 border-sky-300/70`
+  }
+  if (s === "chatbot") {
+    return `${TAG_BASE} bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300/70`
+  }
+  if (s === "signup") {
+    return `${TAG_BASE} bg-emerald-100 text-emerald-900 border-emerald-300/70`
+  }
+  return `${TAG_BASE} bg-slate-100 text-slate-800 border-slate-300/60`
+}
+
+/** Display label for stored lead tag keys (e.g. metaleads → Meta leads) */
+export function formatLeadTagLabel(tag) {
+  const t = String(tag || "").trim()
+  if (!t) return ""
+  if (t.toLowerCase() === "metaleads") return "Meta import"
+  return t
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/**
+ * Tailwind classes for extra `User.leadTags` chips (distinct from source pill).
+ */
+export function leadTagPillClassName(tag) {
+  const t = String(tag || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+  if (t === "metaleads") {
+    return "bg-indigo-50 text-indigo-900 border-indigo-300/70"
+  }
+  if (t === "website" || t === "web") {
+    return "bg-cyan-50 text-cyan-900 border-cyan-300/70"
+  }
+  if (t === "priority" || t === "hot") {
+    return "bg-orange-50 text-orange-900 border-orange-300/70"
+  }
+  return "bg-stone-50 text-stone-800 border-stone-300/60"
+}

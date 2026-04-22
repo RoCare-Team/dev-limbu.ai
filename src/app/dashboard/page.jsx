@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -68,6 +68,23 @@ import SupportModal from "../../components/SupportModal";
 import FirstPostModal from "@/components/FirstPostModal";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
+
+/** True if object looks like a GMB `locations/*` resource (not an admin summary row). */
+function isGmbLocationRecord(l) {
+  if (!l || typeof l !== "object") return false;
+  return typeof l.name === "string" && l.name.includes("locations/");
+}
+
+/**
+ * Voice of merchant may be on the node, under metadata, or legacy `verified` from DB snapshots.
+ */
+function listingHasVoiceOfMerchant(l) {
+  if (!l) return false;
+  if (l.hasVoiceOfMerchant === true) return true;
+  if (l.metadata?.hasVoiceOfMerchant === true) return true;
+  if (l.verified === true) return true;
+  return false;
+}
 
 // --- API Helpers ---
 export async function fetchGMBAccounts(accessToken) {
@@ -838,6 +855,15 @@ export default function DashboardPage() {
   const [isSessionExpired, setIsSessionExpired] = useState(false);
   const [listings, setListings] = useState([]);
 
+  /**
+   * Prefer live Google data (`accounts`) over `/api/admin/saveBussiness` results.
+   * A GET without `userEmail` returns paginated *business* rows (wrong shape) — do not use as locations.
+   */
+  const gmbListings = useMemo(() => {
+    const fromAccounts = accounts.flatMap((acc) => acc?.listings || []);
+    if (fromAccounts.length > 0) return fromAccounts;
+    return (listings || []).filter(isGmbLocationRecord);
+  }, [accounts, listings]);
 
   const userId = localStorage.getItem("userId");
 
@@ -1493,19 +1519,14 @@ export default function DashboardPage() {
 
   // Handle GMB Insights nav item click - show location selector then open modal
   const handleGmbInsightsClick = () => {
-    // Get all locations from accounts
-    const allListings = accounts.length > 0 ? accounts.flatMap((acc) => acc.listings) : [];
-
-    if (allListings.length === 0) {
+    if (gmbListings.length === 0) {
       toast.error("No locations found. Please connect your Google Business Profile first.");
       return;
     }
 
-    if (allListings.length === 1) {
-      // Only one location - directly open insights
-      handleViewPerformanceInsights(allListings[0]);
+    if (gmbListings.length === 1) {
+      handleViewPerformanceInsights(gmbListings[0]);
     } else {
-      // Multiple locations - show location selector
       setShowLocationSelectorModal(true);
     }
   };
@@ -1552,99 +1573,52 @@ export default function DashboardPage() {
     }
   };
 
-  // Summary Update & Store location details
+  // Summary + localStorage: always derived from the same list shown in the GMB column
   useEffect(() => {
-    if (listings.length > 0) {
-      const total = listings.length;
-      const verified = listings.filter((l) => l.hasVoiceOfMerchant === true).length;
-      const unverified = listings.filter((l) => l.hasVoiceOfMerchant === false).length;
-      const pending = 0;
-      setSummary({ total, verified, unverified, pending });
-
-      const locationDetails = listings.map(item => {
-        const locationId = item.name.split("/")[1];
-        const accountId = item.accountId || "";
-        const locality = item.storefrontAddress?.locality || "";
-        const address = item.storefrontAddress?.addressLines?.[0] || "";
-        const title = item.title || "";
-        const isVerified = item.hasVoiceOfMerchant === true;
-        const websiteUrl = item.websiteUri || "";
-        const reviewUri = item.metadata?.newReviewUri || "";
-        const businessProfileId = item.name || "";
-
-        return {
-          locationId,
-          accountId,
-          locality,
-          address,
-          title,
-          websiteUrl,
-          reviewUri,
-          isVerified,
-          businessProfileId,
-          name: item.name,
-          websiteUri: item.websiteUri,
-          storefrontAddress: item.storefrontAddress,
-          phoneNumbers: item.phoneNumbers,
-          categories: item.categories,
-          openInfo: item.openInfo,
-          metadata: item.metadata,
-        };
-      });
-      localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
-      if (listings.length > 0) {
-        localStorage.setItem("reviewUrl", listings[0].metadata?.newReviewUri || "");
-      }
+    if (gmbListings.length === 0) {
+      setSummary({ total: 0, verified: 0, unverified: 0, pending: 0 });
       return;
     }
-    if (accounts.length > 0) {
-      const allListings = accounts.flatMap((acc) => acc.listings);
 
+    const total = gmbListings.length;
+    const verified = gmbListings.filter((l) => listingHasVoiceOfMerchant(l)).length;
+    const unverified = total - verified;
+    const pending = 0;
+    setSummary({ total, verified, unverified, pending });
 
-      const locationDetails = allListings.map(item => {
-        const locationId = item.name.split("/")[1];
-        const accountId = item.accountId || "";
-        const locality = item.storefrontAddress?.locality || "";
-        const address = item.storefrontAddress?.addressLines?.[0] || "";
-        const title = item.title || "";
-        const isVerified = item.hasVoiceOfMerchant === true;
-        const websiteUrl = item.websiteUri || "";
-        const reviewUri = item.metadata?.newReviewUri || "";
-        const businessProfileId = item.name || "";
+    const locationDetails = gmbListings.map((item) => {
+      const locationId = item?.name?.split("/")?.[1] || "";
+      const accountId = item.accountId || "";
+      const locality = item.storefrontAddress?.locality || "";
+      const address = item.storefrontAddress?.addressLines?.[0] || "";
+      const title = item.title || "";
+      const isVerified = listingHasVoiceOfMerchant(item);
+      const websiteUrl = item.websiteUri || "";
+      const reviewUri = item.metadata?.newReviewUri || "";
+      const businessProfileId = item.name || "";
 
-        return {
-          locationId,
-          accountId,
-          locality,
-          address,
-          title,
-          websiteUrl,
-          reviewUri,
-          isVerified,
-          businessProfileId,
-          name: item.name,
-          websiteUri: item.websiteUri,
-          storefrontAddress: item.storefrontAddress,
-          phoneNumbers: item.phoneNumbers,
-          categories: item.categories,
-          openInfo: item.openInfo,
-          metadata: item.metadata,
-        };
-      });
-
-      if (allListings.length > 0) {
-        localStorage.setItem("reviewUrl", allListings[0].metadata?.newReviewUri || "");
-      }
-
-      localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
-
-      const total = allListings.length;
-      const verified = allListings.filter((l) => l.hasVoiceOfMerchant === true).length;
-      const unverified = allListings.filter((l) => l.hasVoiceOfMerchant === false).length;
-      const pending = 0;
-      setSummary({ total, verified, unverified, pending });
-    }
-  }, [accounts, listings]);
+      return {
+        locationId,
+        accountId,
+        locality,
+        address,
+        title,
+        websiteUrl,
+        reviewUri,
+        isVerified,
+        businessProfileId,
+        name: item.name,
+        websiteUri: item.websiteUri,
+        storefrontAddress: item.storefrontAddress,
+        phoneNumbers: item.phoneNumbers,
+        categories: item.categories,
+        openInfo: item.openInfo,
+        metadata: item.metadata,
+      };
+    });
+    localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
+    localStorage.setItem("reviewUrl", gmbListings[0]?.metadata?.newReviewUri || "");
+  }, [gmbListings]);
 
   // Add Project with proper cache clearing
   const handleAddProject = async () => {
@@ -1676,7 +1650,7 @@ export default function DashboardPage() {
 
   // Verification Badge
   const getVerificationBadge = (listing) => {
-    const isVerified = listing.hasVoiceOfMerchant === true;
+    const isVerified = listingHasVoiceOfMerchant(listing);
 
     if (isVerified) {
       return (
@@ -1698,37 +1672,58 @@ export default function DashboardPage() {
   };
 
   // Filter Listings
-  const getFilteredListings = (listings) => {
+  const getFilteredListings = (list) => {
     if (filterStatus === "verified") {
-      return listings.filter((l) => l.hasVoiceOfMerchant === true);
-    } else if (filterStatus === "unverified") {
-      return listings.filter((l) => l.hasVoiceOfMerchant === false);
+      return list.filter((l) => listingHasVoiceOfMerchant(l));
     }
-    return listings;
+    if (filterStatus === "unverified") {
+      return list.filter((l) => !listingHasVoiceOfMerchant(l));
+    }
+    return list;
   };
 
   useEffect(() => {
     const fetchListings = async () => {
-
       const token =
         localStorage.getItem("isImpersonating") === "true"
           ? localStorage.getItem("userToken")
           : localStorage.getItem("adminToken");
 
-      if (!token) return;
+      if (!token) {
+        return;
+      }
 
-      const res = await fetch("/api/admin/saveBussiness", {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const email = session?.user?.email;
+      if (!email) {
+        return;
+      }
+
+      const res = await fetch(
+        `/api/admin/saveBussiness?userEmail=${encodeURIComponent(email)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
+
+      if (res.status === 404) {
+        setListings([]);
+        return;
+      }
+
+      if (!res.ok) {
+        return;
+      }
 
       const data = await res.json();
       setListings(data.listings || []);
     };
 
-    fetchListings();
-  }, []);
+    if (status === "authenticated") {
+      fetchListings();
+    }
+  }, [status, session?.user?.email]);
 
   // Loading State
   if (status === "loading") {
@@ -1745,9 +1740,6 @@ export default function DashboardPage() {
 
 
 
-
-
-  console.log("listingslistings", listings);
 
 
   return (
@@ -1907,61 +1899,21 @@ export default function DashboardPage() {
                 <p className="mt-2 text-sm">Loading Listings...</p>
               </div>
             )}
-            {!loading && listings.length > 0 ? (
-              getFilteredListings(listings).map((listing, i) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 transition-all hover:shadow-md">
+            {!loading && gmbListings.length > 0
+              ? getFilteredListings(gmbListings).map((listing, i) => (
+                <div
+                  key={listing.name || listing.businessProfileId || i}
+                  className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 transition-all hover:shadow-md"
+                >
                   {/* Header: Logo + Title + Badge */}
                   <div className="flex items-start gap-3">
-                    {/* Logo */}
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100 text-blue-500">
-                        <Building2 className="w-5 h-5" />
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-bold text-sm text-gray-900 truncate" title={listing.title}>{listing.title}</h3>
-                        <div className="flex-shrink-0 scale-90 origin-top-right">
-                          {getVerificationBadge(listing)}
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate">{listing.categories?.primaryCategory?.displayName || "Business"}</p>
-                    </div>
-                  </div>
-
-                  {/* Details: Phone, Website, Address */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                      <span className="truncate">{listing.phoneNumbers?.primaryPhone || "No phone"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Globe className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
-                      {listing.websiteUri ? <a href={listing.websiteUri} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-600 hover:underline">{listing.websiteUri}</a> : <span className="text-gray-400">No website</span>}
-                    </div>
-                    <div className="flex items-start gap-2 text-xs text-gray-600">
-                      <MapPin className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{listing.storefrontAddress?.addressLines?.join(", ") || "No address"}{listing.storefrontAddress?.locality && `, ${listing.storefrontAddress.locality}`}</span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
-                    <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-dark hover:bg-blue-100 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage </button>
-                    <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              !loading && accounts.length > 0 && getFilteredListings(accounts[0].listings).map((listing, i) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 transition-all hover:shadow-md">
-                  {/* Header: Logo + Title + Badge */}
-                  <div className="flex items-start gap-3">
-                    {/* Logo */}
                     <div className="flex-shrink-0">
                       {listing.logoUrl ? (
-                        <img src={listing.logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
+                        <img
+                          src={listing.logoUrl}
+                          alt="Logo"
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-100"
+                        />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100 text-blue-500">
                           <Building2 className="w-5 h-5" />
@@ -1971,40 +1923,72 @@ export default function DashboardPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-bold text-sm text-dark truncate" title={listing.title}>{listing.title}</h3>
+                        <h3
+                          className="font-bold text-sm text-dark truncate"
+                          title={listing.title}
+                        >
+                          {listing.title}
+                        </h3>
                         <div className="flex-shrink-0 scale-90 origin-top-right">
                           {getVerificationBadge(listing)}
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500 truncate">{listing.categories?.primaryCategory?.displayName || "Business"}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {listing.categories?.primaryCategory?.displayName || "Business"}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Details: Phone, Website, Address */}
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 text-xs text-dark">
                       <Phone className="w-3.5 h-3.5 text-dark flex-shrink-0" />
-                      <span className="truncate">{listing.phoneNumbers?.primaryPhone || "No phone"}</span>
+                      <span className="truncate">
+                        {listing.phoneNumbers?.primaryPhone || "No phone"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-dark">
                       <Globe className="w-3.5 h-3.5 text-lightPrimary flex-shrink-0" />
-                      {listing.websiteUri ? <a href={listing.websiteUri} target="_blank" rel="noopener noreferrer" className="truncate hover:text-blue-600 hover:underline">{listing.websiteUri}</a> : <span className="text-gray-400">No website</span>}
+                      {listing.websiteUri ? (
+                        <a
+                          href={listing.websiteUri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate hover:text-blue-600 hover:underline"
+                        >
+                          {listing.websiteUri}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">No website</span>
+                      )}
                     </div>
                     <div className="flex items-start gap-2 text-xs text-gray-600">
                       <MapPin className="w-3.5 h-3.5 text-dark flex-shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{listing.storefrontAddress?.addressLines?.join(", ") || "No address"}{listing.storefrontAddress?.locality && `, ${listing.storefrontAddress.locality}`}</span>
+                      <span className="line-clamp-2">
+                        {listing.storefrontAddress?.addressLines?.join(", ") || "No address"}
+                        {listing.storefrontAddress?.locality &&
+                          `, ${listing.storefrontAddress.locality}`}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
-                    <button onClick={() => handleListingData(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-dark text-lightPrimary hover:bg-gray-700 rounded-lg transition text-xs font-bold"><Star className="w-3.5 h-3.5" /> Manage</button>
-                    <button onClick={() => handleViewPerformanceInsights(listing)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-yellow-200 text-dark hover:bg-yellow-300 rounded-lg transition text-xs font-bold"><BarChart3 className="w-3.5 h-3.5" /> Insights</button>
+                    <button
+                      onClick={() => handleListingData(listing)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-dark text-lightPrimary hover:bg-gray-700 rounded-lg transition text-xs font-bold"
+                    >
+                      <Star className="w-3.5 h-3.5" /> Manage
+                    </button>
+                    <button
+                      onClick={() => handleViewPerformanceInsights(listing)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-yellow-200 text-dark hover:bg-yellow-300 rounded-lg transition text-xs font-bold"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" /> Insights
+                    </button>
                   </div>
                 </div>
               ))
-            )}
-            {!loading && accounts.length === 0 && listings.length === 0 && (
+              : null}
+            {!loading && gmbListings.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                 <div className="bg-blue-50 p-4 rounded-full mb-4 ring-4 ring-blue-50/50">
                   <Building2 className="w-8 h-8 text-dark" />

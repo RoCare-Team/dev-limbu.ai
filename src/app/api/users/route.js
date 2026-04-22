@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
-import { ALLOWED_USER_SOURCE_VALUES } from "@/lib/bookingSource";
+import {
+  ALLOWED_USER_SOURCE_VALUES,
+  mergeMetaLeadsTag,
+} from "@/lib/bookingSource";
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
@@ -127,7 +131,13 @@ export async function POST(req) {
 
     // 4️⃣ Create Lead
     const createPayload = { ...body, assignedAgentId: assignedAgentId };
+    const src = createPayload.source;
+    createPayload.leadTags = mergeMetaLeadsTag(src, createPayload.leadTags);
     const user = await User.create(createPayload);
+
+    void runWelcomeBonusForUserId(user.userId).catch((err) =>
+      console.error("runWelcomeBonusForUserId", err),
+    );
 
     return NextResponse.json({
       success: true,

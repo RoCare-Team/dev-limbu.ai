@@ -1241,6 +1241,18 @@ export default function PostManagementPage() {
       return;
     }
 
+    console.log("Meta Publish Media:", media)
+
+    const payload = {
+      post,
+      pageData,
+      caption,
+      media,
+      userId: localStorage.getItem("userId"),
+    };
+
+    console.log("Payload for Facebook Publish:", payload);
+
     try {
       showToast("Publishing to Facebook...", "success");
 
@@ -1311,6 +1323,15 @@ export default function PostManagementPage() {
       showToast("Post has no media to share.", "error");
       return;
     }
+
+    const payLoad = {
+      post,
+      accountData,
+      caption,
+      media
+    }
+
+    console.log("Payload for Instagram Publish:", payLoad);
 
     try {
       showToast("Publishing to Instagram...", "success");

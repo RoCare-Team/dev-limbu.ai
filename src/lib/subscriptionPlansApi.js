@@ -1,7 +1,6 @@
 import {
   CHECKOUT_TEST_PLAN_KEY,
   getCheckoutTestPlanForSubscriptionApi,
-  isCheckoutTestPlanEnabled,
 } from "./checkoutTestPlan"
 import { getPublicSiteUrl } from "./siteUrl"
 import { buildCheckoutUrl, normalizeBillingCycle } from "./planCheckout"
@@ -81,7 +80,7 @@ function toAbsoluteUrl(pathOrUrl) {
  * Stored `paymentLink` wins if it is already an absolute URL.
  */
 function injectTestPlanIntoBillingCycles(data) {
-  if (!isCheckoutTestPlanEnabled() || !data || typeof data !== "object") {
+  if (!data || typeof data !== "object") {
     return data
   }
   if (!Array.isArray(data.billingCycles)) return data

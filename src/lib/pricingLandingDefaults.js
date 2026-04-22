@@ -1,5 +1,36 @@
-import { appendCheckoutTestPlanToLanding } from "./checkoutTestPlan"
+import {
+  appendCheckoutTestPlanToLanding,
+  CHECKOUT_TEST_PLAN_KEY,
+} from "./checkoutTestPlan"
 import { getPublicSiteUrl } from "./siteUrl"
+
+/**
+ * Merges CMS plan rows onto defaults by `planKey` so partial DB data never drops catalog items.
+ * Same `planKey`: DB fields override defaults. Order follows defaults, then extra DB-only keys.
+ */
+export function mergePlanListWithDefaults(defaultList, dbList) {
+  if (!Array.isArray(defaultList) || defaultList.length === 0) {
+    return Array.isArray(dbList) ? dbList : []
+  }
+  if (!Array.isArray(dbList) || dbList.length === 0) {
+    return defaultList
+  }
+  const map = new Map()
+  for (const p of defaultList) {
+    if (p?.planKey) map.set(p.planKey, { ...p })
+  }
+  for (const p of dbList) {
+    if (!p?.planKey) continue
+    const base = map.get(p.planKey) || {}
+    map.set(p.planKey, { ...base, ...p })
+  }
+  const order = defaultList.map((p) => p?.planKey).filter(Boolean)
+  const out = order.map((k) => map.get(k)).filter(Boolean)
+  for (const k of map.keys()) {
+    if (!order.includes(k)) out.push(map.get(k))
+  }
+  return out
+}
 
 /**
  * Default landing pricing catalog. Stored in Mongo as type `pricingLanding` via /api/home-data.
@@ -315,10 +346,8 @@ export function mergePricingLanding(doc) {
     return { ...def, sections: { ...def.sections } }
   }
 
-  const pickArr = (key) => {
-    const r = d[key]
-    return Array.isArray(r) && r.length > 0 ? r : def[key]
-  }
+  const pickArr = (key) =>
+    mergePlanListWithDefaults(def[key], Array.isArray(d[key]) ? d[key] : [])
 
   const mergeSection = (name) => ({
     ...def.sections[name],
@@ -379,13 +408,20 @@ export function expandPricingLandingForApi(merged) {
     out[key] = mergedWithTest[key].map((plan) => {
       if (!plan || typeof plan !== "object") return plan
       const abs = toAbsolutePurchaseLink(plan)
-      return {
+      const withLinks = {
         ...plan,
         purchaseLink: abs,
         purchselink: abs,
         paymentLink: abs,
       }
+      if (withLinks.planKey === CHECKOUT_TEST_PLAN_KEY) {
+        return { ...withLinks, listOnHomepage: false }
+      }
+      return withLinks
     })
+  }
+  if (out.servicePlans) {
+    out.servicesPlans = out.servicePlans
   }
   return out
 }

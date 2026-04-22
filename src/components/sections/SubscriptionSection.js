@@ -2,6 +2,7 @@
 
 "use client"
 
+import { isCheckoutTestPlanKey } from "@/lib/checkoutTestPlan"
 import { CheckCircle } from "lucide-react"
 
 export default function SubscriptionSection({
@@ -70,7 +71,13 @@ export default function SubscriptionSection({
         {/* Plans */}
         <div className="grid md:grid-cols-3 gap-8">
 
-          {subscriptionPlans.map((plan, idx) => {
+          {subscriptionPlans
+            .filter(
+              (plan) =>
+                !isCheckoutTestPlanKey(plan?.planKey) &&
+                plan?.listOnHomepage !== false,
+            )
+            .map((plan, idx) => {
 
             const price = calculatePrice(plan.basePrice)
             const multiplier = getMultiplier()

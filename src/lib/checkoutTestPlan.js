@@ -1,7 +1,7 @@
 /**
  * ₹1 Razorpay smoke-test for the Basic subscription checkout (`subscription-basic-test`).
- * - On localhost / `next dev`: enabled automatically (NODE_ENV === "development").
- * - In production: set NEXT_PUBLIC_ENABLE_CHECKOUT_TEST_PLAN=true (then rebuild).
+ * Always merged for `/checkout?planKey=subscription-basic-test`. Never shown on the home
+ * “Our Package” block (`listOnHomepage: false` — also enforced in expand + section filter).
  */
 
 export const CHECKOUT_TEST_PLAN_KEY = "subscription-basic-test"
@@ -22,6 +22,7 @@ export function getCheckoutTestSubscriptionPlanForLanding() {
   return {
     planKey: CHECKOUT_TEST_PLAN_KEY,
     purchaseLink: `/checkout?planKey=${CHECKOUT_TEST_PLAN_KEY}`,
+    listOnHomepage: false,
     title: "Basic Plan (Test)",
     basePrice: 1,
     totalAmount: 1,
@@ -62,7 +63,7 @@ export function getCheckoutTestPlanForSubscriptionApi() {
 }
 
 export function appendCheckoutTestPlanToLanding(merged) {
-  if (!isCheckoutTestPlanEnabled() || !merged || typeof merged !== "object") {
+  if (!merged || typeof merged !== "object") {
     return merged
   }
   const plans = Array.isArray(merged.subscriptionPlans)

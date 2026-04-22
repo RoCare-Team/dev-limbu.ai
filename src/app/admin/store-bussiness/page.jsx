@@ -12,13 +12,11 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   InputAdornment,
   CircularProgress,
   LinearProgress,
   Backdrop,
   Avatar,
-  Tooltip,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -36,15 +34,15 @@ import {
   People as PeopleIcon,
 } from "@mui/icons-material";
 import { toPng } from "html-to-image";
-import Image from "next/image";
-import PowerRedLogo from "../../../../public/images/bg-logo.png";
 import { toast, Toaster } from "react-hot-toast";
+import { generateUniversalSlug, stringToSlug } from "@/utils/slugify";
 
 export default function AdminDashboard() {
   const [allUserListings, setAllUserListings] = useState([]);
+  console.log("All User Listings in store bussiness: ", allUserListings);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [qrFilterStatus, setQrFilterStatus] = useState("all");
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalListings: 0,
@@ -56,7 +54,7 @@ export default function AdminDashboard() {
   const [generatedQrsStatus, setGeneratedQrsStatus] = useState({});
   const [isGeneratingBulk, setIsGeneratingBulk] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentBusiness: "" });
-  
+
   const qrCardRef = useRef(null);
   const [activeQrData, setActiveQrData] = useState({
     business: "",
@@ -91,7 +89,7 @@ export default function AdminDashboard() {
     else setIsLoadingMore(true);
 
     try {
-      const response = await fetch(`/api/admin/saveBussiness?page=${pageNumber}&limit=20`);
+      const response = await fetch(`/api/admin/saveBussiness?page=${pageNumber}&limit=10`);
       const data = await response.json();
 
       if (data.success) {
@@ -100,12 +98,12 @@ export default function AdminDashboard() {
         } else {
           setAllUserListings(prev => [...prev, ...(data.listings || [])]);
         }
-        
+
         if (data.globalStats) {
-           setStats(prev => ({
-             ...prev,
-             ...data.globalStats
-           }));
+          setStats(prev => ({
+            ...prev,
+            ...data.globalStats
+          }));
         }
 
         setTotalPages(data.pagination?.totalPages || 1);
@@ -138,102 +136,178 @@ export default function AdminDashboard() {
       );
     }
 
-    if (filterStatus !== "all") {
-      filtered = filtered
-        .map((user) => ({
-          ...user,
-          listings: user.listings.filter((listing) =>
-            filterStatus === "verified" ? listing.verified : !listing.verified
-          ),
-        }))
-        .filter((user) => user.listings.length > 0);
+    if (qrFilterStatus !== "all") {
+      filtered = filtered.filter((user) => {
+        const hasAnyGenerated = user.listings?.some((listing) => {
+          const id = listing.locationId || listing.name;
+          return !!generatedQrsStatus[id];
+        });
+
+        if (qrFilterStatus === "generated") {
+          return hasAnyGenerated;
+        } else if (qrFilterStatus === "pending") {
+          return user.listings?.some((listing) => {
+            const id = listing.locationId || listing.name;
+            return !generatedQrsStatus[id];
+          });
+        }
+        return true;
+      });
     }
 
     return filtered;
-  }, [allUserListings, searchTerm, filterStatus]);
+  }, [allUserListings, searchTerm, qrFilterStatus, generatedQrsStatus]);
 
-  // Logic Helpers
-  const generateSlug = (str) => str.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  
   const getReviewUrl = (listing, allUserListingsData) => {
-    const title = listing.title || "";
-    const locality = listing.address?.locality || listing.storefrontAddress?.locality || "";
-    const addressLine = listing.address?.addressLines?.[0] || listing.storefrontAddress?.addressLines?.[0] || "";
+    const baseSlug = generateUniversalSlug(listing);
 
-    const baseSlug = generateSlug(`${title}-${locality}`);
     const allListingsArray = (allUserListingsData || []).flatMap(u => u.listings || []);
 
     const conflicts = allListingsArray.filter(loc => {
       if (loc.locationId === listing.locationId || loc.name === listing.name) return false;
-      const t = loc.title || "";
-      const l = loc.address?.locality || loc.storefrontAddress?.locality || "";
-      return generateSlug(`${t}-${l}`) === baseSlug;
+      return generateUniversalSlug(loc) === baseSlug;
     });
 
     let finalSlug = baseSlug;
 
-    if (conflicts.length > 0 && addressLine) {
-      const addressParts = generateSlug(addressLine).split('-');
-      const suffix = addressParts.slice(0, 2).join('-');
-      if (suffix) {
-        finalSlug = `${baseSlug}-${suffix}`;
-      } else {
-        const idPart = (listing.locationId || listing.name || "00000").substring(0, 5);
-        finalSlug = `${baseSlug}-${idPart}`;
-      }
+    if (conflicts.length > 0) {
+      const idPart = (listing.locationId || listing.name || "00000").substring(0, 5);
+      finalSlug = `${baseSlug}-${idPart}`;
     }
 
     return `${window.location.origin}/reviews/${finalSlug}`;
   };
 
+  const fetchImageAsBase64 = async (url) => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const downloadSingleQrAsPng = async (listing, user) => {
+    const id = listing.locationId || listing.name;
+    const qrUrl = generatedQrsStatus[id];
+    if (!qrUrl) {
+      toast.error("QR not generated yet");
+      return;
+    }
+
+    const locality = listing.address?.locality || listing.storefrontAddress?.locality || "";
+    const displayName = locality ? `${listing.title} - ${locality}` : listing.title;
+
+    const finalReviewURL = getReviewUrl(listing, allUserListings);
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(finalReviewURL)}&t=${Date.now()}`;
+
+    const toastId = toast.loading("Preparing PNG...");
+
+    try {
+      // 1. Pre-fetch image as base64 to ensure it renders instantly without network delay
+      const base64Qr = await fetchImageAsBase64(qrApiUrl);
+
+      // 2. Set the data with the fully loaded local base64 image
+      setActiveQrData({
+        business: displayName,
+        qrImage: base64Qr,
+        reviewUrl: finalReviewURL
+      });
+
+      // 3. Small delay to let React update the DOM
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (!qrCardRef.current) {
+        toast.error("Renderer error", { id: toastId });
+        return;
+      }
+
+      const dataUrl = await toPng(qrCardRef.current, {
+        cacheBust: true,
+        pixelRatio: 4,
+        style: { borderRadius: '32px' }
+      });
+
+      const link = document.createElement('a');
+      link.download = `QR_${stringToSlug(displayName)}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("PNG Downloaded!", { id: toastId });
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to download PNG", { id: toastId });
+    }
+  };
+
+  const downloadAllUserPngs = async (user) => {
+    const generatedListings = (user.listings || []).filter(l => {
+      const id = l.locationId || l.name;
+      return generatedQrsStatus[id];
+    });
+
+    if (generatedListings.length === 0) {
+      toast.error("No generated QRs found.");
+      return;
+    }
+
+    toast.success(`Starting download of ${generatedListings.length} PNGs...`);
+    for (const listing of generatedListings) {
+      await downloadSingleQrAsPng(listing, user);
+      // Extra delay between multiple downloads to avoid browser blocking and state collisions
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  };
+
   const processUserQrs = async (targetUser) => {
     const pendingListings = (targetUser.listings || []).filter(listing => {
-        const id = listing.locationId || listing.name;
-        return !generatedQrsStatus[id];
+      const id = listing.locationId || listing.name;
+      return !generatedQrsStatus[id];
     });
-    
+
     if (pendingListings.length === 0) {
       toast.success("All QRs for this business are already generated!");
       return;
     }
 
     if (!confirm(`Are you sure you want to generate ${pendingListings.length} QRs for ${targetUser.userName}?`)) return;
-    
+
     setIsGeneratingBulk(true);
     setBulkProgress({ current: 0, total: pendingListings.length, currentBusiness: "" });
 
     let successCount = 0;
-
     for (let i = 0; i < pendingListings.length; i++) {
       const listing = pendingListings[i];
       const locality = listing.address?.locality || listing.storefrontAddress?.locality || "";
       const displayName = locality ? `${listing.title} - ${locality}` : listing.title;
-      
+
       setBulkProgress(prev => ({ ...prev, current: i + 1, currentBusiness: displayName }));
 
       const finalReviewURL = getReviewUrl(listing, allUserListings);
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(finalReviewURL)}`;
-      
-      setActiveQrData({
-        business: displayName,
-        qrImage: qrImageUrl,
-        reviewUrl: finalReviewURL
-      });
-
-      // Increased timeout to ensure QR image loads in DOM
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (!qrCardRef.current) continue;
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(finalReviewURL)}&t=${Date.now()}`;
 
       try {
-        const dataUrl = await toPng(qrCardRef.current, { 
-          cacheBust: true, 
-          pixelRatio: 5,
-          style: {
-            borderRadius: '32px',
-          }
+        // 1. Pre-fetch the exact QR code as base64
+        const base64Qr = await fetchImageAsBase64(qrApiUrl);
+
+        // 2. Assign to state
+        setActiveQrData({
+          business: displayName,
+          qrImage: base64Qr,
+          reviewUrl: finalReviewURL
         });
-        
+
+        // 3. Wait for DOM flush (since image is base64, no network load is needed in the hidden div)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (!qrCardRef.current) continue;
+
+        const dataUrl = await toPng(qrCardRef.current, {
+          cacheBust: true,
+          pixelRatio: 5,
+          style: { borderRadius: '32px' }
+        });
+
         const uploadRes = await fetch("/api/magic-qr/upload-s3", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -247,17 +321,17 @@ export default function AdminDashboard() {
         });
 
         const uploadData = await uploadRes.json();
-        
         if (uploadData.success) {
           successCount++;
           const activeLocationId = listing.locationId || listing.name || `fallback-${Date.now()}-${i}`;
           setGeneratedQrsStatus(prev => ({ ...prev, [activeLocationId]: uploadData.url }));
         }
       } catch (err) {
-        console.error("Error generating/uploading QR:", err);
+        console.error("Error generating/uploading QR for listing:", listing.title, err);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Safety wait between iterations
+      await new Promise(resolve => setTimeout(resolve, 800));
     }
 
     setIsGeneratingBulk(false);
@@ -266,37 +340,75 @@ export default function AdminDashboard() {
 
   const exportUserQrsToDoc = (user) => {
     const generatedListings = (user.listings || []).filter(l => {
-        const id = l.locationId || l.name;
-        return generatedQrsStatus[id];
+      const id = l.locationId || l.name;
+      return generatedQrsStatus[id];
     });
-    
+
     if (generatedListings.length === 0) {
       toast.error("No generated QRs found for this user.");
       return;
     }
 
     let docHtml = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8">
-        <title>QR Codes - ${user.userName}</title>
-        <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; margin: 0; padding: 0; }
-          .page-break { page-break-before: always; }
-          .qr-container { width: 100%; text-align: center; padding: 40px 0; }
-          img { width: 380px; height: 380px; border-radius: 16px; display: block; margin: 0 auto 15px auto; }
-          .title { font-size: 20px; font-weight: bold; color: #111; margin: 0; padding: 0; }
-          .locality { font-size: 15px; color: #555; margin-top: 6px; }
-          h1 { color: #4f46e5; margin-top: 20px; margin-bottom: 5px; font-size: 26px; }
-          p.subtitle { color: #666; margin-bottom: 20px; font-size: 15px; }
-          table.wrapper { width: 100%; }
-          td.wrapper-td { text-align: center; vertical-align: middle; padding: 20px; }
-        </style>
-      </head>
-      <body>
-        <h1>Magic QR Codes</h1>
-        <p class="subtitle">Generated for: <b>${user.userName}</b> (${user.userEmail})</p>
-    `;
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+          xmlns:w="urn:schemas-microsoft-com:office:word" 
+          xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8">
+      <title>QR Codes - ${user.userName}</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Arial, sans-serif;
+          text-align: center;
+          margin: 0;
+          padding: 0;
+        }
+        h1 {
+          color: #4f46e5;
+          margin-top: 20px;
+          margin-bottom: 5px;
+          font-size: 26px;
+        }
+        .subtitle {
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 15px;
+        }
+        .page-break {
+          page-break-before: always;
+        }
+        table.wrapper {
+          width: 100%;
+        }
+        td.wrapper-td {
+          text-align: center;
+          vertical-align: middle;
+          padding: 30px 0;
+        }
+        .qr-box {
+          width: 300px;
+          margin: 0 auto;
+          text-align: center;
+        }
+        .title {
+          font-size: 20px;
+          font-weight: bold;
+          color: #111;
+          margin: 0;
+        }
+        .locality {
+          font-size: 15px;
+          color: #555;
+          margin-top: 6px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Magic QR Codes</h1>
+      <p class="subtitle">
+        Generated for: <b>${user.userName}</b> (${user.userEmail})
+      </p>
+  `;
 
     const chunkSize = 2;
     for (let i = 0; i < generatedListings.length; i += chunkSize) {
@@ -306,31 +418,54 @@ export default function AdminDashboard() {
       chunk.forEach(item => {
         const id = item.locationId || item.name;
         const imgUrl = generatedQrsStatus[id];
-        const locality = item.address?.locality || item.storefrontAddress?.locality || "Headquarters";
+        const locality =
+          item.address?.locality ||
+          item.storefrontAddress?.locality ||
+          "Headquarters";
+
         docHtml += `
-          <table class="wrapper"><tr><td class="wrapper-td">
-            <div class="qr-container">
-              <img src="${imgUrl}" alt="QR Code" width="380" height="380" />
-              <p class="title">${item.title}</p>
-              <p class="locality">${locality}</p>
-            </div>
-          </td></tr></table>
-        `;
+        <table class="wrapper">
+          <tr>
+            <td class="wrapper-td">
+              <div class="qr-box">
+                <!-- ✅ FIX: Use width/height attributes + Word-specific mso style -->
+                <img 
+                  src="${imgUrl}" 
+                  width="300" 
+                  height="300"
+                  style="width:300px; height:300px; display:block; margin:0 auto 12px auto; mso-style-priority:99;"
+                  alt="QR Code" 
+                />
+                <p class="title">${item.title}</p>
+                <p class="locality">${locality}</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      `;
       });
     }
 
     docHtml += `</body></html>`;
 
-    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+    const blob = new Blob(['\ufeff', docHtml], {
+      type: 'application/msword'
+    });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const safeName = (user.userName || "user").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+    const safeName = (user.userName || "user")
+      .replace(/[^a-z0-9]/gi, '_')
+      .toLowerCase();
+
     link.download = `QR_Codes_${safeName}.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
     toast.success(`Downloaded ${generatedListings.length} QRs!`);
   };
 
@@ -358,9 +493,7 @@ export default function AdminDashboard() {
 
     const csv = [
       Object.keys(csvData[0]).join(","),
-      ...csvData.map((row) =>
-        Object.values(row).map((val) => `"${val}"`).join(",")
-      ),
+      ...csvData.map((row) => Object.values(row).map((val) => `"${val}"`).join(",")),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
@@ -376,8 +509,8 @@ export default function AdminDashboard() {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f8fafc", pb: 8 }}>
       <Toaster position="top-right" />
-      
-      {/* HIDDEN QR RENDERER - Using plain HTML/CSS for robust capture */}
+
+      {/* HIDDEN QR RENDERER */}
       <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
         <div ref={qrCardRef} style={{ width: '340px', borderRadius: '32px', overflow: 'hidden', backgroundColor: 'white', position: 'relative' }}>
           <div style={{ position: 'absolute', inset: 0 }}>
@@ -411,202 +544,167 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-      
-      {/* Header Section */}
-      <Paper elevation={0} sx={{ p: 4, background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: 'white', borderRadius: 0 }}>
+
+      <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: 'white', borderRadius: 0 }}>
         <Container maxWidth="xl">
           <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
             <Box>
-              <Typography variant="h3" fontWeight={800} gutterBottom sx={{ fontSize: { xs: '2rem', md: '3rem' } }}>Store Business</Typography>
-              <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>Manage and monitor all connected user business listings</Typography>
+              <Typography variant="h5" fontWeight={800} gutterBottom sx={{ fontSize: { xs: '1.5rem', md: '1.75rem' }, m: 0 }}>Store Business</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Monitor and manage connected business listings</Typography>
             </Box>
-            <Button 
-              variant="contained" 
-              startIcon={<RefreshIcon className={loading ? "animate-spin" : ""} />}
+            <Button
+              variant="contained" size="small"
+              startIcon={<RefreshIcon className={loading ? "animate-spin" : ""} sx={{ fontSize: 18 }} />}
               onClick={() => { fetchAllUserListings(1); fetchGeneratedQrStatus(); }}
-              sx={{ bgcolor: 'rgba(255,255,255,0.2)', '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }, textTransform: 'none', fontWeight: 600 }}
+              sx={{ bgcolor: 'rgba(255,255,255,0.2)', '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }, textTransform: 'none', fontWeight: 600, px: 2 }}
             >
-              Refresh Data
+              Refresh
             </Button>
           </Box>
         </Container>
       </Paper>
 
-      <Container maxWidth="xl" sx={{ mt: -4 }}>
-        {/* Stats Grid */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <StatItem title="Total Users" value={stats.totalUsers} icon={<PeopleIcon />} color="#3b82f6" />
-          <StatItem title="Total Listings" value={stats.totalListings} icon={<BusinessIcon />} color="#8b5cf6" />
-          <StatItem title="Verified" value={stats.verifiedListings} icon={<VerifiedIcon />} color="#10b981" />
-          <StatItem title="QRs Ready" value={stats.totalGeneratedQrs} icon={<QrCodeIcon />} color="#6366f1" />
-          <StatItem title="Pending QRs" value={pendingCount} icon={<PendingIcon />} color="#f59e0b" />
+      <Container maxWidth="xl" sx={{ mt: -2.5 }}>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <StatItem title="Total Users" value={stats.totalUsers} icon={<PeopleIcon sx={{ fontSize: 20 }} />} color="#3b82f6" />
+          <StatItem title="Total Listings" value={stats.totalListings} icon={<BusinessIcon sx={{ fontSize: 20 }} />} color="#8b5cf6" />
+          <StatItem title="Verified" value={stats.verifiedListings} icon={<VerifiedIcon sx={{ fontSize: 20 }} />} color="#10b981" />
+          <StatItem title="QRs Ready" value={stats.totalGeneratedQrs} icon={<QrCodeIcon sx={{ fontSize: 20 }} />} color="#6366f1" />
+          <StatItem title="Pending" value={pendingCount} icon={<PendingIcon sx={{ fontSize: 20 }} />} color="#f59e0b" />
         </Grid>
 
-        {/* Filter Section */}
-        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 4 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} lg={6}>
+        <Paper elevation={1} sx={{ p: 1.8, mb: 3, borderRadius: 2.5, border: '1px solid #e2e8f0' }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={6} lg={6}>
               <TextField
-                fullWidth
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                fullWidth size="small" placeholder="Search by name or email..."
+                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment>) }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
               />
             </Grid>
-            <Grid item xs={12} md={8} lg={4}>
-              <Box display="flex" gap={1}>
-                {["all", "verified", "unverified"].map((status) => (
+            <Grid item xs={12} sm={8} md={4} lg={4}>
+              <Box display="flex" gap={0.5} bgcolor="#f1f5f9" p={0.6} borderRadius={2}>
+                {["all", "generated", "pending"].map((status) => (
                   <Button
-                    key={status}
-                    variant={filterStatus === status ? "contained" : "outlined"}
-                    onClick={() => setFilterStatus(status)}
-                    color={status === "verified" ? "success" : status === "unverified" ? "error" : "primary"}
-                    sx={{ textTransform: 'capitalize', borderRadius: 2, flex: 1 }}
+                    key={status} size="small" variant={qrFilterStatus === status ? "contained" : "text"}
+                    onClick={() => setQrFilterStatus(status)}
+                    color={status === "generated" ? "info" : status === "pending" ? "warning" : "primary"}
+                    sx={{ textTransform: 'capitalize', borderRadius: 1.5, flex: 1, fontSize: '0.8rem', fontWeight: 700, py: 0.6 }}
                   >
-                    {status}
+                    {status === "all" ? "All" : status === "generated" ? "Ready" : "Pending"}
                   </Button>
                 ))}
               </Box>
             </Grid>
-            <Grid item xs={12} md={4} lg={2}>
+            <Grid item xs={12} sm={4} md={2} lg={2}>
               <Button
-                fullWidth
-                variant="contained"
-                startIcon={<DownloadIcon />}
+                fullWidth size="medium" variant="contained" startIcon={<DownloadIcon sx={{ fontSize: 18 }} />}
                 onClick={exportToCSV}
-                sx={{ bgcolor: '#1e293b', '&:hover': { bgcolor: '#0f172a' }, textTransform: 'none', py: 1.5, borderRadius: 3 }}
+                sx={{ bgcolor: '#1e293b', '&:hover': { bgcolor: '#0f172a' }, textTransform: 'none', py: 0.9, borderRadius: 2, fontWeight: 700, fontSize: '0.85rem' }}
               >
-                Export CSV
+                CSV Export
               </Button>
             </Grid>
           </Grid>
         </Paper>
 
-        {/* User Content */}
         {loading ? (
-          <Box display="flex" justifyContent="center" py={10}>
-            <CircularProgress size={60} />
-          </Box>
+          <Box display="flex" justifyContent="center" py={10}><CircularProgress size={40} /></Box>
         ) : filteredUsers.length === 0 ? (
-          <Paper sx={{ p: 10, textAlign: 'center', borderRadius: 4 }}>
-            <PeopleIcon sx={{ fontSize: 80, color: '#cbd5e1', mb: 2 }} />
-            <Typography variant="h5" color="textSecondary" fontWeight={600}>No Users Found</Typography>
+          <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4, border: '1px dashed #cbd5e1', bgcolor: 'transparent' }}>
+            <PeopleIcon sx={{ fontSize: 48, color: '#cbd5e1', mb: 1.5 }} /><Typography variant="body1" color="textSecondary" fontWeight={600}>No matches found</Typography>
           </Paper>
         ) : (
-          <Box display="flex" flexDirection="column" gap={4}>
+          <Box display="flex" flexDirection="column" gap={2.5}>
             {filteredUsers.map((user, idx) => {
-              const userGeneratedCount = (user.listings || []).filter(l => {
-                const id = l.locationId || l.name;
-                return generatedQrsStatus[id];
-              }).length;
+              const userGeneratedCount = (user.listings || []).filter(l => generatedQrsStatus[l.locationId || l.name]).length;
               const pendingQrs = (user.listings?.length || 0) - userGeneratedCount;
               const hasGenerated = userGeneratedCount > 0;
 
               return (
-                <Card key={idx} elevation={3} sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                  <Box sx={{ p: 3, background: 'linear-gradient(to right, #f8fafc, #eff6ff)', borderBottom: '1px solid #e2e8f0' }}>
-                    <Grid container justifyContent="space-between" alignItems="center" spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar sx={{ bgcolor: '#4f46e5', width: 56, height: 56 }}>{user.userName?.charAt(0).toUpperCase() || 'U'}</Avatar>
+                <Card key={idx} elevation={1} sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                  <Box sx={{ p: 2, background: 'linear-gradient(to right, #ffffff, #f8fafc)', borderBottom: '1px solid #f1f5f9' }}>
+                    <Grid container justifyContent="space-between" alignItems="center" spacing={1.5}>
+                      <Grid item xs={12} sm={6}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                          <Avatar sx={{ bgcolor: '#4f46e5', width: 40, height: 40 }}>{user.userName?.charAt(0).toUpperCase() || 'U'}</Avatar>
                           <Box>
-                            <Typography variant="h6" fontWeight={700}>{user.userName || 'Anonymous'}</Typography>
-                            <Typography variant="body2" color="textSecondary">{user.userEmail}</Typography>
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>{user.userName || 'Anonymous'}</Typography>
+                            <Typography variant="caption" color="textSecondary">{user.userEmail}</Typography>
                           </Box>
                         </Box>
                       </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Box display="flex" alignItems="center" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} gap={3} flexWrap="wrap">
-                          <Box textAlign="right">
-                            <Typography variant="caption" color="textSecondary" fontWeight={700} sx={{ display: 'block' }}>LOCATIONS</Typography>
-                            <Typography variant="h5" fontWeight={800} color="primary">{user.totalListings}</Typography>
+                      <Grid item xs={12} sm={6}>
+                        <Box display="flex" alignItems="center" justifyContent={{ xs: 'flex-start', sm: 'flex-end' }} gap={2} flexWrap="wrap">
+                          <Box textAlign="right" sx={{ mr: 1 }}>
+                            <Typography variant="caption" color="textSecondary" fontWeight={700} sx={{ display: 'block', fontSize: '0.65rem' }}>LOCATIONS</Typography>
+                            <Typography variant="h6" fontWeight={800} color="primary" sx={{ lineHeight: 1 }}>{user.totalListings}</Typography>
                           </Box>
-                          <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
-                          <Box display="flex" flexDirection={{ xs: 'row', sm: 'column' }} gap={1} flexWrap="wrap">
-                            {pendingQrs === 0 ? (
-                              <Chip icon={<CheckCircleIcon />} label="All QRs Ready" color="success" sx={{ fontWeight: 700 }} />
-                            ) : (
-                              <Button 
-                                variant="contained" 
-                                startIcon={<QrCodeIcon />} 
-                                size="small"
-                                onClick={() => processUserQrs(user)}
-                                disabled={isGeneratingBulk}
-                                sx={{ borderRadius: 2, textTransform: 'none' }}
+                          <Box display="flex" gap={1}>
+                            {pendingQrs > 0 ? (
+                              <Button
+                                variant="contained" size="small" startIcon={<QrCodeIcon sx={{ fontSize: 16 }} />}
+                                onClick={() => processUserQrs(user)} disabled={isGeneratingBulk}
+                                sx={{ borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem' }}
                               >
-                                Generate {pendingQrs} QRs
+                                {pendingQrs} QRs
                               </Button>
+                            ) : (
+                              <Chip size="small" icon={<CheckCircleIcon sx={{ fontSize: 14 }} />} label="Ready" color="success" sx={{ height: 26, fontWeight: 700 }} />
                             )}
                             {hasGenerated && (
-                              <Button 
-                                variant="outlined" 
-                                color="secondary"
-                                startIcon={<FileTextIcon />} 
-                                size="small"
-                                onClick={() => exportUserQrsToDoc(user)}
-                                sx={{ borderRadius: 2, textTransform: 'none' }}
-                              >
-                                Export to DOC
-                              </Button>
+                              <>
+                                <Button
+                                  variant="outlined" color="secondary" size="small" startIcon={<FileTextIcon sx={{ fontSize: 16 }} />}
+                                  onClick={() => exportUserQrsToDoc(user)} sx={{ borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem' }}
+                                >
+                                  Doc
+                                </Button>
+                                <Button
+                                  variant="outlined" color="info" size="small" startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+                                  onClick={() => downloadAllUserPngs(user)} sx={{ borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem' }}
+                                >
+                                  PNG
+                                </Button>
+                              </>
                             )}
                           </Box>
                         </Box>
                       </Grid>
                     </Grid>
                   </Box>
-                  <CardContent sx={{ p: 3, bgcolor: '#ffffff' }}>
-                    <Grid container spacing={2}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Grid container spacing={1.5}>
                       {(user.listings || []).map((listing, i) => {
                         const id = listing.locationId || listing.name;
                         const qrUrl = generatedQrsStatus[id];
-                        const locality = listing.address?.locality || listing.storefrontAddress?.locality || "N/A";
-                        const phone = listing.phone || listing.phoneNumbers?.primaryPhone || 'N/A';
-
+                        const locality = listing.address?.locality || listing.storefrontAddress?.locality || listing.profile?.address?.locality || 'N/A';
+                        const phone = listing.phone || listing.phoneNumbers?.primaryPhone || listing.primaryPhone || 'N/A';
                         return (
-                          <Grid item xs={12} sm={6} lg={4} key={i}>
-                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, '&:hover': { borderColor: '#4f46e5', bgcolor: '#fcfdff' }, transition: '0.2s', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5} gap={1}>
-                                <Typography variant="subtitle2" fontWeight={800} color="#1e293b" sx={{ lineHeight: 1.3 }}>
-                                  {listing.title}
-                                </Typography>
+                          <Grid item xs={12} sm={6} md={4} key={i}>
+                            <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: '#fcfdff', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                              <Box display="flex" justifyContent="space-between" mb={1}>
+                                <Typography variant="caption" fontWeight={800} sx={{ lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{listing.title || listing.locationName || 'Unnamed Business'}</Typography>
+                                {qrUrl ? <CheckCircleIcon color="success" sx={{ fontSize: 16 }} /> : <CancelIcon sx={{ color: '#cbd5e1', fontSize: 16 }} />}
+                              </Box>
+                              <Box display="flex" alignItems="center" gap={0.5} mb={0.2}><MapPinIcon sx={{ fontSize: 12, color: '#94a3b8' }} /><Typography variant="caption" color="textSecondary">{locality}</Typography></Box>
+                              <Box display="flex" alignItems="center" gap={0.5} mb={1}><PhoneIcon sx={{ fontSize: 12, color: '#94a3b8' }} /><Typography variant="caption" color="textSecondary">{phone}</Typography></Box>
+                              <Box sx={{ mt: 'auto', pt: 1, borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 {qrUrl ? (
-                                  <Tooltip title="QR Generated">
-                                    <CheckCircleIcon color="success" sx={{ fontSize: 20, mt: 0.3 }} />
-                                  </Tooltip>
-                                ) : (
-                                  <Tooltip title="QR Not Generated">
-                                    <CancelIcon sx={{ color: '#cbd5e1', fontSize: 20, mt: 0.3 }} />
-                                  </Tooltip>
-                                )}
-                              </Box>
-                              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                                <MapPinIcon sx={{ fontSize: 14, color: '#94a3b8', flexShrink: 0 }} />
-                                <Typography variant="caption" color="textSecondary">{locality}</Typography>
-                              </Box>
-                              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                                <PhoneIcon sx={{ fontSize: 14, color: '#94a3b8', flexShrink: 0 }} />
-                                <Typography variant="caption" color="textSecondary">{phone}</Typography>
-                              </Box>
-                              <Box sx={{ mt: 'auto', pt: 1.5 }}>
-                                <Divider sx={{ mb: 1.5, borderStyle: 'dashed' }} />
-                                <Box display="flex" justifyContent="space-between" alignItems="center">
-                                  {qrUrl ? (
-                                    <>
-                                      <Chip size="small" color="success" label="QR READY" sx={{ height: 22, fontSize: '0.65rem', fontWeight: 800, bgcolor: '#ecfdf5', color: '#15803d', border: '1px solid #10b981' }} />
-                                      <Typography variant="caption" component="a" href={qrUrl} target="_blank" color="primary" sx={{ fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>View Image</Typography>
-                                    </>
-                                  ) : (
-                                    <Chip size="small" label="PENDING" sx={{ height: 22, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }} />
-                                  )}
-                                </Box>
+                                  <>
+                                    <Chip size="small" label="READY" color="success" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800 }} />
+                                    <Box display="flex" gap={1} alignItems="center">
+                                      <Typography variant="caption" component="a" href={qrUrl} target="_blank" color="primary" sx={{ fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>View</Typography>
+                                      <DownloadIcon
+                                        onClick={() => downloadSingleQrAsPng(listing, user)}
+                                        color="secondary"
+                                        sx={{ fontSize: 18, cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+                                        titleAccess="Download PNG"
+                                      />
+                                    </Box>
+                                  </>
+                                ) : <Chip size="small" label="PENDING" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />}
                               </Box>
                             </Paper>
                           </Grid>
@@ -617,48 +715,17 @@ export default function AdminDashboard() {
                 </Card>
               );
             })}
-
-            {page < totalPages && (
-              <Box textAlign="center" mt={2}>
-                <Button 
-                  variant="outlined" 
-                  size="large" 
-                  onClick={handleLoadMore} 
-                  disabled={isLoadingMore}
-                  sx={{ px: 6, py: 1.5, borderRadius: 4, fontWeight: 700, border: '2px solid' }}
-                >
-                  {isLoadingMore ? <CircularProgress size={24} sx={{ mr: 1 }} /> : "Load More Businesses"}
-                </Button>
-              </Box>
-            )}
+            <Box textAlign="center" mt={3}><Button variant="outlined" size="small" onClick={handleLoadMore} disabled={isLoadingMore || page >= totalPages} sx={{ px: 5, py: 1.2, borderRadius: 2.5, fontWeight: 700, fontSize: '0.85rem' }}>{isLoadingMore ? "Loading..." : page >= totalPages ? "All Businesses Loaded" : "Load More Businesses"}</Button></Box>
           </Box>
         )}
       </Container>
 
-      {/* Bulk Progress Overlay */}
       <Backdrop open={isGeneratingBulk} sx={{ zIndex: 9999, color: '#fff', flexDirection: 'column', backdropFilter: 'blur(4px)' }}>
-        <Paper elevation={10} sx={{ p: 4, borderRadius: 5, width: { xs: '90%', sm: 450 }, textAlign: 'center' }}>
-          <Typography variant="h5" fontWeight={800} gutterBottom color="primary">Generating Magic QRs</Typography>
-          <Typography variant="body1" fontWeight={600} color="textSecondary" sx={{ mb: 1 }}>
-            Processing {bulkProgress.current} of {bulkProgress.total}
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-            Please wait while we generate high-quality branded assets
-          </Typography>
-          <LinearProgress 
-            variant="determinate" 
-            value={(bulkProgress.current / bulkProgress.total) * 100} 
-            sx={{ height: 12, borderRadius: 6, mb: 4, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { borderRadius: 6 } }}
-          />
-          <Box bgcolor="#f8fafc" p={2.5} borderRadius={3} mb={2} border="1px solid #e2e8f0">
-            <Typography variant="subtitle2" color="textSecondary" gutterBottom>Currently Processing:</Typography>
-            <Typography variant="body2" fontWeight={800} color="#1e293b" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {bulkProgress.currentBusiness}
-            </Typography>
-          </Box>
-          <Typography variant="caption" color="error" fontWeight={800} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-            <PendingIcon sx={{ fontSize: 14 }} /> DO NOT REFRESH OR CLOSE TAB
-          </Typography>
+        <Paper sx={{ p: 4, borderRadius: 5, width: 400, textAlign: 'center' }}>
+          <Typography variant="h6" fontWeight={800} color="primary" gutterBottom>Generating Magic QRs</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>Processing {bulkProgress.current} of {bulkProgress.total}</Typography>
+          <LinearProgress variant="determinate" value={(bulkProgress.current / bulkProgress.total) * 100} sx={{ height: 10, borderRadius: 5, mb: 2 }} />
+          <Typography variant="caption" color="textSecondary">{bulkProgress.currentBusiness}</Typography>
         </Paper>
       </Backdrop>
     </Box>
@@ -667,23 +734,12 @@ export default function AdminDashboard() {
 
 function StatItem({ title, value, icon, color }) {
   return (
-    <Grid item xs={12} sm={6} md={2.4}>
-      <Paper elevation={3} sx={{ 
-        p: 3, 
-        borderRadius: 4, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        borderLeft: `8px solid ${color}`,
-        transition: 'transform 0.2s',
-        '&:hover': { transform: 'translateY(-4px)' }
-      }}>
+    <Grid item xs={6} sm={4} md={2.4}>
+      <Paper elevation={1} sx={{ p: 2, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2, border: '1px solid #e2e8f0', height: '100%' }}>
+        <Box sx={{ p: 1, borderRadius: 2, bgcolor: `${color}12`, color: color, display: 'flex' }}>{icon}</Box>
         <Box>
-          <Typography variant="caption" color="textSecondary" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>{title}</Typography>
-          <Typography variant="h4" fontWeight={900} sx={{ color: '#1e293b' }}>{value}</Typography>
-        </Box>
-        <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: `${color}15`, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {icon}
+          <Typography variant="caption" color="textSecondary" fontWeight={800} sx={{ textTransform: 'uppercase', fontSize: '0.6rem' }}>{title}</Typography>
+          <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1 }}>{value}</Typography>
         </Box>
       </Paper>
     </Grid>

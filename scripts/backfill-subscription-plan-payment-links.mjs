@@ -10,7 +10,11 @@
  *
  * Link host: set NEXT_PUBLIC_SITE_URL=https://limbu.ai (or http://localhost:3000 for dev).
  *
- * Run from repo root:
+ * Test plan (`subscription-basic-test`) is stored with payment links for direct checkout only;
+ * it is not shown on the home “Our Package” section (`listOnHomepage: false`).
+ *
+ * Run from repo root (writes `homedatas` for subscriptionPlans + pricingLanding):
+ *   npm run backfill:payment-links
  *   npm run backfill:subscription-payment-links
  *   node scripts/backfill-subscription-plan-payment-links.mjs
  */

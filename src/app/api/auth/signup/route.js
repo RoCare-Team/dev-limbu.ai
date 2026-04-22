@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs"; // password ko hash karta hai (encrypt nahi, hash
 import mongoose from "mongoose";// custom schema banane ke liye 
 
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 
 // Define Setting Schema for Round Robin
 const SettingSchema = new mongoose.Schema({
@@ -90,6 +91,10 @@ export async function POST(req) { // Ye Signup API hai.
     });
 
     await newUser.save(); // Database mein save kar diya.
+
+    void runWelcomeBonusForUserId(newUser.userId).catch((err) =>
+      console.error("runWelcomeBonusForUserId", err),
+    );
 
     void runNewUserOnboarding(newUser.userId).catch((err) =>
       console.error("runNewUserOnboarding", err),

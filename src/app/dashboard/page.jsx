@@ -1562,7 +1562,7 @@ export default function DashboardPage() {
       setSummary({ total, verified, unverified, pending });
 
       const locationDetails = listings.map(item => {
-        const locationId = item.name.split("/")[1];
+        const locationId = item?.name?.split("/")[1];
         const accountId = item.accountId || "";
         const locality = item.storefrontAddress?.locality || "";
         const address = item.storefrontAddress?.addressLines?.[0] || "";

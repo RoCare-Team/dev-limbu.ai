@@ -57,7 +57,8 @@ export default function AuthGuard({ children }) {
       "/car-garage-marketing-software",
       "/tour-travel-marketing-software",
       "/yoga-wellness-marketing-software",
-      "/handyman-marketing-software"
+      "/handyman-marketing-software",
+      "/google-business-management-service"
 
     ];
 

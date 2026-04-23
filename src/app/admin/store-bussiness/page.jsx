@@ -1,4 +1,5 @@
 "use client";
+import jsPDF from "jspdf";
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import {
@@ -469,6 +470,176 @@ export default function AdminDashboard() {
     toast.success(`Downloaded ${generatedListings.length} QRs!`);
   };
 
+
+  // ✅ Add this ref at the top with other refs (near qrCardRef)
+  const isPdfDownloading = useRef(false);
+
+  const exportUserQrsToPdf = async (user) => {
+    // ✅ FIX 1: Prevent double download
+    if (isPdfDownloading.current) return;
+    isPdfDownloading.current = true;
+
+    const generatedListings = (user.listings || []).filter(l => {
+      const id = l.locationId || l.name;
+      return generatedQrsStatus[id];
+    });
+
+    if (generatedListings.length === 0) {
+      toast.error("No generated QRs found for this user.");
+      isPdfDownloading.current = false;
+      return;
+    }
+
+    const toastId = toast.loading(`Preparing PDF for ${generatedListings.length} QR(s)...`);
+
+    try {
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = 210;
+
+      // ✅ FIX 2: Updated to 520px height
+      // Formula: px * 25.4 / 96
+      const imgWidthMm = (380 * 25.4) / 96;   // ≈ 100.54mm
+      const imgHeightMm = (520 * 25.4) / 96;  // ≈ 137.58mm (520px)
+
+      const imgX = (pageWidth - imgWidthMm) / 2;
+
+      for (let i = 0; i < generatedListings.length; i++) {
+        const item = generatedListings[i];
+        const id = item.locationId || item.name;
+        const imgUrl = generatedQrsStatus[id];
+
+        const locality =
+          item.address?.locality ||
+          item.storefrontAddress?.locality ||
+          "Headquarters";
+
+        const title = item.title || "Business";
+
+        if (i > 0) pdf.addPage();
+
+        // --- Header ---
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(22);
+        pdf.setTextColor(79, 70, 229);
+        pdf.text("Magic QR Codes", pageWidth / 2, 18, { align: "center" });
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(
+          `Generated for: ${user.userName} (${user.userEmail})`,
+          pageWidth / 2, 26, { align: "center" }
+        );
+
+        // ✅ Strategy 1: Proxy route
+        let base64Img = null;
+        try {
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          const response = await fetch(proxyUrl, { signal: controller.signal });
+          clearTimeout(timeout);
+          if (response.ok) {
+            const blob = await response.blob();
+            base64Img = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (err) {
+          console.warn(`⚠️ Proxy failed for "${title}":`, err.message);
+        }
+
+        // ✅ Strategy 2: Direct fetch
+        if (!base64Img) {
+          try {
+            const response = await fetch(imgUrl, { mode: "cors", cache: "no-cache" });
+            if (response.ok) {
+              const blob = await response.blob();
+              base64Img = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            }
+          } catch (err) {
+            console.warn(`⚠️ Direct fetch failed for "${title}":`, err.message);
+          }
+        }
+
+        // ✅ Strategy 3: Canvas fallback
+        if (!base64Img) {
+          try {
+            base64Img = await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth || 380;
+                canvas.height = img.naturalHeight || 520;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL("image/png"));
+              };
+              img.onerror = reject;
+              img.src = `${imgUrl}${imgUrl.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+            });
+          } catch (err) {
+            console.warn(`⚠️ Canvas failed for "${title}":`, err.message);
+          }
+        }
+
+        // --- Add image or placeholder ---
+        const imgY = 35;
+        if (base64Img) {
+          pdf.addImage(base64Img, "PNG", imgX, imgY, imgWidthMm, imgHeightMm);
+        } else {
+          pdf.setDrawColor(220, 220, 220);
+          pdf.setFillColor(248, 250, 252);
+          pdf.roundedRect(imgX, imgY, imgWidthMm, imgHeightMm, 3, 3, "FD");
+          pdf.setFontSize(11);
+          pdf.setTextColor(180, 180, 180);
+          pdf.text("QR Image unavailable", pageWidth / 2, imgY + imgHeightMm / 2, { align: "center" });
+        }
+
+        // --- Business Title ---
+        const textY = imgY + imgHeightMm + 10;
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(16);
+        pdf.setTextColor(17, 17, 17);
+        pdf.text(title, pageWidth / 2, textY, { align: "center" });
+
+        // --- Locality ---
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(12);
+        pdf.setTextColor(85, 85, 85);
+        pdf.text(locality, pageWidth / 2, textY + 8, { align: "center" });
+      }
+
+      const safeName = (user.userName || "user")
+        .replace(/[^a-z0-9]/gi, "_")
+        .toLowerCase();
+
+      pdf.save(`QR_Codes_${safeName}.pdf`);
+      toast.success(`Downloaded ${generatedListings.length} QR(s) as PDF!`, { id: toastId });
+
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      toast.error("Failed to generate PDF", { id: toastId });
+    } finally {
+      // ✅ FIX 1: Always release the lock when done
+      isPdfDownloading.current = false;
+    }
+  };
+
   const exportToCSV = () => {
     if (allUserListings.length === 0) return;
     const csvData = [];
@@ -657,9 +828,11 @@ export default function AdminDashboard() {
                               <>
                                 <Button
                                   variant="outlined" color="secondary" size="small" startIcon={<FileTextIcon sx={{ fontSize: 16 }} />}
-                                  onClick={() => exportUserQrsToDoc(user)} sx={{ borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem' }}
+                                  onClick={() => exportUserQrsToPdf(user)} sx={{ borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem' }}
+                                  disabled={isPdfDownloading.current}
+
                                 >
-                                  Doc
+                                  Pdf
                                 </Button>
                                 <Button
                                   variant="outlined" color="info" size="small" startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}

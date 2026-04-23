@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
     freeUsedCount: { type: Number },
     GstNumber: { type: String },
     Remarks: { type: String },
-    paidService: { type: String},
+    paidService: { type: String },
     paidPackage: { type: String },
     planDuration: { type: String },
 
@@ -112,7 +112,7 @@ const userSchema = new mongoose.Schema(
 
     source: {
       type: String,
-      enum: ["signup", "bulk-upload", "csv-import", "excel-import"],
+      enum: ["signup", "website", "bulk-upload", "csv-import", "excel-import"],
       default: "signup",
     },
 

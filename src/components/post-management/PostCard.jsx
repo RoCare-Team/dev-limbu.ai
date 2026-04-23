@@ -225,10 +225,10 @@ const PostCard = React.memo(({
                 <Send size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" /> Post to GMB
               </button>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => handleFacebookPost(post)} className="py-3.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                <button onClick={() => handleFacebookPost(post)} className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm">
                   <Facebook size={14} /> Facebook
                 </button>
-                <button onClick={() => handleInstagramPost(post)} className="py-3.5 bg-pink-50 border border-pink-100 text-pink-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-pink-600 hover:text-white transition-all shadow-sm">
+                <button onClick={() => handleInstagramPost(post)} className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm">
                   <Instagram size={14} /> Instagram
                 </button>
               </div>
@@ -245,12 +245,15 @@ const PostCard = React.memo(({
                 {isPostedFb && <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">FB Live</span>}
                 {isPostedIg && <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">IG Live</span>}
               </div>
+              <button onClick={() => handlePost(post)} className="w-full py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm">
+                <RefreshCw size={14} className="text-[#EAB308] group-hover:text-black" /> Repost GMB
+              </button>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => handlePost(post)} className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm">
-                  <RefreshCw size={14} className="text-[#EAB308] group-hover:text-black" /> Repost GMB
+                <button onClick={() => handleFacebookPost(post)} className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm">
+                  <Facebook size={14} className="text-[#EAB308] group-hover:text-black" /> Repost FB
                 </button>
-                <button onClick={() => handleFacebookPost(post)} className="py-3.5 bg-white border-2 border-blue-600 text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                  <Facebook size={14} className="text-blue-600 group-hover:text-white" /> Repost FB
+                <button onClick={() => handleInstagramPost(post)} className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm">
+                  <Instagram size={14} className="text-[#EAB308] group-hover:text-black" /> Repost IG
                 </button>
               </div>
             </div>

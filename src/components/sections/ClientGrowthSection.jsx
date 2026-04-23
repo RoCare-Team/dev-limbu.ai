@@ -141,7 +141,7 @@ function ClientGrowthSection() {
                 Real User GMB Profile <br />
                 <span style={{ color: "#EAB308" }}>Growth — Last 3 Months</span>
               </h3>
-              <p className="text-xs font-semibold text-slate-400 mt-1">After joining Limbu.ai · Feb 2025 – Apr 2025</p>
+              <p className="text-xs font-semibold text-slate-400 mt-1">After joining Limbu.ai · Feb 2026 – Apr 2026</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -267,28 +267,7 @@ function ClientGrowthSection() {
           </div>
 
           {/* ── Radar Chart ── */}
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4">
-              Before vs After — Overall GMB Strength
-            </p>
-            <div className="flex flex-wrap gap-4 mb-3">
-              {[{ color: "rgba(234,179,8,0.35)", label: "Before Limbu.ai" }, { color: "#EAB308", label: "After Limbu.ai" }].map(l => (
-                <span key={l.label} className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                  <span className="w-3 h-3 rounded-sm" style={{ background: l.color }} />
-                  {l.label}
-                </span>
-              ))}
-            </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={90}>
-                <PolarGrid stroke="#f1f5f9" />
-                <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 700 }} />
-                <Radar name="Before" dataKey="before" stroke="rgba(234,179,8,0.5)" fill="rgba(234,179,8,0.08)" strokeWidth={1.5} strokeDasharray="4 3" />
-                <Radar name="After"  dataKey="after"  stroke="#EAB308"              fill="rgba(234,179,8,0.15)" strokeWidth={2.5} />
-                <Tooltip content={<CustomTooltip />} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
+        
 
         </div>
         {/* ── end GMB Dashboard ── */}

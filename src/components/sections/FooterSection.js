@@ -58,10 +58,10 @@ export default function FooterSection() {
           <div className="md:col-span-4">
             <Link href="/" className="inline-block mb-8">
               <Image
-                src="/images/limbuailogo.png"
+                src="/images/bg-logo.png"
                 alt="Limbu.ai Logo"
                 width={160}
-                height={50}
+                height={20}
                 className="h-auto" // Removed the invert filter to keep original colors
               />
             </Link>

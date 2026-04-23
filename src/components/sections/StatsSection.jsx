@@ -83,22 +83,22 @@ export default function StatsSection() {
             <AnimatedNumber end={2.3} decimals={1} suffix="x" />
 
             <p
-              className="text-[15px] md:text-base mt-3 mb-1.5 font-bold"
-              style={{ color: "var(--foreground)" }}
-            >
-              Follower growth
-            </p>
+  className="text-[15px] md:text-base mt-3 mb-1.5 font-bold"
+  style={{ color: "var(--foreground)" }}
+>
+  Profile visibility growth
+</p>
 
-            <p
-              className="text-xs md:text-[14px] leading-relaxed max-w-[240px]"
-              style={{ color: "var(--tech-gray)" }}
-            >
-              Top customers more than double their{" "}
-              <strong style={{ color: "var(--foreground)" }}>
-                following
-              </strong>{" "}
-              in 30 days.
-            </p>
+<p
+  className="text-xs md:text-[14px] leading-relaxed max-w-[240px]"
+  style={{ color: "var(--tech-gray)" }}
+>
+  Businesses see higher visibility on{" "}
+  <strong style={{ color: "var(--foreground)" }}>
+    Google Search & Maps
+  </strong>{" "}
+  within 30 days.
+</p>
           </div>
 
           {/* Stat 2 */}

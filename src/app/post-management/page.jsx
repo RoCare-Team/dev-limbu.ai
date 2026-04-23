@@ -61,6 +61,10 @@ import "./PostManagement.module.css";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
+import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
+
+
+
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
 
@@ -348,11 +352,15 @@ export default function PostManagementPage() {
     if (!userId) return;
     try {
       const userData = await getUserWalletAction(userId);
-      if ((userData.wallet || 0) < AI_IMAGE_GENERATION_COINS) {
+      const currentBalance = userData?.wallet ?? 0;
+      setUserWallet(currentBalance);
+
+      if (currentBalance < AI_IMAGE_GENERATION_COINS) {
         setRequiredCoins(AI_IMAGE_GENERATION_COINS);
         updateUiState({ showInsufficientBalance: true });
         return;
       }
+
       updateUiState({ isGenerating: true, countdown: 59 });
       const timer = setInterval(() => {
         setUiState(prev => {
@@ -362,27 +370,44 @@ export default function PostManagementPage() {
       }, 1000);
 
       let logoBase64 = logo ? await fileToBase64(logo) : null;
-      const res = await generateWithAiAgentAction(prompt, stripBase64(logoBase64), selectedAssets.map(a => ({ ...a, url: stripBase64(a.url) })));
+      const res = await generateWithAiAgentAction(
+        prompt,
+        stripBase64(logoBase64),
+        selectedAssets.map(a => ({ ...a, url: stripBase64(a.url) }))
+      );
       clearInterval(timer);
-      if (!res.success) throw new Error("AI failed");
+      if (!res.success) throw new Error(res.error || "AI generation failed");
 
       const data = res.data || {};
       const { gmb_des, fb_des, ig_des } = normalizePlatformDescriptions({ ...res, ...data });
-      await deductFromWalletAction(userId, { amount: AI_IMAGE_GENERATION_COINS, type: "deduct", reason: "image_generated" });
-      setUserWallet(prev => prev - AI_IMAGE_GENERATION_COINS);
 
+      // ✅ Save post first
       const saved = await savePostAction({
-        userId, aiOutput: data.output, description: data.description || gmb_des || "Generated",
-        gmbDescription: gmb_des, fbDescription: fb_des, igDescription: ig_des, logoUrl: data.logoUrl,
-        status: "pending", promat: prompt, locations: []
+        userId, aiOutput: data.output,
+        description: data.description || gmb_des || "Generated",
+        gmbDescription: gmb_des, fbDescription: fb_des, igDescription: ig_des,
+        logoUrl: data.logoUrl, status: "pending", promat: prompt, locations: []
       });
-      if (saved.success) {
-        setPosts(prev => [saved.data, ...prev]);
-        setPreviewData(saved.data);
-        showToast("Generated! 🎉");
-      }
+      if (!saved.success) throw new Error(saved.error || "Failed to save post");
+
+      // ✅ Deduct coins ONLY after post saved successfully
+      const walletRes = await deductFromWalletAction(userId, {
+        amount: AI_IMAGE_GENERATION_COINS, type: "deduct", reason: "image_generated"
+      });
+      if (walletRes?.error) throw new Error(walletRes.error);
+
+      setUserWallet(prev => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
+
+      showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
+      emitWalletDeduct(AI_IMAGE_GENERATION_COINS); // ✅ sidebar update
+
+
+      setPosts(prev => [saved.data, ...prev]);
+      setPreviewData(saved.data);
+      showToast("Generated! 🎉");
+
     } catch (e) {
-      showToast("Generation failed", "error");
+      showToast(e.message || "Generation failed", "error");
     } finally {
       updateUiState({ isGenerating: false, countdown: 0 });
     }
@@ -391,24 +416,36 @@ export default function PostManagementPage() {
   const handleImageGenerateWithAssets = useCallback(async (selectedAssets = [], businessName, keywords) => {
     if (!prompt.trim()) return showToast("Enter prompt!", "error");
     if (!userId) return;
+
+    let timer = null;
+
     try {
+      // ✅ Step 1: Check wallet balance first
       const userData = await getUserWalletAction(userId);
-      if ((userData.wallet || 0) < AI_IMAGE_GENERATION_COINS) {
+      const currentBalance = userData?.wallet ?? 0;
+      setUserWallet(currentBalance);
+
+      if (currentBalance < AI_IMAGE_GENERATION_COINS) {
         setRequiredCoins(AI_IMAGE_GENERATION_COINS);
         updateUiState({ showInsufficientBalance: true });
         return;
       }
+
+      // ✅ Step 2: Start generation UI
       updateUiState({ isGenerating: true, countdown: 120 });
-      const timer = setInterval(() => {
+      timer = setInterval(() => {
         setUiState(prev => {
           if (prev.countdown <= 1) { clearInterval(timer); return { ...prev, countdown: 0 }; }
           return { ...prev, countdown: prev.countdown - 1 };
         });
       }, 1000);
 
+      // ✅ Step 3: Generate image
       let logoBase64 = logo ? await fileToBase64(logo) : null;
       const res = await generateWithAssetsAction({
-        topic: prompt, bussiness_name: businessName, keywords,
+        topic: prompt,
+        bussiness_name: businessName,
+        keywords,
         colourPalette: userAssets.find(a => a.name === "Color")?.url || "none",
         size: userAssets.find(a => a.name === "Size")?.url || "1:1",
         characterImage: stripBase64(selectedAssets.find(a => a.name === "Character")?.url || ""),
@@ -416,27 +453,69 @@ export default function PostManagementPage() {
         productImage: stripBase64(selectedAssets.find(a => a.name.startsWith("Product"))?.url || ""),
         backgroundImage: stripBase64(selectedAssets.find(a => a.name === "Background")?.url || ""),
         logoImage: stripBase64(selectedAssets.find(a => a.name === "Logo")?.url || logoBase64 || ""),
-        platform: selectedPlatforms.join(",") || "gmb"
+        platform: selectedPlatforms.join(",") || "gmb",
       });
       clearInterval(timer);
+      timer = null;
+
+      if (!res.success && !res.data && !res.output && !res.image) {
+        throw new Error(res.error || res.message || "Image generation failed");
+      }
 
       const data = res.success ? res.data : res;
       const { gmb_des, fb_des, ig_des } = normalizePlatformDescriptions({ ...res, ...data });
-      await deductFromWalletAction(userId, { amount: AI_IMAGE_GENERATION_COINS, type: "deduct", reason: "image_generated" });
-      setUserWallet(prev => prev - AI_IMAGE_GENERATION_COINS);
 
+      // ✅ Step 4: Save post FIRST
       const saved = await savePostAction({
-        userId, aiOutput: data.image || data.output, description: data.description || gmb_des || "Generated",
-        gmbDescription: gmb_des, fbDescription: fb_des, igDescription: ig_des, status: "pending", promat: prompt
+        userId,
+        aiOutput: data.image || data.output,
+        description: data.description || gmb_des || fb_des || ig_des || "Generated",
+        gmbDescription: gmb_des,
+        fbDescription: fb_des,
+        igDescription: ig_des,
+        status: "pending",
+        promat: prompt,
+        locations: [],
       });
-      if (saved.success) {
-        setPosts(prev => [saved.data, ...prev]);
-        setPreviewData(saved.data);
-        showToast("Generated! 🎉");
+
+      if (!saved.success) {
+        throw new Error(saved.error || "Failed to save post");
       }
+
+      // ✅ Step 5: Deduct coins ONLY after post saved successfully
+      const walletRes = await deductFromWalletAction(userId, {
+        amount: AI_IMAGE_GENERATION_COINS,
+        type: "deduct",
+        reason: "image_generated",
+        metadata: { prompt, platform: selectedPlatforms.join(",") },
+      });
+
+      const deductOk =
+        walletRes?.message === "Wallet updated" ||
+        walletRes?.success === true ||
+        walletRes?.status === "success";
+
+      if (!deductOk || walletRes?.error) {
+        // Post already saved — just warn, don't block user
+        console.error("Coin deduction failed after save:", walletRes);
+        showToast("Post saved but coin deduction failed — contact support", "error");
+      } else {
+        setUserWallet(prev => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
+        showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
+        emitWalletDeduct(AI_IMAGE_GENERATION_COINS); // ✅ sidebar update
+
+      }
+
+      // ✅ Step 6: Update UI
+      setPosts(prev => [saved.data, ...prev]);
+      setPreviewData(saved.data);
+      showToast("Generated! 🎉");
+
     } catch (e) {
-      showToast("Generation failed", "error");
+      console.error("handleImageGenerateWithAssets error:", e);
+      showToast(e.message || "Generation failed", "error");
     } finally {
+      if (timer) clearInterval(timer);
       updateUiState({ isGenerating: false, countdown: 0 });
     }
   }, [prompt, userId, logo, userAssets, selectedPlatforms, showToast, updateUiState]);
@@ -598,27 +677,94 @@ export default function PostManagementPage() {
     const totalCost = selectedIds.length * 20;
 
     try {
+      // Fix 1: safely read wallet from whatever field the API returns
       const userData = await getUserWalletAction(userId);
-      if (userData.wallet < totalCost) {
+      console.log("getUserWalletAction response:", userData); // keep until confirmed working
+
+      const walletBalance =
+        userData?.wallet ??
+        userData?.data?.wallet ??
+        userData?.user?.wallet ??
+        userData?.coins ??
+        0;
+
+      setUserWallet(walletBalance);
+
+      if (walletBalance < totalCost) {
         setRequiredCoins(totalCost);
         updateUiState({ showInsufficientBalance: true });
         return;
       }
-      setIsPosting(true);
-      const walletRes = await deductFromWalletAction(userId, { amount: totalCost, type: "deduct", reason: "Post-on-GMB" });
-      if (walletRes.message !== "Wallet updated") throw new Error("Wallet fail");
 
-      const locs = availableLocations.filter(l => selectedIds.includes(l.id)).map(l => ({ ...l, isPosted: true }));
-      const { ok } = await postToGmbAction({
-        account: locs[0].accountId, locationData: locs.map(l => ({ city: l.locationId, cityName: l.locality, bookUrl: l.websiteUrl })),
-        output: postToAction.aiOutput, description: postToAction.description, accessToken: session?.accessToken, checkmark: checkmark || postToAction.checkmark
+      setIsPosting(true);
+
+      const walletRes = await deductFromWalletAction(userId, {
+        amount: totalCost,
+        type: "deduct",
+        reason: "Post-on-GMB",
       });
+
+      console.log("deductFromWalletAction response:", walletRes); // keep until confirmed
+
+      // Fix 2: accept any truthy success signal, not just one exact string
+      const deductOk =
+        walletRes?.message === "Wallet updated" ||
+        walletRes?.success === true ||
+        walletRes?.status === "success" ||
+        walletRes?.ok === true;
+
+      if (!deductOk) {
+        throw new Error(walletRes?.error || walletRes?.message || "Wallet deduction failed");
+      }
+
+      emitWalletDeduct(totalCost); // ✅ sidebar sync
+
+
+      const locs = availableLocations
+        .filter((l) => selectedIds.includes(l.id))
+        .map((l) => ({ ...l, isPosted: true }));
+
+      const { ok } = await postToGmbAction({
+        account: locs[0].accountId,
+        locationData: locs.map((l) => ({
+          city: l.locationId,
+          cityName: l.locality,
+          bookUrl: l.websiteUrl,
+        })),
+        output: postToAction.aiOutput,
+        description: postToAction.description,
+        accessToken: session?.accessToken,
+        checkmark: checkmark || postToAction.checkmark,
+      });
+
       if (ok) {
         showToast("Posted! 🎉");
-        await updatePostStatusAction({ id: postToAction._id, userId, locations: locs, status: "posted", whenPosted: { ...postToAction.whenPosted, gmb: true } });
+        await updatePostStatusAction({
+          id: postToAction._id,
+          userId,
+          locations: locs,
+          status: "posted",
+          whenPosted: { ...postToAction.whenPosted, gmb: true },
+        });
         fetchPosts(1, true);
+      } else {
+        // Refund if GMB post failed
+        await deductFromWalletAction(userId, {
+          amount: totalCost,
+          type: "credit",
+          reason: "Refund-Post-Failed",
+        });
+        setUserWallet((prev) => prev + totalCost);
+        emitWalletCredit(totalCost); // ✅ sidebar sync
+
+        throw new Error("GMB post failed — coins refunded");
       }
-    } finally { setIsPosting(false); setPostToAction(null); }
+    } catch (err) {
+      showToast(err.message || "Post failed", "error");
+    } finally {
+      setIsPosting(false);
+      setPostToAction(null);
+    }
   }, [availableLocations, userId, postToAction, session?.accessToken, updateUiState, showToast, setIsPosting, fetchPosts]);
 
   const handlePost = useCallback(async (post) => {

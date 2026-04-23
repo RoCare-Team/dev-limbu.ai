@@ -57,7 +57,7 @@ export async function POST(req) { // Ye Signup API hai.
     let assignedAgentId = null;
     try {
       const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 }); // Active agents nikaal raha hai.
-      
+
       if (activeAgents.length > 0) {
         const RR_KEY = "agentLeadRR";
         let rrDoc = await Setting.findOne({ key: RR_KEY });
@@ -110,67 +110,79 @@ export async function PUT(req) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-
-    const { amount, type, reason, metadata } = await req.json();
+    const body = await req.json();
+    const { amount, type, reason, metadata } = body;
 
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: "userId required" }),
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "userId required" }), { status: 400 });
     }
 
-    const user = await User.findOne({ userId });
-    if (!user) {
-      return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
-    }
-
+    // ── increment_posts_used ──────────────────────────────────────────
     if (type === "increment_posts_used") {
-      user.postsUsed = (user.postsUsed || 0) + 1;
-      await user.save();
-      return new Response(JSON.stringify({ 
-        message: "postsUsed incremented", 
-        postsUsed: user.postsUsed 
-      }), { status: 200 });
+      const updated = await User.findOneAndUpdate(
+        { userId },
+        { $inc: { postsUsed: 1 } },
+        { new: true, runValidators: false }
+      );
+      if (!updated) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
+      return new Response(JSON.stringify({ message: "postsUsed incremented", postsUsed: updated.postsUsed }), { status: 200 });
     }
 
-    // Existing wallet logic...
-    let transactionType = type === "add" ? "credit" : "debit";
-    let finalReason = reason || (type === "deduct" ? "wallet_deduct" : "wallet_add");
+    // ── wallet add ────────────────────────────────────────────────────
+    if (type === "add" || type === "credit") {
+      const updated = await User.findOneAndUpdate(
+        { userId },
+        { $inc: { wallet: amount } },
+        { new: true, runValidators: false }
+      );
+      if (!updated) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
 
-    if (type === "add") {
-      user.wallet += amount;
-    } else if (type === "deduct") {
+      await Transaction.create({
+        userId,
+        type: "credit",
+        amount,
+        balanceAfter: updated.wallet,
+        reason: reason || "wallet_add",
+        metadata: metadata || {},
+      });
+
+      return new Response(JSON.stringify({ message: "Wallet updated", wallet: updated.wallet }), { status: 200 });
+    }
+
+    // ── wallet deduct ─────────────────────────────────────────────────
+    if (type === "deduct" || type === "debit") {
+      // Check balance first without saving
+      const user = await User.findOne({ userId }).select("wallet");
+      if (!user) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
+
       if (user.wallet < amount) {
-        return new Response(
-          JSON.stringify({ error: "Insufficient balance" }),
-          { status: 400 }
-        );
+        return new Response(JSON.stringify({ error: "Insufficient balance" }), { status: 400 });
       }
-      user.wallet -= amount;
-    } else {
-      return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400 });
+
+      const updated = await User.findOneAndUpdate(
+        { userId, wallet: { $gte: amount } }, // double-check atomically
+        { $inc: { wallet: -amount } },
+        { new: true, runValidators: false }
+      );
+
+      if (!updated) {
+        return new Response(JSON.stringify({ error: "Insufficient balance" }), { status: 400 });
+      }
+
+      await Transaction.create({
+        userId,
+        type: "debit",
+        amount,
+        balanceAfter: updated.wallet,
+        reason: reason || "wallet_deduct",
+        metadata: metadata || {},
+      });
+
+      return new Response(JSON.stringify({ message: "Wallet updated", wallet: updated.wallet }), { status: 200 });
     }
 
-    await user.save();
+    return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400 });
 
-    await Transaction.create({
-      userId,
-      type: transactionType,
-      amount,
-      balanceAfter: user.wallet,
-      reason: finalReason,
-      metadata: metadata || {},
-    });
-
-    return new Response(
-      JSON.stringify({
-        message: "Wallet updated",
-        wallet: user.wallet,
-      }),
-      { status: 200 }
-    );
-    
   } catch (error) {
     console.error("Wallet Update Error:", error);
     return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });

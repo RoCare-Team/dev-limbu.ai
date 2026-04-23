@@ -96,9 +96,8 @@ const PostCard = ({
             />
           ) : (
             <p
-              className={`text-sm text-gray-700 ${
-                showFull ? "" : "line-clamp-4"
-              }`}
+              className={`text-sm text-gray-700 ${showFull ? "" : "line-clamp-4"
+                }`}
             >
               {post?.description || "No description available"}
             </p>
@@ -145,8 +144,8 @@ const PostCard = ({
           {post.status === "posted"
             ? `Posted: ${new Date(post.locations?.[0]?.postedAt || post.updatedAt).toLocaleDateString()}`
             : post.createdAt
-            ? new Date(post.createdAt).toLocaleDateString()
-            : ""}
+              ? new Date(post.createdAt).toLocaleDateString()
+              : ""}
         </p>
 
         <div className="flex flex-col gap-3 pt-2">
@@ -189,7 +188,7 @@ const PostCard = ({
               >
                 <LabelImportantIcon className="w-4 h-4" /> Post to GMB
               </button>
-               <button
+              <button
                 onClick={() => handlePost(post)}
                 className="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >

@@ -120,6 +120,8 @@ export async function updatePostStatusAction(payload) {
 }
 
 export async function postToGmbAction(payload) {
+    console.log("🔍 postToGmbAction payload:", JSON.stringify(payload, null, 2)); // ADD THIS
+
     const response = await fetch(
         "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0",
         {

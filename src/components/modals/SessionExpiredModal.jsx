@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldAlert } from "lucide-react";
 
 function SessionExpiredModal({ isOpen, onLogin }) {
   if (!isOpen) return null;

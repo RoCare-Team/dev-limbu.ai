@@ -1,13 +1,101 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { sendOtpAction, verifyOtpAction, completeRegistrationAction } from "@/app/actions/authActions";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Moon, Sun, Phone, Mail, User, Lock, CheckCircle, AlertCircle, MapPin, Star, TrendingUp, BarChart3, Users, Globe, Tag } from "lucide-react";
-// import { theme } from "../app/styles/theme/theme";
 
+import React, { useState, useEffect } from "react";
+import {
+  sendOtpAction,
+  verifyOtpAction,
+  completeRegistrationAction,
+} from "@/app/actions/authActions";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Phone,
+  Mail,
+  User,
+  Lock,
+  Tag,
+  CheckCircle,
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  TrendingUp,
+  ShieldCheck,
+  Cpu
+} from "lucide-react";
+import Image from "next/image";
+
+/* ─── Validators ─── */
+const validatePhone = (v) => /^[6-9]\d{9}$/.test(v.trim());
+const validateOtp = (v) => /^\d{4}$/.test(v.trim());
+const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const validateName = (v) => v.trim().length >= 2 && v.trim().length <= 30;
+
+/* ─── Input field ─── */
+function Field({ icon: Icon, error, className = "", ...props }) {
+  return (
+    <div className="mb-4">
+      <div className="relative">
+        <Icon
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors duration-200"
+          style={{ color: error ? "#ef4444" : "rgba(15, 23, 42, 0.4)" }}
+        />
+        <input
+          {...props}
+          className={`w-full pl-11 pr-4 py-3.5 rounded-2xl text-sm font-bold outline-none transition-all duration-200 placeholder:text-slate-300 placeholder:font-medium bg-slate-50 border ${error ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100" : "border-slate-200 focus:border-[#EAB308] focus:ring-4 focus:ring-[#EAB308]/20"} text-slate-900 ${className}`}
+        />
+      </div>
+      {error && (
+        <p className="mt-1.5 text-[11px] font-bold text-red-500 tracking-tight flex items-center gap-1">
+          <AlertCircle className="w-3 h-3" /> {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Step dot ─── */
+function Dot({ active, done, num }) {
+  return (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 transition-all duration-500"
+      style={{
+        background: active ? "#EAB308" : done ? "rgba(234, 179, 8, 0.15)" : "#f8fafc",
+        color: active ? "#ffffff" : done ? "#EAB308" : "#94a3b8",
+        border: active ? "none" : done ? "1px solid rgba(234, 179, 8, 0.3)" : "1px solid #e2e8f0",
+        boxShadow: active ? "0 0 20px rgba(234, 179, 8, 0.4)" : "none",
+        transform: active ? "scale(1.1)" : "scale(1)",
+      }}
+    >
+      {done && !active ? <CheckCircle className="w-4 h-4" /> : num}
+    </div>
+  );
+}
+
+/* ─── CTA Button ─── */
+function PrimaryBtn({ loading, label, loadingLabel, onClick, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="w-full py-4 rounded-2xl text-xs font-black tracking-[0.15em] uppercase cursor-pointer transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+      style={{
+        background: "#EAB308",
+        color: "#ffffff",
+        boxShadow: "0 10px 25px -5px rgba(234, 179, 8, 0.4)",
+      }}
+    >
+      {loading ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          {loadingLabel}
+        </>
+      ) : (
+        label
+      )}
+    </button>
+  );
+}
 
 export default function LoginPage() {
-  /* ─────────────── 100 % SAME STATE & LOGIC ─────────────── */
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
@@ -16,601 +104,419 @@ export default function LoginPage() {
   const [step, setStep] = useState("phone");
   const [isExisting, setIsExisting] = useState(false);
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("info");
-  const [isDark, setIsDark] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-const router = useRouter();
-const searchParams = useSearchParams();
+  const [msgType, setMsgType] = useState("info");
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
-useEffect(() => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    router.replace("/login");
-  }
-}, []);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const theme = localStorage.getItem("theme");
-    setIsDark(theme === "dark");
-    
-    // Auto-fill refer code from URL parameter
-    const referParam = searchParams.get("refer");
-    if (referParam) {
-      setReferCode(referParam);
-    }
+    if (localStorage.getItem("token")) router.replace("/dashboard");
+  }, [router]);
+
+  useEffect(() => {
+    const ref = searchParams.get("refer");
+    if (ref) setReferCode(ref);
   }, [searchParams]);
 
-  const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    localStorage.setItem("theme", newTheme ? "dark" : "light");
+  const msg = (text, type = "info") => {
+    setMessage(text);
+    setMsgType(type);
+  };
+  const hk = (e, fn) => {
+    if (e.key === "Enter" && !loading) fn();
   };
 
-  const showMessage = (msg, type = "info") => {
-    setMessage(msg);
-    setMessageType(type);
+  const checkPhone = () => {
+    if (!validatePhone(phone)) {
+      setErrors({ phone: "Enter a valid 10-digit mobile number" });
+      return false;
+    }
+    setErrors({});
+    return true;
   };
-
-
-  // const sendToWhastappMessage = async (destination, templateParams) => {
-  //   try {
-  //     const response = await fetch("/api/whatsapp-message", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         destination,
-  //         templateParams,
-  //       }),
-  //     });
-
-  //     if (response.ok) {
-  //       const data = await response.json();
-  //       console.log("WhatsApp message sent:", data);
-  //     }
-  //   } catch (error) {
-      
-  //   }
-  // }
+  const checkOtp = () => {
+    if (!validateOtp(otp)) {
+      setErrors({ otp: "Enter a valid 4–6 digit OTP" });
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+  const checkDetails = () => {
+    const e = {};
+    if (!validateName(name)) e.name = "Name must be 2–30 characters";
+    if (!validateEmail(email)) e.email = "Enter a valid email address";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const sendOtp = async () => {
-    if (!phone || phone.length < 10) {
-      showMessage("Please enter a valid phone number", "error");
-      return;
-    }
-    setIsLoading(true);
-    showMessage("Sending OTP...", "info");
+    if (!checkPhone()) return;
+    setLoading(true);
+    msg("Sending OTP…");
     try {
       const { ok, data } = await sendOtpAction(phone);
       if (ok) {
-        showMessage(data.message || "OTP sent successfully ✓", "success");
+        msg(data.message || "OTP sent ✓", "success");
         setIsExisting(data.isExistingUser || false);
-        setTimeout(() => setStep("otp"), 500);
-      } else {
-        showMessage(data.error || "Failed to send OTP", "error");
-      }
-    } catch (error) {
-      showMessage(error.message || "An unexpected error occurred.", "error");
+        setTimeout(() => {
+          setStep("otp");
+          setMessage("");
+        }, 600);
+      } else msg(data.error || "Failed to send OTP", "error");
+    } catch (e) {
+      msg(e.message || "Unexpected error", "error");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const verifyOtp = async () => {
-    if (!otp || otp.length < 4) {
-      showMessage("Please enter a valid OTP", "error");
-      return;
-    }
-    setIsLoading(true);
-    showMessage("Verifying OTP...", "info");
+    if (!checkOtp()) return;
+    setLoading(true);
+    msg("Verifying…");
     try {
       const { ok, data } = await verifyOtpAction(phone, otp);
       if (data.step === "collect_details") {
-        showMessage("OTP verified! Please complete your profile.", "success");
-        setTimeout(() => setStep("details"), 500);
+        msg("OTP verified!", "success");
+        setTimeout(() => {
+          setStep("details");
+          setMessage("");
+        }, 600);
       } else if (ok && data.token) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
         localStorage.setItem("fullName", data.user.fullName);
         localStorage.setItem("mobileNumber", data.user.phone);
-        showMessage("Login successful! Redirecting...", "success");
+        msg("Login successful! Redirecting…", "success");
         setTimeout(() => router.push("/dashboard"), 800);
-      } else {
-        showMessage(data.error || "Invalid OTP", "error");
-      }
-    } catch (error) {
-      showMessage(error.message || "An unexpected error occurred.", "error");
+      } else msg(data.error || "Invalid OTP", "error");
+    } catch (e) {
+      msg(e.message || "Unexpected error", "error");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const completeRegistration = async () => {
-    if (!name || !email) {
-      showMessage("Please fill in all fields", "error");
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      showMessage("Please enter a valid email", "error");
-      return;
-    }
-    setIsLoading(true);
-    showMessage("Completing registration...", "info");
+  const completeReg = async () => {
+    if (!checkDetails()) return;
+    setLoading(true);
+    msg("Completing registration…");
     try {
-      const { ok, data } = await completeRegistrationAction(phone, otp, name, email, referCode);
+      const { ok, data } = await completeRegistrationAction(
+        phone,
+        otp,
+        name,
+        email,
+        referCode,
+      );
       if (ok && data.token) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
-        showMessage("Registration complete! Redirecting...", "success");
-
-        const formattedPhone = phone.length === 10 ? `91${phone}` : phone;
-        // await sendToWhastappMessage(formattedPhone, [name, "https://limbu.ai"]);
-
-        if (data.token) {
-          router.push("/dashboard");
-        } else {
-          router.push("/login");
-        }
-      } else {
-        showMessage(data.error || "Registration failed", "error");
-      }
-    } catch (error) {
-      showMessage(error.message || "An unexpected error occurred.", "error");
+        msg("Registration complete!", "success");
+        setTimeout(() => router.push("/dashboard"), 800);
+      } else msg(data.error || "Registration failed", "error");
+    } catch (e) {
+      msg(e.message || "Unexpected error", "error");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleKeyPress = (e, action) => {
-    if (e.key === "Enter" && !isLoading) {
-      action();
-    }
-  };
+  const stepIdx = step === "phone" ? 0 : step === "otp" ? 1 : 2;
+  const totalSteps = isExisting ? 2 : 3;
+  const labels = isExisting ? ["Phone", "OTP"] : ["Phone", "OTP", "Details"];
 
-  /* ----------------------------------------------------------
-     NEW LAYOUT WRAPPER – login first on mobile, side-by-side lg
-  -----------------------------------------------------------*/
   return (
-    <>
-      <div className={`min-h-screen transition-colors duration-300 ${isDark ? "bg-slate-900" : "bg-gradient-to-br from-indigo-50 via-white to-purple-50"}`}>
-        {/* —— SAME TOP BAR & THEME TOGGLE —— */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 transition text-gray-700 font-medium m-4 fixed top-0 left-0 z-50"
-        >
-          ← Back
-        </button>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative overflow-hidden font-sans text-slate-900">
+      
+      {/* ── Subtle background grid ── */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+          backgroundSize: "40px 40px"
+        }}
+      />
 
-        {/* Animated Background Elements */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          {!isDark && (
-            <>
-              <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-              <div className="absolute top-40 right-10 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-              <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-            </>
-          )}
-          {isDark && (
-            <>
-              <div className="absolute top-20 left-10 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-              <div className="absolute top-40 right-10 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-              <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-600 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
-            </>
-          )}
-        </div>
+      {/* ── Ambient glow ── */}
+      <div
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] z-0 opacity-10"
+        style={{
+          background: "radial-gradient(ellipse at center, rgba(250, 204, 21, 0.3) 0%, transparent 60%)",
+        }}
+      />
 
-        <button
-          onClick={toggleTheme}
-          className={`fixed top-6 right-6 z-50 p-3 rounded-full shadow-lg transition-all duration-300 ${
-            isDark ? "bg-slate-800 text-yellow-400 hover:bg-slate-700" : "bg-white text-indigo-600 hover:bg-indigo-50"
-          }`}
-        >
-          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
+      {/* Back button */}
+      <button
+        onClick={() => router.back()}
+        className="fixed top-5 left-5 sm:top-8 sm:left-8 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black tracking-[0.15em] uppercase cursor-pointer transition-all duration-300 hover:scale-105 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Go Back
+      </button>
 
-        {/* --------------  NEW FLEX ORDER  -------------- */}
-<div className="relative min-h-screen flex items-center justify-center p-4 mt-20">
-          <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8 items-stretch">
-            {/* 1. LOGIN CARD – elevated tray */}
-            <div
-              className={`flex-1 rounded-3xl shadow-2xl overflow-hidden
-                ${isDark
-                  ? "bg-slate-800/60 backdrop-blur-xl border border-slate-700"
-                  : "bg-white/90 backdrop-blur-xl border border-white/30"}
-                /* -----  subtle tray shadow  ----- */
-                ring-1 ${isDark ? "ring-slate-700/50" : "ring-slate-200/50"}
-                `}
-            >
-              {/* SAME HEADER / FORM / FOOTER */}
-              <div className={`p-8 ${isDark ? "bg-white" : "bg-white"}`}>
-                <h2 className="text-3xl font-bold text-black">Welcome Back</h2>
-                <p className="text-gray-600 mt-2">Sign in to access your dashboard</p>
-              </div>
+      <div className="relative z-10 w-full max-w-4xl flex flex-col md:flex-row gap-6 md:gap-8 items-stretch justify-center">
+        
+        {/* ── INFO CARD (Left Side on Desktop) ── */}
+        <div className="hidden md:flex flex-col flex-1 bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-2xl shadow-slate-200/50 relative overflow-hidden">
+          {/* Subtle background grid */}
+          <div
+            className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+            style={{
+              backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+              backgroundSize: "40px 40px"
+            }}
+          />
 
-              <div className="p-8">
-                {/* step indicator */}
-                <div className="flex items-center justify-center mb-8">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all duration-300 ${
-                        step === "phone"
-                          ? isDark
-                            ? "  text-white shadow-lg shadow-blue-500/50"
-                            : "bg-yellow-400 text-black shadow-lg shadow-black/40"
-                          : isDark
-                          ? "bg-slate-700 text-slate-400"
-                          : "bg-slate-200 text-slate-500"
-                      }`}
-                    >
-                      1
-                    </div>
-                    <div
-                      className={`w-12 h-1 rounded-full transition-all duration-300 ${
-                        step !== "phone" ? (isDark ? "bg-white" : "bg-neutral-800") : isDark ? "bg-white" : "bg-neutral-800"
-                      }`}
-                    ></div>
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all duration-300 ${
-                        step === "otp"
-                          ? isDark
-                            ? "bg-white text-yellow-300 shadow-lg shadow-blue-500/50"
-                            : "bg-neutral-600 text-white shadow-lg shadow-indigo-500/50"
-                          : step === "details"
-                          ? isDark
-                            ? "bg-white text-yellow-300"
-                            : "bg-neutral-600 text-white"
-                          : isDark
-                          ? "bg-slate-700 text-slate-400"
-                          : "bg-slate-200 text-slate-500"
-                      }`}
-                    >
-                      2
-                    </div>
-                    {!isExisting && (
-                      <>
-                        <div
-                          className={`w-12 h-1 rounded-full transition-all duration-300 ${
-                            step === "details" ? (isDark ? "bg-neutral-900" : "bg-indigo-600") : isDark ? "bg-slate-700" : "bg-slate-200"
-                          }`}
-                        ></div>
-                        <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all duration-300 ${
-                            step === "details"
-                              ? isDark
-                                ? "bg-dark text-white shadow-lg"
-                                : "bg-neutral-600 text-white shadow-lg shadow-indigo-500/50"
-                              : isDark
-                              ? "bg-slate-700 text-slate-400"
-                              : "bg-slate-200 text-slate-500"
-                          }`}
-                        >
-                          3
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* ------------  PHONE STEP  ------------ */}
-                {step === "phone" && (
-                  <div className="space-y-6">
-                    <div>
-                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-neutral-600"}`}>Mobile Number</label>
-                      <div className="relative">
-                        <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-yellow-500" : "text-gray-500"}`} />
-                        <input
-                          type="tel"
-                          placeholder="Enter your mobile number"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          onKeyPress={(e) => handleKeyPress(e, sendOtp)}
-                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
-                            isDark
-                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-yellow-400 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-yellow-400 focus:bg-white"
-                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-yellow-400/20"}`}
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={sendOtp}
-                      disabled={isLoading}
-                      className={`w-full py-4 rounded-xl font-bold text-black transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDark
-                          ? "bg-white text-black hover:bg-gray-100"
-                          : "bg-yellow-400 text-black hover:bg-yellow-300"
-                      }`}
-                    >
-                      {isLoading ? "Sending..." : "Send OTP"}
-                    </button>
-                  </div>
-                )}
-
-                {/* ------------  OTP STEP  ------------ */}
-                {step === "otp" && (
-                  <div className="space-y-6">
-                    <div>
-                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-slate-700"}`}>Enter OTP</label>
-                      <div className="relative">
-                        <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-slate-400" : "text-slate-400"}`} />
-                        <input
-                          type="text"
-                          placeholder="0000"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          onKeyPress={(e) => handleKeyPress(e, verifyOtp)}
-                          maxLength={6}
-                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 text-center text-2xl tracking-[0.5em] font-bold ${
-                            isDark
-                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-yellow-400 focus:bg-white"
-                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={verifyOtp}
-                      disabled={isLoading}
-                      className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDark
-                          ? "bg-white hover:from-blue-500 hover:to-purple-500"
-                          : "bg-yellow-400 text-black hover:bg-yellow-400"
-                      }`}
-                    >
-                      {isLoading ? "Verifying..." : "Verify OTP"}
-                    </button>
-
-                    <div className="flex flex-col gap-2 pt-2">
-                      <button
-                        onClick={() => setStep("phone")}
-                        disabled={isLoading}
-                        className={`w-full py-3 text-sm font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                          isDark ? "text-white hover:text-yellow-300 hover:bg-slate-700/50" : "text-neutral-700 hover:text-neytral-800 hover:bg-gray-200"
-                        }`}
-                      >
-                        ← Change Phone Number
-                      </button>
-                      <button
-                        onClick={sendOtp}
-                        disabled={isLoading}
-                        className={`w-full py-3 text-sm font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                          isDark ? "text-slate-300 hover:text-white hover:bg-slate-700/50" : "text-slate-600 hover:text-slate-900 hover:bg-gray-200"
-                        }`}
-                      >
-                        Resend OTP
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ------------  DETAILS STEP  ------------ */}
-                {step === "details" && (
-                  <div className="space-y-6">
-                    <div>
-                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-slate-700"}`}>Full Name</label>
-                      <div className="relative">
-                        <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-slate-400" : "text-slate-400"}`} />
-                        <input
-                          type="text"
-                          placeholder="Enter your full name"
-                          maxLength={30}
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
-                            isDark
-                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white"
-                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-slate-700"}`}>Email Address</label>
-                      <div className="relative">
-                        <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-slate-400" : "text-slate-400"}`} />
-                        <input
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          onKeyPress={(e) => handleKeyPress(e, completeRegistration)}
-                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
-                            isDark
-                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white"
-                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={`block text-sm font-semibold mb-3 ${isDark ? "text-slate-200" : "text-slate-700"}`}>Refer Code (Optional)</label>
-                      <div className="relative">
-                        <Tag className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? "text-slate-400" : "text-slate-400"}`} />
-                        <input
-                          type="text"
-                          placeholder="Enter refer code"
-                          value={referCode}
-                          onChange={(e) => setReferCode(e.target.value)}
-                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-300 font-medium ${
-                            isDark
-                              ? "bg-slate-800/50 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:bg-slate-800"
-                              : "bg-white/50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white"
-                          } focus:outline-none focus:ring-4 ${isDark ? "focus:ring-blue-500/20" : "focus:ring-indigo-500/20"}`}
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={completeRegistration}
-                      disabled={isLoading}
-                      className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDark
-                          ? "bg-dark  hover:to-purple-500"
-                          : "bg-yellow-400 text-black hover:bg-yellow-300"
-                      }`}
-                    >
-                      {isLoading ? "Processing..." : "Complete Registration"}
-                    </button>
-                  </div>
-                )}
-
-                {/* ------------  MESSAGE  ------------ */}
-                {message && (
-                  <div
-                    className={`mt-6 p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${
-                      messageType === "success"
-                        ? isDark
-                          ? "bg-green-500/20 border border-green-500/30"
-                          : "bg-green-50 border border-green-200"
-                        : messageType === "error"
-                        ? isDark
-                          ? "bg-red-500/20 border border-red-500/30"
-                          : "bg-red-50 border border-red-200"
-                        : isDark
-                        ? "bg-neutral-800/40 border-neutral-700"
-                        : "bg-blue-50 border border-blue-200"
-                    }`}
-                  >
-                    {messageType === "success" ? (
-                      <CheckCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-green-400" : "text-green-600"}`} />
-                    ) : messageType === "error" ? (
-                      <AlertCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-red-400" : "text-red-600"}`} />
-                    ) : (
-                      <AlertCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
-                    )}
-                    <p
-                      className={`text-sm font-medium ${
-                        messageType === "success"
-                          ? isDark
-                            ? "text-green-300"
-                            : "text-green-800"
-                          : messageType === "error"
-                          ? isDark
-                            ? "text-red-300"
-                            : "text-red-800"
-                          : isDark
-                          ? "text-blue-300"
-                          : "text-blue-800"
-                      }`}
-                    >
-                      {message}
-                    </p>
-                  </div>
-                )}
-
-                <div className={`mt-8 pt-6 border-t text-center text-sm ${isDark ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}>
-                  By continuing, you agree to Limbu Ai and authorize our representatives to contact you via Call, Email, SMS, RCS, or WhatsApp regarding your service requests and related updates.
-                </div>
-              </div>
+          {/* Decorative Corner Glow */}
+          <div className="absolute -top-20 -left-20 w-64 h-64 bg-[#EAB308]/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="mb-12">
+              <Image src="/images/bg-logo.png" alt="Limbu AI" width={56} height={56} className="mb-6 drop-shadow-sm" />
+              <h2 className="text-3xl font-black uppercase tracking-tight leading-[1.1] mb-4 text-slate-900" style={{ fontFamily: "var(--font-heading)" }}>
+                Automate Your <br/><span className="text-[#EAB308]">Local Growth</span>
+              </h2>
+              <p className="text-sm font-bold text-slate-500 leading-relaxed max-w-sm">
+                Join 500+ businesses using AI to dominate Google search rankings and automate their social media presence.
+              </p>
             </div>
 
-            {/* 2. MARKETING CONTENT – order-last on mobile */}
-            <div
-              className={`flex-1 rounded-3xl p-8 lg:p-12 shadow-2xl
-                ${isDark ? "bg-slate-800/50 backdrop-blur-xl border border-slate-700" : "bg-white/80 backdrop-blur-xl border border-white/20"}
-                /* -----  subtle tray shadow  ----- */
-                ring-1 ${isDark ? "ring-slate-700/50" : "ring-slate-200/50"}
-                `}
-            >
-              <div className="space-y-6">
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${isDark ? "bg-lightPrimary text-dark" : "bg-dark text-lightPrimary"}`}>
-                  <Globe className="w-4 h-4" />
-                  GMB & Social Media management
-                </div>
-
-                <h1 className={`text-4xl lg:text-5xl font-bold leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>
-                  Your Business,
-                  <br />
-                  <span className={`${isDark ? "text-yellow-600" : "bg-lightPrimary bg-clip-text text-transparent"}`}>Amplified Online</span>
-                </h1>
-
-                <p className={`text-lg ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                  Take control of your Google My Business presence with our powerful automation platform. Manage reviews, posts, and analytics all in one place.
-                </p>
-
-                <div className="grid gap-4 mt-8">
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isDark ? "bg-slate-700/30" : "bg-indigo-50/50"}`}>
-                    <div className={`p-2 rounded-lg ${isDark ? "bg-blue-500/20" : "bg-indigo-100"}`}>
-                      <BarChart3 className={`w-5 h-5 ${isDark ? "text-blue-400" : "text-indigo-600"}`} />
-                    </div>
-                    <div>
-                      <h3 className={`font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>Real-Time Analytics</h3>
-                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-slate-600"}`}>Track performance metrics and customer engagement instantly</p>
-                    </div>
+            <div className="space-y-6 mt-auto">
+              {[
+                { icon: Cpu, title: "AI-Powered Posts", desc: "Daily optimized content creation" },
+                { icon: TrendingUp, title: "Rank Higher", desc: "Dominate the 'Near Me' Map Pack" },
+                { icon: ShieldCheck, title: "Secure Access", desc: "Official API integration" },
+              ].map((feature, i) => (
+                <div key={i} className="flex items-center gap-4 group">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[#EAB308] shrink-0 group-hover:bg-[#EAB308] group-hover:text-white transition-all duration-300 shadow-sm">
+                    <feature.icon className="w-6 h-6" />
                   </div>
-
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isDark ? "bg-slate-700/30" : "bg-purple-50/50"}`}>
-                    <div className={`p-2 rounded-lg ${isDark ? "bg-purple-500/20" : "bg-purple-100"}`}>
-                      <Star className={`w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
-                    </div>
-                    <div>
-                      <h3 className={`font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>Review Management</h3>
-                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-slate-600"}`}>Respond to reviews automatically and maintain your reputation</p>
-                    </div>
-                  </div>
-
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isDark ? "bg-slate-700/30" : "bg-pink-50/50"}`}>
-                    <div className={`p-2 rounded-lg ${isDark ? "bg-pink-500/20" : "bg-pink-100"}`}>
-                      <MapPin className={`w-5 h-5 ${isDark ? "text-pink-400" : "text-pink-600"}`} />
-                    </div>
-                    <div>
-                      <h3 className={`font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>Multi-Location Support</h3>
-                      <p className={`text-sm ${isDark ? "text-slate-400" : "text-slate-600"}`}>Manage multiple business locations from a single dashboard</p>
-                    </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{feature.title}</h4>
+                    <p className="text-[11px] font-bold text-slate-400">{feature.desc}</p>
                   </div>
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-slate-200 dark:border-slate-700">
-                <div className="text-center">
-                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-white" : "text-yellow-500"}`}>
-                    <Star className="w-5 h-5 fill-current" />
-                    4.9/5
-                  </div>
-                  <p className={`text-sm mt-1 ${isDark ? "text-slate-400" : "text-neutral-800"}`}>Avg Rating</p>
+        {/* ── LOGIN FORM CARD (Right Side) ── */}
+        <div className="w-full md:w-[420px] shrink-0 bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 flex flex-col relative overflow-hidden">
+          
+          {/* Header */}
+          <div className="px-8 pt-10 pb-6 text-center border-b border-slate-50 relative">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#EAB308] to-transparent opacity-50" />
+            
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 bg-slate-50 border border-slate-100">
+              <Lock className="w-3.5 h-3.5 text-[#EAB308]" />
+              <span className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-600">
+                Secure Access
+              </span>
+            </div>
+
+            <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900" style={{ fontFamily: "var(--font-heading)" }}>
+              {step === "phone" ? "Welcome Back" : step === "otp" ? "Verify OTP" : "Complete Profile"}
+            </h1>
+            <p className="text-xs font-bold text-slate-400 mt-2">
+              {step === "phone" ? "Enter your mobile number to continue" : step === "otp" ? "We sent a code to your phone" : "Just a few more details"}
+            </p>
+          </div>
+
+          {/* Step indicator */}
+          <div className="px-8 pt-6 pb-2">
+            <div className="flex items-center justify-center gap-3">
+              {[...Array(totalSteps)].map((_, i) => (
+                <React.Fragment key={i}>
+                  <Dot num={i + 1} active={stepIdx === i} done={stepIdx > i} />
+                  {i < totalSteps - 1 && (
+                    <div className="w-12 h-0.5 rounded-full transition-all duration-500 bg-slate-100 overflow-hidden relative">
+                      <div className="absolute inset-y-0 left-0 bg-[#EAB308] transition-all duration-500" style={{ width: stepIdx > i ? "100%" : "0%" }} />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="flex justify-between mt-3 px-4">
+              {labels.map((l, i) => (
+                <span key={l} className={`text-[9px] font-black uppercase tracking-widest transition-colors duration-300 ${stepIdx >= i ? "text-slate-900" : "text-slate-300"}`}>
+                  {l}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Form Content */}
+          <div className="px-8 pt-6 pb-10 flex-1 flex flex-col">
+            <div className="flex-1 space-y-2">
+              {/* PHONE */}
+              {step === "phone" && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <label className="block text-[10px] font-black tracking-[0.15em] uppercase mb-2 text-slate-500 ml-1">
+                    Mobile Number
+                  </label>
+                  <Field
+                    icon={Phone}
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={phone}
+                    maxLength={10}
+                    onChange={(e) => {
+                      setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                      if (errors.phone) setErrors({});
+                    }}
+                    onKeyPress={(e) => hk(e, sendOtp)}
+                    error={errors.phone}
+                  />
                 </div>
-                <div className="text-center">
-                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-white" : "text-yellow-500"}`}>
-                    <Users className="w-5 h-5" />
-                    1k+
+              )}
+
+              {/* OTP */}
+              {step === "otp" && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center justify-between mb-2 ml-1 mr-1">
+                    <label className="text-[10px] font-black tracking-[0.15em] uppercase text-slate-500">
+                      Enter OTP
+                    </label>
+                    <span className="text-[10px] font-bold text-[#EAB308]">
+                      +91 {phone}
+                    </span>
                   </div>
-                  <p className={`text-sm mt-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Businesses</p>
+                  <Field
+                    icon={Lock}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="• • • •"
+                    value={otp}
+                    maxLength={4}
+                    onChange={(e) => {
+                      setOtp(e.target.value.replace(/\D/g, "").slice(0, 4));
+                      if (errors.otp) setErrors({});
+                    }}
+                    onKeyPress={(e) => hk(e, verifyOtp)}
+                    error={errors.otp}
+                    className="text-center text-xl tracking-[0.5em] font-black"
+                  />
                 </div>
-                <div className="text-center">
-                  <div className={`flex items-center justify-center gap-1 text-2xl font-bold ${isDark ? "text-white" : "text-yellow-500"}`}>
-                    <TrendingUp className="w-5 h-5" />
-                    45%
+              )}
+
+              {/* DETAILS */}
+              {step === "details" && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black tracking-[0.15em] uppercase mb-2 text-slate-500 ml-1">
+                      Full Name
+                    </label>
+                    <Field
+                      icon={User}
+                      type="text"
+                      placeholder="Your full name"
+                      value={name}
+                      maxLength={30}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (errors.name) setErrors((p) => ({ ...p, name: "" }));
+                      }}
+                      error={errors.name}
+                    />
                   </div>
-                  <p className={`text-sm mt-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Growth Avg</p>
+                  <div>
+                    <label className="block text-[10px] font-black tracking-[0.15em] uppercase mb-2 text-slate-500 ml-1">
+                      Email Address
+                    </label>
+                    <Field
+                      icon={Mail}
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (errors.email) setErrors((p) => ({ ...p, email: "" }));
+                      }}
+                      onKeyPress={(e) => hk(e, completeReg)}
+                      error={errors.email}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black tracking-[0.15em] uppercase mb-2 text-slate-500 ml-1">
+                      Refer Code <span className="text-slate-300 normal-case tracking-normal font-medium">(Optional)</span>
+                    </label>
+                    <Field
+                      icon={Tag}
+                      type="text"
+                      placeholder="Enter refer code"
+                      value={referCode}
+                      onChange={(e) => setReferCode(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Message Banner */}
+              {message && (
+                <div
+                  className="flex items-start gap-3 p-3 rounded-xl mt-4 animate-in fade-in zoom-in-95 duration-300"
+                  style={{
+                    background: msgType === "success" ? "rgba(34, 197, 94, 0.1)" : msgType === "error" ? "rgba(239, 68, 68, 0.1)" : "rgba(234, 179, 8, 0.1)",
+                    border: `1px solid ${msgType === "success" ? "rgba(34, 197, 94, 0.2)" : msgType === "error" ? "rgba(239, 68, 68, 0.2)" : "rgba(234, 179, 8, 0.2)"}`,
+                  }}
+                >
+                  {msgType === "success" ? (
+                    <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: msgType === "error" ? "#ef4444" : "#eab308" }} />
+                  )}
+                  <p className="text-xs font-bold leading-relaxed" style={{ color: msgType === "success" ? "#166534" : msgType === "error" ? "#991b1b" : "#854d0e" }}>
+                    {message}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-8 space-y-3">
+              {step === "phone" && (
+                <PrimaryBtn loading={loading} label="Continue" loadingLabel="Sending OTP..." onClick={sendOtp} />
+              )}
+              
+              {step === "otp" && (
+                <>
+                  <PrimaryBtn loading={loading} label="Verify OTP" loadingLabel="Verifying..." onClick={verifyOtp} />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setStep("phone"); setErrors({}); setMessage(""); }}
+                      disabled={loading}
+                      className="flex-1 py-3 rounded-2xl text-[10px] font-black tracking-[0.1em] uppercase cursor-pointer transition-all duration-200 hover:bg-slate-100 bg-slate-50 text-slate-600 border border-slate-200"
+                    >
+                      ← Change No.
+                    </button>
+                    <button
+                      onClick={sendOtp}
+                      disabled={loading}
+                      className="flex-1 py-3 rounded-2xl text-[10px] font-black tracking-[0.1em] uppercase cursor-pointer transition-all duration-200 hover:bg-yellow-50 bg-yellow-50/50 text-yellow-700 border border-yellow-200"
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {step === "details" && (
+                <PrimaryBtn loading={loading} label="Create Account" loadingLabel="Creating..." onClick={completeReg} />
+              )}
+
+              {/* Terms */}
+              <p className="text-[10px] font-medium leading-relaxed text-center text-slate-400 mt-6 px-4">
+                By continuing, you agree to our Terms of Service. We may contact you via Call, SMS, or WhatsApp.
+              </p>
             </div>
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
-    </>
+    </div>
   );
 }

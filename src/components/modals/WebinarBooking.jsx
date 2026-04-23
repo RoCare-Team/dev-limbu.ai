@@ -28,7 +28,7 @@ export default function BookDemoModal() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (error) setError(""); 
+    if (error) setError("");
   };
 
   const handleBookDemoSubmit = async (e) => {
@@ -48,7 +48,7 @@ export default function BookDemoModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
-          phone: formData.contact, 
+          phone: formData.contact,
           seminarTime: "4:00 PM IST",
           selectedDate: formData.selectedDate,
           status: "Not Attended",
@@ -85,42 +85,39 @@ export default function BookDemoModal() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-fadeIn font-sans">
-      <div
-        className="relative rounded-3xl p-8 max-w-md w-full border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
-        style={{ backgroundColor: "var(--cyber-black)" }}
-      >
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn font-sans">
+      <div className="relative bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-100">
         {/* Close Button */}
         <button
           onClick={closeModal}
-          className="absolute top-6 right-6 text-white/50 hover:text-[#FDE047] transition-colors"
+          className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
 
         {/* CONTENT */}
         {isBooked ? (
           <div className="text-center py-8">
-            <CheckCircle className="w-20 h-20 text-[#FDE047] mx-auto mb-6 animate-bounce" />
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <CheckCircle className="w-20 h-20 text-yellow-400 mx-auto mb-6 animate-bounce" />
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
               Booked Successfully!
             </h2>
-            <p className="text-white/60">We will contact you shortly.</p>
+            <p className="text-slate-500">We will contact you shortly.</p>
             <button
               onClick={closeModal}
-              className="mt-6 text-[#FDE047] text-sm font-bold uppercase tracking-widest"
+              className="mt-6 text-yellow-600 text-sm font-bold uppercase tracking-widest hover:text-yellow-700 transition-colors"
             >
               Close
             </button>
           </div>
         ) : (
           <>
-            <h2 className="text-2xl font-bold text-white mb-6 tracking-tight">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6 tracking-tight">
               Book Your Free Demo
             </h2>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-500 text-sm">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-600 text-sm">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 <p>{error}</p>
               </div>
@@ -134,7 +131,7 @@ export default function BookDemoModal() {
                 value={formData.name}
                 onChange={handleInputChange}
                 required
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl focus:ring-2 focus:ring-[#FDE047] outline-none transition placeholder:text-white/30"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition placeholder:text-slate-400"
               />
 
               <input
@@ -144,11 +141,11 @@ export default function BookDemoModal() {
                 value={formData.contact}
                 onChange={handleInputChange}
                 required
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl focus:ring-2 focus:ring-[#FDE047] outline-none transition placeholder:text-white/30"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition placeholder:text-slate-400"
               />
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-white/40">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
                   Seminar Date (Mon - Sat)
                 </label>
                 <input
@@ -158,15 +155,16 @@ export default function BookDemoModal() {
                   min={new Date().toISOString().split("T")[0]}
                   onChange={handleInputChange}
                   required
-                  className={`w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl focus:ring-2 outline-none transition ${isSunday ? "border-red-500" : "focus:ring-[#FDE047]"}`}
+                  className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-2 outline-none transition ${isSunday ? "border-red-400 focus:ring-red-400" : "focus:border-yellow-400 focus:ring-yellow-400"}`}
                 />
 
                 {isSunday ? (
                   <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> Seminars are closed on Sundays
+                    <AlertCircle className="w-3 h-3" /> Seminars are closed on
+                    Sundays
                   </p>
                 ) : (
-                  <div className="flex items-center gap-2 text-[#FDE047] text-sm font-medium">
+                  <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium">
                     <Clock className="w-4 h-4" />
                     <span>Time: 4:00 PM IST</span>
                   </div>
@@ -176,7 +174,7 @@ export default function BookDemoModal() {
               <button
                 type="submit"
                 disabled={isSubmitting || isSunday}
-                className="w-full px-6 py-4 bg-[#FDE047] text-black rounded-xl font-bold uppercase tracking-[0.1em] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(253,224,71,0.2)]"
+                className="w-full px-6 py-4 bg-yellow-400 text-slate-900 rounded-xl font-bold uppercase tracking-[0.1em] hover:bg-yellow-500 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
               >
                 {isSubmitting ? "Submitting..." : "Submit Request"}
               </button>

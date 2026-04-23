@@ -5,32 +5,23 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
-  Eye,
   MapPin,
-  Phone,
   Star,
   TrendingUp,
   ArrowLeft,
   BarChart3,
-  MousePointer,
-  Navigation,
-  Calendar,
   AlertCircle,
-  Search,
-  Hash,
-  X,
-  Download,
+  Globe,
+  Loader2,
 } from "lucide-react";
-import { CircularProgress } from "@mui/material";
 import { toast, Toaster } from "react-hot-toast";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
-
+import { getLocalStorage } from "@/utils/storage";
 
 // --- Fetch Insights API ---
 export async function fetchLocationInsights(accessToken, locationId, startDate, endDate) {
   try {
-    // Ensure dates are Date objects
     const start = startDate instanceof Date ? startDate : new Date(startDate);
     const end = endDate instanceof Date ? endDate : new Date(endDate);
 
@@ -57,7 +48,6 @@ export async function fetchLocationInsights(accessToken, locationId, startDate, 
   }
 }
 
-
 // Fetch search keywords
 async function fetchSearchKeywords(accessToken, locationId, startMonth, endMonth) {
   try {
@@ -78,34 +68,6 @@ async function fetchSearchKeywords(accessToken, locationId, startMonth, endMonth
     console.error("Fetch Search Keywords Error:", err);
     throw err;
   }
-}
-
-// InsightsModal Component
-function InsightsModal({ isOpen, onClose, insights, listingTitle, loading, startDate, endDate, onDateChange, searchKeywords, searchKeywordsLoading, location }) {
-  if (!isOpen) return null;
-
-  // Format location name with address
-  const fullLocationName = location?.address 
-    ? `${listingTitle} - ${location.address}` 
-    : listingTitle;
-
-  return (
-    <PerformanceInsightsModal
-      isOpen={isOpen}
-      onClose={onClose}
-      insightsData={insights}
-      businessName={listingTitle}
-      locationName={fullLocationName}
-      city={location?.locality || ""}
-      locality={location?.address || ""}
-      locationId={location?.locationId || ""}
-      businessProfileId={location?.businessProfileId || ""}
-      dateRange={{ startDate, endDate }}
-      searchKeywords={searchKeywords}
-      loading={loading}
-      onDateChange={onDateChange}
-    />
-  );
 }
 
 export default function GmbInsightsPage() {
@@ -138,39 +100,32 @@ export default function GmbInsightsPage() {
   // Load locations from localStorage
   useEffect(() => {
     if (status === "authenticated") {
-      const locationDetails = localStorage.getItem("locationDetails");
+      const locationDetails = getLocalStorage("locationDetails");
       if (locationDetails) {
         try {
           const parsedLocations = JSON.parse(locationDetails);
           setLocations(parsedLocations);
-          setLoading(false);
         } catch (err) {
           console.error("Error parsing location details:", err);
           toast.error("Failed to load locations");
-          setLoading(false);
         }
-      } else {
-        setLoading(false);
       }
+      setLoading(false);
     }
   }, [status]);
 
-  // Handle View Insights - fetch data BEFORE opening modal (like dashboard)
+  // Handle View Insights
   const handleViewInsights = async (location) => {
-    // Always reset to 1 month default when opening new location
     const defaultStartDate = new Date();
     defaultStartDate.setDate(defaultStartDate.getDate() - 30);
     const defaultEndDate = new Date();
     
-    // Reset dates to default 1 month
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
     
-    // Store location first
     setSelectedListingTitle(location.title || "Unknown Listing");
     setSelectedLocation(location);
 
-    // Fetch insights data first (synchronously-like behavior)
     setInsightsLoading(true);
     setSearchKeywordsLoading(true);
     setInsightsData(null);
@@ -181,7 +136,6 @@ export default function GmbInsightsPage() {
       const insights = await fetchLocationInsights(session.accessToken, location.locationId, fetchStart, insightSeriesEnd);
       setInsightsData(insights);
 
-      // Fetch search keywords
       const currentDate = new Date();
       const startMonth = {
         year: currentDate.getFullYear(),
@@ -201,7 +155,6 @@ export default function GmbInsightsPage() {
       const keywords = await fetchSearchKeywords(session.accessToken, location.locationId, startMonth, endMonth);
       setSearchKeywordsData(keywords);
       
-      // Now open the modal AFTER data is fetched
       setShowInsightsModal(true);
     } catch (error) {
       console.error("Error fetching insights:", error);
@@ -209,25 +162,21 @@ export default function GmbInsightsPage() {
     } finally {
       setInsightsLoading(false);
       setSearchKeywordsLoading(false);
-      // Ensure modal opens even if there's an error (to show the error state)
       setShowInsightsModal(true);
     }
   };
 
-  // Handle date change in modal - exactly like dashboard
+  // Handle date change in modal
   const handleDateChange = async (dateRange) => {
-    // Handle both object format and direct date parameters
     const newStartDate = dateRange?.startDate || dateRange;
     const newEndDate = dateRange?.endDate || dateRange;
     
-    // Ensure dates are proper Date objects
     const parsedStartDate = newStartDate instanceof Date ? newStartDate : new Date(newStartDate);
     const parsedEndDate = newEndDate instanceof Date ? newEndDate : new Date(newEndDate);
     
     setStartDate(parsedStartDate);
     setEndDate(parsedEndDate);
     
-    // Get location ID from selected location
     const locationId = selectedLocation?.locationId;
     
     if (!locationId) {
@@ -257,11 +206,11 @@ export default function GmbInsightsPage() {
   // Loading state
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center flex flex-col items-center justify-center">
-          <CircularProgress size={60} thickness={4} sx={{ color: "#3b82f6" }} />
-          <p className="text-gray-700 font-semibold mt-6 text-lg">
-            Loading insights...
+          <Loader2 className="w-12 h-12 text-yellow-400 animate-spin mx-auto mb-6" />
+          <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">
+            Reading Performance Data...
           </p>
         </div>
       </div>
@@ -272,129 +221,139 @@ export default function GmbInsightsPage() {
     return null;
   }
 
-  // Location grid view (always shown)
+  const fullLocationName = selectedLocation?.address 
+    ? `${selectedListingTitle} - ${selectedLocation.address}` 
+    : selectedListingTitle;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 sm:p-6">
+    <div className="min-h-screen bg-slate-50/50">
       <Toaster position="top-right" />
 
-      <InsightsModal
-        isOpen={showInsightsModal}
-        onClose={() => setShowInsightsModal(false)}
-        insights={insightsData}
-        listingTitle={selectedListingTitle}
-        loading={insightsLoading}
-        startDate={startDate}
-        endDate={endDate}
-        onDateChange={handleDateChange}
-        searchKeywords={searchKeywordsData}
-        searchKeywordsLoading={searchKeywordsLoading}
-        location={selectedLocation}
-      />
+      {showInsightsModal && (
+        <PerformanceInsightsModal
+          isOpen={showInsightsModal}
+          onClose={() => setShowInsightsModal(false)}
+          insightsData={insightsData}
+          businessName={selectedListingTitle}
+          locationName={fullLocationName}
+          city={selectedLocation?.locality || ""}
+          locality={selectedLocation?.address || ""}
+          locationId={selectedLocation?.locationId || ""}
+          businessProfileId={selectedLocation?.businessProfileId || ""}
+          dateRange={{ startDate, endDate }}
+          searchKeywords={searchKeywordsData}
+          loading={insightsLoading}
+          onDateChange={handleDateChange}
+        />
+      )}
 
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold mb-4 transition"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back
-          </button>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">GMB Insights </h1>
-          <p className="text-gray-600">
-            Select a location to view detailed insights and analytics
-          </p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2.5 rounded-xl border border-black/5 bg-white hover:bg-slate-50 transition-all shadow-sm group"
+            >
+              <ArrowLeft className="w-5 h-5 text-black group-hover:-translate-x-1 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+                Business <span className="text-yellow-500">Insights</span>
+              </h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Analyze Local Search Performance</p>
+            </div>
+          </div>
         </div>
 
         {/* Locations Grid */}
         {locations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {locations.map((location, idx) => (
               <div
                 key={idx}
-                className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all ${
+                className={`group bg-white rounded-3xl border border-black/5 p-6 sm:p-8 transition-all duration-500 shadow-sm ${
                   location.isVerified
-                    ? 'hover:shadow-lg hover:border-blue-300 cursor-pointer'
+                    ? 'hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-black/5 cursor-pointer'
                     : 'opacity-60 cursor-not-allowed'
                 }`}
                 onClick={() => location.isVerified && handleViewInsights(location)}
               >
-                {/* Location Card */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-gray-900 mb-1 line-clamp-2">
-                      {location.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      <MapPin className="w-4 h-4" />
-                      <span className="line-clamp-1">{location.address}</span>
-                    </div>
-                    {location.locality && (
-                      <p className="text-xs text-gray-500 mb-3">
-                        {location.locality}
-                      </p>
-                    )}
-                  </div>
-                  {location.isVerified ? (
-                    <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold border border-green-200">
-                      <Star className="w-3 h-3" />
+                {/* Header: Logo & Badge */}
+                <div className="flex items-start justify-between mb-6">
+                   <div className="p-3 bg-slate-50 rounded-2xl border border-black/5 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
+                     <Building2 className="w-6 h-6" />
+                   </div>
+                   {location.isVerified ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-widest border border-green-100">
+                      <Star className="w-3 h-3 fill-green-700" />
                       Verified
                     </span>
                   ) : (
-                    <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest border border-red-100">
                       <AlertCircle className="w-3 h-3" />
-                      Unverified
+                      Issue
                     </span>
                   )}
                 </div>
 
-                {/* Website link */}
-                {location.websiteUrl && (
-                  <div className="mb-4 pb-4 border-t border-gray-100 pt-4">
-                    <a
-                      href={location.websiteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium truncate block"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {location.websiteUrl}
-                    </a>
+                {/* Body */}
+                <div className="mb-8">
+                  <h3 className="font-black text-base text-black uppercase tracking-tight mb-2 leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+                    {location.title}
+                  </h3>
+                  <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest mb-4">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate">{location.address}</span>
                   </div>
-                )}
+                  {location.locality && (
+                    <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-black/5 inline-block">
+                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{location.locality}</p>
+                    </div>
+                  )}
+                </div>
 
-                {/* View Insights Button */}
+                {/* Details */}
+                <div className="space-y-3 mb-8 border-t border-black/5 pt-6">
+                  {location.websiteUrl && (
+                    <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                      <Globe className="w-4 h-4 text-black opacity-30" />
+                      <span className="truncate group-hover:text-yellow-600 transition-colors">
+                        {location.websiteUrl.replace(/^https?:\/\//, '')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                    <TrendingUp className="w-4 h-4 text-black opacity-30" />
+                    <span>Real-time Analytics Ready</span>
+                  </div>
+                </div>
+
+                {/* Footer Action */}
                 <button
-                  onClick={() => location.isVerified && handleViewInsights(location)}
                   disabled={!location.isVerified}
-                  className={`w-full flex items-center justify-center gap-2 font-semibold px-4 py-3 rounded-lg transition-opacity ${
-                    location.isVerified
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-95 cursor-pointer'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl group-hover:scale-[1.02]"
                 >
-                  <TrendingUp className="w-4 h-4" />
-                  {location.isVerified ? 'View Insights' : 'Unverified Location'}
+                  <BarChart3 className="w-4 h-4" />
+                  {location.isVerified ? 'View Insights ↗' : 'Locked'}
                 </button>
               </div>
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <Building2 className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              No Locations Found
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Please connect your Google Business Profile from the dashboard first
+          <div className="bg-white border border-black/5 rounded-[2.5rem] p-12 sm:p-20 text-center max-w-2xl mx-auto shadow-2xl shadow-black/5">
+            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-black/5">
+              <Building2 className="w-10 h-10 text-slate-200" />
+            </div>
+            <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)" }}>No Signal Found</h3>
+            <p className="text-slate-400 font-bold mb-10 text-sm leading-relaxed">
+              Connect your Google Business Profile to unlock advanced performance intelligence and search visibility metrics.
             </p>
             <button
               onClick={() => router.push("/dashboard")}
-              className="inline-flex items-center gap-2 bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition"
+              className="btn-lemon px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px]"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Go to Dashboard
+              Back to Command Center ↗
             </button>
           </div>
         )}

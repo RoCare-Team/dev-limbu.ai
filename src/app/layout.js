@@ -5,9 +5,6 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
 import InitAuth from "@/components/InitAuth";
-import { Suspense } from "react";
-import LimbuAiChatWidget from "@/components/LimbuAiChatWidget";
-import { headers } from "next/headers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,26 +43,7 @@ export const metadata = {
   },
 };
 
-export default async function RootLayout({ children }) {
-  // ✅ Read the header injected by middleware for subdomain tenant requests.
-  // When doctorfresh.limbu.ai/ hits middleware, it sets x-is-subdomain-site: 1
-  // and rewrites to /[slug]. We read it here (server-side) to skip all
-  // app chrome (AuthGuard, ClientLayout, GTM, Pixel) for tenant pages.
-  const headersList = await headers();
-  const isTenantSite = headersList.get("x-is-subdomain-site") === "1";
-
-  // If this is a tenant microsite, render a clean shell — no app UI at all
-  if (isTenantSite) {
-    return (
-      <html lang="en" className={inter.variable}>
-        <body className={`${inter.variable} antialiased`}>
-          {children}
-        </body>
-      </html>
-    );
-  }
-
-  // ── Main app shell (limbu.ai / www.limbu.ai only) ──
+export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <head>
@@ -80,6 +58,7 @@ export default async function RootLayout({ children }) {
             'https://www.googletagmanager.com/gtm.js?id='+i+dl;
             f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-WTLTD58F');
+;
           `}
         </Script>
 
@@ -94,6 +73,7 @@ export default async function RootLayout({ children }) {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
+;
             fbq('init', '1388988219494781');
             fbq('track', 'PageView');
           `}
@@ -129,9 +109,6 @@ export default async function RootLayout({ children }) {
           <ClientLayout>
             <AuthGuard>{children}</AuthGuard>
           </ClientLayout>
-          <Suspense fallback={null}>
-            <LimbuAiChatWidget />
-          </Suspense>
         </SessionProviderWrapper>
       </body>
     </html>

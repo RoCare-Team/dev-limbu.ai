@@ -15,22 +15,60 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
+      // ─── Cloudinary ───────────────────────────────────────────
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+      // ─── Amazon S3 (generic buckets) ──────────────────────────
+      {
+        protocol: "https",
+        hostname: "*.amazonaws.com",
+        pathname: "/**",
+      },
+      // ─── Amazon S3 (path-style URLs) ──────────────────────────
+      {
+        protocol: "https",
+        hostname: "s3.amazonaws.com",
+        pathname: "/**",
+      },
+      // ─── Amazon S3 (region-specific, e.g. s3.ap-south-1.amazonaws.com) ───
+      {
+        protocol: "https",
+        hostname: "*.s3.amazonaws.com",
+        pathname: "/**",
+      },
+      // ─── Amazon S3 (bucket in subdomain style, e.g. mybucket.s3.ap-south-1.amazonaws.com) ───
+      {
+        protocol: "https",
+        hostname: "*.s3.*.amazonaws.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "via.placeholder.com",
+        pathname: "/**",
+      }
     ],
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb',
+      bodySizeLimit: "10mb",
     },
   },
   // Fix for recharts SSR issue: (0 , R.default) is not a function
-  // This ensures recharts is properly transpiled for client-side rendering
-  transpilePackages: ['recharts', 'react-hot-toast', 'jspdf', 'html2canvas'],
-  // Ensure proper webpack configuration for these packages
+  transpilePackages: ["recharts", "react-hot-toast", "jspdf", "html2canvas", "html-to-image"],
   webpack: (config, { isServer }) => {
     // Fix for jspdf and html2canvas SSR issues
     if (!isServer) {

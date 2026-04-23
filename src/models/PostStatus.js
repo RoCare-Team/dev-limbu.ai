@@ -12,20 +12,20 @@ const PostSchema = new mongoose.Schema(
       enum: ["image", "video"],
       default: "image",
     },
-    description:{type: String},
-    promat:{type:String},
-    gmbDescription:{type:String},
-    fbDescription:{type:String},
-    igDescription:{type:String},
+    description: { type: String },
+    promat: { type: String },
+    gmbDescription: { type: String },
+    fbDescription: { type: String },
+    igDescription: { type: String },
 
-    
-scheduledDateSource: {
-  type: [String],
-  enum: ["gmb", "fb", "ig"],
-  // required: true,
-},
 
-    
+    scheduledDateSource: {
+      type: [String],
+      enum: ["gmb", "fb", "ig"],
+      // required: true,
+    },
+
+
 
     status: {
       type: String,
@@ -38,9 +38,9 @@ scheduledDateSource: {
       default: () => ({})
     },
 
-    fbPages:[],
-    igPages:[],    
-    
+    fbPages: [],
+    igPages: [],
+
     scheduledDate: { type: Date },
     /** When set, automation-fill-queue generates image+copy at this time; then status → scheduled for publish-scheduled. */
     generateContentAt: { type: Date },
@@ -54,7 +54,7 @@ scheduledDateSource: {
     accessToken: { type: String }, // Store token at schedule time
     refreshToken: { type: String }, // Store refresh token for cron jobs
     checkmark: { type: String, default: "both" }, // ✅ Added checkmark field
-    
+
     locations: [
       {
         locationId: String,

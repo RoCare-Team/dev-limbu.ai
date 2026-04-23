@@ -1,6 +1,5 @@
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
-import mongoose from "mongoose";
 
 // Helper to return JSON response
 const json = (body, status = 200) =>
@@ -11,7 +10,7 @@ const json = (body, status = 200) =>
 
 /**
  * GET -> Fetch posts by userId (e.g., MB-02) and optional status
- * Query: ?userId=MB-02&status=pending&id=123
+ * Query: ?userId=MB-02&status=pending&id=123&page=1&limit=10
  */
 export async function GET(req) {
   try {
@@ -21,7 +20,12 @@ export async function GET(req) {
     const id = searchParams.get("id");
     const status = searchParams.get("status");
     const userId = searchParams.get("userId");
-    
+
+    // Pagination parameters
+    const page = parseInt(searchParams.get("page")) || 1;
+    const limit = parseInt(searchParams.get("limit")) || 0; // 0 means all for backward compatibility
+    const skip = (page - 1) * limit;
+
     // Date filter parameters
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -31,10 +35,27 @@ export async function GET(req) {
     if (userId) {
       query.userId = userId;
     }
-    if (status) {
+
+    if (status === "videos") {
+      query.$or = [
+        { mediaType: "video" },
+        { videoOutput: { $ne: "", $exists: true, $ne: null } },
+        { 
+          aiOutput: { 
+            $regex: "\\.(mp4|webm|mov)$", 
+            $options: "i"
+          } 
+        }
+      ];
+      // Only show non-rejected videos in the video tab by default, 
+      // or should we show all? Usually tabs filter by one thing.
+      // Let's match the "total" tab's behavior of excluding rejected if needed,
+      // but the user didn't specify. For now, let's just filter by video criteria.
+      query.status = { $ne: "rejected" }; 
+    } else if (status) {
       query.status = status;
     }
-    
+
     // Date filtering
     if (startDate && endDate) {
       const start = new Date(startDate);
@@ -49,19 +70,43 @@ export async function GET(req) {
 
     // Single post
     if (id) {
-      // If fetching by id, it's better to keep it scoped by userId if provided
       const findOneQuery = { _id: id };
       if (userId) {
         findOneQuery.userId = userId;
       }
-      const post = await Post.findOne(findOneQuery).lean();
+      const post = await Post.findOne(findOneQuery)
+        .select("-accessToken -refreshToken") // Exclude sensitive fields
+        .lean();
+
       if (!post) return json({ success: false, error: "Post not found" }, 404);
       return json({ success: true, data: post });
     }
 
-    // Multiple posts (all posts if no userId)
-    const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
-    return json({ success: true, data: posts, count: posts.length });
+    // Total count for frontend pagination UI
+    const totalCount = await Post.countDocuments(query);
+
+    // Multiple posts (paginated)
+    let queryBuilder = Post.find(query).sort({ createdAt: -1 });
+
+    if (limit > 0) {
+      queryBuilder = queryBuilder.skip(skip).limit(limit);
+    }
+
+    const posts = await queryBuilder
+      .select("-accessToken -refreshToken") // Exclude sensitive fields
+      .lean();
+
+    return json({
+      success: true,
+      data: posts,
+      count: posts.length,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: limit > 0 ? Math.ceil(totalCount / limit) : 1,
+        currentPage: page,
+        limit: limit
+      }
+    });
   } catch (err) {
     return json({ success: false, error: err.message }, 500);
   }
@@ -88,11 +133,42 @@ export async function POST(req) {
         {
           $group: {
             _id: "$userId",
-            total: { $sum: 1 },
+            total: { 
+              $sum: { 
+                $cond: [{ $ne: ["$status", "rejected"] }, 1, 0] 
+              } 
+            },
             posted: { $sum: { $cond: [{ $eq: ["$status", "posted"] }, 1, 0] } },
             approved: { $sum: { $cond: [{ $eq: ["$status", "approved"] }, 1, 0] } },
             rejected: { $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] } },
             pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+            scheduled: { $sum: { $cond: [{ $eq: ["$status", "scheduled"] }, 1, 0] } },
+            videos: { 
+              $sum: { 
+                $cond: [
+                  { 
+                    $and: [
+                      { $ne: ["$status", "rejected"] },
+                      { 
+                        $or: [
+                          { $eq: ["$mediaType", "video"] },
+                          { $gt: [{ $strLenCP: { $ifNull: ["$videoOutput", ""] } }, 0] },
+                          { 
+                            $regexMatch: { 
+                              input: { $ifNull: ["$aiOutput", ""] }, 
+                              regex: "\\.(mp4|webm|mov)$",
+                              options: "i" 
+                            } 
+                          }
+                        ]
+                      }
+                    ]
+                  }, 
+                  1, 
+                  0
+                ] 
+              } 
+            },
           },
         },
       ]);
@@ -317,12 +393,12 @@ export async function PUT(req) {
         // First, ensure whenPosted is initialized as an object if it's null
         // Get the current post to check if whenPosted is null
         const currentPost = await Post.findOne({ _id: id, userId });
-        
+
         if (currentPost && (currentPost.whenPosted === null || currentPost.whenPosted === undefined)) {
           // Initialize whenPosted as an empty object first
           updateData.whenPosted = {};
         }
-        
+
         // Now set the nested properties
         for (const key in whenPosted) {
           updateData[`whenPosted.${key}`] = whenPosted[key];

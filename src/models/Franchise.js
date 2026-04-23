@@ -36,6 +36,11 @@ const FranchiseSchema = new mongoose.Schema(
     orderId: String,
     amount: Number,
     plan: String,
+    gstNumber: String,
+    leadType: {
+      type: String,
+      default: "Website",
+    },
   },
   { timestamps: true }
 );

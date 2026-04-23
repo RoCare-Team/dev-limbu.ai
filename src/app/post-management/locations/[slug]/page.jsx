@@ -153,7 +153,7 @@ const PostInput = ({ prompt, setPrompt, logo, setLogo, onGenerate, loading }) =>
   const removeImage = () => setLogo(null);
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border-2 border-blue-200 p-4 sm:p-6 md:p-8">
+    <div className="bg-white rounded-xl sm:rounded-2xl border-2 border-blue-200 p-4 sm:p-6 md:p-8">
       <div className="flex flex-col space-y-4 sm:space-y-6">
         <div className="space-y-2 sm:space-y-3">
           <label className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">

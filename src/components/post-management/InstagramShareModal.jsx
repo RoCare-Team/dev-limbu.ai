@@ -2,12 +2,12 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Instagram, X, Loader2, Send, Video } from "lucide-react";
 import Link from "next/link";
 import { metaPublishMedia } from "@/lib/postMediaUrls";
 
-const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loading }) => {
+const InstagramShareModal = React.memo(({ isOpen, onClose, onConfirm, post, accounts, loading }) => {
   const [caption, setCaption] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
@@ -23,18 +23,18 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
     }
   }, [accounts, selectedAccountId]);
 
-  if (!isOpen) return null;
+  const publishAsVideo = useMemo(() => post ? metaPublishMedia(post).type === "video" : false, [post]);
 
-  const publishAsVideo = metaPublishMedia(post).type === "video";
+  const handleSubmit = useCallback(() => {
+    if (!accounts || accounts.length === 0) return;
 
-  const handleSubmit = () => {
-    const account = accounts.find(p => p.igId === selectedAccountId);
+    const account = accounts.find(p => p.igId === selectedAccountId) || accounts[0];
     if (account) {
       onConfirm(post, account, caption);
-    } else if (accounts.length > 0) {
-      onConfirm(post, accounts[0], caption);
     }
-  };
+  }, [onConfirm, post, accounts, selectedAccountId, caption]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -115,6 +115,8 @@ const InstagramShareModal = ({ isOpen, onClose, onConfirm, post, accounts, loadi
       </div>
     </div>
   );
-};
+});
+
+InstagramShareModal.displayName = "InstagramShareModal";
 
 export default InstagramShareModal;

@@ -15,6 +15,9 @@ export function middleware(request) {
   const cleanHost = getCleanHostname(request);
   const url = request.nextUrl.clone();
 
+  console.log("HOST:", cleanHost);
+
+
   // 🔒 NEVER touch main domain
   if (
     cleanHost === "limbu.ai" ||
@@ -50,6 +53,7 @@ export function middleware(request) {
 
   return NextResponse.next();
 }
+
 
 /**
  * Include "/" explicitly — without it, requests to https://tenant.limbu.ai/

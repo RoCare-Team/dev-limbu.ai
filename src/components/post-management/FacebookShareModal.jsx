@@ -2,11 +2,11 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Facebook, X, Loader2, Send, Video } from "lucide-react";
 import { metaPublishMedia } from "@/lib/postMediaUrls";
 
-const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }) => {
+const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages, loading }) => {
   const [caption, setCaption] = useState("");
   const [selectedPageId, setSelectedPageId] = useState("");
 
@@ -22,18 +22,18 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
     }
   }, [pages, selectedPageId]);
 
-  if (!isOpen) return null;
+  const publishAsVideo = useMemo(() => post ? metaPublishMedia(post).type === "video" : false, [post]);
 
-  const publishAsVideo = metaPublishMedia(post).type === "video";
-
-  const handleSubmit = () => {
-    const page = pages.find(p => p.pageId === selectedPageId);
+  const handleSubmit = useCallback(() => {
+    if (!pages || pages.length === 0) return;
+    
+    const page = pages.find(p => p.pageId === selectedPageId) || pages[0];
     if (page) {
       onConfirm(post, page, caption);
-    } else if (pages.length > 0) {
-      onConfirm(post, pages[0], caption);
     }
-  };
+  }, [onConfirm, post, pages, selectedPageId, caption]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -116,6 +116,8 @@ const FacebookShareModal = ({ isOpen, onClose, onConfirm, post, pages, loading }
       </div>
     </div>
   );
-};
+});
+
+FacebookShareModal.displayName = "FacebookShareModal";
 
 export default FacebookShareModal;

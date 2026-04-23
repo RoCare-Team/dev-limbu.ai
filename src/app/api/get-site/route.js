@@ -8,6 +8,8 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug");
 
+    console.log("Fetching site with slug:", slug);
+
     if (!slug) {
       return NextResponse.json({ error: "Slug is required" }, { status: 400 });
     }

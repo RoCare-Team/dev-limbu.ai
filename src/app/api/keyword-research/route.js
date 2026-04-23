@@ -8,6 +8,8 @@ const KeywordSchema = new mongoose.Schema(
     userId: { type: String, required: true, index: true },
     keyword: { type: String, required: true, trim: true },
     source: { type: String, default: "google" },
+    volume: { type: Number },
+    competition: { type: String },
   },
   { timestamps: true }
 );
@@ -69,7 +71,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const { userId, keyword } = await req.json();
+    const { userId, keyword, volume, competition } = await req.json();
 
     if (!userId || !keyword) {
       return NextResponse.json(
@@ -82,6 +84,8 @@ export async function POST(req) {
       userId,
       keyword,
       source: "google",
+      volume,
+      competition,
     });
 
     return NextResponse.json({ success: true, data: saved });

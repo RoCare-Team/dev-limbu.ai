@@ -1,193 +1,240 @@
+"use client";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-"use client"
+import { ChevronDown, BookOpen, User, Info, Link as LinkIcon, MessageSquare, QrCode, Send, PhoneCall } from "lucide-react";
 
-import Image from "next/image"
-import { Menu, X } from "lucide-react"
-import LogoImage from "../../../public/images/bg-logo.png"
-import { Phone } from "lucide-react";
+export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-export default function HeaderSection({
-  isLoggedIn,
-  handleNavigation,
-  handleLogout,
-  setShowBookDemoModal,
-  isMobileMenuOpen,
-  setIsMobileMenuOpen
-}) {
+  // Zustand Store
+  const { isLoggedIn, logout, checkAuth, setModalOpen } = useAuthStore();
+
+  // Sync Auth
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const navLinks = [
+    { name: "Features", href: "/#features" },
+    { name: "Pricing", href: "/pricing" },
+    { name: "Franchise", href: "/franchise-opportunities" },
+  ];
+
+  const resourceLinks = [
+    {
+      name: "How To Connect GMB",
+      sub: "Step-by-step connection guide",
+      href: "/how-to-connect-gmb",
+      icon: LinkIcon
+    },
+    { name: "Create AI Post", href: "/how-to-create-post", icon: BookOpen },
+    { name: "Reply to Reviews", href: "/how-to-reply-review", icon: MessageSquare },
+    { name: "Generate Magic QR", href: "/how-to-generate-magic-qr", icon: QrCode },
+    { name: "Post on GMB", href: "/how-to-post-on-gmb", icon: Send },
+  ];
 
   return (
-    <>
-      {/* HEADER */}
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-  <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-
-    {/* LEFT - LOGO */}
-    <div
-      className="flex items-center gap-3 cursor-pointer flex-shrink-0"
-      onClick={() => handleNavigation('/')}
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white/80 backdrop-blur-md border-b border-black/10 py-3 shadow-sm"
     >
-      <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center shadow-md">
-        <Image
-          src={LogoImage}
-          alt="Limbu.ai Logo"
-          className="w-7 h-7"
-        />
-      </div>
+      <div className="flex items-center justify-between px-6 md:px-10 max-w-7xl mx-auto">
+        {/* LOGO */}
+       {/* LOGO */}
+<Link href="/" className="cursor-pointer flex items-center gap-2 shrink-0">
+  <Image
+    src="/images/bg-logo.png"
+    alt="Limbu.ai Logo"
+    width={200}
+    height={186}
+    className="object-contain h-14 w-auto"
+    priority
+  />
+  <span className="text-xl font-black tracking-tight text-black">
+    Limbu <span className="text-[#F5C518]">AI</span>
+  </span>
+</Link>
 
-      <div className="leading-tight">
-        <h2 className="text-lg font-bold text-yellow-500">
-          limbu.ai
-        </h2>
-        <p className="text-xs text-gray-600">
-          Local Growth & Social 
-        </p>
-      </div>
-    </div>
+        {/* Desktop Menu */}
+        <div className="hidden md:flex items-center gap-8 font-inter">
+          <ul className="flex items-center gap-8 list-none m-0 p-0">
+            {navLinks.map((item) => (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  className="text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition"
+                >
+                  {item.name}
+                </Link>
+              </li>
+            ))}
 
-    {/* CENTER - NAV LINKS */}
-    <nav className="hidden lg:flex items-center gap-7 text-sm text-sm text-[#101010] font-dark">
-      <a href="#features" className="hover:text-lightPrimary transition">
-        Features
-      </a>
+            {/* Resources Dropdown */}
+            <li className="relative group">
+              <button
+                onMouseEnter={() => setDropdownOpen(true)}
+                onMouseLeave={() => setDropdownOpen(false)}
+                className="flex items-center gap-1 text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition cursor-pointer"
+              >
+                GMB Guide <ChevronDown size={14} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-      <a href="/work-with-us" className="hover:text-lightPrimary transition">
-        work with Us
-      </a>
+              {/* Dropdown Menu */}
+              <div
+                onMouseEnter={() => setDropdownOpen(true)}
+                onMouseLeave={() => setDropdownOpen(false)}
+                className={`absolute top-full -left-4 pt-4 transition-all duration-300 ${dropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}
+              >
+                <div className="bg-white border border-black/5 rounded-2xl shadow-2xl p-2 min-w-[260px]">
+                  {resourceLinks.map((sub) => (
+                    <Link
+                      key={sub.name}
+                      href={sub.href}
+                      className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-all group/item"
+                    >
+                      <sub.icon size={18} className="text-lemon-hover mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-black/80 group-hover/item:text-black transition-colors">{sub.name}</p>
+                        {sub.sub && <p className="text-[10px] text-black/40 font-medium leading-tight mt-0.5">{sub.sub}</p>}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </li>
 
-      <a href="#services" className="hover:text-lightPrimary transition">
-        Our Services
-      </a>
+            <li>
+              <Link
+                href="/blog"
+                className="text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition"
+              >
+                Blog
+              </Link>
+            </li>
+          </ul>
 
-      <a href="/franchise-opportunities" className="hover:text-lightPrimary transition">
-        Become Franchise Partners
-      </a>
+          <div className="w-px h-5 bg-black/15" />
 
-      <button
-        onClick={() => setShowBookDemoModal(true)}
-        className="text-lightPrimary hover:underline"
-      >
-        Book a Demo
-      </button>
-    </nav>
+          <div className="flex items-center gap-3">
+            <a
+              href="tel:+919289344726"
+              className="btn-ghost btn-sm text-black border-black/20 hover:bg-black/5 flex items-center gap-2"
+            >
+              <PhoneCall size={14} /> +91 92833 44726
+            </a>
 
-    {/* RIGHT - ACTION BUTTONS */}
-    <div className="hidden lg:flex items-center gap-4">
+            {isLoggedIn ? (
+              <>
+                <Link href="/dashboard" className="btn-ghost btn-sm text-black border-black/20 hover:bg-black/5">
+                  Dashboard
+                </Link>
+                <button onClick={logout} className="btn-lemon btn-sm">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link href="/login" className="btn-lemon btn-sm">
+                Start Now
+              </Link>
+            )}
+          </div>
+        </div>
 
-      {/* WhatsApp */}
-      <a
-  href="tel:9289344726"
-  className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
->
-  <Phone className="w-4 h-4" />
-  9289344726
-</a>
-
-      {isLoggedIn ? (
-        <>
-          <button
-            onClick={() => handleNavigation('/dashboard')}
-            className="px-5 py-2 border border-yellow-400 text-gray-800 rounded-lg font-semibold hover:bg-yellow-50 transition"
-          >
-            Dashboard
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="px-6 py-2 bg-lightPrimary text-dark rounded-lg font-semibold hover:shadow-md transition"
-          >
-            Logout
-          </button>
-        </>
-      ) : (
+        {/* Mobile Hamburger */}
         <button
-          onClick={() => handleNavigation('/login')}
-          className="px-6 py-2 bg-lightPrimary text-dark rounded-lg font-semibold hover:shadow-md transition"
+          className="md:hidden flex flex-col gap-1.5 p-1 z-50"
+          onClick={() => setMenuOpen(!menuOpen)}
         >
-          Login
+          <span
+            className={`block w-6 h-0.5 bg-black transition ${menuOpen ? "rotate-45 translate-y-2" : ""
+              }`}
+          />
+          <span
+            className={`block w-6 h-0.5 bg-black transition ${menuOpen ? "opacity-0" : ""
+              }`}
+          />
+          <span
+            className={`block w-6 h-0.5 bg-black transition ${menuOpen ? "-rotate-45 -translate-y-2" : ""
+              }`}
+          />
         </button>
+      </div>
+
+      {/* Mobile Dropdown */}
+      {menuOpen && (
+        <div className="md:hidden flex flex-col gap-4 px-6 pt-6 pb-6 bg-white/95 backdrop-blur-md border-b border-black/10 shadow-lg max-h-[85vh] overflow-y-auto font-inter">
+          {navLinks.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="text-black font-semibold text-left text-lg hover:text-[var(--lemon-hover)] transition"
+              onClick={() => setMenuOpen(false)}
+            >
+              {item.name}
+            </Link>
+          ))}
+
+          {/* Mobile Resources Section */}
+          <div className="flex flex-col gap-3 mt-2 border-t border-black/5 pt-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-black/30">GMB Mastery Guide</p>
+            <div className="grid grid-cols-1 gap-2">
+              {resourceLinks.map((sub) => (
+                <Link
+                  key={sub.name}
+                  href={sub.href}
+                  className="flex items-center gap-3 py-2 text-sm font-semibold text-black/70"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <sub.icon size={16} className="text-lemon-hover" />
+                  <div>
+                    <span>{sub.name}</span>
+                    {sub.sub && <p className="text-[9px] text-black/30 font-medium -mt-1">{sub.sub}</p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <Link
+            href="/blog"
+            className="text-black font-semibold text-left text-lg hover:text-[var(--lemon-hover)] transition"
+            onClick={() => setMenuOpen(false)}
+          >
+            Blog
+          </Link>
+
+          <div className="flex flex-col gap-3 mt-4">
+            <a
+              href="tel:+919289344726"
+              onClick={() => setMenuOpen(false)}
+              className="btn-ghost btn-md justify-center text-black border-black/20 flex items-center gap-2"
+            >
+               <PhoneCall size={16} /> +91 92833 44726
+            </a>
+
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                onClick={() => setMenuOpen(false)}
+                className="btn-lemon btn-md flex justify-center"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="btn-lemon btn-md flex justify-center"
+              >
+                Start Now
+              </Link>
+            )}
+          </div>
+        </div>
       )}
-    </div>
-
-    {/* MOBILE MENU BUTTON */}
-    <div className="lg:hidden">
-      <button onClick={() => setIsMobileMenuOpen(true)}>
-        <Menu className="w-6 h-6 text-gray-800" />
-      </button>
-    </div>
-
-  </div>
-</header>
-
-
-      {/* MOBILE MENU */}
-      {isMobileMenuOpen && (
-  <div className="fixed inset-0 z-50 md:hidden">
-    
-    {/* Overlay */}
-    <div 
-      className="absolute inset-0 bg-black/40"
-      onClick={() => setIsMobileMenuOpen(false)}
-    ></div>
-
-    {/* Right Slide Panel */}
-    <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 shadow-xl transform transition-transform duration-300 ease-in-out">
-
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-xl font-bold text-slate-800">Limbu.ai</h2>
-        <button onClick={() => setIsMobileMenuOpen(false)}>
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-
-      <nav className="flex flex-col gap-6">
-
-        <a 
-          href="#features" 
-          onClick={() => setIsMobileMenuOpen(false)} 
-          className="text-lg font-medium text-slate-700"
-        >
-          Features
-        </a>
-
-        <a 
-          href="#services" 
-          onClick={() => setIsMobileMenuOpen(false)} 
-          className="text-lg font-medium text-slate-700"
-        >
-          Services
-        </a>
-
-        <a 
-          href="/franchise-opportunities" 
-          className=" text-dark hover:text-primary transition"
-        >
-          Become Franchise Partners
-        </a>
-
-        <button
-          onClick={() => {
-            setShowBookDemoModal(true)
-            setIsMobileMenuOpen(false)
-          }}
-          className="text-lg font-medium text-dark text-left"
-        >
-          Book a Demo
-        </button>
-
-        {/* WhatsApp / Call Number */}
-        <a
-  href="tel:9289344726"
-  className="flex items-center gap-2 px-4 py-2 border border-green-500 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition"
->
-  <Phone className="w-4 h-4" />
-  9289344726
-</a>
-
-      </nav>
-    </div>
-  </div>
-)}
-          
-    </>
-  )
+    </nav>
+  );
 }

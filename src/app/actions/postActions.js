@@ -37,9 +37,32 @@ export async function fetchPostsAction(userId, status) {
     return await res.json();
 }
 
-export async function fetchAllPostsAction(userId) {
-    const res = await fetch(`${API_URL}/api/post-status?userId=${userId}`, { cache: "no-store" });
-    return await res.json();
+export async function fetchAllPostsAction(userId, page = 1, limit = 12, status = "total") {
+    let url = `${API_URL}/api/post-status?userId=${userId}&page=${page}&limit=${limit}`;
+    if (status && status !== "total") {
+        url += `&status=${status}`;
+    }
+    const res = await fetch(url);
+    const data = await res.json();
+
+    // Fetch counts across all posts for this user for the tabs
+    if (data.success && page === 1) {
+        try {
+            const countsRes = await fetch(`${API_URL}/api/post-status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIds: [userId] })
+            });
+            const countsData = await countsRes.json();
+            if (countsData.success && countsData.data && countsData.data[userId]) {
+                data.counts = countsData.data[userId];
+            }
+        } catch (e) {
+            console.error("Failed to fetch counts", e);
+        }
+    }
+
+    return data;
 }
 
 export async function getUserWalletAction(userId) {
@@ -84,8 +107,8 @@ export async function generateWithAssetsAction(payload) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
-    console.log("reeeeeeeeeeeeeeeeeee",res);
-    
+    console.log("reeeeeeeeeeeeeeeeeee", res);
+
     return await res.json();
 }
 
@@ -95,7 +118,7 @@ export async function updatePostStatusAction(payload) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
-    
+
     return await res.json();
 }
 
@@ -138,23 +161,23 @@ export async function deletePostFromGmbAction(payload) {
 }
 
 export const downloadImageAction = async (imageUrl) => {
-  return await fetch(`/api/downloadImage?url=${encodeURIComponent(imageUrl)}`);
+    return await fetch(`/api/downloadImage?url=${encodeURIComponent(imageUrl)}`);
 };
 
 export async function generateVideoAction(payload) {
-  try {
-    const res = await fetch("/api/video-generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+        const res = await fetch("/api/video-generate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    return data; // contains { success, data, error }
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+        return data; // contains { success, data, error }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
 }

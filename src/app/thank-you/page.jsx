@@ -8,7 +8,10 @@ import {
   Clock,
   User,
   Phone,
+  ArrowRight,
+  Sparkles,
   ArrowLeft,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -20,96 +23,113 @@ function ThankYouContent() {
 
   const name = searchParams.get("name") || "Guest";
   const date = searchParams.get("date") || new Date().toDateString();
-  const phone = searchParams.get("phone") || "Not Provided";
-  const time = searchParams.get("time") || "4:00 PM IST";
+  const phone = searchParams.get("phone") || "Registered Node";
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] text-white">
+    <div className="relative w-full overflow-hidden m-0 p-0" style={{ backgroundColor: "var(--background)" }}>
       <Navbar />
 
-      <div className="max-w-6xl mx-auto px-5 py-16">
+      {/* ── Subtle background grid ── */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+          backgroundSize: "40px 40px"
+        }}
+      />
 
-        {/* SUCCESS SECTION */}
-        <div className="flex flex-col items-center text-center mb-12">
-          
-          <div className="p-5 bg-green-500/10 rounded-full mb-4 border border-green-500/20">
-            <CheckCircle className="w-12 h-12 text-green-400" />
+      {/* ── Ambient glows ── */}
+      <div
+        className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] z-0 opacity-10"
+        style={{
+          background: "radial-gradient(ellipse at top right, var(--lemon-glow) 0%, transparent 65%)",
+        }}
+      />
+
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-16 sm:py-24 flex flex-col items-center">
+        
+        {/* Success Icon */}
+        <div className="mb-6 relative group">
+          <div className="absolute inset-0 bg-lemon-glow/20 blur-2xl rounded-full animate-pulse group-hover:bg-lemon-glow/40 transition-all" />
+          <div className="relative bg-black p-5 rounded-[1.5rem] shadow-xl border border-black/10">
+            <CheckCircle className="w-10 h-10 text-lemon-glow" />
           </div>
-
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            You're Registered 🎉
-          </h1>
-
-          <p className="text-white/60 text-sm">
-            Your webinar slot is confirmed. Join WhatsApp to get the link instantly.
-          </p>
-
-          {/* 🔥 Urgency badge */}
-          {/* <div className="mt-3 text-xs bg-green-500/20 text-green-400 px-3 py-1 rounded-full animate-pulse border border-green-500/30">
-            ⚡ Instant Access via WhatsApp
-          </div> */}
+          <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-lemon-hover animate-bounce" />
         </div>
 
-        {/* GRID */}
-        <div className="grid lg:grid-cols-2 gap-8">
-
-          {/* LEFT: DETAILS */}
-          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 space-y-6 shadow-lg">
-
-            <h2 className="font-semibold text-lg">Booking Details</h2>
-
-            <DetailRow icon={<User />} label="Name" value={name} />
-            <DetailRow icon={<Phone />} label="Phone" value={phone} />
-            <DetailRow icon={<Calendar />} label="Date" value={date} />
-            <DetailRow icon={<Clock />} label="Time" value={time} />
-          </div>
-
-          {/* RIGHT: WHATSAPP CTA */}
-          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 flex flex-col justify-center text-center shadow-lg">
-
-            <h2 className="text-xl font-semibold mb-4">
-              Join WhatsApp Group 🚀
-            </h2>
-
-            <p className="text-white/60 text-sm mb-6">
-              Get webinar link, reminders & bonus AI content inside the group.
-            </p>
-
-            {/* 🔥 WHATSAPP BUTTON */}
-            <a
-              href="https://chat.whatsapp.com/Dk8wZjTMxQL4CT8MrhxUgD"
-              target="_blank"
-              className="relative py-3 rounded-lg font-semibold overflow-hidden group"
-            >
-              {/* Gradient Background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-green-400 to-green-600 group-hover:scale-105 transition"></div>
-
-              {/* Glow */}
-              <div className="absolute inset-0 blur-xl opacity-40 bg-green-500 group-hover:opacity-70 transition"></div>
-
-              {/* Text */}
-              <span className="relative z-10 flex items-center justify-center gap-2 text-white">
-                <MessageCircle size={18} />
-                Join WhatsApp Now
-              </span>
-            </a>
-
-            {/* Trust line */}
-            <p className="text-xs text-white/40 mt-3">
-              ✔ Get link instantly • No spam • Limited members only
-            </p>
-          </div>
-        </div>
-
-        {/* BACK BUTTON */}
-        <div className="mt-10 text-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm"
+        {/* Heading */}
+        <div className="text-center mb-16">
+          <h1 
+            className="font-black text-3xl uppercase tracking-tight text-black mb-3" 
+            style={{ fontFamily: "var(--font-heading)"}}
           >
-            <ArrowLeft size={16} />
-            Back to Home
-          </Link>
+            Thank You <span className="text-lemon-hover">For Registration</span>
+          </h1>
+          <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Your slot is synchronized • One final step remaining</p>
+        </div>
+
+        {/* Main Grid - Community Focused */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-stretch">
+          
+          {/* LEFT: Community CTA (PRIMARY FOCUS) */}
+          <div className="lg:col-span-7 flex flex-col">
+            <div className="bg-black rounded-[3rem] p-10 sm:p-14 shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex-1 border border-lemon-glow/30 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-lemon-glow/10 rounded-full blur-[100px] -mr-32 -mt-32 transition-all group-hover:bg-lemon-glow/20" />
+              
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full bg-lemon-glow/10 border border-lemon-glow/20">
+                  <span className="w-2 h-2 rounded-full bg-lemon-hover animate-ping" />
+                  <span className="text-[10px] font-black uppercase text-lemon-glow tracking-widest">Action Required</span>
+                </div>
+
+                <h2 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight mb-6 leading-none" style={{ fontFamily: "var(--font-heading)" }}>
+                  Join Our <br/> <span className="text-lemon-glow">VIP Community</span>
+                </h2>
+
+                <p className="text-sm sm:text-base text-slate-400 font-medium leading-relaxed mb-10 max-w-md">
+                  We'll transmit your <span className="text-white">Live Webinar Link</span>, exclusive <span className="text-lemon-glow">AI Prompts</span>, and automation tips inside our verified WhatsApp community.
+                </p>
+
+                <div className="space-y-4">
+                  <a
+                    href="https://chat.whatsapp.com/Dk8wZjTMxQL4CT8MrhxUgD"
+                    target="_blank"
+                    className="group w-full py-5 bg-lemon-glow text-black rounded-[1.5rem] font-black text-xs sm:text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white hover:scale-[1.02] transition-all shadow-2xl"
+                  >
+                    <MessageCircle className="w-6 h-6" />
+                    Enter WhatsApp Community ↗
+                  </a>
+                  <p className="text-center text-[10px] text-slate-500 font-black uppercase tracking-widest">Verified access for registered nodes only</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Deployment Details */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-white border border-black/5 rounded-[2.5rem] p-8 sm:p-10 shadow-xl relative overflow-hidden h-full flex flex-col justify-center">
+               <div className="absolute top-0 left-0 w-full h-1 bg-slate-100" />
+               
+               <h2 className="text-[11px] font-black text-black uppercase tracking-widest mb-8 flex items-center gap-3">
+                 <div className="p-1.5 bg-slate-50 rounded-lg border border-black/5 text-slate-400"><Users className="w-4 h-4" /></div>
+                 Registry Status
+               </h2>
+
+               <div className="space-y-6">
+                  <DetailRow icon={<User/>} label="Identity" value={name} />
+                  <DetailRow icon={<Phone/>} label="Uplink" value={phone} />
+                  <DetailRow icon={<Calendar/>} label="Sync" value={date} themed />
+                  <DetailRow icon={<Clock/>} label="Window" value="04:00 PM IST" themed />
+               </div>
+            </div>
+
+            <Link
+              href="/"
+              className="py-5 bg-white border border-black/5 rounded-[1.5rem] text-center font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" /> Return to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -118,23 +138,27 @@ function ThankYouContent() {
   );
 }
 
-function DetailRow({ icon, label, value }) {
+function DetailRow({ icon, label, value, themed }) {
   return (
-    <div className="flex items-center gap-4">
-      <div className="p-2 bg-white/5 rounded-lg text-green-400">
-        {icon}
+    <div className="flex items-start gap-4">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center border shrink-0 ${themed ? 'bg-lemon-glow/10 border-lemon-glow/20 text-lemon-hover' : 'bg-slate-50 border-black/5 text-black'}`}>
+        {cloneElement(icon, { size: 18 })}
       </div>
       <div>
-        <p className="text-xs text-white/40">{label}</p>
-        <p className="font-medium">{value}</p>
+        <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${themed ? 'text-lemon-hover/60' : 'text-slate-400'}`}>
+          {label}
+        </p>
+        <p className="text-sm font-black text-black tracking-tight">{value}</p>
       </div>
     </div>
   );
 }
 
+import { cloneElement } from "react";
+
 export default function ThankYouPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
       <ThankYouContent />
     </Suspense>
   );

@@ -157,8 +157,8 @@ function ConnectGoogleBusinessInner() {
         } catch {}
       }
 
-      // Go back to wherever the user came from (e.g. WhatsApp conversation).
-      window.history.back();
+      // Redirect to Limbu AI WhatsApp after successful business connect.
+      window.location.href = "https://wa.me/917065178662";
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {

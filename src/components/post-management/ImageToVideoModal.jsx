@@ -11,7 +11,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
-import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
+import { postHasVideoAsset } from "@/lib/postMediaUrls";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import {
   savePostAction,
   updatePostStatusAction,
@@ -101,11 +102,11 @@ const ImageToVideoModal = React.memo(({
       isLikelyImageOutput(initialOutput)
     ) {
       setSelectedPostId(initialPostId);
-      setUploadedCloudinaryUrl(null);
+      setUploadedS3Url(null);
       setMergeTargetPostId(initialPostId);
     } else {
       setSelectedPostId(null);
-      setUploadedCloudinaryUrl(null);
+      setUploadedS3Url(null);
       setMergeTargetPostId(null);
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -169,7 +170,7 @@ const ImageToVideoModal = React.memo(({
   );
 
   const selectedSourceUrl = useMemo(() => {
-    if (uploadedCloudinaryUrl) return uploadedCloudinaryUrl;
+    if (uploadedS3Url) return uploadedS3Url;
     if (!selectedPostId) return null;
     const row = generatedImageChoices.find((c) => String(c.id) === String(selectedPostId));
     if (row?.url) return row.url;
@@ -188,7 +189,7 @@ const ImageToVideoModal = React.memo(({
     }
     const dataUrl = u.startsWith("data:") ? u : `data:image/png;base64,${u}`;
     return { image: dataUrl, source: "post" };
-  }, [uploadedCloudinaryUrl, selectedSourceUrl]);
+  }, [uploadedS3Url, selectedSourceUrl]);
 
   const previewUrl = useMemo(() => {
     return selectedSourceUrl ? displayUrlForPostOutput(selectedSourceUrl) : null;
@@ -216,7 +217,7 @@ const ImageToVideoModal = React.memo(({
 
     updateUiState({ uploadingToCloudinary: true });
     setSelectedPostId(null);
-    setUploadedCloudinaryUrl(null);
+    setUploadedS3Url(null);
     setMergeTargetPostId(null);
     try {
       const sigData = await getCloudinarySignatureAction();
@@ -224,24 +225,16 @@ const ImageToVideoModal = React.memo(({
 
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("api_key", sigData.apiKey);
-      formData.append("timestamp", sigData.timestamp);
-      formData.append("signature", sigData.signature);
-      formData.append("folder", sigData.folder);
 
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData }
-      );
+      const uploadResult = await uploadToS3Action(formData);
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error?.message || "Failed to upload image to Cloudinary");
       }
 
-      const data = await res.json();
-      setUploadedCloudinaryUrl(data.secure_url);
-      showToast?.("Image uploaded to Cloudinary", "success");
+      setUploadedS3Url(uploadResult.url);
+      showToast?.("Image uploaded to S3", "success");
     } catch (err) {
       showToast?.(err.message || "Upload failed", "error");
     } finally {
@@ -311,6 +304,9 @@ const ImageToVideoModal = React.memo(({
     updateUiState({ loading: true });
     setResult(null);
     try {
+      const motionPrompt =
+        ivPrompt.trim() ||
+        "Create an engaging business promotional video.";
       const body = {
         prompt: ivPrompt.trim(),
         business_name: resolvedBusinessName || "Business",
@@ -331,7 +327,12 @@ const ImageToVideoModal = React.memo(({
       if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : data.error?.message || data.message || "Video generation failed");
       if (data.success === false && !data.drive_link) throw new Error(typeof data.error === "string" ? data.error : data.message || "Video generation failed");
 
-      setResult(data);
+      const videoUrl = String(
+        data.drive_link || data.video_url || ""
+      ).trim();
+      if (!videoUrl) {
+        throw new Error("No video URL returned from generator");
+      }
 
       if (userId && data.drive_link) {
         const wd = await deductFromWalletAction(userId, {
@@ -436,11 +437,10 @@ const ImageToVideoModal = React.memo(({
                   key={c.id}
                   type="button"
                   onClick={() => pickPost(c.id)}
-                  className={`relative w-14 h-14 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${
-                    String(selectedPostId) === String(c.id) && !uploadedCloudinaryUrl
+                  className={`relative w-14 h-14 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${String(selectedPostId) === String(c.id) && !uploadedS3Url
                       ? "border-amber-500 ring-2 ring-amber-200"
                       : "border-gray-200 hover:border-gray-300"
-                  }`}
+                    }`}
                   title={c.label}
                 >
                   <img src={displayUrlForPostOutput(c.url)} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
@@ -453,10 +453,10 @@ const ImageToVideoModal = React.memo(({
                 className={`w-14 h-14 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-0.5 shrink-0 transition-colors ${
                   uiState.uploadingToCloudinary
                     ? "border-amber-300 bg-amber-50/50 text-amber-800"
-                    : uploadedCloudinaryUrl
+                    : uploadedS3Url
                       ? "border-amber-500 bg-amber-50 text-amber-900"
                       : "text-gray-500 border-gray-300 hover:border-amber-400 hover:text-amber-700"
-                }`}
+                  }`}
               >
                 {uiState.uploadingToCloudinary ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
                 <span className="text-[8px] font-medium">Cloud</span>

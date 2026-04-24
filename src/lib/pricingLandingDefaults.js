@@ -39,7 +39,7 @@ export function mergePlanListWithDefaults(defaultList, dbList) {
 export const PRICING_LANDING_DEFAULTS = {
   sections: {
     subscription: {
-      titlePrefix: "Our",
+      titlePrefix: "Our Package",
       titleHighlight: "Package",
       subtitle: "Choose the Package that suits your business needs",
     },

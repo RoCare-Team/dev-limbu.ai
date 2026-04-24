@@ -178,13 +178,9 @@ function ConnectGoogleBusinessInner() {
         } catch {}
       }
 
-      // Go back to wherever the user came from (e.g. WhatsApp conversation).
-      // history.length > 1 means the browser has a previous page to return to.
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        router.replace("/?limbu_chat=1");
-      }
+      // Redirect back to the WhatsApp conversation this link came from.
+      // phoneFromUrl is the sender's number passed in ?phone= param.
+      window.location.href = `https://wa.me/${phoneFromUrl}`;
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {

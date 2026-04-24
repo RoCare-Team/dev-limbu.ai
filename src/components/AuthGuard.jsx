@@ -60,8 +60,8 @@ export default function AuthGuard({ children }) {
       "/handyman-marketing-software",
       "/google-business-management-service",
       "/education-marketing-software",
-      "/realestate-marketing-software"
-
+      "/realestate-marketing-software",
+      "/connect-google-business",
     ];
 
     const allowedAdminRoles = [

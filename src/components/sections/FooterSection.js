@@ -100,7 +100,7 @@ return ( <footer className="bg-[#fafafa] border-t border-slate-200 pt-16 pb-10">
 
           <div className="flex items-center gap-3 text-yellow-500 font-semibold">
             <Phone className="w-4 h-4" />
-            +91 92833 44726
+            +91 9289344726
           </div>
 
           <div className="flex items-start gap-3">

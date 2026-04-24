@@ -104,7 +104,7 @@ function ConnectGoogleBusinessInner() {
     const origin = window.location.origin;
     const next = new URLSearchParams();
     next.set("setup", "1");
-    // Carry both identifiers forward through OAuth callback
+    // Carry identifiers forward through OAuth callback
     if (phoneFromUrl)     next.set("phone",      phoneFromUrl);
     if (sessionIdFromUrl) next.set("session_id",  sessionIdFromUrl);
     const qs = next.toString();
@@ -178,7 +178,13 @@ function ConnectGoogleBusinessInner() {
         } catch {}
       }
 
-      router.replace("/?limbu_chat=1");
+      // Go back to wherever the user came from (e.g. WhatsApp conversation).
+      // history.length > 1 means the browser has a previous page to return to.
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        router.replace("/?limbu_chat=1");
+      }
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {
@@ -353,7 +359,7 @@ function ConnectGoogleBusinessInner() {
                 type="button"
                 onClick={() => {
                   const next = new URLSearchParams();
-                  if (phoneFromUrl)     next.set("phone",     phoneFromUrl);
+                  if (phoneFromUrl)     next.set("phone",      phoneFromUrl);
                   if (sessionIdFromUrl) next.set("session_id", sessionIdFromUrl);
                   const qs = next.toString();
                   void signOut({

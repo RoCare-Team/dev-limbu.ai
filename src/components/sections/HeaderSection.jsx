@@ -111,7 +111,7 @@ export default function Navbar() {
               href="tel:+919289344726"
               className="btn-ghost btn-sm text-black border-black/20 hover:bg-black/5 flex items-center gap-2"
             >
-              <PhoneCall size={14} /> +91 92833 44726
+              <PhoneCall size={14} /> +91 9289344726
             </a>
 
             {isLoggedIn ? (
@@ -192,7 +192,7 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
               className="btn-ghost btn-md justify-center text-black border-black/20 flex items-center gap-2"
             >
-               <PhoneCall size={16} /> +91 92833 44726
+               <PhoneCall size={16} /> +91 9289344726
             </a>
 
             {isLoggedIn ? (

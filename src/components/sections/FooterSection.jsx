@@ -144,7 +144,7 @@ export default function FooterSection() {
                   <div className="w-8 h-8 rounded-lg bg-[#EAB308]/10 flex items-center justify-center">
                     <Phone className="w-4 h-4" />
                   </div>
-                  +91 92833 44726
+                  +91 9289344726
                 </a>
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-600 font-medium group">

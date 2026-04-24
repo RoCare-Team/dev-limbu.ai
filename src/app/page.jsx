@@ -738,14 +738,16 @@ export default function LimbuAILanding() {
         </Suspense>
       </div>
 
-      <ComparisonSection />
+      <Suspense fallback={<SectionSkeleton />}>
+        <ComparisonSection />
+      </Suspense>
 
       <Suspense fallback={<SectionSkeleton />}>
         <FAQSection />
       </Suspense>
 
       {/* MODALS */}
-      <Suspense fallback={<SectionSkeleton />}>
+      <Suspense fallback={null}>
         <SignupPopup
           showSignupPopup={showSignupPopup}
           setShowSignupPopup={setShowSignupPopup}
@@ -753,14 +755,14 @@ export default function LimbuAILanding() {
         />
       </Suspense>
 
-      <Suspense fallback={<SectionSkeleton />}>
+      <Suspense fallback={null}>
         <ImageModal
           selectedImage={selectedImage}
           setSelectedImage={setSelectedImage}
         />
       </Suspense>
 
-      <Suspense fallback={<SectionSkeleton />}>
+      <Suspense fallback={null}>
         <ServiceBookingModal
           showServiceModal={showServiceModal}
           setShowServiceModal={setShowServiceModal}
@@ -776,11 +778,17 @@ export default function LimbuAILanding() {
         <FooterSection handleNavigation={handleNavigation} />
       </Suspense>
 
-      <ScrollToTop />
+      <Suspense fallback={null}>
+        <ScrollToTop />
+      </Suspense>
 
-      <BookDemoModal />
+      <Suspense fallback={null}>
+        <BookDemoModal />
+      </Suspense>
 
-      <VideoModal />
+      <Suspense fallback={null}>
+        <VideoModal />
+      </Suspense>
     </div>
   );
 }

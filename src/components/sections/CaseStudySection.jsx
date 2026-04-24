@@ -6,10 +6,10 @@ import { TrendingUp, Star, Quote } from "lucide-react";
 const caseStudies = [
   {
     id: 1,
-    clientName: "Anup Gupta",
+    clientName: "Manoj Gupta",
     clientRole: "Founder, Ro-Care India",
     clientImage:
-      "https://img.freepik.com/free-photo/portrait-successful-young-businessman-suit-glasses-leaning-railing-modern-office-building_1262-15424.jpg",
+      "https://img.freepik.coim/free-photo/portrait-successful-young-businessman-suit-glasses-leaning-railing-modern-office-building_1262-15424.jpg",
     quote:
       "Limbu AI transformed how we handle our digital presence. We've seen a massive surge in local walk-ins since automating our GMB and social media.",
     avgGrowth: "+179%",

@@ -453,16 +453,16 @@ export default function GMBManagementServicePage() {
                             We help businesses rank #1 across major hubs in India. Join the local leaders in your city.
                         </p>
                     </div>
-                    
+
                     <div className="flex flex-wrap justify-center gap-3">
                         {[
-                            "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Ahmedabad", 
-                            "Chennai", "Kolkata", "Surat", "Pune", "Jaipur", 
-                            "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane", 
+                            "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Ahmedabad",
+                            "Chennai", "Kolkata", "Surat", "Pune", "Jaipur",
+                            "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane",
                             "Bhopal", "Visakhapatnam", "Pimpri-Chinchwad", "Patna", "Vadodara"
                         ].map((city, i) => (
-                            <div 
-                                key={i} 
+                            <div
+                                key={i}
                                 className="px-5 py-2.5 rounded-full bg-slate-50 border border-slate-100 text-sm font-bold text-slate-700 hover:border-lemon-hover hover:text-lemon-hover transition-colors cursor-default flex items-center gap-2"
                             >
                                 <div className="w-1.5 h-1.5 rounded-full bg-lemon-hover" />
@@ -470,7 +470,7 @@ export default function GMBManagementServicePage() {
                             </div>
                         ))}
                     </div>
-                    
+
                     <p className="text-center mt-8 text-xs font-bold text-slate-400 uppercase tracking-widest">
                         + Serving 500+ other locations nationwide
                     </p>

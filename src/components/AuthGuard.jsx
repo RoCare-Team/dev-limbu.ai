@@ -75,10 +75,11 @@ export default function AuthGuard({ children }) {
     const isAdminRoute = pathname.startsWith("/admin");
     const isReviewRoute = pathname.startsWith("/reviews");
     const isFranchiseRoute = pathname.startsWith("/franchise-panel");
+    const isCityRoute = pathname.startsWith("/city");
 
     setTimeout(() => {
-      // Reviews and Franchise Panel are public or handled separately
-      if (isReviewRoute || isFranchiseRoute) {
+      // Reviews, Franchise Panel, and City routes are public or handled separately
+      if (isReviewRoute || isFranchiseRoute || isCityRoute) {
         setIsChecking(false);
         return;
       }

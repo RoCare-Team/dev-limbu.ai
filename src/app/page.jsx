@@ -28,9 +28,9 @@ const FeaturesSection = lazy(
 const ClientGrowthSection = lazy(
   () => import("../components/sections/ClientGrowthSection"),
 );
-const BusinessTypesSection = lazy(
-  () => import("../components/sections/BusinessTypesSection"),
-);
+// const BusinessTypesSection = lazy(
+//   () => import("../components/sections/BusinessTypesSection"),
+// );
 const CaseStudySection = lazy(
   () => import("../components/sections/CaseStudySection"),
 );
@@ -666,9 +666,9 @@ export default function LimbuAILanding() {
       <Suspense fallback={<SectionSkeleton />}>
         <StatsSection />
       </Suspense>
-      <Suspense fallback={<SectionSkeleton />}>
+      {/* <Suspense fallback={<SectionSkeleton />}>
         <BusinessTypesSection />
-      </Suspense>
+      </Suspense> */}
       
 
       {/* <Suspense fallback={<SectionSkeleton />}>

@@ -55,15 +55,22 @@ export function useKeywordPlanner() {
           competition: item.keywordIdeaMetrics?.competition,
           competitionIndex: item.keywordIdeaMetrics?.competitionIndex,
         }));
+        
+        // Sort suggestions by popularity (volume) in descending order
+        mappedSuggestions.sort((a, b) => b.volume - a.volume);
+        
         setSuggestions(mappedSuggestions);
       } else if (data.success) {
-        setSuggestions(
-          data.keywords.map((k) =>
+        const generatedSuggestions = data.keywords.map((k) =>
             typeof k === "string"
               ? { keyword: k, volume: Math.floor(Math.random() * 5000) + 100 }
               : k,
-          ),
         );
+        
+        // Sort fallback suggestions by popularity as well
+        generatedSuggestions.sort((a, b) => b.volume - a.volume);
+        
+        setSuggestions(generatedSuggestions);
       }
     } catch (error) {
       console.error("Search failed:", error);

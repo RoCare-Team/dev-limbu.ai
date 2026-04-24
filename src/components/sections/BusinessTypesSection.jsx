@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const BusinessTypesSection = () => {
   const businessTypes = [
@@ -31,7 +32,7 @@ const BusinessTypesSection = () => {
     },
     {
       title: "Restaurants & Bars",
-      image: "/images/category/restorent.png",
+      image: "/images/category/restaurant.png", // ✅ spelling fixed
       bgColor: "bg-amber-50/40",
       slug: "/restaurant-marketing-software",
     },
@@ -80,44 +81,60 @@ const BusinessTypesSection = () => {
   ];
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
+    <section className="py-14 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        
+        {/* HEADER */}
         <div className="text-center mb-16">
-          <h2
-            className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight text-black"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight text-black">
             Built for <span className="text-black">Small Business Owners</span>
           </h2>
+
           <p className="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto font-medium">
-            You focus on your craft and leave the hassle of growth marketing to{" "}
-            <span className="font-bold text-black">Limbu AI</span>
+            You focus on your business, we automate your{" "}
+            <span className="font-bold text-black">
+              Google Business growth with Limbu AI
+            </span>
           </p>
         </div>
 
-        {/* Grid */}
+        {/* GRID */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {businessTypes.map((type, index) => (
-            <Link
-              href={type.slug}
-              key={index}
-              className={`relative group h-40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex items-center ${type.bgColor} border border-black/5 cursor-pointer`}
-            >
-              <div className="flex-1 p-6 z-10">
-                <h3 className="text-lg font-bold leading-tight text-black group-hover:text-black transition-colors">
-                  {type.title}
-                </h3>
-              </div>
-              <div className="w-1/2 h-full relative overflow-hidden">
-                <img
-                  src={type.image}
-                  alt={type.title}
-                  className="absolute bottom-0 right-0 w-full h-auto object-contain object-bottom translate-y-2 group-hover:scale-110 transition-transform duration-500 origin-bottom"
-                />
-              </div>
-            </Link>
-          ))}
+          {businessTypes.map((type, index) => {
+            if (!type?.slug || !type?.title) return null;
+
+            return (
+              <Link href={type.slug} key={index}>
+                <div
+                  className={`relative group h-40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex items-center ${type.bgColor} border border-black/5 cursor-pointer`}
+                >
+                  {/* TEXT */}
+                  <div className="flex-1 p-6 z-10">
+                    <h3 className="text-lg font-bold leading-tight text-black">
+                      {type.title}
+                    </h3>
+                  </div>
+
+                  {/* IMAGE */}
+                  <div className="w-1/2 h-full relative">
+                    <Image
+                      src={type.image || "/images/category/fallback.png"}
+                      alt={type.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-contain object-bottom translate-y-2 group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        e.currentTarget.src = "/images/category/fallback.png";
+                      }}
+                    />
+                  </div>
+
+                  {/* HOVER EFFECT */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all duration-300"></div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>

@@ -67,7 +67,7 @@ export default function GMBManagementServicePage() {
                             {/* CTA Buttons */}
                             <div className="flex flex-col sm:flex-row gap-4 mb-6">
                                 <Link
-                                    href="https://wa.me/919283344726"
+                                    href="https://wa.me/919289344726"
                                     className="bg-lemon-hover text-slate-900 px-7 py-3.5 rounded-xl font-black text-sm text-center hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 shadow-lg shadow-lemon-hover/20"
                                 >
                                     Talk on WhatsApp <ChevronRight size={16} />
@@ -495,7 +495,7 @@ export default function GMBManagementServicePage() {
                         </p>
                         <div className="flex flex-col sm:flex-row justify-center gap-4">
                             <Link
-                                href="https://wa.me/919283344726"
+                                href="https://wa.me/919289344726"
                                 className="bg-lemon-hover text-slate-900 px-10 py-4 rounded-xl font-black text-base hover:scale-105 transition-transform shadow-lg shadow-lemon-hover/20"
                             >
                                 Book a Free Call

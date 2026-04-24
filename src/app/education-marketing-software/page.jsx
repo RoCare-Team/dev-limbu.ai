@@ -80,7 +80,7 @@ export default function EducationMarketingPage() {
       howItWorks={howItWorksSteps}
       postImages={postImages}
       videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919283344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Education/Coaching%20business."
+      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Education/Coaching%20business."
     />
   );
 }

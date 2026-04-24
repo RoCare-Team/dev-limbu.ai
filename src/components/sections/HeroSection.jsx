@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const clientLogos = [
-  { name: "Anup Gupta", src: "/images/clients/anup_gupta_ai.png" },
+  // { name: "Anup Gupta", src: "/images/clients/anup_gupta_ai.png" },
   { name: "Ro-Care India", src: "/images/clients/ro-care-india.webp" },
   { name: "Dynamic Drapry", src: "/images/clients/dynamic_drapry.png" },
   { name: "Mannubhai", src: "/images/clients/mannubhai.webp" },
@@ -113,7 +113,7 @@ export default function HeroSection() {
             {/* Image Container with controlled height */}
             <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[480px]">
               <Image
-                src="/images/hero1.png"
+                src="/images/hero5.png"
                 alt="Limbu AI Dashboard UI"
                 fill
                 className="object-contain mix-blend-multiply"
@@ -126,23 +126,25 @@ export default function HeroSection() {
       </div>
 
       {/* ── Logo Slider ── */}
-      <div className="relative z-10 w-full py-4 mt-auto overflow-hidden shrink-0 border-t border-slate-100 bg-slate-50">
+      <div className="relative z-10 w-full py-6 mt-auto overflow-hidden shrink-0 border-t border-slate-100 bg-slate-50">
         <div className="overflow-hidden">
           <div className="animate-scroll flex items-center w-max">
             {[...clientLogos, ...clientLogos].map((client, i) => (
               <div
                 key={i}
-                className="shrink-0 flex items-center px-8 sm:px-12 opacity-60 hover:opacity-100 transition-all duration-500 grayscale hover:grayscale-0"
+                className="shrink-0 flex items-center px-6 sm:px-8"
               >
-                <div className="relative h-8 sm:h-10 w-28 sm:w-36">
+                <div className="relative h-10 sm:h-12 w-28 sm:w-36">
                   <Image
                     src={client.src}
                     alt={client.name}
                     fill
                     className="object-contain"
+                    priority
                   />
                 </div>
-                <span className="ml-8 sm:ml-12 text-xl text-slate-300">·</span>
+
+                <span className="ml-6 sm:ml-8 text-lg text-slate-200">·</span>
               </div>
             ))}
           </div>

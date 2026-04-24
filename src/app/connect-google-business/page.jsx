@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   Building2,
@@ -51,21 +51,10 @@ function normalizePhone(p) {
   return String(p || "").replace(/\D/g, "");
 }
 
-/** Derive a deterministic sessionId from phone when no session_id is in URL. */
-function sessionIdFromPhone(phone) {
-  const digits = normalizePhone(phone);
-  return digits ? `phone_${digits}` : "";
-}
-
 function ConnectGoogleBusinessInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Support both ?session_id= (legacy) and ?phone= (new chatbot flow)
-  const phoneFromUrl      = normalizePhone(searchParams.get("phone") || "");
-  const rawSessionId      = searchParams.get("session_id")?.trim() || "";
-  // When phone is provided without an explicit session_id, derive one deterministically
-  const sessionIdFromUrl  = rawSessionId || (phoneFromUrl ? sessionIdFromPhone(phoneFromUrl) : "");
+  const phoneFromUrl = normalizePhone(searchParams.get("phone") || "");
 
   const { data: session, status } = useSession();
 
@@ -102,22 +91,15 @@ function ConnectGoogleBusinessInner() {
   const handleGoogleSignIn = () => {
     if (typeof window === "undefined") return;
     const origin = window.location.origin;
-    const next = new URLSearchParams();
-    next.set("setup", "1");
-    // Carry identifiers forward through OAuth callback
-    if (phoneFromUrl)     next.set("phone",      phoneFromUrl);
-    if (sessionIdFromUrl) next.set("session_id",  sessionIdFromUrl);
-    const qs = next.toString();
+    const qs = phoneFromUrl ? `phone=${phoneFromUrl}` : "";
     const callbackUrl = `${origin}/connect-google-business${qs ? `?${qs}` : ""}`;
     setSignInError(false);
     void signIn("google", { callbackUrl }).catch(() => setSignInError(true));
   };
 
   const handleContinue = async () => {
-    if (!sessionIdFromUrl && !phoneFromUrl) {
-      setListError(
-        "URL mein ?phone= ya ?session_id= zaroori hai — chatbot wala link use karein."
-      );
+    if (!phoneFromUrl) {
+      setListError("URL mein ?phone= zaroori hai — chatbot wala link use karein.");
       return;
     }
     setContinueBusy(true);
@@ -125,10 +107,7 @@ function ConnectGoogleBusinessInner() {
       const res = await fetch("/api/gmb/sync-and-save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_id: sessionIdFromUrl,
-          ...(phoneFromUrl ? { phone: phoneFromUrl } : {}),
-        }),
+        body: JSON.stringify({ phone: phoneFromUrl }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
@@ -178,9 +157,8 @@ function ConnectGoogleBusinessInner() {
         } catch {}
       }
 
-      // Redirect back to the WhatsApp conversation this link came from.
-      // phoneFromUrl is the sender's number passed in ?phone= param.
-      window.location.href = `https://wa.me/${phoneFromUrl}`;
+      // Go back to wherever the user came from (e.g. WhatsApp conversation).
+      window.history.back();
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {
@@ -354,10 +332,7 @@ function ConnectGoogleBusinessInner() {
               <button
                 type="button"
                 onClick={() => {
-                  const next = new URLSearchParams();
-                  if (phoneFromUrl)     next.set("phone",      phoneFromUrl);
-                  if (sessionIdFromUrl) next.set("session_id", sessionIdFromUrl);
-                  const qs = next.toString();
+                  const qs = phoneFromUrl ? `phone=${phoneFromUrl}` : "";
                   void signOut({
                     callbackUrl: `/connect-google-business${qs ? `?${qs}` : ""}`,
                   });

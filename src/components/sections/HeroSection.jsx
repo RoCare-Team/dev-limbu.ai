@@ -19,126 +19,122 @@ export default function HeroSection() {
   const { isLoggedIn } = useAuthStore();
 
   return (
-    <section
-      className="relative w-full h-dvh overflow-hidden flex flex-col"
-      style={{ backgroundColor: "var(--background)" }}
-    >
-      {/* ── LAYER 0: Video Background ── */}
-      <video
-        className="absolute inset-0 w-full h-full object-cover z-0"
-        src="https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-04-10+at+12.13.30+PM.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
+    <section className="relative w-full min-h-[calc(100vh-80px)] flex flex-col bg-white overflow-hidden text-slate-900 pt-20 lg:pt-28">
 
-      {/* ── LAYER 1: Subtle Overlay ── */}
-      <div className="absolute inset-0 bg-black/30 z-[1]" />
-
-      {/* ── Webinar CTA Badge (top-right) ── */}
-      <Link
-        href="/webinar-demo"
-        className="absolute top-[80px] md:top-[90px] right-5 md:right-8 z-20 flex items-center gap-2 px-3 py-2 rounded-xl group"
-        style={{
-          background: "rgba(0, 0, 0, 0.3)",
-          backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        <span className="w-2 h-2 rounded-full bg-[#eab308] animate-pulse" />
-        <div className="flex flex-col leading-tight">
-          <span className="text-[10px] font-bold whitespace-nowrap text-white">
-            Free AI Webinar
-          </span>
-          <span className="text-[9px] font-medium text-white/60">
-            🔥 128 joined in last 1 hr
-          </span>
-        </div>
-        <span className="text-xs transition-transform duration-200 group-hover:-translate-y-1 group-hover:translate-x-1 text-[#eab308]">
-          ↗
-        </span>
-      </Link>
-
-      {/* ── LAYER 3: Main Hero Body ── */}
-      <div className="relative z-10 flex flex-col justify-center flex-1 px-6 md:px-10 pt-[90px] md:pt-[100px] pb-4">
-        {/* Rating Badge */}
-        <div className="mb-4 sm:mb-6">
-          <div
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 sm:px-4 sm:py-2"
-            style={{
-              background: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-            }}
-          >
-            <span style={{ color: "var(--lemon-hover)", fontSize: "14px" }}>
-              ★
+      {/* ── Webinar CTA Badge (Fixed Absolute Position) ── */}
+      <div className="absolute top-24 right-4 md:right-10 lg:right-16 z-30">
+        <Link
+          href="/webinar-demo"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl group bg-white border border-slate-200 shadow-md hover:shadow-lg transition-all"
+        >
+          <span className="w-2.5 h-2.5 rounded-full bg-[#eab308] animate-pulse" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[11px] font-bold whitespace-nowrap text-slate-900">
+              Free AI Webinar
             </span>
-            <span className="text-[11px] sm:text-xs font-bold text-white">
-              4.8 on Capterra
-            </span>
-            <span className="text-[11px] sm:text-xs font-medium text-white/60">
-              · 706 reviews
+            <span className="text-[10px] font-medium text-slate-500">
+              🔥 128 joined in last 1 hr
             </span>
           </div>
-        </div>
+          <span className="text-xs transition-transform duration-200 group-hover:-translate-y-1 group-hover:translate-x-1 text-[#eab308] font-bold">
+            ↗
+          </span>
+        </Link>
+      </div>
 
-        {/* Headline */}
-        <div className="max-w-4xl">
-          <h1
-            className="font-bold uppercase leading-[1.1] tracking-tight"
-            style={{
-              fontFamily: "var(--font-heading)",
-              color: "#ffffff",
-              fontSize: "clamp(1.8rem, 5vw, 3.8rem)",
-            }}
-          >
-            <span className="block text-[0.6em]">
-              Grow Your Business on Google
-            </span>
+      {/* ── Main Hero Body (Two Columns) ── */}
+      <div className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex flex-col justify-center pb-12">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-4 items-center w-full">
 
-            <span className="block text-[0.85em] mt-2">
-              Manage Your <span className="text-lemon-hover">GMB with <br/> Limbu AI</span>
-            </span>
-          </h1>
+          {/* ── Left Content ── */}
+          <div className="flex flex-col justify-center max-w-2xl mx-auto lg:mx-0 text-center lg:text-left pt-12 lg:pt-0">
+            {/* Rating Badge */}
+            <div className="mb-6 flex justify-center lg:justify-start">
+              <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-yellow-50 border border-yellow-200 shadow-sm">
+                <span className="text-yellow-500 text-sm">★</span>
+                <span className="text-xs font-bold text-yellow-800">
+                  4.8 on Capterra
+                </span>
+                <span className="text-xs font-medium text-yellow-600">
+                  · 706 reviews
+                </span>
+              </div>
+            </div>
 
+            {/* Headline */}
+            <div>
+              <h1
+                className="font-extrabold uppercase leading-[1.15] tracking-tight"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "clamp(2.2rem, 4.5vw, 3.5rem)",
+                }}
+              >
+                <span className="block text-[0.45em] text-slate-500 tracking-widest mb-3 font-semibold">
+                  Grow Your Business on Google
+                </span>
 
+                <span className="block text-[0.8em] text-slate-900 mt-1">
+                  Manage Your <span className="text-[#eab308]">GMB<br className="hidden lg:block" /> with Limbu AI</span>
+                </span>
+              </h1>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-wrap items-center gap-4 mt-10">
-            {isLoggedIn ? (
-              <Link href="/dashboard" className="btn-lemon btn-md">
-                Go to Dashboard
-              </Link>
-            ) : (
-              <Link href="/login" className="btn-lemon btn-md">
-                Start Today Get 500 Coin
-              </Link>
-            )}
-            <button
-              className="btn-ghost py-3.5 btn-sm sm:btn-md group text-white border-white/20 hover:bg-white/10"
-              onClick={() => setSelectedVideo("https://youtu.be/eQUd6u36w3g?si=_AJ3OymZQD6HnXRl")}
-            >
-              Watch Demo
-              <span className="ml-2 inline-block transition-transform duration-200 group-hover:translate-x-1">
-                →
-              </span>
-            </button>
+              <p className="mt-5 text-base md:text-lg text-slate-600 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
+                Automate your Google Business Profile. Get daily AI posts, authentic 5-star reviews, and instant review replies to dominate local search.
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mt-8">
+                {isLoggedIn ? (
+                  <Link href="/dashboard" className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-[#eab308] text-slate-900 font-bold text-sm hover:bg-[#ca8a04] transition-all shadow-[0_4px_14px_0_rgba(234,179,8,0.39)]">
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <Link href="/login" className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-[#eab308] text-slate-900 font-bold text-sm hover:bg-[#ca8a04] transition-all shadow-[0_4px_14px_0_rgba(234,179,8,0.39)]">
+                    Start Today Get 500 Coin
+                  </Link>
+                )}
+                <button
+                  className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all group"
+                  onClick={() => setSelectedVideo("https://youtu.be/eQUd6u36w3g?si=_AJ3OymZQD6HnXRl")}
+                >
+                  Watch Demo
+                  <span className="ml-2 inline-block transition-transform duration-200 group-hover:translate-x-1">
+                    →
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
+
+          {/* ── Right Image ── */}
+          <div className="relative w-full flex items-center justify-center mt-8 lg:mt-0">
+
+            {/* Image Container with controlled height */}
+            <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[480px]">
+              <Image
+                src="/images/hero1.png"
+                alt="Limbu AI Dashboard UI"
+                fill
+                className="object-contain mix-blend-multiply"
+                priority
+              />
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* ── LAYER 4: Logo Slider ── */}
-      <div className="relative z-10 w-full py-3 sm:py-4 overflow-hidden shrink-0 border-t border-white/10 bg-white/5 backdrop-blur-xl">
+      {/* ── Logo Slider ── */}
+      <div className="relative z-10 w-full py-4 mt-auto overflow-hidden shrink-0 border-t border-slate-100 bg-slate-50">
         <div className="overflow-hidden">
           <div className="animate-scroll flex items-center w-max">
             {[...clientLogos, ...clientLogos].map((client, i) => (
               <div
                 key={i}
-                className="shrink-0 flex items-center px-8 sm:px-12 opacity-90 hover:opacity-100 transition-all duration-500"
+                className="shrink-0 flex items-center px-8 sm:px-12 opacity-60 hover:opacity-100 transition-all duration-500 grayscale hover:grayscale-0"
               >
-                <div className="relative h-10 sm:h-12 w-32 sm:w-44">
+                <div className="relative h-8 sm:h-10 w-28 sm:w-36">
                   <Image
                     src={client.src}
                     alt={client.name}
@@ -146,7 +142,7 @@ export default function HeroSection() {
                     className="object-contain"
                   />
                 </div>
-                <span className="ml-8 sm:ml-12 text-2xl text-white/10">·</span>
+                <span className="ml-8 sm:ml-12 text-xl text-slate-300">·</span>
               </div>
             ))}
           </div>

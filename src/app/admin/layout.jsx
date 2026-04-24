@@ -9,6 +9,7 @@ import {
   Settings,
   BarChart3,
   Users,
+  Wallet,
   ArrowUpLeft,
   UserSquare,
   CircleUser,
@@ -16,6 +17,8 @@ import {
   BookCheck,
   LogOut,
   LucideHeadset,
+  Link2,
+  QrCode,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 
@@ -70,7 +73,13 @@ export default function AdminLayout({ children }) {
   const allNavItems = [
     { name: "Dashboard", icon: <BarChart3 size={18} />, href: "/admin/dashboard" },
 
+
     { name: "Leads", icon: <Users size={18} />, href: "/admin/user-management", key: "manageUsers" },
+    
+    { name: "Store Business", icon: <QrCode size={18} />, href: "/admin/store-bussiness", key: "manageUsers" },
+
+        { name: "Total Revenue", icon: <Wallet size={18} />, href: "/admin/dashboard/revenue-users" },
+
 
     { name: "User Recharge", icon: <BookCheck size={18} />, href: "/admin/user-recharge", key: "manageUsers" },
 
@@ -90,6 +99,7 @@ export default function AdminLayout({ children }) {
     { name: "Tata Dialer User Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
     { name: "Create Franchise", icon: <LeaderboardSharp />, href: "/admin/create-franchise" },
         { name: "Account Manager", icon: <UserSquare size={18} />, href: "/admin/manager-assignment" },
+    { name: "Connected Nodes", icon: <Link2 size={18} />, href: "/admin/connected-node" },
 
 
     // { name: "FB Lead", icon: <PanelLeftDashed size={18} />, href: "/admin/fb-lead", key: "manageLeads" },

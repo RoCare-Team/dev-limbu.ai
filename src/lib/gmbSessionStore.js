@@ -7,11 +7,17 @@ function getRequiredEnv(name) {
 }
 
 /**
- * One document per chatbot session_id.
+ * One document per chatbot session_id (or phone-derived session).
  * Replaces the AdminBusiness‑based approach for the connect-google-business flow.
+ *
+ * phone-based flow:
+ *   sessionId = "phone_<digits>"  when chatbot uses phone as primary key
+ *   phone     = "919876543210"    stored for direct phone lookups
  */
 const GMBConnectionSchema = new mongoose.Schema({
   sessionId:    { type: String, required: true, unique: true },
+  /** Chatbot user's WhatsApp / mobile number (E.164 digits, e.g. 919876543210) */
+  phone:        { type: String, default: "", index: true },
   status:       { type: String, enum: ["success", "not_found", "pending"], default: "pending" },
   message:      { type: String, default: "" },
   locationsData: {
@@ -30,6 +36,19 @@ const GMBConnectionSchema = new mongoose.Schema({
     default: [],
   },
   userEmail: { type: String, default: "" },
+  /** Razorpay / checkout — same session_id as chatbot GMB flow */
+  paymentStatus: {
+    type: String,
+    enum: ["none", "paid"],
+    default: "none",
+  },
+  paymentId: { type: String, default: "" },
+  paymentOrderId: { type: String, default: "" },
+  paymentAmount: { type: String, default: "" },
+  paymentPlanTitle: { type: String, default: "" },
+  paymentUserId: { type: String, default: "" },
+  paymentEmail: { type: String, default: "" },
+  paidAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
@@ -90,12 +109,40 @@ export function buildLocationsData(listings) {
 /* ─── Public API ───────────────────────────────────────────────────── */
 
 /**
+ * Normalise a phone string: keep digits only.
+ * "919876543210" → "919876543210"
+ * "+91 98765 43210" → "919876543210"
+ */
+export function normalizePhone(phone) {
+  return String(phone || "").replace(/\D/g, "");
+}
+
+/**
+ * Ensure locationId has the "locations/" prefix used by the GMB API.
+ */
+export function toFullLocationId(locationId) {
+  if (!locationId) return "";
+  return locationId.startsWith("locations/") ? locationId : `locations/${locationId}`;
+}
+
+/**
+ * Derive a deterministic sessionId from a phone number.
+ * Used when the chatbot identifies users by phone instead of a UUID.
+ */
+export function sessionIdFromPhone(phone) {
+  const digits = normalizePhone(phone);
+  if (!digits) throw new Error("phone is required to derive sessionId");
+  return `phone_${digits}`;
+}
+
+/**
  * Upsert a GMBConnection document for `sessionId`.
  * @param {string}    sessionId
  * @param {string}    userEmail
  * @param {unknown[]} rawListings  - raw GMB API listing objects
+ * @param {string}    [phone]      - optional WhatsApp/mobile number (digits)
  */
-export async function saveGmbSession(sessionId, userEmail, rawListings) {
+export async function saveGmbSession(sessionId, userEmail, rawListings, phone) {
   if (!sessionId) throw new Error("sessionId is required");
 
   const GMBConnection = await getGMBConnectionModel();
@@ -103,18 +150,23 @@ export async function saveGmbSession(sessionId, userEmail, rawListings) {
   const locationsData = buildLocationsData(listings);
   const connected = locationsData.length > 0;
 
+  const updateFields = {
+    sessionId,
+    userEmail: (userEmail || "").toLowerCase(),
+    status:    connected ? "success" : "not_found",
+    message:   connected
+      ? "Business connected successfully"
+      : "No business locations found for this account",
+    locationsData,
+    updatedAt: new Date(),
+  };
+
+  const digits = normalizePhone(phone);
+  if (digits) updateFields.phone = digits;
+
   return GMBConnection.findOneAndUpdate(
     { sessionId },
-    {
-      sessionId,
-      userEmail: (userEmail || "").toLowerCase(),
-      status:    connected ? "success" : "not_found",
-      message:   connected
-        ? "Business connected successfully"
-        : "No business locations found for this account",
-      locationsData,
-      updatedAt: new Date(),
-    },
+    updateFields,
     { upsert: true, new: true }
   );
 }
@@ -129,20 +181,98 @@ export async function findGmbSession(sessionId) {
 }
 
 /**
+ * Fetch a GMBConnection by phone number (digits only, e.g. "919876543210").
+ * Returns null if not found.
+ */
+export async function findGmbSessionByPhone(phone) {
+  const digits = normalizePhone(phone);
+  if (!digits) return null;
+  const GMBConnection = await getGMBConnectionModel();
+  // Try by phone field first, then by phone-derived sessionId (backward compat)
+  const byPhone = await GMBConnection.findOne({ phone: digits }).lean();
+  if (byPhone) return byPhone;
+  return GMBConnection.findOne({ sessionId: `phone_${digits}` }).lean();
+}
+
+/**
+ * After successful checkout: attach payment to the same chatbot session document.
+ * Upserts a minimal row if GMB sync has not run yet.
+ */
+export async function saveGmbSessionPayment(sessionId, payload) {
+  if (!sessionId) throw new Error("sessionId is required");
+  const GMBConnection = await getGMBConnectionModel();
+  const now = new Date();
+  const emailNorm = String(payload.email || "")
+    .trim()
+    .toLowerCase();
+
+  return GMBConnection.findOneAndUpdate(
+    { sessionId },
+    {
+      $set: {
+        paymentStatus: "paid",
+        paymentId: String(payload.paymentId || ""),
+        paymentOrderId: String(payload.orderId || ""),
+        paymentAmount: String(payload.totalAmount ?? ""),
+        paymentPlanTitle: String(payload.planTitle || ""),
+        paymentUserId: String(payload.userId || ""),
+        paymentEmail: emailNorm,
+        paidAt: now,
+        updatedAt: now,
+      },
+      $setOnInsert: {
+        sessionId,
+        status: "pending",
+        message: "",
+        locationsData: [],
+        userEmail: "",
+        createdAt: now,
+      },
+    },
+    { upsert: true, new: true },
+  );
+}
+
+/**
  * Shape a DB row (or null) into the exact chatbot API response.
  */
 export function formatGmbSessionResponse(row) {
   if (!row) {
     return {
       status: "not_found",
+      businessConnected: false,
+      paymentStatus: "none",
+      payment: null,
       message:
         "Session not found. Open the connect-google-business link from chat, sign in with Google, and tap Continue to chatbot.",
       locationsData: [],
     };
   }
+  const locationsData = Array.isArray(row.locationsData) ? row.locationsData : [];
+  const gmbOk = row.status === "success" && locationsData.length > 0;
+  const paid =
+    row.paymentStatus === "paid" ||
+    (!!row.paymentId && !!row.paidAt);
+  const paymentStatus = paid ? "paid" : "none";
+
   return {
-    status:        row.status === "success" ? "success" : "not_found",
-    message:       row.message || "",
-    locationsData: Array.isArray(row.locationsData) ? row.locationsData : [],
+    status: row.status === "success" ? "success" : "not_found",
+    businessConnected: gmbOk,
+    paymentStatus,
+    payment:
+      paymentStatus === "paid"
+        ? {
+            paymentId: row.paymentId || "",
+            orderId: row.paymentOrderId || "",
+            amount: row.paymentAmount || "",
+            planTitle: row.paymentPlanTitle || "",
+            userId: row.paymentUserId || "",
+            email: row.paymentEmail || "",
+            paidAt: row.paidAt ? row.paidAt.toISOString() : null,
+          }
+        : null,
+    email: row.userEmail || "",
+    message: row.message || "",
+    locationsData,
   };
 }

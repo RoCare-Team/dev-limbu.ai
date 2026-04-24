@@ -12,7 +12,6 @@ import {
   postToGmbAction,
 } from "@/app/actions/postActions";
 import {
-  deleteAssetAction,
   loadAssetsFromServerAction,
 } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
@@ -68,29 +67,6 @@ import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
-
-async function waitForInstagramVideoContainer(
-  creationId,
-  accessToken,
-  maxMs = 120000,
-) {
-  const start = Date.now();
-  while (Date.now() - start < maxMs) {
-    const u = new URL(`https://graph.facebook.com/v24.0/${creationId}`);
-    u.searchParams.set("fields", "status_code");
-    u.searchParams.set("access_token", accessToken);
-    const r = await fetch(u.toString());
-    const j = await r.json();
-    if (j.status_code === "FINISHED") return;
-    if (j.status_code === "ERROR" || j.status_code === "EXPIRED") {
-      throw new Error(
-        j.error?.message || `Instagram processing: ${j.status_code}`,
-      );
-    }
-    await new Promise((res) => setTimeout(res, 4000));
-  }
-  throw new Error("Instagram video processing timed out.");
-}
 
 export default function PostManagementPage() {
   const { data: session } = useSession();
@@ -282,10 +258,7 @@ export default function PostManagementPage() {
         setAvailableLocations(parsedLocations.map((loc, index) => ({
           id: loc.id || index + 1,
           name: loc.name || loc.title || `Location ${index + 1}`,
-          address:
-            loc.address ||
-            loc.storefrontAddress?.addressLines?.join(", ") ||
-            "Address not available",
+          address: loc.address || loc.storefrontAddress?.addressLines?.join(", ") || "Address not available",
           city: loc.city || "",
           ...loc,
         })));

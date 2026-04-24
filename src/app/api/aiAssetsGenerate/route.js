@@ -1,3 +1,5 @@
+import { normalizeGenerateAdResponse } from "@/lib/normalizeGenerateAdResponse";
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -14,6 +16,8 @@ export async function POST(req) {
       backgroundImage,
       logoImage,
       platform,
+      mode,
+      instructions,
     } = body;
 
     const cleanBase64 = (str) => {
@@ -35,27 +39,58 @@ export async function POST(req) {
       backgroundImage: cleanBase64(backgroundImage),
       logoImage: cleanBase64(logoImage),
       platform: platform || "",
+      mode: mode === "manual" ? "manual" : "ai",
+      // instructions: typeof instructions === "string" ? instructions : "",
     };
 
     console.log("Sending payload to n8n:", payload);
 
     const n8nResponse = await fetch(
-      "https://n8n.limbutech.in/webhook/6678555b-a0a2-4cbf-b157-7d0f831bd51c",
+      "https://assets-image.limbutech.in/generate-ad",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }
+      },
     );
 
-    const finalData = await n8nResponse.json();
+    const responseText = await n8nResponse.text();
+    let parsed;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "generate-ad returned non-JSON",
+          detail: responseText?.slice?.(0, 300) ?? "",
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!n8nResponse.ok) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            parsed?.message ||
+            parsed?.error ||
+            `generate-ad HTTP ${n8nResponse.status}`,
+          data: parsed,
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const normalized = normalizeGenerateAdResponse(parsed);
 
     return new Response(
-      JSON.stringify({ success: true, data: finalData }),
+      JSON.stringify({ success: true, data: normalized }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
 
   } catch (error) {

@@ -1,5 +1,9 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+ 
 // import { useState, useEffect } from "react";
 import {
   LineChart,
@@ -30,9 +34,6 @@ import { getTodayUsersData } from "../user-management/page";
 import UserStats from "../../../app/admin/dashboard/UserStats";
 import useUserManagement from "../user-management/hooks/useUserManagement";
 
-
-
-
 export default function AdminDashboard() {
   const {
     stageStats,
@@ -52,10 +53,11 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     planCounts: { basic: 0, standard: 0, premium: 0 },
   });
+  
 
   const [todayUsersCount, setTodayUsersCount] = useState(0);
-const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
-const [todayUsersSignups, setTodayUsersSignups] = useState(0);
+  const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
+  const [todayUsersSignups, setTodayUsersSignups] = useState(0);
   const [userGrowth, setUserGrowth] = useState([]);
   const [agentLeads, setAgentLeads] = useState([]); // today's leads per agent
   const [todayTotal, setTodayTotal] = useState(0);
@@ -76,6 +78,8 @@ const [todayUsersSignups, setTodayUsersSignups] = useState(0);
   const [loadingStage, setLoadingStage] = useState(false);
   const [showRevenueUsersModal, setShowRevenueUsersModal] = useState(false);
 
+  const [users, setUsers] = useState([]);
+
   const [revenueUsersList, setRevenueUsersList] = useState([]);
   const [loadingRevenueUsers, setLoadingRevenueUsers] = useState(false);
 
@@ -89,6 +93,10 @@ const [todayUsersSignups, setTodayUsersSignups] = useState(0);
 
   const [chatModalFilter, setChatModalFilter] = useState("all");
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
+
+const router = useRouter(); 
+
+
 
   // calls
   const [byAgentOpen, setByAgentOpen] = useState(false);
@@ -133,120 +141,142 @@ const [todayUsersSignups, setTodayUsersSignups] = useState(0);
   };
 
   const fetchTodayUsers = async () => {
-  const data = await getTodayUsersData();
+    const data = await getTodayUsersData();
 
-  console.log("DASHBOARD DATA:", data);
+    console.log("DASHBOARD DATA:", data);
 
-  if (data?.success) {
-    setTodayUsersCount(data.todayUsersCount || 0);
-    setTodayUsersMetaLeads(data.todayMetaLeads || 0);
-    setTodayUsersSignups(data.todaySignups || 0);
-  }
-};
+    if (data?.success) {
+      setTodayUsersCount(data.todayUsersCount || 0);
+      setTodayUsersMetaLeads(data.todayMetaLeads || 0);
+      setTodayUsersSignups(data.todaySignups || 0);
+    }
+  };
 
-useEffect(() => {
-  fetchTodayUsers();
-}, []);
+  useEffect(() => {
+    fetchTodayUsers();
+  }, []);
 
-const fetchStageData = async (stage) => {
-  console.log("FUNCTION CALLED:", stage);
-
-  setLoadingStage(true);
-  setStageModal(stage);
-
+  const fetchUsers = async () => {
   try {
     const email = localStorage.getItem("email");
 
-    if (!email) {
-      console.warn("No email found in localStorage");
-      setStageData([]);
-      return;
-    }
-
-    const res = await fetch(
-      `/api/users?email=${email}&getAgentStats=true`
-    );
-
-    console.log("RESPONSE STATUS:", res.status);
-
-    if (!res.ok) {
-      console.error("API response not OK");
-      setStageData([]);
-      return;
-    }
-
-    
+    const res = await fetch(`/api/users?email=${email}`);
     const data = await res.json();
 
-console.log("FULL API DATA:", data);
+    console.log("🔥 USERS DATA:", data);
 
-if (data.detailedStats && Array.isArray(data.detailedStats)) {
-
-  const stageItems = data.detailedStats.filter(
-    (item) => item.stage === stage
-  );
-
-  const grouped = stageItems.reduce((acc, item) => {
-    const key = item.agentId || "Unassigned";
-    if (!acc[key]) {
-      acc[key] = {
-        agentId: item.agentId || "Unassigned",
-        agentName: item.agentName || item.agentId || "Unknown",
-        count: 0,
-      };
+    if (data.success && Array.isArray(data.users)) {
+      setUsers(data.users);
+    } else {
+      setUsers([]);
     }
-    acc[key].count += Number(item.count) || 0;
-    return acc;
-  }, {});
-
-  const breakdown = Object.values(grouped).sort((a, b) => b.count - a.count);
-
-  console.log("FINAL BREAKDOWN:", breakdown);
-
-  setStageData(breakdown);
-
-} else {
-  console.warn("No detailedStats found");
-  setStageData([]);
-}
-  } catch (err) {
-    console.error("FETCH ERROR:", err);
-    setStageData([]);
-  } finally {
-    setLoadingStage(false);
-  }
-};
-
-const fetchAgents = async () => {
-  
-  try {
-    const res = await fetch(`/api/users?email=${localStorage.getItem("email")}&getAgentStats=true`);
-    const data = await res.json();
-
-    console.log("AGENT LIST:", data);
-
-    console.log("AGENTS:", data);
-
-    const map = {};
-
-    // ✅ YAHI FIX HAI
-    const list = data.users || data.data || [];
-
-    list.forEach((a) => {
-      map[a._id?.toString()] = a.fullName || a.name || "Unknown";
-    });
-
-    console.log("FINAL AGENT MAP:", map);
-
-    setAgentMap(map);
   } catch (err) {
     console.error(err);
+    setUsers([]);
   }
 };
 
-useEffect(() => {
-  fetchAgents();
-}, []);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchStageData = async (stage) => {
+    console.log("FUNCTION CALLED:", stage);
+
+    setLoadingStage(true);
+    setStageModal(stage);
+
+    try {
+      const email = localStorage.getItem("email");
+
+      if (!email) {
+        console.warn("No email found in localStorage");
+        setStageData([]);
+        return;
+      }
+
+      const res = await fetch(`/api/users?email=${email}&getAgentStats=true`);
+
+      console.log("RESPONSE STATUS:", res.status);
+
+      if (!res.ok) {
+        console.error("API response not OK");
+        setStageData([]);
+        return;
+      }
+
+      const data = await res.json();
+
+      console.log("FULL API DATA:", data);
+
+      if (data.detailedStats && Array.isArray(data.detailedStats)) {
+        const stageItems = data.detailedStats.filter(
+          (item) => item.stage === stage,
+        );
+
+        const grouped = stageItems.reduce((acc, item) => {
+          const key = item.agentId || "Unassigned";
+          if (!acc[key]) {
+            acc[key] = {
+              agentId: item.agentId || "Unassigned",
+              agentName: item.agentName || item.agentId || "Unknown",
+              count: 0,
+            };
+          }
+          acc[key].count += Number(item.count) || 0;
+          return acc;
+        }, {});
+
+        const breakdown = Object.values(grouped).sort(
+          (a, b) => b.count - a.count,
+        );
+
+        console.log("FINAL BREAKDOWN:", breakdown);
+
+        setStageData(breakdown);
+      } else {
+        console.warn("No detailedStats found");
+        setStageData([]);
+      }
+    } catch (err) {
+      console.error("FETCH ERROR:", err);
+      setStageData([]);
+    } finally {
+      setLoadingStage(false);
+    }
+  };
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch(
+        `/api/users?email=${localStorage.getItem("email")}&getAgentStats=true`,
+      );
+      const data = await res.json();
+
+      console.log("AGENT LIST:", data);
+
+      console.log("AGENTS:", data);
+
+      const map = {};
+
+      // ✅ YAHI FIX HAI
+      const list = data.users || data.data || [];
+
+      list.forEach((a) => {
+        map[a._id?.toString()] = a.fullName || a.name || "Unknown";
+      });
+
+      console.log("FINAL AGENT MAP:", map);
+
+      setAgentMap(map);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAgents();
+  }, []);
 
   const fetchChatStats = async () => {
     try {
@@ -359,15 +389,14 @@ useEffect(() => {
         fetch("/api/razorpay/razorpay-transaction"),
         fetch("/api/service-booking?planType=our-service"),
         fetch("/api/service-booking?planType=our-package"),
-        fetch(`/api/admin/account-manager-leads?email=${encodeURIComponent(adminEmail)}`),
+        fetch(
+          `/api/admin/account-manager-leads?email=${encodeURIComponent(adminEmail)}`,
+        ),
       ]);
 
-      const [txJson, serviceJson, packageJson, managerJson] = await Promise.all([
-        txRes.json(),
-        serviceRes.json(),
-        packageRes.json(),
-        managerRes.json(),
-      ]);
+      const [txJson, serviceJson, packageJson, managerJson] = await Promise.all(
+        [txRes.json(), serviceRes.json(), packageRes.json(), managerRes.json()],
+      );
 
       const txList = txJson?.transactions || [];
       const now = new Date();
@@ -394,8 +423,10 @@ useEffect(() => {
       todayStart.setHours(0, 0, 0, 0);
 
       managerUsers.forEach((u) => {
-        const name = u?.accountManager?.fullName || u?.accountManagerName || "Unassigned";
-        if (!perfMap[name]) perfMap[name] = { name, assigned: 0, renewalDue: 0 };
+        const name =
+          u?.accountManager?.fullName || u?.accountManagerName || "Unassigned";
+        if (!perfMap[name])
+          perfMap[name] = { name, assigned: 0, renewalDue: 0 };
         perfMap[name].assigned += 1;
         if (u?.planExpiryDate) {
           const expiry = new Date(u.planExpiryDate);
@@ -417,7 +448,10 @@ useEffect(() => {
         assignedClients: managerPerformance
           .filter((m) => m.name !== "Unassigned")
           .reduce((sum, m) => sum + m.assigned, 0),
-        renewalDueCount: managerPerformance.reduce((sum, m) => sum + m.renewalDue, 0),
+        renewalDueCount: managerPerformance.reduce(
+          (sum, m) => sum + m.renewalDue,
+          0,
+        ),
         managerPerformance,
       });
     } catch (err) {
@@ -428,11 +462,11 @@ useEffect(() => {
   };
 
   if (loading)
-  return (
-    <div className="flex justify-center items-center h-[80vh]">
-      <div className="w-30 h-30 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-    </div>
-  );
+    return (
+      <div className="flex justify-center items-center h-[80vh]">
+        <div className="w-30 h-30 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
 
   return (
     <div className="p-2">
@@ -455,7 +489,7 @@ useEffect(() => {
         todayUsersCount={todayUsersCount}
         showRevenueUsersModal={showRevenueUsersModal}
         fetchRevenueUsers={fetchRevenueUsers}
-        setShowRevenueUsersModal={setShowRevenueUsersModal}
+        setShowRevenueUsersModal={() => router.push("/admin/dashboard/revenue-users")}
         loadingRevenueUsers={loadingRevenueUsers}
         revenueUsersList={revenueUsersList}
         setRevenueUsersList={setRevenueUsersList}
@@ -465,9 +499,9 @@ useEffect(() => {
         fetchChatStats={fetchChatStats}
         setChatModalFilter={setChatModalFilter} // ✅ ADD
         setShowChatStatsModal={setShowChatStatsModal}
-         stageModal={stageModal}
-  stageData={stageData}
-  loadingStage={loadingStage}
+        stageModal={stageModal}
+        stageData={stageData}
+        loadingStage={loadingStage}
       />
 
       {/* Stage Breakdown Modal */}
@@ -543,13 +577,14 @@ useEffect(() => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {Object.values(
-                          stageData
+                        stageData
                           .filter((item) => item.stage === stageModal)
                           .reduce((acc, item) => {
-                           const agentName =
-  item.agentId === "Unassigned"
-    ? "Unassigned"
-    : agentMap[item.agentId?.toString()] || item.agentId;
+                            const agentName =
+                              item.agentId === "Unassigned"
+                                ? "Unassigned"
+                                : agentMap[item.agentId?.toString()] ||
+                                  item.agentId;
 
                             if (!acc[agentName]) {
                               acc[agentName] = { agentName, count: 0 };
@@ -634,16 +669,16 @@ useEffect(() => {
       <div className="mb-8 grid gap-6 xl:grid-cols-3">
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
           <div className="flex align-center mb-2 gap-2">
-             <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-indigo-600 text-white shadow-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-indigo-600 text-white shadow-lg">
               <UserCog size={16} />
             </div>
             <div>
-              <h3 className="mt-1 text-1xl font-semibold text-slate-900">  Account Managers</h3>
+              <h3 className="mt-1 text-1xl font-semibold text-slate-900">
+                {" "}
+                Account Managers
+              </h3>
             </div>
-           
           </div>
-
-         
 
           <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50">
             <div className="border-b border-slate-200 bg-slate-100 px-5 py-4">
@@ -651,7 +686,6 @@ useEffect(() => {
                 <span>Manager</span>
                 <span className="text-right">Assigned</span>
                 <span className="text-right">Renewals Due</span>
-                
               </div>
             </div>
 
@@ -659,16 +693,30 @@ useEffect(() => {
               <table className="min-w-full border-collapse text-sm text-slate-700">
                 <tbody className="bg-slate-50">
                   {dashboardKpis.managerPerformance.slice(0, 8).map((m) => {
-                    const leadCount = agentLeads.find(a => a.agentName === m.name)?.count;
-                    const formatPositive = (value) => Number(value) > 0 ? value : "";
+                    const leadCount = agentLeads.find(
+                      (a) => a.agentName === m.name,
+                    )?.count;
+                    const formatPositive = (value) =>
+                      Number(value) > 0 ? value : "";
                     return (
-                      <tr key={m.name} className="border-b border-slate-200 bg-white hover:bg-slate-50">
+                      <tr
+                        key={m.name}
+                        className="border-b border-slate-200 bg-white hover:bg-slate-50"
+                      >
                         <td className="px-5 py-4">
-                          <div className="font-medium text-slate-900 truncate">{m.name}</div>
+                          <div className="font-medium text-slate-900 truncate">
+                            {m.name}
+                          </div>
                         </td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatPositive(m.assigned)}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-rose-600">{m.renewalDue != null ? m.renewalDue : ""}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-indigo-600">{leadCount != null ? leadCount : ""}</td>
+                        <td className="px-5 py-4 text-right font-semibold text-slate-800">
+                          {formatPositive(m.assigned)}
+                        </td>
+                        <td className="px-5 py-4 text-right font-semibold text-rose-600">
+                          {m.renewalDue != null ? m.renewalDue : ""}
+                        </td>
+                        <td className="px-5 py-4 text-right font-semibold text-indigo-600">
+                          {leadCount != null ? leadCount : ""}
+                        </td>
                       </tr>
                     );
                   })}
@@ -686,8 +734,12 @@ useEffect(() => {
           <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-4 mb-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Follow-up Tracking</p>
-                <h4 className="mt-2 text-sm font-semibold text-slate-900">By Agent</h4>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                  Follow-up Tracking
+                </p>
+                <h4 className="mt-2 text-sm font-semibold text-slate-900">
+                  By Agent
+                </h4>
               </div>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
                 Total: {followUpStats.totalFollowUps}
@@ -708,14 +760,27 @@ useEffect(() => {
                   </thead>
                   <tbody className="bg-slate-50">
                     {(followUpStats.byAgent || []).map((agent, idx) => (
-                      <tr key={agent._id || agent.agentName || idx} className="border-b border-slate-200 bg-white hover:bg-slate-50">
+                      <tr
+                        key={agent._id || agent.agentName || idx}
+                        className="border-b border-slate-200 bg-white hover:bg-slate-50"
+                      >
                         <td className="px-4 py-4">
-                          <div className="font-medium text-slate-900 truncate">{agent.agentName || "Unknown"}</div>
+                          <div className="font-medium text-slate-900 truncate">
+                            {agent.agentName || "Unknown"}
+                          </div>
                         </td>
-                        <td className="px-4 py-4 text-right font-semibold text-sky-700">{agent.today || 0}</td>
-                        <td className="px-4 py-4 text-right font-semibold text-rose-700">{agent.tomorrow || 0}</td>
-                        <td className="px-4 py-4 text-right font-semibold text-violet-700">{agent.next7days || 0}</td>
-                        <td className="px-4 py-4 text-right font-semibold text-emerald-700">{agent.total || 0}</td>
+                        <td className="px-4 py-4 text-right font-semibold text-sky-700">
+                          {agent.today || 0}
+                        </td>
+                        <td className="px-4 py-4 text-right font-semibold text-rose-700">
+                          {agent.tomorrow || 0}
+                        </td>
+                        <td className="px-4 py-4 text-right font-semibold text-violet-700">
+                          {agent.next7days || 0}
+                        </td>
+                        <td className="px-4 py-4 text-right font-semibold text-emerald-700">
+                          {agent.total || 0}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -728,92 +793,100 @@ useEffect(() => {
                 )}
               </div>
             </div>
-            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
           <div className="flex gap-2 mb-6">
-
-             <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-sky-600 text-white shadow-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-sky-600 text-white shadow-lg">
               <Phone size={16} />
             </div>
             <div>
-              
-              <h3 className="mt-1 text-1xl font-semibold text-slate-900">Calls & Follow-ups</h3>
+              <h3 className="mt-1 text-1xl font-semibold text-slate-900">
+                Calls & Follow-ups
+              </h3>
             </div>
-           
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-5">
             <div className="rounded-[28px] bg-gradient-to-br from-sky-50 to-sky-100 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-sky-700">Calls Today</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{callStats?.totalCallsToday || 0}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-sky-700">
+                Calls Today
+              </p>
+              <p className="mt-4 text-3xl font-semibold text-slate-900">
+                {callStats?.totalCallsToday || 0}
+              </p>
             </div>
             <div className="rounded-[28px] bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Total Follow-ups</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{followUpStats.totalFollowUps || 0}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">
+                Total Follow-ups
+              </p>
+              <p className="mt-4 text-3xl font-semibold text-slate-900">
+                {followUpStats.totalFollowUps || 0}
+              </p>
             </div>
             <div className="rounded-[28px] bg-gradient-to-br from-sky-50 via-slate-50 to-sky-100 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-sky-700">Today</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{followUpStats.todayFollowUps || 0}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-sky-700">
+                Today
+              </p>
+              <p className="mt-4 text-3xl font-semibold text-slate-900">
+                {followUpStats.todayFollowUps || 0}
+              </p>
             </div>
             <div className="rounded-[28px] bg-gradient-to-br from-violet-50 via-slate-50 to-violet-100 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-violet-700">Tomorrow</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{followUpStats.tomorrowFollowUps || 0}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-violet-700">
+                Tomorrow
+              </p>
+              <p className="mt-4 text-3xl font-semibold text-slate-900">
+                {followUpStats.tomorrowFollowUps || 0}
+              </p>
             </div>
           </div>
 
           <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-slate-800">Follow-up schedule</h4>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Live</span>
+              <h4 className="text-sm font-semibold text-slate-800">
+                Follow-up schedule
+              </h4>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                Live
+              </span> 
             </div>
             <div className="space-y-3">
               <div className="rounded-3xl border border-amber-100 bg-amber-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Total</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">{followUpStats.totalFollowUps || 0}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-amber-700">
+                  Total
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">
+                  {followUpStats.totalFollowUps || 0}
+                </p>
               </div>
               <div className="rounded-3xl border border-violet-100 bg-violet-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-violet-700">Next 7 Days</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">{followUpStats.next7DaysFollowUps || 0}</p>
-              </div>  
+                <p className="text-xs uppercase tracking-[0.18em] text-violet-700">
+                  Next 7 Days
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">
+                  {followUpStats.next7DaysFollowUps || 0}
+                </p>
+              </div>
               <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">This Month</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">{followUpStats.thisMonthFollowUps || 0}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">
+                  This Month
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">
+                  {followUpStats.thisMonthFollowUps || 0}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
-          <div className="flex  gap-2 mb-4">
-
-                <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-emerald-600 text-white shadow-lg">
-              <BriefcaseBusiness size={16} />
-            </div>
-            <div>
-              <h3 className="mt-1 text-1xl font-semibold text-slate-900">Plan Distribution</h3>
-            </div>
-            
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mb-5">
-            <div className="rounded-[28px] bg-blue-50 p-4 text-center shadow-sm">
-              <p className="text-xs uppercase tracking-[0.18em] text-blue-700">Basic</p>
-              <p className="mt-3 text-2xl font-semibold text-blue-900">{stats.planCounts?.basic || 0}</p>
-            </div>
-            <div className="rounded-[28px] bg-emerald-50 p-4 text-center shadow-sm">
-              <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Standard</p>
-              <p className="mt-3 text-2xl font-semibold text-emerald-900">{stats.planCounts?.standard || 0}</p>
-            </div>
-            <div className="rounded-[28px] bg-violet-50 p-4 text-center shadow-sm">
-              <p className="text-xs uppercase tracking-[0.18em] text-violet-700">Premium</p>
-              <p className="mt-3 text-2xl font-semibold text-violet-900">{stats.planCounts?.premium || 0}</p>
-            </div>
-          </div>
-
+          
           <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-5">
-            <h4 className="mb-4 text-sm font-semibold text-slate-800">Call Performance</h4>
+            <h4 className="mb-4 text-sm font-semibold text-slate-800">
+              Call Performance
+            </h4>
             <div className="overflow-hidden">
               <table className="min-w-full border-collapse text-sm text-slate-700">
                 <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -825,20 +898,40 @@ useEffect(() => {
                   </tr>
                 </thead>
                 <tbody className="bg-slate-50">
-                  {(callStats?.todayCallsByAgent || []).slice(0, 6).sort((a, b) => (b.count || 0) - (a.count || 0)).map((agent, idx) => {
-                    const totalEntry = callStats?.totalCallsByAgent?.find(a => a.agentName === agent.agentName);
-                    const leadCount = agentLeads.find(a => a.agentName === agent.agentName)?.count;
-                    return (
-                      <tr key={agent.agentId || agent.agentName || idx} className="border-b border-slate-200 bg-white hover:bg-slate-50">
-                        <td className="px-3 py-2">
-                          <div className="font-medium text-slate-900 truncate">{agent.agentName || "Unknown"}</div>
-                        </td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{agent.count > 0 ? agent.count : ""}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-violet-700">{(totalEntry?.count || agent.count) > 0 ? (totalEntry?.count || agent.count) : ""}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-indigo-700">{Number(leadCount) > 0 ? leadCount : ""}</td>
-                      </tr>
-                    );
-                  })}
+                  {(callStats?.todayCallsByAgent || [])
+                    .slice(0, 6)
+                    .sort((a, b) => (b.count || 0) - (a.count || 0))
+                    .map((agent, idx) => {
+                      const totalEntry = callStats?.totalCallsByAgent?.find(
+                        (a) => a.agentName === agent.agentName,
+                      );
+                      const leadCount = agentLeads.find(
+                        (a) => a.agentName === agent.agentName,
+                      )?.count;
+                      return (
+                        <tr
+                          key={agent.agentId || agent.agentName || idx}
+                          className="border-b border-slate-200 bg-white hover:bg-slate-50"
+                        >
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-slate-900 truncate">
+                              {agent.agentName || "Unknown"}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">
+                            {agent.count > 0 ? agent.count : ""}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-violet-700">
+                            {(totalEntry?.count || agent.count) > 0
+                              ? totalEntry?.count || agent.count
+                              : ""}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-indigo-700">
+                            {Number(leadCount) > 0 ? leadCount : ""}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
               {(callStats?.todayCallsByAgent || []).length === 0 && (
@@ -850,11 +943,6 @@ useEffect(() => {
           </div>
         </div>
       </div>
-
-
-
-
-
 
       {showChatStatsModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">

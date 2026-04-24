@@ -8,6 +8,7 @@ import dbConnect from "@/lib/dbConnect";
 // ye mongoose models he user  user data ke liye
 import User from "@/models/User";
 import FranchiseTeam from "@/models/FranchiseTeam";
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 
 // OTP store karne ke liye 
 import OTP from "@/models/Otp";
@@ -220,6 +221,7 @@ export async function POST(req) { // ye API ka post handler he
         fbPrice: 0,
         gmbPrice: 20,
         imgGeneratePrice: 80,
+        source: "signup",
         subscription: {
           status: "inactive",
           plan: "Free",
@@ -227,6 +229,10 @@ export async function POST(req) { // ye API ka post handler he
           endDate: null,
         },
       });
+
+      void runWelcomeBonusForUserId(user.userId).catch((err) =>
+        console.error("runWelcomeBonusForUserId", err),
+      );
     }
 
     /* ======================================================

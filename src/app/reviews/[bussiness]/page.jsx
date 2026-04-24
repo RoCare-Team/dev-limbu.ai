@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ClipboardCheck, Copy } from "lucide-react";
+import { Copy } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { Star, ExternalLink, CheckCircle, Sparkles, Loader2 } from "lucide-react";
@@ -24,7 +24,7 @@ export default function CustomerReviewPage() {
   const [additionalCategories, setAdditionalCategories] = useState([]);
   const [aiReviews, setAiReviews] = useState([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [copyingIndex, setCopyingIndex] = useState(null);
 
   /**
    * Must run synchronously inside the user's tap (before any await) or iOS Safari blocks pop-ups.
@@ -139,6 +139,8 @@ export default function CustomerReviewPage() {
             business,
             primaryCategory,
             additionalCategories,
+            locality,
+            address,
           }),
         });
         const data = await res.json();
@@ -155,40 +157,71 @@ export default function CustomerReviewPage() {
     }
   };
 
-  // Handle copy and redirect flow (open Google synchronously first — iOS blocks delayed window.open)
+  /** Same-tick copy (no await) — best for mobile Safari before window.open. */
+  const copyTextToClipboardSync = (text) => {
+    const str = String(text ?? "").trim();
+    if (!str) return false;
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = str;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, str.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      console.warn("execCommand copy failed", e);
+      return false;
+    }
+  };
+
+  const copyTextToClipboardAsync = async (text) => {
+    const str = String(text ?? "").trim();
+    if (!str) return false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(str);
+        return true;
+      }
+    } catch (e) {
+      console.warn("navigator.clipboard.writeText failed", e);
+    }
+    return false;
+  };
+
+  // Copy first, then open Google — opening a new tab first often breaks clipboard on mobile.
   const handleCopyAndRedirect = async (review, index) => {
     if (!reviewUri) {
       setErrorMsg("⚠ Google review link is not available.");
       return;
     }
 
-    setCopiedIndex(index);
-
-    // 1) Open Google Reviews in the same user gesture (critical for iPhone Safari)
-    openGoogleReviewNow(reviewUri);
-
-    // 2) Clipboard + DB after (may use async; does not affect pop-up permission)
+    setCopyingIndex(index);
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(review);
+      if (!copyTextToClipboardSync(review)) {
+        await copyTextToClipboardAsync(review);
       }
-    } catch (e) {
-      console.warn("Clipboard copy failed (ok on some iOS browsers)", e);
+      openGoogleReviewNow(reviewUri);
+      try {
+        await saveReviewToDB({
+          name: customerName,
+          rating,
+          feedback: review,
+        });
+      } catch (e) {
+        console.error("Save review failed", e);
+      }
+      setShowReviewModal(false);
+      setShowSuccess(true);
+    } finally {
+      setCopyingIndex(null);
     }
-
-    try {
-      await saveReviewToDB({
-        name: customerName,
-        rating,
-        feedback: review,
-      });
-    } catch (e) {
-      console.error("Save review failed", e);
-    }
-
-    setCopiedIndex(null);
-    setShowReviewModal(false);
-    setShowSuccess(true);
   };
 
   /** Skip AI text — go straight to Google (same synchronous open rule). */
@@ -260,7 +293,7 @@ export default function CustomerReviewPage() {
         </h2>
 
         <p className="text-[11px] md:text-xs text-gray-500 mt-1 md:mt-2 leading-relaxed px-1">
-          Choose the best review, copy it, and paste it on Google.
+          Tap &quot;Copy &amp; Post&quot; — text is copied first, then Google opens. Paste in the review box.
         </p>
       </div>
 
@@ -287,20 +320,21 @@ max-h-[38vh] md:max-h-[48vh]
             </p>
 
             <button
+              type="button"
               className={`flex items-center justify-center gap-2 w-full
                 py-2 md:py-2.5
                 rounded-lg text-[11px] md:text-xs font-bold transition
                 ${
-                  copiedIndex === idx
+                  copyingIndex === idx
                     ? "bg-green-500 text-white"
                     : "bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white"
                 }
               `}
               onClick={() => handleCopyAndRedirect(review, idx)}
-              disabled={copiedIndex !== null}
+              disabled={copyingIndex !== null}
             >
-              {copiedIndex === idx ? <CheckCircle size={14} /> : <Copy size={14} />}
-              {copiedIndex === idx ? "Copied! Redirecting..." : "Copy & Post"}
+              {copyingIndex === idx ? <CheckCircle size={14} /> : <Copy size={14} />}
+              {copyingIndex === idx ? "Opening Google…" : "Copy & Post"}
             </button>
           </li>
         ))}
@@ -311,26 +345,28 @@ max-h-[38vh] md:max-h-[48vh]
         Reviews written by <span className="font-semibold text-gray-500">Limbu AI</span>
       </p>
 
-      <button
-        type="button"
-        className="mt-3 w-full py-2.5 md:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs md:text-sm shadow-md"
-        onClick={handleSkipToGoogle}
-      >
-        Skip — open Google Reviews only
-      </button>
-
-      <button
-        type="button"
-        className="
-          mt-2 w-full
-          py-2.5 md:py-3
-          rounded-xl bg-gray-100 hover:bg-gray-200
-          text-gray-700 font-bold text-xs md:text-sm
-        "
-        onClick={() => setShowReviewModal(false)}
-      >
-        Close
-      </button>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className="py-2.5 md:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs md:text-sm shadow-md"
+          onClick={handleSkipToGoogle}
+        >
+          Skip
+          <span className="block font-normal text-[10px] md:text-[11px] opacity-90 mt-0.5">
+            Google Reviews खोलें
+          </span>
+        </button>
+        <button
+          type="button"
+          className="py-2.5 md:py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs md:text-sm"
+          onClick={() => setShowReviewModal(false)}
+        >
+          Cancel
+          <span className="block font-normal text-[10px] md:text-[11px] text-gray-600 mt-0.5">
+            बिना चुने बंद करें
+          </span>
+        </button>
+      </div>
     </div>
   </div>
 )}

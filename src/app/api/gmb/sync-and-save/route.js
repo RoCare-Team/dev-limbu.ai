@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
-import { saveGmbSession } from "@/lib/gmbSessionStore";
+import {
+  saveGmbSession,
+  normalizePhone,
+  sessionIdFromPhone,
+} from "@/lib/gmbSessionStore";
 import { postJsonWithRetry } from "@/lib/limbuGmbConnectChatbot";
 
 export const dynamic = "force-dynamic";
@@ -32,10 +36,17 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const sessionId = body.session_id?.toString()?.trim();
+    const phone     = normalizePhone(body.phone || "");
+    let   sessionId = body.session_id?.toString()?.trim();
+
+    // If no explicit session_id but phone is provided, derive one deterministically
+    if (!sessionId && phone) {
+      sessionId = sessionIdFromPhone(phone);
+    }
+
     if (!sessionId) {
       return NextResponse.json(
-        { error: "session_id is required in request body" },
+        { error: "session_id or phone is required in request body" },
         { status: 400 }
       );
     }
@@ -55,7 +66,7 @@ export async function POST(request) {
     const userEmail = session.user.email;
     let saved;
     try {
-      saved = await saveGmbSession(sessionId, userEmail, allListings);
+      saved = await saveGmbSession(sessionId, userEmail, allListings, phone);
     } catch (e) {
       console.error("sync-and-save DB save:", e);
       return NextResponse.json(
@@ -69,6 +80,7 @@ export async function POST(request) {
       message:       saved.message,
       locationsData: Array.isArray(saved.locationsData) ? saved.locationsData : [],
       session_id:    sessionId,
+      ...(phone ? { phone } : {}),
     };
 
     // ── optional webhook (fire-and-forget with retry) ────────────────

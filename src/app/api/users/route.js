@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import {
+  ALLOWED_USER_SOURCE_VALUES,
+  mergeMetaLeadsTag,
+} from "@/lib/bookingSource";
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
@@ -126,7 +131,13 @@ export async function POST(req) {
 
     // 4️⃣ Create Lead
     const createPayload = { ...body, assignedAgentId: assignedAgentId };
+    const src = createPayload.source;
+    createPayload.leadTags = mergeMetaLeadsTag(src, createPayload.leadTags);
     const user = await User.create(createPayload);
+
+    void runWelcomeBonusForUserId(user.userId).catch((err) =>
+      console.error("runWelcomeBonusForUserId", err),
+    );
 
     return NextResponse.json({
       success: true,
@@ -440,6 +451,8 @@ export async function GET(req) {
           totalMetaLeadUsers,
           totalSignups: totalSignupUsers,
           totalMetaLeads: totalMetaLeadUsers,
+          metaLeadsCount: totalMetaLeadUsers,
+          signupLeadsCount: totalSignupUsers,
           todayLeads,
           todayAgentAssignments,
         };
@@ -618,6 +631,8 @@ export async function GET(req) {
         totalMetaLeadUsers,
         totalSignups: totalSignupUsers,
         totalMetaLeads: totalMetaLeadUsers,
+        metaLeadsCount: totalMetaLeadUsers,
+        signupLeadsCount: totalSignupUsers,
         todayLeads,
         todayAgentAssignments,
       };
@@ -649,10 +664,14 @@ export async function PUT(req) {
     await dbConnect();
 
     const body = await req.json();
+
+     
+
     const {
       userId,
       newPlan,
       paidService,
+       amount,
       paidPackage,
       planDuration,
       isServiceBooked,
@@ -660,6 +679,8 @@ export async function PUT(req) {
       leadStage,
       leadStatus,
       utrNumber,
+       screenshot,   // 🔥
+      notes,
     } = body;
 
     const remark = body.remark || body.remarks;
@@ -779,14 +800,25 @@ export async function PUT(req) {
     }
 
     /* -------- SERVICE UPDATE -------- */
-    if (isServiceBooked === true) {
-      updateData.$set = {
-        ...updateData.$set,
-        ...(paidService && { paidService }),
-        ...(paidPackage && { paidPackage }),
-        ...(planDuration && { planDuration }),
-      };
-    }
+    /* -------- SERVICE UPDATE -------- */
+if (isServiceBooked === true) {
+  updateData.$set = {
+    ...updateData.$set,
+
+    // 🔥 service fields
+    ...(paidService && { paidService }),
+    ...(paidPackage && { paidPackage }),
+    ...(planDuration && { planDuration }),
+
+    // 🔥 ADD THESE (IMPORTANT)
+    ...(amount && { amount }),
+    ...(screenshot && { screenshot }),
+    ...(notes && { notes }),
+
+    // 🔥 mark service booked
+    isServiceBooked: true,
+  };
+}
 
     /* -------- LEAD STAGE UPDATE -------- */
     if (leadStage) {
@@ -802,6 +834,17 @@ export async function PUT(req) {
         ...updateData.$set,
         leadStatus,
       };
+    }
+
+    /* -------- ACQUISITION SOURCE (admin) -------- */
+    if (body.source !== undefined && body.source !== null && body.source !== "") {
+      const src = String(body.source).trim();
+      if (ALLOWED_USER_SOURCE_VALUES.includes(src)) {
+        updateData.$set = {
+          ...updateData.$set,
+          source: src,
+        };
+      }
     }
 
     if (Object.keys(updateData).length === 0) {

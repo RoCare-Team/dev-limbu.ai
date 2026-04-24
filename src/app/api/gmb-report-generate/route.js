@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import cloudinary from "@/lib/cloudinary";
 
 // Generate and send GMB report with PDF attachment
 export async function POST(req) {

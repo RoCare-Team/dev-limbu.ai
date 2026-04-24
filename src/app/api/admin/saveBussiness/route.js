@@ -92,15 +92,102 @@ export async function GET(req) {
     const AdminBusiness = await getAdminBusinessModel();
 
     const { searchParams } = new URL(req.url);
-    const userEmail = searchParams.get("userEmail");
+    const userEmail = searchParams.get("userEmail") || searchParams.get("email");
+    const page = parseInt(searchParams.get("page")) || 1;
+    const limit = parseInt(searchParams.get("limit")) || 20;
 
+    // If no email is provided, return all businesses (paginated for Admin Dashboard)
     if (!userEmail) {
-      return NextResponse.json(
-        { error: "userEmail is required in query" },
-        { status: 400 }
-      );
+      const total = await AdminBusiness.countDocuments();
+      
+      // Calculate global stats using aggregation for performance
+      const globalStatsResult = await AdminBusiness.aggregate([
+        {
+          $project: {
+            totalListings: { $size: { $ifNull: ["$listings", []] } },
+            verifiedCount: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ["$listings", []] },
+                  as: "listing",
+                  cond: { 
+                    $or: [
+                      { $eq: ["$$listing.verified", true] },
+                      { $eq: ["$$listing.metadata.hasVoiceOfMerchant", true] }
+                    ]
+                  }
+                }
+              }
+            },
+            unverifiedCount: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ["$listings", []] },
+                  as: "listing",
+                  cond: { 
+                    $not: {
+                      $or: [
+                        { $eq: ["$$listing.verified", true] },
+                        { $eq: ["$$listing.metadata.hasVoiceOfMerchant", true] }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            globalTotalListings: { $sum: "$totalListings" },
+            globalVerifiedCount: { $sum: "$verifiedCount" },
+            globalUnverifiedCount: { $sum: "$unverifiedCount" }
+          }
+        }
+      ]);
+
+      const globalStats = globalStatsResult[0] || {
+        globalTotalListings: 0,
+        globalVerifiedCount: 0,
+        globalUnverifiedCount: 0
+      };
+
+      const allBusinesses = await AdminBusiness.find({})
+        .sort({ timestamp: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
+      
+      // Map to the format expected by the frontend
+      const formattedListings = allBusinesses.map(biz => ({
+        userEmail: biz.userEmail,
+        userName: biz.userEmail.split('@')[0], // Fallback name
+        totalListings: biz.listings?.length || 0,
+        verifiedCount: biz.listings?.filter(l => l.verified || l.metadata?.hasVoiceOfMerchant)?.length || 0,
+        unverifiedCount: biz.listings?.filter(l => !(l.verified || l.metadata?.hasVoiceOfMerchant))?.length || 0,
+        listings: biz.listings || [],
+        lastUpdated: biz.timestamp
+      }));
+
+      return NextResponse.json({
+        success: true,
+        listings: formattedListings,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        },
+        globalStats: {
+          totalUsers: total,
+          totalListings: globalStats.globalTotalListings,
+          verifiedListings: globalStats.globalVerifiedCount,
+          unverifiedListings: globalStats.globalUnverifiedCount
+        }
+      });
     }
 
+    // If email is provided, return only that user's listings
     const business = await AdminBusiness.findOne({
       userEmail: userEmail.toLowerCase(),
     });

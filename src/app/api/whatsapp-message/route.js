@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import User from "@/models/User"; // Update based on your schema
+import { sendWelcomeBonusAisensy } from "@/lib/welcomeBonusWhatsApp";
 
 export async function POST(req) {
   try {
     await dbConnect();
 
-    const { destination, templateParams } = await req.json();
+    const body = await req.json();
+    const { destination, templateParams, campaignName, source } = body;
 
     if (!destination || !templateParams) {
       return NextResponse.json(
@@ -15,39 +16,23 @@ export async function POST(req) {
       );
     }
 
-
-    // FIXED PAYLOAD FOR AISENSY
-    const payload = {
-      apiKey:
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzZhOWFjMTNhNjFmMGQ3YjExYmQ1NCIsIm5hbWUiOiJMaW1idUFJIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY2NjhhNWZmYTNhMzhjNTJhMDVmZDYzOCIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NjUxOTAwNjB9.Xps-oRJ5QqgkCs5BaBuPd1KS9Yxnv4D2PCYB-g5zgr4",
-
-      campaignName: "welcome_bonus",
+    const { ok, data: result, status } = await sendWelcomeBonusAisensy({
       destination,
-      userName: "LimbuAI",
       templateParams,
-      source: "new-landing-page form",
-      media: {},
-      buttons: [],
-      carouselCards: [],
-      location: {},
-      attributes: {},
-      paramsFallbackValue: { FirstName: "user" },
-    };
-
-    // AISENSY URL
-    const API_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
-
-    // SEND REQUEST TO AISENSY
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: payload.apiKey,
-      },
-      body: JSON.stringify(payload),
+      campaignName: campaignName || "welcome_bonus",
+      source: source || "new-landing-page form",
     });
 
-    const result = await response.json();
+    if (!ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "WhatsApp API did not accept the request",
+          data: result,
+        },
+        { status: status >= 400 ? status : 502 }
+      );
+    }
 
     return NextResponse.json(
       {

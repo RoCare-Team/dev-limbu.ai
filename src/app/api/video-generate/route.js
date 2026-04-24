@@ -1,11 +1,5 @@
 import { NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { uploadToS3 } from "@/utils/s3Config";
 
 export async function POST(req) {
   try {
@@ -28,19 +22,26 @@ export async function POST(req) {
 
     let finalImageUrl = product_image;
 
-    // Upload Base64 to Cloudinary
+    // Upload Base64 to S3
     if (product_image.startsWith("data:image")) {
       try {
-        const uploadRes = await cloudinary.uploader.upload(product_image, {
-          folder: "video-generation",
-          resource_type: "image",
-        });
+        const base64Data = product_image.split(',')[1];
+        const mimeTypeMatch = product_image.match(/^data:(image\/\w+);base64,/);
+        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
+        const extension = mimeType.split('/')[1] || "jpeg";
+        const buffer = Buffer.from(base64Data, "base64");
+        const fileName = `video-gen-${Date.now()}.${extension}`;
 
-        finalImageUrl = uploadRes.secure_url;
+        const uploadRes = await uploadToS3(buffer, fileName, mimeType);
+
+        if (!uploadRes.success) {
+          throw new Error(uploadRes.error);
+        }
+        finalImageUrl = uploadRes.url;
       } catch (err) {
-        console.error("Cloudinary Upload Failed:", err);
+        console.error("S3 Upload Failed:", err);
         return NextResponse.json(
-          { success: false, error: "Invalid Base64 image." },
+          { success: false, error: "Invalid Base64 image or upload failed." },
           { status: 400 }
         );
       }

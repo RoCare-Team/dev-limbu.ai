@@ -20,9 +20,8 @@ import {
 } from "@/app/actions/postActions";
 import { getLocalStorage } from "@/utils/storage";
 
-const DURATION_OPTIONS = [5, 8, 10];
-const PLATFORM_OPTIONS = ["instagram", "facebook", "both"];
-const AUDIO_FOLDER_OPTIONS = ["dharmik", "motivational", "basic"];
+const AUDIO_FOLDER_FIXED = "basic";
+const DURATION_OPTIONS = [4, 6, 8, 10, 12, 15];
 
 export function displayUrlForPostOutput(url) {
   if (!url || typeof url !== "string") return "";
@@ -66,11 +65,7 @@ const ImageToVideoModal = React.memo(({
   onVideoInsufficientBalance,
 }) => {
   const [ivPrompt, setIvPrompt] = useState("");
-  const [ivDuration, setIvDuration] = useState(5);
-  const [ivPlatform, setIvPlatform] = useState("both");
-  const [voiceMode, setVoiceMode] = useState("skip");
-  const [audioFileUrl, setAudioFileUrl] = useState("");
-  const [audioFolder, setAudioFolder] = useState("basic");
+  const [ivDuration, setIvDuration] = useState(8);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [uploadedCloudinaryUrl, setUploadedCloudinaryUrl] = useState(null);
   const [mergeTargetPostId, setMergeTargetPostId] = useState(null);
@@ -96,11 +91,7 @@ const ImageToVideoModal = React.memo(({
     if (!isOpen) return;
     setResult(null);
     setIvPrompt("");
-    setIvDuration(5);
-    setIvPlatform("both");
-    setVoiceMode("skip");
-    setAudioFileUrl("");
-    setAudioFolder("basic");
+    setIvDuration(8);
     setCopiedField(null);
     updateUiState({ aiPromptLoading: false });
     
@@ -321,12 +312,11 @@ const ImageToVideoModal = React.memo(({
     setResult(null);
     try {
       const body = {
-        image_url: null,
+        prompt: ivPrompt.trim(),
         business_name: resolvedBusinessName || "Business",
         duration: ivDuration,
-        platform: ivPlatform,
-        audio_file_url: null,
-        audio_folder: voiceMode === "use-voice" ? null : audioFolder || null,
+        audio_folder: AUDIO_FOLDER_FIXED,
+        platform: "both",
       };
       if (effectiveImagePayload.image_url) body.image_url = effectiveImagePayload.image_url;
       else body.image = effectiveImagePayload.image;
@@ -513,26 +503,6 @@ const ImageToVideoModal = React.memo(({
                 className="w-full sm:w-36 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 bg-white"
               >
                 {DURATION_OPTIONS.map((n) => <option key={n} value={n}>{n}s</option>)}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label
-                htmlFor="iv-modal-platform"
-                className="text-xs font-semibold text-gray-600 block mb-1"
-              >
-                Platform
-              </label>
-              <select
-                id="iv-modal-platform"
-                value={ivPlatform}
-                onChange={(e) => setIvPlatform(e.target.value)}
-                className="w-full sm:w-44 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 bg-white"
-              >
-                {PLATFORM_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
               </select>
             </div>
             <div className="flex-1 text-xs text-gray-600 sm:pb-2">

@@ -13,9 +13,25 @@ const nextConfig = {
       },
     ];
   },
+
   images: {
     remotePatterns: [
       // ─── Cloudinary ───────────────────────────────────────────
+      {
+        protocol: "https",
+        hostname: "limbuai.s3.ap-south-1.amazonaws.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "limbuai.s3.amazonaws.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "s3.ap-south-1.amazonaws.com",
+        pathname: "/limbuai/**",
+      },
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
@@ -62,6 +78,7 @@ const nextConfig = {
       }
     ],
   },
+
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
@@ -70,7 +87,6 @@ const nextConfig = {
   // Fix for recharts SSR issue: (0 , R.default) is not a function
   transpilePackages: ["recharts", "react-hot-toast", "jspdf", "html2canvas", "html-to-image"],
   webpack: (config, { isServer }) => {
-    // Fix for jspdf and html2canvas SSR issues
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

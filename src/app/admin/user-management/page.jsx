@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
+import { useRef } from "react";
+
 /* user-management */
 import {
   Search,
@@ -37,7 +39,16 @@ import {
   Globe,
   Bell,
   Upload,
+  Send,
 } from "lucide-react";
+import {
+  USER_SOURCE_OPTIONS,
+  userAcquisitionLabel,
+  userAcquisitionTagClassName,
+  formatLeadTagLabel,
+  leadTagPillClassName,
+} from "@/lib/bookingSource";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import AddAddUserActivity from "@/components/admin-add-activity";
@@ -182,9 +193,7 @@ export default function UserManagement() {
   const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
 
   // Revenue Users Modal state ✅ NEW
-  const [showRevenueUsersModal, setShowRevenueUsersModal] = useState(false);
-  const [revenueUsersList, setRevenueUsersList] = useState([]);
-  const [loadingRevenueUsers, setLoadingRevenueUsers] = useState(false);
+
 
   // Onboarded Client state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
@@ -224,10 +233,35 @@ export default function UserManagement() {
 
   const [isRefreshingMetaLeads, setIsRefreshingMetaLeads] = useState(false);
 
+  /** SuperAdmin only — bulk Tata-style WhatsApp (same campaign as Tata Dialer). */
+  const [bulkWaSelectedUserIds, setBulkWaSelectedUserIds] = useState([]);
+  const [bulkWaShowPanel, setBulkWaShowPanel] = useState(false);
+  const [bulkWaSendDate, setBulkWaSendDate] = useState("");
+  const [bulkWaSending, setBulkWaSending] = useState(false);
+  const [bulkWaResult, setBulkWaResult] = useState(null);
+
   // remark
   const [planRemarks, setplanRemarks] = useState("");
 
   const isServiceModalOpen = activeModal === "service";
+
+  const tableRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    const table = tableRef.current;
+    const bottom = bottomRef.current;
+
+    if (!table || !bottom) return;
+
+    const handleScroll = () => {
+      bottom.scrollLeft = table.scrollLeft;
+    };
+
+    table.addEventListener("scroll", handleScroll);
+
+    return () => table.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleOpenServiceModal = (user) => {
     setViewingUserPosts(null);
@@ -289,6 +323,13 @@ export default function UserManagement() {
     }
     return list;
   }, [users, isAgent, followUpFilter, followUpTableUsers, searchQuery]);
+
+  const bulkWaEligibleIdsOnPage = useMemo(() => {
+    if (role !== "superAdmin") return [];
+    return filteredUsers
+      .filter((u) => u.phone || u.mobileNumber)
+      .map((u) => String(u.userId));
+  }, [role, filteredUsers]);
 
   const followUpMetaByUserId = useMemo(() => {
     const m = new Map();
@@ -366,34 +407,41 @@ export default function UserManagement() {
     }
   };
 
-  const handleRefreshMetaLeads = async (manual = false) => {
-  if (!manual) return; // 🔥 IMPORTANT
+  const handleRefreshMetaLeads = async ({ silent = false } = {}) => {
+    const adminRole = localStorage.getItem("role");
+    if (!["superAdmin", "admin"].includes(adminRole)) return;
 
-  setIsRefreshingMetaLeads(true);
-
-  try {
     const email = localStorage.getItem("email");
-    console.log("EMAIL FROM LS:", email);
+    if (!email) return;
 
-    const res = await fetch(
-      `/api/meta-leads-import?formId=1393275835835157&email=${email}`
-    );
+    if (!silent) setIsRefreshingMetaLeads(true);
 
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `/api/meta-leads-import?formId=1393275835835157&email=${encodeURIComponent(email)}`,
+      );
 
-    if (data.success) {
-      showToast("Meta Leads refreshed successfully!", "success");
-      fetchUsers();
-    } else {
-      showToast(data.error || "Failed to refresh Meta Leads", "error");
+      const data = await res.json();
+
+      if (data.success) {
+        if (!silent) {
+          showToast("Meta Leads refreshed successfully!", "success");
+        }
+        fetchUsers();
+      } else {
+        if (!silent) {
+          showToast(data.error || "Failed to refresh Meta Leads", "error");
+        } else {
+          console.warn("Meta leads sync:", data.error || data);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing Meta Leads:", error);
+      if (!silent) showToast("Error refreshing Meta Leads", "error");
+    } finally {
+      if (!silent) setIsRefreshingMetaLeads(false);
     }
-  } catch (error) {
-    console.error("Error refreshing Meta Leads:", error);
-    showToast("Error refreshing Meta Leads", "error");
-  } finally {
-    setIsRefreshingMetaLeads(false);
-  }
-};
+  };
 
   const [stats, setStats] = useState({
     total: 0,
@@ -457,6 +505,18 @@ export default function UserManagement() {
         .catch((err) => console.error("Error fetching agents:", err));
     }
   }, [role]);
+
+  useEffect(() => {
+    if (role && role !== "superAdmin") {
+      setBulkWaSelectedUserIds([]);
+      setBulkWaShowPanel(false);
+      setBulkWaResult(null);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (bulkWaSelectedUserIds.length === 0) setBulkWaShowPanel(false);
+  }, [bulkWaSelectedUserIds.length]);
 
   useEffect(() => {
     const fetchTotalPosts = async () => {
@@ -623,7 +683,6 @@ export default function UserManagement() {
       : users.filter(
           (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
-    console.log("usersusers", users);
 
     setStats({
       total,
@@ -696,8 +755,10 @@ export default function UserManagement() {
         }
 
         setLeadSourceStats({
-          metaLeads: data.metaLeadsCount || 0,
-          signupLeads: data.signupLeadsCount || 0,
+          metaLeads:
+            data.metaLeadsCount ?? data.totalMetaLeads ?? data.totalMetaLeadUsers ?? 0,
+          signupLeads:
+            data.signupLeadsCount ?? data.totalSignupUsers ?? data.totalSignups ?? 0,
         });
       }
     } catch (error) {
@@ -821,90 +882,33 @@ export default function UserManagement() {
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
-    handleRefreshMetaLeads(false);
-
-    const interval = setInterval(() => {
-      handleRefreshMetaLeads(false);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     fetchChatStats();
     fetchIssues();
     fetchTodayUsersCount();
     fetchRevenue();
   }, []);
 
-  /* ---------------- UPLOAD TO CLOUDINARY ---------------- */
-  const uploadToCloudinary = async (file) => {
+  /* ---------------- UPLOAD TO S3 ---------------- */
+  const uploadToS3 = async (file) => {
     try {
-      // Get signature from server
-      const { getCloudinarySignatureAction } =
-        await import("@/app/actions/uploadCloudinary");
-      const signatureData = await getCloudinarySignatureAction();
-
-      if (!signatureData.success) {
-        throw new Error("Failed to get Cloudinary signature");
-      }
-
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("api_key", signatureData.apiKey);
-      formData.append("timestamp", signatureData.timestamp);
-      formData.append("signature", signatureData.signature);
-      formData.append("folder", signatureData.folder);
 
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const result = await uploadToS3Action(formData);
 
-      if (!response.ok) {
-        throw new Error("Cloudinary upload failed");
+      if (!result.success) {
+        throw new Error(result.error || "Failed to upload to S3");
       }
 
-      const data = await response.json();
-      return data.secure_url;
+      return result.url;
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      console.error("S3 upload error:", error);
       throw error;
     }
   };
 
   /* ---------------- FETCH REVENUE USERS LIST ✅ NEW ---------------- */
-  const fetchRevenueUsers = async () => {
-    setLoadingRevenueUsers(true);
-    const userEmail = localStorage.getItem("email");
-    const userRole = localStorage.getItem("role");
 
-    try {
-      const params = new URLSearchParams({
-        type: "user_onboard",
-        email: userEmail,
-        role: userRole,
-      });
-      const res = await fetch(`/api/franchise-revenue?${params.toString()}`);
-      const data = await res.json();
-
-      if (data.success && data.revenue) {
-        setRevenueUsersList(data.revenue);
-      } else {
-        setRevenueUsersList([]);
-        showToast(data.error || "No onboarded users found", "info");
-      }
-    } catch (err) {
-      console.error("Failed to fetch revenue users:", err);
-      setRevenueUsersList([]);
-      showToast("Failed to load onboarded users", "error");
-    } finally {
-      setLoadingRevenueUsers(false);
-    }
-  };
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
@@ -1247,6 +1251,30 @@ export default function UserManagement() {
     }
   };
 
+  const handleUserSourceChange = async (userId, newSource) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, source: newSource }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Source updated", "success");
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.userId === userId ? { ...user, source: newSource } : user,
+          ),
+        );
+      } else {
+        showToast(data.error || "Failed to update source", "error");
+      }
+    } catch (error) {
+      console.error("Update source error:", error);
+      showToast("Something went wrong", "error");
+    }
+  };
+
   const getAvatarColor = (name) => {
     if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
     const colors = [
@@ -1338,7 +1366,7 @@ export default function UserManagement() {
     setPlanScreenshot(null); // Reset screenshot
   };
 
-  const confirmPlanChange = async () => {
+ const confirmPlanChange = async () => {
     if (!selectedUser || !selectedPlan) return;
 
     // If amount is entered, screenshot is mandatory
@@ -1356,12 +1384,12 @@ export default function UserManagement() {
       let screenshotUrl = null;
       // 1. Handle revenue recording if amount is provided
       if (planAmount && parseFloat(planAmount) > 0) {
-        screenshotUrl = await uploadToCloudinary(planScreenshot);
+        screenshotUrl = await uploadToS3(planScreenshot);
         console.log("SENDING DATA:", {
-  planRemarks: planRemarks,
-  selectedPlan,
-  amount: planAmount,
-});
+          planRemarks: planRemarks,
+          selectedPlan,
+          amount: planAmount,
+        });
 
         const revenueRes = await fetch("/api/franchise-revenue", {
           method: "POST",
@@ -1374,7 +1402,8 @@ export default function UserManagement() {
             email: localStorage.getItem("email"),
             plan: selectedPlan,
             notes: `Plan upgrade to ${selectedPlan}`, // auto
-             planRemarks: planRemarks,
+            planRemarks: planRemarks,
+            utrNumber: utrNumber,
             type: selectedPlan.toLowerCase().includes("seo")
               ? "selectedPlan"
               : "user_onboard",
@@ -1498,6 +1527,117 @@ export default function UserManagement() {
     } catch (error) {
       console.error("Error sending WhatsApp:", error);
       showToast("Failed to send notification", "error");
+    }
+  };
+
+  const getBulkWaCampaignByDate = (dateStr) => {
+    const day = new Date(dateStr).getDay();
+    if (day === 0) return null;
+    return "demo_session_confirmation1";
+  };
+
+  const toggleBulkWaUserId = (userId) => {
+    const id = String(userId);
+    setBulkWaSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const selectAllBulkWaOnPage = () => {
+    if (!bulkWaEligibleIdsOnPage.length) return;
+    setBulkWaSelectedUserIds((prev) => {
+      const allSelected = bulkWaEligibleIdsOnPage.every((id) =>
+        prev.includes(id),
+      );
+      return allSelected ? [] : [...bulkWaEligibleIdsOnPage];
+    });
+  };
+
+  const sendBulkUserManagementWhatsApp = async () => {
+    if (role !== "superAdmin") return;
+    if (!bulkWaSendDate) {
+      setBulkWaResult({
+        success: false,
+        message: "Please select a date for scheduling",
+      });
+      return;
+    }
+    const campaignName = getBulkWaCampaignByDate(bulkWaSendDate);
+    if (!campaignName) {
+      setBulkWaResult({
+        success: false,
+        message: "WhatsApp sending is disabled on Sunday",
+      });
+      return;
+    }
+
+    const usersPayload = filteredUsers
+      .filter((u) => bulkWaSelectedUserIds.includes(String(u.userId)))
+      .map((u) => {
+        let num = u.phone || u.mobileNumber;
+        if (!num) return null;
+        num = String(num).replace(/\D/g, "");
+        if (num.length === 10) num = `91${num}`;
+        if (num.length !== 12) return null;
+        return {
+          customer_no_with_prefix: num,
+          name: u.fullName || "User",
+        };
+      })
+      .filter(Boolean);
+
+    if (!usersPayload.length) {
+      setBulkWaResult({
+        success: false,
+        message: "No valid phone numbers in selection",
+      });
+      return;
+    }
+
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) {
+      setBulkWaResult({ success: false, message: "Not logged in" });
+      return;
+    }
+
+    setBulkWaSending(true);
+    setBulkWaResult(null);
+    try {
+      const response = await fetch("/api/admin/user-management-bulk-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          users: usersPayload,
+          campaignName,
+          scheduleDate: bulkWaSendDate,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        setBulkWaResult({
+          success: false,
+          message: json?.message || "Server error occurred",
+        });
+      } else {
+        setBulkWaResult({
+          success: json.success,
+          message: json.message || "Message processed",
+          sent: json.sent ?? 0,
+        });
+        if (json.success) {
+          setBulkWaSelectedUserIds([]);
+          setBulkWaShowPanel(false);
+        }
+      }
+    } catch (error) {
+      console.error("Bulk WhatsApp error:", error);
+      setBulkWaResult({
+        success: false,
+        message: "Something went wrong while sending",
+      });
+    } finally {
+      setBulkWaSending(false);
     }
   };
 
@@ -2047,10 +2187,6 @@ export default function UserManagement() {
       setCurrentPage(newPage);
     }
   };
-
-  console.log("agentsagents", agents);
-  console.log("agentStatsagentStatsagentStats", stageStats);
-  console.log("callStats", callStats);
 
   if (loading) {
     return (
@@ -2655,7 +2791,7 @@ export default function UserManagement() {
                           <Button
                             variant="outlined"
                             disabled={isRefreshingMetaLeads}
-                            onClick={() => handleRefreshMetaLeads(true)}
+                            onClick={() => handleRefreshMetaLeads({ silent: false })}
                             startIcon={
                               <RefreshCw
                                 size={16}
@@ -2686,20 +2822,145 @@ export default function UserManagement() {
                         </Stack>
                       </Box>
                     )}
+          {role === "superAdmin" && (
+            <>
+              {bulkWaSelectedUserIds.length > 0 && (
+                <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    <div className="flex items-center gap-3 text-white">
+                      <div className="bg-white/20 rounded-full p-3">
+                        <MessageSquare className="text-white" size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-90">Selected leads</p>
+                        <p className="text-2xl font-bold">
+                          {bulkWaSelectedUserIds.length}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setBulkWaShowPanel(true)}
+                        className="flex items-center justify-center gap-2 bg-white text-green-600 px-4 py-3 rounded-lg font-medium hover:bg-green-50 transition shadow-md min-w-[160px]"
+                      >
+                        <MessageSquare size={20} />
+                        WhatsApp
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {bulkWaShowPanel && bulkWaSelectedUserIds.length > 0 && (
+                <div className="bg-white px-4 py-6 md:px-8 border-b border-indigo-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <MessageSquare className="text-green-600" size={22} />
+                      Send WHATSAPP to {bulkWaSelectedUserIds.length} leads
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setBulkWaShowPanel(false)}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100"
+                      aria-label="Close"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Schedule Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                        value={bulkWaSendDate}
+                        onChange={(e) => setBulkWaSendDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={sendBulkUserManagementWhatsApp}
+                        disabled={bulkWaSending}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {bulkWaSending ? (
+                          <>
+                            <RefreshCw size={18} className="animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={18} />
+                            Send WHATSAPP
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {bulkWaResult && (
+                <div
+                  className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
+                    bulkWaResult.success
+                      ? "bg-green-50 text-green-800 border-green-500"
+                      : "bg-red-50 text-red-800 border-red-500"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <p className="font-bold text-lg mb-1">
+                        {bulkWaResult.success ? "✓ Success" : "✗ Error"}
+                      </p>
+                      <p>{bulkWaResult.message}</p>
+                      {bulkWaResult.sent !== undefined && (
+                        <p className="mt-2 font-semibold">
+                          Messages sent: {bulkWaResult.sent}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBulkWaResult(null)}
+                      className="text-gray-500 hover:text-gray-700 p-1"
+                      aria-label="Dismiss"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           <TableContainer
             sx={{
               maxHeight: { xs: "60vh", md: "72vh" },
-              "&::-webkit-scrollbar": { height: 8, width: 8 },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "#9ca3af",
-                borderRadius: 99,
-              },
+              overflowX: "auto",
             }}
           >
-            <div className="overflow-x-auto pb-1">
-              <table className="min-w-[2200px]">
-                <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
+            <div  className="max-h-[500px] overflow-x-auto pb-1">
+              <table className="min-w-full">
+                <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur"> 
                   <tr>
+                    {role === "superAdmin" && (
+                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
+                        <input
+                          type="checkbox"
+                          title="Select all leads with phone on this page"
+                          checked={
+                            bulkWaEligibleIdsOnPage.length > 0 &&
+                            bulkWaEligibleIdsOnPage.every((id) =>
+                              bulkWaSelectedUserIds.includes(id),
+                            )
+                          }
+                          onChange={selectAllBulkWaOnPage}
+                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                       {isAgent && followUpFilter !== "all"
                         ? "Follow-up"
@@ -2743,16 +3004,16 @@ export default function UserManagement() {
                     </th>
                   </tr>
                 </thead>
-              </table>
-            </div>
-            <div className="overflow-y-auto overflow-x-auto flex-grow">
-              <table className="min-w-[2200px]">
+
                 <tbody className="divide-y divide-gray-100">
                   {loadingFollowUpTable &&
                   isAgent &&
                   followUpFilter !== "all" ? (
                     <tr>
-                      <td colSpan={12} className="text-center py-14">
+                      <td
+                        colSpan={role === "superAdmin" ? 13 : 12}
+                        className="text-center py-14"
+                      >
                         <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
                           <RefreshCw
                             size={28}
@@ -2780,6 +3041,27 @@ export default function UserManagement() {
                             } hover:bg-indigo-50/50`}
                             onClick={() => handleViewPosts(user)}
                           >
+                            {role === "superAdmin" && (
+                              <td
+                                className="px-3 py-5 w-14 align-middle"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={!(user.phone || user.mobileNumber)}
+                                  title={
+                                    user.phone || user.mobileNumber
+                                      ? "Select for WhatsApp"
+                                      : "No phone on record"
+                                  }
+                                  checked={bulkWaSelectedUserIds.includes(
+                                    String(user.userId),
+                                  )}
+                                  onChange={() => toggleBulkWaUserId(user.userId)}
+                                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                />
+                              </td>
+                            )}
                             <td className="px-6 py-5">
                               {isAgent && followUpFilter !== "all" ? (
                                 (() => {
@@ -2937,15 +3219,53 @@ export default function UserManagement() {
                                     <option value="Cold">Cold</option>
                                   </select>
                                 </div>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {(user.source === "bulk-upload" ||
-                                    user.source === "Meta Leads") && (
-                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-100 rounded-full">
-                                      Meta Leads
-                                    </span>
-                                  )}
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <select
+                                    value={
+                                      USER_SOURCE_OPTIONS.some(
+                                        (o) => o.value === (user.source || ""),
+                                      )
+                                        ? user.source || "signup"
+                                        : "signup"
+                                    }
+                                    onChange={(e) =>
+                                      handleUserSourceChange(
+                                        user.userId,
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
+                                    title="Lead source (website, chatbot, manual upload, …)"
+                                  >
+                                    {USER_SOURCE_OPTIONS.map((o) => (
+                                      <option key={o.value} value={o.value}>
+                                        {o.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-1 items-center">
+                                  <span
+                                    className={userAcquisitionTagClassName(
+                                      user.source,
+                                    )}
+                                    title="Acquisition source"
+                                  >
+                                    {userAcquisitionLabel(user.source)}
+                                  </span>
+                                  {(user.leadTags || [])
+                                    .filter(Boolean)
+                                    .map((tag) => (
+                                      <span
+                                        key={String(tag)}
+                                        className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
+                                        title="Lead tag"
+                                      >
+                                        {formatLeadTagLabel(tag)}
+                                      </span>
+                                    ))}
                                   {user.paidPackage && (
-                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
+                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
                                       {user.paidPackage}
                                     </span>
                                   )}
@@ -3131,12 +3451,14 @@ export default function UserManagement() {
 
                             <td className="px-6 py-4">
                               <button
+                                
                                 onClick={(e) => {
-                                  e.stopPropagation(); // 🔥 IMPORTANT
+                                  e.stopPropagation();
+
                                   handleOpenServiceModal(user);
                                 }}
-                                className="p-2 hover:bg-gray-100 rounded-lg"
-                                title="Add Service"
+                                className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+                                title="Add Service "
                               >
                                 🛡️
                               </button>
@@ -3310,7 +3632,10 @@ export default function UserManagement() {
                       })}
                       {!loadingFollowUpTable && filteredUsers.length === 0 && (
                         <tr>
-                          <td colSpan={12} className="text-center py-12">
+                          <td
+                            colSpan={role === "superAdmin" ? 13 : 12}
+                            className="text-center py-12"
+                          >
                             <div className="text-gray-400">
                               <Search
                                 size={48}
@@ -3332,6 +3657,11 @@ export default function UserManagement() {
               </table>
             </div>
           </TableContainer>
+
+         
+          
+
+
         </Paper>
         {/* Pagination Controls */}
         {isAgent && followUpFilter !== "all" ? (
@@ -3751,26 +4081,23 @@ export default function UserManagement() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 />
               </div>
-                
-                     {/* Remark Field */}
-              <div className="mt-4">
-               <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Remark
-               </label>
 
-               <textarea
-                value={planRemarks}
+              {/* Remark Field */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Remark
+                </label>
+
+                <textarea
+                  value={planRemarks}
                   onChange={(e) => setplanRemarks(e.target.value)}
-                 placeholder="Enter remark..."
-                 rows={2}
-               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-              />
+                  placeholder="Enter remark..."
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                />
               </div>
-              
             </div>
 
-       
-            
             <div className="flex gap-3">
               <button
                 onClick={() => setSelectedUser(null)}

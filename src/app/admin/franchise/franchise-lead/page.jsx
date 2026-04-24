@@ -39,6 +39,7 @@ import {
   BadgeCheck,
   Edit3,
 } from "lucide-react";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import toast, { Toaster } from "react-hot-toast";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
@@ -1119,40 +1120,21 @@ export default function FranchiseLeadsPage() {
     }
   };
 
-  /* ---------------- UPLOAD SCREENSHOT TO CLOUDINARY ---------------- */
-  const uploadToCloudinary = async (file) => {
+  /* ---------------- UPLOAD SCREENSHOT TO S3 ---------------- */
+  const uploadToS3 = async (file) => {
     try {
-      // Get signature from server
-      const { getCloudinarySignatureAction } = await import("@/app/actions/uploadCloudinary");
-      const signatureData = await getCloudinarySignatureAction();
-      
-      if (!signatureData.success) {
-        throw new Error("Failed to get Cloudinary signature");
-      }
-
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("api_key", signatureData.apiKey);
-      formData.append("timestamp", signatureData.timestamp);
-      formData.append("signature", signatureData.signature);
-      formData.append("folder", signatureData.folder);
 
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error("Cloudinary upload failed");
+      const result = await uploadToS3Action(formData);
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to upload to S3");
       }
-      
-      const data = await response.json();
-      return data.secure_url;
+
+      return result.url;
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      console.error("S3 upload error:", error);
       throw error;
     }
   };
@@ -1167,8 +1149,8 @@ export default function FranchiseLeadsPage() {
     setUploadingScreenshot(true);
 
     try {
-      // Upload screenshot to Cloudinary
-      const screenshotUrl = await uploadToCloudinary(revenueData.screenshot);
+      // Upload screenshot to S3
+      const screenshotUrl = await uploadToS3(revenueData.screenshot);
 
       // Save revenue to database
       const res = await fetch("/api/franchise-revenue", {
@@ -1366,7 +1348,7 @@ if (!executiveMobile && typeof window !== "undefined") {
   const adminMobileMap = {
     omprakash: "9355105058",
     karan: "9311203803",
-    gunjan: "7065178665",
+    Nagendra: "9311203803",
   };
 
   const matchedAdmin = Object.keys(adminMobileMap).find(

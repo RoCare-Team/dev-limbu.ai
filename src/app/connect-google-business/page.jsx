@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   Building2,
@@ -46,8 +46,27 @@ function BusinessCard({ loc, verified }) {
   );
 }
 
+/** Keep only digits from a phone string. */
+function normalizePhone(p) {
+  return String(p || "").replace(/\D/g, "");
+}
+
+/** Derive a deterministic sessionId from phone when no session_id is in URL. */
+function sessionIdFromPhone(phone) {
+  const digits = normalizePhone(phone);
+  return digits ? `phone_${digits}` : "";
+}
+
 function ConnectGoogleBusinessInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Support both ?session_id= (legacy) and ?phone= (new chatbot flow)
+  const phoneFromUrl      = normalizePhone(searchParams.get("phone") || "");
+  const rawSessionId      = searchParams.get("session_id")?.trim() || "";
+  // When phone is provided without an explicit session_id, derive one deterministically
+  const sessionIdFromUrl  = rawSessionId || (phoneFromUrl ? sessionIdFromPhone(phoneFromUrl) : "");
+
   const { data: session, status } = useSession();
 
   const [listLoading, setListLoading] = useState(false);
@@ -83,27 +102,55 @@ function ConnectGoogleBusinessInner() {
   const handleGoogleSignIn = () => {
     if (typeof window === "undefined") return;
     const origin = window.location.origin;
-    const callbackUrl = `${origin}/connect-google-business?setup=1`;
+    const next = new URLSearchParams();
+    next.set("setup", "1");
+    // Carry both identifiers forward through OAuth callback
+    if (phoneFromUrl)     next.set("phone",      phoneFromUrl);
+    if (sessionIdFromUrl) next.set("session_id",  sessionIdFromUrl);
+    const qs = next.toString();
+    const callbackUrl = `${origin}/connect-google-business${qs ? `?${qs}` : ""}`;
     setSignInError(false);
     void signIn("google", { callbackUrl }).catch(() => setSignInError(true));
   };
 
   const handleContinue = async () => {
+    if (!sessionIdFromUrl && !phoneFromUrl) {
+      setListError(
+        "URL mein ?phone= ya ?session_id= zaroori hai — chatbot wala link use karein."
+      );
+      return;
+    }
     setContinueBusy(true);
     try {
-      const res = await fetch("/api/gmb/sync-and-save", { method: "POST" });
+      const res = await fetch("/api/gmb/sync-and-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionIdFromUrl,
+          ...(phoneFromUrl ? { phone: phoneFromUrl } : {}),
+        }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
 
-      if (data.listings?.length) {
+      const syncedListings = data.listings ?? data.locationsData ?? [];
+      if (syncedListings.length) {
         try {
-          const locationDetails = data.listings.map((item) => {
-            const locationId = item.name.split("/")[1];
+          const locationDetails = syncedListings.map((item) => {
+            const name = item.name || item.locationResourceName || "";
+            const locationId =
+              name && name.includes("/")
+                ? name.split("/").pop()
+                : name || item.locationId || "";
             const accountId = item.accountId || "";
             const locality = item.storefrontAddress?.locality || "";
-            const address = item.storefrontAddress?.addressLines?.[0] || "";
+            const address =
+              item.storefrontAddress?.addressLines?.[0] ||
+              item.address ||
+              "";
             const title = item.title || "";
-            const isVerified = item.hasVoiceOfMerchant === true;
+            const isVerified =
+              item.hasVoiceOfMerchant === true || item.verified === true;
             return {
               locationId,
               accountId,
@@ -113,8 +160,8 @@ function ConnectGoogleBusinessInner() {
               websiteUrl: item.websiteUri || "",
               reviewUri: item.metadata?.newReviewUri || "",
               isVerified,
-              businessProfileId: item.name || "",
-              name: item.name,
+              businessProfileId: name || "",
+              name,
               websiteUri: item.websiteUri,
               storefrontAddress: item.storefrontAddress,
               phoneNumbers: item.phoneNumbers,
@@ -126,12 +173,12 @@ function ConnectGoogleBusinessInner() {
           localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
           localStorage.setItem(
             "reviewUrl",
-            data.listings[0]?.metadata?.newReviewUri || ""
+            syncedListings[0]?.metadata?.newReviewUri || ""
           );
         } catch {}
       }
 
-      router.push("/?limbu_chat=1");
+      router.replace("/?limbu_chat=1");
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {
@@ -304,7 +351,15 @@ function ConnectGoogleBusinessInner() {
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
-                onClick={() => void signOut({ callbackUrl: "/connect-google-business" })}
+                onClick={() => {
+                  const next = new URLSearchParams();
+                  if (phoneFromUrl)     next.set("phone",     phoneFromUrl);
+                  if (sessionIdFromUrl) next.set("session_id", sessionIdFromUrl);
+                  const qs = next.toString();
+                  void signOut({
+                    callbackUrl: `/connect-google-business${qs ? `?${qs}` : ""}`,
+                  });
+                }}
                 className="text-[13px] font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
               >
                 Different Google account

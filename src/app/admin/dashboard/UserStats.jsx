@@ -1,5 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation"; 
+
+import { useState } from "react";
 import {
   User,
   CheckCircle,
@@ -89,9 +92,9 @@ export default function UserStats({
   todayUsersMetaLeads,
   todayUsersSignups,
   todayUsersCount,
-  showRevenueUsersModal,
+  
   fetchRevenueUsers,
-  setShowRevenueUsersModal,
+  
   loadingRevenueUsers,
   revenueUsersList,
   setRevenueUsersList,
@@ -106,6 +109,16 @@ export default function UserStats({
   stageData,
   loadingStage
 }) {
+
+    const router = useRouter();
+
+  
+  const [approvalBusyId, setApprovalBusyId] = useState(null);
+
+  
+
+  
+
   return (
     <>
       {!isAgent && (
@@ -138,7 +151,8 @@ export default function UserStats({
   colorClass="purple"
   onClick={() => {
     fetchRevenueUsers();
-    setShowRevenueUsersModal(true);
+    router.push("/admin/dashboard/revenue-users")
+
   }}
   isClickable={true}
 />
@@ -316,188 +330,9 @@ export default function UserStats({
         </>
       )}
 
-      {/* User Onboard Revenue Details Modal ✅ NEW */}
-      {showRevenueUsersModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-6xl max-h-[90vh] w-full flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
-              <div>
-                <h2 className="text-2xl font-bold text-emerald-800">
-                  User Onboard Revenue Details
-                </h2>
-                <p className="text-sm text-emerald-700 mt-1">
-                  All users with `type: user_onboard` revenue entries
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowRevenueUsersModal(false);
-                  setRevenueUsersList([]);
-                }}
-                className="p-2 hover:bg-emerald-200 rounded-xl transition-all"
-              >
-                <X size={20} className="text-emerald-700" />
-              </button>
-            </div>
+     
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {loadingRevenueUsers ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="flex flex-col items-center text-center">
-                    <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-3" />
-                    <p className="text-gray-600 font-medium">
-                      Loading onboarded users...
-                    </p>
-                  </div>
-                </div>
-              ) : revenueUsersList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
-                  <Wallet className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                  <h3 className="text-xl font-semibold mb-2 text-gray-600">
-                    No Onboarded Users Yet
-                  </h3>
-                  <p className="text-gray-500">
-                    No users with `user_onboard` revenue entries found for your
-                    account.
-                  </p>
-                  <p className="text-sm mt-1 text-gray-400">
-                    Onboard users using the ✅ button in the user table
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Table */}
-                  <div className="overflow-x-auto rounded-2xl border border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Plan
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Amount
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Screenshot
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Notes
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Remarks
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {revenueUsersList.map((revenue, index) => (
-                          <tr
-                            key={revenue._id || index}
-                            className="hover:bg-gray-50 transition-colors"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="font-semibold text-gray-900">
-                                {revenue.leadName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                ID: {revenue.leadId}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                UTR: {revenue.utrNumber || "N/A"}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                                {revenue.plan || "N/A"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="text-xl font-bold text-emerald-700">
-                                ₹{revenue.amount?.toLocaleString() || 0}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {new Date(revenue.createdAt).toLocaleDateString(
-                                  "en-IN",
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {new Date(revenue.createdAt).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              {revenue.paymentScreenshot ? (
-                                <button
-                                  onClick={() =>
-                                    setFullViewImage(revenue.paymentScreenshot)
-                                  }
-                                  className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all text-sm font-medium"
-                                >
-                                  <Eye size={14} />
-                                  View Proof
-                                </button>
-                              ) : (
-                                <span className="text-sm text-gray-400 italic">
-                                  No screenshot
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 max-w-xs">
-                              <div className="text-sm text-gray-900 line-clamp-2">
-                                {revenue.notes || "No notes"}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-700">
-                             {revenue.planRemarks || "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Footer Totals */}
-                  <div className="mt-6 pt-6 border-t border-gray-200 bg-emerald-50/50 rounded-2xl p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          Total Onboarded Users:
-                        </p>
-                        <p className="text-2xl font-bold text-emerald-800">
-                          {revenueUsersList.length}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Total Revenue:</p>
-                        <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                          ₹
-                          {revenueUsersList
-                            .reduce((sum, r) => sum + (r.amount || 0), 0)
-                            .toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-    
-
+     
     </>
   );
 }

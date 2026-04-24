@@ -9,6 +9,9 @@ import Admin from "@/models/Admin"; // admin agents assign karne ke liye
 import bcrypt from "bcryptjs"; // password ko hash karta hai (encrypt nahi, hash) kabhi bhi plain passord database me store nahi karte 
 import mongoose from "mongoose";// custom schema banane ke liye 
 
+import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
+import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
+
 // Define Setting Schema for Round Robin
 const SettingSchema = new mongoose.Schema({
   key: String,
@@ -84,9 +87,18 @@ export async function POST(req) { // Ye Signup API hai.
       passwordHash,
       wallet: 0, // Initial balance zero.
       assignedAgentId,
+      source: "signup",
     });
 
     await newUser.save(); // Database mein save kar diya.
+
+    void runWelcomeBonusForUserId(newUser.userId).catch((err) =>
+      console.error("runWelcomeBonusForUserId", err),
+    );
+
+    void runNewUserOnboarding(newUser.userId).catch((err) =>
+      console.error("runNewUserOnboarding", err),
+    );
 
     return new Response(
       JSON.stringify({

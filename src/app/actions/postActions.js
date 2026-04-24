@@ -70,7 +70,13 @@ export async function getUserWalletAction(userId) {
     return await userRes.json();
 }
 
-export async function generateWithAiAgentAction(prompt, logoBase64, selectedAssets) {
+export async function generateWithAiAgentAction(
+    prompt,
+    logoBase64,
+    selectedAssets,
+    meta = {},
+) {
+    const { mode = "ai", instructions = "" } = meta;
     const res = await fetch(`${API_URL}/api/aiAgent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -78,12 +84,15 @@ export async function generateWithAiAgentAction(prompt, logoBase64, selectedAsse
             prompt: prompt,
             logo: logoBase64,
             assets: selectedAssets,
+            mode,
+            instructions,
         }),
     });
     return await res.json();
 }
 
 export async function savePostAction(postPayload) {
+    console.log("Saving post with payload for menual post:", postPayload);
     const postRes = await fetch(`${API_URL}/api/post-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

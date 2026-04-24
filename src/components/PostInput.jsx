@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState,useCallback,useMemo } from "react";
 import {
   deleteAssetAction,
   saveAssetsToServerAction,
@@ -20,6 +20,14 @@ import {
   Mic,
   MicOff,
 } from "lucide-react";
+import {
+  readIncludedMap,
+  readExtraNotes,
+  readAppendToPrompt,
+  writeAppendToPrompt,
+  mergeIncludedMapForIds,
+  PM_INSTRUCTIONS_UPDATED,
+} from "@/lib/postManagementInstructionsStorage";
 
 const PostInput = ({
   prompt,
@@ -50,6 +58,14 @@ const PostInput = ({
   const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
   const [showKeywordDropdown, setShowKeywordDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
+  /** ai = guided flow (keywords required); manual = free-form prompt */
+  const [creationMode, setCreationMode] = useState("ai");
+  /** Saved instructions from /api/instructions (MongoDB) */
+  const [dbInstructions, setDbInstructions] = useState([]);
+  /** id -> false means excluded from prompt; undefined/true means included */
+  const [includedInstructionMap, setIncludedInstructionMap] = useState({});
+  const [instructionExtraNotes, setInstructionExtraNotes] = useState("");
+  const [includeInstructionsInPrompt, setIncludeInstructionsInPrompt] = useState(false);
   const [manualImage, setManualImage] = useState(null);
   const [manualDescription, setManualDescription] = useState("");
   const [showKeywordModal, setShowKeywordModal] = useState(false);
@@ -168,6 +184,50 @@ const PostInput = ({
   useEffect(() => {
     fetchSavedKeywords();
   }, []);
+
+  const loadDbInstructions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/instructions");
+      const data = await res.json();
+      if (!data.success) return;
+      const list = data.instructions || [];
+      setDbInstructions(list);
+      const ids = list.map((item) => item._id).filter(Boolean);
+      setIncludedInstructionMap(mergeIncludedMapForIds(readIncludedMap(), ids));
+    } catch (e) {
+      console.error("loadDbInstructions:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    setIncludeInstructionsInPrompt(readAppendToPrompt());
+    setInstructionExtraNotes(readExtraNotes());
+    loadDbInstructions();
+  }, [loadDbInstructions]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onUpdate = () => {
+      setInstructionExtraNotes(readExtraNotes());
+      setIncludeInstructionsInPrompt(readAppendToPrompt());
+      loadDbInstructions();
+    };
+    window.addEventListener(PM_INSTRUCTIONS_UPDATED, onUpdate);
+    return () => window.removeEventListener(PM_INSTRUCTIONS_UPDATED, onUpdate);
+  }, [loadDbInstructions]);
+
+  const compiledInstructionsForPrompt = useMemo(() => {
+    const parts = dbInstructions
+      .filter((item) => includedInstructionMap[item._id] !== false)
+      .map(
+        (item) =>
+          `${(item.title || "").trim()}\n${(item.description || "").trim()}`.trim(),
+      )
+      .filter(Boolean);
+    const extra = instructionExtraNotes.trim();
+    if (extra) parts.push(extra);
+    return parts.join("\n\n");
+  }, [dbInstructions, includedInstructionMap, instructionExtraNotes]);
 
   const handleAddKeyword = async (keyword) => {
     const trimmedKeyword = keyword.trim();
@@ -491,7 +551,11 @@ const PostInput = ({
       assetsToSend.push(sizeAsset);
     }
 
-    onGenerate(assetsToSend, showAssets, businessName, selectedKeywords);
+    onGenerate(assetsToSend, showAssets, businessName, selectedKeywords, {
+      mode: creationMode,
+      instructions: compiledInstructionsForPrompt,
+      includeInstructionsInPrompt,
+    });
   };
 
   const handleManualSubmit = async () => {
@@ -505,8 +569,8 @@ const PostInput = ({
     }
 
     try {
-      const base64 = await fileToBase64(manualImage);
-      onGenerate({ image: base64, description: manualDescription }, "manual");
+      // Pass the File object directly to onManualPost
+      onManualPost({ image: manualImage, description: manualDescription });
       setManualImage(null);
       setManualDescription("");
     } catch (e) {

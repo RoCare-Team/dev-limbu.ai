@@ -112,9 +112,26 @@ const userSchema = new mongoose.Schema(
 
     source: {
       type: String,
-      enum: ["signup", "website", "bulk-upload", "csv-import", "excel-import"],
+      enum: [
+        "signup",
+        "bulk-upload",
+        "csv-import",
+        "excel-import",
+        "checkout",
+        "website",
+        "chatbot",
+        "manual-upload",
+        "Meta Leads",
+        "Meta",
+      ],
       default: "signup",
     },
+
+    /** e.g. `metaleads` for bulk / sheet / manual Meta imports */
+    leadTags: { type: [String], default: [] },
+
+    /** One-time welcome_bonus WhatsApp (AISensy) after registration */
+    welcomeBonusWhatsAppSent: { type: Boolean, default: false },
 
     connectedBusinessEmail: { type: String, default: null },
     selectedBusiness: {
@@ -129,6 +146,15 @@ const userSchema = new mongoose.Schema(
     gmbProjectId: { type: String, default: null },
     isBusinessConnected: { type: Boolean, default: false },
     isServiceBooked: { type: Boolean, default: false },
+
+    /** Automated webinar onboarding (signup + bulk-upload Meta): IST schedule + WhatsApp + optional email */
+    onboardingWebinarSessionAt: { type: Date, default: null },
+    onboardingWebinarReminderAt: { type: Date, default: null },
+    onboardingWebinarSessionLabel: { type: String, default: "" },
+    onboardingWelcomeWhatsAppSent: { type: Boolean, default: false },
+    onboardingWebinarInviteWhatsAppSent: { type: Boolean, default: false },
+    onboardingWebinarReminderSent: { type: Boolean, default: false },
+    onboardingWelcomeEmailSent: { type: Boolean, default: false },
 
     // Store OTP temporarily for verification
     otp: { type: String },

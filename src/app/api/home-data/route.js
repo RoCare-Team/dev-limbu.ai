@@ -1,5 +1,13 @@
 import dbConnect from "@/lib/dbConnect";
 import HomeData from "@/models/HomeData";
+import {
+  expandPricingLandingForApi,
+  mergePricingLanding,
+} from "@/lib/pricingLandingDefaults";
+import {
+  expandSubscriptionPlansForApi,
+  getSubscriptionPlansPayloadForExpand,
+} from "@/lib/subscriptionPlansApi";
 import { NextResponse } from "next/server";
 
 /* ===== SAVE / UPDATE DATA ===== */
@@ -45,10 +53,48 @@ export async function GET(req) {
   const type = searchParams.get("type");
 
   if (type) {
+    if (type === "pricingLanding") {
+      const doc = await HomeData.findOne({ type: "pricingLanding" }).lean();
+      const merged = mergePricingLanding(doc);
+      const data = expandPricingLandingForApi(merged);
+      if (!doc) {
+        return NextResponse.json({ type: "pricingLanding", data });
+      }
+      return NextResponse.json({ ...doc, data });
+    }
+
+    if (type === "subscriptionPlans") {
+      const doc = await HomeData.findOne({ type: "subscriptionPlans" }).lean();
+      if (!doc) {
+        return NextResponse.json(null);
+      }
+      const payload = getSubscriptionPlansPayloadForExpand(doc);
+      const expanded = expandSubscriptionPlansForApi(
+        payload ?? doc.data ?? {},
+      );
+      return NextResponse.json({ ...doc, data: expanded });
+    }
+
     const data = await HomeData.findOne({ type });
     return NextResponse.json(data);
   }
 
-  const allData = await HomeData.find({});
-  return NextResponse.json(allData);
+  const allData = await HomeData.find({}).lean();
+
+  const expanded = allData.map((doc) => {
+    if (doc.type === "pricingLanding") {
+      const merged = mergePricingLanding(doc);
+      return { ...doc, data: expandPricingLandingForApi(merged) };
+    }
+    if (doc.type === "subscriptionPlans") {
+      const payload = getSubscriptionPlansPayloadForExpand(doc);
+      const expanded = expandSubscriptionPlansForApi(
+        payload ?? doc.data ?? {},
+      );
+      return { ...doc, data: expanded };
+    }
+    return doc;
+  });
+
+  return NextResponse.json(expanded);
 }

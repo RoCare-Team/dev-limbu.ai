@@ -582,7 +582,6 @@ export async function processAction(actionDoc, sessionDoc) {
       updatedAt: new Date(),
     });
 
-<<<<<<< HEAD
     // 5. Fire completion webhook (phone included)
     await notifyActionComplete({ phone, session_id, action, status: "success", result });
 
@@ -593,17 +592,5 @@ export async function processAction(actionDoc, sessionDoc) {
     const msg = err?.message || "Unexpected error during action processing";
     console.error(`[chatbotAction] action=${action} phone=${phone || "—"} error:`, msg);
     await markFailed(_id, phone, session_id, action, msg);
-=======
-    // 5. Fire completion webhook
-    await notifyActionComplete({ session_id, action, status: "success", result });
-
-    console.log(
-      `[chatbotAction] Completed action=${action} session=${session_id}`
-    );
-  } catch (err) {
-    const msg = err?.message || "Unexpected error during action processing";
-    console.error(`[chatbotAction] action=${action} session=${session_id} error:`, msg);
-    await markFailed(_id, session_id, action, msg);
->>>>>>> 4a729f30002498a1c90c5c7d3e4b71e9c3a0f86a
   }
 }

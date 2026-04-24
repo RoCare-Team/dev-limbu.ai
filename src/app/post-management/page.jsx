@@ -9,7 +9,7 @@ import {
   generateWithAssetsAction,
   deletePostFromGmbAction,
   updatePostStatusAction,
-  postToGmbAction,
+  postToGmbAction
 } from "@/app/actions/postActions";
 import {
   loadAssetsFromServerAction,

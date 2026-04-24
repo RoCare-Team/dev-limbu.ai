@@ -4,7 +4,7 @@ import dbConnect from "@/lib/dbConnect";
 import ServiceBooking from "@/models/ServiceBooking";
 import { logApiRequest } from "@/lib/apiLogger";
 import { normalizeBookingSource } from "@/lib/bookingSource";
-import { saveGmbSessionPayment } from "@/lib/gmbSessionStore";
+import { savePaymentByPhone, normalizePhone } from "@/lib/gmbSessionStore";
 import { applyCheckoutToUser } from "@/lib/checkoutApplyUserPlan";
 
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
@@ -32,12 +32,8 @@ export async function POST(req) {
     const bookingSource = normalizeBookingSource(body.bookingSource);
     body.bookingSource = bookingSource;
 
-    const rawSess = body.session_id ?? body.sessionId;
-    const chatSessionId =
-      typeof rawSess === "string" ? rawSess.trim() : "";
-    if (chatSessionId) {
-      body.chatbotSessionId = chatSessionId;
-    }
+    // Phone is the primary chatbot identifier
+    const chatbotPhone = normalizePhone(body.chatbotPhone || body.phone || "");
 
     if (!body || Object.keys(body).length === 0) {
       return NextResponse.json(
@@ -79,23 +75,18 @@ export async function POST(req) {
       body.userId = applied.user.userId;
     }
 
-    if (
-      chatSessionId &&
-      body.status === "paid" &&
-      body.paymentId &&
-      body.userId
-    ) {
+    if (chatbotPhone && body.status === "paid" && body.paymentId && body.userId) {
       try {
-        await saveGmbSessionPayment(chatSessionId, {
-          paymentId: body.paymentId,
-          orderId: body.orderId,
+        await savePaymentByPhone(chatbotPhone, {
+          paymentId:   body.paymentId,
+          orderId:     body.orderId,
           totalAmount: body.totalAmount,
-          planTitle: body.planTitle,
-          userId: body.userId,
-          email: body.email,
+          planTitle:   body.planTitle,
+          userId:      body.userId,
+          email:       body.email,
         });
       } catch (gmbErr) {
-        console.error("saveGmbSessionPayment:", gmbErr);
+        console.error("savePaymentByPhone:", gmbErr);
       }
     }
 

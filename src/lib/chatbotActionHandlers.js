@@ -15,10 +15,8 @@
  */
 
 import OpenAI from "openai";
-import QRCode from "qrcode";
 
 import dbConnect from "@/lib/dbConnect";
-import GmbUser from "@/models/GmbUser";
 import Site from "@/models/Site";
 import MagicQR from "@/models/MagicQR";
 import ChatbotAction from "@/models/ChatbotAction";
@@ -31,6 +29,8 @@ import {
   generateHealthScorePdf,
   buildHealthScoreText,
 } from "@/lib/chatbotHealthPdfGenerator";
+import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
+import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -48,59 +48,41 @@ export function toShortLocationId(locationId) {
 // ── Token management ─────────────────────────────────────────────────────────
 
 /**
- * Load the most-recently-updated Google OAuth tokens for a user from GmbUser.
- * Returns null if no record is found.
+ * Refresh Google access token using the stored refresh token.
+ * Updates the refreshed token back into GMBConnection so it stays fresh.
  *
- * @param {string} email - user email (case-insensitive)
- * @returns {Promise<{ accessToken: string, refreshToken: string } | null>}
+ * @param {string} phone        - user's phone (to update DB after refresh)
+ * @param {string} refreshToken - current refresh token
+ * @returns {Promise<string>}   - new access token
  */
-export async function getBusinessTokens(email) {
-  await dbConnect();
-
-  const gmbUser = await GmbUser.findOne({
-    email: email.toLowerCase().trim(),
-  }).lean();
-
-  if (!gmbUser?.projects?.length) {
-    console.warn(`[chatbotAction] No GmbUser projects found for email: ${email}`);
-    return null;
-  }
-
-  // Pick the project updated most recently (single-account users have exactly one)
-  const sorted = [...gmbUser.projects].sort(
-    (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
-  );
-
-  const { accessToken, refreshToken } = sorted[0];
-  return { accessToken: accessToken || "", refreshToken: refreshToken || "" };
-}
-
-/**
- * Exchange a refresh token for a fresh Google access token.
- * Mirrors the logic in /api/refresh-token/route.js.
- *
- * @param {string} refreshToken
- * @returns {Promise<string>} new access token
- */
-export async function refreshGoogleAccessToken(refreshToken) {
+async function refreshAndSaveAccessToken(phone, refreshToken) {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_id:     process.env.GOOGLE_CLIENT_ID     || "",
       client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
       refresh_token: refreshToken,
-      grant_type: "refresh_token",
+      grant_type:    "refresh_token",
     }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error_description || `Google token refresh failed (${res.status})`);
+    throw new Error(err.error_description || `Token refresh failed (${res.status})`);
   }
 
   const data = await res.json();
-  return data.access_token;
+  const newAccessToken = data.access_token;
+
+  // Persist refreshed token back to GMBConnection
+  if (phone && newAccessToken) {
+    await updateTokensByPhone(phone, newAccessToken, refreshToken).catch((e) =>
+      console.warn("[chatbotAction] Token DB update failed:", e?.message)
+    );
+  }
+
+  return newAccessToken;
 }
 
 // ── Slug generation helper (mirrors ai-genrated-website logic) ───────────────
@@ -246,47 +228,74 @@ Return ONLY valid JSON.`;
 
 // ── ACTION: health_score ─────────────────────────────────────────────────────
 
-/** n8n webhook URL — same as used in /api/location-search/route.js */
+/**
+ * Same n8n webhook used by the dashboard's handleGenerateReport().
+ * Override via HEALTH_SCORE_N8N_URL env var.
+ */
 const HEALTH_SCORE_N8N_URL =
   process.env.HEALTH_SCORE_N8N_URL ||
-  "https://n8n.limbutech.in/webhook/89c34fc8-2a74-4d91-a3d9-4d8468bd25e0";
+  "https://n8n.limbutech.in/webhook/10d9cd54-46a7-4c3b-9c61-0ce9cf666eac";
 
 /**
- * Fetch GMB health score via the internal n8n automation, then:
- *   1. Generate a server-side PDF report (pdfkit)
- *   2. Upload the PDF to S3
- *   3. Build a plain-text summary for chatbot display
+ * Fetch GMB health score via the n8n automation (mirrors handleGenerateReport),
+ * then generate a PDF + text summary and upload to S3.
  *
- * Webhook result shape:
+ * Payload: [{ location_id, account_id, token }]  ← exact same shape as dashboard
+ *
+ * Returns:
  * {
  *   score:    number | null,
- *   text:     string,        ← WhatsApp / chatbot message
- *   pdf_url:  string,        ← S3 URL of the PDF
- *   data:     object         ← raw n8n response
+ *   text:     string,      ← WhatsApp-ready message
+ *   pdf_url:  string,      ← S3 URL
+ *   data:     object       ← raw audit data from n8n
  * }
  */
-async function handleHealthScore({ location, email }) {
-  const businessName = location.title || "Business";
+async function handleHealthScore({ location, email, accessToken }) {
+  const businessName = location.title   || "Business";
   const address      = location.address || "";
+  const locationId   = toShortLocationId(location.locationResourceName || "");
+  const accountId    = location.accountId || "";
 
-  // ── Step 1: Call n8n health score automation ────────────────────────────
+  console.log(`[hs] Step 1 — calling n8n  location=${locationId} account=${accountId}`);
+
+  // ── Step 1: Call n8n (exact same payload as dashboard handleGenerateReport) ─
+  const payload = [{ location_id: locationId, account_id: accountId, token: accessToken }];
+
   const res = await fetch(HEALTH_SCORE_N8N_URL, {
-    method: "POST",
+    method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify([
-      { "business-name": businessName, location: address },
-    ]),
+    body:    JSON.stringify(payload),
   });
+
+  console.log(`[hs] n8n responded status=${res.status}`);
 
   if (!res.ok) {
     throw new Error(`Health score service responded with status ${res.status}`);
   }
 
-  const responseData = await res.json();
-  const raw   = Array.isArray(responseData) ? responseData[0] : responseData;
+  const rawText = await res.text();
+  console.log(`[hs] raw response length=${rawText?.length ?? 0} preview="${String(rawText).slice(0, 120)}"`);
+
+  if (!rawText?.trim()) {
+    throw new Error("Health score service returned an empty response");
+  }
+
+  const responseData = JSON.parse(rawText);
+
+  // Mirror the dashboard's normalisation logic exactly
+  let raw = Array.isArray(responseData) && responseData.length > 0
+    ? responseData[0]
+    : responseData;
+
+  // Handle the case where the audit is nested under an empty-string key: data[0][""]
+  if (raw && typeof raw === "object" && "" in raw) {
+    raw = raw[""];
+  }
+
   const score = raw?.score ?? raw?.healthScore ?? raw?.health_score ?? null;
 
-  console.log(`[chatbotAction:health_score] score=${score} business="${businessName}"`);
+  console.log(`[hs] Step 1 done — score=${score} business="${businessName}" keys=${Object.keys(raw ?? {}).slice(0,10).join(",")}`);
+  console.log(`[hs] Step 2 — generating PDF`);
 
   // ── Step 2: Generate PDF report (server-side, pdfkit) ──────────────────
   const generatedAt = new Date().toISOString();
@@ -298,6 +307,9 @@ async function handleHealthScore({ location, email }) {
     rawData: raw ?? {},
     generatedAt,
   });
+
+  console.log(`[hs] Step 2 done — PDF buffer size=${pdfBuffer?.length ?? 0} bytes`);
+  console.log(`[hs] Step 3 — uploading PDF to S3`);
 
   // ── Step 3: Upload PDF to S3 ────────────────────────────────────────────
   const slugify   = (t) =>
@@ -312,14 +324,18 @@ async function handleHealthScore({ location, email }) {
   }
 
   const pdfUrl = s3Result.url;
-  console.log(`[chatbotAction:health_score] PDF uploaded → ${pdfUrl}`);
+  console.log(`[hs] Step 3 done — PDF uploaded → ${pdfUrl}`);
 
   // ── Step 4: Build plain-text summary ───────────────────────────────────
+  console.log(`[hs] Step 4 — building text summary`);
+
   const text = buildHealthScoreText({
     businessName,
     score,
     rawData: raw ?? {},
   });
+
+  console.log(`[hs] All steps done — score=${score} pdf=${pdfUrl}`);
 
   return {
     score,
@@ -333,66 +349,90 @@ async function handleHealthScore({ location, email }) {
 // ── ACTION: magic_qr ─────────────────────────────────────────────────────────
 
 /**
- * Generate a Magic QR code that links to the Google Maps search for the business.
- * Mirrors /api/magic-qr/upload-s3/route.js (QR buffer → S3 → MagicQR record).
+ * Build the review page slug — mirrors useMagicQR.js reviewUrl logic exactly.
+ * URL: https://limbu.ai/reviews/<slug>
+ */
+function buildReviewUrl(title = "", locality = "", address = "") {
+  const slug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.limbu.ai").replace(/\/$/, "");
+  return `${base}/reviews/${slug}`;
+}
+
+/**
+ * Generate the EXACT same styled Magic QR card shown on /get-magic-qr (QRPreviewCard.jsx):
+ *   - 4 Google color quadrants (yellow/red/green/blue corners)
+ *   - White rounded inner card
+ *   - Multicolor "Google" text, 5 gold stars
+ *   - "Scan to Rate Us on Google"
+ *   - Business name
+ *   - QR code (from api.qrserver.com, encodes the review URL)
+ *   - Corner accents on QR box (matching the CSS border accents)
+ *   - "Powered by LimbuAI" footer
  *
- * @returns {{ url: string, qrTargetUrl: string }}
+ * Priority:
+ *   1. Existing MagicQR in DB (if dashboard already saved styled image → reuse it).
+ *   2. Generate styled card server-side with sharp → upload to S3.
+ *
+ * @returns {{ url: string, reviewUrl: string, message: string }}
  */
 async function handleMagicQr({ location, email, locationId }) {
-  const businessTitle = location.title || "Business";
-  const addressStr = location.address || "";
-  const locality = addressStr.split(",")[0]?.trim() || "HQ";
+  await dbConnect();
 
-  // Build the target URL encoded in the QR (Google Maps business search)
-  const mapQuery = encodeURIComponent(`${businessTitle} ${addressStr}`.trim());
-  const qrTargetUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  const businessTitle = location.title   || "Business";
+  const addressStr    = location.address || "";
+  const locality      = addressStr.split(",")[0]?.trim() || "";
+  const shortId       = toShortLocationId(locationId);
 
-  // Generate QR as a PNG buffer using the qrcode package
-  const buffer = await QRCode.toBuffer(qrTargetUrl, {
-    type: "png",
-    width: 400,
-    margin: 2,
-    color: { dark: "#000000", light: "#ffffff" },
-  });
-
-  // Upload to S3 (same helper as magic-qr/upload-s3)
   const slugify = (t) =>
-    (t || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "");
+    (t || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
 
-  const customFolder = `magic-qrs/${slugify(businessTitle)}`;
-  const fileName = `${slugify(locality)}-qr.png`;
+  // Build review URL — same logic as useMagicQR.js
+  const reviewUrl = buildReviewUrl(businessTitle, locality, addressStr);
 
-  const s3Result = await uploadToS3(buffer, fileName, "image/png", customFolder);
+  console.log(`[qr] location=${shortId} reviewUrl=${reviewUrl}`);
+
+  // ── Step 1: Reuse existing styled QR if already in DB ─────────────────────
+  const existing = await MagicQR.findOne({ locationId: shortId }).lean();
+  if (existing?.s3ImageUrl) {
+    console.log(`[qr] Reusing saved styled QR: ${existing.s3ImageUrl}`);
+    return {
+      url:      existing.s3ImageUrl,
+      reviewUrl,
+      message:  `QR code ready for ${businessTitle}`,
+    };
+  }
+
+  // ── Step 2: Generate styled card (same visual as QRPreviewCard.jsx) ───────
+  console.log(`[qr] Generating styled card for "${businessTitle}"`);
+  const cardBuffer = await generateMagicQrCard(businessTitle, reviewUrl);
+  console.log(`[qr] Card PNG size=${cardBuffer.length} bytes`);
+
+  // ── Step 3: Upload PNG to S3 ───────────────────────────────────────────────
+  const folder   = `magic-qrs/${slugify(businessTitle)}`;
+  const fileName = `${slugify(locality || "hq")}-qr-card.png`;
+
+  const s3Result = await uploadToS3(cardBuffer, fileName, "image/png", folder);
   if (!s3Result.success) {
     throw new Error(`S3 upload failed: ${s3Result.error}`);
   }
+  console.log(`[qr] Uploaded → ${s3Result.url}`);
 
-  // Upsert MagicQR record (same pattern as the upload-s3 route)
-  await dbConnect();
-  const shortId = toShortLocationId(locationId);
-
+  // ── Step 4: Upsert MagicQR DB record ──────────────────────────────────────
   await MagicQR.findOneAndUpdate(
     { locationId: shortId },
-    {
-      userEmail: email,
-      businessTitle,
-      locality,
-      locationId: shortId,
-      s3ImageUrl: s3Result.url,
-      status: "generated",
-    },
+    { userEmail: email, businessTitle, locality, locationId: shortId, s3ImageUrl: s3Result.url, status: "generated" },
     { upsert: true, new: true }
   );
 
-  console.log(`[chatbotAction:magic_qr] QR generated url=${s3Result.url} location=${shortId}`);
-
   return {
-    url: s3Result.url,
-    qrTargetUrl,
-    message: `QR code generated for ${businessTitle}`,
+    url:      s3Result.url,
+    reviewUrl,
+    message:  `QR code generated for ${businessTitle}`,
   };
 }
 
@@ -460,6 +500,111 @@ async function handleInsights({ accessToken, locationId, location }) {
   };
 }
 
+// ── ACTION: keyword_planner ──────────────────────────────────────────────────
+
+/** Same n8n webhook used by /api/keyword-research/route.js GET handler */
+const KEYWORD_N8N_URL =
+  process.env.KEYWORD_PLANNER_N8N_URL ||
+  "https://n8n.limbutech.in/webhook/4dc0fc39-0e04-4d74-a189-1c4f09bd6894";
+
+/**
+ * Fetch at least 10 SEO/GMB keywords for the business's primary category
+ * using the existing keyword-research n8n automation.
+ *
+ * Returns:
+ * {
+ *   category:  string,       ← primary category used as seed keyword
+ *   keywords:  string[],     ← 10+ keywords
+ *   text:      string,       ← WhatsApp-ready formatted list
+ *   message:   string,
+ *   data:      object        ← raw n8n response
+ * }
+ */
+async function handleKeywordPlanner({ location }) {
+  const businessTitle   = location.title || "Business";
+  const primaryCategory = (Array.isArray(location.categories) && location.categories[0])
+    ? location.categories[0]
+    : businessTitle;
+
+  console.log(`[kw] Fetching keywords for category="${primaryCategory}"`);
+
+  const res = await fetch(KEYWORD_N8N_URL, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ keyword: primaryCategory }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Keyword planner service responded with status ${res.status}`);
+  }
+
+  const rawText = await res.text();
+  if (!rawText?.trim()) {
+    throw new Error("Keyword planner service returned an empty response");
+  }
+
+  console.log(`[kw] n8n responded length=${rawText.length} preview="${rawText.slice(0, 120)}"`);
+
+  const responseData = JSON.parse(rawText);
+
+  // Normalise various n8n response shapes into a flat keywords array
+  let keywords = [];
+  const raw = Array.isArray(responseData) ? responseData[0] : responseData;
+
+  if (Array.isArray(raw?.keywords))        keywords = raw.keywords.map(String);
+  else if (Array.isArray(raw?.data))       keywords = raw.data.map((k) => k?.keyword || k?.word || String(k));
+  else if (Array.isArray(raw))             keywords = raw.map((k) => k?.keyword || k?.word || String(k));
+  else if (typeof raw === "object" && raw) {
+    // Try common field names
+    const kf = raw.keywords || raw.data || raw.results || raw.terms || raw.words || [];
+    keywords = Array.isArray(kf) ? kf.map((k) => k?.keyword || k?.word || String(k)) : [];
+  }
+
+  // Clean and deduplicate
+  keywords = [...new Set(keywords.map((k) => String(k).trim()).filter(Boolean))];
+
+  // If n8n returned fewer than 10, pad with category-based suggestions
+  if (keywords.length < 10) {
+    const fallbacks = [
+      `${primaryCategory} near me`,
+      `best ${primaryCategory}`,
+      `${primaryCategory} services`,
+      `top ${primaryCategory}`,
+      `${primaryCategory} reviews`,
+      `${primaryCategory} price`,
+      `affordable ${primaryCategory}`,
+      `${primaryCategory} in ${location.address?.split(",")[0] || "India"}`,
+      `${primaryCategory} specialist`,
+      `${primaryCategory} online`,
+    ];
+    for (const fb of fallbacks) {
+      if (!keywords.includes(fb)) keywords.push(fb);
+      if (keywords.length >= 10) break;
+    }
+  }
+
+  console.log(`[kw] Total keywords=${keywords.length}`);
+
+  // Build chatbot-ready text
+  const text = [
+    `🔍 *Keyword Planner — ${businessTitle}*`,
+    `📂 Category: ${primaryCategory}`,
+    ``,
+    `💡 *Top Keywords for Your Business:*`,
+    ...keywords.slice(0, 15).map((kw, i) => `  ${i + 1}. ${kw}`),
+    ``,
+    `✅ Use these keywords in your Google Business description, posts, and Q&A section to improve search visibility.`,
+  ].join("\n");
+
+  return {
+    category: primaryCategory,
+    keywords,
+    text,
+    message: `${keywords.length} keywords found for "${primaryCategory}"`,
+    data:    raw,
+  };
+}
+
 /** Pick a contextual tip based on the weakest metric. */
 function pickInsightTip(metrics) {
   if ((metrics.totalCalls ?? 0) < 5)
@@ -475,7 +620,7 @@ function pickInsightTip(metrics) {
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
-async function markFailed(actionId, phone, session_id, action, errorMessage) {
+async function markFailed(actionId, phone, action, errorMessage) {
   const result = { message: errorMessage };
 
   await ChatbotAction.findByIdAndUpdate(actionId, {
@@ -486,7 +631,7 @@ async function markFailed(actionId, phone, session_id, action, errorMessage) {
     console.error("[chatbotAction] DB update (failed) error:", err?.message)
   );
 
-  await notifyActionComplete({ phone, session_id, action, status: "failed", result });
+  await notifyActionComplete({ phone, action, status: "failed", result });
 }
 
 // ── Main processor ────────────────────────────────────────────────────────────
@@ -506,91 +651,84 @@ async function markFailed(actionId, phone, session_id, action, errorMessage) {
  * @param {object} sessionDoc - Plain object from GMBConnection (lean)
  */
 export async function processAction(actionDoc, sessionDoc) {
-  const { _id, action, locationId, email } = actionDoc;
-
-  // Phone is the primary identifier; session_id kept for backward compat logging
-  const phone      = actionDoc.phone      || sessionDoc.phone      || "";
-  const session_id = actionDoc.session_id || sessionDoc.sessionId  || "";
+  const { _id, action, locationId } = actionDoc;
+  const phone = actionDoc.phone || sessionDoc.phone || "";
+  const email = (sessionDoc.userEmail || actionDoc.email || "").toLowerCase();
 
   console.log(
-    `[chatbotAction] Processing action=${action}` +
-      ` phone=${phone || "—"} session=${session_id || "—"} location=${locationId}`
+    `[chatbotAction] Processing action=${action} phone=${phone} location=${locationId}`
   );
 
-  // 1. Resolve the location inside this session
+  // 1. Resolve the specific location from session
   const fullId   = toFullLocationId(locationId);
   const location = (sessionDoc.locationsData || []).find(
     (l) => l.locationResourceName === fullId || l.locationResourceName === locationId
   );
-
   if (!location) {
-    console.warn(
-      `[chatbotAction] Location "${locationId}" not found in session for phone="${phone}"`
-    );
-    await markFailed(_id, phone, session_id, action, "Location not found in connected business session");
+    await markFailed(_id, phone, action, "Location not found in connected business session");
     return;
   }
 
-  // Prefer email from session doc (guaranteed fresh), fall back to stored value
-  const resolvedEmail = (sessionDoc.userEmail || email || "").toLowerCase();
-
-  // 2. Load and refresh OAuth tokens
-  const tokens = await getBusinessTokens(resolvedEmail).catch(() => null);
-  if (!tokens) {
+  // 2. Load tokens from GMBConnection (saved at connect time — no GmbUser lookup needed)
+  const tokens = await getTokensByPhone(phone).catch(() => null);
+  if (!tokens?.accessToken) {
     await markFailed(
-      _id, phone, session_id, action,
-      "GMB tokens not found — please reconnect Google Business"
+      _id, phone, action,
+      "Tokens not found. Please reconnect Google Business."
     );
     return;
   }
 
+  // 3. Refresh access token (keeps it fresh, saves back to DB)
   let { accessToken, refreshToken } = tokens;
   try {
-    accessToken = await refreshGoogleAccessToken(refreshToken);
+    accessToken = await refreshAndSaveAccessToken(phone, refreshToken);
   } catch (refreshErr) {
     console.warn("[chatbotAction] Token refresh failed, using stored token:", refreshErr?.message);
   }
 
-  // 3. Dispatch to the correct service handler
+  // 4. Dispatch to the correct service handler
   let result;
   try {
     switch (action) {
       case "website":
-        result = await handleWebsite({ location, email: resolvedEmail, locationId, accessToken });
+        result = await handleWebsite({ location, email, locationId, accessToken });
         break;
 
       case "health_score":
-        result = await handleHealthScore({ location, email: resolvedEmail });
+        result = await handleHealthScore({ location, email, accessToken });
         break;
 
       case "magic_qr":
-        result = await handleMagicQr({ location, email: resolvedEmail, locationId });
+        result = await handleMagicQr({ location, email, locationId });
         break;
 
       case "insights":
         result = await handleInsights({ accessToken, locationId, location });
         break;
 
+      case "keyword_planner":
+        result = await handleKeywordPlanner({ location });
+        break;
+
       default:
         throw new Error(`Unknown action type: "${action}"`);
     }
 
-    // 4. Persist success
+    // 5. Persist success
     await ChatbotAction.findByIdAndUpdate(_id, {
       status: "success",
       result,
       updatedAt: new Date(),
     });
 
-    // 5. Fire completion webhook (phone included)
-    await notifyActionComplete({ phone, session_id, action, status: "success", result });
+    // 6. Fire completion webhook
+    await notifyActionComplete({ phone, action, status: "success", result });
 
-    console.log(
-      `[chatbotAction] Completed action=${action} phone=${phone || "—"}`
-    );
+    console.log(`[chatbotAction] Completed action=${action} phone=${phone}`);
   } catch (err) {
     const msg = err?.message || "Unexpected error during action processing";
-    console.error(`[chatbotAction] action=${action} phone=${phone || "—"} error:`, msg);
-    await markFailed(_id, phone, session_id, action, msg);
+    console.error(`[chatbotAction] action=${action} phone=${phone} error:`, msg);
+    await markFailed(_id, phone, action, msg);
   }
 }

@@ -1,3 +1,12 @@
+/**
+ * gmbSessionStore.js
+ *
+ * Phone number is the SOLE external identifier.
+ * session_id is an internal MongoDB key derived from phone ("phone_<digits>").
+ * accessToken + refreshToken are saved at the moment the user clicks
+ * "Continue to chatbot" — no separate GmbUser lookup needed for actions.
+ */
+
 import mongoose from "mongoose";
 
 function getRequiredEnv(name) {
@@ -6,20 +15,18 @@ function getRequiredEnv(name) {
   return value;
 }
 
-/**
- * One document per chatbot session_id (or phone-derived session).
- * Replaces the AdminBusiness‑based approach for the connect-google-business flow.
- *
- * phone-based flow:
- *   sessionId = "phone_<digits>"  when chatbot uses phone as primary key
- *   phone     = "919876543210"    stored for direct phone lookups
- */
+// ── Schema ────────────────────────────────────────────────────────────────────
+
 const GMBConnectionSchema = new mongoose.Schema({
-  sessionId:    { type: String, required: true, unique: true },
-  /** Chatbot user's WhatsApp / mobile number (E.164 digits, e.g. 919876543210) */
-  phone:        { type: String, default: "", index: true },
-  status:       { type: String, enum: ["success", "not_found", "pending"], default: "pending" },
-  message:      { type: String, default: "" },
+  /** Internal MongoDB unique key — always "phone_<digits>" */
+  sessionId: { type: String, required: true, unique: true },
+
+  /** WhatsApp / mobile number — the primary external identifier */
+  phone: { type: String, required: true, unique: true },
+
+  status:  { type: String, enum: ["success", "not_found", "pending"], default: "pending" },
+  message: { type: String, default: "" },
+
   locationsData: {
     type: [
       {
@@ -35,23 +42,29 @@ const GMBConnectionSchema = new mongoose.Schema({
     ],
     default: [],
   },
+
   userEmail: { type: String, default: "" },
-  /** Razorpay / checkout — same session_id as chatbot GMB flow */
-  paymentStatus: {
-    type: String,
-    enum: ["none", "paid"],
-    default: "none",
-  },
-  paymentId: { type: String, default: "" },
-  paymentOrderId: { type: String, default: "" },
-  paymentAmount: { type: String, default: "" },
+
+  /** Google OAuth tokens — saved when user clicks "Continue to chatbot" */
+  accessToken:  { type: String, default: "" },
+  refreshToken: { type: String, default: "" },
+  tokenSavedAt: { type: Date,   default: null },
+
+  /** Razorpay / checkout */
+  paymentStatus:    { type: String, enum: ["none", "paid"], default: "none" },
+  paymentId:        { type: String, default: "" },
+  paymentOrderId:   { type: String, default: "" },
+  paymentAmount:    { type: String, default: "" },
   paymentPlanTitle: { type: String, default: "" },
-  paymentUserId: { type: String, default: "" },
-  paymentEmail: { type: String, default: "" },
-  paidAt: { type: Date, default: null },
+  paymentUserId:    { type: String, default: "" },
+  paymentEmail:     { type: String, default: "" },
+  paidAt:           { type: Date,   default: null },
+
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
+
+// ── Connection (dedicated pool) ───────────────────────────────────────────────
 
 let gmbConn = null;
 
@@ -71,7 +84,7 @@ async function getGMBConnectionModel() {
   );
 }
 
-/* ─── Internal helpers ─────────────────────────────────────────────── */
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function categoryLabels(categories) {
   if (!Array.isArray(categories)) return [];
@@ -81,20 +94,16 @@ function categoryLabels(categories) {
 }
 
 function buildAddressLine(loc) {
-  const lines = (loc?.storefrontAddress?.addressLines || []).filter(Boolean);
+  const lines    = (loc?.storefrontAddress?.addressLines || []).filter(Boolean);
   const locality = loc?.storefrontAddress?.locality || "";
   const region   = loc?.storefrontAddress?.administrativeArea || "";
   const postal   = loc?.storefrontAddress?.postalCode || "";
-  const tail = [locality, region, postal].filter(Boolean).join(", ");
+  const tail     = [locality, region, postal].filter(Boolean).join(", ");
   return [...lines, tail].filter(Boolean).join(", ") || "";
 }
 
-/**
- * Convert raw GMB API listing objects into the standard `locationsData` rows.
- */
 export function buildLocationsData(listings) {
-  const arr = Array.isArray(listings) ? listings : [];
-  return arr.map((l) => ({
+  return (Array.isArray(listings) ? listings : []).map((l) => ({
     title:                (l?.title && String(l.title).trim()) || "Business",
     verified:             l?.hasVoiceOfMerchant === true,
     address:              buildAddressLine(l),
@@ -106,122 +115,134 @@ export function buildLocationsData(listings) {
   }));
 }
 
-/* ─── Public API ───────────────────────────────────────────────────── */
+// ── Public utilities ──────────────────────────────────────────────────────────
 
-/**
- * Normalise a phone string: keep digits only.
- * "919876543210" → "919876543210"
- * "+91 98765 43210" → "919876543210"
- */
+/** Strip all non-digit characters. "919876543210" or "+91 98765 43210" → "919876543210" */
 export function normalizePhone(phone) {
   return String(phone || "").replace(/\D/g, "");
 }
 
-/**
- * Ensure locationId has the "locations/" prefix used by the GMB API.
- */
+/** Ensure locationId has the "locations/" prefix required by the GMB API. */
 export function toFullLocationId(locationId) {
   if (!locationId) return "";
   return locationId.startsWith("locations/") ? locationId : `locations/${locationId}`;
 }
 
-/**
- * Derive a deterministic sessionId from a phone number.
- * Used when the chatbot identifies users by phone instead of a UUID.
- */
-export function sessionIdFromPhone(phone) {
-  const digits = normalizePhone(phone);
-  if (!digits) throw new Error("phone is required to derive sessionId");
-  return `phone_${digits}`;
-}
+// ── CRUD ──────────────────────────────────────────────────────────────────────
 
 /**
- * Upsert a GMBConnection document for `sessionId`.
- * @param {string}    sessionId
- * @param {string}    userEmail
+ * Save (upsert) a GMBConnection keyed by phone.
+ * Call this when the user clicks "Continue to chatbot" — tokens are saved here.
+ *
+ * @param {string}    phone        - raw phone from URL (will be normalised)
+ * @param {string}    userEmail    - Google account email
  * @param {unknown[]} rawListings  - raw GMB API listing objects
- * @param {string}    [phone]      - optional WhatsApp/mobile number (digits)
+ * @param {string}    accessToken  - Google OAuth access token (from Next.js session)
+ * @param {string}    refreshToken - Google OAuth refresh token (from Next.js session)
  */
-export async function saveGmbSession(sessionId, userEmail, rawListings, phone) {
-  if (!sessionId) throw new Error("sessionId is required");
+export async function saveGmbSessionByPhone(
+  phone,
+  userEmail,
+  rawListings,
+  accessToken = "",
+  refreshToken = ""
+) {
+  const digits = normalizePhone(phone);
+  if (!digits) throw new Error("phone is required");
 
-  const GMBConnection = await getGMBConnectionModel();
-  const listings = Array.isArray(rawListings) ? rawListings : [];
-  const locationsData = buildLocationsData(listings);
-  const connected = locationsData.length > 0;
+  const GMBConnection  = await getGMBConnectionModel();
+  const listings       = Array.isArray(rawListings) ? rawListings : [];
+  const locationsData  = buildLocationsData(listings);
+  const connected      = locationsData.length > 0;
+  const now            = new Date();
 
   const updateFields = {
-    sessionId,
+    phone:    digits,
+    sessionId: `phone_${digits}`,          // internal, derived
     userEmail: (userEmail || "").toLowerCase(),
-    status:    connected ? "success" : "not_found",
-    message:   connected
+    status:   connected ? "success" : "not_found",
+    message:  connected
       ? "Business connected successfully"
       : "No business locations found for this account",
     locationsData,
-    updatedAt: new Date(),
+    updatedAt: now,
   };
 
-  const digits = normalizePhone(phone);
-  if (digits) updateFields.phone = digits;
+  if (accessToken)  { updateFields.accessToken  = accessToken;  updateFields.tokenSavedAt = now; }
+  if (refreshToken) { updateFields.refreshToken = refreshToken; }
 
   return GMBConnection.findOneAndUpdate(
-    { sessionId },
+    { phone: digits },
     updateFields,
     { upsert: true, new: true }
   );
 }
 
 /**
- * Fetch a GMBConnection by sessionId. Returns null if not found.
- */
-export async function findGmbSession(sessionId) {
-  if (!sessionId) return null;
-  const GMBConnection = await getGMBConnectionModel();
-  return GMBConnection.findOne({ sessionId }).lean();
-}
-
-/**
- * Fetch a GMBConnection by phone number (digits only, e.g. "919876543210").
+ * Fetch a GMBConnection by phone number.
  * Returns null if not found.
  */
 export async function findGmbSessionByPhone(phone) {
   const digits = normalizePhone(phone);
   if (!digits) return null;
   const GMBConnection = await getGMBConnectionModel();
-  // Try by phone field first, then by phone-derived sessionId (backward compat)
-  const byPhone = await GMBConnection.findOne({ phone: digits }).lean();
-  if (byPhone) return byPhone;
-  return GMBConnection.findOne({ sessionId: `phone_${digits}` }).lean();
+  return GMBConnection.findOne({ phone: digits }).lean();
 }
 
 /**
- * After successful checkout: attach payment to the same chatbot session document.
- * Upserts a minimal row if GMB sync has not run yet.
+ * Get only the tokens for an action handler.
+ * Returns null if not found or tokens not yet saved.
+ *
+ * @param {string} phone
+ * @returns {Promise<{ accessToken: string, refreshToken: string } | null>}
  */
-export async function saveGmbSessionPayment(sessionId, payload) {
-  if (!sessionId) throw new Error("sessionId is required");
+export async function getTokensByPhone(phone) {
+  const doc = await findGmbSessionByPhone(phone);
+  if (!doc) return null;
+  if (!doc.accessToken && !doc.refreshToken) return null;
+  return { accessToken: doc.accessToken || "", refreshToken: doc.refreshToken || "" };
+}
+
+/**
+ * Save refreshed tokens back to the document (called after token refresh).
+ */
+export async function updateTokensByPhone(phone, accessToken, refreshToken) {
+  const digits = normalizePhone(phone);
+  if (!digits) return;
+  const GMBConnection = await getGMBConnectionModel();
+  await GMBConnection.updateOne(
+    { phone: digits },
+    { $set: { accessToken, refreshToken, tokenSavedAt: new Date(), updatedAt: new Date() } }
+  );
+}
+
+// ── Payment helper ────────────────────────────────────────────────────────────
+
+/**
+ * Attach Razorpay payment details to a GMBConnection by phone.
+ */
+export async function savePaymentByPhone(phone, payload) {
+  const digits = normalizePhone(phone);
+  if (!digits) throw new Error("phone is required");
   const GMBConnection = await getGMBConnectionModel();
   const now = new Date();
-  const emailNorm = String(payload.email || "")
-    .trim()
-    .toLowerCase();
 
   return GMBConnection.findOneAndUpdate(
-    { sessionId },
+    { phone: digits },
     {
       $set: {
-        paymentStatus: "paid",
-        paymentId: String(payload.paymentId || ""),
-        paymentOrderId: String(payload.orderId || ""),
-        paymentAmount: String(payload.totalAmount ?? ""),
-        paymentPlanTitle: String(payload.planTitle || ""),
-        paymentUserId: String(payload.userId || ""),
-        paymentEmail: emailNorm,
-        paidAt: now,
+        paymentStatus:    "paid",
+        paymentId:        String(payload.paymentId   || ""),
+        paymentOrderId:   String(payload.orderId     || ""),
+        paymentAmount:    String(payload.totalAmount ?? ""),
+        paymentPlanTitle: String(payload.planTitle   || ""),
+        paymentUserId:    String(payload.userId      || ""),
+        paymentEmail:     String(payload.email       || "").toLowerCase(),
+        paidAt:    now,
         updatedAt: now,
       },
       $setOnInsert: {
-        sessionId,
+        sessionId: `phone_${digits}`,
         status: "pending",
         message: "",
         locationsData: [],
@@ -229,50 +250,76 @@ export async function saveGmbSessionPayment(sessionId, payload) {
         createdAt: now,
       },
     },
-    { upsert: true, new: true },
+    { upsert: true, new: true }
   );
 }
 
-/**
- * Shape a DB row (or null) into the exact chatbot API response.
- */
+// ── Response formatter ────────────────────────────────────────────────────────
+
 export function formatGmbSessionResponse(row) {
   if (!row) {
     return {
-      status: "not_found",
+      status:           "not_found",
       businessConnected: false,
-      paymentStatus: "none",
-      payment: null,
+      paymentStatus:    "none",
+      payment:          null,
+      phone:            "",
+      email:            "",
       message:
-        "Session not found. Open the connect-google-business link from chat, sign in with Google, and tap Continue to chatbot.",
+        "Business not connected. Open the connect-google-business link from chat and sign in with Google.",
       locationsData: [],
     };
   }
-  const locationsData = Array.isArray(row.locationsData) ? row.locationsData : [];
-  const gmbOk = row.status === "success" && locationsData.length > 0;
-  const paid =
-    row.paymentStatus === "paid" ||
-    (!!row.paymentId && !!row.paidAt);
-  const paymentStatus = paid ? "paid" : "none";
+
+  const locationsData  = Array.isArray(row.locationsData) ? row.locationsData : [];
+  const gmbOk          = row.status === "success" && locationsData.length > 0;
+  const paid           = row.paymentStatus === "paid" || (!!row.paymentId && !!row.paidAt);
+  const paymentStatus  = paid ? "paid" : "none";
 
   return {
-    status: row.status === "success" ? "success" : "not_found",
+    status:            row.status === "success" ? "success" : "not_found",
     businessConnected: gmbOk,
     paymentStatus,
-    payment:
-      paymentStatus === "paid"
-        ? {
-            paymentId: row.paymentId || "",
-            orderId: row.paymentOrderId || "",
-            amount: row.paymentAmount || "",
-            planTitle: row.paymentPlanTitle || "",
-            userId: row.paymentUserId || "",
-            email: row.paymentEmail || "",
-            paidAt: row.paidAt ? row.paidAt.toISOString() : null,
-          }
-        : null,
-    email: row.userEmail || "",
-    message: row.message || "",
+    payment: paymentStatus === "paid"
+      ? {
+          paymentId: row.paymentId        || "",
+          orderId:   row.paymentOrderId   || "",
+          amount:    row.paymentAmount    || "",
+          planTitle: row.paymentPlanTitle || "",
+          userId:    row.paymentUserId    || "",
+          email:     row.paymentEmail     || "",
+          paidAt:    row.paidAt ? row.paidAt.toISOString() : null,
+        }
+      : null,
+    phone:         row.phone     || "",
+    email:         row.userEmail || "",
+    tokensReady:   !!(row.accessToken && row.refreshToken),
+    message:       row.message   || "",
     locationsData,
   };
+}
+
+// ── Legacy shims (backward compat — do NOT use in new code) ──────────────────
+
+/** @deprecated Use saveGmbSessionByPhone() */
+export async function saveGmbSession(sessionId, userEmail, rawListings, phone) {
+  const digits = normalizePhone(phone) || normalizePhone(sessionId?.replace("phone_", ""));
+  return saveGmbSessionByPhone(digits, userEmail, rawListings, "", "");
+}
+
+/** @deprecated Use findGmbSessionByPhone() */
+export async function findGmbSession(sessionId) {
+  if (!sessionId) return null;
+  const phone = sessionId.startsWith("phone_")
+    ? sessionId.replace("phone_", "")
+    : sessionId;
+  return findGmbSessionByPhone(phone);
+}
+
+/** @deprecated Use savePaymentByPhone() */
+export async function saveGmbSessionPayment(sessionId, payload) {
+  const phone = sessionId?.startsWith("phone_")
+    ? sessionId.replace("phone_", "")
+    : sessionId;
+  return savePaymentByPhone(phone, payload);
 }

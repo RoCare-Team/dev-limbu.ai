@@ -1,33 +1,39 @@
+/**
+ * POST /api/gmb/sync-and-save
+ *
+ * Called when the user clicks "Continue to chatbot" on the connect page.
+ * Phone is the ONLY external identifier — session_id is gone.
+ *
+ * Body: { phone: "919876543210" }
+ *
+ * What this does:
+ *   1. Fetches all GMB listings from Google for the signed-in account.
+ *   2. Saves listings + accessToken + refreshToken to GMBConnection (keyed by phone).
+ *   3. Optionally fires LIMBU_BUSINESS_CONNECTED_WEBHOOK_URL.
+ *   4. Returns { status, message, locationsData, phone }.
+ */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 import {
-  saveGmbSession,
+  saveGmbSessionByPhone,
   normalizePhone,
-  sessionIdFromPhone,
 } from "@/lib/gmbSessionStore";
 import { postJsonWithRetry } from "@/lib/limbuGmbConnectChatbot";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/gmb/sync-and-save
- * Body: { session_id: string }
- *
- * 1. Fetches all GMB listings for the signed-in Google account.
- * 2. Saves them to the GMBConnection collection keyed by session_id.
- * 3. Optionally fires LIMBU_BUSINESS_CONNECTED_WEBHOOK_URL with the result.
- * 4. Returns { status, message, locationsData } — same shape as GET /api/gmb/status.
- */
 export async function POST(request) {
   try {
+    // ── Auth check ──────────────────────────────────────────────────────────
     const session = await getServerSession(authOptions);
     if (!session?.user?.email || !session?.accessToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ── parse body ──────────────────────────────────────────────────
+    // ── Parse body ──────────────────────────────────────────────────────────
     let body = {};
     try {
       const text = await request.text();
@@ -36,22 +42,15 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const phone     = normalizePhone(body.phone || "");
-    let   sessionId = body.session_id?.toString()?.trim();
-
-    // If no explicit session_id but phone is provided, derive one deterministically
-    if (!sessionId && phone) {
-      sessionId = sessionIdFromPhone(phone);
-    }
-
-    if (!sessionId) {
+    const phone = normalizePhone(body.phone || "");
+    if (!phone) {
       return NextResponse.json(
-        { error: "session_id or phone is required in request body" },
+        { error: "phone is required in request body" },
         { status: 400 }
       );
     }
 
-    // ── fetch Google Business listings ───────────────────────────────
+    // ── Fetch GMB listings ──────────────────────────────────────────────────
     let allListings = [];
     try {
       allListings = await fetchAllUserGmbListings(session.accessToken);
@@ -62,13 +61,20 @@ export async function POST(request) {
       );
     }
 
-    // ── save to GMBConnection (new collection) ───────────────────────
-    const userEmail = session.user.email;
+    // ── Save to MongoDB (with tokens) ───────────────────────────────────────
+    // accessToken + refreshToken are from the server-side Next.js session.
+    // They are never sent from the client — fully secure.
     let saved;
     try {
-      saved = await saveGmbSession(sessionId, userEmail, allListings, phone);
+      saved = await saveGmbSessionByPhone(
+        phone,
+        session.user.email,
+        allListings,
+        session.accessToken,
+        session.refreshToken || ""
+      );
     } catch (e) {
-      console.error("sync-and-save DB save:", e);
+      console.error("[sync-and-save] DB save error:", e);
       return NextResponse.json(
         { error: e?.message || "Failed to save session" },
         { status: 500 }
@@ -78,25 +84,31 @@ export async function POST(request) {
     const response = {
       status:        saved.status,
       message:       saved.message,
+      phone,
+      email:         saved.userEmail,
+      tokensReady:   !!(saved.accessToken && saved.refreshToken),
       locationsData: Array.isArray(saved.locationsData) ? saved.locationsData : [],
-      session_id:    sessionId,
-      ...(phone ? { phone } : {}),
     };
 
-    // ── optional webhook (fire-and-forget with retry) ────────────────
+    // ── Optional webhook (fire-and-forget) ──────────────────────────────────
     const hookUrl = process.env.LIMBU_BUSINESS_CONNECTED_WEBHOOK_URL?.trim();
     if (hookUrl) {
-      const hookToken = process.env.LIMBU_BUSINESS_CONNECTED_WEBHOOK_TOKEN;
       const headers = { "Content-Type": "application/json" };
+      const hookToken = process.env.LIMBU_BUSINESS_CONNECTED_WEBHOOK_TOKEN;
       if (hookToken) headers.Authorization = `Bearer ${hookToken}`;
       postJsonWithRetry(hookUrl, headers, response).catch((e) =>
-        console.error("sync-and-save webhook:", e)
+        console.error("[sync-and-save] webhook error:", e)
       );
     }
 
+    console.log(
+      `[sync-and-save] phone=${phone} locations=${response.locationsData.length}` +
+        ` tokens=${response.tokensReady}`
+    );
+
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error("sync-and-save:", error);
+    console.error("[sync-and-save] error:", error);
     return NextResponse.json(
       { error: error?.message || "Sync failed" },
       { status: 500 }

@@ -94,6 +94,14 @@ const nextConfig = {
     ],
   },
 
+  /**
+   * Keep pdfkit and qrcode out of the webpack bundle so that Node.js can
+   * resolve their internal data files (font .afm files, etc.) at runtime.
+   * Without this, Next.js webpack mangles the paths and you get ENOENT errors
+   * like "no such file or directory, open .../.next/.../Helvetica.afm".
+   */
+  serverExternalPackages: ["pdfkit", "canvas", "sharp"],
+
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

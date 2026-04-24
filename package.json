@@ -11,7 +11,6 @@
     "backfill:payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.750.0",
     "@auth/mongodb-adapter": "^3.11.0",
     "@aws-sdk/client-s3": "^3.1032.0",
     "@aws-sdk/lib-storage": "^3.1032.0",
@@ -21,8 +20,8 @@
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
     "@mui/styled-engine-sc": "^7.3.2",
-    "axios": "^1.14.0",
     "@tailwindcss/typography": "^0.5.19",
+    "axios": "^1.14.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "dotenv": "^17.2.3",
@@ -57,6 +56,7 @@
     "react-select": "^5.10.2",
     "react-window": "^2.2.3",
     "recharts": "^3.3.0",
+    "sharp": "^0.34.5",
     "styled-components": "^6.1.19",
     "twilio": "^5.13.0",
     "uuid": "^13.0.0",

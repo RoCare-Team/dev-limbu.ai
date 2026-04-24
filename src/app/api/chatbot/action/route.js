@@ -1,44 +1,38 @@
 /**
  * POST /api/chatbot/action
  *
- * Trigger a chatbot action for a connected Google Business location.
+ * Trigger a chatbot action for a Google Business connected via phone number.
+ * Phone is the SOLE identifier — session_id is fully removed.
+ * Tokens (accessToken/refreshToken) are loaded from GMBConnection (saved at connect time).
  *
- * NEW (phone-based) — primary identifier:
+ * Request body:
  * {
  *   action:     "health_score" | "magic_qr" | "website" | "insights",
  *   phone:      "919876543210",
- *   locationId: "locations/123456789"
+ *   locationId: "locations/505165208589849995"
  * }
  *
- * LEGACY (session-based) — still supported:
- * {
- *   action:     "health_score" | "magic_qr" | "website" | "insights",
- *   session_id: "abc123",
- *   locationId: "locations/123456789",
- *   email:      "user@gmail.com"          ← optional if phone resolves it
- * }
- *
- * Response (immediate ≤200 ms):
+ * Immediate response (≤200 ms):
  *   { success: true,  message: "Action started", actionId: "..." }
  *   { success: false, message: "<reason>" }
  *
  * After processing, a webhook fires to CHATBOT_ACTION_WEBHOOK_URL with phone.
+ * Use GET /api/chatbot/action/result?phone=...&action=... to poll the result.
  *
- * Scalability: swap `after(...)` for a BullMQ queue.add() call.
+ * BullMQ migration: replace `after(...)` with `actionQueue.add(...)`.
  */
 
 import { NextResponse, after } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import ChatbotAction from "@/models/ChatbotAction";
 import {
-  findGmbSession,
   findGmbSessionByPhone,
   normalizePhone,
   toFullLocationId,
 } from "@/lib/gmbSessionStore";
 import { processAction } from "@/lib/chatbotActionHandlers";
 
-const VALID_ACTIONS = ["health_score", "magic_qr", "website", "insights"];
+const VALID_ACTIONS = ["health_score", "magic_qr", "website", "insights", "keyword_planner"];
 
 export async function POST(req) {
   // ── 1. Parse body ────────────────────────────────────────────────────────────
@@ -52,102 +46,68 @@ export async function POST(req) {
     );
   }
 
-  const {
-    action,
-    phone:      rawPhone,
-    session_id: rawSessionId,
-    locationId: rawLocationId,
-    email:      rawEmail,
-  } = body ?? {};
+  const { action, phone: rawPhone, locationId: rawLocationId } = body ?? {};
+  const phone      = normalizePhone(rawPhone || "");
+  const locationId = rawLocationId?.toString()?.trim() || "";
 
-  const phone     = normalizePhone(rawPhone || "");
-  const sessionId = rawSessionId?.toString()?.trim() || "";
-
-  // ── 2. Validate required fields ──────────────────────────────────────────────
+  // ── 2. Validate ──────────────────────────────────────────────────────────────
   if (!action) {
-    return NextResponse.json(
-      { success: false, message: "action is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ success: false, message: "action is required" }, { status: 400 });
   }
   if (!VALID_ACTIONS.includes(action)) {
     return NextResponse.json(
-      {
-        success: false,
-        message: `Invalid action "${action}". Must be one of: ${VALID_ACTIONS.join(", ")}`,
-      },
+      { success: false, message: `action must be one of: ${VALID_ACTIONS.join(", ")}` },
       { status: 400 }
     );
   }
-  if (!phone && !sessionId) {
-    return NextResponse.json(
-      { success: false, message: "phone or session_id is required" },
-      { status: 400 }
-    );
+  if (!phone) {
+    return NextResponse.json({ success: false, message: "phone is required" }, { status: 400 });
   }
-  if (!rawLocationId?.toString()?.trim()) {
-    return NextResponse.json(
-      { success: false, message: "locationId is required" },
-      { status: 400 }
-    );
+  if (!locationId) {
+    return NextResponse.json({ success: false, message: "locationId is required" }, { status: 400 });
   }
-
-  const locationId = rawLocationId.toString().trim();
 
   try {
     await dbConnect();
 
-    // ── 3. Resolve GMBConnection (phone takes priority) ───────────────────────
-    let sessionDoc = null;
-    if (phone) {
-      sessionDoc = await findGmbSessionByPhone(phone);
-    }
-    if (!sessionDoc && sessionId) {
-      sessionDoc = await findGmbSession(sessionId);
-    }
+    // ── 3. Load GMBConnection by phone ───────────────────────────────────────
+    const sessionDoc = await findGmbSessionByPhone(phone);
 
     if (!sessionDoc || sessionDoc.status !== "success") {
+      return NextResponse.json({ success: false, message: "Business not connected" });
+    }
+    if (!sessionDoc.accessToken) {
       return NextResponse.json({
         success: false,
-        message: "Business not connected",
+        message: "Tokens not found. Please reconnect Google Business.",
       });
     }
 
-    // ── 4. Verify locationId belongs to this session ──────────────────────────
-    const normalizedId = toFullLocationId(locationId);
-    const locationExists = (sessionDoc.locationsData || []).some(
-      (l) =>
-        l.locationResourceName === normalizedId ||
-        l.locationResourceName === locationId
+    // ── 4. Verify locationId belongs to this account ─────────────────────────
+    const normalizedId    = toFullLocationId(locationId);
+    const locationExists  = (sessionDoc.locationsData || []).some(
+      (l) => l.locationResourceName === normalizedId || l.locationResourceName === locationId
     );
     if (!locationExists) {
-      return NextResponse.json({
-        success: false,
-        message: "Business not connected",
-      });
+      return NextResponse.json({ success: false, message: "Business not connected" });
     }
 
-    // Resolve email from session if not provided in body
-    const email = (rawEmail?.toString()?.trim() || sessionDoc.userEmail || "").toLowerCase();
-
-    // ── 5. Create pending action record ───────────────────────────────────────
+    // ── 5. Create pending action record ──────────────────────────────────────
     const actionDoc = await ChatbotAction.create({
-      phone:      sessionDoc.phone || phone,
-      session_id: sessionDoc.sessionId || sessionId,
+      phone,
       action,
       locationId,
-      email,
-      status: "pending",
-      result: {},
+      email:     sessionDoc.userEmail || "",
+      status:    "pending",
+      result:    {},
     });
 
     console.log(
       `[chatbot/action] Created action=${action} id=${actionDoc._id}` +
-        ` phone=${phone || "—"} session=${sessionId || "—"} location=${locationId}`
+        ` phone=${phone} location=${locationId}`
     );
 
-    // ── 6. Async processing (post-response via Next.js after()) ───────────────
-    // TODO: Replace with actionQueue.add("process", { actionId }) for BullMQ
+    // ── 6. Process async (post-response via Next.js after()) ─────────────────
     after(() =>
       processAction(actionDoc.toObject(), sessionDoc).catch((err) =>
         console.error(
@@ -157,7 +117,7 @@ export async function POST(req) {
       )
     );
 
-    // ── 7. Immediate response ─────────────────────────────────────────────────
+    // ── 7. Immediate response ────────────────────────────────────────────────
     return NextResponse.json({
       success:  true,
       message:  "Action started",

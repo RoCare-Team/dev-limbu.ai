@@ -1,9 +1,12 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
+import SchemaMarkup from "@/components/SchemaMarkup";
 import { Hammer, MapPin, CheckCircle, TrendingUp, Wrench, Star, MessageSquare, PhoneCall } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Handyman Services | Limbu.ai",
+  title: "Handyman Marketing Software | Limbu.ai",
   description: "Get more local repair jobs, manage service reviews, and boost your handyman business with Limbu AI.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/handyman-marketing-software" },
 };
 
 export default function HandymanMarketingPage() {
@@ -76,18 +79,53 @@ export default function HandymanMarketingPage() {
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
   ];
 
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.limbu.ai" },
+        { "@type": "ListItem", position: 2, name: "Handyman Marketing Software", item: "https://www.limbu.ai/handyman-marketing-software" },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Handyman Marketing Software",
+      serviceType: "AI Marketing Automation",
+      description: "Get more local repair jobs, manage service reviews, and boost your handyman business with Limbu AI.",
+      url: "https://www.limbu.ai/handyman-marketing-software",
+      provider: { "@type": "Organization", name: "Limbu.ai", url: "https://www.limbu.ai" },
+      areaServed: { "@type": "Country", name: "India" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        { "@type": "Question", name: "How does Limbu AI help Handyman Services rank higher on Google?", acceptedAnswer: { "@type": "Answer", text: "Limbu AI automates your Google Business Profile with service update posts and instant review replies, boosting your visibility in 'handyman near me' searches." } },
+        { "@type": "Question", name: "Is it safe to connect my handyman business Google account?", acceptedAnswer: { "@type": "Answer", text: "Yes. We use official Google OAuth — we never store passwords and all connections are encrypted with enterprise-grade security." } },
+        { "@type": "Question", name: "Will the AI create handyman posts and offers automatically?", acceptedAnswer: { "@type": "Answer", text: "Yes. Limbu AI creates engaging service posts, seasonal offers, and professional review replies for your handyman business, which you can auto-publish or approve." } },
+        { "@type": "Question", name: "How does the Magic QR help get more reviews for my handyman business?", acceptedAnswer: { "@type": "Answer", text: "After completing a job, ask the homeowner to scan your QR to instantly leave a 5-star Google review. Unhappy clients are routed to a private feedback form." } },
+        { "@type": "Question", name: "How quickly will I see more handyman job calls?", acceptedAnswer: { "@type": "Answer", text: "Most handyman businesses see increased profile views and incoming job calls within 30 days of consistent automated activity on their Google Business Profile." } },
+      ],
+    },
+  ];
+
   return (
-    <IndustryLandingTemplate
-      industryName="Handyman Services"
-      heroHeading="Get More Calls for Local Repair Jobs"
-      heroSubheading="Stop relying on word-of-mouth alone. Automate your local SEO, gather 5-star reviews, and become the most trusted handyman in town."
-      heroImage="/images/category/handyman.png"
-      heroimage2="/images/bussiness/handman.png"
-      benefitsList={benefits}
-      howItWorks={howItWorksSteps}
-      postImages={handymanPostImages}
-      videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Handyman%20business."
-    />
+    <>
+      <SchemaMarkup schemas={schemas} />
+      <IndustryLandingTemplate
+        industryName="Handyman Services"
+        heroHeading="Get More Calls for Local Repair Jobs"
+        heroSubheading="Stop relying on word-of-mouth alone. Automate your local SEO, gather 5-star reviews, and become the most trusted handyman in town."
+        heroImage="/images/category/handyman.png"
+        heroimage2="/images/bussiness/handman.png"
+        benefitsList={benefits}
+        howItWorks={howItWorksSteps}
+        postImages={handymanPostImages}
+        videoExamples={videoExamples}
+        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Handyman%20business."
+      />
+    </>
   );
 }

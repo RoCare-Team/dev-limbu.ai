@@ -1,9 +1,12 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
+import SchemaMarkup from "@/components/SchemaMarkup";
 import { Store, Camera, MessageSquare, TrendingUp, Sparkles, Star, CakeSlice, SmilePlus } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Bakers & Cake Shops | Limbu.ai",
+  title: "Bakery & Cake Shop Marketing Software | Limbu.ai",
   description: "Promote your bakery online, automate delicious posts, and collect sweet 5-star customer reviews using Limbu AI.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/bakery-marketing-software" },
 };
 
 export default function BakeryMarketingPage() {
@@ -76,18 +79,53 @@ export default function BakeryMarketingPage() {
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
   ];
 
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.limbu.ai" },
+        { "@type": "ListItem", position: 2, name: "Bakery Marketing Software", item: "https://www.limbu.ai/bakery-marketing-software" },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Bakery & Cake Shop Marketing Software",
+      serviceType: "AI Marketing Automation",
+      description: "Promote your bakery online, automate delicious posts, and collect sweet 5-star customer reviews using Limbu AI.",
+      url: "https://www.limbu.ai/bakery-marketing-software",
+      provider: { "@type": "Organization", name: "Limbu.ai", url: "https://www.limbu.ai" },
+      areaServed: { "@type": "Country", name: "India" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        { "@type": "Question", name: "How does Limbu AI help Bakers & Cake Shops rank higher on Google?", acceptedAnswer: { "@type": "Answer", text: "Limbu AI automates your Google Business Profile with fresh bakery photos and review replies, boosting your visibility in 'bakery near me' searches." } },
+        { "@type": "Question", name: "Is it safe to connect my bakery's Google account?", acceptedAnswer: { "@type": "Answer", text: "Yes. We use official Google OAuth — we never store passwords and all connections are encrypted with enterprise-grade security." } },
+        { "@type": "Question", name: "Will the AI create bakery content and posts automatically?", acceptedAnswer: { "@type": "Answer", text: "Yes. Limbu AI creates mouth-watering bakery posts, seasonal offers, and professional review replies automatically, which you can auto-publish or approve first." } },
+        { "@type": "Question", name: "How does the Magic QR code get more reviews for my bakery?", acceptedAnswer: { "@type": "Answer", text: "Happy customers scan your QR code at checkout to instantly leave a 5-star Google review. Unsatisfied customers are routed to a private feedback form instead." } },
+        { "@type": "Question", name: "How quickly will I see more bakery customers?", acceptedAnswer: { "@type": "Answer", text: "Most bakeries see increased profile views and foot traffic within 30 days of consistent automated activity on their Google Business Profile." } },
+      ],
+    },
+  ];
+
   return (
-    <IndustryLandingTemplate
-      industryName="Bakers & Cake Shops"
-      heroHeading="Turn Your Sweet Creations into 5-Star Reviews"
-      heroSubheading="Automate your bakery's online marketing. Publish fresh cake photos and rank #1 when locals search for 'bakery near me'."
-      heroImage="/images/category/cake.png"
-      heroimage2="/images/bussiness/cake.png"
-      benefitsList={benefits}
-      howItWorks={howItWorksSteps}
-      postImages={bakeryPostImages}
-      videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Bakery%20business."
-    />
+    <>
+      <SchemaMarkup schemas={schemas} />
+      <IndustryLandingTemplate
+        industryName="Bakers & Cake Shops"
+        heroHeading="Turn Your Sweet Creations into 5-Star Reviews"
+        heroSubheading="Automate your bakery's online marketing. Publish fresh cake photos and rank #1 when locals search for 'bakery near me'."
+        heroImage="/images/category/cake.png"
+        heroimage2="/images/bussiness/cake.png"
+        benefitsList={benefits}
+        howItWorks={howItWorksSteps}
+        postImages={bakeryPostImages}
+        videoExamples={videoExamples}
+        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Bakery%20business."
+      />
+    </>
   );
 }

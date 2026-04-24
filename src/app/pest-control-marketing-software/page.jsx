@@ -1,9 +1,12 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
+import SchemaMarkup from "@/components/SchemaMarkup";
 import { Bug, SearchCheck, MessageCircle, TrendingUp, Star, MessageSquare, PhoneCall } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Pest Control Businesses | Limbu.ai",
+  title: "Pest Control Marketing Software | Limbu.ai",
   description: "Grow your pest control business with automated local SEO, 5-star customer reviews, and smart online presence management.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/pest-control-marketing-software" },
 };
 
 export default function PestControlMarketingPage() {
@@ -76,18 +79,73 @@ export default function PestControlMarketingPage() {
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
   ];
 
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.limbu.ai" },
+        { "@type": "ListItem", position: 2, name: "Pest Control Marketing Software", item: "https://www.limbu.ai/pest-control-marketing-software" },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Pest Control Marketing Software",
+      serviceType: "AI Marketing Automation",
+      description: "Grow your pest control business with automated local SEO, 5-star customer reviews, and smart online presence management.",
+      url: "https://www.limbu.ai/pest-control-marketing-software",
+      provider: { "@type": "Organization", name: "Limbu.ai", url: "https://www.limbu.ai" },
+      areaServed: { "@type": "Country", name: "India" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "How does Limbu AI help Pest Control businesses rank higher on Google?",
+          acceptedAnswer: { "@type": "Answer", text: "Limbu AI automates your Google Business Profile by consistently posting seasonal pest tips and replying to reviews instantly, boosting your visibility in urgent local searches like 'pest control near me'." },
+        },
+        {
+          "@type": "Question",
+          name: "Is it safe to connect my pest control business Google account?",
+          acceptedAnswer: { "@type": "Answer", text: "Yes. Limbu AI uses official, secure OAuth interactions directly approved by Google. We never store your passwords, and our connection is encrypted with enterprise-grade security." },
+        },
+        {
+          "@type": "Question",
+          name: "Will the AI create pest control content and posts automatically?",
+          acceptedAnswer: { "@type": "Answer", text: "Yes. Our AI creates seasonal pest control tips, promotional posts, and professional review replies automatically. You can auto-publish or hold for your approval." },
+        },
+        {
+          "@type": "Question",
+          name: "How does the Magic QR code get more 5-star reviews for my pest control business?",
+          acceptedAnswer: { "@type": "Answer", text: "Your technicians ask the homeowner to scan your custom Magic QR code after a successful treatment. Happy customers go directly to Google review; dissatisfied ones go to a private feedback form." },
+        },
+        {
+          "@type": "Question",
+          name: "How quickly will I get more pest control calls from Limbu AI?",
+          acceptedAnswer: { "@type": "Answer", text: "Most pest control businesses see increased profile views and incoming calls within the first 30 days of consistent, automated activity on their Google Business Profile." },
+        },
+      ],
+    },
+  ];
+
   return (
-    <IndustryLandingTemplate
-      industryName="Pest Control Services"
-      heroHeading="Get More Local Calls for Pest Extermination"
-      heroSubheading="Dominate your service area. We automate your online reputation so you become the most trusted pest control service in town."
-      heroImage="/images/category/pest.png"
-      heroimage2="/images/bussiness/pest.png"
-      benefitsList={benefits}
-      howItWorks={howItWorksSteps}
-      postImages={pestPostImages}
-      videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Pest%20Control%20business."
-    />
+    <>
+      <SchemaMarkup schemas={schemas} />
+      <IndustryLandingTemplate
+        industryName="Pest Control Services"
+        heroHeading="Get More Local Calls for Pest Extermination"
+        heroSubheading="Dominate your service area. We automate your online reputation so you become the most trusted pest control service in town."
+        heroImage="/images/category/pest.png"
+        heroimage2="/images/bussiness/pest.png"
+        benefitsList={benefits}
+        howItWorks={howItWorksSteps}
+        postImages={pestPostImages}
+        videoExamples={videoExamples}
+        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Pest%20Control%20business."
+      />
+    </>
   );
 }

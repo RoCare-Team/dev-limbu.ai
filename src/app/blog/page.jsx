@@ -4,8 +4,10 @@ import BlogCard from "@/components/ui/BlogCard";
 import { Metadata } from "next";
 
 export const metadata = {
-  title: "Blog - Limbu.ai | GMB Optimization & AI Marketing Insights",
+  title: "GMB Marketing Blog & Local SEO Tips | Limbu.ai",
   description: "Stay updated with the latest trends in Google Business Profile optimization, AI post generation, and local SEO strategies to grow your business.",
+  robots: { index: true, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/blog" },
 };
 
 async function getBlogs() {

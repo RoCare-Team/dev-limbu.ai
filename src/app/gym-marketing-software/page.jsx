@@ -1,9 +1,12 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
+import SchemaMarkup from "@/components/SchemaMarkup";
 import { TrendingUp, Users, ShieldCheck, Dumbbell, CalendarCheck, MessageSquare, Star } from "lucide-react";
 
 export const metadata = {
-  title: "AI Marketing Software for Gym & Fitness Centres | Limbu.ai",
-  description: "Automate your gym marketing, increase memberships, and collect 5-star reviews with Limbu AI's smart software for fitness centres.",
+  title: "Gym Marketing Software & Local SEO | Limbu.ai",
+  description: "Automate gym marketing, increase memberships, and collect 5-star reviews with Limbu AI's smart software for fitness centres.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/gym-marketing-software" },
 };
 
 export default function GymMarketingPage() {
@@ -75,18 +78,73 @@ export default function GymMarketingPage() {
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
   ];
 
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.limbu.ai" },
+        { "@type": "ListItem", position: 2, name: "Gym Marketing Software", item: "https://www.limbu.ai/gym-marketing-software" },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Gym Marketing Software",
+      serviceType: "AI Marketing Automation",
+      description: "Automate gym marketing, increase memberships, and collect 5-star reviews with Limbu AI's smart software for fitness centres.",
+      url: "https://www.limbu.ai/gym-marketing-software",
+      provider: { "@type": "Organization", name: "Limbu.ai", url: "https://www.limbu.ai" },
+      areaServed: { "@type": "Country", name: "India" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "How does Limbu AI help Gyms & Fitness Centres rank higher on Google?",
+          acceptedAnswer: { "@type": "Answer", text: "Limbu AI automates your Google Business Profile by consistently posting updates and replying to reviews instantly — two major Google ranking factors — boosting your visibility in local 'gym near me' searches." },
+        },
+        {
+          "@type": "Question",
+          name: "Is it safe to connect my Google account to Limbu AI?",
+          acceptedAnswer: { "@type": "Answer", text: "Yes. Limbu AI uses official, secure OAuth interactions directly approved by Google. We never store your passwords, and our connection is encrypted with enterprise-grade security." },
+        },
+        {
+          "@type": "Question",
+          name: "Does the AI write gym posts for me automatically?",
+          acceptedAnswer: { "@type": "Answer", text: "Yes. Our generative AI creates highly engaging, gym-specific posts, suggests hashtags, and drafts professional review replies. You can set it to auto-publish or hold for your approval." },
+        },
+        {
+          "@type": "Question",
+          name: "How does the Magic QR code get more 5-star reviews for my gym?",
+          acceptedAnswer: { "@type": "Answer", text: "The Magic QR routes happy gym members directly to your Google review page, making it frictionless to leave 5 stars. If a member had a bad experience, it routes them to a private feedback form instead." },
+        },
+        {
+          "@type": "Question",
+          name: "How long before I see more gym memberships from Limbu AI?",
+          acceptedAnswer: { "@type": "Answer", text: "While local SEO is an ongoing strategy, our users typically see increased profile views and more enquiries within the first 30 days of consistent, automated activity." },
+        },
+      ],
+    },
+  ];
+
   return (
-    <IndustryLandingTemplate
-      industryName="Gyms & Fitness Centres"
-      heroHeading="Grow Your Gym Memberships on Autopilot"
-      heroSubheading="Stop worrying about marketing. Use Limbu AI to get more 5-star reviews, auto-publish workout posts, and dominate local searches while you focus on training."
-      heroImage="/images/category/jim.png"
-      heroimage2="/images/bussiness/gym.png"
-      benefitsList={benefits}
-      howItWorks={howItWorksSteps}
-      postImages={gymPostImages}
-      videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Gym%20business."
-    />
+    <>
+      <SchemaMarkup schemas={schemas} />
+      <IndustryLandingTemplate
+        industryName="Gyms & Fitness Centres"
+        heroHeading="Grow Your Gym Memberships on Autopilot"
+        heroSubheading="Stop worrying about marketing. Use Limbu AI to get more 5-star reviews, auto-publish workout posts, and dominate local searches while you focus on training."
+        heroImage="/images/category/jim.png"
+        heroimage2="/images/bussiness/gym.png"
+        benefitsList={benefits}
+        howItWorks={howItWorksSteps}
+        postImages={gymPostImages}
+        videoExamples={videoExamples}
+        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Gym%20business."
+      />
+    </>
   );
 }

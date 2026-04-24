@@ -1,9 +1,12 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
+import SchemaMarkup from "@/components/SchemaMarkup";
 import { Heart, Users, Sparkles, TrendingUp, Flower2, Star, MessageSquare, Activity } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Yoga & Wellness Centers | Limbu.ai",
+  title: "Yoga & Wellness Marketing Software | Limbu.ai",
   description: "Attract more wellness clients, automate mindful social posts, and manage center reviews with Limbu AI.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/yoga-wellness-marketing-software" },
 };
 
 export default function YogaMarketingPage() {
@@ -76,18 +79,53 @@ export default function YogaMarketingPage() {
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
   ];
 
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.limbu.ai" },
+        { "@type": "ListItem", position: 2, name: "Yoga & Wellness Marketing Software", item: "https://www.limbu.ai/yoga-wellness-marketing-software" },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Yoga & Wellness Center Marketing Software",
+      serviceType: "AI Marketing Automation",
+      description: "Attract more wellness clients, automate mindful social posts, and manage center reviews with Limbu AI.",
+      url: "https://www.limbu.ai/yoga-wellness-marketing-software",
+      provider: { "@type": "Organization", name: "Limbu.ai", url: "https://www.limbu.ai" },
+      areaServed: { "@type": "Country", name: "India" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        { "@type": "Question", name: "How does Limbu AI help Yoga & Wellness Centers rank higher on Google?", acceptedAnswer: { "@type": "Answer", text: "Limbu AI automates your Google Business Profile with class schedule posts and instant review replies, boosting your visibility in 'yoga near me' or 'wellness center near me' searches." } },
+        { "@type": "Question", name: "Is it safe to connect my wellness center's Google account?", acceptedAnswer: { "@type": "Answer", text: "Yes. We use official Google OAuth — we never store passwords and all connections are encrypted with enterprise-grade security." } },
+        { "@type": "Question", name: "Will the AI create yoga and wellness content automatically?", acceptedAnswer: { "@type": "Answer", text: "Yes. Limbu AI creates mindful wellness tips, class schedules, and professional review replies for your center automatically, which you can auto-publish or approve first." } },
+        { "@type": "Question", name: "How does the Magic QR get more reviews for my yoga center?", acceptedAnswer: { "@type": "Answer", text: "After class, students scan your QR to leave a 5-star Google review while they're relaxed and fulfilled. Any concerns are routed to a private feedback form." } },
+        { "@type": "Question", name: "How quickly will I see more wellness class enrolments?", acceptedAnswer: { "@type": "Answer", text: "Most yoga and wellness centers see increased profile views and class enquiries within 30 days of consistent automated activity on their Google Business Profile." } },
+      ],
+    },
+  ];
+
   return (
-    <IndustryLandingTemplate
-      industryName="Yoga & Wellness Centers"
-      heroHeading="Fill Your Wellness Classes with Local SEO"
-      heroSubheading="Focus on healing your clients. Limbu AI automates your online reputation, class updates, and helps you rank #1 locally."
-      heroImage="/images/category/yoga.png"
-      heroimage2="/images/bussiness/yoga.png"
-      benefitsList={benefits}
-      howItWorks={howItWorksSteps}
-      postImages={yogaPostImages}
-      videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Yoga%20Center."
-    />
+    <>
+      <SchemaMarkup schemas={schemas} />
+      <IndustryLandingTemplate
+        industryName="Yoga & Wellness Centers"
+        heroHeading="Fill Your Wellness Classes with Local SEO"
+        heroSubheading="Focus on healing your clients. Limbu AI automates your online reputation, class updates, and helps you rank #1 locally."
+        heroImage="/images/category/yoga.png"
+        heroimage2="/images/bussiness/yoga.png"
+        benefitsList={benefits}
+        howItWorks={howItWorksSteps}
+        postImages={yogaPostImages}
+        videoExamples={videoExamples}
+        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Yoga%20Center."
+      />
+    </>
   );
 }

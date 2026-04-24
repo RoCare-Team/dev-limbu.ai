@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "AI Marketing Automation for Google, Facebook & Instagram | Limbu.ai",
+  title: "AI GMB Marketing Automation Tool | Limbu.ai",
   description:
     "Automate Google Business, Facebook, and Instagram with Limbu.ai. Manage reviews, posts, messages & insights — all in one AI-powered dashboard.",
   keywords: [
@@ -43,10 +43,57 @@ export const metadata = {
   },
 };
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Limbu.ai",
+  alternateName: "Limbu AI",
+  url: "https://www.limbu.ai",
+  logo: {
+    "@type": "ImageObject",
+    url: "https://www.limbu.ai/images/bg-logo.png",
+  },
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: "+91-9289344726",
+    contactType: "customer support",
+    email: "info@limbu.ai",
+    availableLanguage: ["English", "Hindi"],
+  },
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Gurugram",
+    addressRegion: "Haryana",
+    addressCountry: "IN",
+  },
+  sameAs: [
+    "https://www.facebook.com/limbuai",
+    "https://www.instagram.com/limbuai",
+    "https://www.linkedin.com/company/limbuai",
+  ],
+};
+
+const webSiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Limbu.ai",
+  url: "https://www.limbu.ai",
+  description:
+    "AI-powered marketing automation for local businesses on Google, Facebook & Instagram",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
+        />
         {/* ---------------- Google Tag Manager ---------------- */}
         <Script id="gtm-script" strategy="afterInteractive">
           {`

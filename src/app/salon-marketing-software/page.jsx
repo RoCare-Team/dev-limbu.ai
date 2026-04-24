@@ -1,9 +1,12 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
+import SchemaMarkup from "@/components/SchemaMarkup";
 import { Scissors, Sparkles, MapPin, TrendingUp, Brush, Star, MessageSquare, Heart } from "lucide-react";
 
 export const metadata = {
-  title: "Marketing Software for Salon Owners | Limbu.ai",
+  title: "Salon Marketing Software | Limbu.ai",
   description: "Get more local salon bookings, automate your Instagram posts, and build a 5-star reputation with Limbu AI.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "https://www.limbu.ai/salon-marketing-software" },
 };
 
 export default function SalonMarketingPage() {
@@ -76,18 +79,53 @@ export default function SalonMarketingPage() {
     "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
   ];
 
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.limbu.ai" },
+        { "@type": "ListItem", position: 2, name: "Salon Marketing Software", item: "https://www.limbu.ai/salon-marketing-software" },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Salon Marketing Software",
+      serviceType: "AI Marketing Automation",
+      description: "Get more local salon bookings, automate your Instagram posts, and build a 5-star reputation with Limbu AI.",
+      url: "https://www.limbu.ai/salon-marketing-software",
+      provider: { "@type": "Organization", name: "Limbu.ai", url: "https://www.limbu.ai" },
+      areaServed: { "@type": "Country", name: "India" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        { "@type": "Question", name: "How does Limbu AI help Salons & Spas rank higher on Google?", acceptedAnswer: { "@type": "Answer", text: "Limbu AI automates your Google Business Profile with beauty transformation posts and instant review replies, boosting your visibility in 'salon near me' searches." } },
+        { "@type": "Question", name: "Is it safe to connect my salon's Google account?", acceptedAnswer: { "@type": "Answer", text: "Yes. We use official Google OAuth — we never store passwords and all connections are encrypted with enterprise-grade security." } },
+        { "@type": "Question", name: "Will Limbu AI create salon content and post automatically?", acceptedAnswer: { "@type": "Answer", text: "Yes. Our AI creates style showcases, seasonal promotions, and professional review replies for your salon. You can auto-publish or approve each post first." } },
+        { "@type": "Question", name: "How does the Magic QR code help my salon get more reviews?", acceptedAnswer: { "@type": "Answer", text: "Clients scan your QR at checkout to leave a quick 5-star Google review while they're delighted with their look. Dissatisfied clients go to a private feedback form." } },
+        { "@type": "Question", name: "How quickly will my salon see more bookings?", acceptedAnswer: { "@type": "Answer", text: "Most salons see increased appointment bookings and profile views within 30 days of consistent automated activity on their Google Business Profile." } },
+      ],
+    },
+  ];
+
   return (
-    <IndustryLandingTemplate
-      industryName="Salons & Spas"
-      heroHeading="Book More Chairs with a 5-Star Salon Reputation"
-      heroSubheading="You create the styles, we bring the clients. Automate your salon's local marketing, reviews, and social media with Limbu AI."
-      heroImage="/images/category/salon.png"
-      heroimage2="/images/bussiness/salon.png"
-      benefitsList={benefits}
-      howItWorks={howItWorksSteps}
-      postImages={salonPostImages}
-      videoExamples={videoExamples}
-      whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Salon%20business."
-    />
+    <>
+      <SchemaMarkup schemas={schemas} />
+      <IndustryLandingTemplate
+        industryName="Salons & Spas"
+        heroHeading="Book More Chairs with a 5-Star Salon Reputation"
+        heroSubheading="You create the styles, we bring the clients. Automate your salon's local marketing, reviews, and social media with Limbu AI."
+        heroImage="/images/category/salon.png"
+        heroimage2="/images/bussiness/salon.png"
+        benefitsList={benefits}
+        howItWorks={howItWorksSteps}
+        postImages={salonPostImages}
+        videoExamples={videoExamples}
+        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Salon%20business."
+      />
+    </>
   );
 }

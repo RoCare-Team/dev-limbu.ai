@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { useAuditHealth } from "@/hooks/useAuditHealth";
 import GBPAuditCard from "@/components/gmb-health/GBPAuditCard";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 import AuditSelector from "@/components/gmb-health/AuditSelector";
 import LoadingScanner from "@/components/gmb-health/LoadingScanner";
 import WhatsAppButton from "@/components/WhatsAppButton";

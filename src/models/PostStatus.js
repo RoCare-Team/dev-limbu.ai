@@ -32,6 +32,11 @@ const PostSchema = new mongoose.Schema(
       enum: ["pending", "approved", "scheduled", "processing", "posted", "rejected", "failed"],
       default: "pending",
     },
+    approvedMediaType: {
+      type: String,
+      enum: ["image", "video", "both"],
+      default: "both",
+    },
 
     whenPosted: {
       type: Object,

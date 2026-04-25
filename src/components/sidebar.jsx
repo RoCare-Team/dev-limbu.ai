@@ -80,7 +80,6 @@ export default function Sidebar({ children }) {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50">
-      <Toaster position="top-right" />
 
       {/* ── SIDEBAR ── */}
       <aside

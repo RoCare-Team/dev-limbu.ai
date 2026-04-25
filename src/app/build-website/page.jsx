@@ -22,7 +22,9 @@ export default function BuildWebsitePage() {
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [business, setBusiness] = useState(null);
+  console.log("business in website build",business)
   const [aiContent, setAiContent] = useState(null);
+  console.log("ai contant in website build",aiContent)
   const [mediaImages, setMediaImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -269,6 +271,11 @@ export default function BuildWebsitePage() {
 
       if (!businessRes.ok) {
         throw new Error(businessData?.error || "Business fetch failed");
+      }
+
+      // 🔴 Strict Phone Number Validation
+      if (!businessData.phoneNumbers?.primaryPhone && !businessData.primaryPhone) {
+        throw new Error("A primary phone number is missing from your Google Business Profile. A phone number is required to generate and publish a website.");
       }
 
       setBusiness(businessData);
@@ -767,7 +774,7 @@ export default function BuildWebsitePage() {
                     className={`inline-flex items-center gap-3 bg-gradient-to-r ${colorTheme.primary.from} ${colorTheme.primary.to} hover:opacity-90 text-white px-10 py-5 rounded-full font-bold text-xl transition-all transform hover:scale-105 shadow-2xl`}
                   >
                     <Phone className="w-6 h-6" />
-                    {aiContent.hero?.ctaPrimary}
+                    {aiContent.hero?.ctaPrimary} - {business.phoneNumbers?.primaryPhone}
                   </a>
                   <a
                     href={getWhatsAppLink(business.phoneNumbers?.primaryPhone)}

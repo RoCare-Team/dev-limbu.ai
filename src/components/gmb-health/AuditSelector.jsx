@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { MapPin, Sparkles, Loader2 } from "lucide-react";
 import Select from "react-select";
 
@@ -9,6 +9,8 @@ const AuditSelector = React.memo(({
   loading, 
   handleGenerateReport 
 }) => {
+  const [menuIsOpen, setMenuIsOpen] = useState(false);
+
   // Format locations for react-select
   const locationOptions = locations.map((loc) => {
     const title = loc.title || "";
@@ -64,6 +66,12 @@ const AuditSelector = React.memo(({
       ...provided,
       color: "#334155",
     }),
+    placeholder: (provided) => ({
+      ...provided,
+      color: "rgba(0, 0, 0, 0.3)",
+      fontSize: "0.875rem",
+      fontWeight: "600",
+    }),
     input: (provided) => ({
       ...provided,
       color: "#334155",
@@ -90,11 +98,16 @@ const AuditSelector = React.memo(({
               <MapPin className="h-4 w-4 text-slate-400 group-focus-within:text-lemon-hover transition-colors" />
             </div>
             <Select
-              value={selectedOption}
-              onChange={(option) => setSelectedLocationId(option.value)}
+              value={menuIsOpen ? null : selectedOption}
+              onChange={(option) => {
+                setSelectedLocationId(option.value);
+                setMenuIsOpen(false);
+              }}
+              onMenuOpen={() => setMenuIsOpen(true)}
+              onMenuClose={() => setMenuIsOpen(false)}
               options={locationOptions}
               styles={customStyles}
-              placeholder={locations.length === 0 ? "No locations found" : "Search your business..."}
+              placeholder={locations.length === 0 ? "No locations found" : "search location"}
               isSearchable={true}
               blurInputOnSelect={true}
               isDisabled={loading || locations.length === 0}

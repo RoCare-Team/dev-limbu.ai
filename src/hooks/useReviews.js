@@ -129,9 +129,9 @@ export function useReviews(session, status) {
 
         if (showSuccessToast && !isAutoMode) {
           if (sortedReviews.length === 0) {
-            toast.success("No reviews found for your locations", { duration: 3000, position: TOAST_POSITION });
+            toast.success("No reviews found for your locations", { duration: 3000, position: TOAST_POSITION, id: "fetch-reviews-empty" });
           } else {
-            toast.success(`Successfully loaded ${sortedReviews.length} reviews`, { duration: 3000, position: TOAST_POSITION });
+            toast.success(`Successfully loaded ${sortedReviews.length} reviews`, { duration: 3000, position: TOAST_POSITION, id: "fetch-reviews-success" });
           }
         }
       } catch (err) {

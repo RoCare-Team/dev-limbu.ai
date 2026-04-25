@@ -40,18 +40,18 @@ export async function GET(req) {
       query.$or = [
         { mediaType: "video" },
         { videoOutput: { $ne: "", $exists: true, $ne: null } },
-        { 
-          aiOutput: { 
-            $regex: "\\.(mp4|webm|mov)$", 
+        {
+          aiOutput: {
+            $regex: "\\.(mp4|webm|mov)$",
             $options: "i"
-          } 
+          }
         }
       ];
       // Only show non-rejected videos in the video tab by default, 
       // or should we show all? Usually tabs filter by one thing.
       // Let's match the "total" tab's behavior of excluding rejected if needed,
       // but the user didn't specify. For now, let's just filter by video criteria.
-      query.status = { $ne: "rejected" }; 
+      query.status = { $ne: "rejected" };
     } else if (status) {
       query.status = status;
     }
@@ -133,41 +133,41 @@ export async function POST(req) {
         {
           $group: {
             _id: "$userId",
-            total: { 
-              $sum: { 
-                $cond: [{ $ne: ["$status", "rejected"] }, 1, 0] 
-              } 
+            total: {
+              $sum: {
+                $cond: [{ $ne: ["$status", "rejected"] }, 1, 0]
+              }
             },
             posted: { $sum: { $cond: [{ $eq: ["$status", "posted"] }, 1, 0] } },
             approved: { $sum: { $cond: [{ $eq: ["$status", "approved"] }, 1, 0] } },
             rejected: { $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] } },
             pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
             scheduled: { $sum: { $cond: [{ $eq: ["$status", "scheduled"] }, 1, 0] } },
-            videos: { 
-              $sum: { 
+            videos: {
+              $sum: {
                 $cond: [
-                  { 
+                  {
                     $and: [
                       { $ne: ["$status", "rejected"] },
-                      { 
+                      {
                         $or: [
                           { $eq: ["$mediaType", "video"] },
                           { $gt: [{ $strLenCP: { $ifNull: ["$videoOutput", ""] } }, 0] },
-                          { 
-                            $regexMatch: { 
-                              input: { $ifNull: ["$aiOutput", ""] }, 
+                          {
+                            $regexMatch: {
+                              input: { $ifNull: ["$aiOutput", ""] },
                               regex: "\\.(mp4|webm|mov)$",
-                              options: "i" 
-                            } 
+                              options: "i"
+                            }
                           }
                         ]
                       }
                     ]
-                  }, 
-                  1, 
+                  },
+                  1,
                   0
-                ] 
-              } 
+                ]
+              }
             },
           },
         },
@@ -264,6 +264,7 @@ export async function PUT(req) {
       videoPrompt,
       facebookPostId,
       facebookPageAccessToken,
+      approvedMediaType,   // ✅ NEW
       error: postError,
     } = await req.json();
 
@@ -275,7 +276,8 @@ export async function PUT(req) {
       hasRefreshToken: !!refreshToken,
       whenPosted,
       aiOutput,
-      scheduledDateSource
+      scheduledDateSource,
+      approvedMediaType,   // ✅ NEW
     });
 
     if (!id || !status || !userId) {
@@ -386,20 +388,24 @@ export async function PUT(req) {
       updateData.error = postError;
     }
 
-    
+    // ✅ NEW: approvedMediaType — image, video, ya both (default)
+    // Agar send nahi kiya to updateData mein set nahi hoga → schema default "both" apply hoga
+    if (
+      typeof approvedMediaType === "string" &&
+      ["image", "video", "both"].includes(approvedMediaType)
+    ) {
+      updateData.approvedMediaType = approvedMediaType;
+    }
+
     if (whenPosted !== undefined && whenPosted !== null) {
       // Handle partial updates for whenPosted object (e.g. { facebook: "..." })
       if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {
-        // First, ensure whenPosted is initialized as an object if it's null
-        // Get the current post to check if whenPosted is null
         const currentPost = await Post.findOne({ _id: id, userId });
 
         if (currentPost && (currentPost.whenPosted === null || currentPost.whenPosted === undefined)) {
-          // Initialize whenPosted as an empty object first
           updateData.whenPosted = {};
         }
 
-        // Now set the nested properties
         for (const key in whenPosted) {
           updateData[`whenPosted.${key}`] = whenPosted[key];
         }

@@ -108,15 +108,15 @@ export default function HeroSection() {
           </div>
 
           {/* ── Right Image ── */}
-          <div className="relative w-full flex items-center justify-center mt-8 lg:mt-0">
+          <div className="relative w-full flex items-center justify-center mt-8 lg:mt-0 overflow-hidden">
 
             {/* Image Container with controlled height */}
             <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[480px]">
               <Image
-                src="/images/hero5.png"
+                src="/images/hero8.jpeg"
                 alt="Limbu AI Dashboard UI"
                 fill
-                className="object-contain mix-blend-multiply"
+                className="object-contain mix-blend-multiply rounded-xl"
                 priority
               />
             </div>

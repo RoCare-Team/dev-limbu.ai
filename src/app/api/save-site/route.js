@@ -31,6 +31,13 @@ export async function POST(req) {
       );
     }
 
+    if (!business?.phoneNumbers?.primaryPhone && !business?.primaryPhone) {
+      return NextResponse.json(
+        { error: "A primary phone number is required in your Google Business Profile to publish a website." },
+        { status: 400 }
+      );
+    }
+
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required to publish a website." },

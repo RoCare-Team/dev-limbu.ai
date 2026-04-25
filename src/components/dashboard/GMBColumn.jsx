@@ -16,6 +16,7 @@ const GMBColumn = React.memo(({
   handleListingData,
   handleViewPerformanceInsights,
 }) => {
+  console.log("Rendering GMBColumn",listings);
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-black/5 flex flex-col overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1" style={{ height: "380px" }}>
       {/* Header */}

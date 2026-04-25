@@ -144,7 +144,9 @@ export default async function SitePage({ params }) {
     );
   }
 
-  const business = siteData.business || {};
+    const business = siteData.business || {};
+
+  console.log("business in page.jsx in slug", business);
   const aiContent = siteData.aiContent || {};
 
   // ── Images: prefer Google Business photos, fallback to saved mediaImages ──
@@ -245,7 +247,7 @@ export default async function SitePage({ params }) {
               className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white px-10 py-5 rounded-full font-bold text-xl transition-all transform hover:scale-105 shadow-2xl"
             >
               <Phone className="w-6 h-6" />
-              {aiContent.hero?.ctaPrimary || "Call Now"}
+              {aiContent.hero?.ctaPrimary || "Call Now"} - {business.phoneNumbers?.primaryPhone}
             </a>
             <a
               href={getWhatsAppLink(business.phoneNumbers?.primaryPhone)}
@@ -727,7 +729,7 @@ export default async function SitePage({ params }) {
                 className="inline-flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-2xl"
               >
                 <Phone className="w-5 h-5" />
-                Call Now
+                Call Now - {business.phoneNumbers.primaryPhone}
               </a>
               <a
                 href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}

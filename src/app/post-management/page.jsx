@@ -16,7 +16,7 @@ import {
 } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
-import { getCloudinarySignatureAction } from "@/app/actions/uploadCloudinary";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
   CheckCircle,
@@ -322,20 +322,15 @@ export default function PostManagementPage() {
     if (!userId) return;
     try {
       updateUiState({ isGenerating: true });
-      let imageUrl = image;
-      if (typeof image === "string" && image.startsWith("data:")) {
-        const sigData = await getCloudinarySignatureAction();
-        const formData = new FormData();
-        formData.append("file", image);
-        formData.append("api_key", sigData.apiKey);
-        formData.append("timestamp", sigData.timestamp);
-        formData.append("signature", sigData.signature);
-        formData.append("folder", sigData.folder);
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-        const data = await res.json();
-        imageUrl = data.secure_url;
-      }
-      const saved = await savePostAction({ userId, aiOutput: imageUrl, description, status: "pending", promat: "Manual Upload" });
+
+      // Upload File to S3
+      if (!(image instanceof File)) throw new Error("Invalid image file");
+      const formData = new FormData();
+      formData.append("file", image);
+      const s3Result = await uploadToS3Action(formData);
+      if (!s3Result.success) throw new Error(s3Result.error || "S3 upload failed");
+
+      const saved = await savePostAction({ userId, aiOutput: s3Result.url, description, status: "pending", promat: "Manual Upload" });
       if (saved.success) {
         setPosts((prev) => [saved.data, ...prev]);
         setPreviewData(saved.data);
@@ -882,7 +877,7 @@ export default function PostManagementPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
           <div className="lg:col-span-7">
-            <PostInput prompt={prompt} setPrompt={setPrompt} onGenerate={handleGenerateClick} loading={uiState.isGenerating} logo={logo} setLogo={setLogo} assets={userAssets} setUserAssets={setUserAssets} fetchUserAssets={fetchUserAssets} assetId={assetId} showToast={showToast} selectedAssets={selectedAssets} setSelectedAssets={setSelectedAssets} bussinessTitle={bussinessTitle} availableLocations={availableLocations} keywordError={keywordError} />
+            <PostInput prompt={prompt} setPrompt={setPrompt} onGenerate={handleGenerateClick} onManualPost={handleManualPost} loading={uiState.isGenerating} logo={logo} setLogo={setLogo} assets={userAssets} setUserAssets={setUserAssets} fetchUserAssets={fetchUserAssets} assetId={assetId} showToast={showToast} selectedAssets={selectedAssets} setSelectedAssets={setSelectedAssets} bussinessTitle={bussinessTitle} availableLocations={availableLocations} keywordError={keywordError} />
             <button type="button" onClick={() => updateUiState({ imageToVideoOpen: true })} className="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 py-3 font-bold text-amber-900 shadow-sm"><Video className="w-5 h-5" /> Image to Video</button>
           </div>
           <div className="lg:col-span-5 sticky top-16 z-10 max-h-[75vh] overflow-y-auto" ref={previewRef}>

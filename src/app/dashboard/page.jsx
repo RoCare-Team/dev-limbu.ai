@@ -31,6 +31,7 @@ import { useGMB } from "@/hooks/useGMB";
 import { useFacebook } from "@/hooks/useFacebook";
 import { useInstagram } from "@/hooks/useInstagram";
 import { getLocalStorage, setLocalStorage } from "@/utils/storage";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 // --- API Helpers (Kept here for component specific fetch) ---
 export async function fetchLocationInsights(
@@ -466,7 +467,8 @@ export default function DashboardPage() {
           handleDisconnectInstagram={handleDisconnectInstagram}
           handleMetaLogout={() => handleMetaLogout("instagram")}
         />
-        <SupportModal showToast={showToast} />
+        {/* <SupportModal showToast={showToast} /> */}
+        <WhatsAppButton />
       </main>
       <style jsx>{`
         @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }

@@ -9,6 +9,7 @@ import GBPAuditCard from "@/components/gmb-health/GBPAuditCard";
 import SupportModal from "@/components/SupportModal";
 import AuditSelector from "@/components/gmb-health/AuditSelector";
 import LoadingScanner from "@/components/gmb-health/LoadingScanner";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function AuditPage() {
   const {
@@ -117,7 +118,8 @@ export default function AuditPage() {
         )}
       </div>
 
-      <SupportModal showToast={handleShowToast} />
+      {/* <SupportModal showToast={handleShowToast} /> */}
+        <WhatsAppButton />
 
       <style jsx>{`
         @keyframes scan-vertical {

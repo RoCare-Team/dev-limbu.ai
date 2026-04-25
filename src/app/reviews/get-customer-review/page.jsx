@@ -14,6 +14,7 @@ import { useCustomerReviews } from "@/hooks/useCustomerReviews";
 import ReviewStats from "@/components/reviews/ReviewStats";
 import ReviewCard from "@/components/reviews/ReviewCard";
 import EmptyReviews from "@/components/reviews/EmptyReviews";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function ReviewsPage() {
   const {
@@ -130,7 +131,8 @@ export default function ReviewsPage() {
         )}
       </div>
 
-      <SupportModal />
+      {/* <SupportModal /> */}
+      <WhatsAppButton/>
     </div>
   );
 }

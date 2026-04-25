@@ -16,6 +16,7 @@ import { toast, Toaster } from "react-hot-toast";
 import SupportModal from "@/components/SupportModal";
 import ReviewCard from "@/components/review-management/ReviewCard";
 import { useReviews } from "@/hooks/useReviews";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 const TOAST_POSITION = "top-center";
 const REVIEWS_PER_PAGE = 5;
@@ -180,7 +181,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <SupportModal showToast={showToast} />
+      {/* <SupportModal showToast={showToast} /> */}
+      <WhatsAppButton />
     </div>
   );
 }

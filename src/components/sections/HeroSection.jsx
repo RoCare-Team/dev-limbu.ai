@@ -22,7 +22,7 @@ export default function HeroSection() {
     <section className="relative w-full min-h-[calc(100vh-80px)] flex flex-col bg-white overflow-hidden text-slate-900 pt-20 lg:pt-28">
 
       {/* ── Webinar CTA Badge (Fixed Absolute Position) ── */}
-      <div className="absolute top-24 right-4 md:right-10 lg:right-16 z-30">
+      <div className="absolute top-22 md:top-24 right-2 md:right-10 lg:right-16 z-30 scale-90 sm:scale-100 origin-top-right">
         <Link
           href="/webinar-demo"
           className="flex items-center gap-2 px-3 py-2 rounded-xl group bg-white border border-slate-200 shadow-md hover:shadow-lg transition-all"
@@ -44,10 +44,10 @@ export default function HeroSection() {
 
       {/* ── Main Hero Body (Two Columns) ── */}
       <div className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex flex-col justify-center pb-12">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-4 items-center w-full">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-4 items-center w-full mt-12 md:mt-0">
 
           {/* ── Left Content ── */}
-          <div className="flex flex-col justify-center max-w-2xl mx-auto lg:mx-0 text-center lg:text-left pt-12 lg:pt-0">
+          <div className="flex flex-col justify-center max-w-2xl mx-auto lg:mx-0 text-center lg:text-left pt-6 lg:pt-0">
             {/* Rating Badge */}
             <div className="mb-6 flex justify-center lg:justify-start">
               <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-yellow-50 border border-yellow-200 shadow-sm">
@@ -91,7 +91,7 @@ export default function HeroSection() {
                   </Link>
                 ) : (
                   <Link href="/login" className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-[#eab308] text-slate-900 font-bold text-sm hover:bg-[#ca8a04] transition-all shadow-[0_4px_14px_0_rgba(234,179,8,0.39)]">
-                    Start Today Get 500 Coin
+                    Start Today Get 500 Coins
                   </Link>
                 )}
                 <button

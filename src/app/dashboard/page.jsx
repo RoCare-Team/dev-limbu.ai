@@ -224,7 +224,7 @@ export default function DashboardPage() {
     customStartDate = null,
     customEndDate = null,
   ) => {
-    const locationId = listing.name.split("/")[1];
+    const locationId = listing?.name?.split("/")[1];
 
     // Determine dates using parameters or current state
     const startDate = customStartDate || performanceState.dateRange.startDate;
@@ -294,7 +294,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (activeListings.length > 0) {
       const locationDetails = activeListings.map((item) => {
-        const locationId = item.name.split("/")[1];
+        const locationId = item?.name?.split("/")[1];
         return {
           locationId,
           accountId: item.accountId || "",

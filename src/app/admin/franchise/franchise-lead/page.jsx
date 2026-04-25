@@ -1348,7 +1348,7 @@ if (!executiveMobile && typeof window !== "undefined") {
   const adminMobileMap = {
     omprakash: "9355105058",
     karan: "9311203803",
-    Nagendra: "9311203803",
+    nagendra: "9311203803",
   };
 
   const matchedAdmin = Object.keys(adminMobileMap).find(

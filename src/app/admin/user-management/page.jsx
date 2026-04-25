@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
 import { useRef } from "react";
-
+import { Fragment } from "react";
 /* user-management */
 import {
   Search,
@@ -40,6 +40,7 @@ import {
   Bell,
   Upload,
   Send,
+  
 } from "lucide-react";
 import {
   USER_SOURCE_OPTIONS,
@@ -114,6 +115,15 @@ export default function UserManagement() {
   const [utrNumber, setUtrNumber] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planExpiryDate, setPlanExpiryDate] = useState("");
+
+  useEffect(() => {
+  if (planStartDate) {
+    const date = new Date(planStartDate);
+    date.setMonth(date.getMonth() + 1);
+
+    setPlanExpiryDate(date.toISOString().split("T")[0]);
+  }
+}, [planStartDate]);
   const [planScreenshot, setPlanScreenshot] = useState(null);
   const [chatStats, setChatStats] = useState({
     total: 0,
@@ -177,6 +187,9 @@ export default function UserManagement() {
     byAgent: [],
     leads: [],
   });
+
+  
+
   const [followUpFilter, setFollowUpFilter] = useState("all");
   const [followUpLeads, setFollowUpLeads] = useState([]);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
@@ -1204,6 +1217,8 @@ export default function UserManagement() {
         }),
       });
 
+
+      
       const data = await res.json();
 
       if (data.success) {
@@ -1367,6 +1382,11 @@ export default function UserManagement() {
   };
 
  const confirmPlanChange = async () => {
+    const packageStartDate = planStartDate || "";
+  const packageExpiryDate = planExpiryDate || "";
+
+  console.log("Start:", packageStartDate);
+  console.log("Expiry:", packageExpiryDate);
     if (!selectedUser || !selectedPlan) return;
 
     // If amount is entered, screenshot is mandatory
@@ -1395,19 +1415,23 @@ export default function UserManagement() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            leadId: selectedUser.userId,
-            leadName: selectedUser.fullName,
-            amount: parseFloat(planAmount),
-            paymentScreenshot: screenshotUrl,
-            email: localStorage.getItem("email"),
-            plan: selectedPlan,
-            notes: `Plan upgrade to ${selectedPlan}`, // auto
-            planRemarks: planRemarks,
-            utrNumber: utrNumber,
-            type: selectedPlan.toLowerCase().includes("seo")
-              ? "selectedPlan"
-              : "user_onboard",
-          }),
+  leadId: selectedUser.userId,
+  leadName: selectedUser.fullName,
+  amount: parseFloat(planAmount),
+  paymentScreenshot: screenshotUrl,
+  email: localStorage.getItem("email"),
+  plan: selectedPlan,   // ✅ comma जरूरी
+
+  packageStartDate: planStartDate,   // ✅
+  packageExpiryDate: planExpiryDate, // ✅
+
+  notes: `Plan upgrade to ${selectedPlan}`,
+  planRemarks: planRemarks,
+  utrNumber: utrNumber,
+  type: selectedPlan.toLowerCase().includes("seo")
+    ? "selectedPlan"
+    : "user_onboard",
+}),
         });
 
         const revenueData = await revenueRes.json();
@@ -1419,6 +1443,8 @@ export default function UserManagement() {
         screenshotUrl = await uploadToCloudinary(planScreenshot);
       }
 
+      const packageStartDate = planStartDate;
+const packageExpiryDate = planExpiryDate;
       // 2. Update user plan details
       const userUpdateRes = await fetch(`/api/users`, {
         method: "PUT",
@@ -1882,7 +1908,7 @@ export default function UserManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
+        
       const data = await res.json();
 
       if (data.success) {
@@ -2187,6 +2213,23 @@ export default function UserManagement() {
       setCurrentPage(newPage);
     }
   };
+
+  const groupByDate = (data) => {
+  return data.reduce((acc, item) => {
+    const date = new Date(item.createdAt).toLocaleDateString("en-IN");
+
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+
+    acc[date].push(item);
+    return acc;
+  }, {});
+};
+
+const groupedUsers = groupByDate(users); // 🔥 यही use होगा
+
+
 
   if (loading) {
     return (
@@ -3027,20 +3070,37 @@ export default function UserManagement() {
                     </tr>
                   ) : (
                     <>
-                      {filteredUsers.map((user, rowIndex) => {
-                        const postData = userPostsData[user.userId] || {
-                          total: 0,
-                          posted: 0,
-                          rejected: 0,
-                        };
-                        return (
-                          <tr
-                            key={user._id}
-                            className={`cursor-pointer transition-colors ${
-                              rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                            } hover:bg-indigo-50/50`}
-                            onClick={() => handleViewPosts(user)}
-                          >
+          {Object.entries(groupedUsers).map(([date, users]) => {
+  return (
+    <Fragment key={date}>
+
+      {/* 🔥 DATE HEADING */}
+      <tr>
+        <td
+          colSpan={role === "superAdmin" ? 13 : 12}
+          className="bg-gray-100 font-bold px-6 py-3 text-gray-700"
+        >
+          {date} (Total: {users.length})
+        </td>
+      </tr>
+
+      {/* 🔥 USERS */}
+      {users.map((user, rowIndex) => {
+        const postData = userPostsData[user.userId] || {
+          total: 0,
+          posted: 0,
+          rejected: 0,
+        };
+
+        return (
+          <tr
+            key={user._id || user.userId}
+            className={`cursor-pointer ${
+              rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+            }`}
+          >
+            {/* 👉 तेरा पूरा existing row code यहाँ same रहेगा */}
+            {/* 👉 यहाँ तेरा पूरा existing code रहेगा */}
                             {role === "superAdmin" && (
                               <td
                                 className="px-3 py-5 w-14 align-middle"
@@ -3627,31 +3687,26 @@ export default function UserManagement() {
                                 </button>
                               </div>
                             </td>
-                          </tr>
-                        );
-                      })}
-                      {!loadingFollowUpTable && filteredUsers.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={role === "superAdmin" ? 13 : 12}
-                            className="text-center py-12"
-                          >
-                            <div className="text-gray-400">
-                              <Search
-                                size={48}
-                                className="mx-auto mb-3 opacity-50"
-                              />
-                              <p className="text-lg font-medium">
-                                No users found
-                              </p>
-                              <p className="text-sm">
-                                Try adjusting your search or filters
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
+          </tr>
+              
+      );
+      })}
+
+    </Fragment>
+  );
+})}
+
+  {!loadingFollowUpTable && filteredUsers.length === 0 && (
+    <tr>
+      <td
+        colSpan={role === "superAdmin" ? 13 : 12}
+        className="text-center py-12"
+      >
+        No users found
+      </td>
+    </tr>
+  )}
+</>
                   )}
                 </tbody>
               </table>

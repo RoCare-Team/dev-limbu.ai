@@ -6,7 +6,7 @@ import { TrendingUp, Star, Quote } from "lucide-react";
 const caseStudies = [
   {
     id: 1,
-    clientName: "Manoj Gupta",
+    clientName: "Manoj Sharma",
     clientRole: "Founder, Ro-Care India",
     clientImage:
       "https://img.freepik.coim/free-photo/portrait-successful-young-businessman-suit-glasses-leaning-railing-modern-office-building_1262-15424.jpg",
@@ -21,7 +21,7 @@ const caseStudies = [
   },
   {
     id: 2,
-    clientName: "Priya Sharma",
+    clientName: "Amreesh",
     clientRole: "Owner, Banjara Salon",
     clientImage:
       "https://img.freepik.com/free-photo/beautiful-woman-gets-haircut-hairdresser_23-2148835154.jpg",
@@ -36,7 +36,7 @@ const caseStudies = [
   },
   {
     id: 3,
-    clientName: "Rahul Verma",
+    clientName: "Anil Kumar",
     clientRole: "Director, Dynamic Drapry",
     clientImage:
       "https://img.freepik.com/free-photo/young-indian-businessman-office_23-2149408985.jpg",

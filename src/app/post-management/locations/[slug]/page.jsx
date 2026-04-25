@@ -194,7 +194,7 @@ const PostInput = ({ prompt, setPrompt, logo, setLogo, onGenerate, loading }) =>
             <div className="relative w-full h-32 sm:h-36 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border-2 border-blue-300 p-3 sm:p-4 shadow-md">
               <img
                 src={URL.createObjectURL(logo)}
-                alt="Logo Preview"
+                alt="Logo Preview ksjf"
                 className="w-full h-full object-contain rounded-lg"
               />
               <button
@@ -1235,7 +1235,7 @@ export default function PostManagement() {
         <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 mt-16 sm:mt-8 shadow-2xl border-4 border-white">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 sm:mb-3 flex items-center gap-2 sm:gap-3">
             <Sparkles className="w-8 h-8 sm:w-10 sm:h-10" />
-            Post Management
+            Post Management   
           </h1>
           <p className="text-blue-100 text-sm sm:text-base md:text-lg font-medium">
             Create stunning GMB posts with AI in seconds ✨

@@ -135,11 +135,12 @@ const ScheduleModal = React.memo(({
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 sm:p-6 font-sans">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[80vh] border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-start justify-center p-4 sm:p-6 font-sans overflow-y-auto">
+  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh] overflow-y-auto border border-slate-200 ">
         
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
               <Calendar className="w-6 h-6 text-[#EAB308]" />
@@ -155,10 +156,10 @@ const ScheduleModal = React.memo(({
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden bg-slate-50/50">
+        <div className="flex flex-col md:flex-row overflow-visible bg-slate-50/50">
           
           {/* Left Panel: Date & Time */}
-          <div className="w-full md:w-2/5 p-6 border-r border-slate-100 bg-white overflow-y-auto custom-scrollbar">
+          <div className="w-full md:w-2/5 p-6 border-r border-slate-100 bg-white  overflow-visible">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Timing</h3>
             
             <div className="space-y-6">
@@ -201,7 +202,7 @@ const ScheduleModal = React.memo(({
                   </button>
 
                   {showTimeDropdown && (
-                    <div className="absolute z-50 w-full top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
+                    <div className="absolute z-50 w-full top-full mt-2 bg-white border rounded-xl shadow-2xl max-h-60 overflow-y-auto touch-auto">
                       <div className="p-1.5">
                         {timeSlots
                           .filter((s) => !isSlotDisabled(s.value))
@@ -288,7 +289,7 @@ const ScheduleModal = React.memo(({
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+            <div className="flex-1 overflow-visible p-4 sm:p-6 custom-scrollbar">
               
               {/* GMB Content */}
               {activeTab === 'gmb' && (
@@ -317,7 +318,7 @@ const ScheduleModal = React.memo(({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start sm:items-center gap-2 flex-col sm:flex-row">
-                            <p className={`text-base font-bold truncate ${!isVerified ? 'text-slate-500' : 'text-slate-900'}`}>{loc.name}</p>
+                            <p className={`text-base font-bold truncate ${!isVerified ? 'text-slate-500' : 'text-slate-900'}`}> {loc.title || loc.locationName || loc.storeName || loc.name}</p>
                             {!isVerified && <span className="text-[10px] bg-red-50 border border-red-100 text-red-600 px-2 py-1 rounded-md font-bold uppercase tracking-widest shrink-0">Unverified</span>}
                           </div>
                           <p className="text-sm text-slate-500 truncate mt-0.5 font-medium">{loc.address}</p>

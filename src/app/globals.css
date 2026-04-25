@@ -316,7 +316,19 @@ button {
   background: linear-gradient(180deg, #3c3b3d, #3d3c3d);
 }
 
+.custom-scrollbar {
+  overscroll-behavior: contain;
+}
 
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
 
-  
-
+.animate-slide {
+  animation: slide 1.2s linear infinite !important;
+}

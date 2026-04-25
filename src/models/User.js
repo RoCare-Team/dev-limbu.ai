@@ -23,10 +23,11 @@ const userSchema = new mongoose.Schema(
     freeUsedCount: { type: Number },
     GstNumber: { type: String },
     Remarks: { type: String },
-    paidService: { type: String },
+    paidService: { type: String},
     paidPackage: { type: String },
     planDuration: { type: String },
-
+    amount: { type: Number },
+    planApprovalStatus: { type: String, default: "pending" },
     // Package start and expiry dates
     packageStartDate: { type: Date },
     packageExpiryDate: { type: Date },

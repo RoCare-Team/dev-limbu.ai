@@ -62,6 +62,7 @@ import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 
 
@@ -980,7 +981,8 @@ export default function PostManagementPage() {
           </div>
         )}
       </div>
-      <SupportModal showToast={showToast} />
+      {/* <SupportModal showToast={showToast} /> */}
+      <WhatsAppButton />
     </div>
   );
 }

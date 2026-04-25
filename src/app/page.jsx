@@ -8,6 +8,7 @@ import HeroSection from "../components/sections/HeroSection";
 
 // ── Icons — always eager (tiny, no split needed) ──
 import { Clock, MessageSquare, PenTool, Star } from "lucide-react";
+import WhatsAppButton from "@/components/WhatsAppButton";
 // import SEOSection from "@/components/sections/SEOSection";
 
 // ── Lazily loaded sections ──
@@ -779,7 +780,7 @@ export default function LimbuAILanding() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <ScrollToTop />
+        <WhatsAppButton />
       </Suspense>
 
       <Suspense fallback={null}>

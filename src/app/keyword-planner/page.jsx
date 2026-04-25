@@ -17,6 +17,7 @@ import SupportModal from "@/components/SupportModal";
 import SavedKeywordRow from "@/components/keywords-planner/SavedKeywordRow";
 import SearchInputBox from "@/components/keywords-planner/SearchInputBox";
 import VirtualizedRow from "@/components/keywords-planner/VirtualizedRow";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function KeywordPage() {
   const {
@@ -221,7 +222,8 @@ export default function KeywordPage() {
         </div>
       </div>
 
-      <SupportModal showToast={handleShowToast} />
+      // <SupportModal showToast={handleShowToast} />
+      <WhatsAppButton />
     </div>
   );
 }

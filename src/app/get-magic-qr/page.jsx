@@ -11,6 +11,7 @@ import Select from "react-select";
 import QRPreviewCard from "@/components/magic-qr/QRPreviewCard";
 import QRLogicPanel from "@/components/magic-qr/QRLogicPanel";
 import LogicDemoModal from "@/components/magic-qr/LogicDemoModal";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function BusinessQR() {
   const {
@@ -229,7 +230,8 @@ export default function BusinessQR() {
 
       {showDemo && <LogicDemoModal setShowDemo={setShowDemo} />}
 
-      <SupportModal showToast={showToast} />
+      {/* <SupportModal showToast={showToast} /> */}
+      <WhatsAppButton />
     </div>
   );
 }

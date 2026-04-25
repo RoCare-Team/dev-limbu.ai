@@ -11,6 +11,7 @@ import DesignIdentityPanel from "@/components/assets-management/DesignIdentityPa
 import DimensionSelector from "@/components/assets-management/DimensionSelector";
 import AssetCard from "@/components/assets-management/AssetCard";
 import ProductRepository from "@/components/assets-management/ProductRepository";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 const IMAGE_FIELDS = [
   { key: "characterImage", label: "Character", icon: <User className="w-6 h-6 text-black" /> },
@@ -139,7 +140,8 @@ export default function AssetsManager() {
         </div>
       </div>
 
-      <SupportModal showToast={showToast} />
+      {/* <SupportModal showToast={showToast} /> */}
+      <WhatsAppButton />
     </div>
   );
 }

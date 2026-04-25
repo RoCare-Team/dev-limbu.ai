@@ -440,7 +440,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <main className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-0 bg-slate-50/30" style={{ height: "calc(100vh - 220px)" }}>
+      <main className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-0 bg-slate-50/30">
         <GMBColumn
           summary={summary}
           handleAddProject={handleAddProject}

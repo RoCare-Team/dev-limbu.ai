@@ -17,9 +17,9 @@ const GMBColumn = React.memo(({
   handleViewPerformanceInsights,
 }) => {
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-black/5 flex flex-col h-full overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1">
+    <div className="bg-white rounded-3xl shadow-sm border border-black/5 flex flex-col overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1" style={{ height: "380px" }}>
       {/* Header */}
-      <div className="p-6 border-b border-black/5 bg-slate-50/50">
+      <div className="p-6 border-b border-black/5 bg-slate-50/50 flex-shrink-0">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-black rounded-lg">
@@ -79,8 +79,7 @@ const GMBColumn = React.memo(({
 
       {/* Scrollable Content */}
       <div
-        className="overflow-y-auto p-6 space-y-4 custom-scroll"
-        style={{ height: "calc(100vh - 380px)" }}
+        className="overflow-y-auto p-6 space-y-4 custom-scroll flex-1"
       >
         {loading && (
           <div className="flex flex-col items-center justify-center py-20">

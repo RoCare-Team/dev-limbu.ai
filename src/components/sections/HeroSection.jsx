@@ -91,7 +91,7 @@ export default function HeroSection() {
                   </Link>
                 ) : (
                   <Link href="/login" className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-[#eab308] text-slate-900 font-bold text-sm hover:bg-[#ca8a04] transition-all shadow-[0_4px_14px_0_rgba(234,179,8,0.39)]">
-                    Start Today Get 500 Coin
+                    Start Today Get 500 Coins
                   </Link>
                 )}
                 <button

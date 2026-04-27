@@ -138,6 +138,29 @@ const PostCard = React.memo(
 
     const isLoading = isConvertingThisPost;
 
+    // Countdown Timer State
+    const [timeLeft, setTimeLeft] = useState(120); // 2 minutes countdown
+    
+    useEffect(() => {
+      let interval;
+      if (isConvertingThisPost) {
+        setTimeLeft(120); // Reset timer
+        interval = setInterval(() => {
+          setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+      } else {
+        clearInterval(interval);
+      }
+      return () => clearInterval(interval);
+    }, [isConvertingThisPost]);
+
+    // Format time left (e.g., 1:59)
+    const formatTime = (seconds) => {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}:${s < 10 ? "0" : ""}${s}`;
+    };
+
     const handleSaveDescription = useCallback(() => {
       const field =
         activeDesc === "gmb"
@@ -522,8 +545,8 @@ const PostCard = React.memo(
                 <button
                   disabled={isConvertingThisPost}
                   onClick={() => {
-  onConvertToVideo(post);
-}}
+                    onConvertToVideo(post);
+                  }}
                   className="w-full flex items-center justify-between p-3.5 bg-slate-50 border border-black/[0.03] rounded-2xl hover:border-[#EAB308] hover:bg-white transition-all group/v"
                 >
                   <div className="flex items-center gap-3">
@@ -536,8 +559,7 @@ const PostCard = React.memo(
                     </div>
                     <div className="text-left">
                       <p className="text-[9px] font-black uppercase tracking-widest text-black/80">
-                        {" "}
-                        Convert into video
+                        {isConvertingThisPost ? "Generating Video..." : "Convert into video"}
                       </p>
                       <p className="text-[8px] font-bold text-black/30 uppercase tracking-tighter">
                         AI Video Motion • {videoGenerationCoins} Coins
@@ -577,13 +599,19 @@ const PostCard = React.memo(
               </p>
 
               {/* SLIDING BAR */}
-              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative">
+              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">
                 <div
                   className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full"
                   style={{
                     animation: "slide 1.2s linear infinite",
                   }}
                 ></div>
+              </div>
+
+              {/* COUNTDOWN TIMER */}
+              <div className="flex flex-col items-center justify-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estimated Time</span>
+                <span className="text-2xl font-black text-[#EAB308] font-mono tracking-wider">{formatTime(timeLeft)}</span>
               </div>
 
               {/* KEYFRAME */}

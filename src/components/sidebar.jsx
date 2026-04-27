@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -15,7 +15,8 @@ import {
   User,
   LogOut,
   Wand,
-  BarChart3
+  BarChart3,
+  X
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 
@@ -81,6 +82,14 @@ export default function Sidebar({ children }) {
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50">
 
+      {/* Mobile Backdrop Overlay */}
+      {isMobile && isOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[45] animate-in fade-in duration-300"
+          onClick={toggleSidebar}
+        />
+      )}
+
       {/* ── SIDEBAR ── */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out bg-white border-r border-slate-100 flex flex-col h-full ${isMobile && !isOpen ? "-translate-x-full" : "translate-x-0"
@@ -89,7 +98,7 @@ export default function Sidebar({ children }) {
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center px-6 shrink-0 border-b border-slate-50">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 flex-1">
             <Image src={logoDash} width={28} height={28} alt="Logo" priority />
             {isOpen && (
               <span className="font-bold text-lg tracking-tight text-slate-900 uppercase font-sans">
@@ -97,6 +106,16 @@ export default function Sidebar({ children }) {
               </span>
             )}
           </Link>
+
+          {/* Close button for mobile */}
+          {isMobile && isOpen && (
+            <button
+              onClick={toggleSidebar}
+              className="p-2 -mr-2 text-slate-400 hover:text-slate-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {/* Navigation Section */}

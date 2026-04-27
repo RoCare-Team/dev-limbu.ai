@@ -189,6 +189,8 @@ export default function LoginPage() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
         localStorage.setItem("fullName", data.user.fullName);
+        localStorage.setItem("email", data.user.email);
+        localStorage.setItem("userEmail", data.user.email);
         localStorage.setItem("mobileNumber", data.user.phone);
         msg("Login successful! Redirecting…", "success");
         setTimeout(() => router.push("/dashboard"), 800);

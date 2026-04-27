@@ -10,7 +10,6 @@ const GMBColumn = React.memo(({
   setFilterStatus,
   loading,
   listings,
-  accounts,
   getFilteredListings,
   getVerificationBadge,
   handleListingData,
@@ -90,10 +89,9 @@ const GMBColumn = React.memo(({
             </p>
           </div>
         )}
-        {!loading && (listings.length > 0 || accounts.length > 0) ? (
-          getFilteredListings(
-            listings.length > 0 ? listings : accounts[0].listings
-          ).map((listing, i) => (
+        {!loading && listings.length > 0 ? (
+          getFilteredListings(listings).map((listing, i) => (
+            
             <div
               key={i}
               className="group bg-white border border-black/5 rounded-2xl p-5 space-y-4 transition-all duration-500 hover:border-yellow-400/50 hover:shadow-xl hover:shadow-yellow-400/5"

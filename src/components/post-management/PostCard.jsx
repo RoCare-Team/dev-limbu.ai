@@ -17,6 +17,7 @@ import {
   Video,
   Image as ImageIconLucide,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import { postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
@@ -107,6 +108,33 @@ const PostCard = React.memo(
         String(convertingVideoPostId) === String(post._id)
       );
     }, [convertingVideoPostId, post._id]);
+
+    const lastPostedDate = useMemo(() => {
+      if (post.status !== "posted") return null;
+      let latest = null;
+
+      const checkDate = (dateStr) => {
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        if (!latest || d > latest) latest = d;
+      };
+
+      post.locations?.forEach((l) => {
+        if (l.isPosted) checkDate(l.postedAt);
+      });
+      post.fbPages?.forEach((p) => {
+        if (p.isPosted) checkDate(p.postedAt);
+      });
+      post.igPages?.forEach((i) => {
+        if (i.isPosted) checkDate(i.postedAt);
+      });
+
+      if (!latest && post.updatedAt) {
+        latest = new Date(post.updatedAt);
+      }
+
+      return latest;
+    }, [post]);
 
     const isLoading = isConvertingThisPost;
 
@@ -363,21 +391,34 @@ const PostCard = React.memo(
 
               {post.status === "posted" && (
                 <div className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {isPostedGmb && (
-                      <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-green-100">
-                        GMB Live
-                      </span>
-                    )}
-                    {isPostedFb && (
-                      <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">
-                        FB Live
-                      </span>
-                    )}
-                    {isPostedIg && (
-                      <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">
-                        IG Live
-                      </span>
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex flex-wrap gap-2">
+                      {isPostedGmb && (
+                        <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-green-100">
+                          GMB Live
+                        </span>
+                      )}
+                      {isPostedFb && (
+                        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">
+                          FB Live
+                        </span>
+                      )}
+                      {isPostedIg && (
+                        <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">
+                          IG Live
+                        </span>
+                      )}
+                    </div>
+                    {lastPostedDate && (
+                      <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                        <Clock size={10} className="text-slate-300" />
+                        {lastPostedDate.toLocaleString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     )}
                   </div>
                   <button
@@ -412,6 +453,13 @@ const PostCard = React.memo(
                       Repost IG
                     </button>
                   </div>
+                  <button
+                    onClick={() => onUpdateStatus(post)}
+                    className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm"
+                  >
+                    <Calendar size={14} className="text-[#EAB308]" /> Schedule
+                    Post
+                  </button>
                 </div>
               )}
 

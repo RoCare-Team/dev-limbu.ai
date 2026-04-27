@@ -1,5 +1,4 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
-import { TrendingUp, Users, ShieldCheck, BookOpen, CalendarCheck, MessageSquare, Star } from "lucide-react";
 
 export const metadata = {
   title: "AI Marketing Software for Education & Coaching | Limbu.ai",
@@ -11,17 +10,17 @@ export default function EducationMarketingPage() {
     {
       title: "Increase Enrollments",
       description: "Automatically collect and showcase 5-star reviews from successful students to attract new admissions effortlessly.",
-      icon: <Users className="w-6 h-6 text-lemon-hover" />
+      icon: "Users",
     },
     {
       title: "Automate Updates & Tips",
       description: "Keep your Google profile active with AI-generated study tips, batch announcements, and institute success stories.",
-      icon: <BookOpen className="w-6 h-6 text-lemon-hover" />
+      icon: "BookOpen",
     },
     {
       title: "Protect Your Reputation",
       description: "Our Review Shield privately captures negative feedback from parents or students before it goes public, protecting your institute.",
-      icon: <ShieldCheck className="w-6 h-6 text-lemon-hover" />
+      icon: "ShieldCheck",
     }
   ];
 
@@ -30,31 +29,31 @@ export default function EducationMarketingPage() {
       step: "01",
       title: "Connect Your Institute Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your ranking for terms like 'Coaching classes near me' and builds a custom strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Educational Content",
       description: "Stop stressing about what to post. Limbu AI automatically creates and schedules highly engaging posts about your courses, faculty, and study tips.",
-      icon: <BookOpen className="w-5 h-5" />,
+      icon: "BookOpen",
     },
     {
       step: "03",
       title: "Capture Student Reviews",
       description: "Students and parents scan your custom Magic QR code at the reception to leave a quick 5-star review after a great session or result.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts and sends professional, personalized replies to every review instantly, boosting your trust signals to Google.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Admissions Grow",
       description: "As your 5-star reviews and daily active posts compound, your institute climbs to the #1 spot on Google Maps, driving consistent local inquiries.",
-      icon: <CalendarCheck className="w-5 h-5" />,
+      icon: "CalendarCheck",
     },
   ];
 

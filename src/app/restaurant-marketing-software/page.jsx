@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Utensils, Star, Share2, TrendingUp, ShieldCheck, MessageSquare, Coffee, ChefHat } from "lucide-react";
 
 export const metadata = {
   title: "Restaurant Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function RestaurantMarketingPage() {
     {
       title: "Drive Foot Traffic",
       description: "Rank at the top of Google when hungry locals search for places to eat or drink nearby.",
-      icon: <Utensils className="w-6 h-6 text-lemon-hover" />
+      icon: "Utensils",
     },
     {
       title: "Filter Bad Reviews",
       description: "Unhappy with the food? Our shield catches bad reviews privately so you can offer a refund or apology directly.",
-      icon: <ShieldCheck className="w-6 h-6 text-lemon-hover" />
+      icon: "ShieldCheck",
     },
     {
       title: "Auto-Post Specials",
       description: "Let AI generate and publish posts about your daily specials, happy hours, and new menu items automatically.",
-      icon: <Share2 className="w-6 h-6 text-lemon-hover" />
+      icon: "Share2",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function RestaurantMarketingPage() {
       step: "01",
       title: "Connect Your Restaurant Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for high-volume terms like 'Restaurants near me' or 'Best pizza in town'.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Foodie Content",
       description: "Stop stressing about social media. Limbu AI automatically creates mouth-watering posts about your chef's specials, ambiance, and weekend events.",
-      icon: <ChefHat className="w-5 h-5" />,
+      icon: "ChefHat",
     },
     {
       step: "03",
       title: "Capture Table-Side Reviews",
       description: "Diners scan your custom Magic QR code placed on their table tent or receipt to leave a 5-star review while they are still enjoying their meal.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts professional, personalized replies to every food review instantly. It thanks 5-star diners and politely addresses 1-star complaints.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Fill Every Table",
       description: "As your 5-star reviews and daily active posts compound, your restaurant climbs to the #1 spot on Google Maps, driving consistent daily reservations and walk-ins.",
-      icon: <Coffee className="w-5 h-5" />,
+      icon: "Coffee",
     },
   ];
 

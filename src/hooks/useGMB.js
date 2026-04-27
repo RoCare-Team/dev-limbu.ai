@@ -287,13 +287,19 @@ export function useGMB(session, status, setUiState) {
   }, [fetchAdminListings]);
 
   useEffect(() => {
+    // Skip live Google API fetch when admin is impersonating a user
+    const isImpersonating = getLocalStorage("isImpersonating") === "true";
+    if (isImpersonating) return;
+
     if (session?.user?.email && status === "authenticated" && !initialFetchDone && !fetchInProgress.current) {
       fetchInitialData();
     }
   }, [session?.user?.email, status, initialFetchDone, fetchInitialData]);
 
   const activeListings = useMemo(() => {
-    // Prefer live Google API data; only fall back to saved listings (impersonation mode)
+    const isImpersonating = getLocalStorage("isImpersonating") === "true";
+    // In impersonation mode always show the user's saved listings, not the admin's live accounts
+    if (isImpersonating) return listings.length > 0 ? listings : [];
     if (accounts.length > 0) return accounts.flatMap((acc) => acc.listings);
     if (listings.length > 0) return listings;
     return [];

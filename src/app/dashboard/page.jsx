@@ -142,6 +142,12 @@ export default function DashboardPage() {
     },
   });
 
+  // When admin is impersonating, use the stored user name/email instead of NextAuth session
+  const isImpersonating = typeof window !== "undefined" && localStorage.getItem("isImpersonating") === "true";
+  const displayName = isImpersonating
+    ? (localStorage.getItem("userName") || localStorage.getItem("fullName") || session?.user?.name || "User")
+    : (session?.user?.name || "User");
+
   const userPlan = session?.user?.plan || "";
   const maxAccounts = userPlan === "" ? 1 : 0;
 
@@ -415,7 +421,7 @@ export default function DashboardPage() {
                 <span className="text-[10px] font-bold tracking-widest uppercase text-yellow-700">Live Dashboard</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tighter">
-                Welcome, <span className="text-yellow-500">{session?.user?.name?.split(" ")[0] || "User"}</span> 👋
+                Welcome, <span className="text-yellow-500">{displayName.split(" ")[0]}</span> 👋
               </h1>
             </div>
             <div className="hidden lg:flex items-center gap-3">

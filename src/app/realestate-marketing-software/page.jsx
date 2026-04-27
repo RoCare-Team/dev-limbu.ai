@@ -1,5 +1,4 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
-import { TrendingUp, Users, ShieldCheck, Home, CalendarCheck, MessageSquare, Star } from "lucide-react";
 
 export const metadata = {
   title: "AI Marketing Software for Real Estate Agents | Limbu.ai",
@@ -11,17 +10,17 @@ export default function RealEstateMarketingPage() {
     {
       title: "Attract More Property Buyers",
       description: "Automatically collect and showcase 5-star reviews from happy home buyers to build immense trust and attract new leads.",
-      icon: <Users className="w-6 h-6 text-lemon-hover" />
+      icon: "Users",
     },
     {
       title: "Automate Property Posts",
       description: "Keep your Google profile active with AI-generated property listings, market trends, and open house announcements.",
-      icon: <Home className="w-6 h-6 text-lemon-hover" />
+      icon: "Home",
     },
     {
       title: "Protect Your Agency Rating",
       description: "Our Review Shield privately captures negative feedback before it goes public, protecting your real estate agency's reputation.",
-      icon: <ShieldCheck className="w-6 h-6 text-lemon-hover" />
+      icon: "ShieldCheck",
     }
   ];
 
@@ -30,31 +29,31 @@ export default function RealEstateMarketingPage() {
       step: "01",
       title: "Connect Your Agency Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your current local ranking for terms like 'Real Estate Agent near me' and builds a custom strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Real Estate Content",
       description: "Stop stressing about what to post. Limbu AI automatically creates and schedules highly engaging posts about the local housing market and your services.",
-      icon: <Home className="w-5 h-5" />,
+      icon: "Home",
     },
     {
       step: "03",
       title: "Capture Client Reviews",
       description: "Clients scan your custom Magic QR code right after closing a deal to leave a quick 5-star review while their excitement is at its peak.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts and sends professional, personalized replies to every client review instantly, showing Google you are a highly engaged agent.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Your Leads Grow",
       description: "As your 5-star reviews and daily active posts compound, your agency climbs to the #1 spot on Google Maps, driving consistent high-intent property leads.",
-      icon: <CalendarCheck className="w-5 h-5" />,
+      icon: "CalendarCheck",
     },
   ];
 

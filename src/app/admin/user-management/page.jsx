@@ -1793,11 +1793,21 @@ const packageExpiryDate = planExpiryDate;
     const data = await res.json();
 
     if (data.token) {
+      const impersonatedName = data.user.fullName || data.user.name || "";
+      const impersonatedEmail = data.user.email || "";
+
       localStorage.setItem("userToken", data.token);
       localStorage.setItem("impersonatedUser", userId);
       localStorage.setItem("userId", data.user.userId);
-      localStorage.setItem("impersonatedEmail", data.user.email || "");
+      localStorage.setItem("impersonatedEmail", impersonatedEmail);
       localStorage.setItem("isImpersonating", "true");
+
+      // Update display keys so sidebar/profile shows the impersonated user's data
+      localStorage.setItem("userName", impersonatedName);
+      localStorage.setItem("fullName", impersonatedName);
+      localStorage.setItem("userEmail", impersonatedEmail);
+      localStorage.setItem("email", impersonatedEmail);
+
       window.location.href = "/dashboard";
     }
   };

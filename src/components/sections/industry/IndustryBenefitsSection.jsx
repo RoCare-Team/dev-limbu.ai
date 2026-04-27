@@ -1,5 +1,27 @@
 import React from "react";
-import { Sparkles, CheckCircle } from "lucide-react";
+import {
+  Sparkles, CheckCircle, Users, Dumbbell, ShieldCheck, Home, Stethoscope,
+  CalendarCheck, Utensils, Share2, Map, Camera, Plane, SearchCheck, Bug,
+  MessageCircle, MapPin, Hammer, Scissors, Wrench, ShieldAlert, Heart,
+  BookOpen, Store, MessageSquare,
+} from "lucide-react";
+
+const ICON_MAP = {
+  Sparkles, CheckCircle, Users, Dumbbell, ShieldCheck, Home, Stethoscope,
+  CalendarCheck, Utensils, Share2, Map, Camera, Plane, SearchCheck, Bug,
+  MessageCircle, MapPin, Hammer, Scissors, Wrench, ShieldAlert, Heart,
+  BookOpen, Store, MessageSquare,
+};
+
+function BenefitIcon({ icon }) {
+  const fallback = <CheckCircle className="text-slate-600 group-hover:text-lemon-hover w-5 h-5 transition-colors" />;
+  if (!icon) return fallback;
+  if (typeof icon === "string") {
+    const IconComponent = ICON_MAP[icon];
+    return IconComponent ? <IconComponent className="text-lemon-hover w-5 h-5" /> : fallback;
+  }
+  return icon;
+}
 
 export default function IndustryBenefitsSection({ industryName, benefitsList }) {
   return (
@@ -30,9 +52,7 @@ export default function IndustryBenefitsSection({ industryName, benefitsList }) 
 
               <div className="flex flex-col h-full relative z-10">
                 <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center mb-5 group-hover:bg-lemon-glow/10 transition-colors duration-300">
-                  {benefit.icon || (
-                    <CheckCircle className="text-slate-600 group-hover:text-lemon-hover w-5 h-5 transition-colors" />
-                  )}
+                  <BenefitIcon icon={benefit.icon} />
                 </div>
                 <h3 className="text-base font-bold text-slate-900 mb-2.5 tracking-tight">
                   {benefit.title}

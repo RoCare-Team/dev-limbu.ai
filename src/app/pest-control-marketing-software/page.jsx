@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Bug, SearchCheck, MessageCircle, TrendingUp, Star, MessageSquare, PhoneCall } from "lucide-react";
 
 export const metadata = {
   title: "Pest Control Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function PestControlMarketingPage() {
     {
       title: "Be Found First",
       description: "When someone has a pest problem, they search Google immediately. Rank #1 locally to win those urgent calls.",
-      icon: <SearchCheck className="w-6 h-6 text-lemon-hover" />
+      icon: "SearchCheck",
     },
     {
       title: "Showcase Your Expertise",
       description: "Auto-publish seasonal pest control tips and safety updates to build trust with local homeowners.",
-      icon: <Bug className="w-6 h-6 text-lemon-hover" />
+      icon: "Bug",
     },
     {
       title: "Collect Trust Signals",
       description: "Prompt satisfied customers to leave glowing 5-star reviews right after a successful treatment.",
-      icon: <MessageCircle className="w-6 h-6 text-lemon-hover" />
+      icon: "MessageCircle",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function PestControlMarketingPage() {
       step: "01",
       title: "Connect Your Business Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your current local ranking for urgent terms like 'Pest Control Near Me' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Seasonal Content",
       description: "Stop stressing about what to post. Limbu AI automatically creates and schedules highly engaging posts about seasonal threats like termites, mosquitoes, and rodents.",
-      icon: <Bug className="w-5 h-5" />,
+      icon: "Bug",
     },
     {
       step: "03",
       title: "Capture Post-Service Reviews",
       description: "Your technicians simply ask the homeowner to scan your custom Magic QR code on their phone or invoice to leave a quick 5-star review while they are relieved the pests are gone.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts and sends professional, personalized replies to every customer review instantly, showing potential clients that you care about your service quality.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Emergency Calls Explode",
       description: "As your 5-star reviews and weekly active posts compound, your pest control company climbs to the #1 spot on Google Maps, driving consistent, high-intent emergency calls.",
-      icon: <PhoneCall className="w-5 h-5" />,
+      icon: "PhoneCall",
     },
   ];
 

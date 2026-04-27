@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Scissors, Sparkles, MapPin, TrendingUp, Brush, Star, MessageSquare, Heart } from "lucide-react";
 
 export const metadata = {
   title: "Salon Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function SalonMarketingPage() {
     {
       title: "Rank Higher Locally",
       description: "Dominate Google search results when people look for salons, haircuts, or spas in your exact area.",
-      icon: <MapPin className="w-6 h-6 text-lemon-hover" />
+      icon: "MapPin",
     },
     {
       title: "Automate Style Posts",
       description: "Keep your profile fresh with AI-generated posts showcasing hairstyles, offers, and beauty tips.",
-      icon: <Scissors className="w-6 h-6 text-lemon-hover" />
+      icon: "Scissors",
     },
     {
       title: "Capture Glowing Reviews",
       description: "Ask clients to scan your Magic QR right after their haircut to instantly boost your 5-star ratings.",
-      icon: <Sparkles className="w-6 h-6 text-lemon-hover" />
+      icon: "Sparkles",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function SalonMarketingPage() {
       step: "01",
       title: "Connect Your Salon Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for high-volume terms like 'Hair salon near me' or 'Best spa' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Beauty Content",
       description: "Stop stressing about what to post. Limbu AI automatically creates and schedules stunning posts about your trending hairstyles, nail art, and skincare services.",
-      icon: <Brush className="w-5 h-5" />,
+      icon: "Brush",
     },
     {
       step: "03",
       title: "Capture Mirror-Selfie Reviews",
       description: "Clients scan your custom Magic QR code placed right on the salon mirror or reception desk to leave a glowing 5-star review while they are feeling confident and beautiful.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts professional, warm replies to every customer review instantly. It thanks your 5-star clients and politely addresses any 1-star complaints privately.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Chair Bookings Explode",
       description: "As your 5-star reviews and weekly active posts compound, your salon climbs to the #1 spot on Google Maps, driving consistent, daily appointment bookings.",
-      icon: <Heart className="w-5 h-5" />,
+      icon: "Heart",
     },
   ];
 

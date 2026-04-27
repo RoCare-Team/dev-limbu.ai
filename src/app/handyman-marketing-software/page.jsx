@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Hammer, MapPin, CheckCircle, TrendingUp, Wrench, Star, MessageSquare, PhoneCall } from "lucide-react";
 
 export const metadata = {
   title: "Handyman Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function HandymanMarketingPage() {
     {
       title: "Win Local Jobs",
       description: "Rank at the top of Google Maps so homeowners call you first for emergency fixes and renovations.",
-      icon: <MapPin className="w-6 h-6 text-lemon-hover" />
+      icon: "MapPin",
     },
     {
       title: "Showcase Your Work",
       description: "Automatically post before-and-after photos of your repair jobs to prove your skills online.",
-      icon: <Hammer className="w-6 h-6 text-lemon-hover" />
+      icon: "Hammer",
     },
     {
       title: "Collect Trust Proof",
       description: "Ask clients to scan your QR code right after you finish a job to instantly gather 5-star reviews.",
-      icon: <CheckCircle className="w-6 h-6 text-lemon-hover" />
+      icon: "CheckCircle",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function HandymanMarketingPage() {
       step: "01",
       title: "Connect Your Handyman Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for high-intent terms like 'Handyman near me' or 'Emergency repair services'.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Service Content",
       description: "Stop stressing about updating your profile. Limbu AI automatically creates posts showing your before-and-after work, seasonal home tips, and available services.",
-      icon: <Wrench className="w-5 h-5" />,
+      icon: "Wrench",
     },
     {
       step: "03",
       title: "Capture On-Site Reviews",
       description: "Ask the homeowner to scan your custom Magic QR code right after you finish fixing their issue. Gather a glowing 5-star review while they are thrilled with the result.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts professional, personalized replies to every customer review instantly. It thanks 5-star clients and politely addresses any 1-star complaints to protect your reputation.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Emergency Calls Explode",
       description: "As your 5-star reviews and weekly active posts compound, your handyman business climbs to the #1 spot on Google Maps, driving consistent, high-intent service calls.",
-      icon: <PhoneCall className="w-5 h-5" />,
+      icon: "PhoneCall",
     },
   ];
 

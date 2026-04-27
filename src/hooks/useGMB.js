@@ -262,16 +262,19 @@ export function useGMB(session, status, setUiState) {
   );
 
   const fetchAdminListings = useCallback(async () => {
-    const token =
-      getLocalStorage("isImpersonating") === "true"
-        ? getLocalStorage("userToken")
-        : getLocalStorage("adminToken");
+    // Only load saved listings when an admin is impersonating a specific user
+    if (getLocalStorage("isImpersonating") !== "true") return;
 
-    if (!token) return;
+    const token = getLocalStorage("userToken");
+    const userEmail = getLocalStorage("impersonatedEmail");
+
+    if (!token || !userEmail) return;
+
     try {
-      const res = await fetch("/api/admin/saveBussiness", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `/api/admin/saveBussiness?userEmail=${encodeURIComponent(userEmail)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       const data = await res.json();
       setListings(data.listings || []);
     } catch (error) {
@@ -290,8 +293,9 @@ export function useGMB(session, status, setUiState) {
   }, [session?.user?.email, status, initialFetchDone, fetchInitialData]);
 
   const activeListings = useMemo(() => {
-    if (listings.length > 0) return listings;
+    // Prefer live Google API data; only fall back to saved listings (impersonation mode)
     if (accounts.length > 0) return accounts.flatMap((acc) => acc.listings);
+    if (listings.length > 0) return listings;
     return [];
   }, [listings, accounts]);
 
@@ -299,7 +303,7 @@ export function useGMB(session, status, setUiState) {
     return {
       total: activeListings.length,
       verified: activeListings.filter((l) => l.hasVoiceOfMerchant === true).length,
-      unverified: activeListings.filter((l) => l.hasVoiceOfMerchant === false).length,
+      unverified: activeListings.filter((l) => l.hasVoiceOfMerchant !== true).length,
       pending: 0,
     };
   }, [activeListings]);

@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Heart, Users, Sparkles, TrendingUp, Flower2, Star, MessageSquare, Activity } from "lucide-react";
 
 export const metadata = {
   title: "Yoga & Wellness Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function YogaMarketingPage() {
     {
       title: "Grow Your Classes",
       description: "Rank higher in local searches so nearby residents find your wellness center when seeking peace and fitness.",
-      icon: <Users className="w-6 h-6 text-lemon-hover" />
+      icon: "Users",
     },
     {
       title: "Mindful Content Automation",
       description: "Auto-publish daily wellness tips, class schedules, and motivational quotes without lifting a finger.",
-      icon: <Heart className="w-6 h-6 text-lemon-hover" />
+      icon: "Heart",
     },
     {
       title: "Build a Trusted Sanctuary",
       description: "Collect peaceful 5-star reviews from your students using an easy-to-scan Magic QR code.",
-      icon: <Sparkles className="w-6 h-6 text-lemon-hover" />
+      icon: "Sparkles",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function YogaMarketingPage() {
       step: "01",
       title: "Connect Your Wellness Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for terms like 'Yoga classes near me' or 'Meditation center' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Mindful Content",
       description: "Stop stressing about social media. Limbu AI automatically creates and schedules calming posts about your upcoming retreats, class schedules, and wellness tips.",
-      icon: <Flower2 className="w-5 h-5" />,
+      icon: "Flower2",
     },
     {
       step: "03",
       title: "Capture Post-Class Reviews",
       description: "Students scan your custom Magic QR code on their way out of the studio to leave a glowing 5-star review while they are feeling centered and relaxed.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts peaceful, personalized replies to every student review instantly. It thanks 5-star clients and politely addresses any 1-star concerns privately.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Class Bookings Grow",
       description: "As your 5-star reviews and weekly active mindful posts compound, your wellness center climbs to the #1 spot on Google Maps, driving consistent daily class signups.",
-      icon: <Activity className="w-5 h-5" />,
+      icon: "Activity",
     },
   ];
 

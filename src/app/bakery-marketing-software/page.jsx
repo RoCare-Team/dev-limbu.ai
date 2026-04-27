@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Store, Camera, MessageSquare, TrendingUp, Sparkles, Star, CakeSlice, SmilePlus } from "lucide-react";
 
 export const metadata = {
   title: "Bakery & Cake Shop Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function BakeryMarketingPage() {
     {
       title: "Showcase Your Bakes",
       description: "Use AI to instantly publish mouth-watering photos of your cakes and pastries across all your social profiles.",
-      icon: <Camera className="w-6 h-6 text-lemon-hover" />
+      icon: "Camera",
     },
     {
       title: "Sweeten Your Reviews",
       description: "Prompt happy customers to leave 5-star reviews instantly using your custom Magic QR code in-store.",
-      icon: <Store className="w-6 h-6 text-lemon-hover" />
+      icon: "Store",
     },
     {
       title: "Private Feedback Loop",
       description: "If a customer isn't happy with their order, catch their feedback privately before it hits Google.",
-      icon: <MessageSquare className="w-6 h-6 text-lemon-hover" />
+      icon: "MessageSquare",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function BakeryMarketingPage() {
       step: "01",
       title: "Connect Your Bakery Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for high-intent terms like 'Birthday cake near me' or 'Fresh pastries' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Mouth-Watering Content",
       description: "Stop stressing about updating your profile. Limbu AI automatically creates posts showing your freshly baked goods, seasonal specials, and custom cake designs.",
-      icon: <Sparkles className="w-5 h-5" />,
+      icon: "Sparkles",
     },
     {
       step: "03",
       title: "Capture In-Store Reviews",
       description: "Ask customers to scan your custom Magic QR code on the bakery counter or pastry box to leave a glowing 5-star review while they are enjoying their sweet treat.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts professional, personalized replies to every customer review instantly. It thanks 5-star customers and politely addresses any 1-star complaints to protect your bakery's reputation.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Cake Orders Explode",
       description: "As your 5-star reviews and weekly active posts compound, your bakery climbs to the #1 spot on Google Maps, driving consistent foot traffic and custom cake orders.",
-      icon: <CakeSlice className="w-5 h-5" />,
+      icon: "CakeSlice",
     },
   ];
 

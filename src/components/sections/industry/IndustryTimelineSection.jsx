@@ -1,4 +1,30 @@
 import React from "react";
+import {
+  TrendingUp, Dumbbell, Star, MessageSquare, CalendarCheck, Home, Activity,
+  HeartPulse, ChefHat, Coffee, Compass, Ticket, Bug, PhoneCall, Wrench,
+  Brush, Heart, PenTool, Car, Flower2, BookOpen, Sparkles, CakeSlice,
+  Zap, Search, CheckCircle,
+} from "lucide-react";
+
+const ICON_MAP = {
+  TrendingUp, Dumbbell, Star, MessageSquare, CalendarCheck, Home, Activity,
+  HeartPulse, ChefHat, Coffee, Compass, Ticket, Bug, PhoneCall, Wrench,
+  Brush, Heart, PenTool, Car, Flower2, BookOpen, Sparkles, CakeSlice,
+  Zap, Search, CheckCircle,
+};
+
+function StepIcon({ icon }) {
+  if (!icon) return null;
+  if (typeof icon === "string") {
+    const IconComponent = ICON_MAP[icon];
+    return IconComponent ? <IconComponent className="w-5 h-5 sm:w-6 sm:h-6" /> : null;
+  }
+  try {
+    return React.cloneElement(icon, { className: "w-5 h-5 sm:w-6 sm:h-6" });
+  } catch {
+    return null;
+  }
+}
 
 export default function IndustryTimelineSection({ industryName, displaySteps }) {
   return (
@@ -26,7 +52,7 @@ export default function IndustryTimelineSection({ industryName, displaySteps }) 
               {/* Icon Indicator (Replaces Numbering) */}
               <div className="relative shrink-0">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white border-2 border-slate-100 text-slate-400 rounded-full flex items-center justify-center shadow-sm group-hover:border-lemon-glow group-hover:bg-lemon-glow group-hover:text-black transition-all duration-500 relative z-10">
-                  {React.cloneElement(item.icon, { className: "w-5 h-5 sm:w-6 sm:h-6" })}
+                  <StepIcon icon={item.icon} />
                 </div>
                 {/* Glow Effect */}
                 <div className="absolute inset-0 bg-lemon-glow/20 rounded-full scale-150 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 -z-10" />

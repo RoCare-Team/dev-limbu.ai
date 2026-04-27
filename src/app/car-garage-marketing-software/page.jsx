@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Wrench, MapPin, ShieldAlert, TrendingUp, PenTool, Star, MessageSquare, Car } from "lucide-react";
 
 export const metadata = {
   title: "Car Garage Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function CarGarageMarketingPage() {
     {
       title: "Attract Local Drivers",
       description: "Rank higher on Google Maps so broken-down drivers find your garage before your competitors.",
-      icon: <MapPin className="w-6 h-6 text-lemon-hover" />
+      icon: "MapPin",
     },
     {
       title: "Build Mechanic Trust",
       description: "Car repairs require trust. Automatically gather 5-star reviews from happy drivers to prove your reliability.",
-      icon: <Wrench className="w-6 h-6 text-lemon-hover" />
+      icon: "Wrench",
     },
     {
       title: "Private Dispute Resolution",
       description: "Catch unhappy customers privately before they leave a negative review about a repair job.",
-      icon: <ShieldAlert className="w-6 h-6 text-lemon-hover" />
+      icon: "ShieldAlert",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function CarGarageMarketingPage() {
       step: "01",
       title: "Connect Your Garage Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for high-intent terms like 'Car mechanic near me' or 'Oil change' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Auto Content",
       description: "Stop stressing about updating your profile. Limbu AI automatically creates posts showing your before-and-after work, seasonal maintenance tips, and available repair services.",
-      icon: <PenTool className="w-5 h-5" />,
+      icon: "PenTool",
     },
     {
       step: "03",
       title: "Capture Drive-Away Reviews",
       description: "Ask the driver to scan your custom Magic QR code on the front desk or their invoice to leave a glowing 5-star review while they are thrilled to have their car back on the road.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts professional, personalized replies to every customer review instantly. It thanks 5-star drivers and politely addresses any 1-star complaints to protect your garage's reputation.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Repair Jobs Explode",
       description: "As your 5-star reviews and weekly active posts compound, your auto repair shop climbs to the #1 spot on Google Maps, driving consistent, high-intent repair calls and walk-ins.",
-      icon: <Car className="w-5 h-5" />,
+      icon: "Car",
     },
   ];
 

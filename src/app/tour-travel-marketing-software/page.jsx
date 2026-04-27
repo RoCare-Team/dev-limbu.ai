@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Plane, Map, Camera, TrendingUp, Compass, Star, MessageSquare, Ticket } from "lucide-react";
 
 export const metadata = {
   title: "Tour & Travel Marketing Software | Limbu.ai",
@@ -14,17 +13,17 @@ export default function TourTravelMarketingPage() {
     {
       title: "Increase Bookings",
       description: "Boost your local search visibility so travelers find your agency first when planning their next trip.",
-      icon: <Map className="w-6 h-6 text-lemon-hover" />
+      icon: "Map",
     },
     {
       title: "Automated Travel Content",
       description: "Keep your audience dreaming. Automatically publish beautiful destination photos and package deals.",
-      icon: <Camera className="w-6 h-6 text-lemon-hover" />
+      icon: "Camera",
     },
     {
       title: "5-Star Vacation Reviews",
       description: "Prompt travelers to leave a review right after their amazing trip, building massive social proof.",
-      icon: <Plane className="w-6 h-6 text-lemon-hover" />
+      icon: "Plane",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function TourTravelMarketingPage() {
       step: "01",
       title: "Connect Your Agency Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for terms like 'Travel agency near me' or 'Tour packages' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Wanderlust Content",
       description: "Stop stressing about social media. Limbu AI automatically creates stunning posts about upcoming group tours, flight deals, and exotic vacation destinations.",
-      icon: <Compass className="w-5 h-5" />,
+      icon: "Compass",
     },
     {
       step: "03",
       title: "Capture Post-Trip Reviews",
       description: "Send your clients a link to your custom Magic QR code right as they return from their trip to capture glowing 5-star reviews while their vacation memories are fresh.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts enthusiastic, personalized replies to every traveler review instantly. It thanks them for booking with you and privately flags any negative trip feedback.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Bookings Soar",
       description: "As your 5-star reviews and weekly active destination posts compound, your travel agency climbs to the #1 spot on Google Maps, driving consistent high-ticket vacation bookings.",
-      icon: <Ticket className="w-5 h-5" />,
+      icon: "Ticket",
     },
   ];
 

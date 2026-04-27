@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { TrendingUp, Users, ShieldCheck, Dumbbell, CalendarCheck, MessageSquare, Star } from "lucide-react";
 
 export const metadata = {
   title: "Gym Marketing Software & Local SEO | Limbu.ai",
@@ -14,18 +13,18 @@ export default function GymMarketingPage() {
     {
       title: "Get More Members",
       description: "Automatically collect and showcase 5-star reviews from happy gym members to attract new signups effortlessly.",
-      icon: <Users className="w-6 h-6 text-lemon-hover" />
+      icon: "Users",
     },
     {
       title: "Automate Workout Posts",
       description: "Keep your Google profile active with AI-generated workout tips, class schedules, and motivational posts.",
-      icon: <Dumbbell className="w-6 h-6 text-lemon-hover" />
+      icon: "Dumbbell",
     },
     {
       title: "Protect Your Rating",
       description: "Our Review Shield privately captures negative feedback before it goes public, protecting your gym's reputation.",
-      icon: <ShieldCheck className="w-6 h-6 text-lemon-hover" />
-    }
+      icon: "ShieldCheck",
+    },
   ];
 
   const howItWorksSteps = [
@@ -33,31 +32,31 @@ export default function GymMarketingPage() {
       step: "01",
       title: "Connect Your Gym Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your current local ranking for terms like 'Gym near me' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Fitness Content",
       description: "Stop stressing about what to post. Limbu AI automatically creates and schedules highly engaging posts about your equipment, personal trainers, and fitness tips.",
-      icon: <Dumbbell className="w-5 h-5" />,
+      icon: "Dumbbell",
     },
     {
       step: "03",
       title: "Capture Post-Workout Reviews",
       description: "Members scan your custom Magic QR code at the front desk or water station to leave a quick 5-star review while their post-workout endorphins are high.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts and sends professional, personalized replies to every member review instantly, boosting your engagement signals to Google.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Memberships Grow",
       description: "As your 5-star reviews and daily active posts compound, your gym climbs to the #1 spot on Google Maps, driving consistent daily foot traffic.",
-      icon: <CalendarCheck className="w-5 h-5" />,
+      icon: "CalendarCheck",
     },
   ];
 

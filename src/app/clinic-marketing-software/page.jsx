@@ -1,6 +1,5 @@
 import IndustryLandingTemplate from "@/components/IndustryLandingTemplate";
 import SchemaMarkup from "@/components/SchemaMarkup";
-import { Stethoscope, CalendarCheck, ShieldCheck, TrendingUp, Activity, Star, MessageSquare, HeartPulse } from "lucide-react";
 
 export const metadata = {
   title: "Clinic Marketing Software for Doctors | Limbu.ai",
@@ -14,17 +13,17 @@ export default function ClinicMarketingPage() {
     {
       title: "Attract More Patients",
       description: "Build trust by automatically collecting 5-star reviews from satisfied patients right after their appointment.",
-      icon: <Stethoscope className="w-6 h-6 text-lemon-hover" />
+      icon: "Stethoscope",
     },
     {
       title: "Save Time on Socials",
       description: "Auto-publish health tips, clinic updates, and service information without spending hours online.",
-      icon: <CalendarCheck className="w-6 h-6 text-lemon-hover" />
+      icon: "CalendarCheck",
     },
     {
       title: "Protect Patient Trust",
       description: "Handle patient complaints privately through our Smart Review Shield, keeping your online rating spotless.",
-      icon: <ShieldCheck className="w-6 h-6 text-lemon-hover" />
+      icon: "ShieldCheck",
     }
   ];
 
@@ -33,31 +32,31 @@ export default function ClinicMarketingPage() {
       step: "01",
       title: "Connect Your Clinic Profile",
       description: "Link your Google Business Profile in one click. Our AI audits your local ranking for terms like 'Best pediatrician near me' or 'Urgent care clinic' and builds a custom growth strategy.",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: "TrendingUp",
     },
     {
       step: "02",
       title: "AI Generates Health Content",
       description: "Stop stressing about what to post. Limbu AI automatically creates and schedules highly engaging, compliant posts about seasonal health tips, new services, and clinic hours.",
-      icon: <Activity className="w-5 h-5" />,
+      icon: "Activity",
     },
     {
       step: "03",
       title: "Capture Post-Visit Reviews",
       description: "Patients scan your custom Magic QR code at the reception desk to leave a quick 5-star review while they are feeling relieved and cared for after their appointment.",
-      icon: <Star className="w-5 h-5 fill-current text-lemon-hover" />,
+      icon: "Star",
     },
     {
       step: "04",
       title: "Smart Review Replies",
       description: "Limbu AI drafts HIPAA-compliant, professional replies to every patient review instantly, thanking them for their trust and addressing any concerns privately.",
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: "MessageSquare",
     },
     {
       step: "05",
       title: "Watch Patient Bookings Grow",
       description: "As your 5-star reviews and weekly active posts compound, your clinic climbs to the #1 spot on Google Maps, driving consistent, high-intent appointment bookings.",
-      icon: <HeartPulse className="w-5 h-5" />,
+      icon: "HeartPulse",
     },
   ];
 

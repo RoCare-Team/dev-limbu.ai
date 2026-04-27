@@ -1,66 +1,48 @@
 import mongoose from "mongoose";
 
-const FranchiseRevenueSchema = new mongoose.Schema(
+const FranchiseSchema = new mongoose.Schema(
   {
-    leadId: { 
-      type: String, 
-      required: true,
-      ref: "MetaLeadFranchises"
+    name: {
+      type: String,
+      required: [true, "Please provide a name"],
     },
-    leadName: { type: String, required: true },
-    amount: { type: Number, required: true },
-    paymentScreenshot: { type: String, required: true }, // Cloudinary URL
-    
-    utrNumber: { type: String, default: "" },
-    // Who onboarded this franchise
-    onboardedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
-      required: true,
+    email: {
+      type: String,
+      required: [true, "Please provide an email"],
     },
-    onboardedByName: { type: String },
-    onboardedByRole: { type: String }, // "superAdmin", "franchiseAdmin"
-    
-    // For tracking which franchise this belongs to
-    franchisePanelId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "FranchisePanel",
-      default: null,
+    phone: {
+      type: String,
+      required: [true, "Please provide a phone number"],
     },
-    
+    city: {
+      type: String,
+      required: [true, "Please provide a city"],
+    },
+    experience: {
+      type: String,
+    },
+    investment: {
+      type: String,
+      required: [true, "Please provide investment capacity"],
+    },
+    message: {
+      type: String,
+    },
     status: {
       type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      default: "pending",
     },
-    
-    notes: { type: String, default: "" },
-    planRemarks: { type: String, default: "" },
-    plan: { type: String, default: "" },
-
-    packageStartDate: {
-  type: Date,
-  default: null,
-},
-
-packageExpiryDate: {
-  type: Date,
-  default: null,
-},
-    /** user_onboard: superAdmin approves before subscription is activated on the user */
-    planApprovalStatus: {
+    paymentId: String,
+    orderId: String,
+    amount: Number,
+    plan: String,
+    gstNumber: String,
+    leadType: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      default: "Website",
     },
-    type: { type: String, default: "franchise_lead" },
   },
   { timestamps: true }
 );
 
-// Index for faster queries
-FranchiseRevenueSchema.index({ onboardedBy: 1 });
-FranchiseRevenueSchema.index({ leadId: 1 });
-FranchiseRevenueSchema.index({ status: 1 });
-
-export default mongoose.models.FranchiseRevenue ||
-  mongoose.model("FranchiseRevenue", FranchiseRevenueSchema);
+export default mongoose.models.Franchise || mongoose.model("Franchise", FranchiseSchema);

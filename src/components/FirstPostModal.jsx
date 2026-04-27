@@ -3,11 +3,16 @@ import { Sparkles, Wand2, X, Megaphone, Palette, Zap } from "lucide-react";
 
 const FirstPostModal = ({ onClose, onCreate }) => {
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="relative bg-white border border-black/[0.03] rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] max-w-md w-full p-8 sm:p-12 overflow-hidden animate-in zoom-in-95 duration-300">
-
+    <div 
+      className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300"
+      onClick={onClose}
+    >
+      <div 
+        className="relative bg-white border border-black/[0.03] rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] max-w-md w-full p-6 sm:p-10 overflow-y-auto overflow-x-hidden max-h-[90vh] custom-scroll animate-in zoom-in-95 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Background Decorations */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-lemon-glow/10 rounded-full blur-3xl -mr-12 -mt-12" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-lemon-glow/10 rounded-full blur-3xl -mr-8 -mt-8" />
         
         {/* Subtle grid background */}
         <div
@@ -21,7 +26,7 @@ const FirstPostModal = ({ onClose, onCreate }) => {
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2.5 bg-slate-50 border border-black/5 rounded-2xl text-slate-400 hover:text-black hover:bg-slate-100 transition-all z-10"
+          className="absolute top-4 right-4 p-2 bg-slate-50 border border-black/5 rounded-xl text-slate-400 hover:text-black hover:bg-slate-100 transition-all z-20"
         >
           <X className="w-4 h-4" />
         </button>
@@ -30,35 +35,35 @@ const FirstPostModal = ({ onClose, onCreate }) => {
         <div className="relative z-10 flex flex-col items-center text-center">
 
           {/* Icon Header */}
-          <div className="relative mb-8">
+          <div className="relative mb-6">
             <div className="absolute inset-0 bg-lemon-glow/40 rounded-full blur-2xl animate-pulse" />
-            <div className="relative bg-black p-5 rounded-[1.5rem] border border-black/10 shadow-2xl">
-              <Wand2 className="w-10 h-10 text-lemon-glow" />
+            <div className="relative bg-black p-4 rounded-[1.25rem] border border-black/10 shadow-2xl">
+              <Wand2 className="w-8 h-8 text-lemon-glow" />
             </div>
-            <div className="absolute -top-3 -right-3 w-10 h-10 bg-white rounded-full shadow-lg border border-black/[0.03] flex items-center justify-center animate-bounce">
-              <Sparkles className="w-6 h-6 text-lemon-hover" />
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full shadow-lg border border-black/[0.03] flex items-center justify-center animate-bounce">
+              <Sparkles className="w-5 h-5 text-lemon-hover" />
             </div>
           </div>
 
           {/* Title */}
-          <div className="space-y-3 mb-10">
+          <div className="space-y-2 mb-8">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Let's Get Started</p>
-            <h2 className="text-3xl font-black text-black uppercase tracking-tight leading-[0.95] font-heading">
-              Make Your First <span className="text-lemon-hover block mt-2">Magic Post ✨</span>
+            <h2 className="text-2xl font-black text-black uppercase tracking-tight leading-tight font-heading">
+              Make Your First <span className="text-lemon-hover block mt-1">Magic Post ✨</span>
             </h2>
-            <p className="text-sm text-black/50 font-medium font-inter px-4 leading-relaxed mt-4">
+            <p className="text-xs text-black/50 font-medium font-inter px-4 leading-relaxed mt-2">
               Connect with your local customers in 3 simple steps. No design skills needed!
             </p>
           </div>
 
           {/* Layman Steps Layout */}
-          <div className="w-full bg-slate-50 border border-black/[0.03] rounded-[2rem] p-6 text-left space-y-4 mb-10 shadow-sm">
+          <div className="w-full bg-slate-50 border border-black/[0.03] rounded-[1.5rem] p-5 text-left space-y-3 mb-8 shadow-sm">
             <div className="flex items-start gap-4">
               <div className="w-8 h-8 bg-white rounded-xl border border-black/5 flex items-center justify-center shrink-0 shadow-sm">
                 <Megaphone className="w-4 h-4 text-lemon-hover" />
               </div>
               <div>
-                <p className="text-[11px] font-black text-black uppercase tracking-tight">Step 1: Pick a Topic</p>
+                <p className="text-[10px] font-black text-black uppercase tracking-tight">Step 1: Pick a Topic</p>
                 <p className="text-[10px] text-black/40 font-inter leading-tight">Tell the AI what you want to tell your customers today.</p>
               </div>
             </div>
@@ -68,7 +73,7 @@ const FirstPostModal = ({ onClose, onCreate }) => {
                 <Palette className="w-4 h-4 text-lemon-hover" />
               </div>
               <div>
-                <p className="text-[11px] font-black text-black uppercase tracking-tight">Step 2: Add Your Style</p>
+                <p className="text-[10px] font-black text-black uppercase tracking-tight">Step 2: Add Your Style</p>
                 <p className="text-[10px] text-black/40 font-inter leading-tight">Upload your logo or a photo of your shop and products.</p>
               </div>
             </div>
@@ -78,7 +83,7 @@ const FirstPostModal = ({ onClose, onCreate }) => {
                 <Zap className="w-4 h-4 text-lemon-hover animate-pulse" />
               </div>
               <div>
-                <p className="text-[11px] font-black text-black uppercase tracking-tight">Step 3: Watch the Magic</p>
+                <p className="text-[10px] font-black text-black uppercase tracking-tight">Step 3: Watch the Magic</p>
                 <p className="text-[10px] text-black/40 font-inter leading-tight">Limbu AI creates a professional post for you in seconds!</p>
               </div>
             </div>
@@ -90,7 +95,7 @@ const FirstPostModal = ({ onClose, onCreate }) => {
               if (onCreate) onCreate();
               onClose();
             }}
-            className="w-full py-5 bg-lemon-glow text-black rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-lemon-glow/20 hover:bg-lemon-hover hover:scale-[1.02] active:scale-[0.98] transition-all font-inter"
+            className="w-full py-4 bg-lemon-glow text-black rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-lemon-glow/20 hover:bg-lemon-hover hover:scale-[1.02] active:scale-[0.98] transition-all font-inter"
           >
             Create My First Post Now ↗
           </button>

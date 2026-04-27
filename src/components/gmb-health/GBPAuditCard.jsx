@@ -50,14 +50,19 @@ export default function GBPAuditCard({ audit }) {
       setIsExporting(true);
       // Dynamically import heavy libraries only when user clicks download
       const { jsPDF } = await import("jspdf");
-      const { toPng } = await import("html-to-image");
+      const { toJpeg } = await import("html-to-image");
 
-      const pdf = new jsPDF("p", "mm", "a4");
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm",
+        format: "a4",
+        compress: true
+      });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const options = {
-        quality: 0.98,
+        quality: 0.85,
         backgroundColor: "#ffffff",
-        pixelRatio: 2.5,
+        pixelRatio: 1.5,
       };
 
       const logoUrl = "/images/bg-logo.png";
@@ -78,10 +83,10 @@ export default function GBPAuditCard({ audit }) {
         const element = document.getElementById(elementId);
         if (!element) return;
 
-        const dataUrl = await toPng(element, options);
+        const dataUrl = await toJpeg(element, options);
         const imgProps = pdfInstance.getImageProperties(dataUrl);
         const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        pdfInstance.addImage(dataUrl, "PNG", 0, 0, pdfWidth, imgHeight);
+        pdfInstance.addImage(dataUrl, "JPEG", 0, 0, pdfWidth, imgHeight, undefined, "FAST");
       };
 
       const addFooter = (pdfInstance, pageNum, totalPages) => {

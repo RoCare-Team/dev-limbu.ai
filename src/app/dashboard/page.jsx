@@ -344,7 +344,7 @@ export default function DashboardPage() {
 
   const getFilteredListings = useCallback((listings) => {
     if (filterStatus === "verified") return listings.filter((l) => l.hasVoiceOfMerchant === true);
-    if (filterStatus === "unverified") return listings.filter((l) => l.hasVoiceOfMerchant === false);
+    if (filterStatus === "unverified") return listings.filter((l) => l.hasVoiceOfMerchant !== true);
     return listings;
   }, [filterStatus]);
 

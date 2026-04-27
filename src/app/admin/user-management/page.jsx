@@ -1796,6 +1796,7 @@ const packageExpiryDate = planExpiryDate;
       localStorage.setItem("userToken", data.token);
       localStorage.setItem("impersonatedUser", userId);
       localStorage.setItem("userId", data.user.userId);
+      localStorage.setItem("impersonatedEmail", data.user.email || "");
       localStorage.setItem("isImpersonating", "true");
       window.location.href = "/dashboard";
     }

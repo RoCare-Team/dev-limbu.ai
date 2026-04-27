@@ -32,11 +32,73 @@ async function refreshAccessToken(token) {
   }
 }
 
+const isProd = process.env.NODE_ENV === "production";
+
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  /** Behind HTTPS (e.g. nginx → Node), force Secure cookies so __Host- / __Secure- state cookies match the browser. */
-  useSecureCookies: process.env.NODE_ENV === "production",
-  // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
+  /**
+   * Explicitly configure OAuth state + PKCE cookies so they survive the
+   * Google redirect in all proxy / CDN setups.
+   * - SameSite=Lax  → sent on top-level cross-site redirects (required for OAuth)
+   * - Secure=true   → only over HTTPS in production
+   * - No __Host- prefix → avoids strict path/domain constraints that can break
+   *   behind reverse-proxies that strip the Forwarded headers.
+   */
+  cookies: {
+    state: {
+      name: isProd ? "__Secure-next-auth.state" : "next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProd,
+        maxAge: 60 * 15, // 15 min — plenty for a login round-trip
+      },
+    },
+    pkceCodeVerifier: {
+      name: isProd
+        ? "__Secure-next-auth.pkce.code_verifier"
+        : "next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProd,
+        maxAge: 60 * 15,
+      },
+    },
+    callbackUrl: {
+      name: isProd
+        ? "__Secure-next-auth.callback-url"
+        : "next-auth.callback-url",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProd,
+      },
+    },
+    csrfToken: {
+      name: isProd ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProd,
+      },
+    },
+    sessionToken: {
+      name: isProd
+        ? "__Secure-next-auth.session-token"
+        : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProd,
+      },
+    },
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,

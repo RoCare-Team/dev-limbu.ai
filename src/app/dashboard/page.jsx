@@ -294,8 +294,11 @@ export default function DashboardPage() {
   // Store location details in localStorage
   useEffect(() => {
     if (activeListings.length > 0) {
-      const locationDetails = activeListings.map((item) => {
+      
+      const locationDetails = activeListings?.map((item) => {
+        
         const locationId = item?.name?.split("/")[1];
+        
         return {
           locationId,
           accountId: item.accountId || "",
@@ -448,8 +451,7 @@ export default function DashboardPage() {
           filterStatus={filterStatus}
           setFilterStatus={setFilterStatus}
           loading={loading}
-          listings={listings}
-          accounts={accounts}
+          listings={activeListings}
           getFilteredListings={getFilteredListings}
           getVerificationBadge={getVerificationBadge}
           handleListingData={handleListingData}

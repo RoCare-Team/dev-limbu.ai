@@ -78,7 +78,7 @@ export async function POST(req) {
         destination,
         userName: "LimbuAI",
         templateParams: [
-          "24 April 2026, 5:30 PM",
+          "27 April 2026, 4:00 PM",
           "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w",
           "864 3594 1427",
           "800770",

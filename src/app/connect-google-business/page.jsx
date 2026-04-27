@@ -142,8 +142,7 @@ function ConnectGoogleBusinessInner() {
         }
       }
 
-      router.replace("/?limbu_chat=1");
-    } catch (e) {
+window.location.href = "https://wa.me/917065178662";    } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {
       setContinueBusy(false);

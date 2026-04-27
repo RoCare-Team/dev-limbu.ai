@@ -34,6 +34,7 @@ const PostInput = ({
   setPrompt,
   keywordError,
   onGenerate,
+  onManualPost,
   loading,
   assets,
   logo,

@@ -264,7 +264,8 @@ export async function PUT(req) {
       videoPrompt,
       facebookPostId,
       facebookPageAccessToken,
-      approvedMediaType,   // ✅ NEW
+      approvedMediaType,
+      rejectedMediaType,   // ✅ NEW
       error: postError,
     } = await req.json();
 
@@ -277,7 +278,8 @@ export async function PUT(req) {
       whenPosted,
       aiOutput,
       scheduledDateSource,
-      approvedMediaType,   // ✅ NEW
+      approvedMediaType,
+      rejectedMediaType,   // ✅ NEW
     });
 
     if (!id || !status || !userId) {
@@ -347,6 +349,14 @@ export async function PUT(req) {
         );
       }
       updateData.rejectReason = reason;
+
+      // ✅ NEW: optional — client ne bheja tabhi set hoga
+      if (
+        typeof rejectedMediaType === "string" &&
+        ["image", "video", "both"].includes(rejectedMediaType)
+      ) {
+        updateData.rejectedMediaType = rejectedMediaType;
+      }
     }
 
     /* ---------- OPTIONAL FIELDS ---------- */
@@ -388,8 +398,7 @@ export async function PUT(req) {
       updateData.error = postError;
     }
 
-    // ✅ NEW: approvedMediaType — image, video, ya both (default)
-    // Agar send nahi kiya to updateData mein set nahi hoga → schema default "both" apply hoga
+    // approvedMediaType — image, video, ya both (default)
     if (
       typeof approvedMediaType === "string" &&
       ["image", "video", "both"].includes(approvedMediaType)

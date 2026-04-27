@@ -37,6 +37,10 @@ const PostSchema = new mongoose.Schema(
       enum: ["image", "video", "both"],
       default: "both",
     },
+    rejectedMediaType: {       // ✅ NEW
+      type: String,
+      enum: ["image", "video", "both"],
+    },
 
     whenPosted: {
       type: Object,

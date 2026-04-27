@@ -69,14 +69,14 @@ const ImageToVideoModal = React.memo(({
   const [ivPrompt, setIvPrompt] = useState("");
   const [ivDuration, setIvDuration] = useState(8);
   const [selectedPostId, setSelectedPostId] = useState(null);
-  const [uploadedCloudinaryUrl, setUploadedCloudinaryUrl] = useState(null);
+  const [uploadedS3Url, setUploadedS3Url] = useState(null);
   const [mergeTargetPostId, setMergeTargetPostId] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   const [result, setResult] = useState(null);
-  
+
   const [uiState, setUiState] = useState({
     loading: false,
-    uploadingToCloudinary: false,
+    uploadingToS3: false,
     aiPromptLoading: false,
   });
 
@@ -96,7 +96,7 @@ const ImageToVideoModal = React.memo(({
     setIvDuration(8);
     setCopiedField(null);
     updateUiState({ aiPromptLoading: false });
-    
+
     if (
       initialPostId &&
       typeof initialOutput === "string" &&
@@ -117,9 +117,9 @@ const ImageToVideoModal = React.memo(({
   useEffect(() => {
     if (!isOpen) return;
     const base = (initialPost?.promat && String(initialPost.promat).trim()) ||
-                 (postPrompt && String(postPrompt).trim()) || "";
+      (postPrompt && String(postPrompt).trim()) || "";
     if (!base) return;
-    
+
     let cancelled = false;
     const fetchAiPrompt = async () => {
       try {
@@ -139,7 +139,7 @@ const ImageToVideoModal = React.memo(({
         }
       } catch { /* optional prefill */ }
     };
-    
+
     fetchAiPrompt();
     return () => { cancelled = true; };
   }, [isOpen, initialPostId, initialPost?.promat, postPrompt]);
@@ -179,10 +179,10 @@ const ImageToVideoModal = React.memo(({
       return initialOutput.trim() || null;
     }
     return null;
-  }, [uploadedCloudinaryUrl, selectedPostId, generatedImageChoices, initialPostId, initialOutput]);
+  }, [uploadedS3Url, selectedPostId, generatedImageChoices, initialPostId, initialOutput]);
 
   const effectiveImagePayload = useMemo(() => {
-    if (uploadedCloudinaryUrl) return { image_url: uploadedCloudinaryUrl, source: "upload" };
+    if (uploadedS3Url) return { image_url: uploadedS3Url, source: "upload" };
     if (!selectedSourceUrl) return null;
     const u = selectedSourceUrl;
     if (u.startsWith("http://") || u.startsWith("https://")) {
@@ -197,7 +197,7 @@ const ImageToVideoModal = React.memo(({
   }, [selectedSourceUrl]);
 
   const pickPost = useCallback((id) => {
-    setUploadedCloudinaryUrl(null);
+    setUploadedS3Url(null);
     setSelectedPostId(id);
     setMergeTargetPostId(id != null ? String(id) : null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -216,22 +216,18 @@ const ImageToVideoModal = React.memo(({
       return;
     }
 
-    updateUiState({ uploadingToCloudinary: true });
+    updateUiState({ uploadingToS3: true });
     setSelectedPostId(null);
     setUploadedS3Url(null);
     setMergeTargetPostId(null);
     try {
-      const sigData = await getCloudinarySignatureAction();
-      if (!sigData.success) throw new Error(sigData.error || "Failed to get upload signature");
-
       const formData = new FormData();
       formData.append("file", file);
 
       const uploadResult = await uploadToS3Action(formData);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || "Failed to upload image to Cloudinary");
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || "Failed to upload image to S3");
       }
 
       setUploadedS3Url(uploadResult.url);
@@ -239,7 +235,7 @@ const ImageToVideoModal = React.memo(({
     } catch (err) {
       showToast?.(err.message || "Upload failed", "error");
     } finally {
-      updateUiState({ uploadingToCloudinary: false });
+      updateUiState({ uploadingToS3: false });
       e.target.value = "";
     }
   }, [showToast, updateUiState]);
@@ -250,8 +246,8 @@ const ImageToVideoModal = React.memo(({
 
   const suggestMovementPrompt = useCallback(async () => {
     const base = (mergeTargetPost?.promat && String(mergeTargetPost.promat).trim()) ||
-                 (initialPost?.promat && String(initialPost.promat).trim()) ||
-                 (postPrompt && String(postPrompt).trim()) || ivPrompt.trim();
+      (initialPost?.promat && String(initialPost.promat).trim()) ||
+      (postPrompt && String(postPrompt).trim()) || ivPrompt.trim();
     if (!base) {
       showToast?.("Add an image prompt or video notes first.", "error");
       return;
@@ -439,8 +435,8 @@ const ImageToVideoModal = React.memo(({
                   type="button"
                   onClick={() => pickPost(c.id)}
                   className={`relative w-14 h-14 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${String(selectedPostId) === String(c.id) && !uploadedS3Url
-                      ? "border-amber-500 ring-2 ring-amber-200"
-                      : "border-gray-200 hover:border-gray-300"
+                    ? "border-amber-500 ring-2 ring-amber-200"
+                    : "border-gray-200 hover:border-gray-300"
                     }`}
                   title={c.label}
                 >
@@ -451,8 +447,7 @@ const ImageToVideoModal = React.memo(({
                 type="button"
                 disabled={uiState.uploadingToCloudinary}
                 onClick={() => fileInputRef.current?.click()}
-                className={`w-14 h-14 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-0.5 shrink-0 transition-colors ${
-                  uiState.uploadingToCloudinary
+                className={`w-14 h-14 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-0.5 shrink-0 transition-colors ${uiState.uploadingToCloudinary
                     ? "border-amber-300 bg-amber-50/50 text-amber-800"
                     : uploadedS3Url
                       ? "border-amber-500 bg-amber-50 text-amber-900"

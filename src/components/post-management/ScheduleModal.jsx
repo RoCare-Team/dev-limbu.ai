@@ -54,6 +54,7 @@ const ScheduleModal = React.memo(({
   const [selectedGmb, setSelectedGmb] = useState([]);
   const [selectedFb, setSelectedFb] = useState([]);
   const [selectedIg, setSelectedIg] = useState([]);
+  // console.log("schedule model locations", availableLocations);
 
   useEffect(() => {
     if (activeTab === 'fb' && facebookPages.length === 0 && fetchFacebookPages) {
@@ -318,7 +319,7 @@ const ScheduleModal = React.memo(({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start sm:items-center gap-2 flex-col sm:flex-row">
-                            <p className={`text-base font-bold truncate ${!isVerified ? 'text-slate-500' : 'text-slate-900'}`}> {loc.title || loc.locationName || loc.storeName || loc.name}</p>
+                            <p className={`text-base font-bold truncate ${!isVerified ? 'text-slate-500' : 'text-slate-900'}`}> {loc.title || loc.locationName || loc.storeName || loc.name} {loc.locality}</p>
                             {!isVerified && <span className="text-[10px] bg-red-50 border border-red-100 text-red-600 px-2 py-1 rounded-md font-bold uppercase tracking-widest shrink-0">Unverified</span>}
                           </div>
                           <p className="text-sm text-slate-500 truncate mt-0.5 font-medium">{loc.address}</p>

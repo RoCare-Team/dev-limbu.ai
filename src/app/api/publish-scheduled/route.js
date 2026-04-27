@@ -25,7 +25,7 @@ const log = (...args) => {
     if (typeof a === "object" && a !== null) return JSON.stringify(a, null, 2);
     return a;
   });
-  try { console.log(...formatted); } catch {}
+  try { console.log(...formatted); } catch { }
   debugLogs.push(formatted.join(" "));
 };
 
@@ -33,7 +33,7 @@ const log = (...args) => {
    REFRESH ACCESS TOKEN
 -------------------------------------------------- */
 async function getFreshAccessToken(refreshToken) {
-  
+
   log("🔄 Refreshing access token");
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -81,7 +81,7 @@ async function getFreshPageToken(userAccessToken, pageId) {
   if (!data.data) throw new Error("Unable to fetch FB pages");
 
   const page = data.data.find(p => p.id === pageId);
-  
+
   if (!page?.access_token) {
     throw new Error("Page access token not found or permission missing");
   }
@@ -212,10 +212,10 @@ export async function GET() {
       status: "scheduled",
       scheduledDate: { $lte: now },
     })
-    .sort({ scheduledDate: 1 })
-    .limit(BATCH_SIZE)
-    .select("_id")
-    .lean();
+      .sort({ scheduledDate: 1 })
+      .limit(BATCH_SIZE)
+      .select("_id")
+      .lean();
 
     if (!candidates.length) {
       return NextResponse.json({ success: true, message: "No scheduled posts due.", logs: debugLogs });
@@ -272,7 +272,6 @@ export async function GET() {
       }
 
       let failed = false;
-      let someSuccess = false;
 
       /* -------------------------------------------------- 
          1. PROCESS FACEBOOK
@@ -292,7 +291,7 @@ export async function GET() {
               if (freshPage.userAccessToken) {
                 tokenToUse = await getFreshPageToken(freshPage.userAccessToken, page.pageId);
                 log(`🔄 Generated fresh FB page token via User Token for ${page.pageId}`);
-              } 
+              }
               // Option B: Fallback to the stored page token
               else if (freshPage.pageAccessToken) {
                 tokenToUse = freshPage.pageAccessToken;
@@ -305,7 +304,6 @@ export async function GET() {
 
           const pagePayload = page.toObject ? page.toObject() : { ...page };
           pagePayload.pageAccessToken = tokenToUse;
-          pagePayload.caption = post.fbDescription || post.description || "";
 
           const result = await postToFacebook(pagePayload, log);
           if (result.success) {
@@ -313,7 +311,6 @@ export async function GET() {
             page.postedAt = new Date();
             page.postId = result.id;
             page.error = null;
-            someSuccess = true;
 
             // Update whenPosted for Facebook
             if (!post.whenPosted) post.whenPosted = {};
@@ -339,20 +336,22 @@ export async function GET() {
           // Attempt to refresh IG token (which is usually a linked FB page token)
           let tokenToUse = account.accessToken;
           try {
+            // Assuming account.pageId exists or we can find it via igUserId if you store it. 
+            // If not, we rely on the stored token.
+            // If you store the linked Page ID in your IG account object:
             if (account.pageId) {
-               const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
-               if (freshPage && freshPage.userAccessToken) {
-                  tokenToUse = await getFreshPageToken(freshPage.userAccessToken, account.pageId);
-                  log(`🔄 Generated fresh IG (Page) token for ${account.pageId}`);
-               }
+              const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
+              if (freshPage && freshPage.userAccessToken) {
+                tokenToUse = await getFreshPageToken(freshPage.userAccessToken, account.pageId);
+                log(`🔄 Generated fresh IG (Page) token for ${account.pageId}`);
+              }
             }
           } catch (e) {
-             log(`⚠️ Failed to refresh IG token: ${e.message}`);
+            log(`⚠️ Failed to refresh IG token: ${e.message}`);
           }
 
           const accountPayload = account.toObject ? account.toObject() : { ...account };
           accountPayload.accessToken = tokenToUse;
-          accountPayload.caption = post.igDescription || post.description || "";
 
           const result = await postToInstagram(accountPayload, log);
           if (result.success) {
@@ -360,7 +359,6 @@ export async function GET() {
             account.postedAt = new Date();
             account.postId = result.id;
             account.error = null;
-            someSuccess = true;
 
             // Update whenPosted for Instagram
             if (!post.whenPosted) post.whenPosted = {};
@@ -378,36 +376,24 @@ export async function GET() {
          3. PROCESS GMB
       -------------------------------------------------- */
       if (hasGmb) {
-        let refreshToken = post.refreshToken;
-        if (!refreshToken && user) {
-          // Fallback to User projects
-          const googleProject = user.projects?.find(p => p.refreshToken);
-          if (googleProject) {
-            refreshToken = googleProject.refreshToken;
-            log("ℹ️ Found refreshToken in user.projects (fallback)");
-          }
-        }
-
+        const refreshToken = post.refreshToken;
         if (!refreshToken) {
-          log("❌ No refresh token available for GMB post:", postId);
+          log("❌ No refresh token on post document:", postId);
+          // Mark GMB locations as failed? Or fail whole post?
+          // For now, we log error and set failed flag, but continue to other platforms
           failed = true;
         } else {
           try {
-            log("🔑 Using refreshToken to get a fresh access token.");
+            log("🔑 Using stored refreshToken from post document to get a fresh access token.");
             const accessToken = await getFreshAccessToken(refreshToken);
             const processedLocIds = new Set();
 
             for (let i = 0; i < post.locations.length; i++) {
               const loc = post.locations[i];
+              // Skip if invalid, already posted, or duplicate in this run
               if (!loc?.locationId || loc.isPosted || processedLocIds.has(loc.locationId)) continue;
 
               try {
-                // Check balance before attempting post
-                const latestUser = await User.findOne({ userId: post.userId }).select("wallet").lean();
-                if (!latestUser || (latestUser.wallet || 0) < 20) {
-                  throw new Error("Insufficient wallet balance (20 coins required)");
-                }
-
                 const payload = {
                   account: loc.accountId,
                   locationData: [{
@@ -415,52 +401,60 @@ export async function GET() {
                     cityName: loc.locality || loc.city || "",
                     bookUrl: loc.websiteUrl || "",
                   }],
-                  output: (post.mediaType === "video" && post.videoOutput) ? post.videoOutput : post.aiOutput,
-                  description: post.gmbDescription || post.description || "",
+                  output: post.aiOutput,
+                  description: post.description || "",
                   accessToken,
                   checkmark: ["post", "photo", "both"].includes(post.checkmark) ? post.checkmark : "both",
                 };
 
-                const result = await fetchWithTimeout(postToGmbAction(payload), 25000);
+                log("📦 Payload:", payload);
 
-                if (!result?.ok) {
-                  throw new Error(result?.data?.error || "GMB post failed");
+                // Wrap the GMB call in a timeout to prevent hanging
+                const result = await fetchWithTimeout(postToGmbAction(payload), 20000);
+
+                if (!result?.ok) throw new Error("GMB post failed");
+
+                // ✅ Wallet deduction ONLY after success
+                const walletData = await deductFromWalletAction(user.userId, {
+                  amount: 20,
+                  type: "deduct",
+                  reason: "Post-on-GMB",
+                  metadata: {
+                    aiPrompt: post.promat || "",
+                    logoUsed: !!post.logoUrl,
+                    postId: post._id.toString(),
+                    locationId: loc.locationId,
+                  },
+                });
+
+                if (walletData?.message !== "Wallet updated") {
+                  throw new Error("Wallet deduction failed");
                 }
 
-                // ✅ Wallet deduction AFTER success
-                try {
-                  const walletData = await deductFromWalletAction(user.userId, {
-                    amount: 20,
-                    type: "deduct",
-                    reason: "Post-on-GMB",
-                    metadata: { postId: postId, locationId: loc.locationId },
-                  });
-                  if (walletData?.message === "Wallet updated") {
-                    log("🪙 20 coins deducted");
-                  } else {
-                    log("⚠️ Wallet deduction response unexpected:", walletData);
+                log("🪙 20 coins deducted via wallet action");
+
+                // Mark this location and any duplicates as posted
+                post.locations.forEach(l => {
+                  if (l.locationId === loc.locationId) {
+                    l.isPosted = true;
+                    l.postedAt = new Date();
+                    l.apiResponse = result;
                   }
-                } catch (walletErr) {
-                  log("⚠️ Post succeeded but wallet deduction errored:", walletErr.message);
-                }
+                });
 
-                // Mark location as posted
-                loc.isPosted = true;
-                loc.postedAt = new Date();
-                someSuccess = true;
-
+                // Update whenPosted for GMB
                 if (!post.whenPosted) post.whenPosted = {};
                 post.whenPosted.gmb = "posted";
                 post.markModified('whenPosted');
 
                 processedLocIds.add(loc.locationId);
+
               } catch (err) {
-                log(`❌ Error posting to location ${loc.locationId}:`, err.message);
-                loc.error = err.message;
+                log(`❌ Error posting to location ${loc.locationId}:`, err.message || "Unknown error");
                 failed = true;
+                // We don't break here, try other locations
               }
             }
-            post.markModified('locations');
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
             failed = true;
@@ -469,19 +463,12 @@ export async function GET() {
       }
 
       // Determine final status
+      // If ANY target failed, we mark as failed (or partially failed).
+      // Current logic: if !failed, then posted.
       if (!failed) {
         post.status = "posted";
         post.error = null;
         stats.posted++;
-      } else if (someSuccess) {
-        post.status = "posted"; // Mark as posted if at least one target worked, but store error
-        post.error = "One or more targets failed to post.";
-        stats.posted++;
-      } else {
-        post.status = "failed";
-        post.error = "All targets failed to post.";
-        stats.failed++;
-      }
 
         // Send post published email notification
         try {
@@ -490,15 +477,13 @@ export async function GET() {
           if (post.whenPosted?.gmb === "posted") platforms.push("Google My Business");
           if (post.whenPosted?.facebook === "posted") platforms.push("Facebook");
           if (post.whenPosted?.instagram === "posted") platforms.push("Instagram");
-          
+
           // Get business name from first location if available
           const businessName = post.locations?.[0]?.name || post.locations?.[0]?.city || "";
           const locationName = post.locations?.[0]?.name || "";
-          
+
           // Get post URL (use websiteUrl from location if available)
           const postUrl = post.locations?.[0]?.websiteUrl || "";
-
-          console.log("Post published details:", post.whenPosted, platforms, businessName, locationName, postUrl);
 
           // Send email for each platform that was posted
           for (const platform of platforms) {
@@ -513,7 +498,7 @@ export async function GET() {
                 postUrl: postUrl,
               }),
             });
-            
+
             const emailResult = await emailResponse.json();
             if (emailResult.success) {
               log(`📧 Post published email sent to user for ${platform}`);
@@ -525,6 +510,11 @@ export async function GET() {
           log(`⚠️ Error sending post published email:`, emailError.message);
           // Don't fail the post if email fails
         }
+      } else {
+        post.status = "failed";
+        post.error = "One or more targets failed to post.";
+        stats.failed++;
+      }
 
       await post.save();
       stats.processed++;

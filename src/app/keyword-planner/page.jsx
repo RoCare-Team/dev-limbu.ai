@@ -222,7 +222,7 @@ export default function KeywordPage() {
         </div>
       </div>
 
-      // <SupportModal showToast={handleShowToast} />
+      {/* <SupportModal showToast={handleShowToast} /> */}
       <WhatsAppButton />
     </div>
   );

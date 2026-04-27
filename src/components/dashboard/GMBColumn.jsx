@@ -162,13 +162,15 @@ const GMBColumn = React.memo(({
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-black/5">
                 <button
                   onClick={() => handleListingData(listing)}
-                  className="btn-ghost py-3 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2"
+                  disabled={listing.hasVoiceOfMerchant !== true}
+                  className="btn-ghost py-3 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <LayoutDashboard className="w-3 h-3" /> Manage
                 </button>
                 <button
                   onClick={() => handleViewPerformanceInsights(listing)}
-                  className="btn-lemon py-3 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-none border-none"
+                  disabled={listing.hasVoiceOfMerchant !== true}
+                  className="btn-lemon py-3 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-none border-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <BarChart3 className="w-3 h-3" /> Insights
                 </button>

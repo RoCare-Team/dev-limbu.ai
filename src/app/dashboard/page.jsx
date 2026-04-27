@@ -14,7 +14,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { fetchAllPostsAction } from "../actions/postActions";
-import SupportModal from "../../components/SupportModal";
+// import SupportModal from "../../components/SupportModal";
 import FirstPostModal from "@/components/FirstPostModal";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import LocationSelectionModal from "@/components/LocationSelectionModal";
@@ -191,14 +191,15 @@ export default function DashboardPage() {
     const fetchPosts = async () => {
       try {
         const userId = getLocalStorage("userId");
+        if (!userId) return; // Wait until userId is available
         const allPostsData = await fetchAllPostsAction(userId);
-        if (allPostsData.success && allPostsData.data.length === 0) {
+        if (allPostsData.success && (allPostsData.pagination?.totalItems === 0 || allPostsData.data.length === 0)) {
           timerId = setTimeout(() => {
             setUiState((prev) => ({ ...prev, showFirstPostModal: true }));
           }, 3000);
         }
       } catch (err) {
-        toast.error(err.message || "Error fetching posts", "error");
+        console.error(err.message || "Error fetching posts");
       }
     };
     fetchPosts();

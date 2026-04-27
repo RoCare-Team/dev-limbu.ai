@@ -86,13 +86,13 @@ export default function FranchisePage() {
       try {
         const res = await fetch(`/api/auth/signup?userId=${userId}`);
         const data = await res.json();
-        if (data) {
+        if (data && !data.error) {
           setServiceForm((prev) => ({
             ...prev,
             name: data.fullName || "",
             phone: data.phone || "",
             email: data.email || "",
-            gstNumber: data.gst || "",
+            gstNumber: data.GstNumber || "",
           }));
         }
       } catch (error) {

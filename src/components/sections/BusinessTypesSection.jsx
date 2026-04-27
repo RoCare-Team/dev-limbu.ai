@@ -32,7 +32,7 @@ const BusinessTypesSection = () => {
     },
     {
       title: "Restaurants & Bars",
-      image: "/images/category/restaurant.png", // ✅ spelling fixed
+      image: "/images/category/restorent.png",
       bgColor: "bg-amber-50/40",
       slug: "/restaurant-marketing-software",
     },

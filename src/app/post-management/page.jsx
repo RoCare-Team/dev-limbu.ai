@@ -255,17 +255,17 @@ export default function PostManagementPage() {
   const [dots, setDots] = useState("");
 
   useEffect(() => {
-  if (!isPosting) return;
+    if (!isPosting) return;
 
-  const interval = setInterval(() => {
-    setDots((prev) => {
-      if (prev.length >= 3) return "";
-      return prev + ".";
-    });
-  }, 400);
+    const interval = setInterval(() => {
+      setDots((prev) => {
+        if (prev.length >= 3) return "";
+        return prev + ".";
+      });
+    }, 400);
 
-  return () => clearInterval(interval);
-}, [isPosting]);
+    return () => clearInterval(interval);
+  }, [isPosting]);
 
   useEffect(() => {
     const stored = getLocalStorage("locationDetails");
@@ -881,59 +881,59 @@ export default function PostManagementPage() {
 
         {/* gmb post success modal */}
         {isPosting && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-lg z-[200] flex items-center justify-center px-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-lg z-[200] flex items-center justify-center px-4">
 
-    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
 
-      {/* ICON + ANIMATION */}
-      <div className="relative mb-6">
-        <div className="absolute inset-0 rounded-full bg-[#EAB308]/20 blur-xl animate-pulse"></div>
+              {/* ICON + ANIMATION */}
+              <div className="relative mb-6">
+                <div className="absolute inset-0 rounded-full bg-[#EAB308]/20 blur-xl animate-pulse"></div>
 
-        <div className="relative w-20 h-20 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
-          <Send className="w-10 h-10 text-[#EAB308] animate-bounce" />
-        </div>
-      </div>
+                <div className="relative w-20 h-20 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
+                  <Send className="w-10 h-10 text-[#EAB308] animate-bounce" />
+                </div>
+              </div>
 
-      {/* TITLE */}
-      <h3 className="text-2xl font-black text-slate-900 mb-2">
-        Publishing Your Post 🚀
-      </h3>
+              {/* TITLE */}
+              <h3 className="text-2xl font-black text-slate-900 mb-2">
+                Publishing Your Post 🚀
+              </h3>
 
-      {/* SUBTEXT */}
-      <p className="text-sm text-slate-500 mb-6">
-        Please wait while we are posting your content across selected platforms...
-      </p>
+              {/* SUBTEXT */}
+              <p className="text-sm text-slate-500 mb-6">
+                Please wait while we are posting your content across selected platforms...
+              </p>
 
-      {/* PROGRESS BAR */}
-      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-4 relative">
-  
-  <div className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full animate-slide"></div>
+              {/* PROGRESS BAR */}
+              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-4 relative">
 
-</div>
+                <div className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full animate-slide"></div>
 
-      {/* STEPS */}
-      <div className="flex flex-col gap-2 text-sm text-slate-600 w-full">
+              </div>
 
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-          Connecting platforms...
-        </div>
+              {/* STEPS */}
+              <div className="flex flex-col gap-2 text-sm text-slate-600 w-full">
 
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-          Uploading content...
-        </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  Connecting platforms...
+                </div>
 
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-slate-300 rounded-full animate-pulse"></span>
-          Finalizing post{dots}
-        </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                  Uploading content...
+                </div>
 
-      </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-slate-300 rounded-full animate-pulse"></span>
+                  Finalizing post{dots}
+                </div>
 
-    </div>
-  </div>
-)}
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {uiState.showSuccess && <SuccessOverlay onComplete={() => updateUiState({ showSuccess: false })} postsCount={posts.length} />}
 

@@ -3,7 +3,7 @@ import { ArrowRight, Star } from "lucide-react";
 
 export default function IndustryHeroSection({ industryName, heroHeading, heroSubheading, whatsappLink, heroImage }) {
   return (
-    <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-8 lg:py-12">
+    <section className="relative px-4 pt-2 sm:pt-0 sm:px-6 lg:px-8 max-w-7xl mx-auto py-8 lg:py-12">
       {/* Decorative Background Glows */}
       <div className="absolute top-0 right-0 -z-10 w-[500px] h-[500px] bg-lemon-glow/10 blur-[120px] rounded-full opacity-60" />
 

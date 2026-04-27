@@ -122,9 +122,24 @@ export const authOptions = {
 
     async jwt({ token, account, user }) {
       if (account && user) {
+        // Look up our custom userId from the database during initial sign-in
+        let dbUserId = null;
+        try {
+          const client = await clientPromise;
+          const db = client.db(GMB_DASHBOARD_DB);
+          const col = db.collection(USERS_COLLECTION);
+          const existingUser = await col.findOne({
+            email: { $regex: `^${user.email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+          });
+          dbUserId = existingUser?.userId || null;
+        } catch (err) {
+          console.error("JWT Callback DB Error:", err);
+        }
+
         return {
           ...token,
           id: user.id,
+          userId: dbUserId, // Include our database userId
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
@@ -140,6 +155,7 @@ export const authOptions = {
 
     async session({ session, token }) {
       session.user.id = token.id;
+      session.user.userId = token.userId; // Expose userId to the session
       session.accessToken = token.accessToken;
       session.refreshToken = token.refreshToken;
       session.error = token.error;

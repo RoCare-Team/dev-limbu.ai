@@ -32,7 +32,9 @@ const GMBConnectionSchema = new mongoose.Schema({
       {
         title:                String,
         verified:             { type: Boolean, default: false },
-        address:              String,
+        locality:             { type: String, default: "" },  // storefrontAddress.locality (city name)
+        addressLine:          { type: String, default: "" },  // street lines only (no city/region/postal)
+        address:              String,                         // full formatted address
         locationResourceName: String,
         websiteUri:           String,
         accountId:            String,
@@ -103,16 +105,21 @@ function buildAddressLine(loc) {
 }
 
 export function buildLocationsData(listings) {
-  return (Array.isArray(listings) ? listings : []).map((l) => ({
-    title:                (l?.title && String(l.title).trim()) || "Business",
-    verified:             l?.hasVoiceOfMerchant === true,
-    address:              buildAddressLine(l),
-    locationResourceName: typeof l?.name === "string" ? l.name : "",
-    websiteUri:           l?.websiteUri || "",
-    accountId:            l?.accountId || "",
-    primaryPhone:         l?.phoneNumbers?.primaryPhone || "",
-    categories:           categoryLabels(l?.categories),
-  }));
+  return (Array.isArray(listings) ? listings : []).map((l) => {
+    const addressLines = (l?.storefrontAddress?.addressLines || []).filter(Boolean);
+    return {
+      title:                (l?.title && String(l.title).trim()) || "Business",
+      verified:             l?.hasVoiceOfMerchant === true,
+      locality:             l?.storefrontAddress?.locality || "",
+      addressLine:          addressLines.join(", "),
+      address:              buildAddressLine(l),
+      locationResourceName: typeof l?.name === "string" ? l.name : "",
+      websiteUri:           l?.websiteUri || "",
+      accountId:            l?.accountId || "",
+      primaryPhone:         l?.phoneNumbers?.primaryPhone || "",
+      categories:           categoryLabels(l?.categories),
+    };
+  });
 }
 
 // ── Public utilities ──────────────────────────────────────────────────────────

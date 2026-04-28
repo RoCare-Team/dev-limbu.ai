@@ -18,6 +18,8 @@ export function useSidebar() {
     location: "",
   });
 
+  // console.log("Sidebar Hook - UserData:", userData);
+
   // Handle Resize
   useEffect(() => {
     const handleResize = () => {

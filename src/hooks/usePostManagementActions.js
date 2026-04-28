@@ -345,25 +345,29 @@ export function usePostManagementActions({
         body.image = source.startsWith("data:") ? source : `data:image/png;base64,${source}`;
       }
 
-      const ivRes = await fetch("/api/image-to-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 seconds timeout
+
+      let ivRes;
+      try {
+        ivRes = await fetch("/api/image-to-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error("TIMEOUT_ERROR");
+        }
+        throw fetchError;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      
       const ivData = await ivRes.json().catch(() => ({}));
 
       if (!ivRes.ok || (ivData.success === false && !ivData.drive_link)) {
-        // ✅ Refund if video generation failed
-        await deductFromWalletAction(userId, {
-          amount: VIDEO_GENERATION_COINS,
-          type: "credit",
-          reason: "refund_video_failed",
-          metadata: { postId: post._id },
-        });
-        setUserWallet(prev => prev + VIDEO_GENERATION_COINS);
-        showToast("Video generation failed — coins refunded", "error");
-        emitWalletCredit(VIDEO_GENERATION_COINS); // ✅ sidebar sync
-
         throw new Error(typeof ivData.error === "string" ? ivData.error : ivData.message || "Video generation failed");
       }
 
@@ -384,11 +388,25 @@ export function usePostManagementActions({
       const merged = { ...post, ...upd.data };
       setPosts(prev => prev.map(p => p._id === post._id ? merged : p));
       setPreviewData(prev => prev?._id === post._id ? { ...prev, ...upd.data } : prev);
-      showToast("Video ready — tap the Video tab");
+      showToast("Video ready — tap the Video tab", "success");
       await fetchPosts(1, true);
 
     } catch (e) {
-      showToast(e.message || "Video conversion failed", "error");
+      // ✅ Refund if video generation failed or timed out
+      await deductFromWalletAction(userId, {
+        amount: VIDEO_GENERATION_COINS,
+        type: "credit",
+        reason: "refund_video_failed",
+        metadata: { postId: post._id, error: e.message },
+      });
+      setUserWallet(prev => prev + VIDEO_GENERATION_COINS);
+      emitWalletCredit(VIDEO_GENERATION_COINS); // ✅ sidebar sync
+      
+      if (e.message === "TIMEOUT_ERROR") {
+        showToast("Video generation timed out — coins refunded", "error");
+      } else {
+        showToast(e.message || "Video conversion failed — coins refunded", "error");
+      }
     } finally {
       setConvertingVideoPostId(null);
     }

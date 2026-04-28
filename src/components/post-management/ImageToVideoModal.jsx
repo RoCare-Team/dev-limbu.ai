@@ -356,7 +356,8 @@ const ImageToVideoModal = React.memo(({
           });
           if (upd.success && upd.data) {
             onVideoSaved?.(upd.data);
-            showToast?.("Video added — use Image / Video tabs in preview", "success");
+            showToast?.("Video generated successfully! Added to your post.", "success");
+            onClose(); // Automatically close the modal
           } else throw new Error(upd.error || "Video generated but could not attach to this post.");
         } else {
           const saveRes = await savePostAction({
@@ -366,10 +367,14 @@ const ImageToVideoModal = React.memo(({
           });
           if (saveRes.success && saveRes.data) {
             onVideoSaved?.(saveRes.data);
-            showToast?.("Video saved — see Videos tab", "success");
+            showToast?.("Video generated successfully! Saved to your library.", "success");
+            onClose(); // Automatically close the modal
           } else throw new Error(saveRes.error || "Video generated but could not save to your library.");
         }
-      } else showToast?.("Video generated successfully", "success");
+      } else {
+        showToast?.("Video generated successfully!", "success");
+        onClose(); // Automatically close the modal
+      }
     } catch (err) {
       showToast?.(err.message || "Something went wrong", "error");
     } finally {

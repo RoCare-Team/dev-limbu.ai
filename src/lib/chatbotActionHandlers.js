@@ -37,6 +37,7 @@ import {
 } from "@/lib/chatbotHealthPdfGenerator";
 import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
+import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
 import { generateSlug } from "../../utils/generateSlug";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
@@ -415,15 +416,20 @@ async function handleMagicQr({ location, email, locationId }) {
 
   console.log(`[qr] location=${shortId} reviewUrl=${reviewUrl}`);
 
-  // ── Step 1: Reuse existing styled QR if already in DB ─────────────────────
+  // ── Step 1: Reuse existing styled QR only if its reviewUrl still matches ──
+  // (old records may have been generated with a different/wrong URL; regenerate
+  //  if the stored reviewUrl differs from the one we just computed)
   const existing = await MagicQR.findOne({ locationId: shortId }).lean();
-  if (existing?.s3ImageUrl) {
+  if (existing?.s3ImageUrl && existing?.reviewUrl === reviewUrl) {
     console.log(`[qr] Reusing saved styled QR: ${existing.s3ImageUrl}`);
     return {
       url:      existing.s3ImageUrl,
       reviewUrl,
       message:  `QR code ready for ${businessTitle}`,
     };
+  }
+  if (existing?.s3ImageUrl && existing?.reviewUrl !== reviewUrl) {
+    console.log(`[qr] Stored reviewUrl mismatch — regenerating. old=${existing.reviewUrl} new=${reviewUrl}`);
   }
 
   // ── Step 2: Generate styled card (same visual as QRPreviewCard.jsx) ───────
@@ -444,7 +450,7 @@ async function handleMagicQr({ location, email, locationId }) {
   // ── Step 4: Upsert MagicQR DB record ──────────────────────────────────────
   await MagicQR.findOneAndUpdate(
     { locationId: shortId },
-    { userEmail: email, businessTitle, locality, locationId: shortId, s3ImageUrl: s3Result.url, status: "generated" },
+    { userEmail: email, businessTitle, locality, locationId: shortId, s3ImageUrl: s3Result.url, reviewUrl, status: "generated" },
     { upsert: true, new: true }
   );
 
@@ -542,7 +548,38 @@ async function handleInsights({ accessToken, locationId, location }) {
     ` calls=${metrics.totalCalls} directions=${metrics.totalDirections}`
   );
 
-  // ── 5. Format labels
+  // ── 5. Generate PDF + upload to S3 (same as performancePdfGenerator.js flow)
+  let pdfUrl = null;
+  try {
+    const monthName = re.toLocaleDateString("en-US", { month: "long" });
+    const year      = re.getFullYear();
+    const slugBiz   = businessName.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+
+    const pdfBuffer = await generateInsightsPdf({
+      businessName,
+      locationName: location?.title || businessName,
+      city:         location?.locality || "",
+      dateRange:    { startDate: rs.toISOString(), endDate: re.toISOString() },
+      metrics,
+      prevMetrics,
+      prevHasData,
+      insightsData,
+      keywords,
+    });
+
+    const fileName = `performance_report_${slugBiz}_${monthName}_${year}.pdf`;
+    const s3Result = await uploadToS3(pdfBuffer, fileName, "application/pdf", "insights-reports");
+    if (s3Result.success) {
+      pdfUrl = s3Result.url;
+      console.log(`[chatbotAction:insights] PDF uploaded → ${pdfUrl}`);
+    } else {
+      console.warn(`[chatbotAction:insights] PDF S3 upload failed: ${s3Result.error}`);
+    }
+  } catch (pdfErr) {
+    console.warn(`[chatbotAction:insights] PDF generation failed: ${pdfErr.message}`);
+  }
+
+  // ── 6. Format labels
   const fmt = (d) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   const reportWindowLabel = `${fmt(rs)} – ${fmt(re)}`;
   const prevWindowLabel   = `${fmt(prevStart)} – ${fmt(prevEnd)}`;
@@ -598,6 +635,9 @@ async function handleInsights({ accessToken, locationId, location }) {
   }
 
   lines.push(``, `💡 Tip: ${pickInsightTip(metrics)}`);
+  if (pdfUrl) {
+    lines.push(``, `📄 Full Report (PDF): ${pdfUrl}`);
+  }
 
   const text = lines.filter((l) => l !== null && l !== undefined).join("\n");
 
@@ -605,6 +645,7 @@ async function handleInsights({ accessToken, locationId, location }) {
     metrics,
     prevMetrics,
     keywords,
+    pdfUrl,
     text,
     dateRange: {
       startDate: rs.toISOString().split("T")[0],

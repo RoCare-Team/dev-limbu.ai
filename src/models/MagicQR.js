@@ -24,6 +24,10 @@ const magicQrSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    reviewUrl: {
+      type: String,
+      default: "",
+    },
     status: {
       type: String,
       enum: ["generated", "failed", "pending"],

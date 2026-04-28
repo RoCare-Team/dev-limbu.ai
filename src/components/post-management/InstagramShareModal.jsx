@@ -15,6 +15,8 @@ const InstagramShareModal = ({
 }) => {
   const [caption, setCaption] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("");
+  /** Instagram Graph: VIDEO = feed video, REELS = Reel */
+  const [igVideoKind, setIgVideoKind] = useState("VIDEO");
 
   /* =========================
      Set Caption
@@ -22,6 +24,7 @@ const InstagramShareModal = ({
   useEffect(() => {
     if (post) {
       setCaption(post?.igDescription || post?.description || "");
+      setIgVideoKind("VIDEO");
     }
   }, [post]);
 
@@ -53,9 +56,15 @@ const InstagramShareModal = ({
       accounts[0];
 
     if (account && post) {
-      onConfirm(post, account, caption);
+      const m = metaPublishMedia(post);
+      onConfirm(
+        post,
+        account,
+        caption,
+        m.type === "video" ? igVideoKind : undefined,
+      );
     }
-  }, [accounts, selectedAccountId, post, caption, onConfirm]);
+  }, [accounts, selectedAccountId, post, caption, onConfirm, igVideoKind]);
 
   if (!isOpen) return null;
 
@@ -124,14 +133,39 @@ const InstagramShareModal = ({
               </select>
             </div>
 
-            {/* Reel Notice */}
+            {/* Video: feed vs Reel */}
             {publishAsVideo && (
-              <div className="flex items-start gap-2 text-xs bg-pink-50 border border-pink-200 text-pink-900 p-3 rounded-lg">
-                <Video className="w-4 h-4 mt-[2px]" />
-                <p>
-                  Posting as an <strong>Instagram Reel</strong>. Processing may
-                  take a few moments.
-                </p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 text-xs bg-pink-50 border border-pink-200 text-pink-900 p-3 rounded-lg">
+                  <Video className="w-4 h-4 mt-[2px] shrink-0" />
+                  <p>
+                    Choose <strong>Feed video</strong> for normal timeline
+                    posts, or <strong>Reel</strong> for the Reels tab. Processing
+                    can take a minute.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="igVideoKind"
+                      checked={igVideoKind === "VIDEO"}
+                      onChange={() => setIgVideoKind("VIDEO")}
+                      className="text-pink-600"
+                    />
+                    <span>Feed video</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="igVideoKind"
+                      checked={igVideoKind === "REELS"}
+                      onChange={() => setIgVideoKind("REELS")}
+                      className="text-pink-600"
+                    />
+                    <span>Reel</span>
+                  </label>
+                </div>
               </div>
             )}
 
@@ -161,7 +195,7 @@ const InstagramShareModal = ({
 
               <button
                 onClick={handleSubmit}
-                disabled={!caption}
+                disabled={!post || !metaPublishMedia(post)?.url}
                 className="flex-1 py-2.5 rounded-lg bg-pink-600 text-white font-semibold hover:bg-pink-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />

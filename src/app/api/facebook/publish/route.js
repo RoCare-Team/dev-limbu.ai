@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updatePostStatusAction } from "@/app/actions/postActions";
+import { graphApiFormEncode } from "@/utils/postHelpers";
 
 export const maxDuration = 300;
 
@@ -63,8 +64,8 @@ export async function POST(req) {
           `https://graph.facebook.com/v24.0/${pageId}/videos`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: graphApiFormEncode({
               file_url: media.url,
               description: caption || "",
               access_token: accessToken,

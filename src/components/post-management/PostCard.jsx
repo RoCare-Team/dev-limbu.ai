@@ -51,6 +51,7 @@ const PostCard = React.memo(
     const [activeDesc, setActiveDesc] = useState("gmb");
     const [cardMediaTab, setCardMediaTab] = useState("image");
 
+
     const { isPostedGmb, isPostedFb, isPostedIg } = useMemo(
       () => ({
         isPostedGmb:
@@ -595,8 +596,8 @@ const PostCard = React.memo(
 
               {/* SUBTEXT */}
               <p className="text-sm text-slate-500 mb-5">
-                This may take a few seconds
-              </p>
+                     ⏳ {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
+                </p>
 
               {/* SLIDING BAR */}
               <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">

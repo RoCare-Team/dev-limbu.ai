@@ -8,7 +8,10 @@ import {
   metaPublishMedia,
   postImageUrl
 } from "@/lib/postMediaUrls";
-import { waitForInstagramVideoContainer } from "@/utils/postHelpers";
+import {
+  waitForInstagramVideoContainer,
+  graphApiFormEncode,
+} from "@/utils/postHelpers";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 
@@ -72,8 +75,8 @@ export function usePostManagementActions({
             `https://graph.facebook.com/v24.0/${pageId}/videos`,
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: graphApiFormEncode({
                 file_url: media.url,
                 description: caption || "",
                 access_token: accessToken,
@@ -173,7 +176,12 @@ export function usePostManagementActions({
     }
   };
 
-  const handleInstagramPost = async (post, accountData, caption) => {
+  const handleInstagramPost = async (
+    post,
+    accountData,
+    caption,
+    instagramVideoMediaType,
+  ) => {
     const media = metaPublishMedia(post);
     if (!media.url) {
       showToast("Post has no media to share.", "error");
@@ -186,24 +194,35 @@ export function usePostManagementActions({
       const igUserId = accountData.igId;
       const accessToken = accountData.pageAccessToken;
 
-      const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
-      const mediaContainerPayload = media.type === "video"
-        ? {
-          video_url: media.url,
-          caption: caption || "",
-          media_type: "REELS",
-          access_token: accessToken,
-        }
-        : {
-          image_url: media.url,
-          caption: caption || "",
-          access_token: accessToken,
-        };
+      const videoKind =
+        instagramVideoMediaType === "REELS" ? "REELS" : "VIDEO";
 
+      const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
+      const mediaContainerPayload =
+        media.type === "video"
+          ? {
+              video_url: media.url,
+              caption: caption || "",
+              media_type: videoKind,
+              access_token: accessToken,
+            }
+          : {
+              image_url: media.url,
+              caption: caption || "",
+              access_token: accessToken,
+            };
+
+      // Photos: JSON (urlencoded often breaks long image URLs / encoding). Video: form body.
       const mediaRes = await fetch(mediaContainerUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mediaContainerPayload),
+        headers:
+          media.type === "video"
+            ? { "Content-Type": "application/x-www-form-urlencoded" }
+            : { "Content-Type": "application/json" },
+        body:
+          media.type === "video"
+            ? graphApiFormEncode(mediaContainerPayload)
+            : JSON.stringify(mediaContainerPayload),
       });
       const mediaData = await mediaRes.json();
 
@@ -218,13 +237,20 @@ export function usePostManagementActions({
       }
 
       const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
+      const publishBody = {
+        creation_id: mediaData.id,
+        access_token: accessToken,
+      };
       const publishRes = await fetch(publishUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creation_id: mediaData.id,
-          access_token: accessToken,
-        }),
+        headers:
+          media.type === "video"
+            ? { "Content-Type": "application/x-www-form-urlencoded" }
+            : { "Content-Type": "application/json" },
+        body:
+          media.type === "video"
+            ? graphApiFormEncode(publishBody)
+            : JSON.stringify(publishBody),
       });
       const publishData = await publishRes.json();
 

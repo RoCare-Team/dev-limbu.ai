@@ -621,14 +621,44 @@ const PostInput = ({
           <div className="space-y-3">
             {/* Prompt Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-900/90 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#EAB308]" />
-                What would you like to create?
-              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <label className="text-xs font-semibold text-slate-900/90 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#EAB308]" />
+                  What would you like to create?
+                </label>
+                <div className="flex p-0.5 bg-slate-100 rounded-lg shrink-0 self-start sm:self-auto border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setCreationMode("ai")}
+                    className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                      creationMode === "ai"
+                        ? "bg-white shadow-sm text-slate-900"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    AI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreationMode("manual")}
+                    className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                      creationMode === "manual"
+                        ? "bg-white shadow-sm text-black ring-1 ring-[#EAB308]/40"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    Manual
+                  </button>
+                </div>
+              </div>
               <div className="relative group">
                 <textarea
                   ref={textareaRef}
-                  placeholder="Describe your post idea..."
+                  placeholder={
+                    creationMode === "manual"
+                      ? "Write any prompt you want — full freedom for your banner or post."
+                      : "Describe your post idea..."
+                  }
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   className="w-full p-3 pr-24 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all min-h-[50px] resize-none placeholder:text-slate-900/30 backdrop-blur-sm"
@@ -714,7 +744,10 @@ const PostInput = ({
                       .map((name, i) => (
                         <div
                           key={i}
-                          onClick={() => {
+                          role="option"
+                          tabIndex={-1}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
                             setBusinessName(name);
                             setShowBusinessDropdown(false);
                             setBusinessNameError("");
@@ -761,7 +794,7 @@ const PostInput = ({
                       onBlur={() =>
                         setTimeout(() => setShowKeywordDropdown(false), 200)
                       }
-                      className={`w-full p-2.5 pr-8 bg-slate-50 border ${keywordError && selectedKeywords.length === 0 ? "border-red-500" : "border-slate-200"} rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none backdrop-blur-sm transition-all`}
+                      className={`w-full p-2.5 pr-8 bg-slate-50 border ${keywordError && selectedKeywords.length === 0 && creationMode !== "manual" ? "border-red-500" : "border-slate-200"} rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none backdrop-blur-sm transition-all`}
                       placeholder={
                         selectedKeywords.length > 0
                           ? "Add more..."
@@ -782,7 +815,14 @@ const PostInput = ({
                     )}
                   </button>
                 </div>
-                {keywordError && selectedKeywords.length === 0 && (
+                {creationMode === "manual" && (
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Keywords are optional in Manual mode.
+                  </p>
+                )}
+                {keywordError &&
+                  selectedKeywords.length === 0 &&
+                  creationMode !== "manual" && (
                   <p className="text-red-500 text-xs mt-1 ml-1">
                     {keywordError}
                   </p>

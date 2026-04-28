@@ -20,6 +20,19 @@ export const fileToBase64 = (file) =>
   });
 
 /**
+ * Encode params for Meta Graph API POST bodies.
+ * Graph expects application/x-www-form-urlencoded for many edges; JSON often fails.
+ */
+export function graphApiFormEncode(params) {
+  const body = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    body.append(k, String(v));
+  }
+  return body;
+}
+
+/**
  * Wait for Instagram video processing
  */
 export async function waitForInstagramVideoContainer(

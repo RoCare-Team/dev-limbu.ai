@@ -292,7 +292,9 @@ async function handleHealthScore({ location, email, accessToken }) {
     raw = raw[""];
   }
 
-  const score = raw?.score ?? raw?.healthScore ?? raw?.health_score ?? null;
+  // Mirror GBPAuditCard: read totalScore first (the primary key from n8n)
+  const innerAudit = (raw && typeof raw === "object" && "" in raw) ? raw[""] : raw;
+  const score = innerAudit?.totalScore ?? innerAudit?.score ?? innerAudit?.healthScore ?? innerAudit?.health_score ?? null;
 
   console.log(`[hs] Step 1 done — score=${score} business="${businessName}" keys=${Object.keys(raw ?? {}).slice(0,10).join(",")}`);
   console.log(`[hs] Step 2 — generating PDF`);

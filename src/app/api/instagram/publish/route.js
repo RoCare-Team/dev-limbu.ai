@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updatePostStatusAction } from "@/app/actions/postActions";
+import { graphApiFormEncode } from "@/utils/postHelpers";
 
 async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 120000) {
   const start = Date.now();
@@ -20,7 +21,8 @@ async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 1
 
 export async function POST(req) {
   try {
-    const { post, accountData, caption, media, userId } = await req.json();
+    const { post, accountData, caption, media, userId, instagramVideoMediaType } =
+      await req.json();
 
     if (!media?.url) {
       return NextResponse.json({ success: false, error: "Post has no media to share." }, { status: 400 });
@@ -29,26 +31,35 @@ export async function POST(req) {
     const igUserId = accountData.igId;
     const accessToken = accountData.pageAccessToken;
 
-    // Step 1: Create Media Container
+    const videoKind =
+      instagramVideoMediaType === "REELS" ? "REELS" : "VIDEO";
+
+    // Step 1: Create Media Container (images: JSON; video: form — matches Graph behavior in practice)
     const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
     const mediaContainerPayload =
       media.type === "video"
         ? {
-          video_url: media.url,
-          caption: caption || "",
-          media_type: "REELS",
-          access_token: accessToken,
-        }
+            video_url: media.url,
+            caption: caption || "",
+            media_type: videoKind,
+            access_token: accessToken,
+          }
         : {
-          image_url: media.url,
-          caption: caption || "",
-          access_token: accessToken,
-        };
+            image_url: media.url,
+            caption: caption || "",
+            access_token: accessToken,
+          };
 
     const mediaRes = await fetch(mediaContainerUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(mediaContainerPayload),
+      headers:
+        media.type === "video"
+          ? { "Content-Type": "application/x-www-form-urlencoded" }
+          : { "Content-Type": "application/json" },
+      body:
+        media.type === "video"
+          ? graphApiFormEncode(mediaContainerPayload)
+          : JSON.stringify(mediaContainerPayload),
     });
     const mediaData = await mediaRes.json();
 
@@ -75,8 +86,14 @@ export async function POST(req) {
     };
     const publishRes = await fetch(publishUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(publishPayload),
+      headers:
+        media.type === "video"
+          ? { "Content-Type": "application/x-www-form-urlencoded" }
+          : { "Content-Type": "application/json" },
+      body:
+        media.type === "video"
+          ? graphApiFormEncode(publishPayload)
+          : JSON.stringify(publishPayload),
     });
     const publishData = await publishRes.json();
 

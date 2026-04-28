@@ -213,17 +213,17 @@ const TopAppBar = React.memo(({
       <div className="flex items-center gap-4">
         {/* Wallet */}
         <button
-          onClick={() => router.push("/wallet")}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#EAB308]/10 text-[#EAB308] border border-[#EAB308]/20 transition-all hover:scale-[1.02] shadow-sm"
-        >
-          <Plus size={12} className="text-[#EAB308]" />
-          <span className="text-[11px] font-black tracking-tight">
-            {walletBalance}{" "}
-            <span className="hidden sm:inline text-[9px] opacity-70">
-              CREDITS
-            </span>
-          </span>
-        </button>
+  onClick={() => router.push("/wallet")}
+  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0F172A] text-white border border-[#EAB308]/20 transition-all hover:scale-[1.02] shadow-sm"
+>
+  <Plus size={12} className="text-white" />
+  <span className="text-[11px] font-black tracking-tight">
+    {walletBalance}{" "}
+    <span className="hidden sm:inline text-[9px]  opacity-70">
+      CREDITS
+    </span>
+  </span>
+</button>
 
         {/* Notifications */}
         <button className="relative p-2 rounded-xl bg-slate-50 text-slate-500 hover:text-slate-900 transition-colors">
@@ -235,12 +235,12 @@ const TopAppBar = React.memo(({
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="flex items-center gap-2 p-1 pr-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-all shadow-sm"
+            className="flex items-center gap-2 p-1 pr-3 rounded-xl bg-[#0F172A]  border border-slate-100  transition-all shadow-sm"
           >
-            <UserAvatar name={userData.name} size="sm" />
+            <UserAvatar  name={userData.name} size="sm"  className="text-white"/>
             <ChevronDown
               size={12}
-              className={`text-slate-400 transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
+              className={`text-white transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
             />
           </button>
 

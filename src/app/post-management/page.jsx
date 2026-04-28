@@ -359,9 +359,12 @@ export default function PostManagementPage() {
     }
   }, [userId, showToast, updateUiState]);
 
-  const handleAiAgent = useCallback(async (selectedAssets = []) => {
+  const handleAiAgent = useCallback(async (selectedAssets = [], meta = {}) => {
     if (!prompt.trim()) return showToast("Enter prompt!", "error");
     if (!userId) return;
+    const mode = meta.mode === "manual" ? "manual" : "ai";
+    const instructions =
+      typeof meta.instructions === "string" ? meta.instructions : "";
     try {
       const userData = await getUserWalletAction(userId);
       const currentBalance = userData?.wallet ?? 0;
@@ -385,7 +388,8 @@ export default function PostManagementPage() {
       const res = await generateWithAiAgentAction(
         prompt,
         stripBase64(logoBase64),
-        selectedAssets.map(a => ({ ...a, url: stripBase64(a.url) }))
+        selectedAssets.map(a => ({ ...a, url: stripBase64(a.url) })),
+        { mode, instructions },
       );
       clearInterval(timer);
       if (!res.success) throw new Error(res.error || "AI generation failed");
@@ -425,9 +429,18 @@ export default function PostManagementPage() {
     }
   }, [prompt, userId, logo, showToast, updateUiState]);
 
-  const handleImageGenerateWithAssets = useCallback(async (selectedAssets = [], businessName, keywords) => {
+  const handleImageGenerateWithAssets = useCallback(async (
+    selectedAssets = [],
+    businessName,
+    keywords,
+    meta = {},
+  ) => {
     if (!prompt.trim()) return showToast("Enter prompt!", "error");
     if (!userId) return;
+
+    const mode = meta.mode === "manual" ? "manual" : "ai";
+    const instructions =
+      typeof meta.instructions === "string" ? meta.instructions : "";
 
     let timer = null;
 
@@ -466,6 +479,8 @@ export default function PostManagementPage() {
         backgroundImage: stripBase64(selectedAssets.find(a => a.name === "Background")?.url || ""),
         logoImage: stripBase64(selectedAssets.find(a => a.name === "Logo")?.url || logoBase64 || ""),
         platform: selectedPlatforms.join(",") || "gmb",
+        mode,
+        instructions,
       });
       clearInterval(timer);
       timer = null;
@@ -532,7 +547,31 @@ export default function PostManagementPage() {
     }
   }, [prompt, userId, logo, userAssets, selectedPlatforms, showToast, updateUiState]);
 
-  const handleGenerateClick = useCallback(async (selectedAssets, useAssetsFlow, businessName, keywords) => {
+  const handleGenerateClick = useCallback(async (
+    selectedAssets,
+    useAssetsFlow,
+    businessName,
+    keywords,
+    options = {},
+  ) => {
+    const {
+      mode: modeFromUi = "ai",
+      instructions = "",
+      includeInstructionsInPrompt = false,
+    } = options;
+
+    /** Sent to APIs as exactly `"ai"` or `"manual"` */
+    const generationMode = modeFromUi === "manual" ? "manual" : "ai";
+    const instructionsForApi =
+      includeInstructionsInPrompt && typeof instructions === "string"
+        ? instructions
+        : "";
+
+    const generationMeta = {
+      mode: generationMode,
+      instructions: instructionsForApi,
+    };
+
     const resolvedBusinessName = resolveBusinessNameForGeneration({
       fromInput: typeof businessName === "string" ? businessName : "",
       selectedBusinessName: selectedBusiness?.name,
@@ -546,7 +585,7 @@ export default function PostManagementPage() {
     }
 
     let processedKeywords = Array.isArray(keywords) ? keywords.join(", ") : (keywords || "");
-    if (!processedKeywords) {
+    if (generationMode !== "manual" && !processedKeywords.trim()) {
       setKeywordError("Please fill at least one keyword");
       return;
     }
@@ -555,9 +594,14 @@ export default function PostManagementPage() {
     if (useAssetsFlow === "manual") {
       await handleManualPost(selectedAssets);
     } else if (useAssetsFlow) {
-      await handleImageGenerateWithAssets(selectedAssets, resolvedBusinessName, processedKeywords);
+      await handleImageGenerateWithAssets(
+        selectedAssets,
+        resolvedBusinessName,
+        processedKeywords,
+        generationMeta,
+      );
     } else {
-      await handleAiAgent(selectedAssets);
+      await handleAiAgent(selectedAssets, generationMeta);
     }
   }, [availableLocations, bussinessTitle, prompt, selectedBusiness?.name, handleManualPost, handleImageGenerateWithAssets, handleAiAgent]);
 
@@ -942,7 +986,7 @@ export default function PostManagementPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
           <div className="lg:col-span-7">
             <PostInput prompt={prompt} setPrompt={setPrompt} onGenerate={handleGenerateClick} onManualPost={handleManualPost} loading={uiState.isGenerating} logo={logo} setLogo={setLogo} assets={userAssets} setUserAssets={setUserAssets} fetchUserAssets={fetchUserAssets} assetId={assetId} showToast={showToast} selectedAssets={selectedAssets} setSelectedAssets={setSelectedAssets} bussinessTitle={bussinessTitle} availableLocations={availableLocations} keywordError={keywordError} />
-            <button type="button" onClick={() => updateUiState({ imageToVideoOpen: true })} className="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 py-3 font-bold text-amber-900 shadow-sm"><Video className="w-5 h-5" /> Image to Video</button>
+            {/* <button type="button" onClick={() => updateUiState({ imageToVideoOpen: true })} className="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 py-3 font-bold text-amber-900 shadow-sm"><Video className="w-5 h-5" /> Image to Video</button> */}
           </div>
           <div className="lg:col-span-5 sticky top-16 z-10 max-h-[75vh] overflow-y-auto" ref={previewRef}>
             <PreviewSection isGenerating={uiState.isGenerating} previewData={previewData} onDownload={handleDownload} countdown={uiState.countdown} onUpdateStatus={handleUpdateStatus} onReject={handleReject} handlePost={handlePost} onToggleCheckmark={handleToggleCheckmark} onEditDescription={handleEditDescription} isConvertingToVideo={!!previewData?._id && String(convertingVideoPostId) === String(previewData._id)} videoConvertCoins={VIDEO_GENERATION_COINS} onAutoConvertToVideo={handleAutoConvertToVideo} onRequestImageToVideo={() => { if (previewData) { setImageToVideoInitialPost(previewData); updateUiState({ imageToVideoOpen: true }); } }} handleFacebookPost={handleFacebookPost} handleInstagramPost={handleInstagramPost} />

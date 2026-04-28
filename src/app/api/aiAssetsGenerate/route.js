@@ -40,7 +40,7 @@ export async function POST(req) {
       logoImage: cleanBase64(logoImage),
       platform: platform || "",
       mode: mode === "manual" ? "manual" : "ai",
-      // instructions: typeof instructions === "string" ? instructions : "",
+      instructions: typeof instructions === "string" ? instructions : "",
     };
 
     console.log("Sending payload to n8n:", payload);

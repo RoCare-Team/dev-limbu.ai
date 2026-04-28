@@ -17,22 +17,23 @@ function categoryLabels(categories) {
 export function buildLocationsDataFromGmbListings(listings) {
   const arr = Array.isArray(listings) ? listings : [];
   return arr.map((l) => {
-    const lines = (l?.storefrontAddress?.addressLines || []).filter(Boolean);
+    const lines    = (l?.storefrontAddress?.addressLines || []).filter(Boolean);
     const locality = l?.storefrontAddress?.locality || "";
-    const region = l?.storefrontAddress?.administrativeArea || "";
-    const postal = l?.storefrontAddress?.postalCode || "";
-    const tail = [locality, region, postal].filter(Boolean).join(", ");
-    const addressParts = [...lines, tail].filter(Boolean);
-    const address = addressParts.join(", ") || "";
+    const region   = l?.storefrontAddress?.administrativeArea || "";
+    const postal   = l?.storefrontAddress?.postalCode || "";
+    const tail     = [locality, region, postal].filter(Boolean).join(", ");
+    const address  = [...lines, tail].filter(Boolean).join(", ") || "";
     return {
-      title: (l?.title && String(l.title).trim()) || "Business",
-      verified: l?.hasVoiceOfMerchant === true,
+      title:                (l?.title && String(l.title).trim()) || "Business",
+      verified:             l?.hasVoiceOfMerchant === true,
+      locality,                         // storefrontAddress.locality  e.g. "Ahmedabad"
+      addressLine:          lines.join(", "),  // street lines only e.g. "1st Floor, Shop No.02..."
       address,
       locationResourceName: typeof l?.name === "string" ? l.name : "",
-      websiteUri: l?.websiteUri || "",
-      accountId: l?.accountId || "",
-      primaryPhone: l?.phoneNumbers?.primaryPhone || "",
-      categories: categoryLabels(l?.categories),
+      websiteUri:           l?.websiteUri || "",
+      accountId:            l?.accountId || "",
+      primaryPhone:         l?.phoneNumbers?.primaryPhone || "",
+      categories:           categoryLabels(l?.categories),
     };
   });
 }

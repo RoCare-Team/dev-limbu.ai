@@ -22,7 +22,13 @@ import MagicQR from "@/models/MagicQR";
 import ChatbotAction from "@/models/ChatbotAction";
 
 import { fetchLocationInsights } from "@/lib/gmb-api";
-import { calculateMetrics } from "@/lib/performanceInsightsUtils";
+import {
+  calculateMetrics,
+  calculateMetricsInRange,
+  getPerformanceInsightsWindows,
+  metricHasObservationsInRange,
+  toYmd,
+} from "@/lib/performanceInsightsUtils";
 import { uploadToS3 } from "@/utils/s3Config";
 import { notifyActionComplete } from "@/lib/chatbotActionWebhook";
 import {
@@ -31,6 +37,7 @@ import {
 } from "@/lib/chatbotHealthPdfGenerator";
 import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
+import { generateSlug } from "../../utils/generateSlug";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -85,17 +92,7 @@ async function refreshAndSaveAccessToken(phone, refreshToken) {
   return newAccessToken;
 }
 
-// ── Slug generation helper (mirrors ai-genrated-website logic) ───────────────
-
-function makeSlug(title = "", locality = "") {
-  const base = `${title}${locality ? `-${locality}` : ""}`;
-  return base
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+// makeSlug is replaced by the shared generateSlug utility (utils/generateSlug.js)
 
 // ── ACTION: website ──────────────────────────────────────────────────────────
 
@@ -107,8 +104,12 @@ function makeSlug(title = "", locality = "") {
  */
 async function handleWebsite({ location, email, locationId, accessToken }) {
   const title = location.title || "Business";
-  const addressParts = (location.address || "").split(",");
-  const locality = addressParts[0]?.trim() || "";
+
+  // ── locality: use storefrontAddress.locality (same as build-website page) ──
+  // location.locality was added to locationsData schema alongside addressLine fix.
+  // Fallback for old sessions without the field: skip (produces title-only slug).
+  const locality = location.locality || "";
+
   const primaryCategory =
     Array.isArray(location.categories) && location.categories[0]
       ? location.categories[0]
@@ -192,9 +193,9 @@ Return ONLY valid JSON.`;
   raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
   const aiContent = JSON.parse(raw);
 
-  // Generate a unique slug (same dedup loop as the existing route)
+  // ── Slug: use shared generateSlug (same as /api/ai-genrated-website + GoLiveButton) ──
   await dbConnect();
-  const baseSlug = makeSlug(title, locality);
+  const baseSlug = generateSlug(title, locality);
   let finalSlug = baseSlug;
   let counter = 0;
 
@@ -214,10 +215,12 @@ Return ONLY valid JSON.`;
     updatedAt: new Date(),
   });
 
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.limbu.ai").replace(/\/$/, "");
-  const siteUrl = `${baseUrl}/site/${finalSlug}`;
+  // ── URL: subdomain format — same as GoLiveButton.jsx on production ──────────
+  // GoLiveButton: `https://${finalSlug}.${ROOT_DOMAIN}` where ROOT_DOMAIN = NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai"
+  const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const siteUrl = `https://${finalSlug}.${ROOT_DOMAIN}`;
 
-  console.log(`[chatbotAction:website] Created site slug=${finalSlug} for email=${email}`);
+  console.log(`[chatbotAction:website] Created site slug=${finalSlug} url=${siteUrl} for email=${email}`);
 
   return {
     url: siteUrl,
@@ -385,16 +388,30 @@ function buildReviewUrl(title = "", locality = "", address = "") {
 async function handleMagicQr({ location, email, locationId }) {
   await dbConnect();
 
-  const businessTitle = location.title   || "Business";
-  const addressStr    = location.address || "";
-  const locality      = addressStr.split(",")[0]?.trim() || "";
+  const businessTitle = location.title || "Business";
   const shortId       = toShortLocationId(locationId);
 
   const slugify = (t) =>
     (t || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
 
-  // Build review URL — same logic as useMagicQR.js
-  const reviewUrl = buildReviewUrl(businessTitle, locality, addressStr);
+  // ── Mirror useMagicQR.js exactly ─────────────────────────────────────────
+  // locality → storefrontAddress.locality  (e.g. "Ahmedabad")  stored as location.locality
+  // address  → storefrontAddress.addressLines (street only)    stored as location.addressLine
+  // Fallback for sessions stored before this field was added:
+  //   try to strip locality/region/postal from the end of the full address string.
+  const locality    = location.locality    || "";
+  const addressLine = location.addressLine || (() => {
+    // Old records: address = "street, locality, region, postal"
+    // Remove the locality suffix if we know it
+    const full = location.address || "";
+    if (locality && full.includes(locality)) {
+      return full.substring(0, full.indexOf(locality)).replace(/,\s*$/, "").trim();
+    }
+    return full.split(",")[0]?.trim() || full;
+  })();
+
+  // Build review URL — exact same logic as useMagicQR.js
+  const reviewUrl = buildReviewUrl(businessTitle, locality, addressLine);
 
   console.log(`[qr] location=${shortId} reviewUrl=${reviewUrl}`);
 
@@ -441,64 +458,160 @@ async function handleMagicQr({ location, email, locationId }) {
 // ── ACTION: insights ─────────────────────────────────────────────────────────
 
 /**
- * Fetch last-30-day GMB performance insights for the location.
- * Reuses fetchLocationInsights from lib/gmb-api.js and calculateMetrics from
- * lib/performanceInsightsUtils.js.
+ * Fetch GMB performance insights — mirrors the manual /gmb-insights page exactly.
  *
- * Returns both structured metrics and a chatbot-ready text summary.
+ * Uses the same double-period fetch (current + equal-length previous period) so
+ * we can show delta badges, plus a separate search-keywords call, matching what
+ * PerformanceInsightsReport.jsx shows in the dashboard.
  *
- * @returns {{ metrics, dateRange, text, message, data }}
+ * @returns {{ metrics, prevMetrics, keywords, dateRange, text, message, data }}
  */
 async function handleInsights({ accessToken, locationId, location }) {
   const shortId      = toShortLocationId(toFullLocationId(locationId));
   const businessName = location?.title || "Your Business";
 
-  // Build a 30-day window ending today
-  const today     = new Date();
-  const endDate   = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const startDate = new Date(endDate);
-  startDate.setDate(startDate.getDate() - 29);
+  // ── 1. Date windows (identical to handleViewInsights in gmb-insights/page.jsx)
+  const today = new Date();
+  const reportEnd   = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const reportStart = new Date(reportEnd);
+  reportStart.setDate(reportStart.getDate() - 30); // default: today − 30 days
 
+  // getPerformanceInsightsWindows widens the fetch to include the prior period
+  const { fetchStart, prevStart, prevEnd, reportStart: rs, reportEnd: re } =
+    getPerformanceInsightsWindows(reportStart, reportEnd);
+
+  // ── 2. Fetch wider series (current + prev period) — same as manual page
   const insightsData = await fetchLocationInsights(
     accessToken,
     shortId,
-    startDate,
-    endDate
+    fetchStart,
+    re
   );
 
-  const metrics = calculateMetrics(insightsData);
+  // ── 3. Slice metrics for current and previous windows — same as PerformanceInsightsReport
+  const metrics     = calculateMetricsInRange(insightsData, rs, re);
+  const prevMetrics = calculateMetricsInRange(insightsData, prevStart, prevEnd);
+
+  // Check if prior period has any data (same guard as prevHasData in the dashboard)
+  const prevHasData = [
+    "CALL_CLICKS",
+    "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
+    "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
+  ].some((t) => metricHasObservationsInRange(insightsData, t, toYmd(prevStart), toYmd(prevEnd)));
+
+  // ── 4. Search keywords — same 3-month window as manual page
+  let keywords = [];
+  try {
+    const currentDate = new Date();
+    const endMonth = {
+      year:  currentDate.getFullYear(),
+      month: currentDate.getMonth() + 1,   // 1-based
+    };
+    const startMonth = {
+      year:  currentDate.getFullYear(),
+      month: currentDate.getMonth() - 3,   // 3 months back
+    };
+    if (startMonth.month <= 0) {
+      startMonth.month += 12;
+      startMonth.year  -= 1;
+    }
+
+    const kwUrl =
+      `https://businessprofileperformance.googleapis.com/v1/locations/${shortId}` +
+      `/searchkeywords/impressions/monthly` +
+      `?monthlyRange.start_month.year=${startMonth.year}` +
+      `&monthlyRange.start_month.month=${startMonth.month}` +
+      `&monthlyRange.end_month.year=${endMonth.year}` +
+      `&monthlyRange.end_month.month=${endMonth.month}`;
+
+    const kwRes = await fetch(kwUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (kwRes.ok) {
+      const kwData = await kwRes.json();
+      // kwData.searchKeywordsCounts is the array used in PerformanceInsightsReport
+      keywords = kwData.searchKeywordsCounts || [];
+    }
+  } catch (e) {
+    console.warn("[chatbotAction:insights] keywords fetch failed:", e.message);
+  }
 
   console.log(
     `[chatbotAction:insights] location=${shortId}` +
-      ` calls=${metrics.totalCalls} directions=${metrics.totalDirections}`
+    ` impressions=${metrics.totalImpressions}` +
+    ` calls=${metrics.totalCalls} directions=${metrics.totalDirections}`
   );
 
-  const startLabel = startDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  const endLabel   = endDate.toLocaleDateString("en-IN",   { day: "2-digit", month: "short", year: "numeric" });
+  // ── 5. Format labels
+  const fmt = (d) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const reportWindowLabel = `${fmt(rs)} – ${fmt(re)}`;
+  const prevWindowLabel   = `${fmt(prevStart)} – ${fmt(prevEnd)}`;
 
-  // Build chatbot-ready text summary
-  const text = [
+  // Delta helper (same formula as dashboard)
+  const delta = (cur, prev) => {
+    if (!prevHasData) return null;
+    const pct = prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
+    return { pct, arrow: pct >= 0 ? "▲" : "▼", sign: pct >= 0 ? "+" : "" };
+  };
+
+  const fmtDelta = (cur, prev) => {
+    const d = delta(cur, prev);
+    if (!d) return "";
+    return ` (${d.arrow} ${d.sign}${d.pct}%)`;
+  };
+
+  // ── 6. Build WhatsApp-ready text — same 5 KPI cards as PerformanceInsightsReport
+  const lines = [
     `📈 *GMB Insights — ${businessName}*`,
-    `📅 Period: ${startLabel} → ${endLabel} (last 30 days)`,
+    `📅 Report Window: ${reportWindowLabel}`,
+    prevHasData ? `🔁 Previous Period: ${prevWindowLabel}` : "",
     ``,
-    `📞 Phone Calls:         ${metrics.totalCalls ?? 0}`,
-    `🗺️  Direction Requests:  ${metrics.totalDirections ?? 0}`,
-    `🌐 Website Clicks:      ${metrics.totalWebsiteClicks ?? 0}`,
-    `🔍 Search Impressions:  ${metrics.totalSearchImpressions ?? 0}`,
-    `📍 Maps Impressions:    ${metrics.totalMapsImpressions ?? 0}`,
+    `*📊 Performance Overview*`,
     ``,
-    `💡 Tip: ${pickInsightTip(metrics)}`,
-  ].join("\n");
+    `👁️  Impressions:    ${metrics.totalImpressions}${fmtDelta(metrics.totalImpressions, prevMetrics.totalImpressions)}`,
+    `   Previous: ${prevHasData ? prevMetrics.totalImpressions : "—"}`,
+    ``,
+    `🗺️  Maps Views:     ${metrics.totalMapsImpressions}${fmtDelta(metrics.totalMapsImpressions, prevMetrics.totalMapsImpressions)}`,
+    `   Previous: ${prevHasData ? prevMetrics.totalMapsImpressions : "—"}`,
+    ``,
+    `🔍 Search Views:   ${metrics.totalSearchImpressions}${fmtDelta(metrics.totalSearchImpressions, prevMetrics.totalSearchImpressions)}`,
+    `   Previous: ${prevHasData ? prevMetrics.totalSearchImpressions : "—"}`,
+    ``,
+    `📞 Phone Calls:    ${metrics.totalCalls}${fmtDelta(metrics.totalCalls, prevMetrics.totalCalls)}`,
+    `   Previous: ${prevHasData ? prevMetrics.totalCalls : "—"}`,
+    ``,
+    `🌐 Web Clicks:     ${metrics.totalWebsiteClicks}${fmtDelta(metrics.totalWebsiteClicks, prevMetrics.totalWebsiteClicks)}`,
+    `   Previous: ${prevHasData ? prevMetrics.totalWebsiteClicks : "—"}`,
+    ``,
+    `🧭 Directions:     ${metrics.totalDirections}${fmtDelta(metrics.totalDirections, prevMetrics.totalDirections)}`,
+    `   Previous: ${prevHasData ? prevMetrics.totalDirections : "—"}`,
+  ];
+
+  // Top keywords (same top-10 as dashboard)
+  if (keywords.length > 0) {
+    lines.push(``, `*🔑 Top Search Keywords:*`);
+    keywords.slice(0, 10).forEach((kw, i) => {
+      const term   = kw.searchKeyword || kw.keyword || "—";
+      const count  = kw.insightsValue?.value ?? kw.count ?? "";
+      lines.push(`  ${i + 1}. ${term}${count ? ` (${count})` : ""}`);
+    });
+  }
+
+  lines.push(``, `💡 Tip: ${pickInsightTip(metrics)}`);
+
+  const text = lines.filter((l) => l !== null && l !== undefined).join("\n");
 
   return {
     metrics,
+    prevMetrics,
+    keywords,
     text,
     dateRange: {
-      startDate: startDate.toISOString().split("T")[0],
-      endDate:   endDate.toISOString().split("T")[0],
+      startDate: rs.toISOString().split("T")[0],
+      endDate:   re.toISOString().split("T")[0],
     },
-    message: `Insights fetched for ${businessName} (last 30 days)`,
-    data: insightsData,
+    message: `Insights fetched for ${businessName}`,
+    data:    insightsData,
   };
 }
 

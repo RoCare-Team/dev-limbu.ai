@@ -1,88 +1,92 @@
 /**
  * chatbotInsightsPdfGenerator.js
  *
- * Server-side PDF generator for GMB Performance Insights — mirrors the visual
- * layout of PerformanceInsightsReport.jsx / performancePdfGenerator.js exactly.
+ * Server-side PDF generator for GMB Performance Insights.
  *
- * Layout (A4, portrait):
- *   Page 1 – Header + 5 KPI cards (Impressions, Maps Views, Search Views,
- *             Phone Calls, Web Clicks) + delta badges
- *   Page 2 – Visibility Trends bar chart + User Engagement bar chart
- *   Page 3 – Search Queries (top keywords) + Footer
+ * Strategy (same pipeline as magicQrCardGenerator.js):
+ *   1. Build a large SVG string that mirrors PerformanceInsightsReport.jsx exactly
+ *   2. Render SVG → PNG with sharp (no browser needed)
+ *   3. Slice the tall PNG into A4 pages with pdfkit
  *
- * Uses pdfkit (already a dependency for the health-score PDF).
+ * Layout matches PerformanceInsightsReport.jsx colour-for-colour:
+ *   bg-deep-charcoal #1E293B  |  bg-pure-white #FFFFFF
+ *   lemon-glow #EAB308        |  cyber-black   #0B0F19
+ *   tech-silver #94A3B8       |  tech-gray     #64748B
+ *   blue-600 #2563EB  emerald-600 #059669  amber-600 #D97706
+ *   violet-600 #7C3AED  rose-600 #E11D48  teal-600 #0D9488
  */
 
 import PDFDocument from "pdfkit";
+import sharp from "sharp";
 import {
-  getMetricByType,
   ymdFromApi,
   isYmdInClosedRange,
   toYmd,
 } from "./performanceInsightsUtils.js";
 
-// ── Colours (match Tailwind classes in PerformanceInsightsReport.jsx) ─────────
-const C = {
-  black:       [11,  15,  25],   // cyber-black  #0B0F19
-  white:       [255, 255, 255],
-  lemon:       [234, 179,  8],   // lemon-glow   #EAB308
-  gray:        [100, 116, 139],  // tech-silver  #64748B
-  lightGray:   [226, 232, 240],  // slate-200    #E2E8F0
-  charcoal:    [30,  41,  59],   // deep-charcoal #1E293B
-  blue:        [37,  99, 235],   // blue-600
-  emerald:     [5,  150, 105],   // emerald-600
-  amber:       [217, 119,  6],   // amber-600
-  violet:      [124, 58, 237],   // violet-600
-  rose:        [225, 29,  72],   // rose-600
-  teal:        [13, 148, 136],   // teal-600
-  green:       [22, 163,  74],   // delta-up
-  red:         [220,  38,  38],  // delta-down
-};
+// ── Colours ───────────────────────────────────────────────────────────────────
+const BG        = "#1E293B";
+const WHITE     = "#FFFFFF";
+const BLACK     = "#0B0F19";
+const LEMON     = "#EAB308";
+const SILVER    = "#94A3B8";
+const GRAY      = "#64748B";
+const BORDER    = "#E2E8F0";
+const CARD_DARK = "#0F172A";
 
-// A4 dimensions (points)
-const PAGE_W = 595.28;
-const PAGE_H = 841.89;
-const MARGIN = 40;
-const CONTENT_W = PAGE_W - MARGIN * 2;
+const BLUE    = "#2563EB";
+const EMERALD = "#059669";
+const AMBER   = "#D97706";
+const VIOLET  = "#7C3AED";
+const ROSE    = "#E11D48";
+const TEAL    = "#0D9488";
+const GREEN   = "#16A34A";
+const RED     = "#DC2626";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Soft icon bg colours
+const BLUE_SOFT    = "#EFF6FF";
+const EMERALD_SOFT = "#ECFDF5";
+const AMBER_SOFT   = "#FFFBEB";
+const VIOLET_SOFT  = "#F5F3FF";
+const ROSE_SOFT    = "#FFF1F2";
 
-function rgb(arr) { return { r: arr[0] / 255, g: arr[1] / 255, b: arr[2] / 255 }; }
+// SVG canvas width (scaled 2× on final PNG → 2400px)
+const W = 1200;
 
-function fillRgb(doc, arr) { doc.fillColor(`rgb(${arr[0]},${arr[1]},${arr[2]})`); }
-function strokeRgb(doc, arr) { doc.strokeColor(`rgb(${arr[0]},${arr[1]},${arr[2]})`); }
-
-function roundRect(doc, x, y, w, h, r) {
-  doc.roundedRect(x, y, w, h, r).fillAndStroke();
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-/** Draw a small coloured filled rect (no stroke). */
-function filledRect(doc, x, y, w, h, colArr) {
-  fillRgb(doc, colArr);
-  strokeRgb(doc, colArr);
-  doc.rect(x, y, w, h).fill();
-}
-
-/** Draw text with fillColor already set. */
-function txt(doc, text, x, y, opts = {}) {
-  doc.text(String(text ?? ""), x, y, opts);
-}
-
-/** Format number with commas. */
 const fmt = (n) => Number(n ?? 0).toLocaleString("en-IN");
 
-/** Delta percent string. */
-function deltaStr(cur, prev) {
-  if (prev == null || prev === undefined) return null;
-  if (prev === 0 && cur === 0) return null;
-  const pct = prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
-  return { pct, up: pct >= 0, label: `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct)}%` };
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Format date as "9 Mar – 8 Apr 2026" */
-const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+function deltaInfo(cur, prev, prevHasData) {
+  if (!prevHasData || prev == null) return null;
+  if (prev === 0 && cur === 0) return null;
+  const pct = prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
+  return { pct, up: pct > 0, flat: pct === 0, label: `${Math.abs(pct)}%` };
+}
 
-// ── Chart Data Builder (mirrors buildChartData in PerformanceInsightsReport) ─
+// Round-rect path helper for SVG
+function rr(x, y, w, h, r) {
+  return `M${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h - r} Q${x + w},${y + h} ${x + w - r},${y + h} H${x + r} Q${x},${y + h} ${x},${y + h - r} V${y + r} Q${x},${y} ${x + r},${y} Z`;
+}
+
+// Horizontal dashed line
+function dashLine(x1, y1, x2, color = BORDER) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${color}" stroke-width="1" stroke-dasharray="4 4"/>`;
+}
+
+// ── Chart Data (same logic as buildChartData in PerformanceInsightsReport) ────
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function dvFiltered(insightsData, type, startYmd, endYmd) {
   if (!insightsData?.multiDailyMetricTimeSeries) return [];
@@ -98,8 +102,6 @@ function dvFiltered(insightsData, type, startYmd, endYmd) {
   });
 }
 
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
 function buildChartData(pairs) {
   const map = new Map();
   pairs.forEach(([series, key]) => {
@@ -111,293 +113,384 @@ function buildChartData(pairs) {
       map.get(dk)[key] = (map.get(dk)[key] || 0) + (isNaN(v) ? 0 : v);
     });
   });
-  return Array.from(map.values()).sort((a, b) => a.label < b.label ? -1 : 1);
+  return Array.from(map.values()).sort((a, b) => (a.label < b.label ? -1 : 1));
 }
 
-// ── PDF Sections ──────────────────────────────────────────────────────────────
+// ── SVG Section Builders ──────────────────────────────────────────────────────
 
-function drawHeader(doc, { businessName, locationName, city, dateRange }) {
-  const y0 = MARGIN;
-
-  // Yellow "LIMBU AI ANALYTICS" badge
-  const badgeW = 160;
-  filledRect(doc, MARGIN, y0, badgeW, 18, C.lemon);
-  fillRgb(doc, C.black);
-  doc.font("Helvetica-Bold").fontSize(7);
-  txt(doc, "LIMBU AI ANALYTICS", MARGIN + 8, y0 + 5, { lineBreak: false });
-
-  // Report window box (right side)
+/** Header card: lemon badge, business name, location, report window box */
+function buildHeader({ businessName, locationName, city, dateRange }, y) {
+  const PAD = 32;
+  const H   = 120;
   const drLabel = dateRange
     ? `${fmtDate(dateRange.startDate)} – ${fmtDate(dateRange.endDate)}`
     : "—";
-  const boxW = 170;
-  const boxX = PAGE_W - MARGIN - boxW;
-  filledRect(doc, boxX, y0, boxW, 38, C.black);
-  fillRgb(doc, C.gray);
-  doc.font("Helvetica").fontSize(7);
-  txt(doc, "REPORT WINDOW", boxX + 8, y0 + 6, { lineBreak: false });
-  fillRgb(doc, C.white);
-  doc.font("Helvetica-Bold").fontSize(9);
-  txt(doc, drLabel, boxX + 8, y0 + 18, { lineBreak: false, width: boxW - 16 });
+
+  const parts = [];
+
+  // White card
+  parts.push(`<path d="${rr(PAD, y, W - PAD * 2, H, 16)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
+
+  // ── Left side ──
+  // Lemon badge
+  const bx = PAD + 24, by = y + 20;
+  parts.push(`<path d="${rr(bx, by, 160, 22, 6)}" fill="${LEMON}"/>`);
+  // dot
+  parts.push(`<circle cx="${bx + 10}" cy="${by + 11}" r="4" fill="${BLACK}"/>`);
+  parts.push(`<text x="${bx + 22}" y="${by + 15}" font-family="Arial,sans-serif" font-size="10" font-weight="800" fill="${BLACK}" letter-spacing="1">LIMBU AI ANALYTICS</text>`);
 
   // Business name
-  fillRgb(doc, C.black);
-  doc.font("Helvetica-Bold").fontSize(22);
-  txt(doc, businessName || "Business Profile", MARGIN, y0 + 26, { width: CONTENT_W - boxW - 20, lineBreak: false });
+  const nameText = esc(businessName || "Business Profile");
+  parts.push(`<text x="${bx}" y="${y + 64}" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="${BLACK}">${nameText}</text>`);
 
-  // Location + city
-  const locStr = [locationName, city].filter(Boolean).join("  /  ");
-  fillRgb(doc, C.gray);
-  doc.font("Helvetica").fontSize(10);
-  txt(doc, locStr, MARGIN, y0 + 54, { width: CONTENT_W - boxW - 20, lineBreak: false });
+  // Location / city
+  const locText = esc([locationName, city].filter(Boolean).join("  /  "));
+  parts.push(`<text x="${bx}" y="${y + 88}" font-family="Arial,sans-serif" font-size="12" fill="${SILVER}">📍 ${locText}</text>`);
 
-  // Separator line
-  doc.moveTo(MARGIN, y0 + 72).lineTo(PAGE_W - MARGIN, y0 + 72);
-  strokeRgb(doc, C.lightGray);
-  doc.lineWidth(0.5).stroke();
+  // ── Right side: dark report window box ──
+  const boxW = 200, boxH = 60;
+  const bpx  = W - PAD - 24 - boxW;
+  const bpy  = y + (H - boxH) / 2;
+  parts.push(`<path d="${rr(bpx, bpy, boxW, boxH, 10)}" fill="${BLACK}"/>`);
+  parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 18}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">REPORT WINDOW</text>`);
+  // Split date label into 2 lines if long
+  const drParts = drLabel.split("–");
+  if (drParts.length === 2) {
+    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 36}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${esc(drParts[0].trim())}</text>`);
+    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 52}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">– ${esc(drParts[1].trim())}</text>`);
+  } else {
+    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 40}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${esc(drLabel)}</text>`);
+  }
 
-  return y0 + 82; // next Y
+  return { svg: parts.join("\n"), height: H + 24 };
 }
 
-function drawKpiCards(doc, { metrics, prevMetrics, prevHasData }, y) {
+/** Single KPI card */
+function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softBg, iconSymbol }, x, y, w) {
+  const H   = 150;
+  const PAD = 16;
+  const parts = [];
+
+  // Card base
+  parts.push(`<path d="${rr(x, y, w, H, 12)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
+  // Accent top border
+  parts.push(`<path d="${rr(x, y, w, 4, 2)}" fill="${accentColor}"/>`);
+  parts.push(`<rect x="${x}" y="${y + 2}" width="${w}" height="2" fill="${accentColor}"/>`);
+
+  // Icon circle
+  const iconX = x + PAD, iconY = y + PAD + 4;
+  parts.push(`<path d="${rr(iconX, iconY, 36, 36, 8)}" fill="${softBg}"/>`);
+  parts.push(`<text x="${iconX + 18}" y="${iconY + 24}" text-anchor="middle" font-size="18" font-family="Arial,sans-serif">${iconSymbol}</text>`);
+
+  // Delta badge
+  const d = deltaInfo(value, prevValue, prevHasData);
+  if (d) {
+    const dColor = d.up ? GREEN : (d.flat ? GRAY : RED);
+    const dBg    = d.up ? "#F0FDF4" : (d.flat ? "#F8FAFC" : "#FEF2F2");
+    const dText  = `${d.up ? "▲" : (d.flat ? "→" : "▼")} ${d.label}`;
+    const dW     = dText.length * 7 + 16;
+    const dX     = x + w - PAD - dW;
+    const dY     = iconY;
+    parts.push(`<path d="${rr(dX, dY, dW, 22, 11)}" fill="${dBg}" stroke="${dColor}" stroke-width="0.5"/>`);
+    parts.push(`<text x="${dX + dW / 2}" y="${dY + 15}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" fill="${dColor}">${esc(dText)}</text>`);
+  }
+
+  // Value (large number)
+  parts.push(`<text x="${x + PAD}" y="${y + 78}" font-family="Arial,sans-serif" font-size="30" font-weight="900" fill="${BLACK}">${esc(fmt(value))}</text>`);
+
+  // Label
+  parts.push(`<text x="${x + PAD}" y="${y + 96}" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">${esc(label.toUpperCase())}</text>`);
+
+  // Dashed separator
+  parts.push(dashLine(x + PAD, y + 110, x + w - PAD));
+
+  // Previous period
+  parts.push(`<text x="${x + PAD}" y="${y + 126}" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">PREVIOUS PERIOD</text>`);
+  const prvText = prevHasData ? fmt(prevValue) : "No data";
+  parts.push(`<text x="${x + PAD}" y="${y + 142}" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${SILVER}">${esc(prvText)}</text>`);
+
+  return { svg: parts.join("\n"), height: H };
+}
+
+/** 5 KPI cards row */
+function buildKpiRow({ metrics, prevMetrics, prevHasData }, y) {
+  const PAD   = 32;
+  const GAP   = 12;
+  const cardW = (W - PAD * 2 - GAP * 4) / 5;
+
   const cards = [
-    { label: "IMPRESSIONS",   key: "totalImpressions",      accent: C.blue    },
-    { label: "MAPS VIEWS",    key: "totalMapsImpressions",   accent: C.emerald },
-    { label: "SEARCH VIEWS",  key: "totalSearchImpressions", accent: C.amber   },
-    { label: "PHONE CALLS",   key: "totalCalls",             accent: C.violet  },
-    { label: "WEB CLICKS",    key: "totalWebsiteClicks",     accent: C.rose    },
+    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconSymbol: "📊" },
+    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconSymbol: "🗺️" },
+    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconSymbol: "🔍" },
+    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconSymbol: "📞" },
+    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconSymbol: "🌐" },
   ];
 
-  const cardW  = (CONTENT_W - 16) / 5;
-  const cardH  = 88;
-  const gap    = 4;
-
+  const parts = [];
   cards.forEach((card, i) => {
-    const x   = MARGIN + i * (cardW + gap);
-    const cur = metrics?.[card.key] ?? 0;
-    const prv = prevMetrics?.[card.key] ?? 0;
-
-    // Card background
-    fillRgb(doc, C.white);
-    strokeRgb(doc, C.lightGray);
-    doc.lineWidth(0.5).roundedRect(x, y, cardW, cardH, 4).fillAndStroke();
-
-    // Accent top border
-    filledRect(doc, x, y, cardW, 3, card.accent);
-
-    // Label
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica-Bold").fontSize(7);
-    txt(doc, card.label, x + 6, y + 8, { lineBreak: false });
-
-    // Value
-    fillRgb(doc, C.black);
-    doc.font("Helvetica-Bold").fontSize(20);
-    txt(doc, fmt(cur), x + 6, y + 20, { lineBreak: false });
-
-    // Delta badge
-    if (prevHasData) {
-      const d = deltaStr(cur, prv);
-      if (d) {
-        const dCol = d.up ? C.green : C.red;
-        fillRgb(doc, dCol);
-        doc.font("Helvetica-Bold").fontSize(8);
-        txt(doc, d.label, x + 6, y + 46, { lineBreak: false });
-      }
-    }
-
-    // Previous period
-    const prevLineY = y + 58;
-    // Dashed separator
-    strokeRgb(doc, C.lightGray);
-    doc.lineWidth(0.4).dash(2, { space: 2 })
-      .moveTo(x + 6, prevLineY).lineTo(x + cardW - 6, prevLineY).stroke();
-    doc.undash();
-
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(7);
-    txt(doc, "PREVIOUS PERIOD", x + 6, prevLineY + 4, { lineBreak: false });
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica-Bold").fontSize(10);
-    txt(doc, prevHasData ? fmt(prv) : "No data", x + 6, prevLineY + 14, { lineBreak: false });
+    const cx = PAD + i * (cardW + GAP);
+    const { svg } = buildKpiCard({ ...card, prevHasData }, cx, y, cardW);
+    parts.push(svg);
   });
 
-  return y + cardH + 14;
+  return { svg: parts.join("\n"), height: 150 + 24 };
 }
 
-/**
- * Draw a grouped bar chart from chartData (array of {label, key1, key2, ...}).
- * series = [ { key, color } ]
- */
-function drawBarChart(doc, chartData, series, x, y, w, h, title, subtitle) {
-  // Section title
-  filledRect(doc, x, y, 3, 14, C.blue);
-  fillRgb(doc, C.black);
-  doc.font("Helvetica-Bold").fontSize(11);
-  txt(doc, title, x + 8, y, { lineBreak: false });
+/** SVG bar chart panel */
+function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, h) {
+  const PAD    = 24;
+  const titleH = 56;
+  const innerX = x + PAD + 30; // 30 for y-axis labels
+  const innerY = y + PAD + titleH;
+  const innerW = w - PAD * 2 - 30;
+  const innerH = h - PAD * 2 - titleH - 36; // 36 for x-labels + legend
+  const parts  = [];
+
+  // Card background
+  parts.push(`<path d="${rr(x, y, w, h, 20)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
+
+  // Title accent bar
+  parts.push(`<rect x="${x + PAD}" y="${y + PAD}" width="4" height="18" rx="2" fill="${accentColor}"/>`);
+  parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 14}" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">${esc(title.toUpperCase())}</text>`);
   if (subtitle) {
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(8);
-    txt(doc, subtitle, x + 8, y + 14, { lineBreak: false });
+    parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 32}" font-family="Arial,sans-serif" font-size="10" fill="${SILVER}">${esc(subtitle)}</text>`);
   }
 
-  const chartY   = y + 30;
-  const chartH   = h - 30;
-  const chartW   = w;
-  const padLeft  = 28;  // y-axis labels
-  const padBot   = 22;  // x-axis labels
-  const innerW   = chartW - padLeft;
-  const innerH   = chartH - padBot;
-
-  if (!chartData || chartData.length === 0) {
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(9);
-    txt(doc, "No data available for this period", x + padLeft + innerW / 2 - 60, chartY + innerH / 2, { lineBreak: false });
-    return y + h;
+  if (!data || data.length === 0) {
+    parts.push(`<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="${SILVER}">No data available</text>`);
+    return { svg: parts.join("\n") };
   }
 
-  // Find max value
+  // Find max
   let maxVal = 0;
-  chartData.forEach((row) => {
-    series.forEach(({ key }) => { if ((row[key] || 0) > maxVal) maxVal = row[key] || 0; });
-  });
+  data.forEach((row) => series.forEach(({ key }) => { if ((row[key] || 0) > maxVal) maxVal = row[key] || 0; }));
   if (maxVal === 0) maxVal = 1;
 
-  // Y-axis gridlines + labels
-  const gridLines = 4;
-  for (let gi = 0; gi <= gridLines; gi++) {
-    const gy     = chartY + innerH - (gi / gridLines) * innerH;
-    const gLabel = Math.round((gi / gridLines) * maxVal);
-    strokeRgb(doc, C.lightGray);
-    doc.lineWidth(0.3).moveTo(x + padLeft, gy).lineTo(x + padLeft + innerW, gy).stroke();
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(6);
-    txt(doc, String(gLabel), x, gy - 3, { width: padLeft - 2, align: "right", lineBreak: false });
+  // Y-axis gridlines (4 lines)
+  for (let gi = 0; gi <= 4; gi++) {
+    const gy     = innerY + innerH - (gi / 4) * innerH;
+    const gLabel = Math.round((gi / 4) * maxVal);
+    parts.push(`<line x1="${innerX}" y1="${gy}" x2="${innerX + innerW}" y2="${gy}" stroke="${BORDER}" stroke-width="0.5"/>`);
+    parts.push(`<text x="${innerX - 6}" y="${gy + 4}" text-anchor="end" font-family="Arial,sans-serif" font-size="9" fill="${GRAY}">${gLabel}</text>`);
   }
 
   // Bars
-  const n         = chartData.length;
-  const groupW    = innerW / n;
-  const barW      = Math.max(2, (groupW * 0.7) / series.length);
-  const groupPad  = (groupW - barW * series.length) / 2;
+  const n        = data.length;
+  const groupW   = innerW / n;
+  const barW     = Math.max(4, Math.min(28, (groupW * 0.75) / series.length));
+  const groupPad = (groupW - barW * series.length) / 2;
 
-  chartData.forEach((row, ri) => {
-    const gx = x + padLeft + ri * groupW + groupPad;
+  data.forEach((row, ri) => {
+    const gx = innerX + ri * groupW + groupPad;
     series.forEach(({ key, color }, si) => {
       const val  = row[key] || 0;
-      const barH = Math.max(1, (val / maxVal) * innerH);
-      const bx   = gx + si * barW;
-      const by   = chartY + innerH - barH;
-      filledRect(doc, bx, by, barW - 1, barH, color);
+      const barH = Math.max(2, (val / maxVal) * innerH);
+      const bx   = gx + si * (barW + 2);
+      const by   = innerY + innerH - barH;
+      // Rounded top bars
+      if (barH > 6) {
+        parts.push(`<path d="M${bx},${by + 4} Q${bx},${by} ${bx + 4},${by} H${bx + barW - 4} Q${bx + barW},${by} ${bx + barW},${by + 4} V${by + barH} H${bx} Z" fill="${color}"/>`);
+      } else {
+        parts.push(`<rect x="${bx}" y="${by}" width="${barW}" height="${barH}" fill="${color}"/>`);
+      }
     });
+
     // X-axis label
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(6);
-    txt(doc, row.label, gx, chartY + innerH + 4, { width: groupW, align: "center", lineBreak: false });
+    parts.push(`<text x="${gx + groupW / 2}" y="${innerY + innerH + 14}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}">${esc(row.label)}</text>`);
   });
 
   // Legend
-  const legY = chartY + innerH + 14;
-  let legX   = x + padLeft;
+  const legendY = innerY + innerH + 26;
+  let lx = innerX;
   series.forEach(({ key, color }) => {
-    filledRect(doc, legX, legY + 2, 8, 8, color);
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(7);
-    txt(doc, key, legX + 11, legY + 2, { lineBreak: false });
-    legX += doc.widthOfString(key) + 22;
+    parts.push(`<circle cx="${lx + 6}" cy="${legendY + 6}" r="5" fill="${color}"/>`);
+    parts.push(`<text x="${lx + 16}" y="${legendY + 11}" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="${GRAY}" letter-spacing="0.5">${esc(key.toUpperCase())}</text>`);
+    lx += 16 + key.length * 7 + 20;
   });
 
-  return y + h;
+  return { svg: parts.join("\n") };
 }
 
-function drawKeywords(doc, keywords, y) {
-  // Section header
-  filledRect(doc, MARGIN, y, 3, 14, C.lemon);
-  fillRgb(doc, C.black);
-  doc.font("Helvetica-Bold").fontSize(11);
-  txt(doc, "SEARCH QUERIES", MARGIN + 8, y, { lineBreak: false });
-  fillRgb(doc, C.gray);
-  doc.font("Helvetica").fontSize(8);
-  txt(doc, "Top keywords leading customers to your business", MARGIN + 8, y + 14, { lineBreak: false });
+/** Two chart panels side by side */
+function buildChartsRow({ monthlyVis, monthlyEng }, y) {
+  const PAD   = 32;
+  const GAP   = 16;
+  const panelW = (W - PAD * 2 - GAP) / 2;
+  const panelH = 340;
 
-  y += 32;
+  const parts = [];
+
+  const { svg: visSvg } = buildBarChart({
+    title: "Visibility Trends",
+    subtitle: "Organic impressions on Search & Maps",
+    accentColor: BLUE,
+    data: monthlyVis,
+    series: [
+      { key: "Maps Views",   color: BLUE },
+      { key: "Search Views", color: TEAL },
+    ],
+  }, PAD, y, panelW, panelH);
+  parts.push(visSvg);
+
+  const { svg: engSvg } = buildBarChart({
+    title: "User Engagement",
+    subtitle: "Direct actions taken by potential customers",
+    accentColor: VIOLET,
+    data: monthlyEng,
+    series: [
+      { key: "Calls",         color: VIOLET },
+      { key: "Directions",    color: AMBER  },
+      { key: "Website Clicks",color: ROSE   },
+    ],
+  }, PAD + panelW + GAP, y, panelW, panelH);
+  parts.push(engSvg);
+
+  return { svg: parts.join("\n"), height: panelH + 24 };
+}
+
+/** Keywords section */
+function buildKeywords(keywords, y) {
+  const PAD    = 32;
+  const panelX = PAD;
+  const panelW = W - PAD * 2;
 
   if (!keywords || keywords.length === 0) {
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(9);
-    txt(doc, "No keyword data available for this period.", MARGIN, y, { lineBreak: false });
-    return y + 20;
+    const emptyH = 80;
+    return {
+      svg: `<path d="${rr(panelX, y, panelW, emptyH, 20)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>
+<text x="${W / 2}" y="${y + 46}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${SILVER}">NO KEYWORD DATA AVAILABLE FOR THIS RANGE</text>`,
+      height: emptyH + 24,
+    };
   }
 
-  const colW  = (CONTENT_W - 8) / 2;
-  const rowH  = 26;
+  const COLS    = 3;
+  const kwList  = keywords.slice(0, 10);
+  const ROWS    = Math.ceil(kwList.length / COLS);
+  const CARD_H  = 48;
+  const CARD_GAP= 10;
+  const CARD_W  = (panelW - 48 - CARD_GAP * (COLS - 1)) / COLS;
+  const titleH  = 60;
+  const panelH  = titleH + ROWS * (CARD_H + CARD_GAP) + 24;
 
-  keywords.slice(0, 10).forEach((kw, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const kx  = MARGIN + col * (colW + 8);
-    const ky  = y + row * (rowH + 4);
+  const parts = [];
 
-    // Card background
-    filledRect(doc, kx, ky, colW, rowH, C.charcoal);
+  // Panel bg
+  parts.push(`<path d="${rr(panelX, y, panelW, panelH, 20)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
+
+  // Section title
+  parts.push(`<rect x="${panelX + 24}" y="${y + 20}" width="4" height="18" rx="2" fill="${LEMON}"/>`);
+  parts.push(`<text x="${panelX + 36}" y="${y + 34}" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">SEARCH QUERIES</text>`);
+  parts.push(`<text x="${panelX + 36}" y="${y + 52}" font-family="Arial,sans-serif" font-size="10" fill="${SILVER}">Top keywords leading customers to your business</text>`);
+
+  // Keyword cards
+  kwList.forEach((kw, i) => {
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    const cx  = panelX + 24 + col * (CARD_W + CARD_GAP);
+    const cy  = y + titleH + row * (CARD_H + CARD_GAP);
+
+    // Dark card
+    parts.push(`<path d="${rr(cx, cy, CARD_W, CARD_H, 10)}" fill="${CARD_DARK}" stroke="${BORDER}" stroke-width="0.5"/>`);
 
     // Number badge
-    fillRgb(doc, C.black);
-    doc.font("Helvetica-Bold").fontSize(7);
-    doc.roundedRect(kx + 6, ky + 6, 16, 14, 2).fill();
-    fillRgb(doc, C.lemon);
-    txt(doc, String(i + 1).padStart(2, "0"), kx + 6, ky + 10, { width: 16, align: "center", lineBreak: false });
+    const badgeSize = 26;
+    parts.push(`<path d="${rr(cx + 8, cy + (CARD_H - badgeSize) / 2, badgeSize, badgeSize, 6)}" fill="${BLACK}"/>`);
+    parts.push(`<text x="${cx + 8 + badgeSize / 2}" y="${cy + (CARD_H - badgeSize) / 2 + 17}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="900" fill="${LEMON}">${String(i + 1).padStart(2, "0")}</text>`);
 
     // Keyword text
-    fillRgb(doc, C.white);
-    doc.font("Helvetica-Bold").fontSize(9);
-    const kwText = kw.searchKeyword || kw.keyword || "—";
-    txt(doc, kwText, kx + 28, ky + 8, { width: colW - 70, lineBreak: false });
+    const kwText = esc((kw.searchKeyword || kw.keyword || "—").slice(0, 36));
+    parts.push(`<text x="${cx + 44}" y="${cy + 21}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${kwText}</text>`);
 
-    // Search count
+    // Count
     const countVal = kw.insightsValue?.value
       ? Number(kw.insightsValue.value).toLocaleString()
       : kw.insightsValue?.threshold
-        ? `< ${kw.insightsValue.threshold}`
-        : "—";
-    fillRgb(doc, C.white);
-    doc.font("Helvetica-Bold").fontSize(10);
-    const countW = 40;
-    txt(doc, countVal, kx + colW - countW - 6, ky + 6, { width: countW, align: "right", lineBreak: false });
-    fillRgb(doc, C.gray);
-    doc.font("Helvetica").fontSize(6);
-    txt(doc, "SEARCHES", kx + colW - countW - 6, ky + 17, { width: countW, align: "right", lineBreak: false });
+        ? `<${kw.insightsValue.threshold}`
+        : "0";
+    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 21}" text-anchor="end" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${WHITE}">${esc(countVal)}</text>`);
+    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 34}" text-anchor="end" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">SEARCHES</text>`);
   });
 
-  return y + Math.ceil(Math.min(keywords.length, 10) / 2) * (rowH + 4) + 10;
+  return { svg: parts.join("\n"), height: panelH + 24 };
 }
 
-function drawFooter(doc, { businessName, pageNum, pageTotal }) {
-  const fy = PAGE_H - 28;
-  strokeRgb(doc, C.lightGray);
-  doc.lineWidth(0.5).moveTo(MARGIN, fy).lineTo(PAGE_W - MARGIN, fy).stroke();
+/** Footer */
+function buildFooter({ businessName }, y) {
+  const H   = 56;
+  const PAD = 32;
+  const parts = [];
 
-  fillRgb(doc, C.black);
-  doc.font("Helvetica-Bold").fontSize(8);
-  txt(doc, "Limbu AI", MARGIN, fy + 6, { lineBreak: false });
-  fillRgb(doc, C.gray);
-  doc.font("Helvetica").fontSize(7);
-  txt(doc, "Analytics Report", MARGIN + doc.widthOfString("Limbu AI") + 4, fy + 6, { lineBreak: false });
+  parts.push(`<line x1="${PAD}" y1="${y}" x2="${W - PAD}" y2="${y}" stroke="${BORDER}" stroke-width="1"/>`);
 
-  const genStr = `DOCUMENT GENERATED ON: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
-  fillRgb(doc, C.gray);
-  doc.font("Helvetica").fontSize(7);
-  txt(doc, genStr, PAGE_W - MARGIN - 200, fy + 6, { width: 200, align: "right", lineBreak: false });
+  // Left: Limbu AI
+  parts.push(`<path d="${rr(PAD, y + 10, 36, 36, 8)}" fill="${LEMON}"/>`);
+  parts.push(`<text x="${PAD + 18}" y="${y + 33}" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">L</text>`);
+  parts.push(`<text x="${PAD + 46}" y="${y + 25}" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="${BLACK}">Limbu AI</text>`);
+  parts.push(`<text x="${PAD + 46}" y="${y + 40}" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${SILVER}" letter-spacing="1">ANALYTICS REPORT</text>`);
 
-  fillRgb(doc, C.gray);
-  doc.font("Helvetica").fontSize(7);
-  txt(doc, `Generated by Limbu AI | ${businessName} | Page ${pageNum} of ${pageTotal}`, MARGIN, fy + 14, { lineBreak: false });
+  // Right: date
+  const dateStr = `DOCUMENT GENERATED ON: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
+  parts.push(`<path d="${rr(W - PAD - 300, y + 14, 300, 28, 14)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
+  parts.push(`<text x="${W - PAD - 150}" y="${y + 32}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="${GRAY}">${esc(dateStr)}</text>`);
+
+  return { svg: parts.join("\n"), height: H };
 }
 
-// ── Main Export ───────────────────────────────────────────────────────────────
+// ── Main SVG Builder ──────────────────────────────────────────────────────────
+
+function buildFullSvg({
+  businessName, locationName, city, dateRange,
+  metrics, prevMetrics, prevHasData,
+  monthlyVis, monthlyEng, keywords,
+}) {
+  const SECTION_GAP = 24;
+  let cursor = 24; // start y
+  const sections = [];
+
+  // Header
+  const hdr = buildHeader({ businessName, locationName, city, dateRange }, cursor);
+  sections.push(hdr.svg);
+  cursor += hdr.height + SECTION_GAP;
+
+  // KPI
+  const kpi = buildKpiRow({ metrics, prevMetrics, prevHasData }, cursor);
+  sections.push(kpi.svg);
+  cursor += kpi.height + SECTION_GAP;
+
+  // Charts
+  const charts = buildChartsRow({ monthlyVis, monthlyEng }, cursor);
+  sections.push(charts.svg);
+  cursor += charts.height + SECTION_GAP;
+
+  // Keywords
+  const kws = buildKeywords(keywords, cursor);
+  sections.push(kws.svg);
+  cursor += kws.height + SECTION_GAP;
+
+  // Footer
+  const ftr = buildFooter({ businessName }, cursor);
+  sections.push(ftr.svg);
+  cursor += ftr.height + 24;
+
+  const totalH = cursor;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${W}" height="${totalH}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!-- Background -->
+  <rect width="${W}" height="${totalH}" fill="${BG}"/>
+  ${sections.join("\n")}
+</svg>`;
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Generate a performance insights PDF buffer, mirroring PerformanceInsightsReport.jsx.
+ * Generate a performance insights PDF buffer matching PerformanceInsightsReport.jsx.
+ *
+ * Pipeline:
+ *   1. Build SVG string with full report layout
+ *   2. sharp: SVG → PNG at 2× pixel density (crisp on retina)
+ *   3. pdfkit: embed PNG across A4 pages
  *
  * @param {{
  *   businessName: string,
@@ -407,10 +500,10 @@ function drawFooter(doc, { businessName, pageNum, pageTotal }) {
  *   metrics: object,
  *   prevMetrics: object,
  *   prevHasData: boolean,
- *   insightsData: object,   ← raw Google API response (for chart data)
- *   keywords: object[],    ← searchKeywordsCounts from monthly keywords API
+ *   insightsData: object,
+ *   keywords: object[],
  * }} opts
- * @returns {Promise<Buffer>}
+ * @returns {Promise<Buffer>} PDF buffer
  */
 export async function generateInsightsPdf({
   businessName,
@@ -423,101 +516,84 @@ export async function generateInsightsPdf({
   insightsData,
   keywords = [],
 }) {
+  // ── 1. Build chart datasets ──────────────────────────────────────────────────
+  const startYmd = dateRange?.startDate ? toYmd(new Date(dateRange.startDate)) : null;
+  const endYmd   = dateRange?.endDate   ? toYmd(new Date(dateRange.endDate))   : null;
+
+  const monthlyVis = buildChartData([
+    [dvFiltered(insightsData, "BUSINESS_IMPRESSIONS_MOBILE_MAPS",   startYmd, endYmd), "Maps Views"],
+    [dvFiltered(insightsData, "BUSINESS_IMPRESSIONS_MOBILE_SEARCH", startYmd, endYmd), "Search Views"],
+  ]);
+  const monthlyEng = buildChartData([
+    [dvFiltered(insightsData, "CALL_CLICKS",                        startYmd, endYmd), "Calls"],
+    [dvFiltered(insightsData, "BUSINESS_DIRECTION_REQUESTS",        startYmd, endYmd), "Directions"],
+    [dvFiltered(insightsData, "WEBSITE_CLICKS",                     startYmd, endYmd), "Website Clicks"],
+  ]);
+
+  // ── 2. Build SVG → PNG ───────────────────────────────────────────────────────
+  const svg       = buildFullSvg({ businessName, locationName, city, dateRange, metrics, prevMetrics, prevHasData, monthlyVis, monthlyEng, keywords });
+  const svgBuf    = Buffer.from(svg);
+
+  // Render at 2× pixel density for sharp, crisp text and bars
+  const pngBuffer = await sharp(svgBuf, { density: 192 })
+    .resize({ width: W * 2, kernel: "lanczos3" })
+    .png({ quality: 95 })
+    .toBuffer();
+
+  // Get rendered dimensions
+  const meta  = await sharp(pngBuffer).metadata();
+  const imgW  = meta.width  || W * 2;
+  const imgH  = meta.height || 1000;
+
+  // ── 3. Embed PNG across A4 pages in pdfkit ───────────────────────────────────
   return new Promise((resolve, reject) => {
+    const A4_W  = 595.28; // points
+    const A4_H  = 841.89;
+    const scale = A4_W / imgW;      // fit full width
+    const pageH = A4_H / scale;     // how many source pixels fit one page
+
     const chunks = [];
-    const doc = new PDFDocument({ size: "A4", margin: 0, info: {
-      Title:   `Performance Insights – ${businessName}`,
-      Author:  "Limbu AI",
-      Subject: "GMB Performance Report",
-    }});
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 0,
+      info: {
+        Title:   `Performance Insights – ${businessName}`,
+        Author:  "Limbu AI",
+        Subject: "GMB Performance Report",
+      },
+    });
 
     doc.on("data",  (c) => chunks.push(c));
     doc.on("end",   () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // ── Build chart datasets ─────────────────────────────────────────────────
-    const startYmd = dateRange?.startDate ? toYmd(new Date(dateRange.startDate)) : null;
-    const endYmd   = dateRange?.endDate   ? toYmd(new Date(dateRange.endDate))   : null;
+    let srcY = 0;
+    let page = 0;
 
-    const monthlyVis = buildChartData([
-      [dvFiltered(insightsData, "BUSINESS_IMPRESSIONS_MOBILE_MAPS",    startYmd, endYmd), "Maps Views"],
-      [dvFiltered(insightsData, "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",  startYmd, endYmd), "Search Views"],
-    ]);
-    const monthlyEng = buildChartData([
-      [dvFiltered(insightsData, "CALL_CLICKS",                         startYmd, endYmd), "Calls"],
-      [dvFiltered(insightsData, "BUSINESS_DIRECTION_REQUESTS",         startYmd, endYmd), "Directions"],
-      [dvFiltered(insightsData, "WEBSITE_CLICKS",                      startYmd, endYmd), "Website Clicks"],
-    ]);
+    while (srcY < imgH) {
+      if (page > 0) doc.addPage();
 
-    const TOTAL_PAGES = keywords.length > 0 ? 3 : 2;
+      // Crop the slice from the full PNG
+      const sliceH = Math.min(pageH, imgH - srcY);
 
-    // ════════════════════════════════════════════════════════════════════════
-    // PAGE 1 — Header + KPI cards
-    // ════════════════════════════════════════════════════════════════════════
-    filledRect(doc, 0, 0, PAGE_W, PAGE_H, C.charcoal); // page bg
+      // Use pdfkit's image with clipping trick: place image shifted up so only
+      // the current page slice is visible within the A4 viewport
+      doc.save();
+      doc.rect(0, 0, A4_W, A4_H).clip();
+      doc.image(pngBuffer, 0, -srcY * scale, { width: A4_W });
+      doc.restore();
 
-    let y = drawHeader(doc, { businessName, locationName, city, dateRange });
-    y = drawKpiCards(doc, { metrics, prevMetrics, prevHasData }, y);
-    drawFooter(doc, { businessName, pageNum: 1, pageTotal: TOTAL_PAGES });
+      // Footer text
+      const pageTotal = Math.ceil(imgH / pageH);
+      doc.fontSize(7).fillColor("#94A3B8")
+        .text(
+          `Generated by Limbu AI | ${businessName} | Page ${page + 1} of ${pageTotal}`,
+          20, A4_H - 18,
+          { width: A4_W - 40, align: "center" }
+        );
 
-    // ════════════════════════════════════════════════════════════════════════
-    // PAGE 2 — Visibility + Engagement charts
-    // ════════════════════════════════════════════════════════════════════════
-    doc.addPage();
-    filledRect(doc, 0, 0, PAGE_W, PAGE_H, C.charcoal);
-
-    // White chart panels
-    const chartPanelH = 240;
-    const halfW       = (CONTENT_W - 10) / 2;
-
-    // Visibility panel
-    fillRgb(doc, C.white);
-    strokeRgb(doc, C.lightGray);
-    doc.lineWidth(0.5).roundedRect(MARGIN, MARGIN, halfW, chartPanelH, 8).fillAndStroke();
-    drawBarChart(
-      doc,
-      monthlyVis,
-      [{ key: "Maps Views", color: C.blue }, { key: "Search Views", color: C.teal }],
-      MARGIN + 8, MARGIN + 8, halfW - 16, chartPanelH - 16,
-      "Visibility Trends",
-      "Organic impressions on Search & Maps",
-    );
-
-    // Engagement panel
-    const engX = MARGIN + halfW + 10;
-    fillRgb(doc, C.white);
-    strokeRgb(doc, C.lightGray);
-    doc.lineWidth(0.5).roundedRect(engX, MARGIN, halfW, chartPanelH, 8).fillAndStroke();
-    drawBarChart(
-      doc,
-      monthlyEng,
-      [
-        { key: "Calls",         color: C.violet },
-        { key: "Directions",    color: C.amber  },
-        { key: "Website Clicks",color: C.rose   },
-      ],
-      engX + 8, MARGIN + 8, halfW - 16, chartPanelH - 16,
-      "User Engagement",
-      "Direct actions taken by potential customers",
-    );
-
-    drawFooter(doc, { businessName, pageNum: 2, pageTotal: TOTAL_PAGES });
-
-    // ════════════════════════════════════════════════════════════════════════
-    // PAGE 3 — Search Queries (if any keywords)
-    // ════════════════════════════════════════════════════════════════════════
-    if (keywords.length > 0) {
-      doc.addPage();
-      filledRect(doc, 0, 0, PAGE_W, PAGE_H, C.charcoal);
-      // White content background
-      fillRgb(doc, C.white);
-      strokeRgb(doc, C.lightGray);
-      doc.lineWidth(0.5)
-        .roundedRect(MARGIN, MARGIN, CONTENT_W, PAGE_H - MARGIN * 2 - 30, 8)
-        .fillAndStroke();
-
-      drawKeywords(doc, keywords, MARGIN + 16);
-      drawFooter(doc, { businessName, pageNum: 3, pageTotal: TOTAL_PAGES });
+      srcY += pageH;
+      page++;
     }
 
     doc.end();

@@ -19,6 +19,7 @@ import {
   LucideHeadset,
   Link2,
   QrCode,
+  Map,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 
@@ -75,10 +76,10 @@ export default function AdminLayout({ children }) {
 
 
     { name: "Leads", icon: <Users size={18} />, href: "/admin/user-management", key: "manageUsers" },
-    
+
     { name: "Store Business", icon: <QrCode size={18} />, href: "/admin/store-bussiness", key: "manageUsers" },
 
-        { name: "Total Revenue", icon: <Wallet size={18} />, href: "/admin/dashboard/revenue-users" },
+    { name: "Total Revenue", icon: <Wallet size={18} />, href: "/admin/dashboard/revenue-users" },
 
 
     { name: "User Recharge", icon: <BookCheck size={18} />, href: "/admin/user-recharge", key: "manageUsers" },
@@ -95,12 +96,12 @@ export default function AdminLayout({ children }) {
 
     { name: "Blog Management", icon: <BookCheck size={18} />, href: "/admin/blog", key: "manageBlogs" },
 
-    { name: "City Services", icon: <Map size={18} />, href: "/admin/city-services", key: "manageBlogs" },
+    { name: "City Services", icon: <Map size={18} />, href: "/admin/citys", key: "manageBlogs" },
 
     { name: "Franchise Lead", icon: <LucideHeadset />, href: "/admin/franchise/franchise-lead", key: "manageFranchise" },
-    { name: "Tata Dialer User Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead",key: "manageUsers" },
+    { name: "Tata Dialer User Lead", icon: <LeaderboardSharp />, href: "/admin/tata-dialer-lead", key: "manageUsers" },
     { name: "Create Franchise", icon: <LeaderboardSharp />, href: "/admin/create-franchise" },
-        { name: "Account Manager", icon: <UserSquare size={18} />, href: "/admin/manager-assignment" },
+    { name: "Account Manager", icon: <UserSquare size={18} />, href: "/admin/manager-assignment" },
     { name: "Connected Nodes", icon: <Link2 size={18} />, href: "/admin/connected-node" },
 
 
@@ -137,23 +138,20 @@ export default function AdminLayout({ children }) {
   ---------------------------- */
   return (
     <div
-      className={`flex min-h-screen transition-colors ${
-        theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900"
-      } `}
+      className={`flex min-h-screen transition-colors ${theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900"
+        } `}
     >
       {/* Sidebar */}
       <aside
-  className={`${
-    open ? "w-64" : "w-20"
-  } fixed left-0 top-0 h-screen z-50
+        className={`${open ? "w-64" : "w-20"
+          } fixed left-0 top-0 h-screen z-50
   transition-all duration-300 flex flex-col
   overflow-y-hidden hover:overflow-y-auto
-  ${
-    theme === "dark"
-      ? "bg-[#0b141a] text-white"
-      : "bg-white text-slate-900 border-r border-slate-200"
-  }`}
->
+  ${theme === "dark"
+            ? "bg-[#0b141a] text-white"
+            : "bg-white text-slate-900 border-r border-slate-200"
+          }`}
+      >
         {/* Header */}
         <div className={`p-4 ${theme === "dark" ? "border-b border-gray-800" : "border-b border-slate-200"}`}>
           <div className="flex items-center gap-3">
@@ -166,9 +164,8 @@ export default function AdminLayout({ children }) {
                 <p className="font-semibold text-sm">{adminName}</p>
                 <p className={theme === "dark" ? "text-xs text-gray-400" : "text-xs text-slate-500"}>{email}</p>
                 <span
-                  className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded ${
-                    theme === "dark" ? "bg-gray-800" : "bg-slate-100"
-                  }`}
+                  className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded ${theme === "dark" ? "bg-gray-800" : "bg-slate-100"
+                    }`}
                 >
                   {role}
                 </span>
@@ -178,9 +175,8 @@ export default function AdminLayout({ children }) {
 
           <button
             onClick={() => setOpen(!open)}
-            className={`absolute top-4 right-3 ${
-              theme === "dark" ? "text-gray-400 hover:text-white" : "text-slate-500 hover:text-slate-900"
-            }`}
+            className={`absolute top-4 right-3 ${theme === "dark" ? "text-gray-400 hover:text-white" : "text-slate-500 hover:text-slate-900"
+              }`}
           >
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -196,15 +192,14 @@ export default function AdminLayout({ children }) {
                 key={item.name}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 text-sm transition
-                ${
-                  theme === "dark"
+                ${theme === "dark"
                     ? active
                       ? "bg-gray-800 text-white"
                       : "text-gray-400 hover:bg-gray-800 hover:text-white"
                     : active
                       ? "bg-slate-200 text-slate-900"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 {item.icon}
                 {open && <span>{item.name}</span>}
@@ -223,16 +218,15 @@ export default function AdminLayout({ children }) {
             {open && "Logout"}
           </button>
         </div>
-      </aside> 
+      </aside>
 
       {/* Main Content */}
       <main
-  className={`flex-1 min-w-0 p-6 overflow-y-auto ${
-    open ? "ml-64" : "ml-20"
-  }`}
->
-  {children}
-</main>
+        className={`flex-1 min-w-0 p-6 overflow-y-auto ${open ? "ml-64" : "ml-20"
+          }`}
+      >
+        {children}
+      </main>
     </div>
   );
 }

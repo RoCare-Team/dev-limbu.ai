@@ -61,19 +61,19 @@ export default function AdminCityServices() {
             </tr>
           </thead>
           <tbody>
-            {pages.map((page) => (
-              <tr key={page._id} className="border-b hover:bg-slate-50">
+            {pages?.map((page) => (
+              <tr key={page?._id} className="border-b hover:bg-slate-50">
                 <td className="p-4 font-medium">{page.cityName}</td>
                 <td className="p-4 text-slate-500">{page.citySlug}</td>
                 <td className="p-4">
                   <span
                     className={`px-2 py-1 rounded text-xs font-semibold ${
-                      page.isActive
+                      page?.isActive
                         ? "bg-green-100 text-green-800"
                         : "bg-red-100 text-red-800"
                     }`}
                   >
-                    {page.isActive ? "Active" : "Draft"}
+                    {page?.isActive ? "Active" : "Draft"}
                   </span>
                 </td>
                 <td className="p-4 text-right">

@@ -225,10 +225,10 @@ export default function BusinessQR() {
             </div>
 
             {/* QR Card Container - Forced Centering */}
-            <div className="w-full flex justify-center items-center mb-8 sm:mb-10 overflow-hidden">
+            <div className="w-full flex justify-center items-center mb-8 sm:mb-10 overflow-visible">
               <div
                 ref={qrCardRef}
-                className="relative rounded-[1.5rem] sm:rounded-3xl shadow-2xl bg-white border border-slate-100 overflow-hidden mx-auto w-full max-w-[260px]"
+                className="relative rounded-[1.5rem] sm:rounded-3xl shadow-2xl bg-white border border-slate-100 overflow-hidden w-full max-w-[260px]"
                 
               >
                 {/* Google Color Corner Backgrounds */}
@@ -274,6 +274,7 @@ export default function BusinessQR() {
                       <img
                         src={qrImage}
                         alt="Google Review QR"
+                        crossOrigin="anonymous"
                         className="w-full h-full block object-contain"
                       />
                       {/* Corner Accents */}

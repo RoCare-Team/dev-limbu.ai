@@ -97,7 +97,21 @@ export function useMagicQR() {
   const downloadQR = useCallback(async (qrElement) => {
     if (!qrElement) return;
     try {
-      const dataUrl = await toPng(qrElement, { cacheBust: true, pixelRatio: 3 });
+      // Ensure we capture the exact dimensions to avoid truncation
+      const width = qrElement.offsetWidth;
+      const height = qrElement.offsetHeight;
+
+      const dataUrl = await toPng(qrElement, { 
+        cacheBust: true, 
+        pixelRatio: 3,
+        width: width,
+        height: height,
+        style: {
+          margin: "0",
+          transform: "scale(1)",
+        },
+      });
+
       const link = document.createElement('a');
       link.download = `${business}-qr-review.png`;
       link.href = dataUrl;
@@ -112,7 +126,21 @@ export function useMagicQR() {
   const printQR = useCallback(async (qrElement) => {
     if (!qrElement) return;
     try {
-      const dataUrl = await toPng(qrElement, { cacheBust: true, pixelRatio: 3 });
+      // Ensure we capture the exact dimensions to avoid truncation
+      const width = qrElement.offsetWidth;
+      const height = qrElement.offsetHeight;
+
+      const dataUrl = await toPng(qrElement, { 
+        cacheBust: true, 
+        pixelRatio: 3,
+        width: width,
+        height: height,
+        style: {
+          margin: "0",
+          transform: "scale(1)",
+        },
+      });
+
       const printWindow = window.open("", "_blank");
       if(printWindow){
           printWindow.document.write(`

@@ -17,11 +17,15 @@ const PostManagementHeader = React.memo(({
   previewData
 }) => {
 
+  
+
   const hasPreview = useMemo(() => Boolean(previewData?.aiOutput), [previewData?.aiOutput]);
   
   const handlePreviewClick = useCallback((e) => {
     if (!hasPreview) e.preventDefault();
   }, [hasPreview]);
+
+  
 
   return (
     <div className="grid grid-cols-2 sm:flex sm:flex-row items-center gap-4 mb-6">
@@ -34,11 +38,12 @@ const PostManagementHeader = React.memo(({
           <FileText className="w-5 h-5 text-[#EAB308]" />
         </div>
         <span
-          className="text-base sm:text-xl font-normal text-slate-900 uppercase tracking-wider"
-          style={FONT_ANTON}
-        >
-          Post <span className="text-[#EAB308]">Management</span>
-        </span>
+  className="text-sm sm:text-xl font-normal text-slate-900 uppercase tracking-wide leading-tight"
+  style={FONT_ANTON}
+>
+  Post <br className="sm:hidden" />
+  <span className="text-[#EAB308]">Management</span>
+</span>
       </div>
 
       <PlatformSelector
@@ -65,6 +70,7 @@ const PostManagementHeader = React.memo(({
     </div>
   );
 });
+
 
 PostManagementHeader.displayName = "PostManagementHeader";
 

@@ -8,6 +8,14 @@ export async function POST(req) {
   try {
     const { post, pageData, caption, media, userId } = await req.json();
 
+    console.log("Received Facebook publish request with payload:", {
+      post,
+      pageData,
+      caption,
+      media,
+      userId,
+    });
+
     if (!caption?.trim() && !media?.url) {
       return NextResponse.json(
         { success: false, error: "Post content is empty." },
@@ -22,64 +30,36 @@ export async function POST(req) {
 
     if (media.type === "video" && media.url) {
       let videoId = null;
-      const isHttpVideo =
-        typeof media.url === "string" &&
-        /^https?:\/\//i.test(media.url.trim());
 
-      if (isHttpVideo) {
-        try {
-          // Download and upload video to Facebook
-          const videoRes = await fetch(media.url.trim(), {
-            headers: { Accept: "video/*,*/*" },
-          });
+      // Facebook's API will fail to fetch the video if the URL contains spaces. 
+      // We must encode the URL (while preserving the '://' and slashes).
+      const encodedVideoUrl = new URL(media.url.trim()).href;
 
-          if (videoRes.ok) {
-            const arrayBuffer = await videoRes.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            
-            const formData = new FormData();
-            const blob = new Blob([buffer], { type: videoRes.headers.get("content-type") || "video/mp4" });
-            formData.append("source", blob, "post-video.mp4");
-            formData.append("description", caption || "");
-            formData.append("access_token", accessToken);
+      console.log("Sending video file_url to Facebook:", encodedVideoUrl);
 
-            const fbUrl = `https://graph.facebook.com/v24.0/${encodeURIComponent(pageId)}/videos`;
-            const fbRes = await fetch(fbUrl, { method: "POST", body: formData });
-            const fbJson = await fbRes.json();
-
-            if (fbRes.ok && fbJson.id) {
-              videoId = fbJson.id;
-            } else {
-              console.error("Facebook Video Proxy Upload Error:", fbJson);
-            }
-          }
-        } catch (error) {
-          console.error("Error in server-side video proxy upload:", error);
-          /* fall through to file_url approach */
+      const videoRes = await fetch(
+        `https://graph.facebook.com/v24.0/${pageId}/videos`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: graphApiFormEncode({
+            file_url: encodedVideoUrl,
+            description: caption || "",
+            access_token: accessToken,
+          }),
         }
-      }
-
-      if (!videoId) {
-        const videoRes = await fetch(
-          `https://graph.facebook.com/v24.0/${pageId}/videos`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: graphApiFormEncode({
-              file_url: media.url,
-              description: caption || "",
-              access_token: accessToken,
-            }),
-          }
+      );
+      
+      const videoData = await videoRes.json();
+      
+      if (!videoData.id) {
+        console.error("Facebook file_url upload failed:", videoData);
+        throw new Error(
+          videoData.error?.message || "Failed to publish video to Facebook"
         );
-        const videoData = await videoRes.json();
-        if (!videoData.id) {
-          throw new Error(
-            videoData.error?.message || "Failed to publish video to Facebook"
-          );
-        }
-        videoId = videoData.id;
       }
+      
+      videoId = videoData.id;
       facebookPostId = videoId;
     } else if (media.type === "image" && media.url) {
       const imageUrl = media.url;

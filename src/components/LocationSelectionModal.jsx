@@ -178,7 +178,7 @@ const LocationSelectionModal = ({
                       </div>
                       <div>
                         <p className="font-bold text-black text-sm uppercase tracking-tight">
-                          {location.title}
+                          {location.title} {location.locality ? `- ${location.locality}` : ""}
                         </p>
                         <p className="text-xs text-black/40 flex items-center gap-1 font-inter">
                           <MapPin className="w-3 h-3" />

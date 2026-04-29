@@ -8,171 +8,69 @@ import {
   metaPublishMedia,
   postImageUrl
 } from "@/lib/postMediaUrls";
-import {
-  waitForInstagramVideoContainer,
-  graphApiFormEncode,
-} from "@/utils/postHelpers";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 
 export function usePostManagementActions({
   userId,
+  session,
   fetchPosts,
   setPosts,
   setPreviewData,
   setUserWallet,
   setRequiredCoins,
   setShowInsufficientBalance,
-  showToast
+  showToast,
+  setIsSuccess,
+  setPostingPlatform,
 }) {
   const [isPosting, setIsPosting] = useState(false);
   const [convertingVideoPostId, setConvertingVideoPostId] = useState(null);
 
   const VIDEO_GENERATION_COINS = 200;
 
-  const handleFacebookPost = async (post, pageData, caption) => {
-    const media = metaPublishMedia(post);
+  const handleFacebookPost = async (post, pageData, caption, forcedMedia = null) => {
+    // If forcedMedia is provided, we use it directly. 
+    // This allows the user to choose between videoOutput and aiOutput manually.
+    const media = forcedMedia || metaPublishMedia(post);
     if (!caption?.trim() && !media.url) {
       showToast("Post content is empty.", "error");
       return;
     }
 
     try {
+      if (setPostingPlatform) setPostingPlatform("Facebook");
+      setIsPosting(true);
       showToast("Publishing to Facebook...", "success");
 
-      const pageId = pageData.pageId;
-      const accessToken = pageData.pageAccessToken;
-
-      let facebookPostId;
-
-      if (media.type === "video" && media.url) {
-        let videoId = null;
-        const isHttpVideo = typeof media.url === "string" && /^https?:\/\//i.test(media.url.trim());
-
-        if (isHttpVideo) {
-          try {
-            const proxyRes = await fetch("/api/facebook/upload-video", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                videoUrl: media.url.trim(),
-                pageId,
-                accessToken,
-                description: caption || "",
-              }),
-            });
-            const proxyJson = await proxyRes.json().catch(() => ({}));
-            if (proxyRes.ok && proxyJson.success && proxyJson.id) {
-              videoId = proxyJson.id;
-            }
-          } catch (e) {
-            console.error("Proxy upload failed", e);
-          }
-        }
-
-        if (!videoId) {
-          const videoRes = await fetch(
-            `https://graph.facebook.com/v24.0/${pageId}/videos`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: graphApiFormEncode({
-                file_url: media.url,
-                description: caption || "",
-                access_token: accessToken,
-              }),
-            },
-          );
-          const videoData = await videoRes.json();
-          if (!videoData.id) {
-            throw new Error(videoData.error?.message || "Failed to publish video to Facebook");
-          }
-          videoId = videoData.id;
-        }
-        facebookPostId = videoId;
-      } else if (media.type === "image" && media.url) {
-        const imageUrl = media.url;
-        const photoUrl = `https://graph.facebook.com/v24.0/${pageId}/photos`;
-        const photoRes = await fetch(photoUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: imageUrl,
-            published: false,
-            access_token: accessToken,
-          }),
-        });
-
-        const photoData = await photoRes.json();
-        if (!photoData.id) {
-          throw new Error(photoData.error?.message || "Failed to upload photo to Facebook");
-        }
-
-        const feedUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
-        const feedRes = await fetch(feedUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: caption || "",
-            attached_media: [{ media_fbid: photoData.id }],
-            access_token: accessToken,
-          }),
-        });
-
-        const feedData = await feedRes.json();
-        if (!feedData.id) {
-          throw new Error(feedData.error?.message || "Failed to publish post to Facebook Feed");
-        }
-        facebookPostId = feedData.id;
-      } else {
-        const graphUrl = `https://graph.facebook.com/v24.0/${pageId}/feed`;
-        const res = await fetch(graphUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: caption || "",
-            access_token: accessToken,
-          }),
-        });
-
-        const data = await res.json();
-        if (!data.id) {
-          throw new Error(data.error?.message || "Failed to post to Facebook");
-        }
-        facebookPostId = data.id;
-      }
-
-      showToast("Post published on Facebook 🎉", "success");
-
-      // Email notification
-      try {
-        await fetch("/api/send-post-published-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId,
-            platform: "Facebook",
-            businessName: pageData.pageName || "Facebook Page",
-            locationName: pageData.pageName || "Facebook Page",
-            postUrl: metaPublishMedia(post).url || post.aiOutput,
-          }),
-        });
-      } catch (e) {
-        console.error("Email failed", e);
-      }
-
-      await updatePostStatusAction({
-        id: post._id,
-        userId,
-        facebookPostId,
-        facebookPageAccessToken: accessToken,
-        status: "posted",
-        whenPosted: { ...post.whenPosted, facebook: true },
+      const res = await fetch("/api/facebook/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          post,
+          pageData,
+          caption,
+          media,
+          userId,
+        }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to publish to Facebook");
+      }
+
+      if (setIsSuccess) setIsSuccess(true);
+      showToast("Post published on Facebook 🎉", "success");
       await fetchPosts(1, true);
     } catch (err) {
       console.error("Facebook post error:", err);
       showToast(err.message || "Something went wrong posting to Facebook", "error");
+    } finally {
+      setTimeout(() => {
+          setIsPosting(false);
+      }, 1000);
     }
   };
 
@@ -181,111 +79,49 @@ export function usePostManagementActions({
     accountData,
     caption,
     instagramVideoMediaType,
+    forcedMedia = null
   ) => {
-    const media = metaPublishMedia(post);
+    // Priority to forcedMedia (user selection), then default detection
+    const media = forcedMedia || metaPublishMedia(post);
     if (!media.url) {
       showToast("Post has no media to share.", "error");
       return;
     }
 
     try {
+      if (setPostingPlatform) setPostingPlatform("Instagram");
+      setIsPosting(true);
       showToast("Publishing to Instagram...", "success");
 
-      const igUserId = accountData.igId;
-      const accessToken = accountData.pageAccessToken;
-
-      const videoKind =
-        instagramVideoMediaType === "REELS" ? "REELS" : "VIDEO";
-
-      const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
-      const mediaContainerPayload =
-        media.type === "video"
-          ? {
-              video_url: media.url,
-              caption: caption || "",
-              media_type: videoKind,
-              access_token: accessToken,
-            }
-          : {
-              image_url: media.url,
-              caption: caption || "",
-              access_token: accessToken,
-            };
-
-      // Photos: JSON (urlencoded often breaks long image URLs / encoding). Video: form body.
-      const mediaRes = await fetch(mediaContainerUrl, {
+      const res = await fetch("/api/instagram/publish", {
         method: "POST",
-        headers:
-          media.type === "video"
-            ? { "Content-Type": "application/x-www-form-urlencoded" }
-            : { "Content-Type": "application/json" },
-        body:
-          media.type === "video"
-            ? graphApiFormEncode(mediaContainerPayload)
-            : JSON.stringify(mediaContainerPayload),
-      });
-      const mediaData = await mediaRes.json();
-
-      if (!mediaData.id) {
-        throw new Error(mediaData.error?.message || "Failed to create Instagram media container.");
-      }
-
-      if (media.type === "video") {
-        await waitForInstagramVideoContainer(mediaData.id, accessToken);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 4000));
-      }
-
-      const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
-      const publishBody = {
-        creation_id: mediaData.id,
-        access_token: accessToken,
-      };
-      const publishRes = await fetch(publishUrl, {
-        method: "POST",
-        headers:
-          media.type === "video"
-            ? { "Content-Type": "application/x-www-form-urlencoded" }
-            : { "Content-Type": "application/json" },
-        body:
-          media.type === "video"
-            ? graphApiFormEncode(publishBody)
-            : JSON.stringify(publishBody),
-      });
-      const publishData = await publishRes.json();
-
-      if (publishData.id) {
-        showToast("Post published on Instagram 🎉", "success");
-
-        try {
-          await fetch("/api/send-post-published-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId,
-              platform: "Instagram",
-              businessName: accountData.igUsername || "Instagram Account",
-              locationName: accountData.igUsername || "Instagram Account",
-              postUrl: media.url || post.aiOutput,
-            }),
-          });
-        } catch (e) {
-          console.error("Email failed", e);
-        }
-
-        await updatePostStatusAction({
-          id: post._id,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          post,
+          accountData,
+          caption,
+          media,
           userId,
-          status: "posted",
-          whenPosted: { ...post.whenPosted, instagram: true },
-        });
-        await fetchPosts(1, true);
-      } else {
-        throw new Error(publishData.error?.message || "Failed to publish to Instagram.");
+          instagramVideoMediaType,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to publish to Instagram");
       }
+
+      if (setIsSuccess) setIsSuccess(true);
+      showToast("Post published on Instagram 🎉", "success");
+      await fetchPosts(1, true);
     } catch (err) {
       console.error("Instagram post error:", err);
-      showToast(err.message, "error");
+      showToast(err.message || "Something went wrong posting to Instagram", "error");
+    } finally {
+      setTimeout(() => {
+          setIsPosting(false);
+      }, 1000);
     }
   };
 

@@ -235,12 +235,12 @@ const TopAppBar = React.memo(({
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="flex items-center gap-2 p-1 pr-3 rounded-xl bg-[#0F172A]  border border-slate-100  transition-all shadow-sm"
+            className="flex items-center gap-2 p-1 pr-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all shadow-sm"
           >
-            <UserAvatar  name={userData.name} size="sm"  className="text-white"/>
+            <UserAvatar name={userData.name} size="sm" className="text-amber-900 bg-amber-200" />
             <ChevronDown
               size={12}
-              className={`text-white transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
+              className={`text-amber-700 transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
             />
           </button>
 

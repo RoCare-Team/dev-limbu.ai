@@ -1,9 +1,9 @@
 "use server";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXTAUTH_URL ||
-  "http://localhost:3000";
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXTAUTH_URL ||
+    "http://localhost:3000";
 
 
 export async function createDefaultAssetsAction(userId) {
@@ -132,7 +132,7 @@ export async function updatePostStatusAction(payload) {
 }
 
 export async function postToGmbAction(payload) {
-    console.log("🔍 postToGmbAction payload:", JSON.stringify(payload, null, 2)); // ADD THIS
+    console.log("🚀 ~ Sending to GMB n8n webhook - Payload:", payload);
 
     const response = await fetch(
         "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0",
@@ -142,6 +142,7 @@ export async function postToGmbAction(payload) {
             body: JSON.stringify(payload),
         }
     );
+    console.log("🚀 ~ Received response from GMB n8n webhook - Status:", response);
     const text = await response.text();
     try {
         const data = text ? JSON.parse(text) : {};

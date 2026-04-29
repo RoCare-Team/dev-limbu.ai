@@ -137,6 +137,7 @@ export default function PostManagementPage() {
   const [rejectPostId, setRejectPostId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [imageToVideoInitialPost, setImageToVideoInitialPost] = useState(null);
+  const [selectedMediaForAction, setSelectedMediaForAction] = useState(null);
 
   // --- Social Media Specific ---
   const [socialState, setSocialState] = useState({
@@ -250,6 +251,11 @@ export default function PostManagementPage() {
     [fetchPosts],
   );
 
+  // gmb post success modal & dynamic platform tracking
+  const [dots, setDots] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [postingPlatform, setPostingPlatform] = useState("Google Business");
+
   const {
     isPosting,
     setIsPosting,
@@ -268,11 +274,9 @@ export default function PostManagementPage() {
     setShowInsufficientBalance: (val) =>
       updateUiState({ showInsufficientBalance: val }),
     showToast,
+    setIsSuccess,
+    setPostingPlatform,
   });
-
-  // gmb post success modal
-  const [dots, setDots] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     if (!isPosting) return;
@@ -546,8 +550,8 @@ export default function PostManagementPage() {
           ),
           logoImage: stripBase64(
             selectedAssets.find((a) => a.name === "Logo")?.url ||
-              logoBase64 ||
-              "",
+            logoBase64 ||
+            "",
           ),
           platform: selectedPlatforms.join(",") || "gmb",
           mode,
@@ -782,10 +786,15 @@ export default function PostManagementPage() {
           .map((p) => ({
             pageId: p.pageId,
             pageAccessToken: p.pageAccessToken,
+            pageName: p.pageName,
           }));
         const igPages = socialState.instagramAccounts
           .filter((a) => selectedTargets.ig.includes(a.igId))
-          .map((a) => ({ igUserId: a.igId, accessToken: a.pageAccessToken }));
+          .map((a) => ({
+            igUserId: a.igId,
+            accessToken: a.pageAccessToken,
+            igUsername: a.igUsername,
+          }));
 
         setScheduledPlatforms({ gmb: gmbLocs, fb: fbPages, ig: igPages });
         await handleUpdateStatus(
@@ -856,7 +865,8 @@ export default function PostManagementPage() {
   }, [socialState.facebookPages.length, userId, updateSocialState]);
 
   const handleFacebookPost = useCallback(
-    (post) => {
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
       updateSocialState({ postToFacebook: post });
       updateUiState({ showFacebookModal: true });
       fetchFacebookPages();
@@ -878,7 +888,8 @@ export default function PostManagementPage() {
   }, [socialState.instagramAccounts.length, userId, updateSocialState]);
 
   const handleInstagramPost = useCallback(
-    (post) => {
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
       updateSocialState({ postToInstagram: post });
       updateUiState({ showInstagramModal: true });
       fetchInstagramAccounts();
@@ -975,6 +986,7 @@ export default function PostManagementPage() {
           return;
         }
 
+        setPostingPlatform("Google Business");
         setIsPosting(true);
 
         const walletRes = await deductFromWalletAction(userId, {
@@ -1004,6 +1016,21 @@ export default function PostManagementPage() {
           .filter((l) => selectedIds.includes(l.id))
           .map((l) => ({ ...l, isPosted: true }));
 
+        const payload = {
+          account: locs[0].accountId,
+          locationData: locs.map((l) => ({
+            city: l.locationId,
+            cityName: l.locality,
+            bookUrl: l.websiteUrl,
+          })),
+          output: selectedMediaForAction?.url || postToAction.aiOutput,
+          description: postToAction.description,
+          accessToken: session?.accessToken,
+          checkmark: checkmark || postToAction.checkmark,
+        };
+
+        // ✅ Console full payload
+
         const { ok } = await postToGmbAction({
           account: locs[0].accountId,
           locationData: locs.map((l) => ({
@@ -1011,7 +1038,7 @@ export default function PostManagementPage() {
             cityName: l.locality,
             bookUrl: l.websiteUrl,
           })),
-          output: postToAction.aiOutput,
+          output: selectedMediaForAction?.url || postToAction.aiOutput,
           description: postToAction.description,
           accessToken: session?.accessToken,
           checkmark: checkmark || postToAction.checkmark,
@@ -1019,8 +1046,8 @@ export default function PostManagementPage() {
 
         if (ok) {
           showToast("Posted! 🎉");
-           // 🔥 SUCCESS MODAL TRIGGER
-  setIsSuccess(true);
+          // 🔥 SUCCESS MODAL TRIGGER
+          setIsSuccess(true);
 
           await updatePostStatusAction({
             id: postToAction._id,
@@ -1045,12 +1072,13 @@ export default function PostManagementPage() {
       } catch (err) {
         showToast(err.message || "Post failed", "error");
       } finally {
-  setTimeout(() => {
-    setIsPosting(false);
-  }, 1200); // 🔥 delay for smooth success UI
+        setTimeout(() => {
+          setIsPosting(false);
+        }, 1200); // 🔥 delay for smooth success UI
 
-  setPostToAction(null);
-}
+        setPostToAction(null);
+        setSelectedMediaForAction(null);
+      }
     },
     [
       availableLocations,
@@ -1065,7 +1093,7 @@ export default function PostManagementPage() {
   );
 
   const handlePost = useCallback(
-    async (post) => {
+    async (post, media = null) => {
       if (!["approved", "scheduled", "posted", "failed"].includes(post.status))
         return showToast("Approve first", "error");
 
@@ -1085,6 +1113,7 @@ export default function PostManagementPage() {
       const userData = await getUserWalletAction(userId);
       setUserWallet(userData.wallet || 0);
       setPostToAction(post);
+      setSelectedMediaForAction(media);
       updateUiState({ showLocationModal: true });
     },
     [userId, updateUiState, showToast, session],
@@ -1199,7 +1228,7 @@ export default function PostManagementPage() {
       try {
         const p = JSON.parse(stored);
         if (p.length) setBussinessTitle(p[0].title);
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -1245,14 +1274,14 @@ export default function PostManagementPage() {
   }, [isPosting]);
 
   useEffect(() => {
-  if (isSuccess) {
-    const t = setTimeout(() => {
-      setIsSuccess(false);
-    }, 2000);
+    if (isSuccess) {
+      const t = setTimeout(() => {
+        setIsSuccess(false);
+      }, 2000);
 
-    return () => clearTimeout(t);
-  }
-}, [isSuccess]);
+      return () => clearTimeout(t);
+    }
+  }, [isSuccess]);
 
   return (
     <div className="text-slate-900">
@@ -1336,7 +1365,8 @@ export default function PostManagementPage() {
             onClose={() => updateUiState({ showFacebookModal: false })}
             onConfirm={(p, pg, c) => {
               updateUiState({ showFacebookModal: false });
-              handleFacebookPostAction(p, pg, c);
+              handleFacebookPostAction(p, pg, c, selectedMediaForAction);
+              setSelectedMediaForAction(null);
             }}
             post={socialState.postToFacebook}
             pages={socialState.facebookPages}
@@ -1349,7 +1379,14 @@ export default function PostManagementPage() {
             onClose={() => updateUiState({ showInstagramModal: false })}
             onConfirm={(p, a, c, igVideoKind) => {
               updateUiState({ showInstagramModal: false });
-              handleInstagramPostAction(p, a, c, igVideoKind);
+              handleInstagramPostAction(
+                p,
+                a,
+                c,
+                igVideoKind,
+                selectedMediaForAction,
+              );
+              setSelectedMediaForAction(null);
             }}
             post={socialState.postToInstagram}
             accounts={socialState.instagramAccounts}
@@ -1386,106 +1423,106 @@ export default function PostManagementPage() {
         )}
 
         {/* gmb post success modal */}
-     {(isPosting || isSuccess) && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4">
+        {(isPosting || isSuccess) && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4">
 
-    <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden">
+            <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden">
 
-      {/* 🔥 TOP GLOW */}
-      <div className="absolute -top-24 w-[350px] h-[350px] bg-[#EAB308]/20 blur-[120px] rounded-full"></div>
+              {/* 🔥 TOP GLOW */}
+              <div className="absolute -top-24 w-[350px] h-[350px] bg-[#EAB308]/20 blur-[120px] rounded-full"></div>
 
-      {isSuccess ? (
-        <>
-          {/* ✅ SUCCESS ICON */}
-          <div className="w-24 h-24 flex items-center justify-center rounded-full bg-green-100 mb-6 shadow-inner">
-            <span className="text-5xl">🎉</span>
-          </div>
+              {isSuccess ? (
+                <>
+                  {/* ✅ SUCCESS ICON */}
+                  <div className="w-24 h-24 flex items-center justify-center rounded-full bg-green-100 mb-6 shadow-inner">
+                    <span className="text-5xl">🎉</span>
+                  </div>
 
-          {/* TITLE */}
-          <h3 className="text-3xl font-extrabold text-green-600 mb-2">
-            Post Published!
-          </h3>
+                  {/* TITLE */}
+                  <h3 className="text-3xl font-extrabold text-green-600 mb-2">
+                    Post Published!
+                  </h3>
 
-          {/* SUBTEXT */}
-          <p className="text-sm text-slate-600 mb-6 leading-relaxed max-w-sm">
-            Your Google Business post is now live and visible to your customers.
-            🚀 This will help you increase engagement, visibility, and trust.
-          </p>
+                  {/* SUBTEXT */}
+                  <p className="text-sm text-slate-600 mb-6 leading-relaxed max-w-sm">
+                    Your {postingPlatform} post is now live and visible to your customers.
+                    🚀 This will help you increase engagement, visibility, and trust.
+                  </p>
 
-          {/* BUTTON */}
-          <button
-            onClick={() => setIsSuccess(false)}
-            className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md"
-          >
-            Continue
-          </button>
-        </>
-      ) : (
-        <>
-          {/* 🔄 LOADING ICON */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 rounded-full bg-[#EAB308]/30 blur-xl animate-pulse"></div>
+                  {/* BUTTON */}
+                  <button
+                    onClick={() => setIsSuccess(false)}
+                    className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md"
+                  >
+                    Continue
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* 🔄 LOADING ICON */}
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 rounded-full bg-[#EAB308]/30 blur-xl animate-pulse"></div>
 
-            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
-              <Send className="w-12 h-12 text-[#EAB308] animate-bounce" />
+                    <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
+                      <Send className="w-12 h-12 text-[#EAB308] animate-bounce" />
+                    </div>
+                  </div>
+
+                  {/* TITLE */}
+                  <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
+                    Publishing to {postingPlatform}
+                  </h3>
+
+                  {/* SUBTEXT */}
+                  <p className="text-sm text-slate-500 mb-6 max-w-sm leading-relaxed">
+                    {messages[msgIndex]}{" "}
+                    <span className="text-[#EAB308] font-semibold">
+                      ({String(timeLeft).padStart(2, "0")}s)
+                    </span>
+                  </p>
+
+                  {/* 🔥 PROGRESS BAR (REAL) */}
+                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-5 relative">
+
+                    {/* REAL PROGRESS */}
+                    <div
+                      className="h-full bg-[#EAB308] transition-all duration-1000"
+                      style={{
+                        width: `${((10 - timeLeft) / 10) * 100}%`,
+                      }}
+                    ></div>
+
+                    {/* MOVING SHINE LINE */}
+                    <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
+
+                  </div>
+
+                  {/* STEPS */}
+                  <div className="flex flex-col gap-3 text-sm w-full max-w-sm text-left">
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <p className="text-slate-700 font-medium">Connecting to {postingPlatform}...</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                      <p className="text-slate-700 font-medium">Uploading your content...</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-slate-300 rounded-full animate-pulse"></div>
+                      <p className="text-slate-500 font-medium">
+                        Finalizing post<span className="ml-1">{dots}</span>
+                      </p>
+                    </div>
+
+                  </div>
+                </>
+              )}
             </div>
           </div>
-
-          {/* TITLE */}
-          <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
-            Publishing to Google Business
-          </h3>
-
-          {/* SUBTEXT */}
-          <p className="text-sm text-slate-500 mb-6 max-w-sm leading-relaxed">
-            {messages[msgIndex]}{" "}
-            <span className="text-[#EAB308] font-semibold">
-              ({String(timeLeft).padStart(2, "0")}s)
-            </span>
-          </p>
-
-          {/* 🔥 PROGRESS BAR (REAL) */}
-          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-5 relative">
-
-  {/* REAL PROGRESS */}
-  <div
-    className="h-full bg-[#EAB308] transition-all duration-1000"
-    style={{
-      width: `${((10 - timeLeft) / 10) * 100}%`,
-    }}
-  ></div>
-
-  {/* MOVING SHINE LINE */}
-  <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
-
-</div>
-
-          {/* STEPS */}
-          <div className="flex flex-col gap-3 text-sm w-full max-w-sm text-left">
-
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <p className="text-slate-700 font-medium">Connecting to Google...</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-              <p className="text-slate-700 font-medium">Uploading your content...</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-slate-300 rounded-full animate-pulse"></div>
-              <p className="text-slate-500 font-medium">
-                Finalizing post<span className="ml-1">{dots}</span>
-              </p>
-            </div>
-
-          </div>
-        </>
-      )}
-    </div>
-  </div>
-)}
+        )}
 
         {uiState.showSuccess && (
           <SuccessOverlay

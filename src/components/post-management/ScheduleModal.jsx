@@ -54,7 +54,37 @@ const ScheduleModal = React.memo(({
   const [selectedGmb, setSelectedGmb] = useState([]);
   const [selectedFb, setSelectedFb] = useState([]);
   const [selectedIg, setSelectedIg] = useState([]);
-  // console.log("schedule model locations", availableLocations);
+
+  // Pre-select existing targets when editing
+  useEffect(() => {
+    if (post) {
+      if (post.locations && post.locations.length > 0) {
+        // Match post locations with available locations using locationId or id
+        const matchedGmbIds = post.locations.map(postLoc => {
+          const found = availableLocations.find(availLoc => 
+            availLoc.locationId === postLoc.locationId || availLoc.id === postLoc.id
+          );
+          return found ? found.id : postLoc.id; // Fallback to postLoc.id if not found, though ideally it should be found
+        }).filter(Boolean); // Remove any nulls/undefined
+        
+        setSelectedGmb(matchedGmbIds);
+      }
+      if (post.fbPages && post.fbPages.length > 0) {
+        setSelectedFb(post.fbPages.map(pg => pg.pageId));
+      }
+      if (post.igPages && post.igPages.length > 0) {
+        setSelectedIg(post.igPages.map(acc => acc.igUserId || acc.igId));
+      }
+      if (post.scheduledDate) {
+        const d = new Date(post.scheduledDate);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        setDate(`${year}-${month}-${day}`);
+        setSlot(d.getHours());
+      }
+    }
+  }, [post, availableLocations]);
 
   useEffect(() => {
     if (activeTab === 'fb' && facebookPages.length === 0 && fetchFacebookPages) {

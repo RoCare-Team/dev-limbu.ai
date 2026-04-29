@@ -2,27 +2,66 @@ import { NextResponse } from "next/server";
 import { updatePostStatusAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 
-async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 120000) {
+async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 300000) { // 5 minutes timeout
   const start = Date.now();
+  let attempts = 0;
+
   while (Date.now() - start < maxMs) {
+    attempts++;
     const u = new URL(`https://graph.facebook.com/v24.0/${creationId}`);
-    u.searchParams.set("fields", "status_code");
+    // Removed "error_message" as it is an invalid field for this endpoint
+    u.searchParams.set("fields", "status_code,status");
     u.searchParams.set("access_token", accessToken);
-    const r = await fetch(u.toString());
-    const j = await r.json();
-    if (j.status_code === "FINISHED") return;
-    if (j.status_code === "ERROR" || j.status_code === "EXPIRED") {
-      throw new Error(j.error?.message || `Instagram processing: ${j.status_code}`);
+
+    try {
+      const r = await fetch(u.toString());
+      const j = await r.json();
+
+      console.log(`[IG Polling] Attempt ${attempts}: Status - ${j.status_code}`);
+
+      if (j.status_code === "FINISHED") return;
+
+      if (j.status_code === "ERROR" || j.status_code === "EXPIRED") {
+        console.error("Instagram Processing Detailed Error:", j);
+        // The error details might be nested inside the 'status' object if it exists
+        throw new Error(j.status?.error_message || j.error?.message || `Instagram processing failed: ${j.status_code}`);
+      }
+    } catch (e) {
+      // If the fetch fails completely or we throw an error based on status, bubble it up
+      if (e.message.includes("Instagram processing failed")) {
+        throw e;
+      }
+      console.warn(`[IG Polling] Fetch error on attempt ${attempts}:`, e.message);
     }
-    await new Promise((res) => setTimeout(res, 4000));
+
+    await new Promise((res) => setTimeout(res, 5000)); // Wait 5s between checks
   }
-  throw new Error("Instagram video processing timed out.");
+  throw new Error("Instagram video processing timed out after 5 minutes.");
+}
+
+function encodeSpacesInUrl(url) {
+  try {
+    const u = new URL(url);
+    u.pathname = u.pathname.split('/').map(segment => encodeURIComponent(decodeURIComponent(segment))).join('/');
+    return u.toString();
+  } catch {
+    return url.replace(/ /g, '%20');
+  }
 }
 
 export async function POST(req) {
   try {
     const { post, accountData, caption, media, userId, instagramVideoMediaType } =
       await req.json();
+
+    console.log("Received Instagram publish request with payload:", {
+      post,
+      accountData,
+      caption,
+      media,
+      userId,
+      instagramVideoMediaType
+    });
 
     if (!media?.url) {
       return NextResponse.json({ success: false, error: "Post has no media to share." }, { status: 400 });
@@ -31,25 +70,25 @@ export async function POST(req) {
     const igUserId = accountData.igId;
     const accessToken = accountData.pageAccessToken;
 
-    const videoKind =
-      instagramVideoMediaType === "REELS" ? "REELS" : "VIDEO";
+    // Instagram has deprecated "VIDEO" media_type. All videos must be published as "REELS".
+    const videoKind = "REELS";
 
     // Step 1: Create Media Container (images: JSON; video: form — matches Graph behavior in practice)
     const mediaContainerUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
     const mediaContainerPayload =
       media.type === "video"
         ? {
-            video_url: media.url,
-            caption: caption || "",
-            media_type: videoKind,
-            access_token: accessToken,
-          }
-        : {
-            image_url: media.url,
-            caption: caption || "",
-            access_token: accessToken,
-          };
+video_url: media.url.trim(),
 
+          caption: caption || "",
+          media_type: videoKind,
+          access_token: accessToken,
+        }
+        : {
+          image_url: new URL(media.url.trim()).href,
+          caption: caption || "",
+          access_token: accessToken,
+        };
     const mediaRes = await fetch(mediaContainerUrl, {
       method: "POST",
       headers:

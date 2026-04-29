@@ -24,12 +24,13 @@ export const fileToBase64 = (file) =>
  * Graph expects application/x-www-form-urlencoded for many edges; JSON often fails.
  */
 export function graphApiFormEncode(params) {
-  const body = new URLSearchParams();
+  const parts = [];
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === null) continue;
-    body.append(k, String(v));
+    // Manually encode to avoid URLSearchParams double-encoding
+    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
   }
-  return body;
+  return parts.join("&");
 }
 
 /**

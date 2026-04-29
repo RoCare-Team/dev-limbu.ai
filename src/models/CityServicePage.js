@@ -38,6 +38,7 @@ const CityServicePageSchema = new mongoose.Schema(
     // Hero Section
     heroHeading: { type: String },
     heroSubheading: { type: String },
+    heroImageUrl: { type: String },
     
     // Stats Section
     postsAutomated: { type: Number, default: 10000 },

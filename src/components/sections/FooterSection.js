@@ -49,17 +49,27 @@ export default function FooterSection() {
 
           {/* LEFT */}
           <div className="md:col-span-4 flex flex-col gap-5">
-            <Image
-              src="/images/bg-logo.png"
-              alt="Limbu.ai Logo"
-              width={140}
-              height={40}
-            />
 
+            {/* Logo + Name */}
+            <div className="flex items-center gap-3">
+              <Image
+                src="/images/bg-logo.png"
+                alt="Limbu.ai Logo"
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+              <h2 className="text-lg font-bold text-slate-800">
+                Limbu <span className="text-yellow-400">AI</span>
+              </h2>
+            </div>
+
+            {/* Description */}
             <p className="text-sm text-slate-600 leading-relaxed max-w-[260px]">
               Empowering local businesses with AI-driven Google Business Profile automation and advanced digital marketing strategies.
             </p>
 
+            {/* App Buttons */}
             <div className="flex gap-3">
               <a
                 href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
@@ -69,10 +79,11 @@ export default function FooterSection() {
                 <Image
                   src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
                   alt="Google Play"
-                  width={130}
+                  width={120}
                   height={40}
                 />
               </a>
+
               <a
                 href="https://apps.apple.com/in/app/limbu-ai/id6757781138"
                 target="_blank"
@@ -81,11 +92,12 @@ export default function FooterSection() {
                 <Image
                   src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
                   alt="App Store"
-                  width={120}
+                  width={110}
                   height={40}
                 />
               </a>
             </div>
+
           </div>
 
           {/* MIDDLE LINKS */}
@@ -139,7 +151,7 @@ export default function FooterSection() {
 
             {/* SOCIAL ICONS */}
             <div className="flex gap-3 mt-6">
-              {socialLinks.map(function(item) {
+              {socialLinks.map(function (item) {
                 return (
                   <a
                     key={item.label}

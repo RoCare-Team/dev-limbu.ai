@@ -1,5 +1,7 @@
 "use client";
 
+import { signIn } from "next-auth/react";
+
 import {
   fetchAllPostsAction,
   getUserWalletAction,
@@ -107,6 +109,9 @@ export default function PostManagementPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
+
+  // buiness not connected 
+  const [showGmbExpiredModal, setShowGmbExpiredModal] = useState(false);
 
   // --- Generation Inputs ---
   const [prompt, setPrompt] = useState("");
@@ -766,17 +771,14 @@ export default function PostManagementPage() {
       if (sources.length > 0) {
         // Check for GMB Session Expiry before scheduling if GMB is selected
         if (
-          sources.includes("gmb") &&
-          (!session ||
-            !session.accessToken ||
-            session.error === "RefreshAccessTokenError")
-        ) {
-          showToast(
-            "Google Session Expired. Please reconnect your GMB account.",
-            "error",
-          );
-          return;
-        }
+  sources.includes("gmb") &&
+  (!session ||
+    !session.accessToken ||
+    session.error === "RefreshAccessTokenError")
+) {
+  handleGmbSessionExpired();
+  return;
+}
 
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
@@ -943,16 +945,13 @@ export default function PostManagementPage() {
 
       // Check for GMB Session Expiry before attempting to delete from GMB
       if (
-        !session ||
-        !session.accessToken ||
-        session.error === "RefreshAccessTokenError"
-      ) {
-        showToast(
-          "Google Session Expired. Please reconnect your GMB account.",
-          "error",
-        );
-        return;
-      }
+  !session ||
+  !session.accessToken ||
+  session.error === "RefreshAccessTokenError"
+) {
+  handleGmbSessionExpired();
+  return;
+}
 
       setPostToAction(post);
       updateUiState({ showDeleteLocationModal: true });
@@ -1092,6 +1091,10 @@ export default function PostManagementPage() {
     ],
   );
 
+  const handleGmbSessionExpired = () => {
+  setShowGmbExpiredModal(true);
+};
+
   const handlePost = useCallback(
     async (post, media = null) => {
       if (!["approved", "scheduled", "posted", "failed"].includes(post.status))
@@ -1099,16 +1102,13 @@ export default function PostManagementPage() {
 
       // Check for GMB Session Expiry before showing the location modal
       if (
-        !session ||
-        !session.accessToken ||
-        session.error === "RefreshAccessTokenError"
-      ) {
-        showToast(
-          "Google Session Expired. Please reconnect your GMB account.",
-          "error",
-        );
-        return;
-      }
+  !session ||
+  !session.accessToken ||
+  session.error === "RefreshAccessTokenError"
+) {
+  setShowGmbExpiredModal(true);
+  return;
+}
 
       const userData = await getUserWalletAction(userId);
       setUserWallet(userData.wallet || 0);
@@ -1274,14 +1274,15 @@ export default function PostManagementPage() {
   }, [isPosting]);
 
   useEffect(() => {
-    if (isSuccess) {
-      const t = setTimeout(() => {
-        setIsSuccess(false);
-      }, 2000);
+  if (!isSuccess) return;
 
-      return () => clearTimeout(t);
-    }
-  }, [isSuccess]);
+  const t = setTimeout(() => {
+    // agar auto close karna hai to yaha likh
+    // setIsSuccess(false);
+  }, 2000);
+
+  return () => clearTimeout(t);
+}, [isSuccess]);
 
   return (
     <div className="text-slate-900">
@@ -1424,105 +1425,208 @@ export default function PostManagementPage() {
 
         {/* gmb post success modal */}
         {(isPosting || isSuccess) && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4">
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4 animate-overlayFade">
 
-            <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden">
+    <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden animate-modalPop">
 
-              {/* 🔥 TOP GLOW */}
-              <div className="absolute -top-24 w-[350px] h-[350px] bg-[#EAB308]/20 blur-[120px] rounded-full"></div>
+      {/* 🔥 TOP GLOW */}
+      <div className="absolute -top-24 w-[350px] h-[350px] bg-[#EAB308]/20 blur-[120px] rounded-full"></div>
 
-              {isSuccess ? (
-                <>
-                  {/* ✅ SUCCESS ICON */}
-                  <div className="w-24 h-24 flex items-center justify-center rounded-full bg-green-100 mb-6 shadow-inner">
-                    <span className="text-5xl">🎉</span>
-                  </div>
+      {isSuccess ? (
+        <>
+          {/* ❌ CLOSE BUTTON */}
+          <button
+            onClick={() => setIsSuccess(false)}
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"
+          >
+            ✕
+          </button>
 
-                  {/* TITLE */}
-                  <h3 className="text-3xl font-extrabold text-green-600 mb-2">
-                    Post Published!
-                  </h3>
+          {/* ✅ SUCCESS ICON (ANIMATED TICK) */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-green-400/20 rounded-full blur-xl animate-pulse"></div>
 
-                  {/* SUBTEXT */}
-                  <p className="text-sm text-slate-600 mb-6 leading-relaxed max-w-sm">
-                    Your {postingPlatform} post is now live and visible to your customers.
-                    🚀 This will help you increase engagement, visibility, and trust.
-                  </p>
+            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-green-100 shadow-inner">
 
-                  {/* BUTTON */}
-                  <button
-                    onClick={() => setIsSuccess(false)}
-                    className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md"
-                  >
-                    Continue
-                  </button>
-                </>
-              ) : (
-                <>
-                  {/* 🔄 LOADING ICON */}
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 rounded-full bg-[#EAB308]/30 blur-xl animate-pulse"></div>
+              <svg
+                className="w-14 h-14 text-green-600 animate-tick"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M5 13l4 4L19 7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="tick-path"
+                />
+              </svg>
 
-                    <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
-                      <Send className="w-12 h-12 text-[#EAB308] animate-bounce" />
-                    </div>
-                  </div>
-
-                  {/* TITLE */}
-                  <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
-                    Publishing to {postingPlatform}
-                  </h3>
-
-                  {/* SUBTEXT */}
-                  <p className="text-sm text-slate-500 mb-6 max-w-sm leading-relaxed">
-                    {messages[msgIndex]}{" "}
-                    <span className="text-[#EAB308] font-semibold">
-                      ({String(timeLeft).padStart(2, "0")}s)
-                    </span>
-                  </p>
-
-                  {/* 🔥 PROGRESS BAR (REAL) */}
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-5 relative">
-
-                    {/* REAL PROGRESS */}
-                    <div
-                      className="h-full bg-[#EAB308] transition-all duration-1000"
-                      style={{
-                        width: `${((10 - timeLeft) / 10) * 100}%`,
-                      }}
-                    ></div>
-
-                    {/* MOVING SHINE LINE */}
-                    <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
-
-                  </div>
-
-                  {/* STEPS */}
-                  <div className="flex flex-col gap-3 text-sm w-full max-w-sm text-left">
-
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      <p className="text-slate-700 font-medium">Connecting to {postingPlatform}...</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                      <p className="text-slate-700 font-medium">Uploading your content...</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-slate-300 rounded-full animate-pulse"></div>
-                      <p className="text-slate-500 font-medium">
-                        Finalizing post<span className="ml-1">{dots}</span>
-                      </p>
-                    </div>
-
-                  </div>
-                </>
-              )}
             </div>
           </div>
-        )}
+
+          {/* TITLE */}
+         <h3 className="text-2xl font-extrabold text-yellow-400 mb-2">
+   Post Published Successfully!
+</h3>
+
+<p className="text-sm text-slate-600 mb-6">
+  Your content is now live on {postingPlatform}. Sit back and watch the engagement grow 📈
+</p>
+
+          {/* DONE BUTTON */}
+          <button
+            onClick={() => setIsSuccess(false)}
+            className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md animate-fadeUp delay-200"
+          >
+            Done
+          </button>
+        </>
+      ) : (
+        <>
+          {/* 🔄 LOADING ICON */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 rounded-full bg-[#EAB308]/30 blur-xl animate-pulse"></div>
+
+            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
+              <Send className="w-12 h-12 text-[#EAB308] animate-bounce" />
+            </div>
+          </div>
+
+          {/* TITLE */}
+          <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
+            Publishing to {postingPlatform}
+          </h3>
+
+          {/* SUBTEXT */}
+          <p className="text-sm text-slate-500 mb-6 max-w-sm leading-relaxed">
+            {messages[msgIndex]}{" "}
+            <span className="text-[#EAB308] font-semibold">
+              ({String(timeLeft).padStart(2, "0")}s)
+            </span>
+          </p>
+
+          {/* PROGRESS */}
+          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-5 relative">
+            <div
+              className="h-full bg-[#EAB308] transition-all duration-1000"
+              style={{
+                width: `${((10 - timeLeft) / 10) * 100}%`,
+              }}
+            ></div>
+
+            <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
+          </div>
+
+          {/* STEPS */}
+          <div className="flex flex-col gap-3 text-sm w-full max-w-sm text-left">
+
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <p className="text-slate-700 font-medium">
+                Connecting to {postingPlatform}...
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+              <p className="text-slate-700 font-medium">
+                Uploading your content...
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-slate-300 rounded-full animate-pulse"></div>
+              <p className="text-slate-500 font-medium">
+                Finalizing post<span className="ml-1">{dots}</span>
+              </p>
+            </div>
+
+          </div>
+        </>
+      )}
+
+      {/* ✨ ANIMATIONS */}
+      <style>
+        {`
+        @keyframes slide {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+
+        @keyframes overlayFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes modalPop {
+          from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes tickDraw {
+          from { stroke-dashoffset: 50; }
+          to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes popIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        .tick-path {
+          stroke-dasharray: 50;
+          stroke-dashoffset: 50;
+          animation: tickDraw 0.6s ease forwards;
+        }
+
+        .animate-tick {
+          animation: popIn 0.3s ease;
+        }
+
+        .animate-overlayFade {
+          animation: overlayFade 1s ease;
+        }
+
+        .animate-modalPop {
+          animation: modalPop 0.35s ease;
+        }
+
+        .animate-fadeUp {
+          animation: fadeUp 1s ease forwards;
+        }
+
+        .animate-fadeUp.delay-100 {
+          animation-delay: 0.1s;
+        }
+
+        .animate-fadeUp.delay-200 {
+          animation-delay: 1s;
+        }
+        `}
+      </style>
+
+    </div>
+  </div>
+)}
 
         {uiState.showSuccess && (
           <SuccessOverlay
@@ -1626,6 +1730,141 @@ export default function PostManagementPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-500"></div>
               </div>
             )}
+
+            
+    {showGmbExpiredModal && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center px-4 animate-overlayFade">
+
+    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.25)] p-8 text-center overflow-hidden animate-modalPop">
+
+      {/* 🔥 TOP GLOW */}
+      <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-[#EAB308]/20 blur-[120px] rounded-full animate-glowPulse"></div>
+
+      {/* ICON */}
+      <div className="relative mb-6 animate-bounceIn">
+        <div className="w-20 h-20 mx-auto flex items-center justify-center rounded-full bg-gray-800 border-red-200 shadow-inner">
+          <span className="text-4xl">⚠️</span>
+        </div>
+      </div>
+
+      {/* TITLE */}
+      <h3 className="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight animate-fadeUp">
+        Connect Your Business First
+      </h3>
+
+      {/* SUBTEXT */}
+      <p className="text-sm text-slate-600 mb-3 leading-relaxed px-2 animate-fadeUp delay-100">
+        Your Google Business account is not connected. Please reconnect your account to continue posting, scheduling, or managing your content.
+      </p>
+
+      {/* ERROR LINE */}
+      <p className="text-xs text-red-500 font-medium mb-6 animate-fadeUp delay-200">
+        ⚠ Google session expired
+      </p>
+
+      {/* BUTTONS */}
+      <div className="flex gap-3 justify-center animate-fadeUp delay-300">
+
+        <button
+          onClick={() => setShowGmbExpiredModal(false)}
+          className="px-5 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 transition"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          className="px-6 py-2 rounded-xl bg-[#EAB308] text-white font-semibold hover:scale-105 transition"
+        >
+          Connect Business
+        </button>
+
+      </div>
+
+      {/* 🔥 BOTTOM LINE */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#EAB308] to-transparent opacity-40"></div>
+
+      {/* ✨ ANIMATIONS */}
+      <style>
+        {`
+        @keyframes overlayFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes modalPop {
+          0% {
+            opacity: 0;
+            transform: scale(0.85) translateY(30px);
+          }
+          60% {
+            transform: scale(1.03);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes bounceIn {
+          0% { transform: scale(0.6); opacity: 0; }
+          60% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes glowPulse {
+          0% { opacity: 0.5; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .animate-overlayFade {
+          animation: overlayFade 0.25s ease;
+        }
+
+        .animate-modalPop {
+          animation: modalPop 0.4s ease;
+        }
+
+        .animate-fadeUp {
+          animation: fadeUp 0.4s ease forwards;
+        }
+
+        .animate-fadeUp.delay-100 {
+          animation-delay: 0.1s;
+        }
+
+        .animate-fadeUp.delay-200 {
+          animation-delay: 0.2s;
+        }
+
+        .animate-fadeUp.delay-300 {
+          animation-delay: 0.3s;
+        }
+
+        .animate-bounceIn {
+          animation: bounceIn 0.4s ease;
+        }
+
+        .animate-glowPulse {
+          animation: glowPulse 2s ease-in-out infinite alternate;
+        }
+        `}
+      </style>
+
+    </div>
+  </div>
+)}
           </>
         ) : (
           <div className="bg-white rounded-3xl p-16 text-center border-3 border-dashed border-slate-200 shadow-xl">
@@ -1640,3 +1879,5 @@ export default function PostManagementPage() {
     </div>
   );
 }
+
+

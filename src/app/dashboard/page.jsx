@@ -301,11 +301,11 @@ export default function DashboardPage() {
   // Store location details in localStorage
   useEffect(() => {
     if (activeListings.length > 0) {
-      
+
       const locationDetails = activeListings?.map((item) => {
-        
+
         const locationId = item?.name?.split("/")[1];
-        
+
         return {
           locationId,
           accountId: item.accountId || "",
@@ -421,26 +421,26 @@ export default function DashboardPage() {
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-yellow-500" />
                 <span className="text-[10px] font-bold tracking-widest uppercase text-yellow-700">Live Dashboard</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tighter">
+              <h1 className="text-xl sm:text-xl font-bold text-slate-800 uppercase tracking-tight">
                 Welcome, <span className="text-yellow-500">{displayName.split(" ")[0]}</span> 👋
               </h1>
             </div>
             <div className="hidden lg:flex items-center gap-3">
               {accounts.length > 0 && (
                 <>
-                  <button onClick={handleManualRefresh} disabled={loading} className="btn-ghost btn-md gap-2">
+                  <button onClick={handleManualRefresh} disabled={loading} className="btn-ghost btn-sm gap-2 border border-slate-300 shadow-sm hover:border-slate-400">
                     <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                     <span>Refresh Data</span>
                   </button>
 
                   {(facebookPages.length > 0 || instagramPages.length > 0) && (
-                    <button onClick={() => handleMetaLogout("both")} className="btn-ghost text-red-500 hover:bg-red-50 border-red-100 btn-md gap-2">
+                    <button onClick={() => handleMetaLogout("both")} className="btn-ghost text-red-600 hover:bg-red-50 border border-red-200 shadow-sm btn-sm gap-2 hover:border-red-300">
                       <LogOut className="w-4 h-4" />
                       <span>Disconnect FB/IG</span>
                     </button>
                   )}
 
-                  <button onClick={() => signOut({ callbackUrl: "/dashboard" })} className="btn-lemon btn-md gap-2">
+                  <button onClick={() => signOut({ callbackUrl: "/dashboard" })} className="btn-lemon btn-sm gap-2 border border-yellow-500 shadow-sm">
                     <LogOut className="w-4 h-4" />
                     <span>Logout</span>
                   </button>

@@ -170,7 +170,7 @@ export default function SubscriptionSection({
                 {/* Button */}
                 <button
                   onClick={() => handleSubscriptionClick(plan)}
-                  className={`w-full py-3 rounded-xl font-bold text-lightPrimary   shadow-lg hover:shadow-xl transition-all ${plan.color}`}
+                  className={`w-full py-3 rounded-xl font-bold text-lightPrimary   shadow-lg hover:shadow-xl transition-all bg-amber-400 hover:bg-amber-500`}
                 >
                   Get Started
                 </button>

@@ -132,8 +132,6 @@ export async function updatePostStatusAction(payload) {
 }
 
 export async function postToGmbAction(payload) {
-    console.log("🚀 ~ Sending to GMB n8n webhook - Payload:", payload);
-
     const response = await fetch(
         "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0",
         {

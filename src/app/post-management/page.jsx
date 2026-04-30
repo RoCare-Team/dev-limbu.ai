@@ -967,10 +967,7 @@ export default function PostManagementPage() {
       const totalCost = selectedIds.length * 20;
 
       try {
-        // Fix 1: safely read wallet from whatever field the API returns
         const userData = await getUserWalletAction(userId);
-        console.log("getUserWalletAction response:", userData); // keep until confirmed working
-
         const walletBalance =
           userData?.wallet ??
           userData?.data?.wallet ??
@@ -992,12 +989,9 @@ export default function PostManagementPage() {
         const walletRes = await deductFromWalletAction(userId, {
           amount: totalCost,
           type: "deduct",
-          reason: "Post-on-GMB",
+          reason: "Post-on-GMB-Batch",
         });
 
-        console.log("deductFromWalletAction response:", walletRes); // keep until confirmed
-
-        // Fix 2: accept any truthy success signal, not just one exact string
         const deductOk =
           walletRes?.message === "Wallet updated" ||
           walletRes?.success === true ||
@@ -1010,71 +1004,78 @@ export default function PostManagementPage() {
           );
         }
 
-        emitWalletDeduct(totalCost); // ✅ sidebar sync
+        emitWalletDeduct(totalCost); 
 
-        const locs = availableLocations
-          .filter((l) => selectedIds.includes(l.id))
-          .map((l) => ({ ...l, isPosted: true }));
+        const locs = availableLocations.filter((l) => selectedIds.includes(l.id));
+        
+        let successfulLocs = [];
+        let failedLocs = [];
 
-        const payload = {
-          account: locs[0].accountId,
-          locationData: locs.map((l) => ({
-            city: l.locationId,
-            cityName: l.locality,
-            bookUrl: l.websiteUrl,
-          })),
-          output: selectedMediaForAction?.url || postToAction.aiOutput,
-          description: postToAction.description,
-          accessToken: session?.accessToken,
-          checkmark: checkmark || postToAction.checkmark,
-        };
+        // Post sequentially to ensure each location is processed and tracked properly
+        for (const l of locs) {
+           try {
+             const payload = {
+                account: l.accountId,
+                locationData: [{
+                  city: l.locationId,
+                  cityName: l.locality,
+                  bookUrl: l.websiteUrl,
+                }],
+                output: selectedMediaForAction?.url || postToAction.aiOutput,
+                description: postToAction.description,
+                accessToken: session?.accessToken,
+                checkmark: checkmark || postToAction.checkmark,
+              };
 
-        // ✅ Console full payload
-
-        const { ok } = await postToGmbAction({
-          account: locs[0].accountId,
-          locationData: locs.map((l) => ({
-            city: l.locationId,
-            cityName: l.locality,
-            bookUrl: l.websiteUrl,
-          })),
-          output: selectedMediaForAction?.url || postToAction.aiOutput,
-          description: postToAction.description,
-          accessToken: session?.accessToken,
-          checkmark: checkmark || postToAction.checkmark,
-        });
-
-        if (ok) {
-          showToast("Posted! 🎉");
-          // 🔥 SUCCESS MODAL TRIGGER
-          setIsSuccess(true);
-
-          await updatePostStatusAction({
-            id: postToAction._id,
-            userId,
-            locations: locs,
-            status: "posted",
-            whenPosted: { ...postToAction.whenPosted, gmb: true },
-          });
-          fetchPosts(1, true);
-        } else {
-          // Refund if GMB post failed
-          await deductFromWalletAction(userId, {
-            amount: totalCost,
-            type: "credit",
-            reason: "Refund-Post-Failed",
-          });
-          setUserWallet((prev) => prev + totalCost);
-          emitWalletCredit(totalCost); // ✅ sidebar sync
-
-          throw new Error("GMB post failed — coins refunded");
+              const { ok } = await postToGmbAction(payload);
+              
+              if (ok) {
+                 successfulLocs.push({ ...l, isPosted: true });
+              } else {
+                 failedLocs.push(l);
+              }
+           } catch (err) {
+             console.error(`Failed to post to location ${l.name}`, err);
+             failedLocs.push(l);
+           }
         }
+
+        // Refund for failed locations
+        if (failedLocs.length > 0) {
+           const refundAmount = failedLocs.length * 20;
+           await deductFromWalletAction(userId, {
+              amount: refundAmount,
+              type: "credit",
+              reason: "Refund-Post-Failed-Partial",
+            });
+            setUserWallet((prev) => prev + refundAmount);
+            emitWalletCredit(refundAmount);
+            showToast(`Posted to ${successfulLocs.length}, Failed: ${failedLocs.length}. Refunded ₹${refundAmount}`, "warning");
+        } else if (successfulLocs.length > 0) {
+           showToast(`Successfully posted to all ${successfulLocs.length} locations! 🎉`);
+           setIsSuccess(true);
+        }
+
+        if (successfulLocs.length > 0) {
+           // Update post status with successful locations only
+           await updatePostStatusAction({
+              id: postToAction._id,
+              userId,
+              locations: successfulLocs, // Override with only successful ones
+              status: "posted",
+              whenPosted: { ...postToAction.whenPosted, gmb: true },
+            });
+            fetchPosts(1, true);
+        } else {
+           throw new Error("All GMB posts failed");
+        }
+
       } catch (err) {
         showToast(err.message || "Post failed", "error");
       } finally {
         setTimeout(() => {
           setIsPosting(false);
-        }, 1200); // 🔥 delay for smooth success UI
+        }, 1200); 
 
         setPostToAction(null);
         setSelectedMediaForAction(null);
@@ -1085,6 +1086,7 @@ export default function PostManagementPage() {
       userId,
       postToAction,
       session?.accessToken,
+      selectedMediaForAction,
       updateUiState,
       showToast,
       setIsPosting,

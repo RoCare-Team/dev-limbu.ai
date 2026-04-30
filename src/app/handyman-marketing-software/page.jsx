@@ -118,7 +118,7 @@ export default function HandymanMarketingPage() {
         heroHeading="Get More Calls for Local Repair Jobs"
         heroSubheading="Stop relying on word-of-mouth alone. Automate your local SEO, gather 5-star reviews, and become the most trusted handyman in town."
         heroImage="/images/category/handyman.png"
-        heroimage2="/images/bussiness/handman.png"
+        heroimage2="/images/bussiness/mannubhai.jpeg"
         benefitsList={benefits}
         howItWorks={howItWorksSteps}
         postImages={handymanPostImages}

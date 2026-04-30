@@ -188,11 +188,17 @@ const PostCard = React.memo(
     const [selectionModal, setSelectionModal] = useState({ isOpen: false, type: "" });
 
     const handleMediaChoice = (type) => {
-      if (dualCardMedia) {
+      if (type === "gmb") {
+        if (dualCardMedia) {
+           const forcedMedia = cardMediaTab === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
+           handlePost(post, forcedMedia);
+        } else {
+           handlePost(post);
+        }
+      } else if (dualCardMedia) {
         setSelectionModal({ isOpen: true, type });
       } else {
-        if (type === "gmb") handlePost(post);
-        else if (type === "fb") handleFacebookPost(post);
+        if (type === "fb") handleFacebookPost(post);
         else if (type === "ig") handleInstagramPost(post);
       }
     };

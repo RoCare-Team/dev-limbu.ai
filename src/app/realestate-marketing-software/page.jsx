@@ -58,9 +58,11 @@ export default function RealEstateMarketingPage() {
   ];
 
   const postImages = [
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767776297/output_yd9alt.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1767694542/output_n1ahcx.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1764404571/tmpx28dvfi__qxwt1c.jpg",
+    "https://limbuai.s3.amazonaws.com/ad-images/ai/water_purifier_db9e001f.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAS5VW5PDAIX4VYM2R%2F20260427%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260427T082708Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=50f7112bf2a50391176b74bca9ff55fc5c610ddbbdc78e8032dc8fe03bf80969",
+    "https://limbuai.s3.amazonaws.com/ad-images/ai/water_purifier_8d0ec24d.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAS5VW5PDAIX4VYM2R%2F20260427%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260427T083130Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=f487c741557460ff9620cafc56a300c3afa82bd68b8a5a29aba9b6b518349f57",
+    "https://limbuai.s3.amazonaws.com/ad-images/ai/water_purifier_a0fd222b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAS5VW5PDAIX4VYM2R%2F20260427%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260427T083029Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=debb2c1cceb6693476471f4e1c4ff59efa9d2b9270bb7729c5aa14578ab487fa",
+    "https://limbuai.s3.amazonaws.com/ad-images/ai/emergency_plumber_c9610324.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAS5VW5PDAIX4VYM2R%2F20260427%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260427T082905Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=98ded8aac7831171e35868158a6d94ef31c5fd7b929a31119ed4c3f113acf281",
+    "https://limbuai.s3.amazonaws.com/ad-images/ai/emergency_plumber_bcd35900.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAS5VW5PDAIX4VYM2R%2F20260427%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260427T083258Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=03955b63f736bf6437b6444aa1bb4d551995f4fc418996014ba108f23b8b82b7"
   ];
 
   const videoExamples = [
@@ -74,7 +76,7 @@ export default function RealEstateMarketingPage() {
       heroHeading="Grow Your Real Estate Leads on Autopilot"
       heroSubheading="Stop worrying about marketing. Use Limbu AI to get more 5-star client reviews, auto-publish property posts, and dominate local searches while you focus on closing deals."
       heroImage="/images/category/realestate.png"
-      heroimage2="/images/hero.png"
+      heroimage2="/images/bussiness/real.png"
       benefitsList={benefits}
       howItWorks={howItWorksSteps}
       postImages={postImages}

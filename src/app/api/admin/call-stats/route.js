@@ -50,6 +50,18 @@ export async function GET(req) {
 
     if (isAgent) {
       /* ── Agent view: simple counts ── */
+      let totalDateMatchForAgent = {};
+      const dateFilter = searchParams.get("dateFilter");
+      const startDateParam = searchParams.get("startDate");
+      const endDateParam = searchParams.get("endDate");
+      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+         const startDate = new Date(startDateParam);
+         startDate.setHours(0, 0, 0, 0);
+         const endDate = new Date(endDateParam);
+         endDate.setHours(23, 59, 59, 999);
+         totalDateMatchForAgent = { "callHistory.calledAt": { $gte: startDate, $lte: endDate } };
+      }
+
       const [todayRes, totalRes] = await Promise.all([
         User.aggregate([
           { $unwind: "$callHistory" },
@@ -58,7 +70,7 @@ export async function GET(req) {
         ]),
         User.aggregate([
           { $unwind: "$callHistory" },
-          { $match: agentScope },
+          { $match: { ...agentScope, ...totalDateMatchForAgent } },
           { $count: "total" },
         ]),
       ]);
@@ -76,6 +88,19 @@ export async function GET(req) {
     }
 
     /* ── Admin / SuperAdmin view: breakdown per agent ── */
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    let totalDateMatch = {};
+    if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+       const startDate = new Date(startDateParam);
+       startDate.setHours(0, 0, 0, 0);
+       const endDate = new Date(endDateParam);
+       endDate.setHours(23, 59, 59, 999);
+       totalDateMatch = { "callHistory.calledAt": { $gte: startDate, $lte: endDate } };
+    }
+
     const todayPipeline = [
       { $unwind: "$callHistory" },
       { $match: { "callHistory.calledAt": { $gte: today, $lt: tomorrow } } },
@@ -92,6 +117,7 @@ export async function GET(req) {
 
     const totalPipeline = [
       { $unwind: "$callHistory" },
+      ...(Object.keys(totalDateMatch).length > 0 ? [{ $match: totalDateMatch }] : []),
       {
         $group: {
           _id: { $toLower: { $trim: { input: "$callHistory.agentName" } } },

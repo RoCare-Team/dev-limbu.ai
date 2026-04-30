@@ -58,8 +58,27 @@ export async function GET(req) {
       case "thisMonth":
         leadsDateFilter = { $gte: thisMonthStart, $lt: thisMonthEnd };
         break;
+      case "custom":
       default:
         leadsDateFilter = { $exists: true, $ne: null };
+    }
+
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    let totalDateMatch = {};
+    if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+       const startDate = new Date(startDateParam);
+       startDate.setHours(0, 0, 0, 0);
+       const endDate = new Date(endDateParam);
+       endDate.setHours(23, 59, 59, 999);
+       
+       if(filter === "all" || filter === "custom"){
+          leadsDateFilter = { $gte: startDate, $lte: endDate };
+       }
+       // Filter total by the scheduled date rather than creation date
+       totalDateMatch = { "latest.followUpDate": { $gte: startDate, $lte: endDate } };
     }
 
     const escapedName = admin.fullName?.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -141,6 +160,7 @@ export async function GET(req) {
 
     const countPipeline = [
       ...latestRemarkBase,
+      ...(Object.keys(totalDateMatch).length > 0 ? [{ $match: totalDateMatch }] : []),
       {
         $group: {
           _id: "$latest.agentId",

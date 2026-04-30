@@ -24,6 +24,19 @@
         );
       }
 
+      const dateFilter = searchParams.get("dateFilter");
+      const startDateParam = searchParams.get("startDate");
+      const endDateParam = searchParams.get("endDate");
+      
+      let dateMatchQuery = {};
+      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+         const startDate = new Date(startDateParam);
+         startDate.setHours(0, 0, 0, 0);
+         const endDate = new Date(endDateParam);
+         endDate.setHours(23, 59, 59, 999);
+         dateMatchQuery = { createdAt: { $gte: startDate, $lte: endDate } };
+      }
+
       // Find the admin
       const admin = await Admin.findOne({ email }).lean();
       
@@ -46,7 +59,7 @@
 
       // SuperAdmin: See ALL revenue (both user onboarding and franchise leads)
       if (role === "superAdmin" || role === "superFranchiseAdmin") {
-        revenueData = await FranchiseRevenue.find({ status: "active" })
+        revenueData = await FranchiseRevenue.find({ status: "active", ...dateMatchQuery })
           .populate("onboardedBy", "fullName email role")
           .sort({ createdAt: -1 })
           .lean();
@@ -68,7 +81,8 @@
         revenueData = await FranchiseRevenue.find({ 
           onboardedBy: admin._id,
           status: "active",
-          type: { $ne: "user_onboard" } // Exclude user onboards
+          type: { $ne: "user_onboard" }, // Exclude user onboards
+          ...dateMatchQuery
         })
           .populate("onboardedBy", "fullName email role")
           .sort({ createdAt: -1 })
@@ -84,7 +98,8 @@
         revenueData = await FranchiseRevenue.find({ 
           onboardedBy: admin._id,
           status: "active",
-          type: "user_onboard" // Only user onboards
+          type: "user_onboard", // Only user onboards
+          ...dateMatchQuery
         })
           .populate("onboardedBy", "fullName email role")
           .sort({ createdAt: -1 })

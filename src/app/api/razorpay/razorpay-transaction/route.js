@@ -72,8 +72,22 @@ export async function GET(req) {
   await dbConnect();
 
   try {
+    const { searchParams } = new URL(req.url);
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    let matchQuery = {};
+    if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+       const startDate = new Date(startDateParam);
+       startDate.setHours(0, 0, 0, 0);
+       const endDate = new Date(endDateParam);
+       endDate.setHours(23, 59, 59, 999);
+       matchQuery = { createdAt: { $gte: startDate, $lte: endDate } };
+    }
+
     // 1️⃣ Get all transactions
-    const transactions = await RazorpayTransaction.find().sort({ createdAt: -1 });
+    const transactions = await RazorpayTransaction.find(matchQuery).sort({ createdAt: -1 });
 
     // 2️⃣ Prepare array with user details inside each transaction
     const finalData = [];

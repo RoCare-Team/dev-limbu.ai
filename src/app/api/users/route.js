@@ -318,7 +318,7 @@ export async function GET(req) {
         }
       }
 
-      if (dateFilter && startDateParam && endDateParam) {
+      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
         const startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(endDateParam);
@@ -478,7 +478,17 @@ export async function GET(req) {
         displayLabel,
       } = getAppDayBounds();
 
-      const todayMatch = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
+      let startDate = startOfDay;
+      let endDate = endOfDay;
+
+      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+        startDate = new Date(startDateParam);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(endDateParam);
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const todayMatch = { createdAt: { $gte: startDate, $lte: endDate } };
 
       const todayUsersCount = await User.countDocuments(todayMatch);
 
@@ -535,7 +545,7 @@ export async function GET(req) {
     }
 
     // Date filtering logic
-    if (dateFilter && startDateParam && endDateParam) {
+    if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
       const startDate = new Date(startDateParam);
       startDate.setHours(0, 0, 0, 0);
       
@@ -601,15 +611,15 @@ export async function GET(req) {
       };
 
       const [
-        totalUsers,
+        totalGlobalUsers, // renamed to prevent overwriting local totalUsers
         totalSignupUsers,
         totalMetaLeadUsers,
         todayLeads,
         todayAgentAssignments,
       ] = await Promise.all([
-        User.countDocuments({}),
-        User.countDocuments({ source: "signup" }),
-        User.countDocuments({ source: { $in: META_LEAD_SOURCES } }),
+        User.countDocuments(query), // use the filtered query
+        User.countDocuments({ ...query, source: "signup" }),
+        User.countDocuments({ ...query, source: { $in: META_LEAD_SOURCES } }),
         User.countDocuments(todayCreated),
         User.aggregate([
           {
@@ -626,7 +636,7 @@ export async function GET(req) {
       ]);
 
       superAdminData = {
-        totalUsers,
+        totalGlobalUsers,
         totalSignupUsers,
         totalMetaLeadUsers,
         totalSignups: totalSignupUsers,

@@ -3,7 +3,8 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 
-export default function useUserManagement() {
+export default function useUserManagement(props = {}) {
+  const { dateFilter: propDateFilter, startDate: propStartDate, endDate: propEndDate } = props;
 
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({});
@@ -47,7 +48,27 @@ export default function useUserManagement() {
   if (!email) return;
 
   try {
-    const res = await fetch(`/api/users?email=${email}&getAgentStats=true`);
+    let dateParams = "";
+    if (propDateFilter && propDateFilter !== "all") {
+      if (propDateFilter === "custom" && propStartDate && propEndDate) {
+         dateParams = `&dateFilter=custom&startDate=${propStartDate}&endDate=${propEndDate}`;
+      } else if (propDateFilter !== "custom") {
+         const end = new Date();
+         const start = new Date();
+         if (propDateFilter === "today") {
+            start.setHours(0,0,0,0);
+         } else if (propDateFilter === "1week") {
+            start.setDate(start.getDate() - 7);
+         } else if (propDateFilter === "1month") {
+            start.setMonth(start.getMonth() - 1);
+         } else if (propDateFilter === "6months") {
+            start.setMonth(start.getMonth() - 6);
+         }
+         dateParams = `&dateFilter=${propDateFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+      }
+    }
+
+    const res = await fetch(`/api/users?email=${email}&getAgentStats=true${dateParams}`);
     const data = await res.json();
 
     if (data.success) {
@@ -70,7 +91,27 @@ export default function useUserManagement() {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const res = await fetch("/api/post-status");
+        let dateParams = "";
+        if (propDateFilter && propDateFilter !== "all") {
+          if (propDateFilter === "custom" && propStartDate && propEndDate) {
+             dateParams = `?dateFilter=custom&startDate=${propStartDate}&endDate=${propEndDate}`;
+          } else if (propDateFilter !== "custom") {
+             const end = new Date();
+             const start = new Date();
+             if (propDateFilter === "today") {
+                start.setHours(0,0,0,0);
+             } else if (propDateFilter === "1week") {
+                start.setDate(start.getDate() - 7);
+             } else if (propDateFilter === "1month") {
+                start.setMonth(start.getMonth() - 1);
+             } else if (propDateFilter === "6months") {
+                start.setMonth(start.getMonth() - 6);
+             }
+             dateParams = `?dateFilter=${propDateFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+          }
+        }
+
+        const res = await fetch(`/api/post-status${dateParams}`);
         const data = await res.json();
         if (data.success) {
           setTotalPostsCount(data.count || 0);
@@ -81,7 +122,7 @@ export default function useUserManagement() {
     };
 
     fetchPosts();
-  }, []);
+  }, [propDateFilter, propStartDate, propEndDate]);
 
   // ✅ REVENUE
   useEffect(() => {
@@ -92,7 +133,27 @@ export default function useUserManagement() {
       if (!email || !role) return;
 
       try {
-        const res = await fetch(`/api/franchise-revenue?email=${email}&role=${role}`);
+        let dateParams = "";
+        if (propDateFilter && propDateFilter !== "all") {
+          if (propDateFilter === "custom" && propStartDate && propEndDate) {
+             dateParams = `&dateFilter=custom&startDate=${propStartDate}&endDate=${propEndDate}`;
+          } else if (propDateFilter !== "custom") {
+             const end = new Date();
+             const start = new Date();
+             if (propDateFilter === "today") {
+                start.setHours(0,0,0,0);
+             } else if (propDateFilter === "1week") {
+                start.setDate(start.getDate() - 7);
+             } else if (propDateFilter === "1month") {
+                start.setMonth(start.getMonth() - 1);
+             } else if (propDateFilter === "6months") {
+                start.setMonth(start.getMonth() - 6);
+             }
+             dateParams = `&dateFilter=${propDateFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+          }
+        }
+
+        const res = await fetch(`/api/franchise-revenue?email=${email}&role=${role}${dateParams}`);
         const data = await res.json();
 
         if (data.success) {
@@ -104,12 +165,12 @@ export default function useUserManagement() {
     };
 
     fetchRevenue();
-  }, []);
+  }, [propDateFilter, propStartDate, propEndDate]);
 
   // ✅ INITIAL FETCH
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [propDateFilter, propStartDate, propEndDate]);
 
   return {
     users,

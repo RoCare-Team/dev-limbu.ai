@@ -192,6 +192,18 @@ export async function GET(req) {
     const query = {};
     if (planType) query.planType = planType;
 
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+       const startDate = new Date(startDateParam);
+       startDate.setHours(0, 0, 0, 0);
+       const endDate = new Date(endDateParam);
+       endDate.setHours(23, 59, 59, 999);
+       query.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
     const bookings = await ServiceBooking
       .find(query)
       .sort({ createdAt: -1 }); // latest first

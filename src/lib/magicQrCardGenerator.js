@@ -1,218 +1,237 @@
 /**
- * magicQrCardGenerator.js
- *
- * Server-side generator of the exact same styled QR card shown in
- * the get-magic-qr dashboard page (QRPreviewCard.jsx).
- *
- * Card structure (400 x 520 px):
- *  ┌─────────────────────────────────────┐
- *  │  YELLOW │ RED                        │ ← Google color quadrants (peeking out)
- *  │         │                            │
- *  │  ┌──────────────────────────────┐   │
- *  │  │    G o o g l e (multicolor)  │   │
- *  │  │    ★ ★ ★ ★ ★                │   │
- *  │  │  Scan to Rate Us on Google   │   │
- *  │  │      < Business Name >       │   │
- *  │  │  ┌────────────────────────┐  │   │
- *  │  │  │   QR Code (200×200)    │  │   │
- *  │  │  └────────────────────────┘  │   │
- *  │  │   Powered by ■ LimbuAI      │   │
- *  │  └──────────────────────────────┘   │
- *  │  GREEN  │ BLUE                       │
- *  └─────────────────────────────────────┘
- *
- * Uses:  sharp  (server-side image processing, no browser needed)
- *        api.qrserver.com  (same QR source as the dashboard)
+ * Server-side Magic QR review card PNG — matches the inner card in
+ * {@link ../components/magic-qr/QRPreviewCard.jsx}: Google-colored frame,
+ * white inner, multicolor "Google" wordmark, stars, business name, QR with
+ * corner accents, review URL, Powered by LimbuAI.
  */
 
+import path from "path";
+import fs from "fs/promises";
 import sharp from "sharp";
 
-// Card dimensions
-const W = 400;
-const H = 520;
-const MARGIN = 16;      // gap between card edge and white panel
-const CARD_RADIUS = 20; // white panel corner radius
-const OUTER_RADIUS = 32;// full card corner radius
+const G = {
+  blue: "#4285F4",
+  red: "#EA4335",
+  yellow: "#FBBC05",
+  green: "#34A853",
+};
 
-// ── Google brand colours ────────────────────────────────────────────────────
-const G = { blue: "#4285F4", red: "#DB4437", yellow: "#F4B400", green: "#0F9D58" };
+const QR_CORNER = {
+  tl: "#EF4444",
+  tr: "#3B82F6",
+  bl: "#FACC15",
+  br: "#22C55E",
+};
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const W = 640;
+const OUTER_RX = 56;
+const FRAME = 28;
+const INNER_RX = 36;
 
-function esc(s) {
-  return String(s ?? "")
+function escapeXml(s) {
+  return String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
 
-/**
- * Wrap a long business name into at most 2 lines (≤22 chars each).
- */
-function wrapBusinessName(name, maxChars = 22) {
-  if (name.length <= maxChars) return [name];
-  const words = name.split(" ");
+function wrapLines(text, maxChars) {
+  const words = String(text || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   const lines = [];
-  let line = "";
-  for (const word of words) {
-    if ((line + (line ? " " : "") + word).length <= maxChars) {
-      line += (line ? " " : "") + word;
-    } else {
-      if (line) lines.push(line);
-      line = word;
+  let cur = "";
+  for (const w of words) {
+    const cand = cur ? `${cur} ${w}` : w;
+    if (cand.length <= maxChars) cur = cand;
+    else {
+      if (cur) lines.push(cur);
+      cur = w.length > maxChars ? `${w.slice(0, maxChars - 1)}…` : w;
     }
-    if (lines.length === 2) { line = ""; break; }
   }
-  if (line) lines.push(line);
-  return lines.slice(0, 2);
+  if (cur) lines.push(cur);
+  return lines.slice(0, 3);
 }
 
-// ── SVG builder ──────────────────────────────────────────────────────────────
+function truncUrl(url, maxLen) {
+  const u = String(url || "");
+  if (u.length <= maxLen) return u;
+  return `${u.slice(0, maxLen - 1)}…`;
+}
 
-/**
- * Build an SVG string that represents the styled Magic QR card.
- *
- * @param {string}  businessName  - e.g. "DoctorFresh Water Technologies - Ahmedabad"
- * @param {string}  qrBase64      - "data:image/png;base64,..."  (the QR code image)
- * @returns {string} SVG markup
- */
-function buildSvg(businessName, qrBase64) {
-  const nameLines  = wrapBusinessName(businessName);
-  const nameY1     = nameLines.length > 1 ? 162 : 170;
-  const nameY2     = nameY1 + 22;
+async function fetchQrPng(reviewUrl) {
+  const enc = encodeURIComponent(reviewUrl);
+  const u = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=6&data=${enc}`;
+  const res = await fetch(u);
+  if (!res.ok) throw new Error(`QR fetch failed: ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
 
-  // White card occupies the area inside the MARGIN
-  const cx = MARGIN;
-  const cy = MARGIN;
-  const cw = W - MARGIN * 2;
-  const ch = H - MARGIN * 2;
+async function loadFooterLogoPng() {
+  const candidates = [
+    path.join(process.cwd(), "public", "images", "bg-logo.png"),
+    path.join(process.cwd(), "public", "images", "limbuailogo.png"),
+  ];
+  for (const p of candidates) {
+    try {
+      const buf = await fs.readFile(p);
+      return await sharp(buf)
+        .resize({ width: 88, height: 88, fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toBuffer();
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
 
-  // QR image box: centred, 200×200, placed below the name text
-  const qrSize  = 200;
-  const qrX     = (W - qrSize) / 2;
-  const qrY     = nameLines.length > 1 ? 196 : 192;
+/** All vertical positions derived in one place so height matches paint. */
+function layout(lineCount) {
+  const cx = W / 2;
+  let y = FRAME + 40;
+  const googleY = y + 62;
+  y += 84;
+  const starsY = y + 22;
+  y += 44;
+  const scanY = y + 15;
+  y += 34;
+  const bizStartY = y;
+  y += lineCount * 36 + 20;
+  y += 8;
+  const qrSize = 400;
+  const qrX = cx - qrSize / 2;
+  const qrY = y;
+  y += qrSize + 24;
+  const urlY = y + 6;
+  y += 28;
+  const dividerY = y;
+  y += 24;
+  const footY = y + 18;
+  const height = Math.ceil(footY + FRAME + 36);
+  return {
+    cx,
+    height,
+    googleY,
+    starsY,
+    scanY,
+    bizStartY,
+    qrX,
+    qrY,
+    qrSize,
+    urlY,
+    dividerY,
+    footY,
+  };
+}
 
-  // Footer elements
-  const hrY     = qrY + qrSize + 24;
-  const footerY = hrY + 22;
+function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
+  const {
+    cx,
+    height,
+    googleY,
+    starsY,
+    scanY,
+    bizStartY,
+    qrX,
+    qrY,
+    qrSize,
+    urlY,
+    dividerY,
+    footY,
+  } = layoutPos;
 
-  // ── SVG ────────────────────────────────────────────────────────────────────
+  const logoB64 = logoPngBuf ? logoPngBuf.toString("base64") : null;
+
+  const bizText = businessLines
+    .map((line, i) => {
+      const yy = bizStartY + (i + 1) * 34;
+      return `<text x="${cx}" y="${yy}" text-anchor="middle" font-size="32" font-weight="700" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(line)}</text>`;
+    })
+    .join("\n");
+
+  const qrShadow = `
+    <filter id="qrShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+    </filter>`;
+
+  const pad = 16;
+  const whiteQrBg = `
+    <rect x="${qrX - pad}" y="${qrY - pad}" width="${qrSize + pad * 2}" height="${qrSize + pad * 2}" rx="20" ry="20"
+      fill="#ffffff" filter="url(#qrShadow)"/>`;
+
+  const corner = 6;
+  const arm = 28;
+  const tl = { x: qrX - pad, y: qrY - pad, c: QR_CORNER.tl };
+  const tr = { x: qrX + qrSize + pad - corner, y: qrY - pad, c: QR_CORNER.tr };
+  const bl = { x: qrX - pad, y: qrY + qrSize + pad - corner, c: QR_CORNER.bl };
+  const br = { x: qrX + qrSize + pad - corner, y: qrY + qrSize + pad - corner, c: QR_CORNER.br };
+
+  const lShapes = [
+    `<rect x="${tl.x}" y="${tl.y}" width="${arm}" height="${corner}" fill="${tl.c}"/><rect x="${tl.x}" y="${tl.y}" width="${corner}" height="${arm}" fill="${tl.c}"/>`,
+    `<rect x="${tr.x - arm + corner}" y="${tr.y}" width="${arm}" height="${corner}" fill="${tr.c}"/><rect x="${tr.x}" y="${tr.y}" width="${corner}" height="${arm}" fill="${tr.c}"/>`,
+    `<rect x="${bl.x}" y="${bl.y}" width="${arm}" height="${corner}" fill="${bl.c}"/><rect x="${bl.x}" y="${bl.y + corner - arm}" width="${corner}" height="${arm}" fill="${bl.c}"/>`,
+    `<rect x="${br.x - arm + corner}" y="${br.y}" width="${arm}" height="${corner}" fill="${br.c}"/><rect x="${br.x}" y="${br.y + corner - arm}" width="${corner}" height="${arm}" fill="${br.c}"/>`,
+  ].join("\n");
+
+  const qrImg = `<image href="data:image/png;base64,${qrBase64}" x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" preserveAspectRatio="xMidYMid meet"/>`;
+
+  const footer = logoB64
+    ? `<g transform="translate(${cx}, ${footY})">
+  <text x="-30" y="4" text-anchor="end" font-size="22" fill="#6B7280" font-family="Arial, Helvetica, sans-serif" font-weight="500">Powered by</text>
+  <image href="data:image/png;base64,${logoB64}" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>
+  <text x="30" y="4" text-anchor="start" font-size="24" font-weight="700" fill="#0f172a" font-family="Arial, Helvetica, sans-serif">LimbuAI</text>
+</g>`
+    : `<text x="${cx}" y="${footY}" text-anchor="middle" font-size="22" font-family="Arial, Helvetica, sans-serif">
+  <tspan fill="#6B7280" font-weight="500">Powered by </tspan><tspan font-weight="700" fill="#0f172a">LimbuAI</tspan>
+</text>`;
+
+  const H = height;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"
-     xmlns:xlink="http://www.w3.org/1999/xlink">
-  <defs>
-    <!-- Clip entire graphic to rounded rect so corners look like the dashboard -->
-    <clipPath id="outer">
-      <rect width="${W}" height="${H}" rx="${OUTER_RADIUS}" ry="${OUTER_RADIUS}"/>
-    </clipPath>
-    <!-- Clip white card to rounded rect -->
-    <clipPath id="card">
-      <rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" rx="${CARD_RADIUS}" ry="${CARD_RADIUS}"/>
-    </clipPath>
-  </defs>
-
-  <!-- ── Outer rounded container ──────────────────────────────────────────── -->
-  <g clip-path="url(#outer)">
-
-    <!-- Google colour quadrants (peeking behind the white card) -->
-    <rect x="0"   y="0"   width="${W/2}" height="${H/2}" fill="#FBBF24"/>
-    <rect x="${W/2}" y="0"   width="${W/2}" height="${H/2}" fill="#EF4444"/>
-    <rect x="0"   y="${H/2}" width="${W/2}" height="${H/2}" fill="#22C55E"/>
-    <rect x="${W/2}" y="${H/2}" width="${W/2}" height="${H/2}" fill="#3B82F6"/>
-
-    <!-- ── White card ──────────────────────────────────────────────────────── -->
-    <rect x="${cx}" y="${cy}" width="${cw}" height="${ch}"
-          rx="${CARD_RADIUS}" ry="${CARD_RADIUS}" fill="white"/>
-
-    <g clip-path="url(#card)">
-
-      <!-- Coloured "Google" text (matches dashboard CSS colour per letter) -->
-      <text x="${W/2}" y="78" text-anchor="middle"
-            font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="800"
-            letter-spacing="-1">
-        <tspan fill="${G.blue}">G</tspan><tspan fill="${G.red}">o</tspan><tspan fill="${G.yellow}">o</tspan><tspan fill="${G.blue}">g</tspan><tspan fill="${G.green}">l</tspan><tspan fill="${G.red}">e</tspan>
-      </text>
-
-      <!-- Stars -->
-      <text x="${W/2}" y="108" text-anchor="middle"
-            font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#FBBF24"
-            letter-spacing="4">&#9733;&#9733;&#9733;&#9733;&#9733;</text>
-
-      <!-- "Scan to Rate Us on Google" — normal + bold "Google" -->
-      <text x="${W/2}" y="134" text-anchor="middle"
-            font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#374151">
-        Scan to Rate Us on <tspan font-weight="700" fill="#111827">Google</tspan>
-      </text>
-
-      <!-- Business name (up to 2 lines) -->
-      <text x="${W/2}" y="${nameY1}" text-anchor="middle"
-            font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700"
-            fill="#111827">
-        ${esc(nameLines[0])}${nameLines[1] ? `<tspan x="${W/2}" dy="22">${esc(nameLines[1])}</tspan>` : ""}
-      </text>
-
-      <!-- QR Code image -->
-      <image xlink:href="${qrBase64}"
-             x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}"
-             preserveAspectRatio="xMidYMid meet"/>
-
-      <!-- Coloured corner accents on the QR box (matching QRPreviewCard.jsx) -->
-      <!-- top-left  red -->
-      <rect x="${qrX}" y="${qrY}" width="12" height="3" fill="#EF4444"/>
-      <rect x="${qrX}" y="${qrY}" width="3" height="12" fill="#EF4444"/>
-      <!-- top-right  blue -->
-      <rect x="${qrX+qrSize-12}" y="${qrY}" width="12" height="3" fill="#3B82F6"/>
-      <rect x="${qrX+qrSize-3}" y="${qrY}" width="3" height="12" fill="#3B82F6"/>
-      <!-- bottom-left  yellow -->
-      <rect x="${qrX}" y="${qrY+qrSize-3}" width="12" height="3" fill="#FBBF24"/>
-      <rect x="${qrX}" y="${qrY+qrSize-12}" width="3" height="12" fill="#FBBF24"/>
-      <!-- bottom-right  green -->
-      <rect x="${qrX+qrSize-12}" y="${qrY+qrSize-3}" width="12" height="3" fill="#22C55E"/>
-      <rect x="${qrX+qrSize-3}" y="${qrY+qrSize-12}" width="3" height="12" fill="#22C55E"/>
-
-      <!-- Footer separator -->
-      <line x1="${cx+16}" y1="${hrY}" x2="${cx+cw-16}" y2="${hrY}"
-            stroke="#E5E7EB" stroke-width="1"/>
-
-      <!-- "Powered by  LimbuAI" -->
-      <text x="${W/2}" y="${footerY}" text-anchor="middle"
-            font-family="Arial, Helvetica, sans-serif" font-size="11" fill="#6B7280">
-        Powered by&#160;<tspan font-weight="700" fill="#0B0F19" font-size="12">LimbuAI</tspan>
-      </text>
-
-    </g><!-- /card clip -->
-  </g><!-- /outer clip -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>${qrShadow}</defs>
+  <clipPath id="outerClip"><rect x="0" y="0" width="${W}" height="${H}" rx="${OUTER_RX}" ry="${OUTER_RX}"/></clipPath>
+  <g clip-path="url(#outerClip)">
+    <rect x="0" y="0" width="${W / 2}" height="${H / 2}" fill="${G.yellow}"/>
+    <rect x="${W / 2}" y="0" width="${W / 2}" height="${H / 2}" fill="${G.red}"/>
+    <rect x="0" y="${H / 2}" width="${W / 2}" height="${H / 2}" fill="${G.green}"/>
+    <rect x="${W / 2}" y="${H / 2}" width="${W / 2}" height="${H / 2}" fill="${G.blue}"/>
+  </g>
+  <rect x="${FRAME}" y="${FRAME}" width="${W - FRAME * 2}" height="${H - FRAME * 2}" rx="${INNER_RX}" ry="${INNER_RX}" fill="#ffffff"/>
+  <text x="${cx}" y="${googleY}" text-anchor="middle" font-size="84" font-weight="900" font-family="Arial, Helvetica, sans-serif" letter-spacing="-2">
+    <tspan fill="${G.blue}">G</tspan><tspan fill="${G.red}">o</tspan><tspan fill="${G.yellow}">o</tspan><tspan fill="${G.blue}">g</tspan><tspan fill="${G.green}">l</tspan><tspan fill="${G.red}">e</tspan>
+  </text>
+  <text x="${cx}" y="${starsY}" text-anchor="middle" font-size="40" fill="#FBBF24" font-family="Arial, Helvetica, sans-serif" letter-spacing="10">★★★★★</text>
+  <text x="${cx}" y="${scanY}" text-anchor="middle" font-size="26" fill="#374151" font-family="Arial, Helvetica, sans-serif">
+    <tspan font-weight="400">Scan to Rate Us on </tspan><tspan font-weight="700" fill="#111827">Google</tspan>
+  </text>
+  ${bizText}
+  ${whiteQrBg}
+  ${lShapes}
+  ${qrImg}
+  <text x="${cx}" y="${urlY}" text-anchor="middle" font-size="20" fill="#9CA3AF" font-family="Arial, Helvetica, sans-serif">${escapeXml(urlText)}</text>
+  <rect x="${FRAME + 32}" y="${dividerY}" width="${W - (FRAME + 32) * 2}" height="2" fill="#E5E7EB"/>
+  ${footer}
 </svg>`;
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
 /**
- * Download the QR code from api.qrserver.com, composite it onto the styled
- * card SVG, and return a PNG Buffer.
- *
- * @param {string} businessName  - display name shown on the card
- * @param {string} reviewUrl     - URL encoded into the QR (the review link)
- * @returns {Promise<Buffer>}    - PNG image buffer ready to upload to S3
+ * @param {string} businessName
+ * @param {string} reviewUrl
+ * @returns {Promise<Buffer>} PNG bytes
  */
 export async function generateMagicQrCard(businessName, reviewUrl) {
-  // ── 1. Fetch QR from api.qrserver.com ─────────────────────────────────────
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&data=${encodeURIComponent(reviewUrl)}`;
-  const qrRes    = await fetch(qrApiUrl);
-  if (!qrRes.ok) {
-    throw new Error(`QR server responded with status ${qrRes.status}`);
-  }
-  const qrArrayBuf = await qrRes.arrayBuffer();
-  const qrBase64   = `data:image/png;base64,${Buffer.from(qrArrayBuf).toString("base64")}`;
+  const [qrBuf, logoBuf] = await Promise.all([fetchQrPng(reviewUrl), loadFooterLogoPng()]);
 
-  // ── 2. Build SVG string ────────────────────────────────────────────────────
-  const svg = buildSvg(businessName, qrBase64);
+  const businessLines = wrapLines(businessName || "Business", 24);
+  const urlText = truncUrl(reviewUrl, 52);
+  const pos = layout(businessLines.length);
+  const qrBase64 = qrBuf.toString("base64");
+  const svg = buildCardSvg(pos, businessLines, urlText, qrBase64, logoBuf);
 
-  // ── 3. Render SVG → PNG using sharp ───────────────────────────────────────
-  const pngBuffer = await sharp(Buffer.from(svg))
-    .png({ quality: 95 })
+  return sharp(Buffer.from(svg), { density: 192 })
+    .png({ quality: 95, compressionLevel: 9 })
     .toBuffer();
-
-  return pngBuffer;
 }

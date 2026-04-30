@@ -143,9 +143,9 @@ function buildHeader({ businessName, locationName, city, dateRange }, y) {
   const nameText = esc(businessName || "Business Profile");
   parts.push(`<text x="${bx}" y="${y + 64}" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="${BLACK}">${nameText}</text>`);
 
-  // Location / city
-  const locText = esc([locationName, city].filter(Boolean).join("  /  "));
-  parts.push(`<text x="${bx}" y="${y + 88}" font-family="Arial,sans-serif" font-size="12" fill="${SILVER}">📍 ${locText}</text>`);
+  // Location / city (no emoji — keeps SVG XML friendly for librsvg)
+  const locRaw = [locationName, city].filter(Boolean).join("  /  ");
+  parts.push(`<text x="${bx}" y="${y + 88}" font-family="Arial,sans-serif" font-size="12" fill="${SILVER}">${locRaw ? esc(locRaw) : ""}</text>`);
 
   // ── Right side: dark report window box ──
   const boxW = 200, boxH = 60;
@@ -180,7 +180,7 @@ function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softB
   // Icon circle
   const iconX = x + PAD, iconY = y + PAD + 4;
   parts.push(`<path d="${rr(iconX, iconY, 36, 36, 8)}" fill="${softBg}"/>`);
-  parts.push(`<text x="${iconX + 18}" y="${iconY + 24}" text-anchor="middle" font-size="18" font-family="Arial,sans-serif">${iconSymbol}</text>`);
+  parts.push(`<text x="${iconX + 18}" y="${iconY + 24}" text-anchor="middle" font-size="18" font-family="Arial,sans-serif">${esc(iconSymbol)}</text>`);
 
   // Delta badge
   const d = deltaInfo(value, prevValue, prevHasData);
@@ -219,11 +219,11 @@ function buildKpiRow({ metrics, prevMetrics, prevHasData }, y) {
   const cardW = (W - PAD * 2 - GAP * 4) / 5;
 
   const cards = [
-    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconSymbol: "📊" },
-    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconSymbol: "🗺️" },
-    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconSymbol: "🔍" },
-    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconSymbol: "📞" },
-    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconSymbol: "🌐" },
+    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconSymbol: "\u{1F4CA}" },
+    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconSymbol: "\u{1F5FA}" },
+    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconSymbol: "\u{1F50D}" },
+    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconSymbol: "\u{1F4DE}" },
+    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconSymbol: "\u{1F310}" },
   ];
 
   const parts = [];
@@ -532,26 +532,31 @@ export async function generateInsightsPdf({
 
   // ── 2. Build SVG → PNG ───────────────────────────────────────────────────────
   const svg       = buildFullSvg({ businessName, locationName, city, dateRange, metrics, prevMetrics, prevHasData, monthlyVis, monthlyEng, keywords });
-  const svgBuf    = Buffer.from(svg);
+  const svgBuf    = Buffer.from(svg, "utf8");
 
-  // Render at 2× pixel density for sharp, crisp text and bars
+  // Opaque RGB PNG (avoids alpha / smask quirks in PDF viewers). One full raster first.
   const pngBuffer = await sharp(svgBuf, { density: 192 })
-    .resize({ width: W * 2, kernel: "lanczos3" })
-    .png({ quality: 95 })
+    .resize({ width: W * 2, kernel: sharp.kernel.lanczos3 })
+    .flatten({ background: BG })
+    .png({ compressionLevel: 6 })
     .toBuffer();
 
-  // Get rendered dimensions
-  const meta  = await sharp(pngBuffer).metadata();
-  const imgW  = meta.width  || W * 2;
-  const imgH  = meta.height || 1000;
+  const meta = await sharp(pngBuffer).metadata();
+  const imgW = meta.width  || W * 2;
+  const imgH = meta.height || 1000;
+  if (!imgW || !imgH) {
+    throw new Error(`Insights PDF: raster export invalid size (${imgW}x${imgH})`);
+  }
 
-  // ── 3. Embed PNG across A4 pages in pdfkit ───────────────────────────────────
+  // ── 3. One giant embedded image + clip() breaks many PDF viewers (black/grey pages).
+  //    Slice into one PNG per A4 page with sharp.extract — each page is a normal image.
+  const A4_W      = 595.28;
+  const A4_H      = 841.89;
+  const scale     = A4_W / imgW;
+  const pageH_px  = Math.floor(A4_H / scale);
+  const pageTotal = Math.max(1, Math.ceil(imgH / pageH_px));
+
   return new Promise((resolve, reject) => {
-    const A4_W  = 595.28; // points
-    const A4_H  = 841.89;
-    const scale = A4_W / imgW;      // fit full width
-    const pageH = A4_H / scale;     // how many source pixels fit one page
-
     const chunks = [];
     const doc = new PDFDocument({
       size: "A4",
@@ -563,39 +568,40 @@ export async function generateInsightsPdf({
       },
     });
 
-    doc.on("data",  (c) => chunks.push(c));
-    doc.on("end",   () => resolve(Buffer.concat(chunks)));
+    doc.on("data", (c) => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    let srcY = 0;
-    let page = 0;
+    (async () => {
+      try {
+        let srcY = 0;
+        let page = 0;
+        while (srcY < imgH) {
+          const sliceH = Math.min(pageH_px, imgH - srcY);
+          const sliceBuf = await sharp(pngBuffer)
+            .extract({ left: 0, top: srcY, width: imgW, height: sliceH })
+            .png({ compressionLevel: 6 })
+            .toBuffer();
 
-    while (srcY < imgH) {
-      if (page > 0) doc.addPage();
+          if (page > 0) doc.addPage();
 
-      // Crop the slice from the full PNG
-      const sliceH = Math.min(pageH, imgH - srcY);
+          const drawH = sliceH * scale;
+          doc.image(sliceBuf, 0, 0, { width: A4_W, height: drawH });
 
-      // Use pdfkit's image with clipping trick: place image shifted up so only
-      // the current page slice is visible within the A4 viewport
-      doc.save();
-      doc.rect(0, 0, A4_W, A4_H).clip();
-      doc.image(pngBuffer, 0, -srcY * scale, { width: A4_W });
-      doc.restore();
+          doc.fontSize(7).fillColor("#94A3B8")
+            .text(
+              `Generated by Limbu AI | ${businessName} | Page ${page + 1} of ${pageTotal}`,
+              20, A4_H - 18,
+              { width: A4_W - 40, align: "center" }
+            );
 
-      // Footer text
-      const pageTotal = Math.ceil(imgH / pageH);
-      doc.fontSize(7).fillColor("#94A3B8")
-        .text(
-          `Generated by Limbu AI | ${businessName} | Page ${page + 1} of ${pageTotal}`,
-          20, A4_H - 18,
-          { width: A4_W - 40, align: "center" }
-        );
-
-      srcY += pageH;
-      page++;
-    }
-
-    doc.end();
+          srcY += sliceH;
+          page++;
+        }
+        doc.end();
+      } catch (e) {
+        reject(e);
+      }
+    })();
   });
 }

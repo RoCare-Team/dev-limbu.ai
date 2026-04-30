@@ -34,9 +34,59 @@ async function refreshAccessToken(token) {
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  /** Behind HTTPS (e.g. nginx → Node), force Secure cookies so __Host- / __Secure- state cookies match the browser. */
+  trustHost: true, // ✅ Added
   useSecureCookies: process.env.NODE_ENV === "production",
-  // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
+
+  // ✅ State mismatch fix
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+    csrfToken: {
+      name: `__Host-next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+    pkceCodeVerifier: {
+      name: "next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+        maxAge: 900,
+      },
+    },
+    state: {
+      name: "next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+        maxAge: 900,
+      },
+    },
+  },
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -45,12 +95,14 @@ export const authOptions = {
         params: {
           scope: "openid email profile https://www.googleapis.com/auth/business.manage",
           access_type: "offline",
-          prompt: "consent", // Pehli baar mein refresh_token lene ke liye zaroori hai
+          prompt: "consent",
         },
       },
     }),
   ],
+
   session: { strategy: "jwt" },
+
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account.provider === "google") {
@@ -146,9 +198,10 @@ export const authOptions = {
       return session;
     },
   },
+
   pages: {
     signIn: "/auth/signin",
-    error: "/auth/signin", // Error hone par wapis signin page par bhejega
+    error: "/auth/signin",
   },
 };
 

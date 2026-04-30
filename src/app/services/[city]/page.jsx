@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, use } from "react";
+import axios from "axios";
 import {
   MapPin, TrendingUp, Star, Zap, MessageCircle, CheckCircle2,
   ChevronDown, ArrowRight, Quote, Map, Users, Smartphone,
@@ -13,7 +14,7 @@ import HeaderSection from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 
 /* ─── IMAGES ─────────────────────────────────────────────────── */
-const IMAGES = {
+const DEFAULT_IMAGES = {
   hero: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=1200",
   dashboard: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800",
   localMap: "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800",
@@ -78,7 +79,7 @@ function StickyBar() {
 }
 
 /* ─── URGENCY BANNER ──────────────────────────────────────────── */
-function UrgencyBanner() {
+function UrgencyBanner({ cityName }) {
   const [spots] = useState(7);
   return (
     <div className="bg-slate-900 text-white text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2 flex-wrap border-b border-slate-800">
@@ -87,7 +88,7 @@ function UrgencyBanner() {
         <span>Only {spots} spots left this month!</span>
       </div>
       <span className="hidden sm:inline text-slate-400">|</span>
-      <span className="text-slate-300">Special offer for Gurugram businesses.</span>
+      <span className="text-slate-300">Special offer for {cityName} businesses.</span>
       <a href={WA} className="text-yellow-400 font-bold hover:text-yellow-300 underline underline-offset-2 ml-1">Claim Now →</a>
     </div>
   );
@@ -317,9 +318,9 @@ function PricingSection() {
 }
 
 /* ─── PROBLEM SECTION ─────────────────────────────────────────── */
-function ProblemSection() {
+function ProblemSection({ cityName }) {
   const problems = [
-    { icon: <Search className="w-5 h-5" />, text: "Your competitor is #1 on Google Maps — you're stuck on page 2." },
+    { icon: <Search className="w-5 h-5" />, text: `Your competitor is #1 on Google Maps — you're stuck on page 2.` },
     { icon: <Star className="w-5 h-5" />, text: "Asking for reviews feels awkward, so your rating stays low." },
     { icon: <Clock className="w-5 h-5" />, text: "You don't have time to update and manage your GMB profile daily." },
     { icon: <TrendingDown className="w-5 h-5" />, text: "You're paying an agency thousands per month with zero ROI." },
@@ -328,7 +329,7 @@ function ProblemSection() {
     <section className="py-12 bg-slate-50 border-y border-slate-200">
       <div className="max-w-5xl mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900">90% of Gurugram Business Owners <br className="hidden md:block" />Are Making These Mistakes</h2>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900">90% of {cityName} Business Owners <br className="hidden md:block" />Are Making These Mistakes</h2>
           <p className="text-slate-500 mt-4 text-lg">Are you facing any of these challenges?</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-5 mb-10">
@@ -360,7 +361,7 @@ function ProblemSection() {
 }
 
 /* ─── BEFORE / AFTER SECTION ──────────────────────────────────── */
-function BeforeAfterSection() {
+function BeforeAfterSection({ cityName }) {
   const items = [
     { label: "Profile views/mo", before: "120", after: "1,400", metric: "+1066%" },
     { label: "Reviews count", before: "8 (3.6★)", after: "94 (4.8★)", metric: "+1075%" },
@@ -368,12 +369,12 @@ function BeforeAfterSection() {
     { label: "Maps Ranking", before: "Page 2–3", after: "Top 3", metric: "🏆 #1" },
   ];
   return (
-    <section className="py-12 bg-white">
+    <section className="py-8 bg-white">
       <div className="max-w-5xl mx-auto px-4">
         <div className="text-center mb-12">
           <span className="text-sm font-bold text-yellow-600 uppercase tracking-wider bg-yellow-50 px-3 py-1 rounded-full">Real Results</span>
           <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mt-4 mb-3">See the Difference in Just 30 Days</h2>
-          <p className="text-slate-500 text-lg">Actual data from a Gurugram client (Before vs After Limbu AI)</p>
+          <p className="text-slate-500 text-lg">Actual data from a {cityName} client (Before vs After Limbu AI)</p>
         </div>
         <div className="grid md:grid-cols-2 gap-8 items-stretch">
           {/* Before */}
@@ -427,7 +428,7 @@ function BeforeAfterSection() {
 }
 
 /* ─── TRUST BADGES ─── */
-function TrustSection() {
+function TrustSection({ cityName }) {
   const badges = [
     { icon: <BadgeCheck className="w-5 h-5 text-blue-500" />, label: "Google Partner" },
     { icon: <ShieldCheck className="w-5 h-5 text-green-500" />, label: "Data Secure" },
@@ -437,7 +438,7 @@ function TrustSection() {
   return (
     <div className="py-6 bg-white border-b border-slate-100">
       <div className="max-w-6xl mx-auto px-4">
-        <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Trusted by industry leaders in NCR</p>
+        <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Trusted by industry leaders in {cityName}</p>
         <div className="flex flex-wrap justify-center gap-4 md:gap-8">
           {badges.map((b, i) => (
             <div key={i} className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-slate-50 px-4 py-2.5 rounded-full border border-slate-100">
@@ -451,7 +452,7 @@ function TrustSection() {
 }
 
 /* ─── VIDEO / DEMO SECTION ────────────────────────────────────── */
-function DemoSection() {
+function DemoSection({ dashboardImg }) {
   const [playing, setPlaying] = useState(false);
   return (
     <section className="py-12 bg-slate-50">
@@ -465,7 +466,7 @@ function DemoSection() {
           onClick={() => setPlaying(true)}
           className="relative rounded-[2rem] overflow-hidden shadow-2xl cursor-pointer group border-4 border-white"
         >
-          <img src={IMAGES.dashboard} alt="Dashboard demo" className="w-full h-64 md:h-[500px] object-cover group-hover:scale-105 transition-transform duration-700" />
+          <img src={dashboardImg || DEFAULT_IMAGES.dashboard} alt="Dashboard demo" className="w-full h-64 md:h-[500px] object-cover group-hover:scale-105 transition-transform duration-700" />
           <div className="absolute inset-0 bg-slate-900/40 group-hover:bg-slate-900/50 transition-colors flex flex-col items-center justify-center">
             <div className="w-24 h-24 bg-yellow-400 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(250,204,21,0.5)] group-hover:scale-110 transition-transform duration-300 mb-6">
               <Play className="w-10 h-10 text-slate-900 ml-2" fill="currentColor" />
@@ -487,18 +488,18 @@ function DemoSection() {
 }
 
 /* ─── CASE STUDIES ────────────────────────────────────────────── */
-function CaseStudiesSection() {
-  const cases = [
+function CaseStudiesSection({ cityName, caseStudies = [] }) {
+  const defaultCases = [
     {
-      img: IMAGES.restaurant,
+      img: DEFAULT_IMAGES.restaurant,
       category: "Restaurant",
       location: "Cyber Hub",
       name: "Spice Route",
       result: "+340% walk-ins",
-      desc: "Monthly Google calls increased from 12 to 89. Weekend footfall more than doubled.",
+      desc: `Monthly Google calls increased from 12 to 89. Weekend footfall more than doubled.`,
     },
     {
-      img: IMAGES.clinic,
+      img: DEFAULT_IMAGES.clinic,
       category: "Clinic",
       location: "Sector 29",
       name: "Smile Dental",
@@ -506,7 +507,7 @@ function CaseStudiesSection() {
       desc: "Ranked #1 for 'Dentist near me' searches. 67 new patients in just 30 days.",
     },
     {
-      img: IMAGES.retail,
+      img: DEFAULT_IMAGES.retail,
       category: "Retail",
       location: "MG Road",
       name: "The Fashion Hub",
@@ -514,18 +515,21 @@ function CaseStudiesSection() {
       desc: "Review count grew from 11 to 103. Overall rating improved from 3.9 to 4.8.",
     },
   ];
+
+  const displayCases = caseStudies.length > 0 ? caseStudies : defaultCases;
+
   return (
     <section className="py-12 bg-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">Gurugram Business Success Stories</h2>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">{cityName} Business Success Stories</h2>
           <p className="text-slate-400 text-lg">Local heroes who scaled their growth with Limbu AI.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
-          {cases.map((c, i) => (
+          {displayCases.map((c, i) => (
             <div key={i} className="bg-slate-800 rounded-3xl overflow-hidden border border-slate-700 hover:border-yellow-400 transition-all duration-300 hover:shadow-[0_0_30px_rgba(250,204,21,0.1)] group">
               <div className="relative h-56 overflow-hidden">
-                <img src={c.img} alt={c.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                <img src={c.img || c.imgUrl || DEFAULT_IMAGES.restaurant} alt={c.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
                 <div className="absolute top-4 left-4 bg-yellow-400 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-full shadow-md">{c.category}</div>
                 <div className="absolute bottom-4 left-5 right-5">
@@ -582,120 +586,136 @@ export default function DynamicServiceCityPage({ params }) {
   const resolvedParams = use(params);
   const citySlug = resolvedParams.city;
 
-  // Handle prefix "google-bussiness-service-" if present
+  const [pageData, setPageData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Handle prefix "google-bussiness-service-" if present for fallback cityName
   const prefix = "google-bussiness-service-";
-  const rawCity = citySlug.startsWith(prefix) 
-    ? citySlug.slice(prefix.length) 
+  const rawCity = citySlug.startsWith(prefix)
+    ? citySlug.slice(prefix.length)
     : citySlug;
 
-  const cityName = rawCity
+  const cityNameFallback = rawCity
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
+  const cityName = pageData?.cityName || cityNameFallback;
+
+  const fetchPageData = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`/api/city-services/${citySlug}`);
+      if (res.data.success) {
+        setPageData(res.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch city service data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPageData();
+  }, [citySlug]);
+
+  useEffect(() => {
+    if (pageData || cityName) {
+      document.title = pageData?.metaTitle || `${cityName} | Google Business Management Service`;
+
+      // Update meta description if possible (limited on client side without extra libs)
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute("content", pageData?.metaDescription || `Rank #1 on Google Maps in ${cityName}.`);
+      }
+    }
+  }, [pageData, cityName]);
   const [openFaq, setOpenFaq] = useState(0);
 
   const features = [
     { icon: <Zap className="w-6 h-6 text-yellow-600" />, title: "Automated GMB Posts", description: `AI-generated, high-quality daily updates tailored for your ${cityName} audience. Consistency is key to ranking.` },
     { icon: <Star className="w-6 h-6 text-yellow-600" />, title: "Magic QR for Reviews", description: "Place our smart QR in your store. Customers scan and leave an instant 5-star Google review. Effortless." },
-    { icon: <MessageCircle className="w-6 h-6 text-yellow-600" />, title: "Instant AI Replies", description: "AI replies to every review within minutes, showing Google that your business is active and engaged." },
-    { icon: <TrendingUp className="w-6 h-6 text-yellow-600" />, title: "Local SEO Dominance", description: "Rank in the Google Maps 3-pack for 'near me' searches — where the highest-intent traffic lives." },
-    { icon: <BarChart3 className="w-6 h-6 text-yellow-600" />, title: "Live ROI Dashboard", description: "See exactly how many calls, directions, and clicks you're getting. Track your returns in real-time." },
-    { icon: <Target className="w-6 h-6 text-yellow-600" />, title: "Competitor Tracking", description: "Monitor your top 3 local competitors and stay one step ahead of them with AI insights." },
-    { icon: <Map className="w-6 h-6 text-yellow-600" />, title: "Hyper-Local Keywords", description: "We target key commercial areas, business hubs, and markets for traffic that actually converts." },
-    { icon: <Smartphone className="w-6 h-6 text-yellow-600" />, title: "Mobile-First Visibility", description: "Most local searches happen on phones. We ensure your listing wins the mobile 'near me' moment." },
+    { icon: <TrendingUp className="w-6 h-6 text-yellow-600" />, title: "Local Keyword SEO", description: "Our AI identifies exactly what your local customers are searching for and optimizes your profile accordingly." },
+    { icon: <MessageCircle className="w-6 h-6 text-yellow-600" />, title: "Instant AI Replies", description: "Limbu AI responds to every review instantly, improving your engagement rate and customer trust." },
   ];
 
-  const testimonials = [
-    { name: "Rahul Sharma", role: "Restaurant Owner", text: "Since using Limbu AI, our weekend footfall has increased by 40%. The automated Google posts and Magic QR for reviews are a game changer.", rating: 5, verified: true },
-    { name: "Dr. Priya Mehra", role: "Clinic Director", text: "We used to struggle to get patient reviews. Now the Magic QR does it automatically, and our clinic ranks #1 for 'dentist near me'.", rating: 5, verified: true },
-    { name: "Amit Kumar", role: "Retail Store", text: "I don't have time to manage my Google Profile. Limbu AI handles the posts and review replies perfectly. My store visibility has tripled.", rating: 5, verified: true },
-    { name: "Sunita Agarwal", role: "Boutique Owner", text: "The ROI I'm getting for ₹4,999 is far better than what my ₹30,000/mo agency provided. Highly recommended!", rating: 5, verified: true },
-    { name: "Vikram Nair", role: "Gym Owner", text: "My gym was practically invisible on Google before. Now we're in the top 3 and new membership inquiries have tripled.", rating: 5, verified: true },
-    { name: "Pooja Gupta", role: "Salon, DLF Phase 2", text: "Our review count grew from 9 to 87 in just two months! Customers find us easily now — my marketing budget is half of what it was.", rating: 5, verified: true },
+  const testimonials = pageData?.testimonials?.length > 0 ? pageData.testimonials : [
+    { rating: 5, verified: true, text: `Limbu AI transformed our business in ${cityName}. We now get 3-4 calls every day just from Google Maps!`, name: "Rajesh Kumar", role: "Restaurant Owner" },
+    { rating: 5, verified: true, text: "The Magic QR is a game changer. We collected 50+ reviews in our first month. Highly recommended!", name: "Anjali Sharma", role: "Clinic Manager" },
+    { rating: 5, verified: true, text: "Finally an automation tool that actually works. Our ranking moved from page 3 to the top 3 spots.", name: "Vikram Singh", role: "Retail Store Owner" },
   ];
 
-  const faqs = [
-    { question: "Is Limbu AI difficult to set up?", answer: "Not at all. You can link your Google Business Profile in under 5 minutes. After that, our AI handles everything automatically. No technical skills required." },
-    { question: "How important is local SEO for Gurugram businesses?", answer: "Crucial. Gurugram is a hyper-competitive market. If you're not in the top 3 Google Maps results, you're losing customers to competitors every day." },
-    { question: "How does the Magic QR Code work?", answer: "You place a smart QR code at your checkout counter. When customers scan it, it opens your Google review page directly, allowing them to leave a 5-star rating in one tap." },
-    { question: "Can I manage multiple locations?", answer: "Yes! Our Growth plan covers single locations, while the Dominator plan handles up to 5 locations from a single dashboard. Perfect for chains and franchises." },
-    { question: "How soon can I see results?", answer: "Most clients see an increase in profile views within 7-14 days. Significant improvements in ranking and reviews are typically visible within 30 days." },
-    { question: "What if I don't see results?", answer: "We offer a 14-day money-back guarantee. Plus, if your profile views don't at least double in 30 days, we'll give you a full refund. No hard feelings." },
+  const faqs = pageData?.faqs?.length > 0 ? pageData.faqs : [
+    { question: "How long does it take to see results?", answer: `Most businesses in ${cityName} see a measurable increase in profile views and calls within the first 14-21 days.` },
+    { question: "Do I need to give you my Google password?", answer: "No. You simply invite our secure platform to manage your listing as a 'Manager'. You retain full ownership." },
+    { question: "What is the 'Magic QR' code?", answer: "It's a custom-branded QR code we provide. When scanned by customers, it takes them directly to your review page with a 5-star pre-selected." },
+    { question: "Is there a setup fee?", answer: "No. We believe in our results, so we don't charge any hidden setup or onboarding fees. Just one simple monthly price." },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-bold animate-pulse">Loading {cityName} local SEO dashboard...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-yellow-300 selection:text-slate-900">
-      <StickyBar />
-      <UrgencyBanner cityName={cityName} />
+    <div className="min-h-screen bg-white">
       <HeaderSection />
+      <UrgencyBanner cityName={cityName} />
+      <StickyBar />
 
       <main>
-        {/* ── HERO ── */}
-        <section className="relative pt-8 pb-12 lg:pt-14 lg:pb-16 overflow-hidden bg-white">
+        {/* ── HERO SECTION ── */}
+        <section className="relative pt-12 md:pt-20 pb-16 md:pb-32 overflow-hidden bg-white">
           <div className="absolute inset-0 z-0">
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-yellow-400/10 blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-slate-100 blur-3xl" />
+            <img src={pageData?.heroImageUrl || DEFAULT_IMAGES.hero} alt={`${cityName} Local SEO`} className="w-full h-full object-cover opacity-10 scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/80 to-white" />
+            <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
           </div>
+
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-50 text-yellow-700 font-bold text-sm mb-6 border border-yellow-200">
-                  <MapPin className="w-4 h-4" />
-                  Made for {cityName} Businesses
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-yellow-100 border border-yellow-200 rounded-full px-4 py-2 text-yellow-800 text-sm font-bold mb-6 shadow-sm">
+                  <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" /> {cityName}'s #1 GMB Automation Tool
                 </div>
-                <h1 className="text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1] mb-6">
-                  Rank{" "}
-                  <span className="relative inline-block">
-                    <span className="relative z-10 text-slate-900 px-2">#1 on Google</span>
-                    <span className="absolute bottom-1 left-0 right-0 h-4 bg-yellow-400 rounded-sm -z-10" />
-                  </span>{" "}
-                  in {cityName} — Automatically
+                <h1 className="text-2xl md:text-5xl font-extrabold text-slate-900 mb-6 leading-tight tracking-tight">
+                  {pageData?.heroHeading || `Rank #1 on Google in ${cityName} — Automatically.`}
                 </h1>
-                <p className="text-lg md:text-xl text-slate-600 mb-8 leading-relaxed font-medium">
-                  AI-powered Google Business Profile automation. Daily posts, 5-star reviews, and instant replies — all on autopilot.
+                <p className="text-lg md:text-2xl text-slate-600 mb-10 leading-relaxed font-medium">
+                  {pageData?.heroSubheading || `We use AI to optimize your Google Business Profile daily, generate 5-star reviews, and dominate your local competition in ${cityName}.`}
                 </p>
-                {/* Social proof mini */}
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="flex -space-x-3">
-                    {[11, 12, 13, 14, 15].map((i) => (
-                      <img key={i} src={`https://i.pravatar.cc/100?img=${i}`} alt="" className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
-                    ))}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />)}
-                    </div>
-                    <p className="text-sm text-slate-600 font-medium">Trusted by <strong>500+ local brands</strong></p>
-                  </div>
-                </div>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <a href={WA} className="inline-flex justify-center items-center gap-2 bg-yellow-400 text-slate-900 hover:bg-yellow-500 px-8 py-4 rounded-full font-bold text-lg transition-all shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:shadow-[0_0_25px_rgba(250,204,21,0.5)]">
-                    Free Profile Audit <ArrowRight className="w-5 h-5" />
+                  <a href={WA} className="inline-flex justify-center items-center gap-2 bg-yellow-400 text-slate-900 px-8 py-4 rounded-xl font-extrabold text-lg hover:bg-yellow-500 transition-all transform hover:scale-105 shadow-[0_4px_20px_rgba(250,204,21,0.4)]">
+                    Get 500 Coins for Free <ArrowRight className="w-5 h-5" />
                   </a>
-                  <a href="#how-it-works" className="inline-flex justify-center items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-200 px-8 py-4 rounded-full font-bold text-lg transition-all">
-                    How it works
+                  <a href="#demo" className="inline-flex justify-center items-center gap-2 bg-white border-2 border-slate-200 text-slate-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                    <Play className="w-5 h-5" /> Watch Demo
                   </a>
                 </div>
-                <p className="mt-5 text-sm text-slate-500 flex items-center gap-2 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-green-500" /> No credit card required · Setup in 5 mins
-                </p>
+                <div className="mt-8 flex items-center gap-6 text-slate-500 font-medium">
+                  <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> No Setup Fee</div>
+                  <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> Cancel Anytime</div>
+                </div>
               </div>
-              <div className="relative">
-                <div className="relative rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white bg-white">
-                  <img src={IMAGES.hero} alt={`${cityName} Business Growth`} className="w-full h-[400px] md:h-[550px] object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent flex flex-col justify-end p-8">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-5 text-white shadow-xl max-w-sm">
-                      <div className="flex items-center gap-4 mb-2">
-                        <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(250,204,21,0.5)]">
-                          <TrendingUp className="text-slate-900 w-6 h-6" />
-                        </div>
-                        <div>
-                          <span className="font-extrabold text-3xl block leading-none text-white">+340%</span>
-                          <span className="text-sm text-yellow-400 font-semibold">Profile Views (30 days)</span>
-                        </div>
+
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
+                <div className="relative bg-slate-800 rounded-[2rem] p-4 border border-slate-700 shadow-2xl">
+                  <img src={DEFAULT_IMAGES.dashboard} alt="Limbu AI Dashboard" className="rounded-2xl shadow-inner" />
+                  <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 hidden md:block animate-bounce-slow">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <TrendingUp className="w-6 h-6 text-green-600" />
                       </div>
-                      <p className="text-sm text-slate-300 border-t border-white/20 pt-3 mt-2 font-medium">Local Business · Limbu AI client</p>
+                      <div>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Growth This Month</p>
+                        <p className="text-xl font-black text-slate-900">+342%</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -704,99 +724,66 @@ export default function DynamicServiceCityPage({ params }) {
           </div>
         </section>
 
-        {/* ── TRUST BADGES ── */}
-        <TrustSection />
+        {/* ── TRUST SECTION ── */}
+        <TrustSection cityName={cityName} />
 
-        {/* ── PROBLEM ── */}
+        {/* ── STATS SECTION ── */}
+        <section className="py-12 bg-white">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-slate-100">
+              <StatCard target={pageData?.postsAutomated || 10000} suffix="+" label="Posts Automated" />
+              <StatCard target={pageData?.reviewsGenerated || 50000} suffix="+" label="Reviews Generated" />
+              <StatCard target={pageData?.businessesServed || 500} suffix="+" label="Local Businesses" />
+              <StatCard target={pageData?.avgProfileGrowth || 340} suffix="%" label="Avg. Growth" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── PROBLEM SECTION ── */}
         <ProblemSection cityName={cityName} />
 
-        {/* ── STATS BAR ── */}
-        <section className="py-8 bg-slate-950 border-y border-slate-800 relative">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
-          <div className="max-w-7xl mx-auto px-4 relative z-10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-slate-800">
-              <StatCard target={10000} suffix="+" label="Posts Automated" />
-              <StatCard target={50000} suffix="+" label="Reviews Generated" />
-              <StatCard target={500} suffix="+" label="Businesses Served" />
-              <StatCard target={340} suffix="%" label="Avg Profile Growth" />
-            </div>
-          </div>
-        </section>
-
-        {/* ── BEFORE / AFTER ── */}
-        <BeforeAfterSection cityName={cityName} />
-
-        {/* ── FEATURES ── */}
-        <section id="features" className="py-14 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* ── FEATURES SECTION ── */}
+        <section id="features" className="py-8 md:py-12 bg-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-slate-50/50 pointer-events-none" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-sm font-bold text-yellow-600 uppercase tracking-wider bg-yellow-100 px-3 py-1 rounded-full">Platform Features</span>
-              <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mt-6 mb-4">Everything You Need in One Place</h2>
-              <p className="text-lg text-slate-600 font-medium">10x cheaper than expensive agencies, 3x better results.</p>
+              <span className="text-sm font-bold text-yellow-600 uppercase tracking-wider bg-yellow-50 px-3 py-1 rounded-full">Core Features</span>
+              <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mt-6 mb-4">Everything You Need to Rank #1</h2>
+              <p className="text-slate-600 text-lg font-medium">Why waste time on manual updates when AI can do it 10x better and faster?</p>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {features.map((feature, i) => (
-                <div key={i} className="bg-white rounded-3xl p-6 border border-slate-100 hover:border-yellow-400 hover:shadow-xl transition-all duration-300 group">
-                  <div className="w-14 h-14 bg-yellow-50 rounded-2xl flex items-center justify-center shadow-sm mb-5 group-hover:scale-110 group-hover:bg-yellow-400 transition-all duration-300">
-                    {React.cloneElement(feature.icon, { className: "w-7 h-7 text-yellow-600 group-hover:text-slate-900 transition-colors" })}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {features.map((f, i) => (
+                <div key={i} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-yellow-200 transition-all duration-300">
+                  <div className="w-14 h-14 bg-yellow-50 rounded-2xl flex items-center justify-center mb-6">
+                    {f.icon}
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">{feature.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed font-medium">{feature.description}</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed font-medium">{f.description}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── HOW IT WORKS ── */}
-        <section id="how-it-works" className="py-14 bg-slate-900 text-white relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="text-center max-w-2xl mx-auto mb-16">
-              <span className="text-sm font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-3 py-1 rounded-full">Simple Process</span>
-              <h2 className="text-3xl md:text-5xl font-extrabold mt-6 text-white">Setup Once. Watch It Grow.</h2>
-            </div>
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div className="space-y-10">
-                {[
-                  { num: "01", title: "Profile Connect", desc: "Securely link your Google Business Profile in one click. Takes less than 2 minutes." },
-                  { num: "02", title: "AI Setup & Keywords", desc: `Our system identifies the best local keywords for your area in ${cityName}.` },
-                  { num: "03", title: "Content Automation", desc: "Limbu AI generates and publishes high-converting daily posts and local updates automatically." },
-                  { num: "04", title: "Reviews & Ranking", desc: "Magic QR captures 5-star reviews while AI manages replies. Watch your ranking climb to the top." },
-                ].map((step) => (
-                  <div key={step.num} className="flex gap-6 group">
-                    <div className="flex-shrink-0">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-800 border-2 border-slate-700 text-yellow-400 font-extrabold text-lg flex items-center justify-center group-hover:bg-yellow-400 group-hover:text-slate-900 group-hover:border-yellow-400 transition-all shadow-lg">
-                        {step.num}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-bold text-white mb-2">{step.title}</h4>
-                      <p className="text-slate-400 leading-relaxed font-medium">{step.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/30 to-transparent rounded-[2rem] blur-3xl -z-10" />
-                <img src={IMAGES.dashboard} alt="Dashboard" className="rounded-[2rem] shadow-2xl border border-slate-700 w-full relative z-10" />
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* ── BEFORE/AFTER ── */}
+        <BeforeAfterSection cityName={cityName} />
 
-        {/* ── DEMO / VIDEO ── */}
-        <DemoSection />
+        {/* ── DEMO ── */}
+        <div id="demo">
+          <DemoSection dashboardImg={DEFAULT_IMAGES.dashboard} />
+        </div>
 
-        {/* ── ROI CALCULATOR ── */}
-        <section className="py-14 bg-slate-950 relative overflow-hidden">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-96 h-96 bg-yellow-400/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="max-w-6xl mx-auto px-4 relative z-10">
+        {/* ── ROI/CALCULATOR ── */}
+        <section className="py-8 md:py-12 bg-slate-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div>
-                <span className="text-sm font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-3 py-1 rounded-full">ROI Calculator</span>
-                <h2 className="text-3xl md:text-5xl font-extrabold text-white mt-6 mb-6">Calculate Your Potential ROI</h2>
-                <p className="text-slate-400 text-lg mb-8 font-medium">See how much revenue Limbu AI can generate for your business on a monthly basis.</p>
+                <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-6 leading-tight">
+                  Calculate Your <span className="text-yellow-400">Growth Potential</span>
+                </h2>
+                <p className="text-slate-400 text-lg mb-10 leading-relaxed font-medium">
+                  Local SEO isn't just about 'ranking'. It's about revenue. Use our tool to see how much more you could be making with Limbu AI.
+                </p>
                 <div className="space-y-5 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
                   {[
                     `Average ${cityName} clients gain 2.8x more customers`,
@@ -827,7 +814,7 @@ export default function DynamicServiceCityPage({ params }) {
         </section>
 
         {/* ── CASE STUDIES ── */}
-        <CaseStudiesSection cityName={cityName} />
+        <CaseStudiesSection cityName={cityName} caseStudies={pageData?.caseStudies} />
 
         {/* ── TESTIMONIALS ── */}
         <section id="reviews" className="py-14 bg-slate-50 border-t border-slate-100">
@@ -863,9 +850,6 @@ export default function DynamicServiceCityPage({ params }) {
         {/* ── GUARANTEE ── */}
         <GuaranteeSection />
 
-        {/* ── PRICING ── */}
-        {/* <PricingSection /> */}
-
         {/* ── FAQ ── */}
         <section id="faq" className="py-14 bg-white">
           <div className="max-w-3xl mx-auto px-4">
@@ -890,7 +874,7 @@ export default function DynamicServiceCityPage({ params }) {
         </section>
 
         {/* ── FINAL CTA ── */}
-        <section className="py-16 bg-slate-900 relative overflow-hidden">
+        <section className="py-8 bg-slate-900 relative overflow-hidden">
           <div className="absolute inset-0 z-0">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-yellow-400/20 blur-3xl pointer-events-none" />
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30" />
@@ -899,7 +883,7 @@ export default function DynamicServiceCityPage({ params }) {
             <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-yellow-400/30 rounded-full px-5 py-2.5 text-yellow-400 text-sm font-bold mb-8 shadow-lg backdrop-blur-sm">
               <Flame className="w-4 h-4" /> Only 7 spots left this month
             </div>
-            <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight drop-shadow-md">
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white mb-6 leading-tight drop-shadow-md">
               It's Time to Become {cityName}'s Top Choice
             </h2>
             <p className="text-lg md:text-xl text-slate-300 mb-10 font-medium max-w-2xl mx-auto">

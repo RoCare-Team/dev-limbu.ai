@@ -136,16 +136,27 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-
-    let issues;
+    
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+    
+    let query = {};
 
     if (userId) {
-      // 🔹 Get issues for specific user
-      issues = await Issue.find({ userId }).sort({ createdAt: -1 });
-    } else {
-      // 🔹 Get ALL issues
-      issues = await Issue.find().sort({ createdAt: -1 });
+      query.userId = userId;
     }
+
+    if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+       const startDate = new Date(startDateParam);
+       startDate.setHours(0, 0, 0, 0);
+       const endDate = new Date(endDateParam);
+       endDate.setHours(23, 59, 59, 999);
+       query.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    // 🔹 Get issues based on query
+    const issues = await Issue.find(query).sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,

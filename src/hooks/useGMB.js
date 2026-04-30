@@ -2,82 +2,8 @@ import { getLocalStorage, getSessionStorage, removeSessionStorage, setSessionSto
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// --- API Helpers with Retry & Error Handling ---
-async function fetchWithRetry(url, options, retries = 3, backoff = 1000) {
-  try {
-    const res = await fetch(url, options);
-    if ((res.status === 429 || res.status >= 500) && retries > 0) {
-      await sleep(backoff);
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
-    }
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`API Error: ${res.status} ${errText}`);
-    }
-    return await res.json();
-  } catch (err) {
-    if (retries > 0) {
-      await sleep(backoff);
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
-    }
-    throw err;
-  }
-}
-
-async function fetchGMBAccounts(accessToken) {
-  const data = await fetchWithRetry(
-    "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  return data.accounts || [];
-}
-
-async function fetchAllLocationsByAccount(accessToken, accountId) {
-  let allLocations = [];
-  let pageToken = null;
-  do {
-    let url = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations?readMask=name,title,storefrontAddress,websiteUri,phoneNumbers,categories,openInfo,metadata&pageSize=100`;
-    if (pageToken) url += `&pageToken=${pageToken}`;
-    const data = await fetchWithRetry(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (data.locations) allLocations = [...allLocations, ...data.locations];
-    pageToken = data.nextPageToken || null;
-    if (pageToken) await sleep(200);
-  } while (pageToken);
-  return allLocations;
-}
-
-async function checkVoiceOfMerchant(accessToken, locationName) {
-  try {
-    return await fetchWithRetry(
-      `https://mybusinessverifications.googleapis.com/v1/${locationName}/VoiceOfMerchantState`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-      2
-    );
-  } catch (err) {
-    return { hasVoiceOfMerchant: false, hasBusinessAuthority: false };
-  }
-}
-
-async function fetchLocationLogo(accessToken, locationName) {
-  try {
-    const data = await fetchWithRetry(
-      `https://mybusiness.googleapis.com/v4/${locationName}/media`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-      1
-    );
-    if (data.mediaItems?.length > 0) {
-      const item = data.mediaItems.find(i => i.locationAssociation?.category === 'LOGO') ||
-        data.mediaItems.find(i => i.locationAssociation?.category === 'PROFILE') ||
-        data.mediaItems[0];
-      return item?.thumbnailUrl || item?.googleUrl || null;
-    }
-    return null;
-  } catch (err) { return null; }
-}
+const CACHE_EXPIRY_MS = 10 * 60 * 1000;
+const getCacheKey = (email) => `gmb_data_${email}`;
 
 async function storeUserListingsForAdmin(userEmail, listings) {
   try {
@@ -88,9 +14,6 @@ async function storeUserListingsForAdmin(userEmail, listings) {
     });
   } catch (error) { console.error('Error storing listings:', error); }
 }
-
-const CACHE_EXPIRY_MS = 10 * 60 * 1000;
-const getCacheKey = (email) => `gmb_data_${email}`;
 
 // --- Main Hook ---
 export function useGMB(session, status, setUiState) {
@@ -132,9 +55,9 @@ export function useGMB(session, status, setUiState) {
     }
   }, [session?.user?.email]);
 
-  // 2. Live Google Fetch (Available for all authenticated users)
+  // 2. Live Backend Fetch (Secure, bypasses browser CORS & Ad-blockers)
   const fetchInitialData = useCallback(async (forceRefresh = false, isBackground = false) => {
-    if (!session?.accessToken || !session?.user?.email) {
+    if (!session?.user?.email) {
       if (status === "authenticated") setUiState(prev => ({ ...prev, isSessionExpired: true }));
       return;
     }
@@ -158,50 +81,38 @@ export function useGMB(session, status, setUiState) {
     if (!isBackground) setLoading(true);
 
     try {
-      const token = session.accessToken;
-      const accountsData = await fetchGMBAccounts(token);
-
-      if (accountsData.length === 0) {
-        setAccounts([]);
-        setNoAccountsFound(true);
-      } else {
-        const listingsPromises = accountsData.map(async (account) => {
-          const accountId = account.name.replace("accounts/", "");
-          try {
-            const locations = await fetchAllLocationsByAccount(token, accountId);
-            return await Promise.all(locations.map(async (loc) => {
-              const vom = await checkVoiceOfMerchant(token, loc.name);
-              const logo = await fetchLocationLogo(token, `accounts/${accountId}/${loc.name}`);
-              return {
-                ...loc,
-                accountId,
-                hasVoiceOfMerchant: vom.hasVoiceOfMerchant,
-                verified: vom.hasVoiceOfMerchant, // sync for legacy components
-                logoUrl: logo
-              };
-            }));
-          } catch (e) { return []; }
-        });
-
-        const allListings = (await Promise.all(listingsPromises)).flat();
-        const finalData = [{ email: userEmail, listings: allListings }];
-
-        setAccounts(finalData);
-        setNoAccountsFound(allListings.length === 0);
-
-        // Update Cache
-        setSessionStorage(cacheKey, JSON.stringify({
-          accounts: finalData,
-          noAccountsFound: allListings.length === 0,
-          timestamp: Date.now()
-        }));
-
-        // Sync to Admin Database
-        if (allListings.length > 0) await storeUserListingsForAdmin(userEmail, allListings);
+      // SECURE CALL: We now ask our own backend to fetch Google data.
+      // Next.js backend will handle the exact fresh token securely.
+      const res = await fetch("/api/gmb/dashboard-live");
+      
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("Unauthorized - Session expired");
       }
+
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const finalData = data.accounts || [];
+      const allListings = finalData.length > 0 ? finalData[0].listings : [];
+
+      setAccounts(finalData);
+      setNoAccountsFound(data.noAccountsFound);
+
+      // Update Cache
+      setSessionStorage(cacheKey, JSON.stringify({
+        accounts: finalData,
+        noAccountsFound: data.noAccountsFound,
+        timestamp: Date.now()
+      }));
+
+      // Sync to Admin Database
+      if (allListings.length > 0) await storeUserListingsForAdmin(userEmail, allListings);
+
     } catch (error) {
       console.error("❌ Live Fetch Error:", error);
-      if (error.message.includes("401") || error.message.includes("403")) {
+      if (error.message.includes("Unauthorized") || error.message.includes("401") || error.message.includes("403")) {
         setUiState(prev => ({ ...prev, isSessionExpired: true }));
       }
     } finally {
@@ -222,18 +133,15 @@ export function useGMB(session, status, setUiState) {
 
   // Priority Logic for UI: Live Data > Database Data
   const activeListings = useMemo(() => {
-    // If Live Google Data exists, it takes priority
     if (accounts.length > 0) {
       return accounts.flatMap(acc => acc.listings);
     }
-    // Otherwise fallback to Database (essential for impersonation)
     return listings;
   }, [accounts, listings]);
 
   // Derive Summary Statistics
   const summary = useMemo(() => {
     const total = activeListings.length;
-    // Check both potential verification property names
     const verifiedCount = activeListings.filter(l =>
       l.hasVoiceOfMerchant === true || l.verified === true
     ).length;
@@ -255,7 +163,6 @@ export function useGMB(session, status, setUiState) {
       await fetchAdminListings();
     }
 
-    // Always try to refresh live data if session exists
     if (session?.user?.email) {
       removeSessionStorage(getCacheKey(session.user.email));
       await fetchInitialData(true);

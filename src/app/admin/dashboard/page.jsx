@@ -35,20 +35,25 @@ import UserStats from "../../../app/admin/dashboard/UserStats";
 import useUserManagement from "../user-management/hooks/useUserManagement";
 
 export default function AdminDashboard() {
+  const [globalDateFilter, setGlobalDateFilter] = useState("all");
+  const [globalStartDate, setGlobalStartDate] = useState("");
+  const [globalEndDate, setGlobalEndDate] = useState("");
+
   const {
+    stats: hookStats,
     stageStats,
     totalPostsCount,
-    totalRevenue,
-    // todayUsersCount,
-    // todayUsersMetaLeads,
-    // todayUsersSignups,
+    totalRevenue, // from hook
     filterLabel,
     isAgent,
     isManager,
-    // ✅ AD
-  } = useUserManagement();
+  } = useUserManagement({
+    dateFilter: globalDateFilter,
+    startDate: globalStartDate,
+    endDate: globalEndDate
+  });
 
-  const [stats, setStats] = useState({
+  const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalRevenue: 0,
     planCounts: { basic: 0, standard: 0, premium: 0 },
@@ -115,15 +120,35 @@ const router = useRouter();
     managerPerformance: [],
   });
 
-  const fetchRevenueUsers = async () => {
+  const fetchRevenueUsers = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
     setLoadingRevenueUsers(true);
 
     try {
       const email = localStorage.getItem("email");
       const role = localStorage.getItem("role");
 
+      let dateParams = "";
+      if (dFilter && dFilter !== "all") {
+        if (dFilter === "custom" && dStart && dEnd) {
+           dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+        } else if (dFilter !== "custom") {
+           const end = new Date();
+           const start = new Date();
+           if (dFilter === "today") {
+              start.setHours(0,0,0,0);
+           } else if (dFilter === "1week") {
+              start.setDate(start.getDate() - 7);
+           } else if (dFilter === "1month") {
+              start.setMonth(start.getMonth() - 1);
+           } else if (dFilter === "6months") {
+              start.setMonth(start.getMonth() - 6);
+           }
+           dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+        }
+      }
+
       const res = await fetch(
-        `/api/franchise-revenue?email=${email}&role=${role}`,
+        `/api/franchise-revenue?email=${email}&role=${role}${dateParams}`,
       );
       const data = await res.json();
 
@@ -140,21 +165,44 @@ const router = useRouter();
     }
   };
 
-  const fetchTodayUsers = async () => {
-    const data = await getTodayUsersData();
+  const fetchTodayUsers = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
+    try {
+      let dateParams = "";
+      if (dFilter && dFilter !== "all") {
+        if (dFilter === "custom" && dStart && dEnd) {
+           dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+        } else if (dFilter !== "custom") {
+           const end = new Date();
+           const start = new Date();
+           if (dFilter === "today") {
+              start.setHours(0,0,0,0);
+           } else if (dFilter === "1week") {
+              start.setDate(start.getDate() - 7);
+           } else if (dFilter === "1month") {
+              start.setMonth(start.getMonth() - 1);
+           } else if (dFilter === "6months") {
+              start.setMonth(start.getMonth() - 6);
+           }
+           dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+        }
+      }
 
-    console.log("DASHBOARD DATA:", data);
-
-    if (data?.success) {
-      setTodayUsersCount(data.todayUsersCount || 0);
-      setTodayUsersMetaLeads(data.todayMetaLeads || 0);
-      setTodayUsersSignups(data.todaySignups || 0);
+      const res = await fetch(`/api/users?getTodayUsersCount=true${dateParams}`);
+      const data = await res.json();
+      
+      if (data?.success) {
+        setTodayUsersCount(data.todayUsersCount || 0);
+        setTodayUsersMetaLeads(data.todayMetaLeads || 0);
+        setTodayUsersSignups(data.todaySignups || 0);
+      }
+    } catch(err) {
+      console.error(err);
     }
   };
 
   useEffect(() => {
-    fetchTodayUsers();
-  }, []);
+    fetchTodayUsers(globalDateFilter, globalStartDate, globalEndDate);
+  }, [globalDateFilter, globalStartDate, globalEndDate]);
 
   const fetchUsers = async () => {
   try {
@@ -278,9 +326,29 @@ const router = useRouter();
     fetchAgents();
   }, []);
 
-  const fetchChatStats = async () => {
+  const fetchChatStats = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
     try {
-      const res = await fetch("/api/issue-check");
+      let dateParams = "";
+      if (dFilter && dFilter !== "all") {
+        if (dFilter === "custom" && dStart && dEnd) {
+           dateParams = `?dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+        } else if (dFilter !== "custom") {
+           const end = new Date();
+           const start = new Date();
+           if (dFilter === "today") {
+              start.setHours(0,0,0,0);
+           } else if (dFilter === "1week") {
+              start.setDate(start.getDate() - 7);
+           } else if (dFilter === "1month") {
+              start.setMonth(start.getMonth() - 1);
+           } else if (dFilter === "6months") {
+              start.setMonth(start.getMonth() - 6);
+           }
+           dateParams = `?dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+        }
+      }
+
+      const res = await fetch(`/api/issue-check${dateParams}`);
       const result = await res.json();
       if (result.success) {
         const chats = result.data || [];
@@ -304,8 +372,8 @@ const router = useRouter();
   };
 
   useEffect(() => {
-    fetchChatStats();
-  }, []);
+    fetchChatStats(globalDateFilter, globalStartDate, globalEndDate);
+  }, [globalDateFilter, globalStartDate, globalEndDate]);
 
   const todayLeadWindowLabel = "";
 
@@ -315,7 +383,11 @@ const router = useRouter();
     fetchStats(storedRole);
   }, []);
 
-  const fetchStats = async (currentRole) => {
+  const handleApplyFilter = () => {
+    fetchStats(role, globalDateFilter, globalStartDate, globalEndDate);
+  };
+
+  const fetchStats = async (currentRole, dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
     setLoading(true);
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) {
@@ -324,14 +396,35 @@ const router = useRouter();
     }
 
     try {
+      let dateParams = "";
+      if (dFilter !== "all") {
+        if (dFilter === "custom" && dStart && dEnd) {
+           dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+        } else if (dFilter !== "custom") {
+           // Provide basic calculation for presets if API supports specific dates
+           const end = new Date();
+           const start = new Date();
+           if (dFilter === "today") {
+              start.setHours(0,0,0,0);
+           } else if (dFilter === "1week") {
+              start.setDate(start.getDate() - 7);
+           } else if (dFilter === "1month") {
+              start.setMonth(start.getMonth() - 1);
+           } else if (dFilter === "6months") {
+              start.setMonth(start.getMonth() - 6);
+           }
+           dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+        }
+      }
+
       // ── 1. Paginated list (totalUsers, growth) ───────────────────────────
       const listRes = await fetch(
-        `/api/users?email=${encodeURIComponent(adminEmail)}`,
+        `/api/users?email=${encodeURIComponent(adminEmail)}${dateParams}`,
       );
       const listData = await listRes.json();
 
       if (listData.success) {
-        setStats({
+        setDashboardStats({
           totalUsers: listData.totalUsers || 0,
           totalRevenue: 0,
           planCounts: { basic: 0, standard: 0, premium: 0 },
@@ -356,7 +449,7 @@ const router = useRouter();
 
       // ── 2. Agent stats (today per agent) ─────────────────────────────────
       const statsRes = await fetch(
-        `/api/users?email=${encodeURIComponent(adminEmail)}&getAgentStats=true`,
+        `/api/users?email=${encodeURIComponent(adminEmail)}&getAgentStats=true${dateParams}`,
       );
       const statsData = await statsRes.json();
 
@@ -373,7 +466,7 @@ const router = useRouter();
       if (currentRole === "superAdmin" || currentRole === "admin") {
         const [callRes, followRes] = await Promise.all([
           fetch(
-            `/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`,
+            `/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}${dateParams}`,
           ),
           fetch(
             `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`,
@@ -386,11 +479,11 @@ const router = useRouter();
       }
 
       const [txRes, serviceRes, packageRes, managerRes] = await Promise.all([
-        fetch("/api/razorpay/razorpay-transaction"),
-        fetch("/api/service-booking?planType=our-service"),
-        fetch("/api/service-booking?planType=our-package"),
+        fetch(`/api/razorpay/razorpay-transaction?${dateParams.replace('&', '')}`),
+        fetch(`/api/service-booking?planType=our-service${dateParams}`),
+        fetch(`/api/service-booking?planType=our-package${dateParams}`),
         fetch(
-          `/api/admin/account-manager-leads?email=${encodeURIComponent(adminEmail)}`,
+          `/api/admin/account-manager-leads?email=${encodeURIComponent(adminEmail)}${dateParams}`,
         ),
       ]);
 
@@ -474,8 +567,53 @@ const router = useRouter();
         Dashboard Overview
       </h1>
 
+      {/* Global Date Filter */}
+      <div className="mb-6 flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex items-center gap-2">
+          <Calendar size={18} className="text-slate-500" />
+          <span className="font-semibold text-slate-700">Filter By Date:</span>
+        </div>
+        <select
+          value={globalDateFilter}
+          onChange={(e) => setGlobalDateFilter(e.target.value)}
+          className="border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="1week">Last 1 Week</option>
+          <option value="1month">Last 1 Month</option>
+          <option value="6months">Last 6 Months</option>
+          <option value="custom">Custom Range</option>
+        </select>
+
+        {globalDateFilter === "custom" && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={globalStartDate}
+              onChange={(e) => setGlobalStartDate(e.target.value)}
+              className="border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <span className="text-slate-500">to</span>
+            <input
+              type="date"
+              value={globalEndDate}
+              onChange={(e) => setGlobalEndDate(e.target.value)}
+              className="border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+        )}
+
+        <button
+          onClick={handleApplyFilter}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+        >
+          Apply Filter
+        </button>
+      </div>
+
       <UserStats
-        stats={stats}
+        stats={dashboardStats}
         role={role} // ✅ YE ADD KAR
         stageStats={stageStats}
         totalPostsCount={totalPostsCount}

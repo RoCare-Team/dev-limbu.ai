@@ -54,8 +54,8 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
     const pathname = usePathname();
 
     return (
-        <div className="w-full py-2 px-3 rounded-2xl mb-8">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-5">
+        <div className="w-full py-2 px-1 rounded-2xl mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4">
                 {navItems.map((item) => {
                     const isPublic =
                         item.href === "/post-management" || item.href === "/wallet";
@@ -75,38 +75,38 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                     const Card = (
                         <div
                             onClick={handleClick}
-                            className={`group relative flex flex-col items-center justify-center p-4 rounded-3xl transition-all duration-300 cursor-pointer border-2 w-full aspect-square
+                            className={`group relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl transition-all duration-300 cursor-pointer border-2 w-full shadow-sm
               ${isActive
-                                    ? "bg-slate-900 border-yellow-400 shadow-lg scale-105"
-                                    : "bg-white border-slate-100 hover:border-yellow-300 hover:shadow-lg hover:scale-105"
+                                    ? "bg-slate-900 border-yellow-400 shadow-xl shadow-slate-300"
+                                    : "bg-white border-slate-200 hover:border-yellow-400 hover:shadow-lg hover:shadow-slate-200 hover:-translate-y-1"
                                 }
               `}
                         >
                             {/* FREE TAG */}
                             {item.isFree && (
-                                <div className="absolute -top-1 -right-1 bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm uppercase tracking-widest z-10">
+                                <div className="absolute -top-2 -right-2 bg-yellow-100 text-yellow-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-yellow-200 shadow-sm uppercase tracking-widest z-10">
                                     Free
                                 </div>
                             )}
 
                             {/* ICON */}
                             <div
-                                className={`mb-3 p-3 rounded-2xl transition-colors
+                                className={`mb-2 p-2.5 rounded-xl transition-colors
                 ${isActive
                                         ? "bg-yellow-50 text-yellow-600"
-                                        : "bg-slate-50 text-slate-400 group-hover:bg-yellow-50 group-hover:text-yellow-600"
+                                        : "bg-slate-50 border border-slate-100 text-slate-400 group-hover:bg-yellow-50 group-hover:text-yellow-600"
                                     }
               `}
                             >
-                                {React.cloneElement(item.icon, { size: 24 })}
+                                {React.cloneElement(item.icon, { size: 18 })}
                             </div>
 
                             {/* LABEL */}
                             <span
-                                className={`text-[11px] font-bold uppercase tracking-tight text-center leading-tight transition-colors duration-300
+                                className={`text-[10px] font-bold uppercase tracking-tight text-center leading-tight transition-colors duration-300
                 ${isActive
                                         ? "text-white"
-                                        : "text-slate-600 group-hover:text-black font-extrabold"
+                                        : "text-slate-600 group-hover:text-black"
                                     }
               `}
                             >
@@ -114,14 +114,13 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                             </span>
 
                             {/* Verified by Google */}
-                            {/* Verified by Google */}
                             {isKeywordPlanner && (
-                                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-20">
+                                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-20">
 
-                                    <div className="flex flex-col items-center justify-center bg-white/95 backdrop-blur-md border border-slate-200 px-3 py-2 rounded-xl shadow-lg shadow-black/10">
+                                    <div className="flex flex-col items-center justify-center bg-white/95 backdrop-blur-md border border-slate-200 px-2 py-1 rounded-lg shadow-sm shadow-black/5">
 
                                         {/* Text */}
-                                        <span className="text-[6px] sm:text-[6px] text-slate-500 font-semibold tracking-wide leading-none">
+                                        <span className="text-[7px] text-slate-500 font-semibold tracking-wide leading-none whitespace-nowrap">
                                             Verified by
                                         </span>
 
@@ -129,7 +128,7 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                                         <img
                                             src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg"
                                             alt="Google"
-                                            className="mt-1 h-3.5 sm:h-3 w-auto object-contain"
+                                            className="mt-0.5 h-2.5 w-auto object-contain"
                                         />
 
                                     </div>

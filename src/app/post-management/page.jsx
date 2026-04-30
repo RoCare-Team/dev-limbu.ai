@@ -1,5 +1,7 @@
 "use client";
 
+import { signIn } from "next-auth/react";
+
 import {
   fetchAllPostsAction,
   getUserWalletAction,
@@ -108,6 +110,9 @@ export default function PostManagementPage() {
   const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
 
+  // buiness not connected 
+  const [showGmbExpiredModal, setShowGmbExpiredModal] = useState(false);
+
   // --- Generation Inputs ---
   const [prompt, setPrompt] = useState("");
   const [logo, setLogo] = useState(null);
@@ -137,6 +142,7 @@ export default function PostManagementPage() {
   const [rejectPostId, setRejectPostId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [imageToVideoInitialPost, setImageToVideoInitialPost] = useState(null);
+  const [selectedMediaForAction, setSelectedMediaForAction] = useState(null);
 
   // --- Social Media Specific ---
   const [socialState, setSocialState] = useState({
@@ -250,6 +256,11 @@ export default function PostManagementPage() {
     [fetchPosts],
   );
 
+  // gmb post success modal & dynamic platform tracking
+  const [dots, setDots] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [postingPlatform, setPostingPlatform] = useState("Google Business");
+
   const {
     isPosting,
     setIsPosting,
@@ -268,11 +279,9 @@ export default function PostManagementPage() {
     setShowInsufficientBalance: (val) =>
       updateUiState({ showInsufficientBalance: val }),
     showToast,
+    setIsSuccess,
+    setPostingPlatform,
   });
-
-  // gmb post success modal
-  const [dots, setDots] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     if (!isPosting) return;
@@ -546,8 +555,8 @@ export default function PostManagementPage() {
           ),
           logoImage: stripBase64(
             selectedAssets.find((a) => a.name === "Logo")?.url ||
-              logoBase64 ||
-              "",
+            logoBase64 ||
+            "",
           ),
           platform: selectedPlatforms.join(",") || "gmb",
           mode,
@@ -762,17 +771,14 @@ export default function PostManagementPage() {
       if (sources.length > 0) {
         // Check for GMB Session Expiry before scheduling if GMB is selected
         if (
-          sources.includes("gmb") &&
-          (!session ||
-            !session.accessToken ||
-            session.error === "RefreshAccessTokenError")
-        ) {
-          showToast(
-            "Google Session Expired. Please reconnect your GMB account.",
-            "error",
-          );
-          return;
-        }
+  sources.includes("gmb") &&
+  (!session ||
+    !session.accessToken ||
+    session.error === "RefreshAccessTokenError")
+) {
+  handleGmbSessionExpired();
+  return;
+}
 
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
@@ -782,10 +788,15 @@ export default function PostManagementPage() {
           .map((p) => ({
             pageId: p.pageId,
             pageAccessToken: p.pageAccessToken,
+            pageName: p.pageName,
           }));
         const igPages = socialState.instagramAccounts
           .filter((a) => selectedTargets.ig.includes(a.igId))
-          .map((a) => ({ igUserId: a.igId, accessToken: a.pageAccessToken }));
+          .map((a) => ({
+            igUserId: a.igId,
+            accessToken: a.pageAccessToken,
+            igUsername: a.igUsername,
+          }));
 
         setScheduledPlatforms({ gmb: gmbLocs, fb: fbPages, ig: igPages });
         await handleUpdateStatus(
@@ -856,7 +867,8 @@ export default function PostManagementPage() {
   }, [socialState.facebookPages.length, userId, updateSocialState]);
 
   const handleFacebookPost = useCallback(
-    (post) => {
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
       updateSocialState({ postToFacebook: post });
       updateUiState({ showFacebookModal: true });
       fetchFacebookPages();
@@ -878,7 +890,8 @@ export default function PostManagementPage() {
   }, [socialState.instagramAccounts.length, userId, updateSocialState]);
 
   const handleInstagramPost = useCallback(
-    (post) => {
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
       updateSocialState({ postToInstagram: post });
       updateUiState({ showInstagramModal: true });
       fetchInstagramAccounts();
@@ -932,16 +945,13 @@ export default function PostManagementPage() {
 
       // Check for GMB Session Expiry before attempting to delete from GMB
       if (
-        !session ||
-        !session.accessToken ||
-        session.error === "RefreshAccessTokenError"
-      ) {
-        showToast(
-          "Google Session Expired. Please reconnect your GMB account.",
-          "error",
-        );
-        return;
-      }
+  !session ||
+  !session.accessToken ||
+  session.error === "RefreshAccessTokenError"
+) {
+  handleGmbSessionExpired();
+  return;
+}
 
       setPostToAction(post);
       updateUiState({ showDeleteLocationModal: true });
@@ -956,10 +966,7 @@ export default function PostManagementPage() {
       const totalCost = selectedIds.length * 20;
 
       try {
-        // Fix 1: safely read wallet from whatever field the API returns
         const userData = await getUserWalletAction(userId);
-        console.log("getUserWalletAction response:", userData); // keep until confirmed working
-
         const walletBalance =
           userData?.wallet ??
           userData?.data?.wallet ??
@@ -975,17 +982,15 @@ export default function PostManagementPage() {
           return;
         }
 
+        setPostingPlatform("Google Business");
         setIsPosting(true);
 
         const walletRes = await deductFromWalletAction(userId, {
           amount: totalCost,
           type: "deduct",
-          reason: "Post-on-GMB",
+          reason: "Post-on-GMB-Batch",
         });
 
-        console.log("deductFromWalletAction response:", walletRes); // keep until confirmed
-
-        // Fix 2: accept any truthy success signal, not just one exact string
         const deductOk =
           walletRes?.message === "Wallet updated" ||
           walletRes?.success === true ||
@@ -998,65 +1003,89 @@ export default function PostManagementPage() {
           );
         }
 
-        emitWalletDeduct(totalCost); // ✅ sidebar sync
+        emitWalletDeduct(totalCost); 
 
-        const locs = availableLocations
-          .filter((l) => selectedIds.includes(l.id))
-          .map((l) => ({ ...l, isPosted: true }));
+        const locs = availableLocations.filter((l) => selectedIds.includes(l.id));
+        
+        let successfulLocs = [];
+        let failedLocs = [];
 
-        const { ok } = await postToGmbAction({
-          account: locs[0].accountId,
-          locationData: locs.map((l) => ({
-            city: l.locationId,
-            cityName: l.locality,
-            bookUrl: l.websiteUrl,
-          })),
-          output: postToAction.aiOutput,
-          description: postToAction.description,
-          accessToken: session?.accessToken,
-          checkmark: checkmark || postToAction.checkmark,
-        });
+        // Post sequentially to ensure each location is processed and tracked properly
+        for (const l of locs) {
+           try {
+             const payload = {
+                account: l.accountId,
+                locationData: [{
+                  city: l.locationId,
+                  cityName: l.locality,
+                  bookUrl: l.websiteUrl,
+                }],
+                output: selectedMediaForAction?.url || postToAction.aiOutput,
+                description: postToAction.description,
+                accessToken: session?.accessToken,
+                checkmark: checkmark || postToAction.checkmark,
+              };
 
-        if (ok) {
-          showToast("Posted! 🎉");
-           // 🔥 SUCCESS MODAL TRIGGER
-  setIsSuccess(true);
-
-          await updatePostStatusAction({
-            id: postToAction._id,
-            userId,
-            locations: locs,
-            status: "posted",
-            whenPosted: { ...postToAction.whenPosted, gmb: true },
-          });
-          fetchPosts(1, true);
-        } else {
-          // Refund if GMB post failed
-          await deductFromWalletAction(userId, {
-            amount: totalCost,
-            type: "credit",
-            reason: "Refund-Post-Failed",
-          });
-          setUserWallet((prev) => prev + totalCost);
-          emitWalletCredit(totalCost); // ✅ sidebar sync
-
-          throw new Error("GMB post failed — coins refunded");
+              const { ok } = await postToGmbAction(payload);
+              
+              if (ok) {
+                 successfulLocs.push({ ...l, isPosted: true });
+              } else {
+                 failedLocs.push(l);
+              }
+           } catch (err) {
+             console.error(`Failed to post to location ${l.name}`, err);
+             failedLocs.push(l);
+           }
         }
+
+        // Refund for failed locations
+        if (failedLocs.length > 0) {
+           const refundAmount = failedLocs.length * 20;
+           await deductFromWalletAction(userId, {
+              amount: refundAmount,
+              type: "credit",
+              reason: "Refund-Post-Failed-Partial",
+            });
+            setUserWallet((prev) => prev + refundAmount);
+            emitWalletCredit(refundAmount);
+            showToast(`Posted to ${successfulLocs.length}, Failed: ${failedLocs.length}. Refunded ₹${refundAmount}`, "warning");
+        } else if (successfulLocs.length > 0) {
+           showToast(`Successfully posted to all ${successfulLocs.length} locations! 🎉`);
+           setIsSuccess(true);
+        }
+
+        if (successfulLocs.length > 0) {
+           // Update post status with successful locations only
+           await updatePostStatusAction({
+              id: postToAction._id,
+              userId,
+              locations: successfulLocs, // Override with only successful ones
+              status: "posted",
+              whenPosted: { ...postToAction.whenPosted, gmb: true },
+            });
+            fetchPosts(1, true);
+        } else {
+           throw new Error("All GMB posts failed");
+        }
+
       } catch (err) {
         showToast(err.message || "Post failed", "error");
       } finally {
-  setTimeout(() => {
-    setIsPosting(false);
-  }, 1200); // 🔥 delay for smooth success UI
+        setTimeout(() => {
+          setIsPosting(false);
+        }, 1200); 
 
-  setPostToAction(null);
-}
+        setPostToAction(null);
+        setSelectedMediaForAction(null);
+      }
     },
     [
       availableLocations,
       userId,
       postToAction,
       session?.accessToken,
+      selectedMediaForAction,
       updateUiState,
       showToast,
       setIsPosting,
@@ -1064,27 +1093,29 @@ export default function PostManagementPage() {
     ],
   );
 
+  const handleGmbSessionExpired = () => {
+  setShowGmbExpiredModal(true);
+};
+
   const handlePost = useCallback(
-    async (post) => {
+    async (post, media = null) => {
       if (!["approved", "scheduled", "posted", "failed"].includes(post.status))
         return showToast("Approve first", "error");
 
       // Check for GMB Session Expiry before showing the location modal
       if (
-        !session ||
-        !session.accessToken ||
-        session.error === "RefreshAccessTokenError"
-      ) {
-        showToast(
-          "Google Session Expired. Please reconnect your GMB account.",
-          "error",
-        );
-        return;
-      }
+  !session ||
+  !session.accessToken ||
+  session.error === "RefreshAccessTokenError"
+) {
+  setShowGmbExpiredModal(true);
+  return;
+}
 
       const userData = await getUserWalletAction(userId);
       setUserWallet(userData.wallet || 0);
       setPostToAction(post);
+      setSelectedMediaForAction(media);
       updateUiState({ showLocationModal: true });
     },
     [userId, updateUiState, showToast, session],
@@ -1199,7 +1230,7 @@ export default function PostManagementPage() {
       try {
         const p = JSON.parse(stored);
         if (p.length) setBussinessTitle(p[0].title);
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -1245,13 +1276,14 @@ export default function PostManagementPage() {
   }, [isPosting]);
 
   useEffect(() => {
-  if (isSuccess) {
-    const t = setTimeout(() => {
-      setIsSuccess(false);
-    }, 2000);
+  if (!isSuccess) return;
 
-    return () => clearTimeout(t);
-  }
+  const t = setTimeout(() => {
+    // agar auto close karna hai to yaha likh
+    // setIsSuccess(false);
+  }, 2000);
+
+  return () => clearTimeout(t);
 }, [isSuccess]);
 
   return (
@@ -1336,7 +1368,8 @@ export default function PostManagementPage() {
             onClose={() => updateUiState({ showFacebookModal: false })}
             onConfirm={(p, pg, c) => {
               updateUiState({ showFacebookModal: false });
-              handleFacebookPostAction(p, pg, c);
+              handleFacebookPostAction(p, pg, c, selectedMediaForAction);
+              setSelectedMediaForAction(null);
             }}
             post={socialState.postToFacebook}
             pages={socialState.facebookPages}
@@ -1349,7 +1382,14 @@ export default function PostManagementPage() {
             onClose={() => updateUiState({ showInstagramModal: false })}
             onConfirm={(p, a, c, igVideoKind) => {
               updateUiState({ showInstagramModal: false });
-              handleInstagramPostAction(p, a, c, igVideoKind);
+              handleInstagramPostAction(
+                p,
+                a,
+                c,
+                igVideoKind,
+                selectedMediaForAction,
+              );
+              setSelectedMediaForAction(null);
             }}
             post={socialState.postToInstagram}
             accounts={socialState.instagramAccounts}
@@ -1386,38 +1426,63 @@ export default function PostManagementPage() {
         )}
 
         {/* gmb post success modal */}
-     {(isPosting || isSuccess) && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4">
+        {(isPosting || isSuccess) && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4 animate-overlayFade">
 
-    <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden">
+    <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden animate-modalPop">
 
       {/* 🔥 TOP GLOW */}
       <div className="absolute -top-24 w-[350px] h-[350px] bg-[#EAB308]/20 blur-[120px] rounded-full"></div>
 
       {isSuccess ? (
         <>
-          {/* ✅ SUCCESS ICON */}
-          <div className="w-24 h-24 flex items-center justify-center rounded-full bg-green-100 mb-6 shadow-inner">
-            <span className="text-5xl">🎉</span>
+          {/* ❌ CLOSE BUTTON */}
+          <button
+            onClick={() => setIsSuccess(false)}
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"
+          >
+            ✕
+          </button>
+
+          {/* ✅ SUCCESS ICON (ANIMATED TICK) */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-green-400/20 rounded-full blur-xl animate-pulse"></div>
+
+            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-green-100 shadow-inner">
+
+              <svg
+                className="w-14 h-14 text-green-600 animate-tick"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M5 13l4 4L19 7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="tick-path"
+                />
+              </svg>
+
+            </div>
           </div>
 
           {/* TITLE */}
-          <h3 className="text-3xl font-extrabold text-green-600 mb-2">
-            Post Published!
-          </h3>
+         <h3 className="text-2xl font-extrabold text-yellow-400 mb-2">
+   Post Published Successfully!
+</h3>
 
-          {/* SUBTEXT */}
-          <p className="text-sm text-slate-600 mb-6 leading-relaxed max-w-sm">
-            Your Google Business post is now live and visible to your customers.
-            🚀 This will help you increase engagement, visibility, and trust.
-          </p>
+<p className="text-sm text-slate-600 mb-6">
+  Your content is now live on {postingPlatform}. Sit back and watch the engagement grow 📈
+</p>
 
-          {/* BUTTON */}
+          {/* DONE BUTTON */}
           <button
             onClick={() => setIsSuccess(false)}
-            className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md"
+            className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md animate-fadeUp delay-200"
           >
-            Continue
+            Done
           </button>
         </>
       ) : (
@@ -1433,7 +1498,7 @@ export default function PostManagementPage() {
 
           {/* TITLE */}
           <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
-            Publishing to Google Business
+            Publishing to {postingPlatform}
           </h3>
 
           {/* SUBTEXT */}
@@ -1444,33 +1509,33 @@ export default function PostManagementPage() {
             </span>
           </p>
 
-          {/* 🔥 PROGRESS BAR (REAL) */}
+          {/* PROGRESS */}
           <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-5 relative">
+            <div
+              className="h-full bg-[#EAB308] transition-all duration-1000"
+              style={{
+                width: `${((10 - timeLeft) / 10) * 100}%`,
+              }}
+            ></div>
 
-  {/* REAL PROGRESS */}
-  <div
-    className="h-full bg-[#EAB308] transition-all duration-1000"
-    style={{
-      width: `${((10 - timeLeft) / 10) * 100}%`,
-    }}
-  ></div>
-
-  {/* MOVING SHINE LINE */}
-  <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
-
-</div>
+            <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
+          </div>
 
           {/* STEPS */}
           <div className="flex flex-col gap-3 text-sm w-full max-w-sm text-left">
 
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <p className="text-slate-700 font-medium">Connecting to Google...</p>
+              <p className="text-slate-700 font-medium">
+                Connecting to {postingPlatform}...
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-              <p className="text-slate-700 font-medium">Uploading your content...</p>
+              <p className="text-slate-700 font-medium">
+                Uploading your content...
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -1483,6 +1548,84 @@ export default function PostManagementPage() {
           </div>
         </>
       )}
+
+      {/* ✨ ANIMATIONS */}
+      <style>
+        {`
+        @keyframes slide {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+
+        @keyframes overlayFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes modalPop {
+          from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes tickDraw {
+          from { stroke-dashoffset: 50; }
+          to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes popIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        .tick-path {
+          stroke-dasharray: 50;
+          stroke-dashoffset: 50;
+          animation: tickDraw 0.6s ease forwards;
+        }
+
+        .animate-tick {
+          animation: popIn 0.3s ease;
+        }
+
+        .animate-overlayFade {
+          animation: overlayFade 1s ease;
+        }
+
+        .animate-modalPop {
+          animation: modalPop 0.35s ease;
+        }
+
+        .animate-fadeUp {
+          animation: fadeUp 1s ease forwards;
+        }
+
+        .animate-fadeUp.delay-100 {
+          animation-delay: 0.1s;
+        }
+
+        .animate-fadeUp.delay-200 {
+          animation-delay: 1s;
+        }
+        `}
+      </style>
+
     </div>
   </div>
 )}
@@ -1589,6 +1732,141 @@ export default function PostManagementPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-500"></div>
               </div>
             )}
+
+            
+    {showGmbExpiredModal && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center px-4 animate-overlayFade">
+
+    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.25)] p-8 text-center overflow-hidden animate-modalPop">
+
+      {/* 🔥 TOP GLOW */}
+      <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-[#EAB308]/20 blur-[120px] rounded-full animate-glowPulse"></div>
+
+      {/* ICON */}
+      <div className="relative mb-6 animate-bounceIn">
+        <div className="w-20 h-20 mx-auto flex items-center justify-center rounded-full bg-gray-800 border-red-200 shadow-inner">
+          <span className="text-4xl">⚠️</span>
+        </div>
+      </div>
+
+      {/* TITLE */}
+      <h3 className="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight animate-fadeUp">
+        Connect Your Business First
+      </h3>
+
+      {/* SUBTEXT */}
+      <p className="text-sm text-slate-600 mb-3 leading-relaxed px-2 animate-fadeUp delay-100">
+        Your Google Business account is not connected. Please reconnect your account to continue posting, scheduling, or managing your content.
+      </p>
+
+      {/* ERROR LINE */}
+      <p className="text-xs text-red-500 font-medium mb-6 animate-fadeUp delay-200">
+        ⚠ Google session expired
+      </p>
+
+      {/* BUTTONS */}
+      <div className="flex gap-3 justify-center animate-fadeUp delay-300">
+
+        <button
+          onClick={() => setShowGmbExpiredModal(false)}
+          className="px-5 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 transition"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          className="px-6 py-2 rounded-xl bg-[#EAB308] text-white font-semibold hover:scale-105 transition"
+        >
+          Connect Business
+        </button>
+
+      </div>
+
+      {/* 🔥 BOTTOM LINE */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#EAB308] to-transparent opacity-40"></div>
+
+      {/* ✨ ANIMATIONS */}
+      <style>
+        {`
+        @keyframes overlayFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes modalPop {
+          0% {
+            opacity: 0;
+            transform: scale(0.85) translateY(30px);
+          }
+          60% {
+            transform: scale(1.03);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes bounceIn {
+          0% { transform: scale(0.6); opacity: 0; }
+          60% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes glowPulse {
+          0% { opacity: 0.5; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .animate-overlayFade {
+          animation: overlayFade 0.25s ease;
+        }
+
+        .animate-modalPop {
+          animation: modalPop 0.4s ease;
+        }
+
+        .animate-fadeUp {
+          animation: fadeUp 0.4s ease forwards;
+        }
+
+        .animate-fadeUp.delay-100 {
+          animation-delay: 0.1s;
+        }
+
+        .animate-fadeUp.delay-200 {
+          animation-delay: 0.2s;
+        }
+
+        .animate-fadeUp.delay-300 {
+          animation-delay: 0.3s;
+        }
+
+        .animate-bounceIn {
+          animation: bounceIn 0.4s ease;
+        }
+
+        .animate-glowPulse {
+          animation: glowPulse 2s ease-in-out infinite alternate;
+        }
+        `}
+      </style>
+
+    </div>
+  </div>
+)}
           </>
         ) : (
           <div className="bg-white rounded-3xl p-16 text-center border-3 border-dashed border-slate-200 shadow-xl">
@@ -1603,3 +1881,5 @@ export default function PostManagementPage() {
     </div>
   );
 }
+
+

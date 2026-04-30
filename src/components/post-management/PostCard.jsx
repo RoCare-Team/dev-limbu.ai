@@ -22,6 +22,7 @@ import {
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import { postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
 import Image from "next/image";
+import MediaSelectionModal from "./MediaSelectionModal";
 
 const STATUS_COLORS = {
   pending: "bg-yellow-50 text-yellow-600 border-yellow-100",
@@ -137,8 +138,21 @@ const PostCard = React.memo(
       return latest;
     }, [post]);
 
-    const isLoading = isConvertingThisPost;
+   
+    const [isVideoSuccess, setIsVideoSuccess] = useState(false);
 
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+  if (isConvertingThisPost) {
+    setIsLoading(true);
+  } else if (isLoading) {
+    setIsLoading(false);
+    setIsVideoSuccess(true);
+
+    
+  }
+}, [isConvertingThisPost]);
     // Countdown Timer State
     const [timeLeft, setTimeLeft] = useState(120); // 2 minutes countdown
     
@@ -172,6 +186,45 @@ const PostCard = React.memo(
       onEditDescription(post._id, { [field]: drafts[activeDesc] });
       setIsEditing(false);
     }, [activeDesc, drafts, onEditDescription, post._id]);
+
+    // Modal state for showing all scheduled targets
+    const [showMoreModal, setShowMoreModal] = useState({ isOpen: false, title: "", items: [] });
+
+    const openShowMoreModal = (title, items) => {
+      setShowMoreModal({ isOpen: true, title, items });
+    };
+
+    const closeShowMoreModal = () => {
+      setShowMoreModal({ isOpen: false, title: "", items: [] });
+    };
+
+    const [selectionModal, setSelectionModal] = useState({ isOpen: false, type: "" });
+
+    const handleMediaChoice = (type) => {
+      if (type === "gmb") {
+        if (dualCardMedia) {
+           const forcedMedia = cardMediaTab === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
+           handlePost(post, forcedMedia);
+        } else {
+           handlePost(post);
+        }
+      } else if (dualCardMedia) {
+        setSelectionModal({ isOpen: true, type });
+      } else {
+        if (type === "fb") handleFacebookPost(post);
+        else if (type === "ig") handleInstagramPost(post);
+      }
+    };
+
+    const onMediaSelect = (choice) => {
+      const forcedMedia = choice === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
+      const type = selectionModal.type;
+      setSelectionModal({ isOpen: false, type: "" });
+      
+      if (type === "gmb") handlePost(post, forcedMedia);
+      else if (type === "fb") handleFacebookPost(post, forcedMedia);
+      else if (type === "ig") handleInstagramPost(post, forcedMedia);
+    };
 
     return (
       <>
@@ -380,7 +433,7 @@ const PostCard = React.memo(
               {post.status === "approved" && (
                 <div className="space-y-3">
                   <button
-                    onClick={() => handlePost(post)}
+                    onClick={() => handleMediaChoice("gmb")}
                     className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#EAB308] hover:text-black transition-all group/btn shadow-lg shadow-black/10"
                   >
                     <Send
@@ -391,13 +444,13 @@ const PostCard = React.memo(
                   </button>
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => handleFacebookPost(post)}
+                      onClick={() => handleMediaChoice("fb")}
                       className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                     >
                       <Facebook size={14} /> Facebook
                     </button>
                     <button
-                      onClick={() => handleInstagramPost(post)}
+                      onClick={() => handleMediaChoice("ig")}
                       className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                     >
                       <Instagram size={14} /> Instagram
@@ -446,7 +499,7 @@ const PostCard = React.memo(
                     )}
                   </div>
                   <button
-                    onClick={() => handlePost(post)}
+                    onClick={() => handleMediaChoice("gmb")}
                     className="w-full py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
                   >
                     <RefreshCw
@@ -457,7 +510,7 @@ const PostCard = React.memo(
                   </button>
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => handleFacebookPost(post)}
+                      onClick={() => handleMediaChoice("fb")}
                       className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
                     >
                       <Facebook
@@ -467,7 +520,7 @@ const PostCard = React.memo(
                       Repost FB
                     </button>
                     <button
-                      onClick={() => handleInstagramPost(post)}
+                      onClick={() => handleMediaChoice("ig")}
                       className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
                     >
                       <Instagram
@@ -488,6 +541,7 @@ const PostCard = React.memo(
               )}
 
               {post.status === "scheduled" && (
+                <>
                 <div className="p-4 bg-[#EAB308]/5 rounded-3xl border border-[#EAB308]/10 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -515,13 +569,91 @@ const PostCard = React.memo(
                       <Pencil size={14} />
                     </button>
                   </div>
+
+                  {/* Scheduled Targets Details */}
+                  {post.scheduledDateSource && post.scheduledDateSource.length > 0 && (
+                    <div className="space-y-3 pt-2 border-t border-[#EAB308]/10">
+                      {post.scheduledDateSource.map((src) => {
+                        let items = [];
+                        let label = "";
+                        let title = "";
+
+                        if (src === "gmb" && post.locations) {
+                          items = post.locations.map(loc => loc.locality || "Location");
+                          title = "Google Business Locations";
+                        } else if (src === "fb" && post.fbPages) {
+                          items = post.fbPages.map(pg => pg.pageName || pg.name || "Page");
+                          title = "Facebook Pages";
+                        } else if (src === "ig" && post.igPages) {
+                          items = post.igPages.map(acc => acc.igUsername || "Profile");
+                          title = "Instagram Profiles";
+                        }
+
+                        if (items.length === 0) return null;
+
+                        const firstItem = items[0];
+                        const extraCount = items.length - 1;
+
+                        return (
+                          <div key={src} className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              {src === "gmb" && <MapPin size={10} className="text-[#EAB308]" />}
+                              {src === "fb" && <Facebook size={10} className="text-blue-600" />}
+                              {src === "ig" && <Instagram size={10} className="text-pink-600" />}
+                              <span className="text-[9px] font-black uppercase tracking-widest text-black/60">
+                                {src === "gmb" ? "Google Business" : src === "fb" ? "Facebook" : "Instagram"}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1 pl-4">
+                              <span className="px-2 py-0.5 bg-white border border-black/5 rounded-md text-[8px] font-bold text-black/40">
+                                {firstItem}
+                              </span>
+                              {extraCount > 0 && (
+                                <button
+                                  onClick={() => openShowMoreModal(title, items)}
+                                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-black/5 rounded-md text-[8px] font-bold text-black/60 transition-colors"
+                                >
+                                  +{extraCount} more
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <button
-                    onClick={() => handlePost(post)}
+                    onClick={() => handleMediaChoice("gmb")}
                     className="w-full py-3 bg-black text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
                   >
                     Post Now
                   </button>
                 </div>
+
+                {/* Quick Post to other platforms if not scheduled/posted */}
+                {((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
+                  (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
+                      <button
+                        onClick={() => handleMediaChoice("fb")}
+                        className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                      >
+                        <Facebook size={14} /> Facebook
+                      </button>
+                    )}
+                    {!post.scheduledDateSource?.includes("ig") && !isPostedIg && (
+                      <button
+                        onClick={() => handleMediaChoice("ig")}
+                        className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                      >
+                        <Instagram size={14} /> Instagram
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
               )}
 
               {post.status === "failed" && (
@@ -533,7 +665,7 @@ const PostCard = React.memo(
                     </p>
                   </div>
                   <button
-                    onClick={() => handlePost(post)}
+                    onClick={() => handleMediaChoice("gmb")}
                     className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
                   >
                     <RefreshCw size={14} /> Retry Delivery
@@ -577,56 +709,212 @@ const PostCard = React.memo(
           </div>
         </div>
 
-        {isLoading && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-lg z-[200] flex items-center justify-center px-4">
-            <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center">
-              {/* ICON */}
-              <div className="relative mb-6">
-                <div className="absolute inset-0 bg-[#EAB308]/20 rounded-full blur-xl animate-pulse"></div>
+        {(isLoading || isVideoSuccess) && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-[200] flex items-center justify-center px-4 animate-fadeIn">
 
-                <div className="relative w-20 h-20 flex items-center justify-center rounded-full bg-black/50">
-                  <Video className="w-10 h-10 text-[#EAB308] animate-pulse" />
-                </div>
-              </div>
+    <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-scaleIn relative">
 
-              {/* TITLE */}
-              <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Generating Video...
-              </h3>
+      {/* ❌ CLOSE BUTTON */}
+      {isVideoSuccess && (
+        <button
+          onClick={() => setIsVideoSuccess(false)}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"
+        >
+          ✕
+        </button>
+      )}
 
-              {/* SUBTEXT */}
-              <p className="text-sm text-slate-500 mb-5">
-                     ⏳ {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
-                </p>
+      {isVideoSuccess ? (
+        <>
+          {/* ✅ SUCCESS ICON */}
+          <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black shadow-inner">
 
-              {/* SLIDING BAR */}
-              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">
-                <div
-                  className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full"
-                  style={{
-                    animation: "slide 1.2s linear infinite",
-                  }}
-                ></div>
-              </div>
+  <svg
+    className="w-14 h-14 text-[#EAB308] animate-tick"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    viewBox="0 0 24 24"
+  >
+    <path
+      d="M5 13l4 4L19 7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="tick-path"
+    />
+  </svg>
 
-              {/* COUNTDOWN TIMER */}
-              <div className="flex flex-col items-center justify-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estimated Time</span>
-                <span className="text-2xl font-black text-[#EAB308] font-mono tracking-wider">{formatTime(timeLeft)}</span>
-              </div>
+</div>
 
-              {/* KEYFRAME */}
-              <style>
-                {`
-          @keyframes slide {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(300%); }
+          {/* TITLE */}
+          <h3 className="text-2xl font-extrabold text-[#EAB308] mb-2 animate-fadeUp">
+            Video Ready 🎉
+          </h3>
+
+          {/* SUBTEXT */}
+          <p className="text-sm text-slate-600 mb-6 animate-fadeUp delay-100">
+            Aapki video successfully generate ho gayi hai.  
+            Ab aap ise post ya download kar sakte ho 🚀
+          </p>
+
+          {/* DONE BUTTON */}
+          <button
+            onClick={() => setIsVideoSuccess(false)}
+            className="px-6 py-2.5 bg-[#EAB308] text-black rounded-xl font-semibold hover:scale-105 transition shadow-md animate-fadeUp delay-200"
+          >
+            Done
+          </button>
+        </>
+      ) : (
+        <>
+          {/* 🔄 LOADING UI */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-[#EAB308]/20 rounded-full blur-xl animate-pulse"></div>
+
+            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black/50">
+              <Video className="w-10 h-10 text-[#EAB308] animate-pulse" />
+            </div>
+          </div>
+
+          <h3 className="text-xl font-bold text-slate-900 mb-2">
+            Generating Video...
+          </h3>
+
+          <p className="text-sm text-slate-500 mb-5">
+            ⏳ {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
+          </p>
+
+          <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">
+            <div
+              className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full"
+              style={{
+                animation: "slide 1.2s linear infinite",
+              }}
+            ></div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+              Estimated Time
+            </span>
+            <span className="text-2xl font-black text-[#EAB308] font-mono tracking-wider">
+              {formatTime(timeLeft)}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* ✨ ANIMATIONS */}
+      <style>
+        {`
+
+          @keyframes tickDraw {
+  0% {
+    stroke-dasharray: 0 50;
+  }
+  100% {
+    stroke-dasharray: 50 0;
+  }
+}
+
+.tick-path {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: tickDraw 0.6s ease forwards;
+}
+
+.animate-tick {
+  animation: popIn 0.3s ease;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+        @keyframes slide {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+          from {
+            transform: scale(0.9);
+            opacity: 0;
           }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes bounceIn {
+          0% { transform: scale(0.8); opacity: 0; }
+          60% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-fadeIn { animation: fadeIn 0.3s ease; }
+        .animate-scaleIn { animation: scaleIn 0.35s ease; }
+        .animate-fadeUp { animation: fadeUp 0.4s ease forwards; }
+        .animate-bounceIn { animation: bounceIn 0.4s ease; }
         `}
-              </style>
+      </style>
+
+    </div>
+  </div>
+)}
+
+
+        
+
+        {/* Show More Modal */}
+        {showMoreModal.isOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="p-4 border-b border-black/5 flex items-center justify-between bg-slate-50">
+                <h3 className="text-sm font-bold text-slate-800">{showMoreModal.title}</h3>
+                <button
+                  onClick={closeShowMoreModal}
+                  className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-2">
+                {showMoreModal.items.map((item, idx) => (
+                  <div key={idx} className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-700 font-medium">
+                    {item}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
+
+        <MediaSelectionModal
+          isOpen={selectionModal.isOpen}
+          onClose={() => setSelectionModal({ isOpen: false, type: "" })}
+          onSelect={onMediaSelect}
+          imageUrl={imgUrl}
+          videoUrl={vidUrl}
+        />
       </>
     );
   },

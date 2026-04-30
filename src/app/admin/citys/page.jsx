@@ -2,9 +2,64 @@
 
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Plus, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import {
+  Box,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  CircularProgress,
+  Switch,
+  Tooltip,
+  ThemeProvider,
+  createTheme,
+  CssBaseline
+} from "@mui/material";
+import { Add, Edit, Delete, Visibility } from "@mui/icons-material";
+
+// Define a blue theme
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: "#1976d2", // Standard MUI Blue
+    },
+    secondary: {
+      main: "#f50057",
+    },
+    background: {
+      default: "#f4f6f8",
+    },
+  },
+  typography: {
+    fontFamily: "inherit", // Inherit Next.js font
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          borderRadius: "8px",
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: "12px",
+          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        },
+      },
+    },
+  },
+});
 
 export default function AdminCityServices() {
   const [pages, setPages] = useState([]);
@@ -36,74 +91,124 @@ export default function AdminCityServices() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  const toggleStatus = async (slug, currentStatus) => {
+    try {
+      // Optimistic update
+      setPages((prevPages) =>
+        prevPages.map((p) =>
+          p.citySlug === slug ? { ...p, isActive: !currentStatus } : p
+        )
+      );
+
+      await axios.put(`/api/admin/city-services/${slug}`, {
+        isActive: !currentStatus,
+      });
+      toast.success(`Page ${!currentStatus ? "activated" : "deactivated"}`);
+    } catch (error) {
+      toast.error("Failed to update status");
+      // Revert on error
+      fetchPages();
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">City Service Pages</h1>
-        <Link
-          href="/admin/city-services/new"
-          className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-2 px-4 rounded flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" /> Add New Page
-        </Link>
-      </div>
+    <ThemeProvider theme={theme}>
+      <Box sx={{ p: 4, maxWidth: "1200px", mx: "auto" }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+          <Typography variant="h4" fontWeight="bold" color="text.primary">
+            City Service Pages
+          </Typography>
+          <Button
+            component={Link}
+            href="/admin/citys/new"
+            variant="contained"
+            color="primary"
+            startIcon={<Add />}
+            disableElevation
+          >
+            Add New Page
+          </Button>
+        </Box>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-100 text-slate-600 border-b">
-              <th className="p-4 font-semibold">City Name</th>
-              <th className="p-4 font-semibold">Slug</th>
-              <th className="p-4 font-semibold">Status</th>
-              <th className="p-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pages?.map((page) => (
-              <tr key={page?._id} className="border-b hover:bg-slate-50">
-                <td className="p-4 font-medium">{page.cityName}</td>
-                <td className="p-4 text-slate-500">{page.citySlug}</td>
-                <td className="p-4">
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-semibold ${
-                      page?.isActive
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {page?.isActive ? "Active" : "Draft"}
-                  </span>
-                </td>
-                <td className="p-4 text-right">
-                  <div className="flex justify-end gap-3">
-                    <Link
-                      href={`/admin/city-services/edit/${page.citySlug}`}
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </Link>
-                    <button
-                      onClick={() => deletePage(page.citySlug)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {pages.length === 0 && (
-              <tr>
-                <td colSpan="4" className="p-8 text-center text-slate-500">
-                  No city service pages found. Create one to get started!
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ backgroundColor: "rgba(25, 118, 210, 0.08)" }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: "bold" }}>City Name</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Slug</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Status (Active)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: "bold" }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pages?.length > 0 ? (
+                pages.map((page) => (
+                  <TableRow key={page?._id} hover>
+                    <TableCell sx={{ fontWeight: 500 }}>{page.cityName}</TableCell>
+                    <TableCell sx={{ color: "text.secondary" }}>{page.citySlug}</TableCell>
+                    <TableCell>
+                      <Tooltip title={page.isActive ? "Deactivate" : "Activate"} placement="top">
+                        <Switch
+                          checked={page.isActive}
+                          onChange={() => toggleStatus(page.citySlug, page.isActive)}
+                          color="primary"
+                        />
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box display="flex" justifyContent="flex-end" gap={1}>
+                        <Tooltip title="View Public Page">
+                          <IconButton
+                            component={Link}
+                            href={`/services/${page.citySlug}`}
+                            target="_blank"
+                            color="info"
+                          >
+                            <Visibility />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Page">
+                          <IconButton
+                            component={Link}
+                            href={`/admin/citys/edit/${page.citySlug}`}
+                            color="primary"
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Page">
+                          <IconButton
+                            onClick={() => deletePage(page.citySlug)}
+                            color="error"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No city service pages found. Create one to get started!
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    </ThemeProvider>
   );
 }

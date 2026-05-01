@@ -25,14 +25,14 @@ import {
 } from "./performanceInsightsUtils.js";
 
 // ── Colours ───────────────────────────────────────────────────────────────────
-const BG        = "#1E293B";
+const BG        = "#F8FAFC";
 const WHITE     = "#FFFFFF";
-const BLACK     = "#0B0F19";
+const BLACK     = "#000000";
 const LEMON     = "#EAB308";
-const SILVER    = "#94A3B8";
+const SILVER    = "#475569";
 const GRAY      = "#64748B";
 const BORDER    = "#E2E8F0";
-const CARD_DARK = "#0F172A";
+const CARD_DARK = "#F8FAFC";
 
 const BLUE    = "#2563EB";
 const EMERALD = "#059669";
@@ -390,7 +390,7 @@ function buildKeywords(keywords, y) {
     const cy  = y + titleH + row * (CARD_H + CARD_GAP);
 
     // Dark card
-    parts.push(`<path d="${rr(cx, cy, CARD_W, CARD_H, 10)}" fill="${CARD_DARK}" stroke="${BORDER}" stroke-width="0.5"/>`);
+    parts.push(`<path d="${rr(cx, cy, CARD_W, CARD_H, 10)}" fill="${CARD_DARK}" stroke="${BORDER}" stroke-width="1"/>`);
 
     // Number badge
     const badgeSize = 26;
@@ -399,7 +399,7 @@ function buildKeywords(keywords, y) {
 
     // Keyword text
     const kwText = esc((kw.searchKeyword || kw.keyword || "—").slice(0, 36));
-    parts.push(`<text x="${cx + 44}" y="${cy + 21}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${kwText}</text>`);
+    parts.push(`<text x="${cx + 44}" y="${cy + 21}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${BLACK}">${kwText}</text>`);
 
     // Count
     const countVal = kw.insightsValue?.value
@@ -407,7 +407,7 @@ function buildKeywords(keywords, y) {
       : kw.insightsValue?.threshold
         ? `<${kw.insightsValue.threshold}`
         : "0";
-    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 21}" text-anchor="end" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${WHITE}">${esc(countVal)}</text>`);
+    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 21}" text-anchor="end" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${BLACK}">${esc(countVal)}</text>`);
     parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 34}" text-anchor="end" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">SEARCHES</text>`);
   });
 
@@ -534,14 +534,14 @@ export async function generateInsightsPdf({
   const svg       = buildFullSvg({ businessName, locationName, city, dateRange, metrics, prevMetrics, prevHasData, monthlyVis, monthlyEng, keywords });
   const svgBuf    = Buffer.from(svg, "utf8");
 
-  // Opaque RGB PNG (avoids alpha / smask quirks in PDF viewers). One full raster first.
-  const pngBuffer = await sharp(svgBuf, { density: 192 })
+  // Opaque RGB raster (JPEG) to avoid PNG/smask quirks in some PDF viewers.
+  const rasterBuffer = await sharp(svgBuf, { density: 192 })
     .resize({ width: W * 2, kernel: sharp.kernel.lanczos3 })
     .flatten({ background: BG })
-    .png({ compressionLevel: 6 })
+    .jpeg({ quality: 92, mozjpeg: true })
     .toBuffer();
 
-  const meta = await sharp(pngBuffer).metadata();
+  const meta = await sharp(rasterBuffer).metadata();
   const imgW = meta.width  || W * 2;
   const imgH = meta.height || 1000;
   if (!imgW || !imgH) {
@@ -549,7 +549,7 @@ export async function generateInsightsPdf({
   }
 
   // ── 3. One giant embedded image + clip() breaks many PDF viewers (black/grey pages).
-  //    Slice into one PNG per A4 page with sharp.extract — each page is a normal image.
+  //    Slice into one JPEG per A4 page with sharp.extract — each page is a normal image.
   const A4_W      = 595.28;
   const A4_H      = 841.89;
   const scale     = A4_W / imgW;
@@ -578,9 +578,9 @@ export async function generateInsightsPdf({
         let page = 0;
         while (srcY < imgH) {
           const sliceH = Math.min(pageH_px, imgH - srcY);
-          const sliceBuf = await sharp(pngBuffer)
+          const sliceBuf = await sharp(rasterBuffer)
             .extract({ left: 0, top: srcY, width: imgW, height: sliceH })
-            .png({ compressionLevel: 6 })
+            .jpeg({ quality: 90, mozjpeg: true })
             .toBuffer();
 
           if (page > 0) doc.addPage();

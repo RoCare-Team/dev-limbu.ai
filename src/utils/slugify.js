@@ -1,9 +1,8 @@
 /**
- * Generates a unique slug for a business listing based on title, locality, and sub-locality.
- * This is the universal slug generator for LimbuAI.
- * 
- * @param {Object} listing - The business listing object
- * @returns {string} - The generated slug
+ * Generates a stable review slug based on title + locality + street line.
+ *
+ * @param {Object} listing
+ * @returns {string}
  */
 export const generateUniversalSlug = (listing) => {
   if (!listing) return "";
@@ -15,23 +14,15 @@ export const generateUniversalSlug = (listing) => {
     listing.profile?.address?.locality ||
     "";
 
-  const addressLines =
-    listing.address?.addressLines ||
-    listing.storefrontAddress?.addressLines ||
-    [];
+  const streetLineRaw =
+    listing.addressLine ||
+    listing.storefrontAddress?.addressLines?.[0] ||
+    listing.address?.addressLines?.[0] ||
+    (typeof listing.address === "string" ? listing.address.split(",")[0] : "") ||
+    "";
 
-  // Extract sub-locality (e.g., "Maninagar" from the end of the address)
-  let subLocality = "";
-  if (addressLines.length > 0) {
-    const lastLine = addressLines[addressLines.length - 1] || "";
-    const parts = lastLine.split(',').map(p => p.trim()).filter(p => p);
-    if (parts.length > 0) {
-      subLocality = parts[parts.length - 1];
-    }
-  }
-
-  // Clean and combine
-  const combined = `${title}${locality ? `-${locality}` : ""}${subLocality ? `-${subLocality}` : ""}`;
+  const streetLine = String(streetLineRaw).trim();
+  const combined = `${title}${locality ? `-${locality}` : ""}${streetLine ? `-${streetLine}` : ""}`;
 
   return combined
     .toLowerCase()

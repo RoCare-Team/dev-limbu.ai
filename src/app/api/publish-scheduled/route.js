@@ -316,6 +316,9 @@ export async function GET() {
             if (!post.whenPosted) post.whenPosted = {};
             post.whenPosted.facebook = "posted";
             post.markModified('whenPosted');
+            if (!post.mediaStatus) post.mediaStatus = {};
+            post.mediaStatus.image = "posted";
+            post.markModified('mediaStatus');
           } else {
             page.error = result.error;
             failed = true;
@@ -364,6 +367,9 @@ export async function GET() {
             if (!post.whenPosted) post.whenPosted = {};
             post.whenPosted.instagram = "posted";
             post.markModified('whenPosted');
+            if (!post.mediaStatus) post.mediaStatus = {};
+            post.mediaStatus.image = "posted";
+            post.markModified('mediaStatus');
           } else {
             account.error = result.error;
             failed = true;
@@ -446,6 +452,9 @@ export async function GET() {
                 if (!post.whenPosted) post.whenPosted = {};
                 post.whenPosted.gmb = "posted";
                 post.markModified('whenPosted');
+                if (!post.mediaStatus) post.mediaStatus = {};
+                post.mediaStatus[post.mediaType === "video" ? "video" : "image"] = "posted";
+                post.markModified('mediaStatus');
 
                 processedLocIds.add(loc.locationId);
 

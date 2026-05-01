@@ -2,7 +2,7 @@
 
 import React from "react";
 
-const WHATSAPP_LINK = "https://wa.me/919289344726";
+const WHATSAPP_LINK = "https://wa.me/917065178662";
 
 export default function WhatsAppButton() {
   return (

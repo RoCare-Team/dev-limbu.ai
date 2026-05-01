@@ -7,6 +7,7 @@ export const maxDuration = 300;
 export async function POST(req) {
   try {
     const { post, pageData, caption, media, userId } = await req.json();
+    const postedMediaType = media?.type === "video" ? "video" : "image";
 
     console.log("Received Facebook publish request with payload:", {
       post,
@@ -163,6 +164,7 @@ export async function POST(req) {
       facebookPageAccessToken: accessToken,
       status: "posted",
       whenPosted: { ...(post.whenPosted || {}), facebook: true },
+      mediaStatus: { [postedMediaType]: "posted" },
     });
 
     return NextResponse.json({ success: true, id: facebookPostId });

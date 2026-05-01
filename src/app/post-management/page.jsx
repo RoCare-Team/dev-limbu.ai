@@ -1,7 +1,5 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-
 import {
   fetchAllPostsAction,
   getUserWalletAction,
@@ -63,6 +61,11 @@ import animationData from "@/assets/animation/Loading.json";
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
+// modal
+import GMBModal from "../../components/post-management/component-modal/GmbModall";
+import PostPublishModal from "../../components/post-management/component-modal/PostPublishModal";
+import ImageGeneratedModal from "../../components/post-management/component-modal/ImageGeneratedModal";
+
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
 
@@ -91,6 +94,9 @@ export default function PostManagementPage() {
     showPinterestModal: false,
   });
 
+  // image success generated modal
+  const [isImageGenerated, setIsImageGenerated] = useState(false);
+
   const updateUiState = useCallback((updates) => {
     setUiState((prev) => ({ ...prev, ...updates }));
   }, []);
@@ -113,7 +119,7 @@ export default function PostManagementPage() {
   const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
 
-  // buiness not connected 
+  // buiness not connected
   const [showGmbExpiredModal, setShowGmbExpiredModal] = useState(false);
 
   // --- Generation Inputs ---
@@ -438,75 +444,91 @@ export default function PostManagementPage() {
     [userId, showToast, updateUiState],
   );
 
-  const handleAiAgent = useCallback(async (selectedAssets = [], meta = {}) => {
-    if (!prompt.trim()) return showToast("Enter prompt!", "error");
-    if (!userId) return;
-    const mode = meta.mode === "manual" ? "manual" : "ai";
-    const instructions =
-      typeof meta.instructions === "string" ? meta.instructions : "";
-    try {
-      const userData = await getUserWalletAction(userId);
-      const currentBalance = userData?.wallet ?? 0;
-      setUserWallet(currentBalance);
+  const handleAiAgent = useCallback(
+    async (selectedAssets = [], meta = {}) => {
+      if (!prompt.trim()) return showToast("Enter prompt!", "error");
+      if (!userId) return;
+      const mode = meta.mode === "manual" ? "manual" : "ai";
+      const instructions =
+        typeof meta.instructions === "string" ? meta.instructions : "";
+      try {
+        const userData = await getUserWalletAction(userId);
+        const currentBalance = userData?.wallet ?? 0;
+        setUserWallet(currentBalance);
 
-      if (currentBalance < AI_IMAGE_GENERATION_COINS) {
-        setRequiredCoins(AI_IMAGE_GENERATION_COINS);
-        updateUiState({ showInsufficientBalance: true });
-        return;
-      }
+        if (currentBalance < AI_IMAGE_GENERATION_COINS) {
+          setRequiredCoins(AI_IMAGE_GENERATION_COINS);
+          updateUiState({ showInsufficientBalance: true });
+          return;
+        }
 
-      updateUiState({ isGenerating: true, countdown: 59 });
-      const timer = setInterval(() => {
-        setUiState(prev => {
-          if (prev.countdown <= 1) { clearInterval(timer); return { ...prev, countdown: 0 }; }
-          return { ...prev, countdown: prev.countdown - 1 };
+        updateUiState({ isGenerating: true, countdown: 59 });
+        const timer = setInterval(() => {
+          setUiState((prev) => {
+            if (prev.countdown <= 1) {
+              clearInterval(timer);
+              return { ...prev, countdown: 0 };
+            }
+            return { ...prev, countdown: prev.countdown - 1 };
+          });
+        }, 1000);
+
+        let logoBase64 = logo ? await fileToBase64(logo) : null;
+        const res = await generateWithAiAgentAction(
+          prompt,
+          stripBase64(logoBase64),
+          selectedAssets.map((a) => ({ ...a, url: stripBase64(a.url) })),
+          { mode, instructions },
+        );
+        clearInterval(timer);
+        if (!res.success) throw new Error(res.error || "AI generation failed");
+
+        const data = res.data || {};
+        const { gmb_des, fb_des, ig_des } = normalizePlatformDescriptions({
+          ...res,
+          ...data,
         });
-      }, 1000);
 
-      let logoBase64 = logo ? await fileToBase64(logo) : null;
-      const res = await generateWithAiAgentAction(
-        prompt,
-        stripBase64(logoBase64),
-        selectedAssets.map(a => ({ ...a, url: stripBase64(a.url) })),
-        { mode, instructions },
-      );
-      clearInterval(timer);
-      if (!res.success) throw new Error(res.error || "AI generation failed");
+        // ✅ Save post first
+        const saved = await savePostAction({
+          userId,
+          aiOutput: data.output,
+          description: data.description || gmb_des || "Generated",
+          gmbDescription: gmb_des,
+          fbDescription: fb_des,
+          igDescription: ig_des,
+          logoUrl: data.logoUrl,
+          status: "pending",
+          promat: prompt,
+          locations: [],
+        });
+        if (!saved.success)
+          throw new Error(saved.error || "Failed to save post");
 
-      const data = res.data || {};
-      const { gmb_des, fb_des, ig_des } = normalizePlatformDescriptions({ ...res, ...data });
+        // ✅ Deduct coins ONLY after post saved successfully
+        const walletRes = await deductFromWalletAction(userId, {
+          amount: AI_IMAGE_GENERATION_COINS,
+          type: "deduct",
+          reason: "image_generated",
+        });
+        if (walletRes?.error) throw new Error(walletRes.error);
 
-      // ✅ Save post first
-      const saved = await savePostAction({
-        userId, aiOutput: data.output,
-        description: data.description || gmb_des || "Generated",
-        gmbDescription: gmb_des, fbDescription: fb_des, igDescription: ig_des,
-        logoUrl: data.logoUrl, status: "pending", promat: prompt, locations: []
-      });
-      if (!saved.success) throw new Error(saved.error || "Failed to save post");
+        setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
 
-      // ✅ Deduct coins ONLY after post saved successfully
-      const walletRes = await deductFromWalletAction(userId, {
-        amount: AI_IMAGE_GENERATION_COINS, type: "deduct", reason: "image_generated"
-      });
-      if (walletRes?.error) throw new Error(walletRes.error);
+        showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
+        emitWalletDeduct(AI_IMAGE_GENERATION_COINS); // ✅ sidebar update
 
-      setUserWallet(prev => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
-
-      showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
-      emitWalletDeduct(AI_IMAGE_GENERATION_COINS); // ✅ sidebar update
-
-
-      setPosts(prev => [saved.data, ...prev]);
-      setPreviewData(saved.data);
-      showToast("Generated! 🎉");
-
-    } catch (e) {
-      showToast(e.message || "Generation failed", "error");
-    } finally {
-      updateUiState({ isGenerating: false, countdown: 0 });
-    }
-  }, [prompt, userId, logo, showToast, updateUiState]);
+        setPosts((prev) => [saved.data, ...prev]);
+        setPreviewData(saved.data);
+        showToast("Generated! 🎉");
+      } catch (e) {
+        showToast(e.message || "Generation failed", "error");
+      } finally {
+        updateUiState({ isGenerating: false, countdown: 0 });
+      }
+    },
+    [prompt, userId, logo, showToast, updateUiState],
+  );
 
   const handleImageGenerateWithAssets = useCallback(
     async (selectedAssets = [], businessName, keywords, meta = {}) => {
@@ -563,8 +585,8 @@ export default function PostManagementPage() {
           ),
           logoImage: stripBase64(
             selectedAssets.find((a) => a.name === "Logo")?.url ||
-            logoBase64 ||
-            "",
+              logoBase64 ||
+              "",
           ),
           platform: selectedPlatforms.join(",") || "gmb",
           mode,
@@ -630,7 +652,7 @@ export default function PostManagementPage() {
 
         setPosts((prev) => [saved.data, ...prev]);
         setPreviewData(saved.data);
-        showToast("Generated! 🎉");
+        setIsImageGenerated(true);
       } catch (e) {
         console.error("handleImageGenerateWithAssets error:", e);
         showToast(e.message || "Generation failed", "error");
@@ -650,65 +672,88 @@ export default function PostManagementPage() {
     ],
   );
 
-  const handleGenerateClick = useCallback(async (
-    selectedAssets,
-    useAssetsFlow,
-    businessName,
-    keywords,
-    options = {},
-  ) => {
-    const {
-      mode: modeFromUi = "ai",
-      instructions = "",
-      includeInstructionsInPrompt = false,
-    } = options;
+  const handleGenerateClick = useCallback(
+    async (
+      selectedAssets,
+      useAssetsFlow,
+      businessName,
+      keywords,
+      options = {},
+    ) => {
+      const {
+        mode: modeFromUi = "ai",
+        instructions = "",
+        includeInstructionsInPrompt = false,
+      } = options;
 
-    /** Sent to APIs as exactly `"ai"` or `"manual"` */
-    const generationMode = modeFromUi === "manual" ? "manual" : "ai";
-    const instructionsForApi =
-      includeInstructionsInPrompt && typeof instructions === "string"
-        ? instructions
-        : "";
+      /** Sent to APIs as exactly `"ai"` or `"manual"` */
+      const generationMode = modeFromUi === "manual" ? "manual" : "ai";
+      const instructionsForApi =
+        includeInstructionsInPrompt && typeof instructions === "string"
+          ? instructions
+          : "";
 
-    const generationMeta = {
-      mode: generationMode,
-      instructions: instructionsForApi,
-    };
+      const generationMeta = {
+        mode: generationMode,
+        instructions: instructionsForApi,
+      };
 
-    const resolvedBusinessName = resolveBusinessNameForGeneration({
-      fromInput: typeof businessName === "string" ? businessName : "",
-      selectedBusinessName: selectedBusiness?.name,
-      bussinessTitle,
+      const resolvedBusinessName = resolveBusinessNameForGeneration({
+        fromInput: typeof businessName === "string" ? businessName : "",
+        selectedBusinessName: selectedBusiness?.name,
+        bussinessTitle,
+        availableLocations,
+        prompt,
+      });
+
+      if (
+        typeof window !== "undefined" &&
+        window.innerWidth < 1024 &&
+        previewRef.current
+      ) {
+        previewRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+
+      let processedKeywords = Array.isArray(keywords)
+        ? keywords.join(", ")
+        : keywords || "";
+      if (generationMode !== "manual" && !processedKeywords.trim()) {
+        setKeywordError("Please fill at least one keyword");
+        return;
+      }
+      setKeywordError("");
+
+      if (useAssetsFlow === "manual") {
+        await handleManualPost(selectedAssets);
+      } else if (useAssetsFlow) {
+        await handleImageGenerateWithAssets(
+          selectedAssets,
+          resolvedBusinessName,
+          processedKeywords,
+          generationMeta,
+        );
+      } else {
+        await handleAiAgent(selectedAssets, generationMeta);
+      }
+    },
+    [
       availableLocations,
+      bussinessTitle,
       prompt,
-    });
+      selectedBusiness?.name,
+      handleManualPost,
+      handleImageGenerateWithAssets,
+      handleAiAgent,
+    ],
+  );
 
-    if (typeof window !== "undefined" && window.innerWidth < 1024 && previewRef.current) {
-      previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    let processedKeywords = Array.isArray(keywords) ? keywords.join(", ") : (keywords || "");
-    if (generationMode !== "manual" && !processedKeywords.trim()) {
-      setKeywordError("Please fill at least one keyword");
-      return;
-    }
-    setKeywordError("");
-
-    if (useAssetsFlow === "manual") {
-      await handleManualPost(selectedAssets);
-    } else if (useAssetsFlow) {
-      await handleImageGenerateWithAssets(
-        selectedAssets,
-        resolvedBusinessName,
-        processedKeywords,
-        generationMeta,
-      );
-    } else {
-      await handleAiAgent(selectedAssets, generationMeta);
-    }
-  }, [availableLocations, bussinessTitle, prompt, selectedBusiness?.name, handleManualPost, handleImageGenerateWithAssets, handleAiAgent]);
-
-  const handleDateChange = useCallback((id, value) => setScheduleDates(prev => ({ ...prev, [id]: value })), []);
+  const handleDateChange = useCallback(
+    (id, value) => setScheduleDates((prev) => ({ ...prev, [id]: value })),
+    [],
+  );
 
   const handleUpdateStatus = useCallback(
     async (
@@ -779,14 +824,14 @@ export default function PostManagementPage() {
       if (sources.length > 0) {
         // Check for GMB Session Expiry before scheduling if GMB is selected
         if (
-  sources.includes("gmb") &&
-  (!session ||
-    !session.accessToken ||
-    session.error === "RefreshAccessTokenError")
-) {
-  handleGmbSessionExpired();
-  return;
-}
+          sources.includes("gmb") &&
+          (!session ||
+            !session.accessToken ||
+            session.error === "RefreshAccessTokenError")
+        ) {
+          handleGmbSessionExpired();
+          return;
+        }
 
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
@@ -962,13 +1007,13 @@ export default function PostManagementPage() {
 
       // Check for GMB Session Expiry before attempting to delete from GMB
       if (
-  !session ||
-  !session.accessToken ||
-  session.error === "RefreshAccessTokenError"
-) {
-  handleGmbSessionExpired();
-  return;
-}
+        !session ||
+        !session.accessToken ||
+        session.error === "RefreshAccessTokenError"
+      ) {
+        handleGmbSessionExpired();
+        return;
+      }
 
       setPostToAction(post);
       updateUiState({ showDeleteLocationModal: true });
@@ -1020,56 +1065,65 @@ export default function PostManagementPage() {
           );
         }
 
-        emitWalletDeduct(totalCost); 
+        emitWalletDeduct(totalCost);
 
-        const locs = availableLocations.filter((l) => selectedIds.includes(l.id));
-        
+        const locs = availableLocations.filter((l) =>
+          selectedIds.includes(l.id),
+        );
+
         let successfulLocs = [];
         let failedLocs = [];
 
         // Post sequentially to ensure each location is processed and tracked properly
         for (const l of locs) {
-           try {
-             const payload = {
-                account: l.accountId,
-                locationData: [{
+          try {
+            const payload = {
+              account: l.accountId,
+              locationData: [
+                {
                   city: l.locationId,
                   cityName: l.locality,
                   bookUrl: l.websiteUrl,
-                }],
-                output: selectedMediaForAction?.url || postToAction.aiOutput,
-                description: postToAction.description,
-                accessToken: session?.accessToken,
-                checkmark: checkmark || postToAction.checkmark,
-              };
+                },
+              ],
+              output: selectedMediaForAction?.url || postToAction.aiOutput,
+              description: postToAction.description,
+              accessToken: session?.accessToken,
+              checkmark: checkmark || postToAction.checkmark,
+            };
 
-              const { ok } = await postToGmbAction(payload);
-              
-              if (ok) {
-                 successfulLocs.push({ ...l, isPosted: true });
-              } else {
-                 failedLocs.push(l);
-              }
-           } catch (err) {
-             console.error(`Failed to post to location ${l.name}`, err);
-             failedLocs.push(l);
-           }
+            const { ok } = await postToGmbAction(payload);
+
+            if (ok) {
+              successfulLocs.push({ ...l, isPosted: true });
+            } else {
+              failedLocs.push(l);
+            }
+          } catch (err) {
+            console.error(`Failed to post to location ${l.name}`, err);
+            failedLocs.push(l);
+          }
         }
 
         // Refund for failed locations
         if (failedLocs.length > 0) {
-           const refundAmount = failedLocs.length * 20;
-           await deductFromWalletAction(userId, {
-              amount: refundAmount,
-              type: "credit",
-              reason: "Refund-Post-Failed-Partial",
-            });
-            setUserWallet((prev) => prev + refundAmount);
-            emitWalletCredit(refundAmount);
-            showToast(`Posted to ${successfulLocs.length}, Failed: ${failedLocs.length}. Refunded ₹${refundAmount}`, "warning");
+          const refundAmount = failedLocs.length * 20;
+          await deductFromWalletAction(userId, {
+            amount: refundAmount,
+            type: "credit",
+            reason: "Refund-Post-Failed-Partial",
+          });
+          setUserWallet((prev) => prev + refundAmount);
+          emitWalletCredit(refundAmount);
+          showToast(
+            `Posted to ${successfulLocs.length}, Failed: ${failedLocs.length}. Refunded ₹${refundAmount}`,
+            "warning",
+          );
         } else if (successfulLocs.length > 0) {
-           showToast(`Successfully posted to all ${successfulLocs.length} locations! 🎉`);
-           setIsSuccess(true);
+          showToast(
+            `Successfully posted to all ${successfulLocs.length} locations! 🎉`,
+          );
+          setIsSuccess(true);
         }
 
         if (successfulLocs.length > 0) {
@@ -1080,18 +1134,20 @@ export default function PostManagementPage() {
               locations: successfulLocs, // Override with only successful ones
               status: "posted",
               whenPosted: { ...postToAction.whenPosted, gmb: true },
+              mediaStatus: {
+                [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
+              },
             });
             fetchPosts(1, true);
         } else {
-           throw new Error("All GMB posts failed");
+          throw new Error("All GMB posts failed");
         }
-
       } catch (err) {
         showToast(err.message || "Post failed", "error");
       } finally {
         setTimeout(() => {
           setIsPosting(false);
-        }, 1200); 
+        }, 1200);
 
         setPostToAction(null);
         setSelectedMediaForAction(null);
@@ -1111,8 +1167,8 @@ export default function PostManagementPage() {
   );
 
   const handleGmbSessionExpired = () => {
-  setShowGmbExpiredModal(true);
-};
+    setShowGmbExpiredModal(true);
+  };
 
   const handlePost = useCallback(
     async (post, media = null) => {
@@ -1121,13 +1177,13 @@ export default function PostManagementPage() {
 
       // Check for GMB Session Expiry before showing the location modal
       if (
-  !session ||
-  !session.accessToken ||
-  session.error === "RefreshAccessTokenError"
-) {
-  setShowGmbExpiredModal(true);
-  return;
-}
+        !session ||
+        !session.accessToken ||
+        session.error === "RefreshAccessTokenError"
+      ) {
+        setShowGmbExpiredModal(true);
+        return;
+      }
 
       const userData = await getUserWalletAction(userId);
       setUserWallet(userData.wallet || 0);
@@ -1247,7 +1303,7 @@ export default function PostManagementPage() {
       try {
         const p = JSON.parse(stored);
         if (p.length) setBussinessTitle(p[0].title);
-      } catch (e) { }
+      } catch (e) {}
     }
   }, []);
 
@@ -1293,15 +1349,15 @@ export default function PostManagementPage() {
   }, [isPosting]);
 
   useEffect(() => {
-  if (!isSuccess) return;
+    if (!isSuccess) return;
 
-  const t = setTimeout(() => {
-    // agar auto close karna hai to yaha likh
-    // setIsSuccess(false);
-  }, 2000);
+    const t = setTimeout(() => {
+      // agar auto close karna hai to yaha likh
+      // setIsSuccess(false);
+    }, 2000);
 
-  return () => clearTimeout(t);
-}, [isSuccess]);
+    return () => clearTimeout(t);
+  }, [isSuccess]);
 
   return (
     <div className="text-slate-900">
@@ -1482,209 +1538,16 @@ export default function PostManagementPage() {
         )}
 
         {/* gmb post success modal */}
-        {(isPosting || isSuccess) && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center px-4 animate-overlayFade">
-
-    <div className="w-full max-w-lg bg-white rounded-[28px] shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative overflow-hidden animate-modalPop">
-
-      {/* 🔥 TOP GLOW */}
-      <div className="absolute -top-24 w-[350px] h-[350px] bg-[#EAB308]/20 blur-[120px] rounded-full"></div>
-
-      {isSuccess ? (
-        <>
-          {/* ❌ CLOSE BUTTON */}
-          <button
-            onClick={() => setIsSuccess(false)}
-            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"
-          >
-            ✕
-          </button>
-
-          {/* ✅ SUCCESS ICON (ANIMATED TICK) */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-green-400/20 rounded-full blur-xl animate-pulse"></div>
-
-            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-green-100 shadow-inner">
-
-              <svg
-                className="w-14 h-14 text-green-600 animate-tick"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M5 13l4 4L19 7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="tick-path"
-                />
-              </svg>
-
-            </div>
-          </div>
-
-          {/* TITLE */}
-         <h3 className="text-2xl font-extrabold text-yellow-400 mb-2">
-   Post Published Successfully!
-</h3>
-
-<p className="text-sm text-slate-600 mb-6">
-  Your content is now live on {postingPlatform}. Sit back and watch the engagement grow 📈
-</p>
-
-          {/* DONE BUTTON */}
-          <button
-            onClick={() => setIsSuccess(false)}
-            className="px-6 py-2.5 bg-[#EAB308] text-white rounded-xl font-semibold hover:scale-105 transition shadow-md animate-fadeUp delay-200"
-          >
-            Done
-          </button>
-        </>
-      ) : (
-        <>
-          {/* 🔄 LOADING ICON */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 rounded-full bg-[#EAB308]/30 blur-xl animate-pulse"></div>
-
-            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30">
-              <Send className="w-12 h-12 text-[#EAB308] animate-bounce" />
-            </div>
-          </div>
-
-          {/* TITLE */}
-          <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
-            Publishing to {postingPlatform}
-          </h3>
-
-          {/* SUBTEXT */}
-          <p className="text-sm text-slate-500 mb-6 max-w-sm leading-relaxed">
-            {messages[msgIndex]}{" "}
-            <span className="text-[#EAB308] font-semibold">
-              ({String(timeLeft).padStart(2, "0")}s)
-            </span>
-          </p>
-
-          {/* PROGRESS */}
-          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-5 relative">
-            <div
-              className="h-full bg-[#EAB308] transition-all duration-1000"
-              style={{
-                width: `${((10 - timeLeft) / 10) * 100}%`,
-              }}
-            ></div>
-
-            <div className="absolute top-0 left-0 h-full w-1/3 bg-white/30 animate-slide"></div>
-          </div>
-
-          {/* STEPS */}
-          <div className="flex flex-col gap-3 text-sm w-full max-w-sm text-left">
-
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <p className="text-slate-700 font-medium">
-                Connecting to {postingPlatform}...
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-              <p className="text-slate-700 font-medium">
-                Uploading your content...
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-slate-300 rounded-full animate-pulse"></div>
-              <p className="text-slate-500 font-medium">
-                Finalizing post<span className="ml-1">{dots}</span>
-              </p>
-            </div>
-
-          </div>
-        </>
-      )}
-
-      {/* ✨ ANIMATIONS */}
-      <style>
-        {`
-        @keyframes slide {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(300%); }
-        }
-
-        @keyframes overlayFade {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        @keyframes modalPop {
-          from {
-            opacity: 0;
-            transform: scale(0.9) translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes tickDraw {
-          from { stroke-dashoffset: 50; }
-          to { stroke-dashoffset: 0; }
-        }
-
-        @keyframes popIn {
-          0% { transform: scale(0.5); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-
-        .tick-path {
-          stroke-dasharray: 50;
-          stroke-dashoffset: 50;
-          animation: tickDraw 0.6s ease forwards;
-        }
-
-        .animate-tick {
-          animation: popIn 0.3s ease;
-        }
-
-        .animate-overlayFade {
-          animation: overlayFade 1s ease;
-        }
-
-        .animate-modalPop {
-          animation: modalPop 0.35s ease;
-        }
-
-        .animate-fadeUp {
-          animation: fadeUp 1s ease forwards;
-        }
-
-        .animate-fadeUp.delay-100 {
-          animation-delay: 0.1s;
-        }
-
-        .animate-fadeUp.delay-200 {
-          animation-delay: 1s;
-        }
-        `}
-      </style>
-
-    </div>
-  </div>
-)}
+        <PostPublishModal
+          isPosting={isPosting}
+          isSuccess={isSuccess}
+          setIsSuccess={setIsSuccess}
+          postingPlatform={postingPlatform}
+          messages={messages}
+          msgIndex={msgIndex}
+          timeLeft={timeLeft}
+          dots={dots}
+        />
 
         {uiState.showSuccess && (
           <SuccessOverlay
@@ -1701,7 +1564,25 @@ export default function PostManagementPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
           <div className="lg:col-span-7">
-            <PostInput prompt={prompt} setPrompt={setPrompt} onGenerate={handleGenerateClick} onManualPost={handleManualPost} loading={uiState.isGenerating} logo={logo} setLogo={setLogo} assets={userAssets} setUserAssets={setUserAssets} fetchUserAssets={fetchUserAssets} assetId={assetId} showToast={showToast} selectedAssets={selectedAssets} setSelectedAssets={setSelectedAssets} bussinessTitle={bussinessTitle} availableLocations={availableLocations} keywordError={keywordError} />
+            <PostInput
+              prompt={prompt}
+              setPrompt={setPrompt}
+              onGenerate={handleGenerateClick}
+              onManualPost={handleManualPost}
+              loading={uiState.isGenerating}
+              logo={logo}
+              setLogo={setLogo}
+              assets={userAssets}
+              setUserAssets={setUserAssets}
+              fetchUserAssets={fetchUserAssets}
+              assetId={assetId}
+              showToast={showToast}
+              selectedAssets={selectedAssets}
+              setSelectedAssets={setSelectedAssets}
+              bussinessTitle={bussinessTitle}
+              availableLocations={availableLocations}
+              keywordError={keywordError}
+            />
             {/* <button type="button" onClick={() => updateUiState({ imageToVideoOpen: true })} className="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 py-3 font-bold text-amber-900 shadow-sm"><Video className="w-5 h-5" /> Image to Video</button> */}
           </div>
           <div
@@ -1790,140 +1671,15 @@ export default function PostManagementPage() {
               </div>
             )}
 
-            
-    {showGmbExpiredModal && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center px-4 animate-overlayFade">
+            <GMBModal
+              showGmbExpiredModal={showGmbExpiredModal}
+              setShowGmbExpiredModal={setShowGmbExpiredModal}
+            />
 
-    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.25)] p-8 text-center overflow-hidden animate-modalPop">
-
-      {/* 🔥 TOP GLOW */}
-      <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-[#EAB308]/20 blur-[120px] rounded-full animate-glowPulse"></div>
-
-      {/* ICON */}
-      <div className="relative mb-6 animate-bounceIn">
-        <div className="w-20 h-20 mx-auto flex items-center justify-center rounded-full bg-gray-800 border-red-200 shadow-inner">
-          <span className="text-4xl">⚠️</span>
-        </div>
-      </div>
-
-      {/* TITLE */}
-      <h3 className="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight animate-fadeUp">
-        Connect Your Business First
-      </h3>
-
-      {/* SUBTEXT */}
-      <p className="text-sm text-slate-600 mb-3 leading-relaxed px-2 animate-fadeUp delay-100">
-        Your Google Business account is not connected. Please reconnect your account to continue posting, scheduling, or managing your content.
-      </p>
-
-      {/* ERROR LINE */}
-      <p className="text-xs text-red-500 font-medium mb-6 animate-fadeUp delay-200">
-        ⚠ Google session expired
-      </p>
-
-      {/* BUTTONS */}
-      <div className="flex gap-3 justify-center animate-fadeUp delay-300">
-
-        <button
-          onClick={() => setShowGmbExpiredModal(false)}
-          className="px-5 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 transition"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-          className="px-6 py-2 rounded-xl bg-[#EAB308] text-white font-semibold hover:scale-105 transition"
-        >
-          Connect Business
-        </button>
-
-      </div>
-
-      {/* 🔥 BOTTOM LINE */}
-      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#EAB308] to-transparent opacity-40"></div>
-
-      {/* ✨ ANIMATIONS */}
-      <style>
-        {`
-        @keyframes overlayFade {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        @keyframes modalPop {
-          0% {
-            opacity: 0;
-            transform: scale(0.85) translateY(30px);
-          }
-          60% {
-            transform: scale(1.03);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes bounceIn {
-          0% { transform: scale(0.6); opacity: 0; }
-          60% { transform: scale(1.1); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-
-        @keyframes glowPulse {
-          0% { opacity: 0.5; transform: scale(0.95); }
-          100% { opacity: 1; transform: scale(1.05); }
-        }
-
-        .animate-overlayFade {
-          animation: overlayFade 0.25s ease;
-        }
-
-        .animate-modalPop {
-          animation: modalPop 0.4s ease;
-        }
-
-        .animate-fadeUp {
-          animation: fadeUp 0.4s ease forwards;
-        }
-
-        .animate-fadeUp.delay-100 {
-          animation-delay: 0.1s;
-        }
-
-        .animate-fadeUp.delay-200 {
-          animation-delay: 0.2s;
-        }
-
-        .animate-fadeUp.delay-300 {
-          animation-delay: 0.3s;
-        }
-
-        .animate-bounceIn {
-          animation: bounceIn 0.4s ease;
-        }
-
-        .animate-glowPulse {
-          animation: glowPulse 2s ease-in-out infinite alternate;
-        }
-        `}
-      </style>
-
-    </div>
-  </div>
-)}
+            <ImageGeneratedModal
+              isOpen={isImageGenerated}
+              onClose={() => setIsImageGenerated(false)}
+            />
           </>
         ) : (
           <div className="bg-white rounded-3xl p-16 text-center border-3 border-dashed border-slate-200 shadow-xl">
@@ -1938,5 +1694,3 @@ export default function PostManagementPage() {
     </div>
   );
 }
-
-

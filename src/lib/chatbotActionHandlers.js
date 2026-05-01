@@ -359,7 +359,10 @@ async function handleHealthScore({ location, email, accessToken }) {
  * URL: https://limbu.ai/reviews/<slug>
  */
 function buildReviewUrl(title = "", locality = "", address = "") {
-  const slug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
+  const streetLine = String(address || "")
+    .split(",")[0]
+    .trim();
+  const slug = `${title}${locality ? `-${locality}` : ""}${streetLine ? `-${streetLine}` : ""}`
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "")
@@ -400,16 +403,12 @@ async function handleMagicQr({ location, email, locationId }) {
   // address  → storefrontAddress.addressLines (street only)    stored as location.addressLine
   // Fallback for sessions stored before this field was added:
   //   try to strip locality/region/postal from the end of the full address string.
-  const locality    = location.locality    || "";
-  const addressLine = location.addressLine || (() => {
-    // Old records: address = "street, locality, region, postal"
-    // Remove the locality suffix if we know it
-    const full = location.address || "";
-    if (locality && full.includes(locality)) {
-      return full.substring(0, full.indexOf(locality)).replace(/,\s*$/, "").trim();
-    }
-    return full.split(",")[0]?.trim() || full;
-  })();
+  const locality = location.locality || "";
+  const addressLine =
+    location.addressLine ||
+    location.storefrontAddress?.addressLines?.[0] ||
+    (location.address || "").split(",")[0]?.trim() ||
+    "";
 
   // Build review URL — exact same logic as useMagicQR.js
   const reviewUrl = buildReviewUrl(businessTitle, locality, addressLine);
@@ -420,8 +419,14 @@ async function handleMagicQr({ location, email, locationId }) {
   // (old records may have been generated with a different/wrong URL; regenerate
   //  if the stored reviewUrl differs from the one we just computed)
   const existing = await MagicQR.findOne({ locationId: shortId }).lean();
-  if (existing?.s3ImageUrl && existing?.reviewUrl === reviewUrl) {
-    console.log(`[qr] Reusing saved styled QR: ${existing.s3ImageUrl}`);
+  const existingHasManualStyledCard = Boolean(existing?.s3ImageUrl);
+  const existingReviewMatches = existing?.reviewUrl === reviewUrl;
+  const existingReviewMissing = !existing?.reviewUrl;
+  if (existingHasManualStyledCard && (existingReviewMatches || existingReviewMissing)) {
+    console.log(
+      `[qr] Reusing saved styled QR: ${existing.s3ImageUrl}` +
+      (existingReviewMissing ? " (reviewUrl missing in legacy record)" : "")
+    );
     return {
       url:      existing.s3ImageUrl,
       reviewUrl,

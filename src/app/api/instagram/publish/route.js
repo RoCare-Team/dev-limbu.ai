@@ -39,6 +39,7 @@ async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 3
 export async function POST(req) {
   try {
     const { post, accountData, caption, media, userId } = await req.json();
+    const postedMediaType = media?.type === "video" ? "video" : "image";
 
     // console.log("Received Instagram publish request with payload:", {
     //   post,
@@ -168,6 +169,7 @@ export async function POST(req) {
       userId,
       status: "posted",
       whenPosted: { ...post.whenPosted, instagram: true },
+      mediaStatus: { [postedMediaType]: "posted" },
     });
 
     return NextResponse.json({ success: true, id: publishData.id });

@@ -68,3 +68,90 @@ export async function POST(req) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function PUT(req) {
+  try {
+    await dbConnect();
+
+    const body = await req.json();
+    const {
+      id,
+      slug,
+      title,
+      content,
+      excerpt,
+      featuredImage,
+      author,
+      tags,
+      category,
+      status,
+      seoTitle,
+      seoDescription,
+    } = body;
+
+    if (!id && !slug) {
+      return NextResponse.json(
+        { error: "Blog id or slug is required to update a blog." },
+        { status: 400 }
+      );
+    }
+
+    const query = id ? { _id: id } : { slug };
+    const existingBlog = await Blog.findOne(query);
+    if (!existingBlog) {
+      return NextResponse.json(
+        { error: "Blog not found." },
+        { status: 404 }
+      );
+    }
+
+    if (slug && slug !== existingBlog.slug) {
+      const slugExists = await Blog.findOne({ slug, _id: { $ne: existingBlog._id } });
+      if (slugExists) {
+        return NextResponse.json(
+          { error: "Slug already in use. Please choose a different slug." },
+          { status: 409 }
+        );
+      }
+      existingBlog.slug = slug;
+    }
+
+    if (typeof title === "string" && title.trim()) {
+      existingBlog.title = title.trim();
+    }
+    if (typeof content === "string" && content.trim()) {
+      existingBlog.content = content.trim();
+    }
+    if (typeof excerpt === "string") {
+      existingBlog.excerpt = excerpt;
+    }
+    if (typeof featuredImage === "string") {
+      existingBlog.featuredImage = featuredImage;
+    }
+    if (typeof author === "string") {
+      existingBlog.author = author;
+    }
+    if (Array.isArray(tags)) {
+      existingBlog.tags = tags;
+    }
+    if (typeof category === "string") {
+      existingBlog.category = category;
+    }
+    if (typeof status === "string") {
+      existingBlog.status = status;
+    }
+    if (typeof seoTitle === "string") {
+      existingBlog.seoTitle = seoTitle;
+    }
+    if (typeof seoDescription === "string") {
+      existingBlog.seoDescription = seoDescription;
+    }
+
+    await existingBlog.save();
+
+    return NextResponse.json({ success: true, message: "Blog updated successfully", blog: existingBlog }, { status: 200 });
+  } catch (error) {
+    console.error("Error updating blog:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

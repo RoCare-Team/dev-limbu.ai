@@ -360,7 +360,8 @@ export default function AdminDashboard() {
             businessTitle: listing.title || "Unknown Business",
             locality: locality,
             locationId: listing.locationId || listing.name || `fallback-${Date.now()}-${i}`,
-            base64Image: dataUrl
+            base64Image: dataUrl,
+            reviewUrl: finalReviewURL,
           })
         });
 

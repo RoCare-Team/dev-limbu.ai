@@ -8,10 +8,13 @@ const clientLogos = [
   { name: "Ro-Care India", src: "/images/clients/ro-care-india.webp" },
   { name: "Dynamic Drapry", src: "/images/clients/dynamic_drapry.png" },
   { name: "Mannubhai", src: "/images/clients/mannubhai.webp" },
-  { name: "Banjara Salon", src: "/images/clients/banjara_salon.png" },
+  // { name: "Banjara Salon", src: "/images/clients/banjara_salon.png" },
   { name: "Mazz", src: "/images/clients/mazz.png" },
   { name: "Gudiya Collection", src: "/images/clients/gudiya_collection.png" },
-  { name: "Lucky Dry", src: "/images/clients/lucky_dry.jpg" },
+  // { name: "Lucky Dry", src: "/images/clients/lucky_dry.jpg" },
+  { name: "Srinus", src: "/images/clients/srinus-1.png" },
+  { name: "Lucky Dry", src: "/images/clients/bpc-1.png" },
+  { name: "Dera", src: "/images/clients/dera.png" },
 ];
 
 export default function HeroSection() {

@@ -39,19 +39,12 @@ const PostSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    approvedMediaType: {
-      type: String,
-      enum: ["image", "video", "both"],
-    },
     mediaStatus: {
       type: Object,
       default: () => ({}),
     },
 
-    rejectedMediaType: {
-      type: String,
-      enum: ["image", "video", "both"],
-    },
+    postedPlatform: { type: String, default: "" },
 
     whenPosted: {
       type: Object,

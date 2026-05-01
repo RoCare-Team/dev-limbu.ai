@@ -712,7 +712,6 @@ export default function PostManagementPage() {
       sources = null,
       fbPages = [],
       igPages = [],
-      approvedMediaType = undefined,
     ) => {
       const postId = typeof postOrId === "string" ? postOrId : postOrId._id;
       if (typeof postOrId === "object" && !newStatus) {
@@ -731,7 +730,6 @@ export default function PostManagementPage() {
           id: postId,
           userId,
           status: newStatus,
-          ...(approvedMediaType ? { approvedMediaType } : {}),
           scheduledDate: scheduleDate,
           locations,
           checkmark,

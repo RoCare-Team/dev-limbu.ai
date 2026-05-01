@@ -2,6 +2,7 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import LinkedinPage from "@/models/LinkedinPage";
+import { getBaseUrl } from "@/utils/urlHelper";
 
 export async function GET(req) {
   try {
@@ -10,9 +11,11 @@ export async function GET(req) {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const userId = url.searchParams.get("state"); 
+    
+    const baseUrl = getBaseUrl(req);
 
     if (!code || !userId) {
-      return NextResponse.redirect(`${process.env.BASE_URL}/dashboard?linkedin=missing_params`);
+      return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=missing_params`);
     }
 
     // 1️⃣ Exchange Authorization Code for Access Token
@@ -23,7 +26,7 @@ export async function GET(req) {
         code,
         client_id: process.env.LINKEDIN_CLIENT_ID,
         client_secret: process.env.LINKEDIN_CLIENT_SECRET,
-        redirect_uri: `${process.env.BASE_URL}/api/linkedin/callback`,
+        redirect_uri: `${baseUrl}/api/linkedin/callback`,
       }),
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
@@ -86,9 +89,7 @@ export async function GET(req) {
     return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=connected`);
   } catch (err) {
     console.error("LINKEDIN CALLBACK ERROR:", err.response?.data || err.message);
+    const baseUrl = getBaseUrl(req);
     return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=error`);
-  }
-}
-  return NextResponse.redirect(`${process.env.BASE_URL}/dashboard?linkedin=error`);
   }
 }

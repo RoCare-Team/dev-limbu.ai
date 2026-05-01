@@ -1063,6 +1063,10 @@ export default function PostManagementPage() {
               locations: successfulLocs, // Override with only successful ones
               status: "posted",
               whenPosted: { ...postToAction.whenPosted, gmb: true },
+              platformPosted: {
+                ...(postToAction.platformPosted || {}),
+                gmb: selectedMediaForAction?.type === "video" ? "video" : "image",
+              },
             });
             fetchPosts(1, true);
         } else {

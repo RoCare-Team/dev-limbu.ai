@@ -193,6 +193,7 @@ export async function POST(req) {
       fbDescription,
       igDescription,
       whenPosted,   // 👈 OPTIONAL
+      platformPosted,
       mediaType,
       videoOutput,
       videoPrompt,
@@ -218,6 +219,7 @@ export async function POST(req) {
       igDescription,
       promat,
       whenPosted: whenPosted || {}, // 👈 Default to empty object instead of null
+      platformPosted: platformPosted || {},
       status: status || "pending",
       ...(typeof videoOutput === "string" && videoOutput.trim()
         ? { videoOutput: videoOutput.trim() }
@@ -256,6 +258,7 @@ export async function PUT(req) {
       checkmark,
       refreshToken,
       whenPosted,
+      platformPosted,
       scheduledDateSource,
       fbPages,
       aiOutput,
@@ -276,6 +279,7 @@ export async function PUT(req) {
       checkmark,
       hasRefreshToken: !!refreshToken,
       whenPosted,
+      platformPosted,
       aiOutput,
       scheduledDateSource,
       approvedMediaType,
@@ -420,6 +424,23 @@ export async function PUT(req) {
         }
       } else {
         updateData.whenPosted = whenPosted;
+      }
+    }
+
+    if (platformPosted !== undefined && platformPosted !== null) {
+      // Handle partial updates for platformPosted object (e.g. { facebook: "video" })
+      if (typeof platformPosted === "object" && !Array.isArray(platformPosted)) {
+        const currentPost = await Post.findOne({ _id: id, userId });
+
+        if (currentPost && (currentPost.platformPosted === null || currentPost.platformPosted === undefined)) {
+          updateData.platformPosted = {};
+        }
+
+        for (const key in platformPosted) {
+          updateData[`platformPosted.${key}`] = platformPosted[key];
+        }
+      } else {
+        updateData.platformPosted = platformPosted;
       }
     }
 

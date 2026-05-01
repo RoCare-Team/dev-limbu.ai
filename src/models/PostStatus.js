@@ -53,6 +53,10 @@ const PostSchema = new mongoose.Schema(
       type: Object,
       default: () => ({}),
     },
+    platformPosted: {
+      type: Object,
+      default: () => ({}),
+    },
 
     fbPages: [],
     igPages: [],

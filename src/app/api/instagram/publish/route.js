@@ -169,7 +169,7 @@ export async function POST(req) {
       userId,
       status: "posted",
       whenPosted: { ...post.whenPosted, instagram: true },
-      platformPosted: { ...(post.platformPosted || {}), instagram: postedMediaType },
+      mediaStatus: { [postedMediaType]: "posted" },
     });
 
     return NextResponse.json({ success: true, id: publishData.id });

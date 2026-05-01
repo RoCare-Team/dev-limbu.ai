@@ -416,7 +416,19 @@ const PostCard = React.memo(
               {post.status === "pending" && (
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => onUpdateStatus(post._id, "approved")}
+                    onClick={() =>
+                      onUpdateStatus(
+                        post._id,
+                        "approved",
+                        null,
+                        [],
+                        undefined,
+                        null,
+                        [],
+                        [],
+                        cardShowVideo ? "video" : "image",
+                      )
+                    }
                     className="py-4 bg-[#EAB308] text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#EAB308]/10 hover:brightness-105 transition-all"
                   >
                     Approve

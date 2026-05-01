@@ -164,7 +164,7 @@ export async function POST(req) {
       facebookPageAccessToken: accessToken,
       status: "posted",
       whenPosted: { ...(post.whenPosted || {}), facebook: true },
-      platformPosted: { ...(post.platformPosted || {}), facebook: postedMediaType },
+      mediaStatus: { [postedMediaType]: "posted" },
     });
 
     return NextResponse.json({ success: true, id: facebookPostId });

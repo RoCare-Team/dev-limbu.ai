@@ -43,6 +43,10 @@ const PostSchema = new mongoose.Schema(
       type: String,
       enum: ["image", "video", "both"],
     },
+    mediaStatus: {
+      type: Object,
+      default: () => ({}),
+    },
 
     rejectedMediaType: {
       type: String,
@@ -50,10 +54,6 @@ const PostSchema = new mongoose.Schema(
     },
 
     whenPosted: {
-      type: Object,
-      default: () => ({}),
-    },
-    platformPosted: {
       type: Object,
       default: () => ({}),
     },

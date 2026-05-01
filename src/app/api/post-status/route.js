@@ -13,15 +13,25 @@ const normalizePlatformMediaType = (value) =>
     ? value
     : null;
 
-const mergePlatformMediaType = (existingValue, incomingValue) => {
+const mergeApprovedMediaType = (existingValue, incomingValue) => {
   const existing = normalizePlatformMediaType(existingValue);
   const incoming = normalizePlatformMediaType(incomingValue);
-
   if (!incoming) return existing;
   if (!existing) return incoming;
   if (existing === "both" || incoming === "both") return "both";
   if (existing !== incoming) return "both";
   return existing;
+};
+
+const applyMediaStatusForType = (updateData, mediaTypeValue, nextStatus) => {
+  const normalized = normalizePlatformMediaType(mediaTypeValue);
+  if (!normalized || typeof nextStatus !== "string") return;
+  if (normalized === "both") {
+    updateData["mediaStatus.image"] = nextStatus;
+    updateData["mediaStatus.video"] = nextStatus;
+    return;
+  }
+  updateData[`mediaStatus.${normalized}`] = nextStatus;
 };
 
 /**
@@ -209,10 +219,10 @@ export async function POST(req) {
       fbDescription,
       igDescription,
       whenPosted,   // 👈 OPTIONAL
-      platformPosted,
       mediaType,
       videoOutput,
       videoPrompt,
+      mediaStatus,
     } = body;
 
     // if (!userId || !aiOutput || !description) {
@@ -235,7 +245,6 @@ export async function POST(req) {
       igDescription,
       promat,
       whenPosted: whenPosted || {}, // 👈 Default to empty object instead of null
-      platformPosted: platformPosted || {},
       status: status || "pending",
       ...(typeof videoOutput === "string" && videoOutput.trim()
         ? { videoOutput: videoOutput.trim() }
@@ -243,6 +252,11 @@ export async function POST(req) {
       ...(typeof videoPrompt === "string" && videoPrompt.trim()
         ? { videoPrompt: videoPrompt.trim() }
         : {}),
+      mediaStatus: {
+        ...(mediaStatus && typeof mediaStatus === "object" ? mediaStatus : {}),
+        ...(aiOutput ? { image: "pending" } : {}),
+        ...(videoOutput ? { video: "pending" } : {}),
+      },
     });
 
     return json({ success: true, data: newPost }, 201);
@@ -274,7 +288,6 @@ export async function PUT(req) {
       checkmark,
       refreshToken,
       whenPosted,
-      platformPosted,
       scheduledDateSource,
       fbPages,
       aiOutput,
@@ -286,6 +299,7 @@ export async function PUT(req) {
       approvedMediaType,
       rejectedMediaType,   // ✅ NEW
       error: postError,
+      mediaStatus,
     } = await req.json();
 
     console.log("📦 PUT Payload:", {
@@ -295,7 +309,6 @@ export async function PUT(req) {
       checkmark,
       hasRefreshToken: !!refreshToken,
       whenPosted,
-      platformPosted,
       aiOutput,
       scheduledDateSource,
       approvedMediaType,
@@ -310,6 +323,12 @@ export async function PUT(req) {
     }
 
     const updateData = { status };
+    let currentPostCache = null;
+    const getCurrentPost = async () => {
+      if (currentPostCache) return currentPostCache;
+      currentPostCache = await Post.findOne({ _id: id, userId });
+      return currentPostCache;
+    };
 
     /* ---------- SCHEDULED ---------- */
     if (status === "scheduled") {
@@ -376,6 +395,7 @@ export async function PUT(req) {
         ["image", "video", "both"].includes(rejectedMediaType)
       ) {
         updateData.rejectedMediaType = rejectedMediaType;
+        applyMediaStatusForType(updateData, rejectedMediaType, "rejected");
       }
     }
 
@@ -423,13 +443,26 @@ export async function PUT(req) {
       typeof approvedMediaType === "string" &&
       ["image", "video", "both"].includes(approvedMediaType)
     ) {
-      updateData.approvedMediaType = approvedMediaType;
+      const currentPost = await getCurrentPost();
+      updateData.approvedMediaType = mergeApprovedMediaType(
+        currentPost?.approvedMediaType,
+        approvedMediaType
+      );
+      applyMediaStatusForType(updateData, approvedMediaType, "approved");
+    }
+
+    if (status === "approved" && !updateData.approvedMediaType) {
+      const currentPost = await getCurrentPost();
+      const fallbackApprovedType =
+        currentPost?.approvedMediaType ||
+        "image";
+      applyMediaStatusForType(updateData, fallbackApprovedType, "approved");
     }
 
     if (whenPosted !== undefined && whenPosted !== null) {
       // Handle partial updates for whenPosted object (e.g. { facebook: "..." })
       if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {
-        const currentPost = await Post.findOne({ _id: id, userId });
+        const currentPost = await getCurrentPost();
 
         if (currentPost && (currentPost.whenPosted === null || currentPost.whenPosted === undefined)) {
           updateData.whenPosted = {};
@@ -443,26 +476,25 @@ export async function PUT(req) {
       }
     }
 
-    if (platformPosted !== undefined && platformPosted !== null) {
-      // Handle partial updates for platformPosted object (e.g. { facebook: "video" })
-      if (typeof platformPosted === "object" && !Array.isArray(platformPosted)) {
-        const currentPost = await Post.findOne({ _id: id, userId });
-
-        if (currentPost && (currentPost.platformPosted === null || currentPost.platformPosted === undefined)) {
-          updateData.platformPosted = {};
+    if (mediaStatus && typeof mediaStatus === "object" && !Array.isArray(mediaStatus)) {
+      const allowedMediaStatus = ["pending", "approved", "rejected", "posted", "failed"];
+      for (const key of ["image", "video"]) {
+        const val = mediaStatus[key];
+        if (typeof val === "string" && allowedMediaStatus.includes(val)) {
+          updateData[`mediaStatus.${key}`] = val;
         }
+      }
+    }
 
-        for (const key in platformPosted) {
-          const mergedType = mergePlatformMediaType(
-            currentPost?.platformPosted?.[key],
-            platformPosted[key]
-          );
-          if (mergedType) {
-            updateData[`platformPosted.${key}`] = mergedType;
-          }
-        }
-      } else {
-        updateData.platformPosted = platformPosted;
+    if (
+      typeof videoOutput === "string" &&
+      videoOutput.trim() &&
+      updateData["mediaStatus.video"] === undefined
+    ) {
+      const currentPost = await getCurrentPost();
+      const currentVideoStatus = currentPost?.mediaStatus?.video;
+      if (!currentVideoStatus || currentVideoStatus === "failed") {
+        updateData["mediaStatus.video"] = "pending";
       }
     }
 

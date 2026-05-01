@@ -712,6 +712,7 @@ export default function PostManagementPage() {
       sources = null,
       fbPages = [],
       igPages = [],
+      approvedMediaType = undefined,
     ) => {
       const postId = typeof postOrId === "string" ? postOrId : postOrId._id;
       if (typeof postOrId === "object" && !newStatus) {
@@ -730,6 +731,7 @@ export default function PostManagementPage() {
           id: postId,
           userId,
           status: newStatus,
+          ...(approvedMediaType ? { approvedMediaType } : {}),
           scheduledDate: scheduleDate,
           locations,
           checkmark,
@@ -1063,9 +1065,8 @@ export default function PostManagementPage() {
               locations: successfulLocs, // Override with only successful ones
               status: "posted",
               whenPosted: { ...postToAction.whenPosted, gmb: true },
-              platformPosted: {
-                ...(postToAction.platformPosted || {}),
-                gmb: selectedMediaForAction?.type === "video" ? "video" : "image",
+              mediaStatus: {
+                [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
               },
             });
             fetchPosts(1, true);

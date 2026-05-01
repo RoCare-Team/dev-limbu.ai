@@ -1110,15 +1110,18 @@ export default function PostManagementPage() {
         }
 
         if (successfulLocs.length > 0) {
-          // Update post status with successful locations only
-          await updatePostStatusAction({
-            id: postToAction._id,
-            userId,
-            locations: successfulLocs, // Override with only successful ones
-            status: "posted",
-            whenPosted: { ...postToAction.whenPosted, gmb: true },
-          });
-          fetchPosts(1, true);
+           // Update post status with successful locations only
+           await updatePostStatusAction({
+              id: postToAction._id,
+              userId,
+              locations: successfulLocs, // Override with only successful ones
+              status: "posted",
+              whenPosted: { ...postToAction.whenPosted, gmb: true },
+              mediaStatus: {
+                [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
+              },
+            });
+            fetchPosts(1, true);
         } else {
           throw new Error("All GMB posts failed");
         }

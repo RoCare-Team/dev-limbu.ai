@@ -375,7 +375,19 @@ const PreviewSection = React.memo(({
         {status === "pending" && (
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => onUpdateStatus(previewData._id, "approved")}
+              onClick={() =>
+                onUpdateStatus(
+                  previewData._id,
+                  "approved",
+                  null,
+                  [],
+                  undefined,
+                  null,
+                  [],
+                  [],
+                  activeIsVideo ? "video" : "image",
+                )
+              }
               className="flex items-center justify-center gap-2 bg-[#EAB308] text-black hover:bg-[#EAB308]/90 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 shadow-[0_0_20px_rgba(253,224,71,0.15)] hover:shadow-[0_0_25px_rgba(253,224,71,0.25)]"
             >
               <CheckCircle className="w-4 h-4" />

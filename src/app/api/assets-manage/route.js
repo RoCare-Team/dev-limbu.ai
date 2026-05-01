@@ -126,6 +126,8 @@ export async function PUT(req) {
       productImage,
       backgroundImage,
       logoImage,
+      fieldName,
+      value,
     } = body;
 
     if (!id) {
@@ -164,16 +166,47 @@ export async function PUT(req) {
       );
     }
 
+    const allowedFields = [
+      "colourPalette",
+      "size",
+      "characterImage",
+      "uniformImage",
+      "productImage",
+      "backgroundImage",
+      "logoImage",
+    ];
+
+    const updatePayload = {};
+
+    // Support dynamic frontend payload: { id, fieldName, value }
+    if (typeof fieldName === "string") {
+      if (!allowedFields.includes(fieldName)) {
+        return Response.json(
+          { success: false, error: "Invalid fieldName" },
+          { status: 400 }
+        );
+      }
+      updatePayload[fieldName] = value ?? "";
+    }
+
+    // Support normal payload updates: { id, logoImage, size, ... }
+    for (const key of allowedFields) {
+      if (body[key] !== undefined) {
+        updatePayload[key] = body[key];
+      }
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return Response.json(
+        { success: false, error: "No valid fields provided for update" },
+        { status: 400 }
+      );
+    }
+
     const updated = await Assets.findByIdAndUpdate(
       id,
       {
-        colourPalette: colourPalette ?? existing.colourPalette,
-        size: size ?? existing.size,
-        characterImage: characterImage ?? existing.characterImage,
-        uniformImage: uniformImage ?? existing.uniformImage,
-        productImage: productImage ?? existing.productImage,
-        backgroundImage: backgroundImage ?? existing.backgroundImage,
-        logoImage: logoImage ?? existing.logoImage,
+        ...updatePayload,
         updatedAt: new Date(),
       },
       { new: true }

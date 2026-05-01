@@ -64,7 +64,7 @@ const GMBColumn = React.memo(({
               : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
               }`}
           >
-            Issues ({summary.unverified})
+            UNVERIFIED ({summary.unverified})
           </button>
           {filterStatus !== "all" && (
             <button

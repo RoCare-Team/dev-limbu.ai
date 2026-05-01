@@ -98,8 +98,9 @@ const LinkedinColumn = React.memo(({
                 window.location.href = `/api/linkedin/login?userId=${userId}`;
               }}
               className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
+              disabled
             >
-              Add LinkedIn ↗
+              Cooming Soon
             </button>
           </div>
         )}

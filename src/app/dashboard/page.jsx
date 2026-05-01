@@ -382,7 +382,7 @@ export default function DashboardPage() {
     { id: "facebook", label: "Facebook", icon: "/social-icon/facebook-icon.png", count: facebookPages.length },
     { id: "instagram", label: "Instagram", icon: "/social-icon/instagram-icon.png", count: instagramPages.length },
     { id: "pinterest", label: "Pinterest", icon: "/social-icon/pinterest-icon.png", count: pinterestProfiles?.length || 0 },
-    // { id: "linkedin", label: "LinkedIn", icon: "/social-icon/linkedin.png", count: linkedinPages?.length || 0 },
+    { id: "linkedin", label: "LinkedIn", icon: "/social-icon/linkedin.png", count: linkedinPages?.length || 0 },
   ];
 
   return (

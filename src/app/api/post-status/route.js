@@ -8,6 +8,22 @@ const json = (body, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
+const normalizePlatformMediaType = (value) =>
+  typeof value === "string" && ["image", "video", "both"].includes(value)
+    ? value
+    : null;
+
+const mergePlatformMediaType = (existingValue, incomingValue) => {
+  const existing = normalizePlatformMediaType(existingValue);
+  const incoming = normalizePlatformMediaType(incomingValue);
+
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+  if (existing === "both" || incoming === "both") return "both";
+  if (existing !== incoming) return "both";
+  return existing;
+};
+
 /**
  * GET -> Fetch posts by userId (e.g., MB-02) and optional status
  * Query: ?userId=MB-02&status=pending&id=123&page=1&limit=10
@@ -437,7 +453,13 @@ export async function PUT(req) {
         }
 
         for (const key in platformPosted) {
-          updateData[`platformPosted.${key}`] = platformPosted[key];
+          const mergedType = mergePlatformMediaType(
+            currentPost?.platformPosted?.[key],
+            platformPosted[key]
+          );
+          if (mergedType) {
+            updateData[`platformPosted.${key}`] = mergedType;
+          }
         }
       } else {
         updateData.platformPosted = platformPosted;

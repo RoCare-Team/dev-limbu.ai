@@ -43,6 +43,7 @@ const PostCard = React.memo(
     onEditDescription,
     handleFacebookPost,
     handleInstagramPost,
+    handlePinterestPost,
     onConvertToVideo,
     convertingVideoPostId = null,
     videoGenerationCoins = 200,
@@ -138,24 +139,24 @@ const PostCard = React.memo(
       return latest;
     }, [post]);
 
-   
+
     const [isVideoSuccess, setIsVideoSuccess] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-  if (isConvertingThisPost) {
-    setIsLoading(true);
-  } else if (isLoading) {
-    setIsLoading(false);
-    setIsVideoSuccess(true);
+      if (isConvertingThisPost) {
+        setIsLoading(true);
+      } else if (isLoading) {
+        setIsLoading(false);
+        setIsVideoSuccess(true);
 
-    
-  }
-}, [isConvertingThisPost]);
+
+      }
+    }, [isConvertingThisPost]);
     // Countdown Timer State
     const [timeLeft, setTimeLeft] = useState(120); // 2 minutes countdown
-    
+
     useEffect(() => {
       let interval;
       if (isConvertingThisPost) {
@@ -203,16 +204,17 @@ const PostCard = React.memo(
     const handleMediaChoice = (type) => {
       if (type === "gmb") {
         if (dualCardMedia) {
-           const forcedMedia = cardMediaTab === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
-           handlePost(post, forcedMedia);
+          const forcedMedia = cardMediaTab === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
+          handlePost(post, forcedMedia);
         } else {
-           handlePost(post);
+          handlePost(post);
         }
       } else if (dualCardMedia) {
         setSelectionModal({ isOpen: true, type });
       } else {
         if (type === "fb") handleFacebookPost(post);
         else if (type === "ig") handleInstagramPost(post);
+        else if (type === "pinterest") handlePinterestPost(post);
       }
     };
 
@@ -220,10 +222,11 @@ const PostCard = React.memo(
       const forcedMedia = choice === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
       const type = selectionModal.type;
       setSelectionModal({ isOpen: false, type: "" });
-      
+
       if (type === "gmb") handlePost(post, forcedMedia);
       else if (type === "fb") handleFacebookPost(post, forcedMedia);
       else if (type === "ig") handleInstagramPost(post, forcedMedia);
+      else if (type === "pinterest") handlePinterestPost(post, forcedMedia);
     };
 
     return (
@@ -238,11 +241,10 @@ const PostCard = React.memo(
                   <button
                     key={tab}
                     onClick={() => setCardMediaTab(tab)}
-                    className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                      cardMediaTab === tab
-                        ? "bg-white text-black shadow-sm"
-                        : "text-white/70 hover:text-white"
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${cardMediaTab === tab
+                      ? "bg-white text-black shadow-sm"
+                      : "text-white/70 hover:text-white"
+                      }`}
                   >
                     {tab === "image" ? (
                       <ImageIconLucide size={12} />
@@ -335,11 +337,10 @@ const PostCard = React.memo(
                   <button
                     key={p.id}
                     onClick={() => setActiveDesc(p.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                      activeDesc === p.id
-                        ? "bg-white text-black shadow-sm"
-                        : "text-black/30 hover:text-black/50"
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeDesc === p.id
+                      ? "bg-white text-black shadow-sm"
+                      : "text-black/30 hover:text-black/50"
+                      }`}
                   >
                     <p.icon
                       size={12}
@@ -457,6 +458,18 @@ const PostCard = React.memo(
                     </button>
                   </div>
                   <button
+                    onClick={() => handleMediaChoice("pinterest")}
+                    className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#c5001f] transition-all shadow-sm"
+                  >
+                    <Image
+                      src="/social-icon/pinterest-icon.png"
+                      width={16}
+                      height={16}
+                      className="object-contain"
+                      alt="Pinterest"
+                    /> Pinterest
+                  </button>
+                  <button
                     onClick={() => onUpdateStatus(post)}
                     className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm"
                   >
@@ -542,15 +555,15 @@ const PostCard = React.memo(
 
               {post.status === "scheduled" && (
                 <>
-                <div className="p-4 bg-[#EAB308]/5 rounded-3xl border border-[#EAB308]/10 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[8px] font-black text-[#EAB308] uppercase tracking-widest mb-0.5">
-                        Scheduled For
-                      </p>
-                      <p className="text-xs font-black text-black/80">
-                        {post.scheduledDate
-                          ? new Date(post.scheduledDate).toLocaleString(
+                  <div className="p-4 bg-[#EAB308]/5 rounded-3xl border border-[#EAB308]/10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[8px] font-black text-[#EAB308] uppercase tracking-widest mb-0.5">
+                          Scheduled For
+                        </p>
+                        <p className="text-xs font-black text-black/80">
+                          {post.scheduledDate
+                            ? new Date(post.scheduledDate).toLocaleString(
                               "en-IN",
                               {
                                 day: "numeric",
@@ -559,101 +572,101 @@ const PostCard = React.memo(
                                 minute: "2-digit",
                               },
                             )
-                          : "N/A"}
-                      </p>
+                            : "N/A"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => onUpdateStatus(post)}
+                        className="p-2 bg-white rounded-full text-[#EAB308] shadow-sm hover:scale-110 transition-transform"
+                      >
+                        <Pencil size={14} />
+                      </button>
                     </div>
+
+                    {/* Scheduled Targets Details */}
+                    {post.scheduledDateSource && post.scheduledDateSource.length > 0 && (
+                      <div className="space-y-3 pt-2 border-t border-[#EAB308]/10">
+                        {post.scheduledDateSource.map((src) => {
+                          let items = [];
+                          let label = "";
+                          let title = "";
+
+                          if (src === "gmb" && post.locations) {
+                            items = post.locations.map(loc => loc.locality || "Location");
+                            title = "Google Business Locations";
+                          } else if (src === "fb" && post.fbPages) {
+                            items = post.fbPages.map(pg => pg.pageName || pg.name || "Page");
+                            title = "Facebook Pages";
+                          } else if (src === "ig" && post.igPages) {
+                            items = post.igPages.map(acc => acc.igUsername || "Profile");
+                            title = "Instagram Profiles";
+                          }
+
+                          if (items.length === 0) return null;
+
+                          const firstItem = items[0];
+                          const extraCount = items.length - 1;
+
+                          return (
+                            <div key={src} className="space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                {src === "gmb" && <MapPin size={10} className="text-[#EAB308]" />}
+                                {src === "fb" && <Facebook size={10} className="text-blue-600" />}
+                                {src === "ig" && <Instagram size={10} className="text-pink-600" />}
+                                <span className="text-[9px] font-black uppercase tracking-widest text-black/60">
+                                  {src === "gmb" ? "Google Business" : src === "fb" ? "Facebook" : "Instagram"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1 pl-4">
+                                <span className="px-2 py-0.5 bg-white border border-black/5 rounded-md text-[8px] font-bold text-black/40">
+                                  {firstItem}
+                                </span>
+                                {extraCount > 0 && (
+                                  <button
+                                    onClick={() => openShowMoreModal(title, items)}
+                                    className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-black/5 rounded-md text-[8px] font-bold text-black/60 transition-colors"
+                                  >
+                                    +{extraCount} more
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <button
-                      onClick={() => onUpdateStatus(post)}
-                      className="p-2 bg-white rounded-full text-[#EAB308] shadow-sm hover:scale-110 transition-transform"
+                      onClick={() => handleMediaChoice("gmb")}
+                      className="w-full py-3 bg-black text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
                     >
-                      <Pencil size={14} />
+                      Post Now
                     </button>
                   </div>
 
-                  {/* Scheduled Targets Details */}
-                  {post.scheduledDateSource && post.scheduledDateSource.length > 0 && (
-                    <div className="space-y-3 pt-2 border-t border-[#EAB308]/10">
-                      {post.scheduledDateSource.map((src) => {
-                        let items = [];
-                        let label = "";
-                        let title = "";
-
-                        if (src === "gmb" && post.locations) {
-                          items = post.locations.map(loc => loc.locality || "Location");
-                          title = "Google Business Locations";
-                        } else if (src === "fb" && post.fbPages) {
-                          items = post.fbPages.map(pg => pg.pageName || pg.name || "Page");
-                          title = "Facebook Pages";
-                        } else if (src === "ig" && post.igPages) {
-                          items = post.igPages.map(acc => acc.igUsername || "Profile");
-                          title = "Instagram Profiles";
-                        }
-
-                        if (items.length === 0) return null;
-
-                        const firstItem = items[0];
-                        const extraCount = items.length - 1;
-
-                        return (
-                          <div key={src} className="space-y-1.5">
-                            <div className="flex items-center gap-1.5">
-                              {src === "gmb" && <MapPin size={10} className="text-[#EAB308]" />}
-                              {src === "fb" && <Facebook size={10} className="text-blue-600" />}
-                              {src === "ig" && <Instagram size={10} className="text-pink-600" />}
-                              <span className="text-[9px] font-black uppercase tracking-widest text-black/60">
-                                {src === "gmb" ? "Google Business" : src === "fb" ? "Facebook" : "Instagram"}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1 pl-4">
-                              <span className="px-2 py-0.5 bg-white border border-black/5 rounded-md text-[8px] font-bold text-black/40">
-                                {firstItem}
-                              </span>
-                              {extraCount > 0 && (
-                                <button
-                                  onClick={() => openShowMoreModal(title, items)}
-                                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-black/5 rounded-md text-[8px] font-bold text-black/60 transition-colors"
-                                >
-                                  +{extraCount} more
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => handleMediaChoice("gmb")}
-                    className="w-full py-3 bg-black text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
-                  >
-                    Post Now
-                  </button>
-                </div>
-
-                {/* Quick Post to other platforms if not scheduled/posted */}
-                {((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
-                  (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
-                  <div className="grid grid-cols-2 gap-3 mt-4">
-                    {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
-                      <button
-                        onClick={() => handleMediaChoice("fb")}
-                        className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                      >
-                        <Facebook size={14} /> Facebook
-                      </button>
+                  {/* Quick Post to other platforms if not scheduled/posted */}
+                  {((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
+                    (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
+                      <div className="grid grid-cols-2 gap-3 mt-4">
+                        {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
+                          <button
+                            onClick={() => handleMediaChoice("fb")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Facebook size={14} /> Facebook
+                          </button>
+                        )}
+                        {!post.scheduledDateSource?.includes("ig") && !isPostedIg && (
+                          <button
+                            onClick={() => handleMediaChoice("ig")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Instagram size={14} /> Instagram
+                          </button>
+                        )}
+                      </div>
                     )}
-                    {!post.scheduledDateSource?.includes("ig") && !isPostedIg && (
-                      <button
-                        onClick={() => handleMediaChoice("ig")}
-                        className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                      >
-                        <Instagram size={14} /> Instagram
-                      </button>
-                    )}
-                  </div>
-                )}
-              </>
+                </>
               )}
 
               {post.status === "failed" && (
@@ -710,103 +723,103 @@ const PostCard = React.memo(
         </div>
 
         {(isLoading || isVideoSuccess) && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-[200] flex items-center justify-center px-4 animate-fadeIn">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-[200] flex items-center justify-center px-4 animate-fadeIn">
 
-    <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-scaleIn relative">
+            <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-scaleIn relative">
 
-      {/* ❌ CLOSE BUTTON */}
-      {isVideoSuccess && (
-        <button
-          onClick={() => setIsVideoSuccess(false)}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"
-        >
-          ✕
-        </button>
-      )}
+              {/* ❌ CLOSE BUTTON */}
+              {isVideoSuccess && (
+                <button
+                  onClick={() => setIsVideoSuccess(false)}
+                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"
+                >
+                  ✕
+                </button>
+              )}
 
-      {isVideoSuccess ? (
-        <>
-          {/* ✅ SUCCESS ICON */}
-          <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black shadow-inner">
+              {isVideoSuccess ? (
+                <>
+                  {/* ✅ SUCCESS ICON */}
+                  <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black shadow-inner">
 
-  <svg
-    className="w-14 h-14 text-[#EAB308] animate-tick"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="3"
-    viewBox="0 0 24 24"
-  >
-    <path
-      d="M5 13l4 4L19 7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="tick-path"
-    />
-  </svg>
+                    <svg
+                      className="w-14 h-14 text-[#EAB308] animate-tick"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M5 13l4 4L19 7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="tick-path"
+                      />
+                    </svg>
 
-</div>
+                  </div>
 
-          {/* TITLE */}
-          <h3 className="text-2xl font-extrabold text-[#EAB308] mb-2 animate-fadeUp">
-            Video Ready 🎉
-          </h3>
+                  {/* TITLE */}
+                  <h3 className="text-2xl font-extrabold text-[#EAB308] mb-2 animate-fadeUp">
+                    Video Ready 🎉
+                  </h3>
 
-          {/* SUBTEXT */}
-          <p className="text-sm text-slate-600 mb-6 animate-fadeUp delay-100">
-            Aapki video successfully generate ho gayi hai.  
-            Ab aap ise post ya download kar sakte ho 🚀
-          </p>
+                  {/* SUBTEXT */}
+                  <p className="text-sm text-slate-600 mb-6 animate-fadeUp delay-100">
+                    Aapki video successfully generate ho gayi hai.
+                    Ab aap ise post ya download kar sakte ho 🚀
+                  </p>
 
-          {/* DONE BUTTON */}
-          <button
-            onClick={() => setIsVideoSuccess(false)}
-            className="px-6 py-2.5 bg-[#EAB308] text-black rounded-xl font-semibold hover:scale-105 transition shadow-md animate-fadeUp delay-200"
-          >
-            Done
-          </button>
-        </>
-      ) : (
-        <>
-          {/* 🔄 LOADING UI */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-[#EAB308]/20 rounded-full blur-xl animate-pulse"></div>
+                  {/* DONE BUTTON */}
+                  <button
+                    onClick={() => setIsVideoSuccess(false)}
+                    className="px-6 py-2.5 bg-[#EAB308] text-black rounded-xl font-semibold hover:scale-105 transition shadow-md animate-fadeUp delay-200"
+                  >
+                    Done
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* 🔄 LOADING UI */}
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-[#EAB308]/20 rounded-full blur-xl animate-pulse"></div>
 
-            <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black/50">
-              <Video className="w-10 h-10 text-[#EAB308] animate-pulse" />
-            </div>
-          </div>
+                    <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black/50">
+                      <Video className="w-10 h-10 text-[#EAB308] animate-pulse" />
+                    </div>
+                  </div>
 
-          <h3 className="text-xl font-bold text-slate-900 mb-2">
-            Generating Video...
-          </h3>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">
+                    Generating Video...
+                  </h3>
 
-          <p className="text-sm text-slate-500 mb-5">
-            ⏳ {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
-          </p>
+                  <p className="text-sm text-slate-500 mb-5">
+                    ⏳ {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
+                  </p>
 
-          <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">
-            <div
-              className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full"
-              style={{
-                animation: "slide 1.2s linear infinite",
-              }}
-            ></div>
-          </div>
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">
+                    <div
+                      className="absolute top-0 left-0 h-full w-1/2 bg-[#EAB308] rounded-full"
+                      style={{
+                        animation: "slide 1.2s linear infinite",
+                      }}
+                    ></div>
+                  </div>
 
-          <div className="flex flex-col items-center justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-              Estimated Time
-            </span>
-            <span className="text-2xl font-black text-[#EAB308] font-mono tracking-wider">
-              {formatTime(timeLeft)}
-            </span>
-          </div>
-        </>
-      )}
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                      Estimated Time
+                    </span>
+                    <span className="text-2xl font-black text-[#EAB308] font-mono tracking-wider">
+                      {formatTime(timeLeft)}
+                    </span>
+                  </div>
+                </>
+              )}
 
-      {/* ✨ ANIMATIONS */}
-      <style>
-        {`
+              {/* ✨ ANIMATIONS */}
+              <style>
+                {`
 
           @keyframes tickDraw {
   0% {
@@ -875,14 +888,14 @@ const PostCard = React.memo(
         .animate-fadeUp { animation: fadeUp 0.4s ease forwards; }
         .animate-bounceIn { animation: bounceIn 0.4s ease; }
         `}
-      </style>
+              </style>
 
-    </div>
-  </div>
-)}
+            </div>
+          </div>
+        )}
 
 
-        
+
 
         {/* Show More Modal */}
         {showMoreModal.isOpen && (

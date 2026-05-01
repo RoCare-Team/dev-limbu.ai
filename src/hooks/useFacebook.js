@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { getLocalStorage } from "@/utils/storage";
 
@@ -16,6 +16,7 @@ function getActiveUserId() {
 export function useFacebook(router, searchParams) {
   const [facebookPages, setFacebookPages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const toastShownRef = useRef(false);
 
   const fetchFacebookPages = useCallback(async () => {
     const activeId = getActiveUserId();
@@ -39,7 +40,8 @@ export function useFacebook(router, searchParams) {
   // Sync on mount or when redirecting back from FB login
   useEffect(() => {
     fetchFacebookPages();
-    if (searchParams?.get("fb") === "connected") {
+    if (searchParams?.get("fb") === "connected" && !toastShownRef.current) {
+      toastShownRef.current = true;
       toast.success("Facebook Page connected successfully!");
       router.replace("/dashboard");
     }
@@ -47,9 +49,9 @@ export function useFacebook(router, searchParams) {
 
   const handleDisconnectFacebook = useCallback(async (pageId) => {
     const activeId = getActiveUserId();
-    if (!activeId || !confirm("Are you sure you want to disconnect this page?")) return;
+    if (!activeId) return;
 
-    // Optimistic UI update
+    // Optimistic UI Update
     const previousPages = [...facebookPages];
     setFacebookPages((prev) => prev.filter((p) => p.pageId !== pageId));
 

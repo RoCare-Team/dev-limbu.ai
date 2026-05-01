@@ -23,6 +23,8 @@ import NavLinks from "@/components/dashboard/NavLinks";
 import GMBColumn from "@/components/dashboard/GMBColumn";
 import FacebookColumn from "@/components/dashboard/FacebookColumn";
 import InstagramColumn from "@/components/dashboard/InstagramColumn";
+import LinkedinColumn from "@/components/dashboard/LinkedinColumn";
+import PinterestColumn from "@/components/dashboard/PinterestColumn";
 import ConnectModal from "@/components/modals/ConnectModal";
 import SessionExpiredModal from "@/components/modals/SessionExpiredModal";
 
@@ -30,6 +32,8 @@ import SessionExpiredModal from "@/components/modals/SessionExpiredModal";
 import { useGMB } from "@/hooks/useGMB";
 import { useFacebook } from "@/hooks/useFacebook";
 import { useInstagram } from "@/hooks/useInstagram";
+import { useLinkedin } from "@/hooks/useLinkedin";
+import { usePinterest } from "@/hooks/usePinterest";
 import { getLocalStorage, setLocalStorage } from "@/utils/storage";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
@@ -93,6 +97,7 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
 
   const [filterStatus, setFilterStatus] = useState("all");
+  const [activeTab, setActiveTab] = useState("gmb");
 
   // --- Consolidated UI State ---
   const [uiState, setUiState] = useState({
@@ -125,6 +130,18 @@ export default function DashboardPage() {
     handleDisconnectInstagram
   } = useInstagram(router, searchParams);
 
+  const {
+    linkedinPages,
+    setLinkedinPages,
+    handleDisconnectLinkedin
+  } = useLinkedin(router, searchParams);
+
+  const {
+    pinterestProfiles,
+    setPinterestProfiles,
+    handleDisconnectPinterest
+  } = usePinterest(router, searchParams);
+
   // --- Consolidated Performance Insights State ---
   const [performanceState, setPerformanceState] = useState({
     isOpen: false,
@@ -155,12 +172,6 @@ export default function DashboardPage() {
   const handleMetaLogout = async (type = "both") => {
     const isFb = type === "facebook" || type === "both";
     const isIg = type === "instagram" || type === "both";
-
-    const confirmMsg = type === "both"
-      ? "Are you sure you want to fully logout from Facebook and Instagram?"
-      : `Are you sure you want to logout from ${type === 'facebook' ? 'Facebook' : 'Instagram'}?`;
-
-    if (!confirm(confirmMsg)) return;
 
     const userId = getLocalStorage("userId");
     if (!userId) return toast.error("Login first");
@@ -366,6 +377,14 @@ export default function DashboardPage() {
     );
   }
 
+  const tabData = [
+    { id: "gmb", label: "GMB Profile", icon: "/social-icon/gmb-icon.png", count: accounts.length > 0 ? summary.total : 0 },
+    { id: "facebook", label: "Facebook", icon: "/social-icon/facebook-icon.png", count: facebookPages.length },
+    { id: "instagram", label: "Instagram", icon: "/social-icon/instagram-icon.png", count: instagramPages.length },
+    { id: "pinterest", label: "Pinterest", icon: "/social-icon/pinterest-icon.png", count: pinterestProfiles?.length || 0 },
+    // { id: "linkedin", label: "LinkedIn", icon: "/social-icon/linkedin.png", count: linkedinPages?.length || 0 },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col">
       <PerformanceInsightsModal
@@ -451,31 +470,81 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <main className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-0 bg-slate-50/30">
-        <GMBColumn
-          summary={summary}
-          handleAddProject={handleAddProject}
-          filterStatus={filterStatus}
-          setFilterStatus={setFilterStatus}
-          loading={loading}
-          listings={activeListings}
-          getFilteredListings={getFilteredListings}
-          getVerificationBadge={getVerificationBadge}
-          handleListingData={handleListingData}
-          handleViewPerformanceInsights={handleViewPerformanceInsights}
-        />
-        <FacebookColumn
-          facebookPages={facebookPages}
-          setFacebookPages={setFacebookPages}
-          handleDisconnectFacebook={handleDisconnectFacebook}
-          handleMetaLogout={() => handleMetaLogout("facebook")}
-        />
-        <InstagramColumn
-          instagramPages={instagramPages}
-          setInstagramPages={setInstagramPages}
-          handleDisconnectInstagram={handleDisconnectInstagram}
-          handleMetaLogout={() => handleMetaLogout("instagram")}
-        />
+      {/* --- Tab Navigation --- */}
+      <div className="mt-6 mb-4 flex gap-3 overflow-x-auto custom-scroll pb-4 px-2 sm:px-0">
+        {tabData.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border-2 whitespace-nowrap font-bold text-xs uppercase tracking-wider transition-all duration-300 flex-shrink-0 ${activeTab === tab.id
+              ? "bg-yellow-50 border-yellow-300 text-slate-800 shadow-md ring-2 ring-yellow-400/20"
+              : "bg-white border-slate-200 text-slate-500 hover:border-yellow-300 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+          >
+            <img src={tab.icon} alt={tab.label} className="w-5 h-5 object-contain" />
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] shadow-sm ${activeTab === tab.id
+                ? 'bg-yellow-400 text-black'
+                : 'bg-slate-100 text-slate-500 border border-slate-200'
+                }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <main className="w-full pb-10 bg-slate-50/30">
+        {activeTab === "gmb" && (
+          <GMBColumn
+            summary={summary}
+            handleAddProject={handleAddProject}
+            filterStatus={filterStatus}
+            setFilterStatus={setFilterStatus}
+            loading={loading}
+            listings={activeListings}
+            getFilteredListings={getFilteredListings}
+            getVerificationBadge={getVerificationBadge}
+            handleListingData={handleListingData}
+            handleViewPerformanceInsights={handleViewPerformanceInsights}
+          />
+        )}
+
+        {activeTab === "facebook" && (
+          <FacebookColumn
+            facebookPages={facebookPages}
+            setFacebookPages={setFacebookPages}
+            handleDisconnectFacebook={handleDisconnectFacebook}
+            handleMetaLogout={() => handleMetaLogout("facebook")}
+          />
+        )}
+
+        {activeTab === "instagram" && (
+          <InstagramColumn
+            instagramPages={instagramPages}
+            setInstagramPages={setInstagramPages}
+            handleDisconnectInstagram={handleDisconnectInstagram}
+            handleMetaLogout={() => handleMetaLogout("instagram")}
+          />
+        )}
+
+        {activeTab === "linkedin" && (
+          <LinkedinColumn
+            linkedinPages={linkedinPages}
+            setLinkedinPages={setLinkedinPages}
+            handleDisconnectLinkedin={handleDisconnectLinkedin}
+          />
+        )}
+
+        {activeTab === "pinterest" && (
+          <PinterestColumn
+            pinterestProfiles={pinterestProfiles}
+            setPinterestProfiles={setPinterestProfiles}
+            handleDisconnectPinterest={handleDisconnectPinterest}
+          />
+        )}
+
         {/* <SupportModal showToast={showToast} /> */}
         <WhatsAppButton />
       </main>

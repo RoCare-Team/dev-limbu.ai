@@ -34,6 +34,7 @@ import ScheduleModal from "../../components/post-management/ScheduleModal";
 import ScheduleConfirmationModal from "../../components/post-management/ScheduleConfirmationModal";
 import FacebookShareModal from "../../components/post-management/FacebookShareModal";
 import InstagramShareModal from "../../components/post-management/InstagramShareModal";
+import PinterestShareModal from "../../components/post-management/PinterestShareModal";
 import PreviewSection from "../../components/post-management/PreviewSection";
 import PostManagementHeader from "../../components/post-management/PostManagementHeader";
 import PostCard from "../../components/post-management/PostCard";
@@ -54,6 +55,7 @@ import { stripBase64, fileToBase64 } from "@/utils/postHelpers";
 import { usePostManagementActions } from "@/hooks/usePostManagementActions";
 import { usePostFilters } from "@/hooks/usePostFilters";
 import { getLocalStorage } from "@/utils/storage";
+import { usePinterest } from "@/hooks/usePinterest";
 import "./PostManagement.module.css";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
@@ -86,6 +88,7 @@ export default function PostManagementPage() {
     showDeleteLocationModal: false,
     showFacebookModal: false,
     showInstagramModal: false,
+    showPinterestModal: false,
   });
 
   const updateUiState = useCallback((updates) => {
@@ -145,6 +148,11 @@ export default function PostManagementPage() {
   const [selectedMediaForAction, setSelectedMediaForAction] = useState(null);
 
   // --- Social Media Specific ---
+  const {
+    pinterestProfiles,
+    publishPin
+  } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
+
   const [socialState, setSocialState] = useState({
     facebookPages: [],
     loadingFbPages: false,
@@ -899,6 +907,15 @@ export default function PostManagementPage() {
     [fetchInstagramAccounts, updateUiState, updateSocialState],
   );
 
+  const handlePinterestPost = useCallback(
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
+      updateSocialState({ postToPinterest: post });
+      updateUiState({ showPinterestModal: true });
+    },
+    [updateUiState, updateSocialState],
+  );
+
   const handleAutoConvertToVideo = useCallback(
     (post) => {
       handleAutoConvertToVideoAction(
@@ -1396,6 +1413,45 @@ export default function PostManagementPage() {
             loading={socialState.loadingIgAccounts}
           />
         )}
+        {uiState.showPinterestModal && (
+          <PinterestShareModal
+            isOpen={uiState.showPinterestModal}
+            onClose={() => updateUiState({ showPinterestModal: false })}
+            post={socialState.postToPinterest}
+            pinterestProfiles={pinterestProfiles}
+            onPost={async (post, boardId) => {
+               // We do NOT close the modal immediately so it can show the error state if it fails.
+               // We don't trigger the global isPosting overlay because the modal has its own publishing state.
+               const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
+               const description = post.description || post.fbDescription || "";
+               
+               const result = await publishPin({
+                 title: bussinessTitle || "Pinterest Post",
+                 description,
+                 boardId,
+                 mediaUrl,
+                 link: availableLocations[0]?.websiteUrl || ""
+               });
+               
+               if (result && result.success) {
+                 updateUiState({ showPinterestModal: false });
+                 setSelectedMediaForAction(null);
+                 setPostingPlatform("Pinterest");
+                 setIsSuccess(true);
+                 
+                 await updatePostStatusAction({
+                    id: post._id,
+                    userId,
+                    status: "posted",
+                    whenPosted: { ...post.whenPosted, pinterest: true },
+                 });
+                 fetchPosts(1, true);
+               }
+               
+               return result;
+            }}
+          />
+        )}
         <ImageToVideoModal
           isOpen={uiState.imageToVideoOpen}
           onClose={() => updateUiState({ imageToVideoOpen: false })}
@@ -1720,6 +1776,7 @@ export default function PostManagementPage() {
                   onToggleCheckmark={handleToggleCheckmark}
                   handleFacebookPost={handleFacebookPost}
                   handleInstagramPost={handleInstagramPost}
+                  handlePinterestPost={handlePinterestPost}
                   onConvertToVideo={handleAutoConvertToVideo}
                   convertingVideoPostId={convertingVideoPostId}
                   videoGenerationCoins={VIDEO_GENERATION_COINS}

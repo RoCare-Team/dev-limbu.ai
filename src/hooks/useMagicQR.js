@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { getLocalStorage } from "@/utils/storage";
 import { toast } from "react-hot-toast";
 import { toPng } from "html-to-image";
+import { generateUniversalSlug } from "@/utils/slugify";
 
 export function useMagicQR() {
   const [isMounted, setIsMounted] = useState(false);
@@ -39,23 +40,38 @@ export function useMagicQR() {
     return locality ? `${title} - ${locality}` : title;
   }, [selectedLocation]);
 
+  const getLocationIdentifier = (location) => {
+    return (location?.locationId || location?.name || "").toString();
+  };
+
+  const buildUniqueReviewSlug = (location, locations) => {
+    if (!location) return "";
+
+    const baseSlug = generateUniversalSlug(location);
+    if (!baseSlug) return "";
+
+    const currentId = getLocationIdentifier(location);
+    const conflict = (locations || []).some((loc) => {
+      const locId = getLocationIdentifier(loc);
+      if (!loc || !locId || locId === currentId) return false;
+      return generateUniversalSlug(loc) === baseSlug;
+    });
+
+    if (!conflict) {
+      return baseSlug;
+    }
+
+    const idPart = currentId.substring(0, 5);
+    return `${baseSlug}-${idPart}`;
+  };
+
   // Derived State: Clean Review URL (without query params)
   const reviewUrl = useMemo(() => {
     if (!selectedLocation) return "";
-    const title = selectedLocation.title || "";
-    const locality = selectedLocation.storefrontAddress?.locality || selectedLocation.locality || "";
-    const address = selectedLocation.address || "";
-    
-    const slug = `${title}${locality ? `-${locality}` : ""}${address ? `-${address}` : ""}`
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    
+    const slug = buildUniqueReviewSlug(selectedLocation, allLocations);
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     return `${baseUrl}/reviews/${slug}`;
-  }, [selectedLocation]);
+  }, [selectedLocation, allLocations]);
 
   // Derived State: QR Image URL
   const qrImage = useMemo(() => {

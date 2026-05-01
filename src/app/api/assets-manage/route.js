@@ -157,7 +157,7 @@ export async function PUT(req) {
         );
       }
     }
-
+  
     const existing = await Assets.findById(id);
     if (!existing) {
       return Response.json(

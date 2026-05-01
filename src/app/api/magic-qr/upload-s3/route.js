@@ -24,6 +24,7 @@ async function getMagicQrModel() {
       s3ImageUrl: { type: String, required: true },
       status: { type: String, enum: ["generated", "failed", "pending"], default: "generated" },
       whatsappSent: { type: Boolean, default: false },
+      reviewUrl: { type: String, default: "" },
     },
     { timestamps: true }
   );
@@ -33,7 +34,7 @@ async function getMagicQrModel() {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { userEmail, businessTitle, locality, locationId, base64Image } = body;
+    const { userEmail, businessTitle, locality, locationId, base64Image, reviewUrl = "" } = body;
 
     if (!userEmail || !businessTitle || !locationId || !base64Image) {
       return Response.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -74,6 +75,7 @@ export async function POST(req) {
         locationId, // Explicitly include in case of upsert
         s3ImageUrl: s3Result.url,
         status: "generated",
+        reviewUrl,
       },
       { upsert: true, new: true }
     );

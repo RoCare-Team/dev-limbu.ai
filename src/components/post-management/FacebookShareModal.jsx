@@ -36,8 +36,8 @@ const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200 animate-scaleIn">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <Facebook className="w-6 h-6 text-[#1877F2]" />

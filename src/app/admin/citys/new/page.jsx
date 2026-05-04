@@ -562,8 +562,9 @@ export default function CityServiceForm() {
                     <Box textAlign="center" py={4} bgcolor="#f8fafc" borderRadius={2} border="1px dashed #cbd5e1">
                       <Typography color="text.secondary">No FAQs added. The default ones will be used.</Typography>
                     </Box>
-                  )}
+                  )} 
 
+                  
                   <Stack spacing={2}>
                     {formData.faqs.map((faq, index) => (
                       <Paper key={index} elevation={0} sx={{ p: 3, border: "1px solid #e2e8f0", bgcolor: "#f8fafc", position: "relative" }}>

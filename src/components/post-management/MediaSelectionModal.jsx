@@ -7,8 +7,8 @@ const MediaSelectionModal = ({ isOpen, onClose, onSelect, imageUrl, videoUrl }) 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200 animate-scaleIn">
         <div className="p-6 border-b border-black/5 flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-800">Choose Media</h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">

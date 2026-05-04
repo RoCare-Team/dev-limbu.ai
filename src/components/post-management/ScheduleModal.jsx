@@ -166,8 +166,8 @@ const ScheduleModal = React.memo(({
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-start justify-center p-4 sm:p-6 font-sans overflow-y-auto">
-  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh] overflow-y-auto border border-slate-200 ">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-start justify-center p-4 sm:p-6 font-sans overflow-y-auto animate-fadeIn">
+  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh] overflow-y-auto border border-slate-200 animate-scaleIn">
         
         {/* Header */}
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">

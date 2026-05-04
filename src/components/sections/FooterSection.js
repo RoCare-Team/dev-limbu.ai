@@ -14,13 +14,17 @@ export default function FooterSection() {
   const footerSections = [
     {
       title: "Platform",
-      links: [
-        { label: "Post Management", href: "/post-management" },
-        { label: "Review Management", href: "/review-management" },
-        { label: "Magic QR", href: "/get-magic-qr" },
-        { label: "Blog", href: "/blog" },
-        { label: "Dashboard", href: "/dashboard" },
-      ],
+     links: [
+  { label: "Post Management", href: "/post-management" },
+  { label: "Review Management", href: "/review-management" },
+  { label: "Magic QR", href: "/get-magic-qr" },
+
+  // ✅ NEW ADD
+  { label: "Google Business Service", href: "/google-business-management-service" },
+
+  { label: "Blog", href: "/blog" },
+  { label: "Dashboard", href: "/dashboard" },
+],
     },
     {
       title: "Company",

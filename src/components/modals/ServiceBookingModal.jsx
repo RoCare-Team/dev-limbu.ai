@@ -71,8 +71,8 @@ export default function ServiceBookingModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[150] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-      <div className="relative bg-white border border-black/[0.03] rounded-xl shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[150] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300 animate-fadeIn">
+      <div className="relative bg-white border border-black/[0.03] rounded-xl shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 animate-scaleIn">
         {/* ── Subtle background grid ── */}
         <div
           className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"

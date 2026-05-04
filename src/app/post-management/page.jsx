@@ -36,6 +36,8 @@ import PinterestShareModal from "../../components/post-management/PinterestShare
 import PreviewSection from "../../components/post-management/PreviewSection";
 import PostManagementHeader from "../../components/post-management/PostManagementHeader";
 import PostCard from "../../components/post-management/PostCard";
+import ImageToVideoModal from "@/components/post-management/ImageToVideoModal";
+
 
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -46,7 +48,6 @@ import SuccessOverlay from "../../components/SuccessOverlay";
 import SupportModal from "@/components/SupportModal";
 import FirstPostModal from "../../components/FirstPostModal";
 import PostInput from "@/components/PostInput";
-import ImageToVideoModal from "@/components/post-management/ImageToVideoModal";
 import TabButton from "@/components/TabButton";
 import RejectReasonModal from "../../components/RejectReasonModal";
 import { stripBase64, fileToBase64 } from "@/utils/postHelpers";

@@ -326,8 +326,8 @@ function FormCard() {
   };
 
   return (
-    <div className="relative bg-white border border-slate-200 rounded-2xl overflow-visible shadow-2xl">
-      <div className="h-1 w-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-t-2xl" />
+    <div className="relative bg-white border border-slate-200 rounded-2xl overflow-visible shadow-2xl ">
+      <div className="h-1 w-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-t-2xl " />
 
       <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-3">
         <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" />

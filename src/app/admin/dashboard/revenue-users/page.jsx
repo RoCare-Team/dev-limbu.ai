@@ -1183,8 +1183,8 @@ export default function RevenueUsersPage() {
 
         {/* // package edit moada */}
         {editModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white w-[380px] rounded-2xl shadow-2xl p-6">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
+            <div className="bg-white w-[380px] rounded-2xl shadow-2xl p-6 animate-scaleIn">
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-lg font-semibold text-gray-800">

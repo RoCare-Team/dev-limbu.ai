@@ -83,8 +83,8 @@ export default function PinterestShareModal({
                         <label
                           key={board.boardId}
                           className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedBoardId === board.boardId
-                              ? "border-[#E60023] bg-[#E60023]/5"
-                              : "border-slate-200 hover:border-[#E60023]/30 hover:bg-slate-50"
+                            ? "border-[#E60023] bg-[#E60023]/5"
+                            : "border-slate-200 hover:border-[#E60023]/30 hover:bg-slate-50"
                             }`}
                         >
                           <div className="flex items-center gap-3">
@@ -96,8 +96,8 @@ export default function PinterestShareModal({
                             </div>
                           </div>
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedBoardId === board.boardId
-                              ? "border-[#E60023] bg-[#E60023]"
-                              : "border-slate-300"
+                            ? "border-[#E60023] bg-[#E60023]"
+                            : "border-slate-300"
                             }`}>
                             {selectedBoardId === board.boardId && <CheckCircle size={12} className="text-white" />}
                           </div>

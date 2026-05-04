@@ -1,10 +1,6 @@
-/**
- * Normalise n8n / webhook payloads so platform captions are reliable strings.
- * Handles arrays, JSON strings, nested `data`, and camelCase aliases.
- */
 export function normalizePlatformDescriptions(raw) {
   if (raw == null) {
-    return { gmb_des: "", fb_des: "", ig_des: "" };
+    return { gmb_des: "", fb_des: "", ig_des: "", li_des: "", pi_des: "" };
   }
 
   let o = raw;
@@ -16,7 +12,7 @@ export function normalizePlatformDescriptions(raw) {
       const parsed = JSON.parse(o);
       if (parsed && typeof parsed === "object") o = parsed;
     } catch {
-      return { gmb_des: "", fb_des: "", ig_des: "" };
+      return { gmb_des: "", fb_des: "", ig_des: "", li_des: "", pi_des: "" };
     }
   }
   if (o && typeof o === "object" && o.data && typeof o.data === "object") {
@@ -35,5 +31,7 @@ export function normalizePlatformDescriptions(raw) {
     gmb_des: pick("gmb_des", "gmbDescription", "GMB_des", "gmbDesc", "gmb_description"),
     fb_des: pick("fb_des", "fbDescription", "FB_des", "fbDesc", "fb_description"),
     ig_des: pick("ig_des", "igDescription", "IG_des", "igDesc", "ig_description"),
+    li_des: pick("li_des", "liDescription", "LI_des", "liDesc", "li_description", "linkedin_description", "linkedinDescription"),
+    pi_des: pick("pi_des", "piDescription", "PI_des", "piDesc", "pi_description", "pinterest_description", "pinterestDescription"),
   };
 }

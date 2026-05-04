@@ -134,10 +134,15 @@ export async function GET(req) {
 /**
  * POST -> Create post OR bulk counts
  */
+/**
+ * POST -> Create post OR bulk counts
+ */
 export async function POST(req) {
   try {
     await dbConnect();
     const body = await req.json();
+
+    console.log("Received POST /api/post-status with body:", body);
 
     // Bulk counts
     if (Array.isArray(body.userIds)) {
@@ -211,7 +216,9 @@ export async function POST(req) {
       gmbDescription,
       fbDescription,
       igDescription,
-      whenPosted,   // 👈 OPTIONAL
+      liDescription,   // 👈 ADDED
+      piDescription,   // 👈 ADDED
+      whenPosted,
       mediaType,
       videoOutput,
       videoPrompt,
@@ -237,8 +244,10 @@ export async function POST(req) {
       gmbDescription,
       fbDescription,
       igDescription,
+      liDescription,   // 👈 ADDED
+      piDescription,   // 👈 ADDED
       promat,
-      whenPosted: whenPosted || {}, // 👈 Default to empty object instead of null
+      whenPosted: whenPosted || {},
       status: status || "pending",
       ...(typeof videoOutput === "string" && videoOutput.trim()
         ? { videoOutput: videoOutput.trim() }
@@ -280,6 +289,8 @@ export async function PUT(req) {
       gmbDescription,
       fbDescription,
       igDescription,
+      liDescription,
+      piDescription,
       reason,
       locations,
       checkmark,
@@ -298,26 +309,34 @@ export async function PUT(req) {
       mediaStatus,
     } = await req.json();
 
-    console.log("📦 PUT Payload:", {
+    console.log("Received PUT /api/post-status with body:", {
       id,
       status,
-      locationsCount: locations?.length,
-      checkmark,
-      hasRefreshToken: !!refreshToken,
-      whenPosted,
-      aiOutput,
-      scheduledDateSource,
-      postedPlatform,
-    });
+      scheduledDate,
+      userId,
+      description,
+      gmbDescription,
+      fbDescription,
+      igDescription,
+      liDescription,
+      piDescription,
+      reason,
+    })
 
-    if (!id || !status || !userId) {
+    // ✅ FIX: status optional karo — sirf id aur userId required
+    if (!id || !userId) {
       return json(
-        { success: false, error: "id, status & userId required" },
+        { success: false, error: "id & userId required" },
         400
       );
     }
 
-    const updateData = { status };
+    // ✅ FIX: status sirf tab add karo jab aaya ho
+    const updateData = {};
+    if (status) {
+      updateData.status = status;
+    }
+
     let currentPostCache = null;
     const getCurrentPost = async () => {
       if (currentPostCache) return currentPostCache;
@@ -328,29 +347,16 @@ export async function PUT(req) {
     /* ---------- SCHEDULED ---------- */
     if (status === "scheduled") {
       if (!scheduledDate) {
-        return json(
-          { success: false, error: "scheduledDate required" },
-          400
-        );
+        return json({ success: false, error: "scheduledDate required" }, 400);
       }
-
       const parsedDate = new Date(scheduledDate);
       if (isNaN(parsedDate.getTime())) {
-        return json(
-          { success: false, error: "Invalid scheduledDate" },
-          400
-        );
+        return json({ success: false, error: "Invalid scheduledDate" }, 400);
       }
-
       updateData.scheduledDate = parsedDate;
 
-      if (scheduledDateSource) {
-        updateData.scheduledDateSource = scheduledDateSource;
-      }
-
-      if (refreshToken) {
-        updateData.refreshToken = refreshToken;
-      }
+      if (scheduledDateSource) updateData.scheduledDateSource = scheduledDateSource;
+      if (refreshToken) updateData.refreshToken = refreshToken;
 
       if (Array.isArray(locations) && locations.length > 0) {
         updateData.locations = locations.map(loc => ({
@@ -365,81 +371,46 @@ export async function PUT(req) {
           error: ""
         }));
       }
-
-      if (Array.isArray(fbPages)) {
-        updateData.fbPages = fbPages;
-      }
-      if (Array.isArray(igPages)) {
-        updateData.igPages = igPages;
-      }
+      if (Array.isArray(fbPages)) updateData.fbPages = fbPages;
+      if (Array.isArray(igPages)) updateData.igPages = igPages;
     }
 
     /* ---------- REJECTED ---------- */
     if (status === "rejected") {
       if (!reason || reason.trim() === "") {
-        return json(
-          { success: false, error: "Reject reason is required" },
-          400
-        );
+        return json({ success: false, error: "Reject reason is required" }, 400);
       }
       updateData.rejectReason = reason;
     }
 
     /* ---------- OPTIONAL FIELDS ---------- */
-    if (typeof description === "string") {
-      updateData.description = description;
-    }
+    if (typeof description === "string") updateData.description = description;
+    if (typeof aiOutput === "string") updateData.aiOutput = aiOutput;
+    if (typeof gmbDescription === "string") updateData.gmbDescription = gmbDescription;
+    if (typeof fbDescription === "string") updateData.fbDescription = fbDescription;
+    if (typeof igDescription === "string") updateData.igDescription = igDescription;
+    if (typeof liDescription === "string") updateData.liDescription = liDescription;   // ✅
+    if (typeof piDescription === "string") updateData.piDescription = piDescription;   // ✅
+    if (checkmark !== undefined && checkmark !== null) updateData.checkmark = checkmark;
+    if (typeof videoOutput === "string" && videoOutput.trim()) updateData.videoOutput = videoOutput.trim();
+    if (typeof videoPrompt === "string") updateData.videoPrompt = videoPrompt.trim();
+    if (typeof facebookPostId === "string" && facebookPostId.trim()) updateData.facebookPostId = facebookPostId.trim();
+    if (typeof facebookPageAccessToken === "string" && facebookPageAccessToken.trim()) updateData.facebookPageAccessToken = facebookPageAccessToken.trim();
 
-    if (typeof aiOutput === "string") {
-      updateData.aiOutput = aiOutput;
-    }
-
-    if (typeof gmbDescription === "string") {
-      updateData.gmbDescription = gmbDescription;
-    }
-    if (typeof fbDescription === "string") {
-      updateData.fbDescription = fbDescription;
-    }
-    if (typeof igDescription === "string") {
-      updateData.igDescription = igDescription;
-    }
-
-    if (checkmark !== undefined && checkmark !== null) {
-      updateData.checkmark = checkmark;
-    }
-
-    if (typeof videoOutput === "string" && videoOutput.trim()) {
-      updateData.videoOutput = videoOutput.trim();
-    }
-    if (typeof videoPrompt === "string") {
-      updateData.videoPrompt = videoPrompt.trim();
-    }
-    if (typeof facebookPostId === "string" && facebookPostId.trim()) {
-      updateData.facebookPostId = facebookPostId.trim();
-    }
-    if (typeof facebookPageAccessToken === "string" && facebookPageAccessToken.trim()) {
-      updateData.facebookPageAccessToken = facebookPageAccessToken.trim();
-    }
     if (typeof postedPlatform === "string") {
       const currentPost = await getCurrentPost();
       const mergedPlatform = mergePostedPlatform(currentPost?.postedPlatform, postedPlatform);
-      if (mergedPlatform) {
-        updateData.postedPlatform = mergedPlatform;
-      }
+      if (mergedPlatform) updateData.postedPlatform = mergedPlatform;
     }
-    if (typeof postError === "string") {
-      updateData.error = postError;
-    }
+
+    if (typeof postError === "string") updateData.error = postError;
 
     if (whenPosted !== undefined && whenPosted !== null) {
-      // Handle partial updates for whenPosted object (e.g. { facebook: "..." })
       if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {
         const currentPost = await getCurrentPost();
-
         if (currentPost && (currentPost.whenPosted === null || currentPost.whenPosted === undefined)) {
           updateData.whenPosted = {};
         }
-
         for (const key in whenPosted) {
           updateData[`whenPosted.${key}`] = whenPosted[key];
         }
@@ -470,6 +441,11 @@ export async function PUT(req) {
       }
     }
 
+    // ✅ Agar kuch update karne ko nahi hai
+    if (Object.keys(updateData).length === 0) {
+      return json({ success: false, error: "Nothing to update" }, 400);
+    }
+
     console.log("🛠 Updating Post:", updateData);
 
     const updated = await Post.findOneAndUpdate(
@@ -479,20 +455,14 @@ export async function PUT(req) {
     );
 
     if (!updated) {
-      return json(
-        { success: false, error: "Post not found" },
-        404
-      );
+      return json({ success: false, error: "Post not found" }, 404);
     }
 
     return json({ success: true, data: updated });
 
   } catch (err) {
     console.error("Update Post Error:", err);
-    return json(
-      { success: false, error: err.message },
-      500
-    );
+    return json({ success: false, error: err.message }, 500);
   }
 }
 

@@ -115,8 +115,11 @@ export function userAcquisitionTagClassName(source) {
 /** Display label for stored lead tag keys (e.g. metaleads → Meta leads) */
 export function formatLeadTagLabel(tag) {
   const t = String(tag || "").trim()
+
   if (!t) return ""
-  if (t.toLowerCase() === "metaleads") return "Meta import"
+
+  if (t.toLowerCase() === "metaleads") return "Meta leads"
+
   return t
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase())

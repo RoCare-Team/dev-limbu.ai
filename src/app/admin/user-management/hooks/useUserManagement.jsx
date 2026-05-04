@@ -176,7 +176,6 @@ export default function useUserManagement(props = {}) {
     users,
      stats,   // ✅ ADD
   stageStats,
-    stageStats,
     totalPostsCount,
     totalRevenue,
     todayUsersCount,

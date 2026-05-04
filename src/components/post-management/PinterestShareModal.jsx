@@ -1,4 +1,5 @@
 import { XCircle, CheckCircle, Image as ImageIconLucide, AlertCircle, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 
 export default function PinterestShareModal({
@@ -16,23 +17,23 @@ export default function PinterestShareModal({
 
   const handlePublish = async () => {
     if (!selectedBoardId) return;
-    
+
     setIsPublishing(true);
     setPublishError("");
-    
+
     const result = await onPost(post, selectedBoardId);
-    
+
     if (result && !result.success) {
       setPublishError(result.error || "An unknown error occurred while publishing to Pinterest.");
     }
-    
+
     setIsPublishing(false);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
-        
+
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div>
@@ -66,26 +67,25 @@ export default function PinterestShareModal({
               {pinterestProfiles.map((profile) => (
                 <div key={profile.pinterestUserId} className="space-y-3">
                   <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                     {profile.profileImage ? (
-                        <img src={profile.profileImage} alt={profile.username} className="w-8 h-8 rounded-full" />
-                     ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500">
-                           {profile.username?.charAt(0)?.toUpperCase()}
-                        </div>
-                     )}
-                     <span className="text-sm font-bold text-slate-800">@{profile.username}</span>
+                    {profile.profileImage ? (
+                      <img src={profile.profileImage} alt={profile.username} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500">
+                        {profile.username?.charAt(0)?.toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-sm font-bold text-slate-800">@{profile.username}</span>
                   </div>
-                  
+
                   {profile.boards && profile.boards.length > 0 ? (
                     <div className="grid grid-cols-1 gap-2 pl-2">
                       {profile.boards.map((board) => (
                         <label
                           key={board.boardId}
-                          className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedBoardId === board.boardId
+                          className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedBoardId === board.boardId
                               ? "border-[#E60023] bg-[#E60023]/5"
                               : "border-slate-200 hover:border-[#E60023]/30 hover:bg-slate-50"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <div className="flex-1">
@@ -95,11 +95,10 @@ export default function PinterestShareModal({
                               <p className="text-[10px] text-slate-500 mt-0.5">ID: {board.boardId}</p>
                             </div>
                           </div>
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                            selectedBoardId === board.boardId
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedBoardId === board.boardId
                               ? "border-[#E60023] bg-[#E60023]"
                               : "border-slate-300"
-                          }`}>
+                            }`}>
                             {selectedBoardId === board.boardId && <CheckCircle size={12} className="text-white" />}
                           </div>
                           <input
@@ -133,7 +132,7 @@ export default function PinterestShareModal({
               <span>{publishError}</span>
             </div>
           )}
-          
+
           <button
             onClick={handlePublish}
             disabled={!selectedBoardId || isPublishing}
@@ -142,7 +141,13 @@ export default function PinterestShareModal({
             {isPublishing ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
-              <img src="/social-icon/pinterest-icon.png" className="w-4 h-4 object-contain brightness-0 invert" alt="Pinterest" />
+              <Image
+                src="/social-icon/pinterest-icon.png"
+                width={16}
+                height={16}
+                className="object-contain"
+                alt="Pinterest"
+              />
             )}
             {isPublishing ? "Publishing..." : "Share to Pinterest"}
           </button>

@@ -45,6 +45,7 @@ const PostCard = React.memo(
     handleFacebookPost,
     handleInstagramPost,
     handlePinterestPost,
+    handleLinkedinPost,
     onConvertToVideo,
     convertingVideoPostId = null,
     videoGenerationCoins = 200,
@@ -79,6 +80,7 @@ const PostCard = React.memo(
         gmb: post?.gmbDescription ?? post?.description ?? "",
         fb: post?.fbDescription ?? post?.description ?? "",
         ig: post?.igDescription ?? post?.description ?? "",
+        pinterest: post?.pinterestDescription ?? post?.description ?? "",
       }),
       [post],
     );
@@ -182,7 +184,9 @@ const PostCard = React.memo(
           ? "gmbDescription"
           : activeDesc === "fb"
             ? "fbDescription"
-            : "igDescription";
+            : activeDesc === "ig"
+              ? "igDescription"
+              : "pinterestDescription";
       onEditDescription(post._id, { [field]: drafts[activeDesc] });
       setIsEditing(false);
     }, [activeDesc, drafts, onEditDescription, post._id]);
@@ -221,6 +225,7 @@ const PostCard = React.memo(
         if (type === "fb") handleFacebookPost(post);
         else if (type === "ig") handleInstagramPost(post);
         else if (type === "pinterest") handlePinterestPost(post);
+        else if (type === "linkedin") handleLinkedinPost(post);
       }
     };
 
@@ -236,6 +241,7 @@ const PostCard = React.memo(
       else if (type === "fb") handleFacebookPost(post, forcedMedia);
       else if (type === "ig") handleInstagramPost(post, forcedMedia);
       else if (type === "pinterest") handlePinterestPost(post, forcedMedia);
+      else if (type === "linkedin") handleLinkedinPost(post, forcedMedia);
     };
 
     return (
@@ -337,16 +343,17 @@ const PostCard = React.memo(
           <div className="p-6 flex flex-col flex-1">
             {/* Platform Selector & Edit */}
             <div className="flex items-center justify-between mb-5">
-              <div className="flex p-1 bg-slate-50 rounded-xl border border-black/5">
+              <div className="flex p-1 bg-slate-50 rounded-xl border border-black/5 overflow-x-auto no-scrollbar max-w-[280px]">
                 {[
                   { id: "gmb", icon: MapPin, label: "GMB" },
                   { id: "fb", icon: Facebook, label: "FB" },
                   { id: "ig", icon: Instagram, label: "Insta" },
+                  { id: "pinterest", icon: Share2, label: "Pin" },
                 ].map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setActiveDesc(p.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeDesc === p.id
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeDesc === p.id
                       ? "bg-white text-black shadow-sm"
                       : "text-black/30 hover:text-black/50"
                       }`}
@@ -373,17 +380,24 @@ const PostCard = React.memo(
             <div className="flex-1 mb-6">
               {isEditing ? (
                 <div className="space-y-3">
-                  <textarea
-                    value={drafts[activeDesc]}
-                    onChange={(e) =>
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [activeDesc]: e.target.value,
-                      }))
-                    }
-                    className="w-full p-4 text-sm bg-slate-50 border border-black/5 rounded-2xl focus:ring-2 focus:ring-[#EAB308]/20 outline-none resize-none transition-all font-inter"
-                    rows={4}
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={drafts[activeDesc]}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [activeDesc]: e.target.value,
+                        }))
+                      }
+                      className="w-full p-4 text-sm bg-slate-50 border border-black/5 rounded-2xl focus:ring-2 focus:ring-[#EAB308]/20 outline-none resize-none transition-all font-inter"
+                      rows={4}
+                    />
+                    <div className="absolute bottom-3 right-4">
+                      <span className={`text-[9px] font-black uppercase tracking-tighter ${drafts[activeDesc]?.length > (activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200) ? 'text-red-500' : 'text-black/20'}`}>
+                        {drafts[activeDesc]?.length || 0} / {activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200}
+                      </span>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveDescription}
@@ -478,18 +492,32 @@ const PostCard = React.memo(
                       <Instagram size={14} /> Instagram
                     </button>
                   </div>
-                  <button
-                    onClick={() => handleMediaChoice("pinterest")}
-                    className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#c5001f] transition-all shadow-sm"
-                  >
-                    <Image
-                      src="/social-icon/pinterest-icon.png"
-                      width={16}
-                      height={16}
-                      className="object-contain"
-                      alt="Pinterest"
-                    /> Pinterest
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleMediaChoice("pinterest")}
+                      className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#c5001f] transition-all shadow-sm"
+                    >
+                      <Image
+                        src="/social-icon/pinterest-icon.png"
+                        width={16}
+                        height={16}
+                        className="object-contain"
+                        alt="Pinterest"
+                      /> Pinterest
+                    </button>
+                    <button
+                      onClick={() => handleMediaChoice("linkedin")}
+                      className="w-full py-3.5 bg-[#0A66C2] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#004182] transition-all shadow-sm"
+                    >
+                      <Image
+                        src="/social-icon/linkedin.png"
+                        width={16}
+                        height={16}
+                        className="object-contain"
+                        alt="LinkedIn"
+                      /> LinkedIn
+                    </button>
+                  </div>
                   <button
                     onClick={() => onUpdateStatus(post)}
                     className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm"

@@ -92,6 +92,16 @@ const nextConfig = {
         protocol: "https",
         hostname: "via.placeholder.com",
         pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "media.licdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "media-exp1.licdn.com",
+        pathname: "/**",
       }
     ],
   },

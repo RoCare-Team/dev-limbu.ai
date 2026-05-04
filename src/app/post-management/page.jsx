@@ -54,6 +54,7 @@ import { usePostManagementActions } from "@/hooks/usePostManagementActions";
 import { usePostFilters } from "@/hooks/usePostFilters";
 import { getLocalStorage } from "@/utils/storage";
 import { usePinterest } from "@/hooks/usePinterest";
+import { useLinkedin } from "@/hooks/useLinkedin";
 import "./PostManagement.module.css";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
@@ -65,6 +66,7 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import GMBModal from "../../components/post-management/component-modal/GmbModall";
 import PostPublishModal from "../../components/post-management/component-modal/PostPublishModal";
 import ImageGeneratedModal from "../../components/post-management/component-modal/ImageGeneratedModal";
+import LinkedinShareModal from "@/components/post-management/LinkedinShareModal";
 
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
@@ -92,6 +94,7 @@ export default function PostManagementPage() {
     showFacebookModal: false,
     showInstagramModal: false,
     showPinterestModal: false,
+    showLinkedinModal: false,
   });
 
   // image success generated modal
@@ -961,6 +964,20 @@ export default function PostManagementPage() {
     [updateUiState, updateSocialState],
   );
 
+  const {
+    linkedinPages,
+    publishLinkedinPost,
+  } = useLinkedin(null, null);
+
+  const handleLinkedinPost = useCallback(
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
+      updateSocialState({ postToLinkedin: post });
+      updateUiState({ showLinkedinModal: true });
+    },
+    [updateUiState, updateSocialState],
+  );
+
   const handleAutoConvertToVideo = useCallback(
     (post) => {
       handleAutoConvertToVideoAction(
@@ -1479,7 +1496,12 @@ export default function PostManagementPage() {
                // We do NOT close the modal immediately so it can show the error state if it fails.
                // We don't trigger the global isPosting overlay because the modal has its own publishing state.
                const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
-               const description = post.description || post.fbDescription || "";
+               let description = post.pinterestDescription || post.description || post.fbDescription || "";
+               
+               // Pinterest has a 800 character limit for descriptions
+               if (description.length > 800) {
+                 description = description.substring(0, 797) + "...";
+               }
                
                const result = await publishPin({
                  title: bussinessTitle || "Pinterest Post",
@@ -1658,6 +1680,7 @@ export default function PostManagementPage() {
                   handleFacebookPost={handleFacebookPost}
                   handleInstagramPost={handleInstagramPost}
                   handlePinterestPost={handlePinterestPost}
+                  handleLinkedinPost={handleLinkedinPost}
                   onConvertToVideo={handleAutoConvertToVideo}
                   convertingVideoPostId={convertingVideoPostId}
                   videoGenerationCoins={VIDEO_GENERATION_COINS}
@@ -1679,6 +1702,44 @@ export default function PostManagementPage() {
             <ImageGeneratedModal
               isOpen={isImageGenerated}
               onClose={() => setIsImageGenerated(false)}
+            />
+
+            <LinkedinShareModal
+              isOpen={uiState.showLinkedinModal}
+              onClose={() => updateUiState({ showLinkedinModal: false })}
+              post={socialState.postToLinkedin}
+              linkedinPages={linkedinPages}
+              onPost={async (post, pageId) => {
+                const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
+                // Safely determine mediaType without relying on undefined postHasVideoAsset
+                const isVideo = selectedMediaForAction?.type === 'video' || (!selectedMediaForAction && post.videoOutput && mediaUrl === post.videoOutput) || (mediaUrl && mediaUrl.includes('.mp4'));
+                const mediaType = isVideo ? 'video' : 'image';
+                let text = post.description || "";
+                
+                const result = await publishLinkedinPost({
+                  text,
+                  mediaUrl,
+                  mediaType,
+                  pageId
+                });
+                
+                if (result && result.success) {
+                  updateUiState({ showLinkedinModal: false });
+                  setSelectedMediaForAction(null);
+                  setPostingPlatform("LinkedIn");
+                  setIsSuccess(true);
+                  
+                  await updatePostStatusAction({
+                    id: post._id,
+                    userId,
+                    status: "posted",
+                    whenPosted: { ...post.whenPosted, linkedin: true },
+                  });
+                  fetchPosts(1, true);
+                }
+                
+                return result;
+              }}
             />
           </>
         ) : (

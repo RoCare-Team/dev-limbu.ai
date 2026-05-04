@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import LinkedinPage from "@/models/LinkedinPage";
+import LinkedinPage from "@/models/LinkedinProfile";
 
 export async function GET(req) {
   try {

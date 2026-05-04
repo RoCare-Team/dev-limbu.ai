@@ -68,11 +68,48 @@ export function useLinkedin(router, searchParams) {
     }
   }, [linkedinPages]);
 
+  const publishLinkedinPost = useCallback(async ({ text, mediaUrl, mediaType, pageId }) => {
+    const activeId = getActiveUserId();
+    if (!activeId) {
+      toast.error("User ID not found");
+      return { success: false, error: "User ID not found" };
+    }
+
+    try {
+      const response = await fetch("/api/linkedin/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: activeId,
+          pageId,
+          text,
+          mediaUrl,
+          mediaType
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Posted to LinkedIn successfully!");
+        return { success: true, data };
+      } else {
+        toast.error(data.error || "Failed to post to LinkedIn");
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      console.error("Error publishing to LinkedIn:", error);
+      toast.error("An unexpected error occurred");
+      return { success: false, error: error.message };
+    }
+  }, []);
+
   return {
     linkedinPages,
     setLinkedinPages,
     loading,
     fetchLinkedinPages,
     handleDisconnectLinkedin,
+    publishLinkedinPost,
   };
 }

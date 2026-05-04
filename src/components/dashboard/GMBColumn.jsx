@@ -75,13 +75,7 @@ const GMBColumn = React.memo(({
                 )}
               </div>
 
-              <button
-                onClick={handleAddProject}
-                className="w-10 h-10 flex flex-shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-black hover:bg-yellow-500 transition-colors shadow-sm"
-                title="Add Account"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
+              
               
               {listings && listings.length > 0 && (
                 <button

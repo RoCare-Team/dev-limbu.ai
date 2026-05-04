@@ -19,10 +19,12 @@ const PostSchema = new mongoose.Schema(
     gmbDescription: { type: String },
     fbDescription: { type: String },
     igDescription: { type: String },
+    liDescription: { type: String },
+    piDescription: { type: String },
 
     scheduledDateSource: {
       type: [String],
-      enum: ["gmb", "fb", "ig"],
+      enum: ["gmb", "fb", "ig", "li", "pi"],
     },
 
     status: {

@@ -138,6 +138,7 @@ export default function PostManagementPage() {
     "gmb",
     "fb",
     "ig",
+    "li",
   ]);
   const [keywordError, setKeywordError] = useState("");
   const [bussinessTitle, setBussinessTitle] = useState("");
@@ -498,16 +499,19 @@ export default function PostManagementPage() {
           selectedAssets.map((a) => ({ ...a, url: stripBase64(a.url) })),
           { mode, instructions },
         );
+        console.log("AI Agent response in post management: ", res);
         clearInterval(timer);
         if (!res.success) throw new Error(res.error || "AI generation failed");
 
         const data = res.data || {};
-        const { gmb_des, fb_des, ig_des } = normalizePlatformDescriptions({
+
+        // ✅ FIX: pi_des bhi add kiya
+        const { gmb_des, fb_des, ig_des, li_des, pi_des } = normalizePlatformDescriptions({
           ...res,
           ...data,
         });
+        console.log("Normalized descriptions in post management:", { gmb_des, fb_des, ig_des, li_des, pi_des });
 
-        // ✅ Save post first
         const saved = await savePostAction({
           userId,
           aiOutput: data.output,
@@ -515,6 +519,8 @@ export default function PostManagementPage() {
           gmbDescription: gmb_des,
           fbDescription: fb_des,
           igDescription: ig_des,
+          liDescription: li_des,
+          piDescription: pi_des, // 👈 ADDED
           logoUrl: data.logoUrl,
           status: "pending",
           promat: prompt,
@@ -523,7 +529,6 @@ export default function PostManagementPage() {
         if (!saved.success)
           throw new Error(saved.error || "Failed to save post");
 
-        // ✅ Deduct coins ONLY after post saved successfully
         const walletRes = await deductFromWalletAction(userId, {
           amount: AI_IMAGE_GENERATION_COINS,
           type: "deduct",
@@ -532,9 +537,8 @@ export default function PostManagementPage() {
         if (walletRes?.error) throw new Error(walletRes.error);
 
         setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
-
         showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
-        emitWalletDeduct(AI_IMAGE_GENERATION_COINS); // ✅ sidebar update
+        emitWalletDeduct(AI_IMAGE_GENERATION_COINS);
 
         setPosts((prev) => [saved.data, ...prev]);
         setPreviewData(saved.data);
@@ -586,26 +590,13 @@ export default function PostManagementPage() {
           topic: prompt,
           bussiness_name: businessName,
           keywords,
-          colourPalette:
-            userAssets.find((a) => a.name === "Color")?.url || "none",
+          colourPalette: userAssets.find((a) => a.name === "Color")?.url || "none",
           size: userAssets.find((a) => a.name === "Size")?.url || "1:1",
-          characterImage: stripBase64(
-            selectedAssets.find((a) => a.name === "Character")?.url || "",
-          ),
-          uniformImage: stripBase64(
-            selectedAssets.find((a) => a.name === "Uniform")?.url || "",
-          ),
-          productImage: stripBase64(
-            selectedAssets.find((a) => a.name.startsWith("Product"))?.url || "",
-          ),
-          backgroundImage: stripBase64(
-            selectedAssets.find((a) => a.name === "Background")?.url || "",
-          ),
-          logoImage: stripBase64(
-            selectedAssets.find((a) => a.name === "Logo")?.url ||
-              logoBase64 ||
-              "",
-          ),
+          characterImage: stripBase64(selectedAssets.find((a) => a.name === "Character")?.url || ""),
+          uniformImage: stripBase64(selectedAssets.find((a) => a.name === "Uniform")?.url || ""),
+          productImage: stripBase64(selectedAssets.find((a) => a.name.startsWith("Product"))?.url || ""),
+          backgroundImage: stripBase64(selectedAssets.find((a) => a.name === "Background")?.url || ""),
+          logoImage: stripBase64(selectedAssets.find((a) => a.name === "Logo")?.url || logoBase64 || ""),
           platform: selectedPlatforms.join(",") || "gmb",
           mode,
           instructions,
@@ -614,25 +605,27 @@ export default function PostManagementPage() {
         timer = null;
 
         if (!res.success && !res.data && !res.output && !res.image) {
-          throw new Error(
-            res.error || res.message || "Image generation failed",
-          );
+          throw new Error(res.error || res.message || "Image generation failed");
         }
 
         const data = res.success ? res.data : res;
-        const { gmb_des, fb_des, ig_des } = normalizePlatformDescriptions({
+
+        // ✅ FIX: console.log AFTER destructure, pi_des bhi add
+        const { gmb_des, fb_des, ig_des, li_des, pi_des } = normalizePlatformDescriptions({
           ...res,
           ...data,
         });
+        console.log("Normalized descriptions:", { gmb_des, fb_des, ig_des, li_des, pi_des });
 
         const saved = await savePostAction({
           userId,
           aiOutput: data.image || data.output,
-          description:
-            data.description || gmb_des || fb_des || ig_des || "Generated",
+          description: data.description || gmb_des || fb_des || ig_des || "Generated",
           gmbDescription: gmb_des,
           fbDescription: fb_des,
           igDescription: ig_des,
+          liDescription: li_des,
+          piDescription: pi_des, // 👈 ADDED
           status: "pending",
           promat: prompt,
           locations: [],
@@ -656,14 +649,9 @@ export default function PostManagementPage() {
 
         if (!deductOk || walletRes?.error) {
           console.error("Coin deduction failed after save:", walletRes);
-          showToast(
-            "Post saved but coin deduction failed — contact support",
-            "error",
-          );
+          showToast("Post saved but coin deduction failed — contact support", "error");
         } else {
-          setUserWallet((prev) =>
-            Math.max(0, prev - AI_IMAGE_GENERATION_COINS),
-          );
+          setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
           showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
           emitWalletDeduct(AI_IMAGE_GENERATION_COINS);
         }
@@ -679,15 +667,7 @@ export default function PostManagementPage() {
         updateUiState({ isGenerating: false, countdown: 0 });
       }
     },
-    [
-      prompt,
-      userId,
-      logo,
-      userAssets,
-      selectedPlatforms,
-      showToast,
-      updateUiState,
-    ],
+    [prompt, userId, logo, userAssets, selectedPlatforms, showToast, updateUiState],
   );
 
   const handleGenerateClick = useCallback(
@@ -1267,18 +1247,18 @@ const handleYouTubePostAction = useCallback(
         }
 
         if (successfulLocs.length > 0) {
-           // Update post status with successful locations only
-           await updatePostStatusAction({
-              id: postToAction._id,
-              userId,
-              locations: successfulLocs, // Override with only successful ones
-              status: "posted",
-              whenPosted: { ...postToAction.whenPosted, gmb: true },
-              mediaStatus: {
-                [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
-              },
-            });
-            fetchPosts(1, true);
+          // Update post status with successful locations only
+          await updatePostStatusAction({
+            id: postToAction._id,
+            userId,
+            locations: successfulLocs, // Override with only successful ones
+            status: "posted",
+            whenPosted: { ...postToAction.whenPosted, gmb: true },
+            mediaStatus: {
+              [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
+            },
+          });
+          fetchPosts(1, true);
         } else {
           throw new Error("All GMB posts failed");
         }
@@ -1443,7 +1423,7 @@ const handleYouTubePostAction = useCallback(
       try {
         const p = JSON.parse(stored);
         if (p.length) setBussinessTitle(p[0].title);
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -1616,40 +1596,38 @@ const handleYouTubePostAction = useCallback(
             post={socialState.postToPinterest}
             pinterestProfiles={pinterestProfiles}
             onPost={async (post, boardId) => {
-               // We do NOT close the modal immediately so it can show the error state if it fails.
-               // We don't trigger the global isPosting overlay because the modal has its own publishing state.
-               const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
-               let description = post.pinterestDescription || post.description || post.fbDescription || "";
-               
-               // Pinterest has a 800 character limit for descriptions
-               if (description.length > 800) {
-                 description = description.substring(0, 797) + "...";
-               }
-               
-               const result = await publishPin({
-                 title: bussinessTitle || "Pinterest Post",
-                 description,
-                 boardId,
-                 mediaUrl,
-                 link: availableLocations[0]?.websiteUrl || ""
-               });
-               
-               if (result && result.success) {
-                 updateUiState({ showPinterestModal: false });
-                 setSelectedMediaForAction(null);
-                 setPostingPlatform("Pinterest");
-                 setIsSuccess(true);
-                 
-                 await updatePostStatusAction({
-                    id: post._id,
-                    userId,
-                    status: "posted",
-                    whenPosted: { ...post.whenPosted, pinterest: true },
-                 });
-                 fetchPosts(1, true);
-               }
-               
-               return result;
+              const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
+              // ✅ FIX: piDescription pehle check karo
+              let description = post.piDescription || post.pinterestDescription || post.description || post.fbDescription || "";
+
+              if (description.length > 800) {
+                description = description.substring(0, 797) + "...";
+              }
+
+              const result = await publishPin({
+                title: bussinessTitle || "Pinterest Post",
+                description,
+                boardId,
+                mediaUrl,
+                link: availableLocations[0]?.websiteUrl || ""
+              });
+
+              if (result && result.success) {
+                updateUiState({ showPinterestModal: false });
+                setSelectedMediaForAction(null);
+                setPostingPlatform("Pinterest");
+                setIsSuccess(true);
+
+                await updatePostStatusAction({
+                  id: post._id,
+                  userId,
+                  status: "posted",
+                  whenPosted: { ...post.whenPosted, pinterest: true },
+                });
+                fetchPosts(1, true);
+              }
+
+              return result;
             }}
           />
         )}
@@ -1852,21 +1830,23 @@ const handleYouTubePostAction = useCallback(
                 // Safely determine mediaType without relying on undefined postHasVideoAsset
                 const isVideo = selectedMediaForAction?.type === 'video' || (!selectedMediaForAction && post.videoOutput && mediaUrl === post.videoOutput) || (mediaUrl && mediaUrl.includes('.mp4'));
                 const mediaType = isVideo ? 'video' : 'image';
-                let text = post.description || "";
-                
+
+                // The modal passes the newly edited text inside `post.linkedinDescription`
+                let text = post.linkedinDescription || post.liDescription || "";
+
                 const result = await publishLinkedinPost({
                   text,
                   mediaUrl,
                   mediaType,
                   pageId
                 });
-                
+
                 if (result && result.success) {
                   updateUiState({ showLinkedinModal: false });
                   setSelectedMediaForAction(null);
                   setPostingPlatform("LinkedIn");
                   setIsSuccess(true);
-                  
+
                   await updatePostStatusAction({
                     id: post._id,
                     userId,
@@ -1875,7 +1855,7 @@ const handleYouTubePostAction = useCallback(
                   });
                   fetchPosts(1, true);
                 }
-                
+
                 return result;
               }}
             />

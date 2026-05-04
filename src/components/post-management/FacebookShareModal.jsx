@@ -26,7 +26,7 @@ const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages
 
   const handleSubmit = useCallback(() => {
     if (!pages || pages.length === 0) return;
-    
+
     const page = pages.find(p => p.pageId === selectedPageId) || pages[0];
     if (page) {
       onConfirm(post, page, caption);

@@ -657,7 +657,7 @@ export default function DynamicServiceCityPage({ params }) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-bold animate-pulse">Loading {cityName} local SEO dashboard...</p>
+        <p className="text-slate-500 font-bold animate-pulse">Loading {cityName}</p>
       </div>
     );
   }
@@ -761,6 +761,82 @@ export default function DynamicServiceCityPage({ params }) {
                   <p className="text-slate-500 text-sm leading-relaxed font-medium">{f.description}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── ABOUT SECTION ── */}
+        <section className="py-8 md:py-10 bg-slate-50 border-y border-slate-200 relative overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[140%] bg-white rounded-full blur-[100px] opacity-70 pointer-events-none" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[120%] bg-yellow-200 rounded-full blur-[120px] opacity-20 pointer-events-none" />
+
+          <div className="max-w-7xl mx-auto px-4  relative z-10 text-left">
+
+            {/* Tag */}
+            <div className="inline-flex items-center gap-2 text-sm font-bold text-yellow-600 uppercase tracking-wider mb-6 border border-yellow-200 bg-yellow-50 px-4 py-1.5 rounded-full shadow-sm">
+              <Award className="w-4 h-4" /> About Limbu AI
+            </div>
+
+            {/* Heading */}
+            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-8 leading-tight">
+              Welcome to{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-yellow-700">
+                Limbu AI
+              </span>
+            </h2>
+
+            {/* Content */}
+            <div className="space-y-6 text-base md:text-lg text-slate-600 font-medium leading-relaxed w-full">
+
+              <p>
+                Managing a local business is already challenging. But staying consistent with your online presence —
+                updating your <strong className="text-slate-900">Google Business Profile</strong>, replying to customer reviews,
+                and improving your <strong className="text-slate-900">local search rankings</strong> - can feel overwhelming.
+              </p>
+
+              <p>
+                <strong className="text-slate-900">
+                  Limbu AI was built to eliminate this burden completely.
+                </strong>{" "}
+                It is a smart automation platform designed specifically for{" "}
+                <strong className="text-slate-900">local businesses, shop owners, and service providers</strong> who want to grow online without hiring expensive marketing teams.
+              </p>
+
+              <p>
+                Our AI works as your{" "}
+                <strong className="text-slate-900">24/7 digital marketing manager</strong>, helping you stay active,
+                visible, and competitive in your local market. From generating{" "}
+                <strong className="text-slate-900">high-quality daily posts</strong> with your branding to boosting your{" "}
+                <strong className="text-slate-900">customer engagement</strong>, everything runs automatically.
+              </p>
+
+              <p>
+                With features like{" "}
+                <strong className="text-slate-900">AI-generated content</strong>,{" "}
+                <strong className="text-slate-900">review automation</strong>, and{" "}
+                <strong className="text-slate-900">Magic QR codes</strong>, you can significantly increase your{" "}
+                <strong className="text-slate-900">5-star ratings</strong> and build stronger trust with your customers.
+              </p>
+
+              <p>
+                <strong className="text-slate-900">
+                  The result?
+                </strong>{" "}
+                More visibility, more customers, and more growth - without extra effort.
+              </p>
+
+              <p>
+                Limbu AI handles the complex algorithms behind the scenes, so you can focus on what truly matters:
+                <strong className="text-slate-900"> running your business and serving your customers better.</strong>
+              </p>
+
+              {/* Review Style Line */}
+              <p className="italic text-slate-700 border-l-4 border-yellow-400 pl-4">
+                “Since using <strong className="text-slate-900">Limbu AI</strong>, our business visibility increased dramatically.
+                We started getting more calls, more reviews, and more walk-in customers - all without extra effort.”
+              </p>
+
             </div>
           </div>
         </section>

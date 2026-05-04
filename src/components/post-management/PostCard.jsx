@@ -19,6 +19,7 @@ import {
   Image as ImageIconLucide,
   ChevronRight,
   Clock,
+  Linkedin,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import { looksLikeVideoUrl, postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
@@ -83,6 +84,7 @@ const PostCard = React.memo(
         fb: post?.fbDescription ?? post?.description ?? "",
         ig: post?.igDescription ?? post?.description ?? "",
         pinterest: post?.pinterestDescription ?? post?.description ?? "",
+        li: post?.liDescription ?? "",
       }),
       [post],
     );
@@ -202,14 +204,14 @@ const PostCard = React.memo(
     };
 
     const handleSaveDescription = useCallback(() => {
-      const field =
-        activeDesc === "gmb"
-          ? "gmbDescription"
-          : activeDesc === "fb"
-            ? "fbDescription"
-            : activeDesc === "ig"
-              ? "igDescription"
-              : "pinterestDescription";
+      const fieldMap = {
+        gmb: "gmbDescription",
+        fb: "fbDescription",
+        ig: "igDescription",
+        pinterest: "pinterestDescription",
+        li: "liDescription",
+      };
+      const field = fieldMap[activeDesc] || "description";
       onEditDescription(post._id, { [field]: drafts[activeDesc] });
       setIsEditing(false);
     }, [activeDesc, drafts, onEditDescription, post._id]);
@@ -375,6 +377,7 @@ const PostCard = React.memo(
                   { id: "fb", icon: Facebook, label: "FB" },
                   { id: "ig", icon: Instagram, label: "Insta" },
                   { id: "pinterest", icon: Share2, label: "Pin" },
+                  { id: "li", icon: Linkedin, label: "LinkedIn" },
                 ].map((p) => (
                   <button
                     key={p.id}
@@ -419,8 +422,8 @@ const PostCard = React.memo(
                       rows={4}
                     />
                     <div className="absolute bottom-3 right-4">
-                      <span className={`text-[9px] font-black uppercase tracking-tighter ${drafts[activeDesc]?.length > (activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200) ? 'text-red-500' : 'text-black/20'}`}>
-                        {drafts[activeDesc]?.length || 0} / {activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200}
+                      <span className={`text-[9px] font-black uppercase tracking-tighter ${drafts[activeDesc]?.length > (activeDesc === 'li' ? 3000 : activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200) ? 'text-red-500' : 'text-black/20'}`}>
+                        {drafts[activeDesc]?.length || 0} / {activeDesc === 'li' ? 3000 : activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200}
                       </span>
                     </div>
                   </div>

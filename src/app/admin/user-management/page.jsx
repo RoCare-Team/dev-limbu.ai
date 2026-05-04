@@ -2874,7 +2874,7 @@ const groupedUsers = groupByDate(users); // 🔥 यही use होगा
                             Refresh
                           </Button>
                         </Stack>
-                      </Box>
+                      </Box> 
                     )}
           {role === "superAdmin" && (
             <>
@@ -3290,57 +3290,37 @@ const groupedUsers = groupByDate(users); // 🔥 यही use होगा
                                     <option value="Cold">Cold</option>
                                   </select>
                                 </div>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <select
-                                    value={
-                                      USER_SOURCE_OPTIONS.some(
-                                        (o) => o.value === (user.source || ""),
-                                      )
-                                        ? user.source || "signup"
-                                        : "signup"
-                                    }
-                                    onChange={(e) =>
-                                      handleUserSourceChange(
-                                        user.userId,
-                                        e.target.value,
-                                      )
-                                    }
-                                    className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
-                                    title="Lead source (website, chatbot, manual upload, …)"
-                                  >
-                                    {USER_SOURCE_OPTIONS.map((o) => (
-                                      <option key={o.value} value={o.value}>
-                                        {o.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
                                 <div className="flex flex-wrap gap-1 mt-1 items-center">
-                                  <span
-                                    className={userAcquisitionTagClassName(
-                                      user.source,
-                                    )}
-                                    title="Acquisition source"
-                                  >
-                                    {userAcquisitionLabel(user.source)}
-                                  </span>
-                                  {(user.leadTags || [])
-                                    .filter(Boolean)
-                                    .map((tag) => (
-                                      <span
-                                        key={String(tag)}
-                                        className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
-                                        title="Lead tag"
-                                      >
-                                        {formatLeadTagLabel(tag)}
-                                      </span>
-                                    ))}
-                                  {user.paidPackage && (
-                                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
-                                      {user.paidPackage}
-                                    </span>
-                                  )}
-                                </div>
+  <span
+    className={userAcquisitionTagClassName(user.source)}
+    title="Acquisition source"
+  >
+    {userAcquisitionLabel(user.source)}
+  </span>
+
+  {(user.leadTags || [])
+    .filter(Boolean)
+    .filter(
+      (tag) =>
+        formatLeadTagLabel(tag).toLowerCase() !==
+        userAcquisitionLabel(user.source).toLowerCase()
+    )
+    .map((tag) => (
+      <span
+        key={String(tag)}
+        className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
+        title="Lead tag"
+      >
+        {formatLeadTagLabel(tag)}
+      </span>
+    ))}
+
+  {user.paidPackage && (
+    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
+      {user.paidPackage}
+    </span>
+  )}
+</div>
                               </div>
                             </td>
 

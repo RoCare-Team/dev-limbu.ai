@@ -25,6 +25,7 @@ import FacebookColumn from "@/components/dashboard/FacebookColumn";
 import InstagramColumn from "@/components/dashboard/InstagramColumn";
 import LinkedinColumn from "@/components/dashboard/LinkedinColumn";
 import PinterestColumn from "@/components/dashboard/PinterestColumn";
+import YouTubeColumn from "@/components/dashboard/YouTubeColumn";
 import ConnectModal from "@/components/modals/ConnectModal";
 import SessionExpiredModal from "@/components/modals/SessionExpiredModal";
 
@@ -34,6 +35,7 @@ import { useFacebook } from "@/hooks/useFacebook";
 import { useInstagram } from "@/hooks/useInstagram";
 import { useLinkedin } from "@/hooks/useLinkedin";
 import { usePinterest } from "@/hooks/usePinterest";
+import { useYouTube } from "@/hooks/useYouTube";
 import { getLocalStorage, setLocalStorage } from "@/utils/storage";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
@@ -141,6 +143,12 @@ export default function DashboardPage() {
     setPinterestProfiles,
     handleDisconnectPinterest
   } = usePinterest(router, searchParams);
+
+  const {
+    youtubeChannels,
+    setYoutubeChannels,
+    handleDisconnectYouTube
+  } = useYouTube(router, searchParams);
 
   // --- Consolidated Performance Insights State ---
   const [performanceState, setPerformanceState] = useState({
@@ -383,6 +391,7 @@ export default function DashboardPage() {
     { id: "instagram", label: "Instagram", icon: "/social-icon/instagram-icon.png", count: instagramPages.length },
     { id: "pinterest", label: "Pinterest", icon: "/social-icon/pinterest-icon.png", count: pinterestProfiles?.length || 0 },
     { id: "linkedin", label: "LinkedIn", icon: "/social-icon/linkedin.png", count: linkedinPages?.length || 0 },
+    { id: "youtube", label: "YouTube", icon: "/social-icon/youtube-icon.svg", count: youtubeChannels?.length || 0 },
   ];
 
   return (
@@ -542,6 +551,14 @@ export default function DashboardPage() {
             pinterestProfiles={pinterestProfiles}
             setPinterestProfiles={setPinterestProfiles}
             handleDisconnectPinterest={handleDisconnectPinterest}
+          />
+        )}
+
+        {activeTab === "youtube" && (
+          <YouTubeColumn
+            youtubeChannels={youtubeChannels}
+            setYoutubeChannels={setYoutubeChannels}
+            handleDisconnectYouTube={handleDisconnectYouTube}
           />
         )}
 

@@ -15,6 +15,7 @@ import { loadAssetsFromServerAction } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
+import { metaPublishMedia } from "@/lib/postMediaUrls";
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
   CheckCircle,
@@ -26,6 +27,7 @@ import {
   XCircle,
   Video,
   Film,
+  Youtube,
 } from "lucide-react";
 
 import ScheduleModal from "../../components/post-management/ScheduleModal";
@@ -33,13 +35,14 @@ import ScheduleConfirmationModal from "../../components/post-management/Schedule
 import FacebookShareModal from "../../components/post-management/FacebookShareModal";
 import InstagramShareModal from "../../components/post-management/InstagramShareModal";
 import PinterestShareModal from "../../components/post-management/PinterestShareModal";
+import YouTubeShareModal from "../../components/post-management/YouTubeShareModal";
 import PreviewSection from "../../components/post-management/PreviewSection";
 import PostManagementHeader from "../../components/post-management/PostManagementHeader";
 import PostCard from "../../components/post-management/PostCard";
 import ImageToVideoModal from "@/components/post-management/ImageToVideoModal";
 
-
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Toast from "../../components/Toast";
 import LocationSelectionModal from "../../components/LocationSelectionModal";
@@ -56,6 +59,7 @@ import { usePostFilters } from "@/hooks/usePostFilters";
 import { getLocalStorage } from "@/utils/storage";
 import { usePinterest } from "@/hooks/usePinterest";
 import { useLinkedin } from "@/hooks/useLinkedin";
+import { useYouTube } from "@/hooks/useYouTube";
 import "./PostManagement.module.css";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
@@ -96,6 +100,7 @@ export default function PostManagementPage() {
     showInstagramModal: false,
     showPinterestModal: false,
     showLinkedinModal: false,
+    showYouTubeModal: false,
   });
 
   // image success generated modal
@@ -158,6 +163,14 @@ export default function PostManagementPage() {
   const [selectedMediaForAction, setSelectedMediaForAction] = useState(null);
 
   // --- Social Media Specific ---
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    youtubeChannels,
+    loading: loadingYoutubeChannels,
+    fetchYouTubeChannels,
+  } = useYouTube(router, searchParams);
+
   const {
     pinterestProfiles,
     publishPin
@@ -170,6 +183,7 @@ export default function PostManagementPage() {
     instagramAccounts: [],
     loadingIgAccounts: false,
     postToInstagram: null,
+    postToYouTube: null,
   });
 
   const updateSocialState = useCallback((updates) => {
@@ -979,6 +993,114 @@ export default function PostManagementPage() {
     [updateUiState, updateSocialState],
   );
 
+  const handleYoutubePost = useCallback(
+    (post, media = null) => {
+      setSelectedMediaForAction(media);
+      updateSocialState({ postToYouTube: post });
+      updateUiState({ showYouTubeModal: true });
+      fetchYouTubeChannels();
+    },
+    [fetchYouTubeChannels, updateUiState, updateSocialState],
+  );
+const handleYouTubePostAction = useCallback(
+  async (post, channel, caption, media = null) => {
+    if (!post) return;
+
+    const publishMedia = media || metaPublishMedia(post);
+
+    // ❌ No video
+    if (!publishMedia?.url) {
+      showToast("Post has no video to upload to YouTube", "error");
+      return;
+    }
+
+    try {
+      setPostingPlatform?.("YouTube");
+      setIsPosting(true);
+
+      showToast("Uploading to YouTube...", "success");
+
+      // ✅ FormData (IMPORTANT)
+      const formData = new FormData();
+      formData.append("userId", userId);
+      formData.append("channelId", channel.channelId || channel.id);
+
+      formData.append(
+        "title",
+        post.title ||
+          post.description?.slice(0, 80) ||
+          "YouTube Shorts"
+      );
+
+      formData.append(
+        "description",
+        (caption || post.description || "") + "\n#shorts"
+      );
+
+      formData.append("mediaUrl", publishMedia.url);
+      formData.append("privacyStatus", "private"); // change if needed
+      formData.append("isShort", "true");
+
+      // 🚀 API call
+      const res = await fetch("/api/youtube/publish", {
+        method: "POST",
+        body: formData, // ❗ DO NOT SET Content-Type
+      });
+
+      // ❌ HTTP error
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(
+          `YouTube API error (${res.status}): ${errorText}`
+        );
+      }
+
+      // ✅ Safe JSON parse
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid JSON response from server");
+      }
+
+      // ❌ Backend error
+      if (!data.success) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      // ✅ Success
+      setIsSuccess?.(true);
+
+      showToast("Video uploaded to YouTube 🎉", "success");
+
+      // Optional: open video
+      if (data.data?.id) {
+        const url = `https://youtube.com/watch?v=${data.data.id}`;
+        console.log("YouTube URL:", url);
+      }
+
+      await fetchPosts(1, true);
+    } catch (err) {
+      console.error("YouTube upload error:", err);
+
+      showToast(
+        err.message || "Failed to upload to YouTube",
+        "error"
+      );
+    } finally {
+      setTimeout(() => setIsPosting(false), 1000);
+    }
+  },
+  [
+    fetchPosts,
+    setIsPosting,
+    setIsSuccess,
+    setPostingPlatform,
+    showToast,
+    userId,
+  ]
+);
+
   const handleAutoConvertToVideo = useCallback(
     (post) => {
       handleAutoConvertToVideoAction(
@@ -1554,6 +1676,20 @@ export default function PostManagementPage() {
             setPreviewData(s);
           }}
         />
+        {uiState.showYouTubeModal && (
+          <YouTubeShareModal
+            isOpen={uiState.showYouTubeModal}
+            onClose={() => updateUiState({ showYouTubeModal: false })}
+            post={socialState.postToYouTube}
+            channels={youtubeChannels}
+            loading={loadingYoutubeChannels}
+            onConfirm={(post, channel, caption) => {
+              updateUiState({ showYouTubeModal: false });
+              handleYouTubePostAction(post, channel, caption, selectedMediaForAction);
+              setSelectedMediaForAction(null);
+            }}
+          />
+        )}
         {uiState.showFirstPostModal && (
           <FirstPostModal
             onClose={() => updateUiState({ showFirstPostModal: false })}
@@ -1682,6 +1818,7 @@ export default function PostManagementPage() {
                   handleInstagramPost={handleInstagramPost}
                   handlePinterestPost={handlePinterestPost}
                   handleLinkedinPost={handleLinkedinPost}
+                  handleYoutubePost={handleYoutubePost}
                   onConvertToVideo={handleAutoConvertToVideo}
                   convertingVideoPostId={convertingVideoPostId}
                   videoGenerationCoins={VIDEO_GENERATION_COINS}

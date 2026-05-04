@@ -15,12 +15,13 @@ import {
   Pencil,
   Loader2,
   Video,
+  Youtube,
   Image as ImageIconLucide,
   ChevronRight,
   Clock,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
-import { postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
+import { looksLikeVideoUrl, postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
 import Image from "next/image";
 import MediaSelectionModal from "./MediaSelectionModal";
 import VideoGenerationModal from "./component-modal/VideoGenerationModal";
@@ -46,6 +47,7 @@ const PostCard = React.memo(
     handleInstagramPost,
     handlePinterestPost,
     handleLinkedinPost,
+    handleYoutubePost,
     onConvertToVideo,
     convertingVideoPostId = null,
     videoGenerationCoins = 200,
@@ -94,6 +96,27 @@ const PostCard = React.memo(
     const imgUrl = useMemo(() => postImageUrl(post), [post]);
     const vidUrl = useMemo(() => postVideoUrl(post), [post]);
     const dualCardMedia = Boolean(imgUrl && vidUrl);
+    const hasVideoAsset = useMemo(() => {
+      const videoCandidates = [
+        post.videoOutput,
+        post.videoUrl,
+        post.video_url,
+        post.aiOutput,
+        post.ai_output,
+      ];
+      const hasVideoField = videoCandidates.some(
+        (value) => typeof value === "string" && value.trim(),
+      );
+      const videoUrl = videoCandidates.find(
+        (value) => typeof value === "string" && value.trim(),
+      );
+      return Boolean(
+        vidUrl ||
+          post.mediaType === "video" ||
+          hasVideoField ||
+          (typeof videoUrl === "string" && looksLikeVideoUrl(videoUrl.trim())),
+      );
+    }, [post.aiOutput, post.ai_output, post.mediaType, post.videoOutput, post.videoUrl, post.video_url, vidUrl]);
 
     const displayMediaUrl = useMemo(() => {
       return dualCardMedia
@@ -219,6 +242,9 @@ const PostCard = React.memo(
         } else {
           handlePost(post);
         }
+      } else if (type === "youtube") {
+        const forcedMedia = dualCardMedia ? { type: "video", url: vidUrl } : null;
+        handleYoutubePost(post, forcedMedia);
       } else if (dualCardMedia) {
         setSelectionModal({ isOpen: true, type });
       } else {
@@ -518,6 +544,14 @@ const PostCard = React.memo(
                       /> LinkedIn
                     </button>
                   </div>
+                  {hasVideoAsset && (
+                    <button
+                      onClick={() => handleMediaChoice("youtube")}
+                      className="w-full py-3.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-sm"
+                    >
+                      <Youtube size={14} /> YouTube
+                    </button>
+                  )}
                   <button
                     onClick={() => onUpdateStatus(post)}
                     className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm"
@@ -699,27 +733,37 @@ const PostCard = React.memo(
 {
   ((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
     (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
-    <div className="grid grid-cols-2 gap-3 mt-4">
-      {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
+    <div className="space-y-3 mt-4">
+      <div className="grid grid-cols-2 gap-3">
+        {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
+          <button
+            onClick={() => handleMediaChoice("fb")}
+            className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+          >
+            <Facebook size={14} /> Facebook
+          </button>
+        )}
+        {
+          !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
+            <button
+              onClick={() => handleMediaChoice("ig")}
+              className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+            >
+              <Instagram size={14} /> Instagram
+            </button>
+          )
+        }
+      </div>
+      {hasVideoAsset && (
         <button
-          onClick={() => handleMediaChoice("fb")}
-          className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+          onClick={() => handleMediaChoice("youtube")}
+          className="w-full py-3.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-sm"
         >
-          <Facebook size={14} /> Facebook
+          <Youtube size={14} /> YouTube
         </button>
       )}
-  {
-    !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
-      <button
-        onClick={() => handleMediaChoice("ig")}
-        className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-      >
-        <Instagram size={14} /> Instagram
-      </button>
-    )
-  }
-                      </div >
-                    )
+    </div>
+  )
 }
                 </>
               )}

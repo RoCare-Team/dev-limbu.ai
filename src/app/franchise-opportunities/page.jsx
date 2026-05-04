@@ -270,7 +270,7 @@ export default function FranchisePage() {
       {/* =================== APPLICATION FORM MODAL =================== */}
       {showForm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
-          <div className="relative w-full max-w-lg bg-white border border-black/5 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="relative w-full max-w-lg bg-white border border-black/5 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn">
             <div
               className="pointer-events-none absolute inset-0 z-0 opacity-[0.02]"
               style={{

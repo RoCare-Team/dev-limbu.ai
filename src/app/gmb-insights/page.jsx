@@ -292,7 +292,7 @@ export default function GmbInsightsPage() {
                   ) : (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest border border-red-100">
                       <AlertCircle className="w-3 h-3" />
-                      Issue
+                      Unverified
                     </span>
                   )}
                 </div>

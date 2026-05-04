@@ -284,7 +284,7 @@ const PreviewSection = React.memo(({
               <Image
                 width={400}
                 height={300}
-                src={activeMediaUrl}
+                src={activeMediaUrl || "https://via.placeholder.com/400x300?text=Preview+Not+Available"}
                 alt="Preview"
                 referrerPolicy="no-referrer"
                 className="relative w-full h-full object-contain z-10 transition-transform duration-500 group-hover:scale-[1.015]"

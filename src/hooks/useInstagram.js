@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { getLocalStorage } from "@/utils/storage";
 
@@ -15,6 +15,7 @@ function getActiveUserId() {
 export function useInstagram(router, searchParams) {
   const [instagramPages, setInstagramPages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const toastShownRef = useRef(false);
 
   const fetchInstagramPages = useCallback(async () => {
     const activeId = getActiveUserId();
@@ -38,7 +39,8 @@ export function useInstagram(router, searchParams) {
   // Sync on mount or when redirecting back from IG login
   useEffect(() => {
     fetchInstagramPages();
-    if (searchParams?.get("ig") === "connected") {
+    if (searchParams?.get("ig") === "connected" && !toastShownRef.current) {
+      toastShownRef.current = true;
       toast.success("Instagram Account connected successfully!");
       router.replace("/dashboard");
     }
@@ -46,9 +48,9 @@ export function useInstagram(router, searchParams) {
 
   const handleDisconnectInstagram = useCallback(async (igId) => {
     const activeId = getActiveUserId();
-    if (!activeId || !confirm("Are you sure you want to disconnect this account?")) return;
+    if (!activeId) return;
 
-    // Optimistic UI update
+    // Optimistic UI Update
     const previousPages = [...instagramPages];
     setInstagramPages((prev) => prev.filter((p) => p.igId !== igId));
 

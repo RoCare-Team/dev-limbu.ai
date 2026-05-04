@@ -69,10 +69,10 @@ const InstagramShareModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-fadeIn">
       
       {/* Modal Box */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 animate-scaleIn">
 
         {/* Header */}
         <div className="flex justify-between items-center mb-4">

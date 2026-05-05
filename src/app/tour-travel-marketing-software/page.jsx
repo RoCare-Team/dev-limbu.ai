@@ -61,22 +61,22 @@ export default function TourTravelMarketingPage() {
   ];
 
   const tourPostImages = [
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489442/tour_and_travel_aafdsw.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489522/tour_and_travel_rqdec3.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489655/tour_and_travel_a3wlx9.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489697/tour_and_travel_ehuedu.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776489813/tour_and_travel_n7igkj.jpg",
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777965012467-0-386f1647-d0b9-45c6-9e9a-465213a39870-tour_and_travel_aafdsw.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777965012455-1-aa0e2434-28dc-4539-b8bc-3885aca296f7-tour_and_travel_rqdec3.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777965012427-2-dda190c9-61a5-45b9-b2c7-f2b183fcb3a0-tour_and_travel_a3wlx9.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777965012689-3-f5adb20f-4723-4520-afd3-644b0d9a392e-tour_and_travel_ehuedu.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777965012672-4-1b3f48fa-d884-4ad1-aba7-5802ccf1924b-tour_and_travel_n7igkj.jpg"
+  ]
 
   const videoExamples = [
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758899-0-3963c931-8bdc-4c5b-83b7-a45e2f3dee5c-WhatsApp-Video-2026-02-02-at-2.50.11-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759497-1-dcff2a8b-d608-4fad-8304-dd8f6d132c8f-WhatsApp-Video-2026-02-02-at-2.50.12-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759390-2-bbc0bea6-909e-4566-a417-ba3cd713645e-WhatsApp-Video-2026-02-02-at-2.50.12-PM--2-.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758826-3-9a4c4050-5a50-41b5-9614-7228d1f04c24-WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758630-4-cb36a2d7-1f46-42ba-8852-9a7429d1b3da-WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759013-5-1d0a1d2e-4af6-43b2-9680-a3b730d239ae-WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758921-6-39fd61e5-fad7-492a-9270-80b3f15472f5-WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4"
+  ]
 
   const schemas = [
     {

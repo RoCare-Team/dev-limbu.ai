@@ -25,6 +25,9 @@ import {
 } from "@mui/material";
 import { Add, Edit, Delete, Visibility } from "@mui/icons-material";
 
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json"; 
+
 // Define a blue theme
 const theme = createTheme({
   palette: {
@@ -112,12 +115,17 @@ export default function AdminCityServices() {
   };
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-        <CircularProgress color="primary" />
-      </Box>
-    );
-  }
+     return (
+       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+         <div className="text-center">
+           <div className="w-84 h-84 mx-auto">
+             <Lottie animationData={animationData} loop={true} />
+           </div>
+           {/* <p className="text-gray-600 font-medium">Loading users.</p> */}
+         </div>
+       </div>
+     );
+   }
 
   return (
     <ThemeProvider theme={theme}>

@@ -186,19 +186,19 @@ export default function LimbuAILanding() {
     //   return;
     // }
 
-    const loadRazorpayScript = () => {
-      return new Promise((resolve) => {
-        const script = document.createElement("script");
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.onload = () => {
-          resolve(true);
-        };
-        script.onerror = () => {
-          resolve(false);
-        };
-        document.body.appendChild(script);
-      });
-    };
+    // const loadRazorpayScript = () => {
+    //   return new Promise((resolve) => {
+    //     const script = document.createElement("script");
+    //     script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    //     script.onload = () => {
+    //       resolve(true);
+    //     };
+    //     script.onerror = () => {
+    //       resolve(false);
+    //     };
+    //     document.body.appendChild(script);
+    //   });
+    // };
 
     try {
       const amountVal =
@@ -287,205 +287,205 @@ export default function LimbuAILanding() {
     }
   };
 
-  const accountSetupPlans = [
-    {
-      title: "Google Ads Account Setup",
-      basePrice: 2500,
-      description:
-        "Complete Google Ads account setup with keyword research, tracking, and analytics integration.",
-      staticFeatures: [
-        "New Google Ads account creation",
-        "Billing & payment configuration",
-        "Search campaign keyword research",
-        "High-intent keyword selection",
-        "Negative keyword setup",
-        "Competitor keyword analysis",
-        "Campaign structure planning (Search / Display if required)",
-        "Google Business Profile linking (if available)",
-        "Google Analytics 4 (GA4) setup & configuration",
-        "Google Tag Manager setup (if required)",
-        "Conversion tracking setup",
-        "Website conversion tracking (forms, calls, purchases, etc.)",
-        "Event tracking configuration",
-        "Call tracking setup",
-      ],
-    },
-    {
-      title: "Meta Ads Account Setup",
-      basePrice: 3500,
-      popular: true,
-      description:
-        "Complete Meta (Facebook & Instagram) ad account setup with audience research, tracking system, and creative strategy.",
-      staticFeatures: [
-        "Business Manager setup & verification",
-        "Ad account creation & configuration",
-        "Audience research & competitor analysis",
-        "Interest-based targeting research",
-        "Custom audience creation",
-        "Lookalike audience setup",
-        "Pixel setup & tracking configuration",
-        "Conversion API integration (if required)",
-        "Ad creative strategy & direction",
-        "High-converting ad copywriting",
-        "Hook-based creatives",
-        "A/B testing variations",
-        "CTA optimization setup",
-      ],
-    },
-  ];
+  // const accountSetupPlans = [
+  //   {
+  //     title: "Google Ads Account Setup",
+  //     basePrice: 2500,
+  //     description:
+  //       "Complete Google Ads account setup with keyword research, tracking, and analytics integration.",
+  //     staticFeatures: [
+  //       "New Google Ads account creation",
+  //       "Billing & payment configuration",
+  //       "Search campaign keyword research",
+  //       "High-intent keyword selection",
+  //       "Negative keyword setup",
+  //       "Competitor keyword analysis",
+  //       "Campaign structure planning (Search / Display if required)",
+  //       "Google Business Profile linking (if available)",
+  //       "Google Analytics 4 (GA4) setup & configuration",
+  //       "Google Tag Manager setup (if required)",
+  //       "Conversion tracking setup",
+  //       "Website conversion tracking (forms, calls, purchases, etc.)",
+  //       "Event tracking configuration",
+  //       "Call tracking setup",
+  //     ],
+  //   },
+  //   {
+  //     title: "Meta Ads Account Setup",
+  //     basePrice: 3500,
+  //     popular: true,
+  //     description:
+  //       "Complete Meta (Facebook & Instagram) ad account setup with audience research, tracking system, and creative strategy.",
+  //     staticFeatures: [
+  //       "Business Manager setup & verification",
+  //       "Ad account creation & configuration",
+  //       "Audience research & competitor analysis",
+  //       "Interest-based targeting research",
+  //       "Custom audience creation",
+  //       "Lookalike audience setup",
+  //       "Pixel setup & tracking configuration",
+  //       "Conversion API integration (if required)",
+  //       "Ad creative strategy & direction",
+  //       "High-converting ad copywriting",
+  //       "Hook-based creatives",
+  //       "A/B testing variations",
+  //       "CTA optimization setup",
+  //     ],
+  //   },
+  // ];
 
-  const subscriptionPlans = [
-    {
-      title: "Basic Plan",
-      basePrice: 2500,
-      totalAmount: 2950,
-      basePosts: 15,
-      baseCitations: 5,
-      staticFeatures: [
-        "Review Reply System",
-        "Magic Qr Code Generation",
-        "Insights Dashboard",
-        "Category Addition & Optimization",
-        "Website Builder",
-      ],
-      description: "Ideal for small businesses needing basic online presence",
-      color: "bg-neutral-600",
-      textColor: "text-dark",
-      borderColor: "border-lightPrimary",
-    },
-    {
-      title: "Premium Plan",
-      basePrice: 7500,
-      totalAmount: 8850,
-      basePosts: 45,
-      baseCitations: 15,
-      staticFeatures: [
-        "Review Reply Management",
-        "Magic Qr Code Generation",
-        "Insights Dashboard",
-        "Category Addition & Optimization",
-        "Website Builder",
-        "Add Professional Services",
-      ],
-      description: "Perfect for brands focused on automation and maximum reach",
-      popular: true,
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-      borderColor: "border-neutral-200",
-    },
-    {
-      title: "Professional Plan",
-      basePrice: 5500,
-      totalAmount: 6490,
-      basePosts: 30,
-      baseCitations: 12,
-      staticFeatures: [
-        "Review Reply Management",
-        "Magic Qr Code Generation",
-        "Insights Dashboard",
-        "Category Addition & Optimization",
-        "website Builder",
-      ],
-      description: "Best for growing businesses looking for better visibility",
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-      borderColor: "border-purple-200",
-    },
-  ];
+  // const subscriptionPlans = [
+  //   {
+  //     title: "Basic Plan",
+  //     basePrice: 2500,
+  //     totalAmount: 2950,
+  //     basePosts: 15,
+  //     baseCitations: 5,
+  //     staticFeatures: [
+  //       "Review Reply System",
+  //       "Magic Qr Code Generation",
+  //       "Insights Dashboard",
+  //       "Category Addition & Optimization",
+  //       "Website Builder",
+  //     ],
+  //     description: "Ideal for small businesses needing basic online presence",
+  //     color: "bg-neutral-600",
+  //     textColor: "text-dark",
+  //     borderColor: "border-lightPrimary",
+  //   },
+  //   {
+  //     title: "Premium Plan",
+  //     basePrice: 7500,
+  //     totalAmount: 8850,
+  //     basePosts: 45,
+  //     baseCitations: 15,
+  //     staticFeatures: [
+  //       "Review Reply Management",
+  //       "Magic Qr Code Generation",
+  //       "Insights Dashboard",
+  //       "Category Addition & Optimization",
+  //       "Website Builder",
+  //       "Add Professional Services",
+  //     ],
+  //     description: "Perfect for brands focused on automation and maximum reach",
+  //     popular: true,
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //     borderColor: "border-neutral-200",
+  //   },
+  //   {
+  //     title: "Professional Plan",
+  //     basePrice: 5500,
+  //     totalAmount: 6490,
+  //     basePosts: 30,
+  //     baseCitations: 12,
+  //     staticFeatures: [
+  //       "Review Reply Management",
+  //       "Magic Qr Code Generation",
+  //       "Insights Dashboard",
+  //       "Category Addition & Optimization",
+  //       "website Builder",
+  //     ],
+  //     description: "Best for growing businesses looking for better visibility",
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //     borderColor: "border-purple-200",
+  //   },
+  // ];
 
-  const webDevelopmentPlans = [
-    {
-      title: "Starter Website",
-      basePrice: 9999,
-      basePages: 5,
-      staticFeatures: [
-        "Responsive Website Design",
-        "Basic SEO Setup",
-        "Contact Form Integration",
-        "Social Media Integration",
-        "1 Month Free Support",
-      ],
-      description: "Perfect for small businesses or startups",
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-    },
-    {
-      title: "Business Website",
-      basePrice: 25000,
-      basePages: 15,
-      staticFeatures: [
-        "Custom UI/UX Design",
-        "Advanced SEO Optimization",
-        "Admin Panel Access",
-        "Google Analytics Integration",
-        "3 Months Free Support",
-      ],
-      description: "Best for growing businesses",
-      popular: true,
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-    },
-    {
-      title: "Enterprise Website",
-      basePrice: 48000,
-      basePages: 35,
-      staticFeatures: [
-        "Fully Custom Design",
-        "E-commerce Integration",
-        "Payment Gateway Setup",
-        "Advanced Security",
-        "6 Months Free Support",
-      ],
-      description: "Perfect for large businesses & brands",
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-    },
-  ];
+  // const webDevelopmentPlans = [
+  //   {
+  //     title: "Starter Website",
+  //     basePrice: 9999,
+  //     basePages: 5,
+  //     staticFeatures: [
+  //       "Responsive Website Design",
+  //       "Basic SEO Setup",
+  //       "Contact Form Integration",
+  //       "Social Media Integration",
+  //       "1 Month Free Support",
+  //     ],
+  //     description: "Perfect for small businesses or startups",
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //   },
+  //   {
+  //     title: "Business Website",
+  //     basePrice: 25000,
+  //     basePages: 15,
+  //     staticFeatures: [
+  //       "Custom UI/UX Design",
+  //       "Advanced SEO Optimization",
+  //       "Admin Panel Access",
+  //       "Google Analytics Integration",
+  //       "3 Months Free Support",
+  //     ],
+  //     description: "Best for growing businesses",
+  //     popular: true,
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //   },
+  //   {
+  //     title: "Enterprise Website",
+  //     basePrice: 48000,
+  //     basePages: 35,
+  //     staticFeatures: [
+  //       "Fully Custom Design",
+  //       "E-commerce Integration",
+  //       "Payment Gateway Setup",
+  //       "Advanced Security",
+  //       "6 Months Free Support",
+  //     ],
+  //     description: "Perfect for large businesses & brands",
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //   },
+  // ];
 
-  const seoPlans = [
-    {
-      title: "Basic SEO",
-      basePrice: 5999,
-      staticFeatures: [
-        "Keyword Research",
-        "Meta Tags Optimization",
-        "Basic Technical SEO",
-        "Monthly Report",
-      ],
-      description: "Perfect for small websites starting SEO",
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-    },
-    {
-      title: "Standard SEO",
-      basePrice: 9999,
-      staticFeatures: [
-        "Technical SEO Audit",
-        "Backlink Building",
-        "Competitor Analysis",
-        "Bi-Weekly Reports",
-      ],
-      description: "Best for growing businesses",
-      popular: true,
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-    },
-    {
-      title: "Advanced SEO",
-      basePrice: 15999,
-      staticFeatures: [
-        "Advanced 45-Page SEO",
-        "Complete SEO Strategy",
-        "High Quality Backlinks",
-        "Technical Optimization",
-        "Local SEO",
-        "Weekly Performance Report",
-      ],
-      description: "Perfect for brands aiming for top ranking",
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-    },
-  ];
+  // const seoPlans = [
+  //   {
+  //     title: "Basic SEO",
+  //     basePrice: 5999,
+  //     staticFeatures: [
+  //       "Keyword Research",
+  //       "Meta Tags Optimization",
+  //       "Basic Technical SEO",
+  //       "Monthly Report",
+  //     ],
+  //     description: "Perfect for small websites starting SEO",
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //   },
+  //   {
+  //     title: "Standard SEO",
+  //     basePrice: 9999,
+  //     staticFeatures: [
+  //       "Technical SEO Audit",
+  //       "Backlink Building",
+  //       "Competitor Analysis",
+  //       "Bi-Weekly Reports",
+  //     ],
+  //     description: "Best for growing businesses",
+  //     popular: true,
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //   },
+  //   {
+  //     title: "Advanced SEO",
+  //     basePrice: 15999,
+  //     staticFeatures: [
+  //       "Advanced 45-Page SEO",
+  //       "Complete SEO Strategy",
+  //       "High Quality Backlinks",
+  //       "Technical Optimization",
+  //       "Local SEO",
+  //       "Weekly Performance Report",
+  //     ],
+  //     description: "Perfect for brands aiming for top ranking",
+  //     color: "bg-neutral-600",
+  //     textColor: "text-neutral-600",
+  //   },
+  // ];
 
   const handleSubscriptionClick = (plan) => {
     const multiplier = getMultiplier();
@@ -548,26 +548,25 @@ export default function LimbuAILanding() {
   // =============================
 
   const videoExamples = [
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
-    // "https://res.cloudinary.com/dwrbpboxy/video/upload/v1766144309/WhatsApp_Video_2025-12-19_at_5.03.45_PM_ryvxhc.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/videos/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/videos/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/videos/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/videos/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758899-0-3963c931-8bdc-4c5b-83b7-a45e2f3dee5c-WhatsApp-Video-2026-02-02-at-2.50.11-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759497-1-dcff2a8b-d608-4fad-8304-dd8f6d132c8f-WhatsApp-Video-2026-02-02-at-2.50.12-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759390-2-bbc0bea6-909e-4566-a417-ba3cd713645e-WhatsApp-Video-2026-02-02-at-2.50.12-PM--2-.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758826-3-9a4c4050-5a50-41b5-9614-7228d1f04c24-WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758630-4-cb36a2d7-1f46-42ba-8852-9a7429d1b3da-WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759013-5-1d0a1d2e-4af6-43b2-9680-a3b730d239ae-WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758921-6-39fd61e5-fad7-492a-9270-80b3f15472f5-WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4"
+  ]
 
   const postImages = [
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/tmpx28dvfi__qxwt1c.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/output_yd9alt.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/Post_banana_Main_Ek_ka_ladiss_ka_makeup_Karta_Hai_HD_picture_send_karo_vp6d6s.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/Post_banana_Main_Ek_ka_ladiss_ka_makeup_Karta_Hai_HD_picture_send_karo_vp6d6s.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/output_n1ahcx.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/output_ryar6j.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/homeMain/tmp9x2d_a52_hvhpw8.jpg",
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481384-0-45547213-4951-4c5a-ab9d-39f30bbf1040-tmpx28dvfi__qxwt1c.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963484708-1-10bf8ae3-2297-4c4a-b74d-3286b6387343-LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963484276-2-a91af316-4477-4485-b1e4-511e10177794-output_yd9alt.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963484589-3-b07e8d75-96dc-4bea-8eab-b594dcd6532a-Post_banana_Main_Ek_ka_ladiss_ka_makeup_Karta_Hai_HD_picture_send_karo_vp6d6s.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482280-4-34e89006-9fd6-4bba-aa4e-752496387bc6-Nutritionvalue_21_on_google_m2etix.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482076-5-3b3066e5-ddbf-4ba1-92a2-bd7e18fc926c-output_n1ahcx.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482057-6-4c702ac6-e19b-4e26-ae3d-33915bb67bbe-output_ryar6j.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481136-7-5fb74cbe-4e95-4527-8720-b08089490a8e-tmp9x2d_a52_hvhpw8.jpg"
+  ]
 
   const features = [
     {
@@ -672,7 +671,7 @@ export default function LimbuAILanding() {
       <Suspense fallback={<SectionSkeleton />}>
         <BusinessTypesSection />
       </Suspense>
-      
+
 
       {/* <Suspense fallback={<SectionSkeleton />}>
         <VideoTestimonialSection />

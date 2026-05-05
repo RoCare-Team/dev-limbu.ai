@@ -61,21 +61,21 @@ export default function GymMarketingPage() {
   ];
 
   const gymPostImages = [
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776424189/gym_nera_me_wyyfyp.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776424657/gym_nera_me_rpksi5.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776424784/gym_nera_me_ryptap.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776425014/gym_nera_me_uwnhqi.jpg"
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963820817-0-0a02328c-8693-47a2-886e-ceb31db5d618-gym_nera_me_wyyfyp.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963823333-1-b20ddcd7-3855-407a-b807-aab9a113e616-gym_nera_me_rpksi5.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963820489-2-224af793-f5c6-4735-bfa5-5b0f392f386c-gym_nera_me_ryptap.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963820928-3-41a7f0df-d239-4181-baab-bd685dcb9160-gym_nera_me_uwnhqi.jpg"
+  ]
 
   const videoExamples = [
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758899-0-3963c931-8bdc-4c5b-83b7-a45e2f3dee5c-WhatsApp-Video-2026-02-02-at-2.50.11-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759497-1-dcff2a8b-d608-4fad-8304-dd8f6d132c8f-WhatsApp-Video-2026-02-02-at-2.50.12-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759390-2-bbc0bea6-909e-4566-a417-ba3cd713645e-WhatsApp-Video-2026-02-02-at-2.50.12-PM--2-.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758826-3-9a4c4050-5a50-41b5-9614-7228d1f04c24-WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758630-4-cb36a2d7-1f46-42ba-8852-9a7429d1b3da-WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759013-5-1d0a1d2e-4af6-43b2-9680-a3b730d239ae-WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758921-6-39fd61e5-fad7-492a-9270-80b3f15472f5-WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4"
+  ]
 
   const schemas = [
     {

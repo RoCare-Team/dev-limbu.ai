@@ -131,21 +131,31 @@ export async function updatePostStatusAction(payload) {
 }
 
 export async function postToGmbAction(payload) {
-    const response = await fetch(
-        "https://n8n.srv968758.hstgr.cloud/webhook/cc144420-81ab-43e6-8995-9367e92363b0",
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify(payload),
-        }
-    );
-    console.log("🚀 ~ Received response from GMB n8n webhook - Status:", response);
-    const text = await response.text();
     try {
-        const data = text ? JSON.parse(text) : {};
-        return { ok: response.ok, data };
+        const response = await fetch(
+            " https://gmb-post.limbutech.in/gmb-post",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Authorization": `Bearer ${process.env.GMB_API_SECRET || "Xk9mP2qR8vLnJ4wZ7dF3yT6hQ1GMB"}`
+                },
+                body: JSON.stringify(payload),
+            }
+        );
+        console.log("🚀 ~ Received response from GMB Python API - Status:", response.status);
+        const text = await response.text();
+        try {
+            const data = text ? JSON.parse(text) : {};
+            return { ok: response.ok, data };
+        } catch (error) {
+            return { ok: response.ok, data: text };
+        }
     } catch (error) {
-        return { ok: response.ok, data: text };
+        console.error("🚀 ~ Fetch failed in postToGmbAction:", error.message);
+        // This gracefully returns a failed state to the frontend, triggering the refund process
+        return { ok: false, data: { error: "API Unreachable", details: error.message } };
     }
 }
 

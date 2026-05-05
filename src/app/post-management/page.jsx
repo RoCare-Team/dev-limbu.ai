@@ -68,6 +68,7 @@ import GMBModal from "../../components/post-management/component-modal/GmbModall
 import PostPublishModal from "../../components/post-management/component-modal/PostPublishModal";
 import ImageGeneratedModal from "../../components/post-management/component-modal/ImageGeneratedModal";
 import LinkedinShareModal from "@/components/post-management/LinkedinShareModal";
+import PostResultModal from "../../components/post-management/PostResultModal";
 
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
@@ -96,7 +97,12 @@ export default function PostManagementPage() {
     showInstagramModal: false,
     showPinterestModal: false,
     showLinkedinModal: false,
+    showPostResultModal: false,
   });
+
+  const [postResultData, setPostResultData] = useState({ successLocs: [], failedLocs: [] });
+  const [lastPostMeta, setLastPostMeta] = useState(null);
+  const [isReposting, setIsReposting] = useState(false);
 
   // image success generated modal
   const [isImageGenerated, setIsImageGenerated] = useState(false);
@@ -749,6 +755,7 @@ export default function PostManagementPage() {
       sources = null,
       fbPages = [],
       igPages = [],
+      meta = null
     ) => {
       const postId = typeof postOrId === "string" ? postOrId : postOrId._id;
       if (typeof postOrId === "object" && !newStatus) {
@@ -763,7 +770,7 @@ export default function PostManagementPage() {
         return;
       }
       try {
-        const res = await updatePostStatusAction({
+        const payload = {
           id: postId,
           userId,
           status: newStatus,
@@ -773,9 +780,14 @@ export default function PostManagementPage() {
           scheduledDateSource: sources,
           fbPages,
           igPages,
-          refreshToken:
-            newStatus === "scheduled" ? session?.refreshToken : undefined,
-        });
+          refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
+        };
+        
+        if (meta) {
+           payload.meta = meta;
+        }
+        
+        const res = await updatePostStatusAction(payload);
         if (res.success) {
           showToast("Updated! ✅");
           setPosts((prev) =>
@@ -841,10 +853,12 @@ export default function PostManagementPage() {
           "scheduled",
           selectedDate,
           gmbLocs,
-          post.checkmark,
+          selectedTargets.checkmark || post.checkmark,
           sources,
           fbPages,
           igPages,
+          null, // targetMedia
+          selectedTargets.meta // pass the new meta configuration
         );
         updateUiState({
           isScheduleModalOpen: false,
@@ -871,14 +885,25 @@ export default function PostManagementPage() {
       const post = posts.find((p) => p._id === id);
       if (!post) return;
       let current = post.checkmark || "post";
-      let newVal =
-        current === "both"
-          ? type === "post"
-            ? "photo"
-            : "post"
-          : current === type
-            ? type
-            : "both";
+      let newVal;
+
+      if (type === "video") {
+        newVal = "video";
+      } else {
+        if (current === "video") {
+          newVal = type;
+        } else {
+          newVal =
+            current === "both"
+              ? type === "post"
+                ? "photo"
+                : "post"
+              : current === type
+                ? type
+                : "both";
+        }
+      }
+
       setPosts((prev) =>
         prev.map((p) => (p._id === id ? { ...p, checkmark: newVal } : p)),
       );
@@ -1020,7 +1045,7 @@ export default function PostManagementPage() {
   );
 
   const handleLocationConfirm = useCallback(
-    async (selectedIds, checkmark) => {
+    async (selectedIds, checkmark, meta = {}) => {
       updateUiState({ showLocationModal: false });
       if (!selectedIds.length || !postToAction) return;
       const totalCost = selectedIds.length * 20;
@@ -1069,38 +1094,91 @@ export default function PostManagementPage() {
           selectedIds.includes(l.id),
         );
 
+        const formatDate = (dateStr) => {
+          if (!dateStr) return "";
+          const [year, month, day] = dateStr.split("-");
+          return `${day}-${month}-${year}`;
+        };
+
+        const isVideoSelection = checkmark === "video" || selectedMediaForAction?.type === "video";
+        let mediaUrl = "";
+        
+        if (isVideoSelection) {
+           // If they explicitly selected "video" checkmark, ignore selectedMediaForAction if it's an image
+           if (checkmark === "video") {
+             mediaUrl = postToAction.videoOutput || selectedMediaForAction?.url || "";
+           } else {
+             mediaUrl = selectedMediaForAction?.url || postToAction.videoOutput || "";
+           }
+        } else {
+           // For post/photo
+           if (checkmark === "post" || checkmark === "photo" || checkmark === "both" || !checkmark) {
+             mediaUrl = postToAction.aiOutput || selectedMediaForAction?.url || "";
+           } else {
+             mediaUrl = selectedMediaForAction?.url || postToAction.aiOutput || "";
+           }
+        }
+
+        // Prepare the batched location data
+        const locationDataBatch = locs.map(l => ({
+          city: l.locationId,
+          cityName: l.locality,
+          bookUrl: (!isVideoSelection && meta.ctaType === "call_now") ? (l.primaryPhone || "") : (meta.customUrl || l.websiteUrl || ""),
+          account: l.accountId // Pass account ID per location if needed by backend mapping
+        }));
+
+        const payload = {
+          account: locs[0].accountId, // Root account ID fallback
+          locationData: locationDataBatch,
+          output: isVideoSelection ? "" : mediaUrl,
+          video_url: isVideoSelection ? mediaUrl : "",
+          description: postToAction.description,
+          accessToken: session?.accessToken,
+          checkmark: checkmark || "post",
+          post_type: isVideoSelection ? "standard" : (meta.postType || "standard"),
+          cta: isVideoSelection ? "learn_more" : (meta.ctaType || "book"),
+          startDate: isVideoSelection ? "" : formatDate(meta.startDate),
+          endDate: isVideoSelection ? "" : formatDate(meta.endDate),
+          tittle: isVideoSelection ? "" : (meta.eventTitle || ""),
+          wait_video: false
+        };
+
+        console.log("Posting to GMB with batched payload:", payload);
+
+        const postres = await postToGmbAction(payload);
+        console.log("GMB batch post response:", postres);
+
         let successfulLocs = [];
         let failedLocs = [];
 
-        // Post sequentially to ensure each location is processed and tracked properly
-        for (const l of locs) {
-          try {
-            const payload = {
-              account: l.accountId,
-              locationData: [
-                {
-                  city: l.locationId,
-                  cityName: l.locality,
-                  bookUrl: l.websiteUrl,
-                },
-              ],
-              output: selectedMediaForAction?.url || postToAction.aiOutput,
-              description: postToAction.description,
-              accessToken: session?.accessToken,
-              checkmark: checkmark || postToAction.checkmark,
-            };
+        const responseData = postres.data?.data || postres.data || {};
+        const successList = responseData.success || [];
+        const failList = responseData.fail || [];
 
-            const { ok } = await postToGmbAction(payload);
+        if (postres.ok && (successList.length > 0 || failList.length > 0)) {
+          successList.forEach(s => {
+            const loc = locs.find(l => l.locationId === s.location_id);
+            if (loc) successfulLocs.push({ ...loc, isPosted: true });
+          });
+          failList.forEach(f => {
+            const loc = locs.find(l => l.locationId === f.location_id);
+            if (loc) failedLocs.push(loc);
+          });
 
-            if (ok) {
-              successfulLocs.push({ ...l, isPosted: true });
-            } else {
-              failedLocs.push(l);
-            }
-          } catch (err) {
-            console.error(`Failed to post to location ${l.name}`, err);
-            failedLocs.push(l);
+          // Catch any locations that were not listed in success or fail
+          if (successfulLocs.length + failedLocs.length < locs.length) {
+            locs.forEach(l => {
+              if (!successfulLocs.find(s => s.id === l.id) && !failedLocs.find(f => f.id === l.id)) {
+                failedLocs.push(l);
+              }
+            });
           }
+        } else if (postres.ok && successList.length === 0 && failList.length === 0) {
+           // Fallback if backend returned OK but empty lists
+           successfulLocs = locs.map(l => ({ ...l, isPosted: true }));
+        } else {
+          // If completely failed (e.g., 500 error or format mismatch)
+          failedLocs = [...locs];
         }
 
         // Refund for failed locations
@@ -1121,15 +1199,16 @@ export default function PostManagementPage() {
           showToast(
             `Successfully posted to all ${successfulLocs.length} locations! 🎉`,
           );
-          setIsSuccess(true);
         }
 
         if (successfulLocs.length > 0) {
-          // Update post status with successful locations only
+          const existingLocs = postToAction.locations || [];
+          const combinedLocs = [...existingLocs, ...successfulLocs].filter((v,i,a)=>a.findIndex(v2=>(v2.id===v.id))===i);
+
           await updatePostStatusAction({
             id: postToAction._id,
             userId,
-            locations: successfulLocs, // Override with only successful ones
+            locations: combinedLocs,
             status: "posted",
             whenPosted: { ...postToAction.whenPosted, gmb: true },
             mediaStatus: {
@@ -1137,18 +1216,21 @@ export default function PostManagementPage() {
             },
           });
           fetchPosts(1, true);
-        } else {
-          throw new Error("All GMB posts failed");
         }
+
+        // Save state for result modal and repost logic
+        setPostResultData({ successLocs: successfulLocs, failedLocs: failedLocs });
+        setLastPostMeta({ checkmark, meta, postToAction, selectedMediaForAction });
+        updateUiState({ showPostResultModal: true });
+
       } catch (err) {
         showToast(err.message || "Post failed", "error");
       } finally {
         setTimeout(() => {
           setIsPosting(false);
         }, 1200);
-
-        setPostToAction(null);
-        setSelectedMediaForAction(null);
+        // Note: postToAction and selectedMediaForAction are NOT cleared here so we can use them for Retry.
+        // They will be cleared when the Result Modal is closed.
       }
     },
     [
@@ -1163,6 +1245,27 @@ export default function PostManagementPage() {
       fetchPosts,
     ],
   );
+
+  const closeResultModal = useCallback(() => {
+    updateUiState({ showPostResultModal: false });
+    setPostToAction(null);
+    setSelectedMediaForAction(null);
+    setLastPostMeta(null);
+  }, [updateUiState]);
+
+  const handleRepostFailed = useCallback(async () => {
+    if (!lastPostMeta || postResultData.failedLocs.length === 0) return;
+    setIsReposting(true);
+    
+    // We pass the failed IDs back into handleLocationConfirm
+    await handleLocationConfirm(
+      postResultData.failedLocs.map(l => l.id),
+      lastPostMeta.checkmark,
+      lastPostMeta.meta
+    );
+    
+    setIsReposting(false);
+  }, [lastPostMeta, postResultData.failedLocs, handleLocationConfirm]);
 
   const handleGmbSessionExpired = () => {
     setShowGmbExpiredModal(true);
@@ -1537,6 +1640,16 @@ export default function PostManagementPage() {
             onClose={() => updateUiState({ showFirstPostModal: false })}
           />
         )}
+
+        <PostResultModal
+          isOpen={uiState.showPostResultModal}
+          onClose={closeResultModal}
+          successLocs={postResultData.successLocs}
+          failedLocs={postResultData.failedLocs}
+          onRepost={handleRepostFailed}
+          isReposting={isReposting}
+          isVideo={lastPostMeta?.checkmark === "video" || lastPostMeta?.selectedMediaForAction?.type === "video"}
+        />
 
         {/* gmb post success modal */}
         <PostPublishModal

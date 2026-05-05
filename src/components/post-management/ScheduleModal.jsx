@@ -19,13 +19,13 @@ const RECOMMENDED_GMB = [9, 10, 13, 14];
 const RECOMMENDED_INSTA = [11, 12, 18, 19, 20];
 const RECOMMENDED_FB = [13, 14, 18, 19];
 
-const ScheduleModal = React.memo(({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  post, 
-  availableLocations = [], 
-  facebookPages = [], 
+const ScheduleModal = React.memo(({
+  isOpen,
+  onClose,
+  onConfirm,
+  post,
+  availableLocations = [],
+  facebookPages = [],
   instagramAccounts = [],
   fetchFacebookPages,
   fetchInstagramAccounts,
@@ -50,23 +50,67 @@ const ScheduleModal = React.memo(({
 
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState('gmb');
-  
+
   const [selectedGmb, setSelectedGmb] = useState([]);
   const [selectedFb, setSelectedFb] = useState([]);
   const [selectedIg, setSelectedIg] = useState([]);
 
+  // --- GMB Post Configuration States ---
+  const [checkmark, setCheckmark] = useState(["post", "photo"]);
+  const [postType, setPostType] = useState("standard");
+  const [ctaType, setCtaType] = useState("book");
+  const [customUrl, setCustomUrl] = useState(() => {
+    const defaultLoc = availableLocations.find(l => l.websiteUrl);
+    return defaultLoc ? defaultLoc.websiteUrl : "";
+  });
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventEndDate, setEventEndDate] = useState("");
+
+  const handleCheckmarkChange = useCallback((option) => {
+    if (option === "video") {
+      setCheckmark(["video"]);
+    } else if (option === "both") {
+      setCheckmark(["post", "photo"]);
+    } else {
+      setCheckmark((prev) => {
+        const filtered = prev.filter((item) => item !== "video");
+        if (filtered.includes(option)) {
+          return filtered.filter((item) => item !== option);
+        } else {
+          return [...filtered, option];
+        }
+      });
+    }
+  }, []);
+
+  const getPayload = useCallback(() => {
+    if (checkmark.includes("video")) return "video";
+    const hasPost = checkmark.includes("post");
+    const hasPhoto = checkmark.includes("photo");
+    if (hasPost && hasPhoto) return "both";
+    if (hasPost) return "post";
+    if (hasPhoto) return "photo";
+    return "post";
+  }, [checkmark]);
+
   // Pre-select existing targets when editing
   useEffect(() => {
     if (post) {
+      if (post.checkmark) {
+        if (post.checkmark === "both") setCheckmark(["post", "photo"]);
+        else if (post.checkmark === "video") setCheckmark(["video"]);
+        else setCheckmark([post.checkmark]);
+      }
       if (post.locations && post.locations.length > 0) {
         // Match post locations with available locations using locationId or id
         const matchedGmbIds = post.locations.map(postLoc => {
-          const found = availableLocations.find(availLoc => 
+          const found = availableLocations.find(availLoc =>
             availLoc.locationId === postLoc.locationId || availLoc.id === postLoc.id
           );
           return found ? found.id : postLoc.id; // Fallback to postLoc.id if not found, though ideally it should be found
         }).filter(Boolean); // Remove any nulls/undefined
-        
+
         setSelectedGmb(matchedGmbIds);
       }
       if (post.fbPages && post.fbPages.length > 0) {
@@ -98,6 +142,24 @@ const ScheduleModal = React.memo(({
   const totalCost = useMemo(() => selectedGmb.length * 20, [selectedGmb.length]);
 
   const handleConfirm = useCallback(() => {
+    if (activeTab === 'gmb') {
+      if (postType === "event") {
+        if (!eventTitle.trim()) {
+          alert("Please provide an Event Title.");
+          return;
+        }
+        if (!eventStartDate || !eventEndDate) {
+          alert("Please provide both Start and End dates for the event.");
+          return;
+        }
+      }
+      if (ctaType !== "call_now" && !customUrl.trim() && ctaType !== "book") {
+        // Some CTAs really need a URL, though we fallback to websiteUrl, it's good to ensure it's not totally empty if we can.
+        // Let's rely on the backend/fallback logic mostly, but if they explicitly clear it, maybe warn them.
+        // (Omitted strict check to match LocationSelectionModal's lenient behavior).
+      }
+    }
+
     if (userWallet < totalCost) {
       setRequiredCoins(totalCost);
       setShowInsufficientBalance(true);
@@ -106,14 +168,22 @@ const ScheduleModal = React.memo(({
 
     const scheduledTime = new Date(date);
     scheduledTime.setHours(parseInt(slot), 0, 0, 0);
-    
+
     onConfirm(post._id, "scheduled", scheduledTime.toISOString(), {
       gmb: selectedGmb,
       fb: selectedFb,
-      ig: selectedIg
+      ig: selectedIg,
+      meta: {
+        postType,
+        ctaType,
+        customUrl,
+        eventTitle,
+        startDate: eventStartDate,
+        endDate: eventEndDate
+      }
     });
     onClose();
-  }, [userWallet, totalCost, date, slot, onConfirm, post?._id, selectedGmb, selectedFb, selectedIg, onClose, setRequiredCoins, setShowInsufficientBalance]);
+  }, [activeTab, userWallet, totalCost, date, slot, onConfirm, post?._id, selectedGmb, selectedFb, selectedIg, postType, ctaType, customUrl, eventTitle, eventStartDate, eventEndDate, onClose, setRequiredCoins, setShowInsufficientBalance]);
 
   const timeSlots = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
@@ -122,12 +192,12 @@ const ScheduleModal = React.memo(({
         const h = hour % 12 || 12;
         return `${h}:00 ${ampm}`;
       };
-      return { 
-        value: i, 
-        label: `${formatTime(i)} - ${formatTime((i + 1) % 24)}`, 
-        isGmb: RECOMMENDED_GMB.includes(i), 
-        isInsta: RECOMMENDED_INSTA.includes(i), 
-        isFb: RECOMMENDED_FB.includes(i) 
+      return {
+        value: i,
+        label: `${formatTime(i)} - ${formatTime((i + 1) % 24)}`,
+        isGmb: RECOMMENDED_GMB.includes(i),
+        isInsta: RECOMMENDED_INSTA.includes(i),
+        isFb: RECOMMENDED_FB.includes(i)
       };
     });
   }, []);
@@ -167,10 +237,10 @@ const ScheduleModal = React.memo(({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-start justify-center p-4 sm:p-6 font-sans overflow-y-auto animate-fadeIn">
-  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh] overflow-y-auto border border-slate-200 animate-scaleIn">
-        
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh] overflow-y-auto border border-slate-200 animate-scaleIn">
+
         {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
 
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
@@ -179,8 +249,8 @@ const ScheduleModal = React.memo(({
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium">Select when and where this post will go live.</p>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600 border border-slate-200"
           >
             <X className="w-5 h-5" />
@@ -188,11 +258,11 @@ const ScheduleModal = React.memo(({
         </div>
 
         <div className="flex flex-col md:flex-row overflow-visible bg-slate-50/50">
-          
+
           {/* Left Panel: Date & Time */}
           <div className="w-full md:w-2/5 p-6 border-r border-slate-100 bg-white  overflow-visible">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Timing</h3>
-            
+
             <div className="space-y-6">
               {/* Date Picker */}
               <div>
@@ -222,7 +292,7 @@ const ScheduleModal = React.memo(({
                     Follows best practices
                   </span>
                 </div>
-                
+
                 <div className="relative">
                   <button
                     onClick={() => setShowTimeDropdown(!showTimeDropdown)}
@@ -240,7 +310,7 @@ const ScheduleModal = React.memo(({
                           .map((s) => {
                             const isSelected = parseInt(slot) === s.value;
                             const isRecommended = s.isGmb || s.isInsta || s.isFb;
-                            
+
                             return (
                               <div
                                 key={s.value}
@@ -249,10 +319,10 @@ const ScheduleModal = React.memo(({
                                   setShowTimeDropdown(false);
                                 }}
                                 className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer mb-0.5
-                                  ${isSelected 
+                                  ${isSelected
                                     ? "bg-[#EAB308] text-black font-bold shadow-sm"
-                                    : isRecommended 
-                                      ? "bg-amber-50/50 text-amber-900 font-semibold hover:bg-amber-100/50" 
+                                    : isRecommended
+                                      ? "bg-amber-50/50 text-amber-900 font-semibold hover:bg-amber-100/50"
                                       : "text-slate-600 hover:bg-slate-100 font-medium"
                                   }`}
                               >
@@ -277,7 +347,7 @@ const ScheduleModal = React.memo(({
               {/* Info Box */}
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-6">
                 <p className="text-xs text-blue-800 leading-relaxed font-medium">
-                  We highlight the best time slots based on your selected platforms. Look for the colored dots: <br/>
+                  We highlight the best time slots based on your selected platforms. Look for the colored dots: <br />
                   <span className="inline-flex items-center gap-1 mt-2 text-blue-900 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Google</span>
                   <span className="inline-flex items-center gap-1 mt-2 ml-3 text-pink-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Instagram</span>
                   <span className="inline-flex items-center gap-1 mt-2 ml-3 text-blue-700 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Facebook</span>
@@ -296,11 +366,10 @@ const ScheduleModal = React.memo(({
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 py-2.5 px-2 text-sm font-bold flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-300 relative ${
-                      activeTab === tab.id 
-                        ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' 
+                    className={`flex-1 py-2.5 px-2 text-sm font-bold flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-300 relative ${activeTab === tab.id
+                        ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50'
                         : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 border border-transparent'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-1.5">
                       <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-[#EAB308]' : ''}`} />
@@ -321,26 +390,134 @@ const ScheduleModal = React.memo(({
 
             {/* Content Area */}
             <div className="flex-1 overflow-visible p-4 sm:p-6 custom-scrollbar">
-              
+
               {/* GMB Content */}
               {activeTab === 'gmb' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Media Checkmarks */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-3 block">Media Type</label>
+                    <div className="flex flex-wrap items-center gap-6">
+                      {["post", "photo", "video", "both"].map((opt) => (
+                        <label key={opt} className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={opt === "both" ? (checkmark.includes("post") && checkmark.includes("photo")) : checkmark.includes(opt)}
+                            onChange={() => handleCheckmarkChange(opt)}
+                            className="w-5 h-5 rounded-lg border-2 border-slate-200 accent-[#EAB308] transition-all"
+                          />
+                          <span className="text-[11px] font-black uppercase tracking-widest text-black/70 group-hover:text-black">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Post Configuration for GMB */}
+                  {!checkmark.includes("video") && (
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Post Type</label>
+                        <select
+                          value={postType}
+                          onChange={(e) => setPostType(e.target.value)}
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#EAB308]"
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="event">Event</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Button CTA</label>
+                        <select
+                          value={ctaType}
+                          onChange={(e) => setCtaType(e.target.value)}
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#EAB308]"
+                        >
+                          <option value="book">Book</option>
+                          <option value="order_online">Order Online</option>
+                          <option value="buy">Buy</option>
+                          <option value="learn_more">Learn More</option>
+                          <option value="sign_up">Sign Up</option>
+                          <option value="call_now">Call Now</option>
+                        </select>
+                      </div>
+
+                      {ctaType !== "call_now" && (
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Custom URL (Optional)</label>
+                          <input
+                            type="url"
+                            value={customUrl}
+                            onChange={(e) => setCustomUrl(e.target.value)}
+                            placeholder="https://yourwebsite.com/booking"
+                            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:border-[#EAB308]"
+                          />
+                        </div>
+                      )}
+
+                      {postType === "event" && (
+                        <>
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Event Title</label>
+                            <input
+                              type="text"
+                              list="event-titles-schedule"
+                              value={eventTitle}
+                              onChange={(e) => setEventTitle(e.target.value)}
+                              placeholder="e.g. Summer Sale, Special Offer..."
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#EAB308]"
+                            />
+                            <datalist id="event-titles-schedule">
+                              <option value="Grand Opening" />
+                              <option value="Special Offer" />
+                              <option value="Summer Sale" />
+                              <option value="Winter Clearance" />
+                              <option value="Holiday Special" />
+                              <option value="Weekend Discount" />
+                              <option value="Flash Sale" />
+                              <option value="New Arrival" />
+                            </datalist>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Start Date</label>
+                            <input
+                              type="date"
+                              value={eventStartDate}
+                              onChange={(e) => setEventStartDate(e.target.value)}
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#EAB308]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">End Date</label>
+                            <input
+                              type="date"
+                              value={eventEndDate}
+                              onChange={(e) => setEventEndDate(e.target.value)}
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#EAB308]"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4">
                     <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Available Locations</span>
-                    <button 
-                      onClick={() => toggleAll(verifiedLocations, selectedGmb, setSelectedGmb, 'id')} 
+                    <button
+                      onClick={() => toggleAll(verifiedLocations, selectedGmb, setSelectedGmb, 'id')}
                       className="text-xs font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
                     >
                       {selectedGmb.length === verifiedLocations.length && verifiedLocations.length > 0 ? 'Deselect All' : 'Select All Verified'}
                     </button>
                   </div>
-                  
+
                   {availableLocations.map(loc => {
                     const isVerified = loc.isVerified;
                     const isSelected = selectedGmb.includes(loc.id);
                     return (
-                      <div 
-                        key={loc.id} 
+                      <div
+                        key={loc.id}
                         onClick={() => isVerified && toggleSelection(loc.id, selectedGmb, setSelectedGmb)}
                         className={`flex items-start sm:items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-200 ${!isVerified ? 'opacity-50 bg-slate-100 cursor-not-allowed border-transparent' : 'cursor-pointer'} ${isSelected ? 'border-[#EAB308] bg-[#EAB308]/5 shadow-sm' : 'border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm'}`}
                       >
@@ -371,22 +548,22 @@ const ScheduleModal = React.memo(({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4">
                     <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Connected Pages</span>
-                    <button 
-                      onClick={() => toggleAll(facebookPages, selectedFb, setSelectedFb, 'pageId')} 
+                    <button
+                      onClick={() => toggleAll(facebookPages, selectedFb, setSelectedFb, 'pageId')}
                       className="text-xs font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
                     >
                       {selectedFb.length === facebookPages.length && facebookPages.length > 0 ? 'Deselect All' : 'Select All'}
                     </button>
                   </div>
-                  
+
                   {loadingFb ? (
                     <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
                   ) : facebookPages.length > 0 ? (
                     facebookPages.map(page => {
                       const isSelected = selectedFb.includes(page.pageId);
                       return (
-                        <div 
-                          key={page.pageId} 
+                        <div
+                          key={page.pageId}
                           onClick={() => toggleSelection(page.pageId, selectedFb, setSelectedFb)}
                           className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm'}`}
                         >
@@ -414,8 +591,8 @@ const ScheduleModal = React.memo(({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4">
                     <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Connected Accounts</span>
-                    <button 
-                      onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, 'igId')} 
+                    <button
+                      onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, 'igId')}
                       className="text-xs font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
                     >
                       {selectedIg.length === instagramAccounts.length && instagramAccounts.length > 0 ? 'Deselect All' : 'Select All'}
@@ -428,8 +605,8 @@ const ScheduleModal = React.memo(({
                     instagramAccounts.map(acc => {
                       const isSelected = selectedIg.includes(acc.igId);
                       return (
-                        <div 
-                          key={acc.igId} 
+                        <div
+                          key={acc.igId}
                           onClick={() => toggleSelection(acc.igId, selectedIg, setSelectedIg)}
                           className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-pink-500 bg-pink-50 shadow-sm' : 'border-slate-100 bg-white hover:border-pink-200 hover:shadow-sm'}`}
                         >
@@ -457,7 +634,7 @@ const ScheduleModal = React.memo(({
 
         {/* Footer */}
         <div className="p-4 sm:p-6 border-t border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-center gap-4 sticky bottom-0">
-          
+
           <div className="flex items-center gap-4 w-full sm:w-auto bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-2xl">
             <div className="flex flex-col">
               <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none mb-1">Total Cost</span>
@@ -466,7 +643,7 @@ const ScheduleModal = React.memo(({
                 <span className="text-xs font-bold text-slate-400 mb-0.5">Coins</span>
               </div>
             </div>
-            
+
             {userWallet < totalCost && (
               <div className="pl-4 border-l border-slate-200 flex flex-col">
                 <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none mb-1">Balance</span>
@@ -476,8 +653,8 @@ const ScheduleModal = React.memo(({
           </div>
 
           <div className="flex gap-3 w-full sm:w-auto">
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-colors text-sm"
             >
               Cancel
@@ -491,8 +668,8 @@ const ScheduleModal = React.memo(({
                 </button>
               </Link>
             ) : (
-              <button 
-                onClick={handleConfirm} 
+              <button
+                onClick={handleConfirm}
                 disabled={selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0}
                 className="flex-1 sm:flex-none px-8 py-3.5 bg-[#EAB308] text-black rounded-2xl font-black uppercase tracking-wide hover:bg-[#FACC15] hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-[#EAB308]/20"
               >

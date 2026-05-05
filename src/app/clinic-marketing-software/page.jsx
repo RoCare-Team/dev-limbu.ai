@@ -61,23 +61,23 @@ export default function ClinicMarketingPage() {
   ];
 
   const clinicPostImages = [
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776424977/Hospital_drvjed.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776425202/Hospital_vhubo2.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776425407/Hospital_fdy4x9.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776425505/Doctor_ny3rj5.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776425601/Hospital_llmrll.jpg",
-    "https://res.cloudinary.com/dsnuzit6o/image/upload/v1776425775/Hospital_v9hk1m.jpg"
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963946872-0-37f90c7a-2ae3-4473-9e1c-e3ac51957cd7-Hospital_drvjed.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963944234-1-d33522e1-15d3-49dd-bba6-8722a77ec44f-Hospital_vhubo2.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963940628-2-f8647a16-5a1c-4f13-bf48-f48def0e6682-Hospital_fdy4x9.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963944557-3-73418cb4-6430-4ad6-91a2-4cca0fd88503-Doctor_ny3rj5.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963944155-4-b33e1db1-dca9-4ac6-ae17-006ec548a29d-Hospital_llmrll.jpg",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963948898-5-17b5fd8f-11cd-45cd-a227-313035741bfe-Hospital_v9hk1m.jpg"
+  ]
 
   const videoExamples = [
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.11+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/WhatsApp+Video+2026-02-02+at+2.50.12+PM+(2).mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765578/WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765573/WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765583/WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
-    "https://res.cloudinary.com/dsnuzit6o/video/upload/v1767765586/WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
-  ];
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758899-0-3963c931-8bdc-4c5b-83b7-a45e2f3dee5c-WhatsApp-Video-2026-02-02-at-2.50.11-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759497-1-dcff2a8b-d608-4fad-8304-dd8f6d132c8f-WhatsApp-Video-2026-02-02-at-2.50.12-PM.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759390-2-bbc0bea6-909e-4566-a417-ba3cd713645e-WhatsApp-Video-2026-02-02-at-2.50.12-PM--2-.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758826-3-9a4c4050-5a50-41b5-9614-7228d1f04c24-WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758630-4-cb36a2d7-1f46-42ba-8852-9a7429d1b3da-WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759013-5-1d0a1d2e-4af6-43b2-9680-a3b730d239ae-WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758921-6-39fd61e5-fad7-492a-9270-80b3f15472f5-WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4"
+  ]
 
   const schemas = [
     {

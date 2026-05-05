@@ -1018,7 +1018,7 @@ const handleYouTubePostAction = useCallback(
       );
 
       formData.append("mediaUrl", publishMedia.url);
-      formData.append("privacyStatus", "private"); // change if needed
+      formData.append("privacyStatus", "public"); // change if needed
       formData.append("isShort", "true");
 
       // 🚀 API call
@@ -1055,7 +1055,7 @@ const handleYouTubePostAction = useCallback(
 
       // Optional: open video
       if (data.data?.id) {
-        const url = `https://youtube.com/watch?v=${data.data.id}`;
+const url = `https://youtube.com/shorts/${data.data.id}`;
         console.log("YouTube URL:", url);
       }
 

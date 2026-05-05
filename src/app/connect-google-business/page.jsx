@@ -64,7 +64,11 @@ function ConnectGoogleBusinessInner() {
   const [linkedVerified, setLinkedVerified] = useState([]);
   const [notLinked,     setNotLinked]     = useState([]);
   const [continueBusy,  setContinueBusy]  = useState(false);
+  const [continueSuccess, setContinueSuccess] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(0);
   const [signInError,   setSignInError]   = useState(false);
+  const [autoSignInStarted, setAutoSignInStarted] = useState(false);
+  const [autoContinueStarted, setAutoContinueStarted] = useState(false);
 
   // Load GMB listings once authenticated
   const loadLocations = useCallback(async () => {
@@ -142,7 +146,9 @@ function ConnectGoogleBusinessInner() {
         }
       }
 
-window.location.href = "https://wa.me/917065178662";    } catch (e) {
+      setContinueSuccess(true);
+      setRedirectCountdown(5);
+    } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {
       setContinueBusy(false);
@@ -153,6 +159,43 @@ window.location.href = "https://wa.me/917065178662";    } catch (e) {
     const qs = phone ? `?phone=${phone}` : "";
     void signOut({ callbackUrl: `/connect-google-business${qs}` });
   };
+
+  useEffect(() => {
+    if (
+      status === "unauthenticated" &&
+      phone &&
+      !autoSignInStarted &&
+      !signInError
+    ) {
+      setAutoSignInStarted(true);
+      handleGoogleSignIn();
+    }
+  }, [status, phone, autoSignInStarted, signInError, handleGoogleSignIn]);
+
+  useEffect(() => {
+    if (
+      status === "authenticated" &&
+      phone &&
+      !autoContinueStarted
+    ) {
+      setAutoContinueStarted(true);
+      void handleContinue();
+    }
+  }, [status, phone, autoContinueStarted, handleContinue]);
+
+  useEffect(() => {
+    if (!continueSuccess || redirectCountdown <= 0) return;
+    const timeout = window.setTimeout(() => {
+      setRedirectCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => window.clearTimeout(timeout);
+  }, [continueSuccess, redirectCountdown]);
+
+  useEffect(() => {
+    if (continueSuccess && redirectCountdown === 0) {
+      window.location.href = "https://wa.me/917065178662";
+    }
+  }, [continueSuccess, redirectCountdown]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -189,36 +232,22 @@ window.location.href = "https://wa.me/917065178662";    } catch (e) {
           </div>
         )}
 
-        {/* Not signed in */}
-        {status === "unauthenticated" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B0F19] text-[#FFC107]">
-              <AlertTriangle className="h-7 w-7" strokeWidth={2} />
+        {/* Continue success */}
+        {continueSuccess && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+              <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Google Business setup</h1>
+            <h1 className="text-xl font-bold text-slate-900">Business connected</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Sign in with Google to see your Business Profile listings, then continue to Limbu AI
-              chat.
+              Listings fetched successfully. Aage WhatsApp par redirect ho raha hai.
             </p>
-            {phone && (
-              <p className="mt-2 text-xs text-slate-400">
-                Connecting for phone: <span className="font-medium text-slate-600">+{phone}</span>
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              className="mt-6 w-full rounded-xl bg-[#0B0F19] py-3.5 text-sm font-semibold text-[#FFC107] shadow-md transition hover:bg-slate-800"
-            >
-              Continue with Google
-            </button>
-            {signInError && (
-              <p className="mt-3 text-xs text-red-600">
-                Sign-in start nahi ho paya — refresh karke try karein.
-              </p>
-            )}
+            <p className="mt-3 text-xs text-slate-500">
+              Redirecting in {redirectCountdown} second{redirectCountdown === 1 ? "" : "s"}...
+            </p>
           </div>
         )}
+
 
         {/* Fetching listings */}
         {status === "authenticated" && listLoading && (
@@ -233,7 +262,7 @@ window.location.href = "https://wa.me/917065178662";    } catch (e) {
         )}
 
         {/* Listings ready */}
-        {status === "authenticated" && !listLoading && (
+        {status === "authenticated" && !listLoading && !continueSuccess && (
           <>
             <div className="mb-2 flex justify-center">
               <div
@@ -324,7 +353,7 @@ window.location.href = "https://wa.me/917065178662";    } catch (e) {
       </main>
 
       {/* Sticky Continue button */}
-      {status === "authenticated" && !listLoading && (
+      {status === "authenticated" && !listLoading && !continueSuccess && (
         <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-white/80">
           <div className="mx-auto flex max-w-lg flex-col gap-2">
             <button

@@ -4,9 +4,6 @@ import YouTubeChannel from "@/models/YouTubeChannel";
 import axios from "axios";
 import FormData from "form-data";
 
-/**
- * 🔄 Refresh Access Token
- */
 async function refreshAccessToken(refreshToken) {
   const response = await axios.post(
     "https://oauth2.googleapis.com/token",
@@ -16,13 +13,8 @@ async function refreshAccessToken(refreshToken) {
       refresh_token: refreshToken,
       grant_type: "refresh_token",
     }).toString(),
-    {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }
+    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
   );
-
   return response.data;
 }
 
@@ -47,9 +39,7 @@ export async function POST(req) {
       );
     }
 
-    // 🔍 Channel fetch
     const channel = await YouTubeChannel.findOne({ userId, channelId });
-
     if (!channel) {
       return NextResponse.json(
         { success: false, error: "YouTube channel not found" },
@@ -59,11 +49,9 @@ export async function POST(req) {
 
     let accessToken = channel.accessToken;
 
-    // 🔄 Refresh token if expired
     if (
       !accessToken ||
-      (channel.tokenExpiresAt &&
-        new Date(channel.tokenExpiresAt) <= new Date())
+      (channel.tokenExpiresAt && new Date(channel.tokenExpiresAt) <= new Date())
     ) {
       if (!channel.refreshToken) {
         return NextResponse.json(
@@ -71,68 +59,82 @@ export async function POST(req) {
           { status: 401 }
         );
       }
-
       const tokenData = await refreshAccessToken(channel.refreshToken);
-
       accessToken = tokenData.access_token;
-
       channel.accessToken = accessToken;
-      channel.tokenExpiresAt = new Date(
-        Date.now() + tokenData.expires_in * 1000
-      );
-
-      if (tokenData.refresh_token) {
-        channel.refreshToken = tokenData.refresh_token;
-      }
-
+      channel.tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+      if (tokenData.refresh_token) channel.refreshToken = tokenData.refresh_token;
       await channel.save();
     }
 
-    /**
-     * 🎥 STREAM VIDEO FROM S3 (IMPORTANT)
-     */
+    // ✅ Stream video from S3/URL
     const videoResponse = await axios({
       url: mediaUrl,
       method: "GET",
       responseType: "stream",
     });
 
-    /**
-     * 🧠 Metadata (same as cURL)
-     */
-    let finalDescription = description;
+    const videoContentType =
+      videoResponse.headers["content-type"] || "video/mp4";
 
-    if (isShort && !finalDescription.toLowerCase().includes("#shorts")) {
-      finalDescription += "\n#shorts";
+    // ✅ Build description with #shorts
+    let finalDescription = description;
+    if (isShort) {
+      if (!finalDescription.toLowerCase().includes("#shorts")) {
+        finalDescription += "\n#shorts";
+      }
     }
 
-    const metadata = {
-      snippet: {
-        title: title,
-        description: finalDescription,
-        tags: ["shorts"],
-      },
-      status: {
-        privacyStatus: privacyStatus,
-      },
-    };
+    // ✅ Metadata — exactly matching Postman structure + Shorts fields
+    const metadata = isShort
+      ? {
+          snippet: {
+            title: title,
+            description: finalDescription,
+            tags: ["shorts", "Shorts", "#shorts", "#short", "shortvideo"],
+            categoryId: "22",                 // ✅ People & Blogs (most Shorts use this)
+            defaultLanguage: "en",
+            defaultAudioLanguage: "en",
+          },
+          status: {
+            privacyStatus: privacyStatus,
+            selfDeclaredMadeForKids: false,   // ✅ Required for Shorts
+            madeForKids: false,
+          },
+        }
+      : {
+          snippet: {
+            title: title,
+            description: finalDescription,
+            tags: [],
+            categoryId: "22",
+          },
+          status: {
+            privacyStatus: privacyStatus,
+            selfDeclaredMadeForKids: false,
+            madeForKids: false,
+          },
+        };
 
-    /**
-     * 📦 FORM-DATA (exact cURL replica)
-     */
+    // ✅ Build multipart form-data exactly like Postman
     const form = new FormData();
 
     form.append("metadata", JSON.stringify(metadata), {
-      contentType: "application/json",
+      contentType: "application/json; charset=UTF-8",
+      filename: "metadata.json",
     });
 
-    form.append("media", videoResponse.data);
+    form.append("media", videoResponse.data, {
+      contentType: videoContentType,
+      filename: "video.mp4",
+      knownLength: videoResponse.headers["content-length"]
+        ? parseInt(videoResponse.headers["content-length"])
+        : undefined,
+    });
 
-    /**
-     * 🚀 YouTube Upload (same as cURL)
-     */
+    // ✅ Upload to YouTube
     const uploadRes = await axios.post(
-      "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status",
+      "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status",
       form,
       {
         headers: {
@@ -144,12 +146,9 @@ export async function POST(req) {
       }
     );
 
-    return NextResponse.json({
-      success: true,
-      data: uploadRes.data,
-    });
+    return NextResponse.json({ success: true, data: uploadRes.data });
   } catch (error) {
-    console.error("YouTube Upload Error:", error);
+    console.error("YouTube Upload Error:", error?.response?.data || error.message);
 
     if (error.response?.data) {
       return NextResponse.json(
@@ -163,10 +162,7 @@ export async function POST(req) {
     }
 
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "Internal error",
-      },
+      { success: false, error: error.message || "Internal error" },
       { status: 500 }
     );
   }

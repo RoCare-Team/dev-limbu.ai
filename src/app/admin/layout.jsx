@@ -75,7 +75,7 @@
 
   const navGroups = [
     {
-      title: "Main",
+      title: "Overview",
       items: [
         { name: "Dashboard", href: "/admin/dashboard", icon: <BarChart3 size={16}/> },
         { name: "Store Business", href: "/admin/store-bussiness", icon: <QrCode size={16}/> },
@@ -159,13 +159,13 @@
     overflow-y-hidden hover:overflow-y-auto
     ${theme === "dark"
               ? "bg-[#0b141a] text-white"
-              : "bg-white text-slate-900 border-r border-slate-200"
+              : "bg-gradient-to-b from-white to-slate-50 text-slate-900 border-r border-slate-200 shadow-sm"
             }`}
         >
           {/* Header */}
-          <div className={`p-4 ${theme === "dark" ? "border-b border-gray-800" : "border-b border-slate-200"}`}>
+          <div className={`p-4 ${theme === "dark" ? "border-b border-gray-800" : "border-b border-slate-200 bg-white/70 backdrop-blur"}`}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center font-bold uppercase">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 shadow-md flex items-center justify-center font-bold uppercase">
                 {adminName?.charAt(0)}
               </div>
 
@@ -200,16 +200,20 @@
         
         <button
           onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
-          className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold uppercase text-slate-500 hover:bg-slate-100"
+          className="w-full flex items-center justify-between px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100"
         >
           {group.title}
-          <span className="text-xl font-semibold text-slate-700">
-  {openGroup === idx ? "−" : "+"}
+          <span
+  className={`text-xl font-bold leading-none transition-transform ${
+    openGroup === idx ? "rotate-180" : ""
+  }`}
+>
+  ⌵
 </span>
         </button>
 
         {openGroup === idx && (
-          <div className="ml-2">
+          <div className="ml-2 mt-1 space-y-1">
             {group.items.map((item) => {
               const active = pathname === item.href;
 
@@ -217,11 +221,12 @@
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2 text-sm ${
-                    active
-                      ? "bg-slate-200 text-black"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-[14px] rounded-lg transition-all
+  ${
+    active
+      ? "bg-blue-50 text-blue-600 font-medium shadow-sm"
+      : "text-slate-700 hover:bg-slate-100 hover:text-black"
+  }`}
                 >
                   {item.icon}
                   {open && item.name}
@@ -237,19 +242,13 @@
     <div className="mt-4 border-t pt-3">
       <Link
         href="/"
-        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-100"
+        className="flex items-center gap-3 px-4 py-2.5 text-[14px] rounded-lg text-slate-700 hover:bg-slate-100 transition"
       >
         <ArrowUpLeft size={18}/>
         {open && "Visit Website"}
       </Link>
 
-      <button
-        onClick={logout}
-        className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 w-full"
-      >
-        <LogOut size={18}/>
-        {open && "Logout"}
-      </button>
+      
     </div>  
 
   </nav>

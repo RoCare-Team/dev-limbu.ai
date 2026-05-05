@@ -2971,7 +2971,7 @@ const groupedUsers = groupByDate(users); // 🔥 यही use होगा
                       </p>
                       <p>{bulkWaResult.message}</p>
                       {bulkWaResult.sent !== undefined && (
-                        <p className="mt-2 font-semibold">
+                        <p className="mt-2 font-semibold">.
                           Messages sent: {bulkWaResult.sent}
                         </p>
                       )}

@@ -20,12 +20,28 @@ import {
 import { Add, Edit, Delete, OpenInNew } from "@mui/icons-material";
 import { useBlogs } from "@/hooks/useBlogs";
 
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json"; 
+
 export default function AdminBlogList() {
   const { blogs, loading, fetchBlogs, deleteBlog } = useBlogs();
 
   useEffect(() => {
     fetchBlogs();
   }, [fetchBlogs]);
+
+  if (loading) {
+     return (
+       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+         <div className="text-center">
+           <div className="w-84 h-84 mx-auto">
+             <Lottie animationData={animationData} loop={true} />
+           </div>
+           {/* <p className="text-gray-600 font-medium">Loading users.</p> */}
+         </div>
+       </div>
+     );
+   }
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", p: { xs: 2, md: 3 } }}>
@@ -50,9 +66,9 @@ export default function AdminBlogList() {
         </Button>
       </Box>
 
-      {loading && blogs.length === 0 ? (
+      { blogs.length === 0 ? (
         <Box sx={{ display: "flex", justifyItems: "center", justifyContent: "center", py: 10 }}>
-          <CircularProgress />
+         
         </Box>
       ) : blogs.length === 0 ? (
         <Paper sx={{ textAlign: "center", py: 10, borderRadius: 3, border: "1px dashed", borderColor: "divider", boxShadow: "none", bgcolor: "transparent" }}>

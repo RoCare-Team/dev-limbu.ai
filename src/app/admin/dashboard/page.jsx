@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
- 
-// import { useState, useEffect } from "react";
+
 import {
   LineChart,
   Line,
@@ -27,7 +26,11 @@ import {
   IndianRupee,
   BriefcaseBusiness,
   UserCog,
+
 } from "lucide-react";
+
+import Lottie from "lottie-react";
+import animationData from "@/assets/animation/Loading.json"; 
 
 import { getTodayUsersData } from "../user-management/page";
 
@@ -187,9 +190,17 @@ const router = useRouter();
         }
       }
 
-      const res = await fetch(`/api/users?getTodayUsersCount=true${dateParams}`);
+          const email = localStorage.getItem("email"); 
+
+         
+
+        const res = await fetch(
+      `/api/users?email=${email}&getTodayUsersCount=true${dateParams}`
+    );
       const data = await res.json();
       
+      
+
       if (data?.success) {
         setTodayUsersCount(data.todayUsersCount || 0);
         setTodayUsersMetaLeads(data.todayMetaLeads || 0);
@@ -554,12 +565,18 @@ const router = useRouter();
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex justify-center items-center h-[80vh]">
-        <div className="w-30 h-30 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-      </div>
-    );
+ if (loading) {
+     return (
+       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+         <div className="text-center">
+           <div className="w-84 h-84 mx-auto">
+             <Lottie animationData={animationData} loop={true} />
+           </div>
+           {/* <p className="text-gray-600 font-medium">Loading users.</p> */}
+         </div>
+       </div>
+     );
+   }
 
   return (
     <div className="p-2">

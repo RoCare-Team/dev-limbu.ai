@@ -114,6 +114,26 @@ export default function AdminCityServices() {
     }
   };
 
+  const toggleIndexing = async (slug, currentAllowIndex) => {
+    const nextAllowIndex = currentAllowIndex === false;
+
+    try {
+      setPages((prevPages) =>
+        prevPages.map((p) =>
+          p.citySlug === slug ? { ...p, allowIndex: nextAllowIndex } : p
+        )
+      );
+
+      await axios.put(`/api/admin/city-services/${slug}`, {
+        allowIndex: nextAllowIndex,
+      });
+      toast.success(`Page set to ${nextAllowIndex ? "index" : "noindex"}`);
+    } catch (error) {
+      toast.error("Failed to update indexing");
+      fetchPages();
+    }
+  };
+
   if (loading) {
      return (
        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -153,6 +173,7 @@ export default function AdminCityServices() {
                 <TableCell sx={{ fontWeight: "bold" }}>City Name</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Slug</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Status (Active)</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>Indexing</TableCell>
                 <TableCell align="right" sx={{ fontWeight: "bold" }}>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -161,7 +182,15 @@ export default function AdminCityServices() {
                 pages.map((page) => (
                   <TableRow key={page?._id} hover>
                     <TableCell sx={{ fontWeight: 500 }}>{page.cityName}</TableCell>
-                    <TableCell sx={{ color: "text.secondary" }}>{page.citySlug}</TableCell>
+                    <TableCell
+                      sx={{
+                        color: "text.secondary",
+                        maxWidth: 420,
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {page.citySlug}
+                    </TableCell>
                     <TableCell>
                       <Tooltip title={page.isActive ? "Deactivate" : "Activate"} placement="top">
                         <Switch
@@ -170,6 +199,18 @@ export default function AdminCityServices() {
                           color="primary"
                         />
                       </Tooltip>
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title={page.allowIndex !== false ? "Set noindex" : "Allow indexing"} placement="top">
+                        <Switch
+                          checked={page.allowIndex !== false}
+                          onChange={() => toggleIndexing(page.citySlug, page.allowIndex)}
+                          color="success"
+                        />
+                      </Tooltip>
+                      <Typography variant="caption" color={page.allowIndex !== false ? "success.main" : "error.main"} fontWeight={700}>
+                        {page.allowIndex !== false ? "Index" : "Noindex"}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Box display="flex" justifyContent="flex-end" gap={1}>
@@ -206,7 +247,7 @@ export default function AdminCityServices() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
                     <Typography variant="body1" color="text.secondary">
                       No city service pages found. Create one to get started!
                     </Typography>

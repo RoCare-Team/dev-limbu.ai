@@ -12,10 +12,14 @@ import {
 } from "lucide-react";
 import HeaderSection from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
+import Link from "next/link";
+import { useAuthStore } from "@/stores/useAuthStore";
+import VideoModal from "@/components/modals/VideoModal";
+import Image from "next/image";
 
 /* ─── IMAGES ─────────────────────────────────────────────────── */
 const DEFAULT_IMAGES = {
-  hero: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=1200",
+  hero: "/images/city-page/hero.png",
   dashboard: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800",
   localMap: "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800",
   restaurant: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&q=80&w=400",
@@ -117,58 +121,65 @@ function ROICalculator() {
   const limbuCost = 4999;
   const roi = Math.round((gain / limbuCost) * 100);
   return (
-    <div className="bg-slate-900 rounded-3xl p-6 md:p-8 border border-slate-700 shadow-2xl relative overflow-hidden">
+    <div className="bg-white rounded-[2.5rem] p-6 md:p-8 border border-slate-200 shadow-2xl relative overflow-hidden">
       <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/5 rounded-full blur-3xl" />
-      <h3 className="text-white font-extrabold text-xl mb-6 flex items-center gap-2 relative z-10">
-        <Calculator className="w-5 h-5 text-yellow-400" /> ROI Calculator
+      <h3 className="text-slate-900 font-bold text-xl mb-6 flex items-center gap-3 relative z-10">
+        <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-lg shadow-yellow-400/20">
+          <Calculator className="w-5 h-5 text-slate-900" />
+        </div>
+        Revenue Potential
       </h3>
       <div className="space-y-6 relative z-10">
         <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-slate-400">Monthly customers from Google</span>
-            <span className="text-white font-bold bg-slate-800 px-3 py-1 rounded-lg">{customers}</span>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-600 font-semibold text-sm">Monthly customers from Google</span>
+            <span className="text-slate-900 font-bold text-sm bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">{customers}</span>
           </div>
           <input type="range" min="10" max="500" step="10" value={customers}
             onChange={e => setCustomers(+e.target.value)}
-            className="w-full accent-yellow-400 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+            className="w-full accent-yellow-400 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer border border-slate-200" />
         </div>
         <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-slate-400">Average order value (₹)</span>
-            <span className="text-white font-bold bg-slate-800 px-3 py-1 rounded-lg">₹{avg.toLocaleString()}</span>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-600 font-semibold text-sm">Average order value (₹)</span>
+            <span className="text-slate-900 font-bold text-sm bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">₹{avg.toLocaleString()}</span>
           </div>
           <input type="range" min="100" max="5000" step="100" value={avg}
             onChange={e => setAvg(+e.target.value)}
-            className="w-full accent-yellow-400 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+            className="w-full accent-yellow-400 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer border border-slate-200" />
         </div>
       </div>
+
       <div className="mt-8 grid grid-cols-2 gap-4 relative z-10">
-        <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
-          <p className="text-slate-400 text-xs mb-1 font-medium">Current Revenue</p>
-          <p className="text-white font-bold text-lg">₹{currentMonthly.toLocaleString()}</p>
+        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+          <p className="text-slate-500 text-[10px] mb-1 font-bold uppercase tracking-wider">Current Monthly</p>
+          <p className="text-slate-400 font-bold text-lg line-through decoration-red-400/50">₹{currentMonthly.toLocaleString()}</p>
         </div>
-        <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-2xl p-4">
-          <p className="text-yellow-400 text-xs mb-1 font-medium">With Limbu AI</p>
-          <p className="text-yellow-400 font-bold text-lg">₹{newMonthly.toLocaleString()}</p>
-        </div>
-      </div>
-      <div className="mt-4 bg-slate-800/80 border border-slate-700 rounded-2xl p-5 text-center relative z-10">
-        <p className="text-slate-400 text-xs mb-1 font-medium">Estimated Monthly Gain</p>
-        <p className="text-white font-extrabold text-3xl md:text-4xl">+₹{gain.toLocaleString()}</p>
-        <div className="inline-block mt-2 bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold px-3 py-1 rounded-full">
-          {roi}% ROI
+        <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-xl p-4">
+          <p className="text-yellow-700 text-[10px] mb-1 font-bold uppercase tracking-wider">Potential Growth</p>
+          <p className="text-yellow-600 font-bold text-lg">₹{newMonthly.toLocaleString()}</p>
         </div>
       </div>
-      <a href={WA} className="mt-6 w-full flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3.5 rounded-xl transition-all text-sm shadow-[0_0_20px_rgba(250,204,21,0.2)] hover:shadow-[0_0_25px_rgba(250,204,21,0.4)] relative z-10">
+
+      <div className="mt-6 bg-slate-900 rounded-2xl p-6 text-center relative z-10 shadow-xl shadow-slate-900/20">
+        <p className="text-slate-400 text-[10px] mb-1 font-bold uppercase tracking-widest">Est. Monthly Revenue Gain</p>
+        <p className="text-white font-black text-3xl md:text-4xl mb-3 tracking-tight">+₹{gain.toLocaleString()}</p>
+        <div className="inline-flex items-center gap-1.5 bg-green-500 text-white text-[11px] font-bold px-4 py-1 rounded-full shadow-lg shadow-green-500/30">
+          <TrendingUp className="w-3 h-3" /> {roi}% ROI
+        </div>
+      </div>
+
+      <Link href="/login" className="mt-6 w-full flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] shadow-xl shadow-yellow-400/30 text-sm">
         Get This ROI For My Business <ArrowRight className="w-4 h-4" />
-      </a>
+      </Link>
     </div>
   );
 }
 
 /* ─── COMPARISON TABLE ────────────────────────────────────────── */
-function ComparisonTable() {
+function ComparisonTable({ cityName }) {
   const rows = [
+
     { feature: "Google Posts (daily)", manual: <div className="flex items-center gap-2 justify-center text-slate-500"><X className="w-4 h-4 text-red-400" /> Takes 30 min/day</div>, agency: <div className="flex items-center gap-2 justify-center text-slate-500"><AlertCircle className="w-4 h-4 text-yellow-500" /> Weekly only</div>, limbu: <div className="flex items-center gap-2 justify-center text-slate-900 font-bold"><CheckCircle2 className="w-4 h-4 text-green-500" /> AI daily auto</div> },
     { feature: "Review replies", manual: <div className="flex items-center gap-2 justify-center text-slate-500"><X className="w-4 h-4 text-red-400" /> Often ignored</div>, agency: <div className="flex items-center gap-2 justify-center text-slate-500"><AlertCircle className="w-4 h-4 text-yellow-500" /> Slow (1–2 days)</div>, limbu: <div className="flex items-center gap-2 justify-center text-slate-900 font-bold"><CheckCircle2 className="w-4 h-4 text-green-500" /> Instant AI</div> },
     { feature: "5-star review collection", manual: <div className="flex items-center gap-2 justify-center text-slate-500"><X className="w-4 h-4 text-red-400" /> Manually ask</div>, agency: <div className="flex items-center gap-2 justify-center text-slate-500"><AlertCircle className="w-4 h-4 text-yellow-500" /> Email campaigns</div>, limbu: <div className="flex items-center gap-2 justify-center text-slate-900 font-bold"><CheckCircle2 className="w-4 h-4 text-green-500" /> Magic QR</div> },
@@ -183,7 +194,7 @@ function ComparisonTable() {
         <table className="w-full text-sm min-w-[700px] relative z-10">
           <thead>
             <tr>
-              <th className="text-left px-6 py-6 font-extrabold text-slate-900 border-b-2 border-slate-100 bg-white w-1/4">Comparison Feature</th>
+              <th className="text-left px-6 py-6 font-extrabold text-slate-900 border-b-2 border-slate-100 bg-white w-1/4">Comparison for {cityName}</th>
               <th className="px-6 py-6 font-bold text-slate-500 border-b-2 border-slate-100 bg-slate-50/50 text-center w-1/4">DIY (Manual)</th>
               <th className="px-6 py-6 font-bold text-slate-500 border-b-2 border-slate-100 bg-slate-50/50 text-center w-1/4">Local Agency</th>
               <th className="px-6 py-6 font-extrabold text-slate-900 border-b-4 border-yellow-400 bg-yellow-100/50 text-center w-1/4 shadow-[0_4px_15px_-3px_rgba(250,204,21,0.2)]">
@@ -206,6 +217,7 @@ function ComparisonTable() {
     </div>
   );
 }
+
 
 /* ─── PRICING CARDS ───────────────────────────────────────────── */
 const PLANS = [
@@ -344,16 +356,19 @@ function ProblemSection({ cityName }) {
         </div>
         <div className="bg-slate-900 rounded-3xl p-6 md:p-8 flex flex-col sm:flex-row items-center gap-6 shadow-xl relative overflow-hidden">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-          <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center flex-shrink-0 relative z-10 shadow-lg">
+          <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center shrink-0 relative z-10 shadow-lg">
             <Zap className="w-8 h-8 text-slate-900" />
           </div>
           <div className="flex-1 text-center sm:text-left relative z-10">
             <h3 className="text-xl md:text-2xl font-bold text-white mb-2">Limbu AI Solves All These Problems</h3>
             <p className="text-slate-400">Setup once and let the AI handle everything — on autopilot, 24/7.</p>
           </div>
-          <a href={WA} className="flex-shrink-0 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold px-8 py-4 rounded-full text-sm transition-colors shadow-[0_0_20px_rgba(250,204,21,0.3)] relative z-10">
+          <Link
+            href="/login"
+            className="shrink-0 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold px-8 py-4 rounded-full text-sm transition-colors shadow-[0_0_20px_rgba(250,204,21,0.3)] relative z-10"
+          >
             Get My Free Audit →
-          </a>
+          </Link>
         </div>
       </div>
     </section>
@@ -452,8 +467,7 @@ function TrustSection({ cityName }) {
 }
 
 /* ─── VIDEO / DEMO SECTION ────────────────────────────────────── */
-function DemoSection({ dashboardImg }) {
-  const [playing, setPlaying] = useState(false);
+function DemoSection({ dashboardImg, setSelectedVideo }) {
   return (
     <section className="py-12 bg-slate-50">
       <div className="max-w-5xl mx-auto px-4">
@@ -463,10 +477,10 @@ function DemoSection({ dashboardImg }) {
           <p className="text-slate-500 text-lg">Understand why Limbu AI is the best choice for local growth in 2 minutes.</p>
         </div>
         <div
-          onClick={() => setPlaying(true)}
+          onClick={() => setSelectedVideo("https://youtu.be/eQUd6u36w3g?si=_AJ3OymZQD6HnXRl")}
           className="relative rounded-[2rem] overflow-hidden shadow-2xl cursor-pointer group border-4 border-white"
         >
-          <img src={dashboardImg || DEFAULT_IMAGES.dashboard} alt="Dashboard demo" className="w-full h-64 md:h-[500px] object-cover group-hover:scale-105 transition-transform duration-700" />
+          <img src={dashboardImg || DEFAULT_IMAGES.hero} alt="Dashboard demo" className="w-full h-64 md:h-[500px] object-cover group-hover:scale-105 transition-transform duration-700" />
           <div className="absolute inset-0 bg-slate-900/40 group-hover:bg-slate-900/50 transition-colors flex flex-col items-center justify-center">
             <div className="w-24 h-24 bg-yellow-400 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(250,204,21,0.5)] group-hover:scale-110 transition-transform duration-300 mb-6">
               <Play className="w-10 h-10 text-slate-900 ml-2" fill="currentColor" />
@@ -491,62 +505,96 @@ function DemoSection({ dashboardImg }) {
 function CaseStudiesSection({ cityName, caseStudies = [] }) {
   const defaultCases = [
     {
-      img: DEFAULT_IMAGES.restaurant,
+      img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&q=80&w=800",
       category: "Restaurant",
-      location: "Cyber Hub",
-      name: "Spice Route",
-      result: "+340% walk-ins",
-      desc: `Monthly Google calls increased from 12 to 89. Weekend footfall more than doubled.`,
+      location: cityName,
+      name: "Moti Mahal Delux",
+      result: "+280% Monthly Calls",
+      desc: `By optimizing their GMB for 'Best Butter Chicken', we helped this iconic brand capture 3x more local intent searches in ${cityName}.`,
     },
     {
-      img: DEFAULT_IMAGES.clinic,
-      category: "Clinic",
-      location: "Sector 29",
-      name: "Smile Dental",
-      result: "#1 on Google Maps",
-      desc: "Ranked #1 for 'Dentist near me' searches. 67 new patients in just 30 days.",
+      img: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=800",
+      category: "Healthcare",
+      location: cityName,
+      name: "Clove Dental",
+      result: "Top 3 Map Ranking",
+      desc: "Automated review collection helped their clinics maintain a 4.8★ rating across 300+ locations, significantly boosting patient walk-ins.",
     },
     {
-      img: DEFAULT_IMAGES.retail,
+      img: "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&q=80&w=800",
       category: "Retail",
-      location: "MG Road",
-      name: "The Fashion Hub",
-      result: "+520% profile views",
-      desc: "Review count grew from 11 to 103. Overall rating improved from 3.9 to 4.8.",
+      location: cityName,
+      name: "Fabindia",
+      result: "+450% Profile Views",
+      desc: "Daily automated posts showcasing new collections led to a massive surge in 'Directions' requests from local shoppers.",
     },
   ];
 
   const displayCases = caseStudies.length > 0 ? caseStudies : defaultCases;
 
   return (
-    <section className="py-12 bg-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">{cityName} Business Success Stories</h2>
-          <p className="text-slate-400 text-lg">Local heroes who scaled their growth with Limbu AI.</p>
+    <section className="py-20 bg-slate-50 relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-yellow-400/5 rounded-full blur-[120px] -mr-64 -mt-64" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-yellow-400/5 rounded-full blur-[120px] -ml-64 -mb-64" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center mb-16">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-600 text-sm font-bold mb-4 uppercase tracking-widest">
+            Success Stories
+          </span>
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">
+            How {cityName} Brands <span className="text-yellow-600 underline decoration-yellow-400/30 underline-offset-8">Scale Faster</span>
+          </h2>
+          <p className="text-slate-600 text-lg max-w-2xl mx-auto font-medium">
+            Real results from businesses that automated their growth and dominated their competition with Limbu AI.
+          </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-8">
+
+        <div className="grid md:grid-cols-3 gap-10">
           {displayCases.map((c, i) => (
-            <div key={i} className="bg-slate-800 rounded-3xl overflow-hidden border border-slate-700 hover:border-yellow-400 transition-all duration-300 hover:shadow-[0_0_30px_rgba(250,204,21,0.1)] group">
-              <div className="relative h-56 overflow-hidden">
-                <img src={c.img || c.imgUrl || DEFAULT_IMAGES.restaurant} alt={c.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
-                <div className="absolute top-4 left-4 bg-yellow-400 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-full shadow-md">{c.category}</div>
-                <div className="absolute bottom-4 left-5 right-5">
-                  <p className="text-yellow-400 font-extrabold text-2xl leading-tight mb-1">{c.result}</p>
+            <div key={i} className="group relative bg-white rounded-[2.5rem] overflow-hidden border border-slate-200 hover:border-yellow-400 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)]">
+              {/* Image Container */}
+              <div className="relative h-64 overflow-hidden">
+                <img
+                  src={c.img || c.imgUrl || DEFAULT_IMAGES.restaurant}
+                  alt={c.name}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
+
+                {/* Result Badge */}
+                <div className="absolute bottom-4 left-6 right-6">
+                  <div className="inline-flex items-center gap-2 bg-yellow-400 text-slate-950 font-black px-4 py-2 rounded-xl text-lg shadow-lg">
+                    <TrendingUp className="w-5 h-5" />
+                    {c.result}
+                  </div>
+                </div>
+
+                {/* Category Chip */}
+                <div className="absolute top-4 left-6">
+                  <span className="bg-white/90 backdrop-blur-md border border-slate-200 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-full">
+                    {c.category}
+                  </span>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <MapPin className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-400 text-sm font-medium">{c.location}</span>
-                  <span className="text-slate-600 text-sm mx-1">·</span>
-                  <span className="text-white text-sm font-bold">{c.name}</span>
+
+              {/* Content */}
+              <div className="p-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                    <MapPin className="w-4 h-4 text-yellow-600" />
+                  </div>
+                  <span className="text-slate-500 text-sm font-bold tracking-wide uppercase">{c.location}</span>
                 </div>
-                <p className="text-slate-300 text-sm leading-relaxed mb-5">{c.desc}</p>
-                <a href={WA} className="inline-flex items-center gap-1.5 text-yellow-400 text-sm font-bold hover:text-yellow-300 transition-colors group-hover:underline underline-offset-4">
-                  Get similar results <ArrowRight className="w-4 h-4" />
-                </a>
+
+                <h3 className="text-2xl font-bold text-slate-900 mb-4 group-hover:text-yellow-600 transition-colors">
+                  {c.name}
+                </h3>
+
+                <p className="text-slate-600 leading-relaxed font-medium mb-4 min-h-[4.5rem]">
+                  "{c.desc}"
+                </p>
               </div>
             </div>
           ))}
@@ -557,22 +605,23 @@ function CaseStudiesSection({ cityName, caseStudies = [] }) {
 }
 
 /* ─── GUARANTEE SECTION ───────────────────────────────────────── */
-function GuaranteeSection() {
+function GuaranteeSection({ cityName }) {
   return (
-    <section className="py-10 bg-yellow-50 border-y border-yellow-100">
-      <div className="max-w-4xl mx-auto px-4 text-center">
-        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl mx-auto mb-6 border-4 border-yellow-100">
-          <ShieldCheck className="w-12 h-12 text-yellow-500" />
+    <section className="py-10 bg-yellow-400 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
+      <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+        <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-2xl mx-auto mb-8 transform -rotate-3 border-4 border-yellow-300">
+          <ShieldCheck className="w-10 h-10 text-yellow-600" />
         </div>
-        <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">100% Risk-Free Guarantee</h2>
-        <p className="text-slate-700 text-lg md:text-xl leading-relaxed mb-8 max-w-2xl mx-auto font-medium">
-          If you don't see at least <strong>2x growth</strong> in your Google Business Profile views within 30 days,
-          we will <strong>fully refund</strong> your payment — no questions asked.
+        <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">100% Risk-Free Guarantee</h2>
+        <p className="text-slate-800 text-lg md:text-xl leading-relaxed mb-10 max-w-2xl mx-auto font-medium">
+          If you don't see at least <span className="font-black border-b-2 border-slate-900">2x growth</span> in your Google Business Profile views in {cityName} within 30 days,
+          we will <span className="font-black border-b-2 border-slate-900">fully refund</span> your payment — no questions asked.
         </p>
-        <div className="flex flex-wrap justify-center gap-3 md:gap-5">
-          {["14-day free trial", "No contract lock-in", "Full refund guarantee", "Cancel anytime"].map(t => (
-            <div key={t} className="flex items-center gap-2 bg-white border border-yellow-200 rounded-full px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm">
-              <CheckCircle2 className="w-4 h-4 text-yellow-500" /> {t}
+        <div className="flex flex-wrap justify-center gap-4">
+          {["14-Day Free Trial", "No Contract Lock-in", "Full Refund Guarantee", "Cancel Anytime"].map(t => (
+            <div key={t} className="flex items-center gap-2 bg-slate-900 rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:scale-105 transition-transform cursor-default">
+              <CheckCircle2 className="w-4 h-4 text-yellow-400" /> {t}
             </div>
           ))}
         </div>
@@ -588,19 +637,24 @@ export default function DynamicServiceCityPage({ params }) {
 
   const [pageData, setPageData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);
 
-  // Handle prefix "google-bussiness-service-" if present for fallback cityName
-  const prefix = "google-bussiness-service-";
-  const rawCity = citySlug.startsWith(prefix)
-    ? citySlug.slice(prefix.length)
-    : citySlug;
+  // Handle city service prefixes if present for fallback cityName
+  const prefixes = [
+    "google-bussiness-profile-management-",
+    "google-bussiness-service-",
+  ];
+  const matchedPrefix = prefixes.find((prefix) => citySlug.startsWith(prefix));
+  const rawCity = matchedPrefix ? citySlug.slice(matchedPrefix.length) : citySlug;
 
   const cityNameFallback = rawCity
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
-  const cityName = pageData?.cityName || cityNameFallback;
+  // Ensure cityName is always capitalized even if it comes from the API
+  const capitalize = (str) => str?.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+  const cityName = capitalize(pageData?.cityName) || cityNameFallback;
 
   const fetchPageData = async () => {
     try {
@@ -629,6 +683,17 @@ export default function DynamicServiceCityPage({ params }) {
       if (metaDesc) {
         metaDesc.setAttribute("content", pageData?.metaDescription || `Rank #1 on Google Maps in ${cityName}.`);
       }
+
+      let robotsMeta = document.querySelector('meta[name="robots"]');
+      if (!robotsMeta) {
+        robotsMeta = document.createElement("meta");
+        robotsMeta.setAttribute("name", "robots");
+        document.head.appendChild(robotsMeta);
+      }
+      robotsMeta.setAttribute(
+        "content",
+        pageData?.allowIndex === false ? "noindex,nofollow" : "index,follow"
+      );
     }
   }, [pageData, cityName]);
   const [openFaq, setOpenFaq] = useState(0);
@@ -641,16 +706,40 @@ export default function DynamicServiceCityPage({ params }) {
   ];
 
   const testimonials = pageData?.testimonials?.length > 0 ? pageData.testimonials : [
-    { rating: 5, verified: true, text: `Limbu AI transformed our business in ${cityName}. We now get 3-4 calls every day just from Google Maps!`, name: "Rajesh Kumar", role: "Restaurant Owner" },
-    { rating: 5, verified: true, text: "The Magic QR is a game changer. We collected 50+ reviews in our first month. Highly recommended!", name: "Anjali Sharma", role: "Clinic Manager" },
-    { rating: 5, verified: true, text: "Finally an automation tool that actually works. Our ranking moved from page 3 to the top 3 spots.", name: "Vikram Singh", role: "Retail Store Owner" },
+    {
+      rating: 5,
+      verified: true,
+      text: `Limbu AI transformed our business in ${cityName}. We now get 3-4 calls every day just from Google Maps!`,
+      name: "Amit Sharma",
+      role: "Sweet Shop Owner",
+      img: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200&h=200" // Indian man portrait
+    },
+    {
+      rating: 5,
+      verified: true,
+      text: "The Magic QR is a game changer. We collected 50+ reviews in our first month. Highly recommended!",
+      name: "Sneha Kapoor",
+      role: "Salon Owner",
+      img: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=200&h=200" // Indian woman portrait
+    },
+    {
+      rating: 5,
+      verified: true,
+      text: "Finally an automation tool that actually works. Our ranking moved from page 3 to the top 3 spots.",
+      name: "Rahul Verma",
+      role: "Electronics Store",
+      img: "https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?auto=format&fit=crop&q=80&w=200&h=200" // Indian man portrait
+    },
   ];
 
   const faqs = pageData?.faqs?.length > 0 ? pageData.faqs : [
     { question: "How long does it take to see results?", answer: `Most businesses in ${cityName} see a measurable increase in profile views and calls within the first 14-21 days.` },
-    { question: "Do I need to give you my Google password?", answer: "No. You simply invite our secure platform to manage your listing as a 'Manager'. You retain full ownership." },
-    { question: "What is the 'Magic QR' code?", answer: "It's a custom-branded QR code we provide. When scanned by customers, it takes them directly to your review page with a 5-star pre-selected." },
-    { question: "Is there a setup fee?", answer: "No. We believe in our results, so we don't charge any hidden setup or onboarding fees. Just one simple monthly price." },
+    { question: "Do I need to give you my Google password?", answer: "No. You simply invite our secure platform to manage your listing as a 'Manager'. You retain full ownership and can remove us at any time." },
+    { question: "What is the 'Magic QR' code?", answer: "It's a custom-branded QR code we provide for your shop. When scanned by customers, it opens your Google review page with a 5-star rating already selected, making it effortless for them to leave a review." },
+    { question: "Can I cancel my subscription anytime?", answer: "Yes, absolutely. There are no long-term contracts or lock-in periods. You can cancel your subscription with just one click from your dashboard." },
+    { question: "Does this work for all types of local businesses?", answer: "Yes! Whether you run a restaurant, a clinic, a salon, a retail store, or even a home-based service, Limbu AI is designed to help any business that serves local customers." },
+    { question: "What happens if I have multiple business locations?", answer: `We support multi-location businesses! You can manage all your ${cityName} outlets from a single Limbu AI dashboard and get a consolidated view of your growth.` },
+    { question: "Is there a setup fee?", answer: "No. We believe in our results, so we don't charge any hidden setup, onboarding, or technical fees. You only pay the simple monthly price of your chosen plan." },
   ];
 
   if (loading) {
@@ -671,12 +760,6 @@ export default function DynamicServiceCityPage({ params }) {
       <main>
         {/* ── HERO SECTION ── */}
         <section className="relative pt-12 md:pt-20 pb-16 md:pb-32 overflow-hidden bg-white">
-          <div className="absolute inset-0 z-0">
-            <img src={pageData?.heroImageUrl || DEFAULT_IMAGES.hero} alt={`${cityName} Local SEO`} className="w-full h-full object-cover opacity-10 scale-105" />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/80 to-white" />
-            <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
-          </div>
-
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
@@ -684,18 +767,24 @@ export default function DynamicServiceCityPage({ params }) {
                   <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" /> {cityName}'s #1 GMB Automation Tool
                 </div>
                 <h1 className="text-2xl md:text-5xl font-extrabold text-slate-900 mb-6 leading-tight tracking-tight">
-                  {pageData?.heroHeading || `Rank #1 on Google in ${cityName} — Automatically.`}
+                  {pageData?.heroHeading || `Rank #1 on Google in ${cityName} - Automatically.`}
                 </h1>
                 <p className="text-lg md:text-2xl text-slate-600 mb-10 leading-relaxed font-medium">
                   {pageData?.heroSubheading || `We use AI to optimize your Google Business Profile daily, generate 5-star reviews, and dominate your local competition in ${cityName}.`}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <a href={WA} className="inline-flex justify-center items-center gap-2 bg-yellow-400 text-slate-900 px-8 py-4 rounded-xl font-extrabold text-lg hover:bg-yellow-500 transition-all transform hover:scale-105 shadow-[0_4px_20px_rgba(250,204,21,0.4)]">
+                  <Link href="/login" className="inline-flex justify-center items-center gap-2 bg-yellow-400 text-slate-900 px-8 py-4 rounded-xl font-extrabold text-lg hover:bg-yellow-500 transition-all transform hover:scale-105 shadow-[0_4px_20px_rgba(250,204,21,0.4)]">
                     Get 500 Coins for Free <ArrowRight className="w-5 h-5" />
-                  </a>
-                  <a href="#demo" className="inline-flex justify-center items-center gap-2 bg-white border-2 border-slate-200 text-slate-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-                    <Play className="w-5 h-5" /> Watch Demo
-                  </a>
+                  </Link>
+                  <button
+                    className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all group"
+                    onClick={() => setSelectedVideo("https://youtu.be/eQUd6u36w3g?si=_AJ3OymZQD6HnXRl")}
+                  >
+                    Watch Demo
+                    <span className="ml-2 inline-block transition-transform duration-200 group-hover:translate-x-1">
+                      →
+                    </span>
+                  </button>
                 </div>
                 <div className="mt-8 flex items-center gap-6 text-slate-500 font-medium">
                   <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> No Setup Fee</div>
@@ -706,14 +795,23 @@ export default function DynamicServiceCityPage({ params }) {
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
                 <div className="relative bg-slate-800 rounded-[2rem] p-4 border border-slate-700 shadow-2xl">
-                  <img src={DEFAULT_IMAGES.dashboard} alt="Limbu AI Dashboard" className="rounded-2xl shadow-inner" />
+                  <Image
+                    src={DEFAULT_IMAGES.hero}
+                    alt="Limbu AI Dashboard"
+                    width={800}   // adjust based on your image
+                    height={500}  // adjust based on your image
+                    className="rounded-2xl shadow-inner"
+                  />
+
                   <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 hidden md:block animate-bounce-slow">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                         <TrendingUp className="w-6 h-6 text-green-600" />
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Growth This Month</p>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                          Growth This Month
+                        </p>
                         <p className="text-xl font-black text-slate-900">+342%</p>
                       </div>
                     </div>
@@ -730,6 +828,9 @@ export default function DynamicServiceCityPage({ params }) {
         {/* ── STATS SECTION ── */}
         <section className="py-12 bg-white">
           <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-10">
+              <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Our Impact in {cityName}</p>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-slate-100">
               <StatCard target={pageData?.postsAutomated || 10000} suffix="+" label="Posts Automated" />
               <StatCard target={pageData?.reviewsGenerated || 50000} suffix="+" label="Reviews Generated" />
@@ -748,8 +849,8 @@ export default function DynamicServiceCityPage({ params }) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center max-w-3xl mx-auto mb-16">
               <span className="text-sm font-bold text-yellow-600 uppercase tracking-wider bg-yellow-50 px-3 py-1 rounded-full">Core Features</span>
-              <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mt-6 mb-4">Everything You Need to Rank #1</h2>
-              <p className="text-slate-600 text-lg font-medium">Why waste time on manual updates when AI can do it 10x better and faster?</p>
+              <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mt-6 mb-4">Everything You Need to Rank #1 in {cityName}</h2>
+              <p className="text-slate-600 text-lg font-medium">Why waste time on manual updates when AI can do it 10x better and faster for your local audience?</p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {features.map((f, i) => (
@@ -783,21 +884,21 @@ export default function DynamicServiceCityPage({ params }) {
               Welcome to{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-yellow-700">
                 Limbu AI
-              </span>
+              </span> - {cityName}'s Growth Partner
             </h2>
 
             {/* Content */}
             <div className="space-y-6 text-base md:text-lg text-slate-600 font-medium leading-relaxed w-full">
 
               <p>
-                Managing a local business is already challenging. But staying consistent with your online presence —
+                Managing a local business in <strong className="text-slate-900">{cityName}</strong> is already challenging. But staying consistent with your online presence —
                 updating your <strong className="text-slate-900">Google Business Profile</strong>, replying to customer reviews,
                 and improving your <strong className="text-slate-900">local search rankings</strong> - can feel overwhelming.
               </p>
 
               <p>
                 <strong className="text-slate-900">
-                  Limbu AI was built to eliminate this burden completely.
+                  Limbu AI was built to eliminate this burden completely for {cityName} entrepreneurs.
                 </strong>{" "}
                 It is a smart automation platform designed specifically for{" "}
                 <strong className="text-slate-900">local businesses, shop owners, and service providers</strong> who want to grow online without hiring expensive marketing teams.
@@ -823,7 +924,7 @@ export default function DynamicServiceCityPage({ params }) {
                 <strong className="text-slate-900">
                   The result?
                 </strong>{" "}
-                More visibility, more customers, and more growth - without extra effort.
+                More visibility, more customers, and more growth for your business in <strong className="text-slate-900">{cityName}</strong> - without extra effort.
               </p>
 
               <p>
@@ -833,7 +934,7 @@ export default function DynamicServiceCityPage({ params }) {
 
               {/* Review Style Line */}
               <p className="italic text-slate-700 border-l-4 border-yellow-400 pl-4">
-                “Since using <strong className="text-slate-900">Limbu AI</strong>, our business visibility increased dramatically.
+                “Since using <strong className="text-slate-900">Limbu AI</strong>, our business visibility in {cityName} increased dramatically.
                 We started getting more calls, more reviews, and more walk-in customers - all without extra effort.”
               </p>
 
@@ -846,29 +947,36 @@ export default function DynamicServiceCityPage({ params }) {
 
         {/* ── DEMO ── */}
         <div id="demo">
-          <DemoSection dashboardImg={DEFAULT_IMAGES.dashboard} />
+          <DemoSection dashboardImg={DEFAULT_IMAGES.hero} setSelectedVideo={setSelectedVideo} />
         </div>
 
         {/* ── ROI/CALCULATOR ── */}
-        <section className="py-8 md:py-12 bg-slate-900">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="py-20 bg-white relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div>
-                <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-6 leading-tight">
-                  Calculate Your <span className="text-yellow-400">Growth Potential</span>
+                <span className="inline-block px-4 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-600 text-sm font-bold mb-6 uppercase tracking-widest">
+                  Revenue Growth
+                </span>
+                <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">
+                  Calculate Your <span className="text-yellow-600 underline decoration-yellow-400/30 underline-offset-8">Growth Potential</span>
                 </h2>
-                <p className="text-slate-400 text-lg mb-10 leading-relaxed font-medium">
-                  Local SEO isn't just about 'ranking'. It's about revenue. Use our tool to see how much more you could be making with Limbu AI.
+                <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">
+                  Local SEO isn't just about 'ranking'. It's about revenue. Use our tool to see how much more you could be making with Limbu AI in {cityName}.
                 </p>
-                <div className="space-y-5 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                <div className="space-y-6 bg-slate-50 p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                   {[
                     `Average ${cityName} clients gain 2.8x more customers`,
                     "Profile views typically increase by 300–500%",
                     "Most businesses break even within the first week",
                     "Average 3x ROI across our entire client base",
                   ].map(t => (
-                    <div key={t} className="flex items-start gap-3 text-slate-300 font-medium">
-                      <CheckCircle2 className="w-5 h-5 text-yellow-400 flex-shrink-0" /> {t}
+                    <div key={t} className="flex items-start gap-4 text-slate-700 font-bold">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      </div>
+                      {t}
                     </div>
                   ))}
                 </div>
@@ -883,9 +991,9 @@ export default function DynamicServiceCityPage({ params }) {
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4">Limbu AI vs Alternatives</h2>
-              <p className="text-slate-500 text-lg font-medium">Decide for yourself — the numbers and facts speak for themselves.</p>
+              <p className="text-slate-500 text-lg font-medium">Decide for yourself — the numbers and facts speak for themselves for businesses in {cityName}.</p>
             </div>
-            <ComparisonTable />
+            <ComparisonTable cityName={cityName} />
           </div>
         </section>
 
@@ -909,8 +1017,10 @@ export default function DynamicServiceCityPage({ params }) {
                   </div>
                   <p className="text-slate-700 mb-6 italic leading-relaxed font-medium">"{t.text}"</p>
                   <div className="flex items-center gap-4 border-t border-slate-100 pt-5">
-                    <div className="w-12 h-12 bg-slate-200 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                      <img src={`https://i.pravatar.cc/100?img=${i + 20}`} alt={t.name} className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 border border-yellow-200 shadow-sm">
+                      <span className="text-xl font-black text-yellow-700">
+                        {t.name.charAt(0).toUpperCase()}
+                      </span>
                     </div>
                     <div>
                       <p className="font-extrabold text-slate-900 text-sm">{t.name}</p>
@@ -924,11 +1034,11 @@ export default function DynamicServiceCityPage({ params }) {
         </section>
 
         {/* ── GUARANTEE ── */}
-        <GuaranteeSection />
+        <GuaranteeSection cityName={cityName} />
 
         {/* ── FAQ ── */}
         <section id="faq" className="py-14 bg-white">
-          <div className="max-w-3xl mx-auto px-4">
+          <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4">Frequently Asked Questions</h2>
               <p className="text-slate-500 text-lg font-medium">Have a question? Ask us on WhatsApp — we usually reply within 5 minutes.</p>
@@ -938,7 +1048,7 @@ export default function DynamicServiceCityPage({ params }) {
                 <div key={i} className={`border-2 rounded-2xl overflow-hidden transition-all duration-300 ${openFaq === i ? "bg-slate-50 shadow-md border-yellow-400" : "bg-white border-slate-100 hover:border-slate-200"}`}>
                   <button className="w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none" onClick={() => setOpenFaq(openFaq === i ? -1 : i)}>
                     <span className="font-bold text-slate-900 pr-4">{faq.question}</span>
-                    <ChevronDown className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180 text-yellow-500" : ""}`} />
+                    <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180 text-yellow-500" : ""}`} />
                   </button>
                   <div className={`px-6 overflow-hidden transition-all duration-300 ${openFaq === i ? "max-h-48 pb-6 opacity-100" : "max-h-0 opacity-0"}`}>
                     <p className="text-slate-600 font-medium leading-relaxed">{faq.answer}</p>
@@ -981,6 +1091,7 @@ export default function DynamicServiceCityPage({ params }) {
       </main>
 
       <FooterSection />
+      <VideoModal />
     </div>
   );
 }

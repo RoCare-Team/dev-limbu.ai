@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 
 export async function GET(req, { params }) {
   const { slug } = await params;
-  const PREFIX = "google-bussiness-service-";
+  const PREFIX = "google-bussiness-profile-management-";
+  const OLD_PREFIX = "google-bussiness-service-";
   
   try {
     await dbConnect();
@@ -13,7 +14,8 @@ export async function GET(req, { params }) {
     const page = await CityServicePage.findOne({ 
       $or: [
         { citySlug: slug },
-        { citySlug: PREFIX + slug }
+        { citySlug: PREFIX + slug },
+        { citySlug: OLD_PREFIX + slug }
       ],
       isActive: true 
     });

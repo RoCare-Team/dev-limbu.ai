@@ -62,7 +62,7 @@ const BusinessTypesSection = () => {
     },
     {
       title: "Handyman Services",
-      image: "/images/category/handyman.png",
+      image: "/images/category/handyman3.png",
       bgColor: "bg-stone-50",
       slug: "/handyman-marketing-software",
     },

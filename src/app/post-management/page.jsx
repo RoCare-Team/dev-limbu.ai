@@ -25,7 +25,6 @@ import {
   ArrowLeft,
   Send,
   XCircle,
-  Video,
   Film,
   Youtube,
 } from "lucide-react";
@@ -76,6 +75,14 @@ import PostResultModal from "../../components/post-management/PostResultModal";
 
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
+
+const buildWhenPostedUpdate = (platform, postId = "") => ({
+  [platform]: {
+    posted: true,
+    postedDate: new Date().toISOString(),
+    ...(postId ? { postId } : {}),
+  },
+});
 
 export default function PostManagementPage() {
   const { data: session } = useSession();
@@ -796,11 +803,11 @@ export default function PostManagementPage() {
           igPages,
           refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
         };
-        
+
         if (meta) {
-           payload.meta = meta;
+          payload.meta = meta;
         }
-        
+
         const res = await updatePostStatusAction(payload);
         if (res.success) {
           showToast("Updated! ✅");
@@ -1007,104 +1014,115 @@ export default function PostManagementPage() {
     },
     [fetchYouTubeChannels, updateUiState, updateSocialState],
   );
-const handleYouTubePostAction = useCallback(
-  async (post, channel, caption, media = null) => {
-    if (!post) return;
+  const handleYouTubePostAction = useCallback(
+    async (post, channel, caption, media = null) => {
+      if (!post) return;
 
-    const publishMedia = media || metaPublishMedia(post);
+      const publishMedia = media || metaPublishMedia(post);
 
-    // ❌ No video
-    if (!publishMedia?.url) {
-      showToast("Post has no video to upload to YouTube", "error");
-      return;
-    }
+      // ❌ No video
+      if (!publishMedia?.url) {
+        showToast("Post has no video to upload to YouTube", "error");
+        return;
+      }
 
-    try {
-      setPostingPlatform?.("YouTube");
-      setIsPosting(true);
+      try {
+        setPostingPlatform?.("YouTube");
+        setIsPosting(true);
 
-      showToast("Uploading to YouTube...", "success");
+        showToast("Uploading to YouTube...", "success");
 
-      // ✅ FormData (IMPORTANT)
-      const formData = new FormData();
-      formData.append("userId", userId);
-      formData.append("channelId", channel.channelId || channel.id);
+        // ✅ FormData (IMPORTANT)
+        const formData = new FormData();
+        formData.append("userId", userId);
+        formData.append("channelId", channel.channelId || channel.id);
 
-      formData.append(
-        "title",
-        post.title ||
+        formData.append(
+          "title",
+          post.title ||
           post.description?.slice(0, 80) ||
           "YouTube Shorts"
-      );
-
-      formData.append(
-        "description",
-        (caption || post.description || "") + "\n#shorts"
-      );
-
-      formData.append("mediaUrl", publishMedia.url);
-      formData.append("privacyStatus", "public"); // change if needed
-      formData.append("isShort", "true");
-
-      // 🚀 API call
-      const res = await fetch("/api/youtube/publish", {
-        method: "POST",
-        body: formData, // ❗ DO NOT SET Content-Type
-      });
-
-      // ❌ HTTP error
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(
-          `YouTube API error (${res.status}): ${errorText}`
         );
+
+        formData.append(
+          "description",
+          (caption || post.description || "") + "\n#shorts"
+        );
+
+        formData.append("mediaUrl", publishMedia.url);
+        formData.append("privacyStatus", "public"); // change if needed
+        formData.append("isShort", "true");
+
+        // 🚀 API call
+        const res = await fetch("/api/youtube/publish", {
+          method: "POST",
+          body: formData, // ❗ DO NOT SET Content-Type
+        });
+
+        // ❌ HTTP error
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(
+            `YouTube API error (${res.status}): ${errorText}`
+          );
+        }
+
+        // ✅ Safe JSON parse
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error("Invalid JSON response from server");
+        }
+
+        // ❌ Backend error
+        if (!data.success) {
+          throw new Error(data.error || "Upload failed");
+        }
+
+        // ✅ Success
+        setIsSuccess?.(true);
+
+        showToast("Video uploaded to YouTube 🎉", "success");
+
+        const youtubePostId = data.data?.id || data.id || "";
+
+        // Optional: open video
+        if (youtubePostId) {
+          const url = `https://youtube.com/shorts/${youtubePostId}`;
+          console.log("YouTube URL:", url);
+        }
+
+        await updatePostStatusAction({
+          id: post._id,
+          userId,
+          status: "posted",
+          postedPlatform: "youtube",
+          whenPosted: buildWhenPostedUpdate("youtube", youtubePostId),
+          mediaStatus: { video: "posted" },
+        });
+
+        await fetchPosts(1, true);
+      } catch (err) {
+        console.error("YouTube upload error:", err);
+
+        showToast(
+          err.message || "Failed to upload to YouTube",
+          "error"
+        );
+      } finally {
+        setTimeout(() => setIsPosting(false), 1000);
       }
-
-      // ✅ Safe JSON parse
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Invalid JSON response from server");
-      }
-
-      // ❌ Backend error
-      if (!data.success) {
-        throw new Error(data.error || "Upload failed");
-      }
-
-      // ✅ Success
-      setIsSuccess?.(true);
-
-      showToast("Video uploaded to YouTube 🎉", "success");
-
-      // Optional: open video
-      if (data.data?.id) {
-const url = `https://youtube.com/shorts/${data.data.id}`;
-        console.log("YouTube URL:", url);
-      }
-
-      await fetchPosts(1, true);
-    } catch (err) {
-      console.error("YouTube upload error:", err);
-
-      showToast(
-        err.message || "Failed to upload to YouTube",
-        "error"
-      );
-    } finally {
-      setTimeout(() => setIsPosting(false), 1000);
-    }
-  },
-  [
-    fetchPosts,
-    setIsPosting,
-    setIsSuccess,
-    setPostingPlatform,
-    showToast,
-    userId,
-  ]
-);
+    },
+    [
+      fetchPosts,
+      setIsPosting,
+      setIsSuccess,
+      setPostingPlatform,
+      showToast,
+      userId,
+    ]
+  );
 
   const handleAutoConvertToVideo = useCallback(
     (post) => {
@@ -1224,21 +1242,21 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
 
         const isVideoSelection = checkmark === "video" || selectedMediaForAction?.type === "video";
         let mediaUrl = "";
-        
+
         if (isVideoSelection) {
-           // If they explicitly selected "video" checkmark, ignore selectedMediaForAction if it's an image
-           if (checkmark === "video") {
-             mediaUrl = postToAction.videoOutput || selectedMediaForAction?.url || "";
-           } else {
-             mediaUrl = selectedMediaForAction?.url || postToAction.videoOutput || "";
-           }
+          // If they explicitly selected "video" checkmark, ignore selectedMediaForAction if it's an image
+          if (checkmark === "video") {
+            mediaUrl = postToAction.videoOutput || selectedMediaForAction?.url || "";
+          } else {
+            mediaUrl = selectedMediaForAction?.url || postToAction.videoOutput || "";
+          }
         } else {
-           // For post/photo
-           if (checkmark === "post" || checkmark === "photo" || checkmark === "both" || !checkmark) {
-             mediaUrl = postToAction.aiOutput || selectedMediaForAction?.url || "";
-           } else {
-             mediaUrl = selectedMediaForAction?.url || postToAction.aiOutput || "";
-           }
+          // For post/photo
+          if (checkmark === "post" || checkmark === "photo" || checkmark === "both" || !checkmark) {
+            mediaUrl = postToAction.aiOutput || selectedMediaForAction?.url || "";
+          } else {
+            mediaUrl = selectedMediaForAction?.url || postToAction.aiOutput || "";
+          }
         }
 
         // Prepare the batched location data
@@ -1276,11 +1294,12 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
         const responseData = postres.data?.data || postres.data || {};
         const successList = responseData.success || [];
         const failList = responseData.fail || [];
+        const postedDate = new Date().toISOString();
 
         if (postres.ok && (successList.length > 0 || failList.length > 0)) {
           successList.forEach(s => {
             const loc = locs.find(l => l.locationId === s.location_id);
-            if (loc) successfulLocs.push({ ...loc, isPosted: true });
+            if (loc) successfulLocs.push({ ...loc, isPosted: true, postedAt: postedDate });
           });
           failList.forEach(f => {
             const loc = locs.find(l => l.locationId === f.location_id);
@@ -1296,8 +1315,8 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
             });
           }
         } else if (postres.ok && successList.length === 0 && failList.length === 0) {
-           // Fallback if backend returned OK but empty lists
-           successfulLocs = locs.map(l => ({ ...l, isPosted: true }));
+          // Fallback if backend returned OK but empty lists
+          successfulLocs = locs.map(l => ({ ...l, isPosted: true, postedAt: postedDate }));
         } else {
           // If completely failed (e.g., 500 error or format mismatch)
           failedLocs = [...locs];
@@ -1325,14 +1344,25 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
 
         if (successfulLocs.length > 0) {
           const existingLocs = postToAction.locations || [];
-          const combinedLocs = [...existingLocs, ...successfulLocs].filter((v,i,a)=>a.findIndex(v2=>(v2.id===v.id))===i);
+          const locMap = new Map();
+          [...existingLocs, ...successfulLocs].forEach((loc) => {
+            const key = loc.id || loc.locationId;
+            if (key) locMap.set(key, loc);
+          });
+          const combinedLocs = Array.from(locMap.values());
 
           await updatePostStatusAction({
             id: postToAction._id,
             userId,
             locations: combinedLocs,
             status: "posted",
-            whenPosted: { ...postToAction.whenPosted, gmb: true },
+            postedPlatform: "gmb",
+            whenPosted: {
+              gmb: {
+                posted: true,
+                postedDate,
+              },
+            },
             mediaStatus: {
               [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
             },
@@ -1378,14 +1408,14 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
   const handleRepostFailed = useCallback(async () => {
     if (!lastPostMeta || postResultData.failedLocs.length === 0) return;
     setIsReposting(true);
-    
+
     // We pass the failed IDs back into handleLocationConfirm
     await handleLocationConfirm(
       postResultData.failedLocs.map(l => l.id),
       lastPostMeta.checkmark,
       lastPostMeta.meta
     );
-    
+
     setIsReposting(false);
   }, [lastPostMeta, postResultData.failedLocs, handleLocationConfirm]);
 
@@ -1725,7 +1755,11 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
                   id: post._id,
                   userId,
                   status: "posted",
-                  whenPosted: { ...post.whenPosted, pinterest: true },
+                  postedPlatform: "pinterest",
+                  whenPosted: buildWhenPostedUpdate(
+                    "pinterest",
+                    result.data?.id || result.id || "",
+                  ),
                 });
                 fetchPosts(1, true);
               }
@@ -1964,7 +1998,11 @@ const url = `https://youtube.com/shorts/${data.data.id}`;
                     id: post._id,
                     userId,
                     status: "posted",
-                    whenPosted: { ...post.whenPosted, linkedin: true },
+                    postedPlatform: "linkedin",
+                    whenPosted: buildWhenPostedUpdate(
+                      "linkedin",
+                      result.data?.id || result.id || "",
+                    ),
                   });
                   fetchPosts(1, true);
                 }

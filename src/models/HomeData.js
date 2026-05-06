@@ -16,7 +16,11 @@ const HomeDataSchema = new mongoose.Schema(
         'features',
         'stats',
         'steps',
-        'banner'
+        'seoPlans',
+        'banner',
+        'webDevelopmentPlans',
+        'accountSetupPlans'
+
       ],
     },
     data: {

@@ -23,14 +23,14 @@ import {
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import {
-  looksLikeVideoUrl,
+  // looksLikeVideoUrl,
   postHasVideoAsset,
   postImageUrl,
   postVideoUrl,
 } from "@/lib/postMediaUrls";
 import Image from "next/image";
 import MediaSelectionModal from "./MediaSelectionModal";
-import VideoGenerationModal from "./component-modal/VideoGenerationModal";
+// import VideoGenerationModal from "./component-modal/VideoGenerationModal";
 
 const STATUS_COLORS = {
   pending: "bg-yellow-50 text-yellow-600 border-yellow-100",
@@ -38,6 +38,73 @@ const STATUS_COLORS = {
   posted: "bg-green-50 text-green-600 border-green-100",
   failed: "bg-red-50 text-red-600 border-red-100",
   scheduled: "bg-purple-50 text-purple-600 border-purple-100",
+};
+
+const PLATFORM_ALIASES = {
+  gmb: "gmb",
+  fb: "facebook",
+  facebook: "facebook",
+  ig: "instagram",
+  instagram: "instagram",
+  pi: "pinterest",
+  pinterest: "pinterest",
+  li: "linkedin",
+  linkedin: "linkedin",
+  yt: "youtube",
+  youtube: "youtube",
+};
+
+const formatPostedDate = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "2-digit",
+  });
+};
+
+const getPlatformPost = (whenPosted, platformKey) => {
+  const platform = PLATFORM_ALIASES[platformKey] || platformKey;
+  if (!whenPosted || !platform) return null;
+
+  if (Array.isArray(whenPosted)) {
+    return (
+      whenPosted.find(
+        (item) => PLATFORM_ALIASES[item?.platform] === platform || item?.platform === platform,
+      ) || null
+    );
+  }
+
+  const raw = whenPosted[platform] ?? whenPosted[platformKey];
+  if (raw === undefined || raw === null) return null;
+
+  if (typeof raw === "object") {
+    return { platform, ...raw };
+  }
+
+  if (raw === true || raw === "posted" || raw === "true") {
+    return { platform, posted: true, postedDate: null };
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return { platform, posted: true, postedDate: raw };
+  }
+
+  return null;
+};
+
+const isPlatformPosted = (whenPosted, platformKey) => {
+  const entry = getPlatformPost(whenPosted, platformKey);
+  return Boolean(entry?.posted || entry?.postedDate);
+};
+
+const getPlatformPostedDate = (whenPosted, platformKey) => {
+  const entry = getPlatformPost(whenPosted, platformKey);
+  return entry?.postedDate || entry?.postedAt || entry?.date || null;
 };
 
 const PostCard = React.memo(
@@ -66,13 +133,15 @@ const PostCard = React.memo(
     const { isPostedGmb, isPostedFb, isPostedIg } = useMemo(
       () => ({
         isPostedGmb:
-          post.locations?.some((l) => l.isPosted) || post.whenPosted?.gmb,
+          post.locations?.some((l) => l.isPosted) ||
+          isPlatformPosted(post.whenPosted, "gmb"),
         isPostedFb:
           !!post.facebookPostId ||
-          post.whenPosted?.facebook ||
+          isPlatformPosted(post.whenPosted, "facebook") ||
           post.fbPages?.some((p) => p.isPosted),
         isPostedIg:
-          post.whenPosted?.instagram || post.igPages?.some((p) => p.isPosted),
+          isPlatformPosted(post.whenPosted, "instagram") ||
+          post.igPages?.some((p) => p.isPosted),
       }),
       [
         post.locations,
@@ -131,8 +200,20 @@ const PostCard = React.memo(
       const checkDate = (dateStr) => {
         if (!dateStr) return;
         const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return;
         if (!latest || d > latest) latest = d;
       };
+
+      [
+        "gmb",
+        "facebook",
+        "instagram",
+        "pinterest",
+        "linkedin",
+        "youtube",
+      ].forEach((platform) => {
+        checkDate(getPlatformPostedDate(post.whenPosted, platform));
+      });
 
       post.locations?.forEach((l) => {
         if (l.isPosted) checkDate(l.postedAt);
@@ -150,6 +231,85 @@ const PostCard = React.memo(
 
       return latest;
     }, [post]);
+
+    const publishedPlatforms = useMemo(() => {
+      const platformMeta = [
+        {
+          key: "gmb",
+          label: "Google",
+          title: "Google Business",
+          icon: "/social-icon/gmb-icon.png",
+          color: "border-green-100",
+          accent: "bg-green-50 text-green-700",
+          posted: isPostedGmb,
+          fallbackDate: post.locations?.find((l) => l.isPosted && l.postedAt)?.postedAt,
+        },
+        {
+          key: "facebook",
+          label: "Facebook",
+          title: "Facebook",
+          icon: "/social-icon/facebook-icon.png",
+          color: "border-blue-100",
+          accent: "bg-blue-50 text-blue-700",
+          posted: isPostedFb,
+          fallbackDate: post.fbPages?.find((p) => p.isPosted && p.postedAt)?.postedAt,
+        },
+        {
+          key: "instagram",
+          label: "Instagram",
+          title: "Instagram",
+          icon: "/social-icon/instagram-icon.png",
+          color: "border-pink-100",
+          accent: "bg-pink-50 text-pink-700",
+          posted: isPostedIg,
+          fallbackDate: post.igPages?.find((p) => p.isPosted && p.postedAt)?.postedAt,
+        },
+        {
+          key: "pinterest",
+          label: "Pinterest",
+          title: "Pinterest",
+          icon: "/social-icon/pinterest-icon.png",
+          color: "border-red-100",
+          accent: "bg-red-50 text-red-700",
+          posted: isPlatformPosted(post.whenPosted, "pinterest"),
+        },
+        {
+          key: "linkedin",
+          label: "LinkedIn",
+          title: "LinkedIn",
+          icon: "/social-icon/linkedin.png",
+          color: "border-sky-100",
+          accent: "bg-sky-50 text-sky-700",
+          posted: isPlatformPosted(post.whenPosted, "linkedin"),
+        },
+        {
+          key: "youtube",
+          label: "YouTube",
+          title: "YouTube",
+          icon: "/social-icon/youtube-short.png",
+          color: "border-rose-100",
+          accent: "bg-rose-50 text-rose-700",
+          posted: isPlatformPosted(post.whenPosted, "youtube"),
+        },
+      ];
+
+      return platformMeta
+        .filter((platform) => platform.posted)
+        .map((platform) => ({
+          ...platform,
+          postedAt:
+            getPlatformPostedDate(post.whenPosted, platform.key) ||
+            platform.fallbackDate,
+        }));
+    }, [
+      isPostedFb,
+      isPostedGmb,
+      isPostedIg,
+      post.fbPages,
+      post.igPages,
+      post.locations,
+      post.whenPosted,
+    ]);
 
     const [isVideoSuccess, setIsVideoSuccess] = useState(false);
 
@@ -484,7 +644,7 @@ const PostCard = React.memo(
                 <div className="space-y-3">
                   <button
                     onClick={() => handleMediaChoice("gmb")}
-                    className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#EAB308] hover:text-black transition-all group/btn shadow-lg shadow-black/10"
+                    className="w-full py-4 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.14em] flex items-center justify-center gap-3 hover:bg-[#EAB308] hover:text-black transition-all group/btn shadow-lg shadow-black/10"
                   >
                     <Send
                       size={14}
@@ -495,49 +655,49 @@ const PostCard = React.memo(
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleMediaChoice("fb")}
-                      className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                      className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                     >
-                      <Facebook size={14} /> Facebook
+                      <Facebook size={13} /> Post to Facebook
                     </button>
                     <button
                       onClick={() => handleMediaChoice("ig")}
-                      className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                      className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                     >
-                      <Instagram size={14} /> Instagram
+                      <Instagram size={13} /> Post to Instagram
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleMediaChoice("pinterest")}
-                      className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#c5001f] transition-all shadow-sm"
+                      className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#c5001f] transition-all shadow-sm"
                     >
                       <Image
                         src="/social-icon/pinterest-icon.png"
-                        width={16}
-                        height={16}
+                        width={13}
+                        height={13}
                         className="object-contain"
                         alt="Pinterest"
-                      /> Pinterest
+                      /> Post to Pinterest
                     </button>
                     <button
                       onClick={() => handleMediaChoice("linkedin")}
-                      className="w-full py-3.5 bg-[#0A66C2] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#004182] transition-all shadow-sm"
+                      className="w-full py-3.5 bg-[#0A66C2] text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#004182] transition-all shadow-sm"
                     >
                       <Image
                         src="/social-icon/linkedin.png"
-                        width={16}
-                        height={16}
+                        width={13}
+                        height={13}
                         className="object-contain"
                         alt="LinkedIn"
-                      /> LinkedIn
+                      /> Post to LinkedIn
                     </button>
                   </div>
                   {hasVideoAsset && (
                     <button
                       onClick={() => handleMediaChoice("youtube")}
-                      className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
+                      className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
                     >
-                      <Youtube size={14} /> YouTube
+                      <Youtube size={13} /> Post to YouTube
                     </button>
                   )}
                   <button
@@ -552,94 +712,118 @@ const PostCard = React.memo(
 
               {post.status === "posted" && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between pb-1">
-                    <div className="flex flex-wrap gap-2">
-                      {isPostedGmb && (
-                        <span className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-green-100">
-                          GMB Live
-                        </span>
-                      )}
-                      {isPostedFb && (
-                        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-100">
-                          FB Live
-                        </span>
-                      )}
-                      {isPostedIg && (
-                        <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-pink-100">
-                          IG Live
-                        </span>
+                  <div className="rounded-2xl border border-black/[0.04] bg-slate-50/80 p-2 shadow-inner shadow-white">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                          Published
+                        </p>
+                        <p className="text-[8px] font-bold uppercase tracking-widest text-slate-300">
+                          {publishedPlatforms.length} platform{publishedPlatforms.length === 1 ? "" : "s"} live
+                        </p>
+                      </div>
+                      {lastPostedDate && (
+                        <div className="flex shrink-0 items-center gap-1 rounded-full border border-emerald-100 bg-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 shadow-sm">
+                          <Clock size={9} className="text-emerald-500" />
+                          {lastPostedDate.toLocaleString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "2-digit",
+                          })}
+                        </div>
                       )}
                     </div>
-                    {lastPostedDate && (
-                      <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                        <Clock size={10} className="text-slate-300" />
-                        {lastPostedDate.toLocaleString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+
+                    {publishedPlatforms.length > 0 && (
+                      <div className="grid grid-cols-3 gap-1">
+                        {publishedPlatforms.map((platform) => (
+                          <div
+                            key={platform.key}
+                            className={`min-w-0 rounded-lg border bg-white px-1.5 py-1.5 shadow-sm ${platform.color}`}
+                          >
+                            <div className="mb-0.5 flex min-w-0 items-center">
+                              <span className={`truncate rounded px-1 py-0.5 text-[7px] font-black uppercase tracking-widest ${platform.accent}`}>
+                                {platform.label}
+                              </span>
+                            </div>
+                            <div
+                              className="flex min-w-0 items-center gap-0.5 text-[8px] font-bold text-slate-500"
+                              title={formatPostedDate(platform.postedAt) || "Posted date not saved"}
+                            >
+                              <Clock size={8} className="shrink-0 text-slate-300" />
+                              <span className="truncate">
+                                {formatPostedDate(platform.postedAt) ||
+                                  "No date"}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {publishedPlatforms.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        Platform publish details not saved
                       </div>
                     )}
                   </div>
                   <button
                     onClick={() => handleMediaChoice("gmb")}
-                    className="w-full py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
+                    className="w-full py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.14em] flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
                   >
                     <RefreshCw
                       size={14}
                       className="text-[#EAB308] group-hover:text-black"
                     />{" "}
-                    {isPostedGmb ? "Repost GMB" : "Post GMB"}
+                    {isPostedGmb ? "Repost to GMB" : "Post to GMB"}
                   </button>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleMediaChoice("fb")}
-                      className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
+                      className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] transition-all shadow-sm"
                     >
                       <Facebook
-                        size={14}
+                        size={13}
                         className="text-[#EAB308] group-hover:text-black"
                       />{" "}
-                      {isPostedFb ? "Repost FB" : "Post FB"}
+                      {isPostedFb ? "Repost to Facebook" : "Post to Facebook"}
                     </button>
                     <button
                       onClick={() => handleMediaChoice("ig")}
-                      className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] transition-all shadow-sm"
+                      className="py-3.5 bg-white border-2 border-[#EAB308] text-black rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] transition-all shadow-sm"
                     >
                       <Instagram
-                        size={14}
+                        size={13}
                         className="text-[#EAB308] group-hover:text-black"
                       />{" "}
-                      {isPostedIg ? "Repost IG" : "Post IG"}
+                      {isPostedIg ? "Repost to Instagram" : "Post to Instagram"}
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleMediaChoice("pinterest")}
-                      className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#c5001f] transition-all shadow-sm"
+                      className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#c5001f] transition-all shadow-sm"
                     >
                       <Image
                         src="/social-icon/pinterest-icon.png"
-                        width={14}
-                        height={14}
+                        width={13}
+                        height={13}
                         className="object-contain"
                         alt="Pinterest"
                       />
-                      {post.whenPosted?.pinterest ? "Repost Pin" : "Post Pin"}
+                      {isPlatformPosted(post.whenPosted, "pinterest") ? "Repost to Pinterest" : "Post to Pinterest"}
                     </button>
                     <button
                       onClick={() => handleMediaChoice("linkedin")}
-                      className="w-full py-3.5 bg-[#0A66C2] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#004182] transition-all shadow-sm"
+                      className="w-full py-3.5 bg-[#0A66C2] text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#004182] transition-all shadow-sm"
                     >
                       <Image
                         src="/social-icon/linkedin.png"
-                        width={14}
-                        height={14}
+                        width={13}
+                        height={13}
                         className="object-contain"
                         alt="LinkedIn"
                       />
-                      {post.whenPosted?.linkedin ? "Repost LI" : "Post LI"}
+                      {isPlatformPosted(post.whenPosted, "linkedin") ? "Repost to LinkedIn" : "Post to LinkedIn"}
                     </button>
                   </div>
                   <button
@@ -739,9 +923,9 @@ const PostCard = React.memo(
 
                     <button
                       onClick={() => handleMediaChoice("gmb")}
-                      className="w-full py-3 bg-black text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
+                      className="w-full py-3 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em]"
                     >
-                      Post Now
+                      Post to GMB
                     </button>
                   </div >
 
@@ -753,60 +937,60 @@ const PostCard = React.memo(
                         {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
                           <button
                             onClick={() => handleMediaChoice("fb")}
-                            className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                           >
-                            <Facebook size={14} /> Facebook
+                            <Facebook size={13} /> Post to Facebook
                           </button>
                         )}
                         {
                           !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
                             <button
                               onClick={() => handleMediaChoice("ig")}
-                              className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                             >
-                              <Instagram size={14} /> Instagram
+                              <Instagram size={13} /> Post to Instagram
                             </button>
                           )
                         }
                       </div >
                     )
                   }
-  {/* Quick Post to other platforms if not scheduled/posted */ }
-{
-  ((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
-    (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
-    <div className="space-y-3 mt-4">
-      <div className="grid grid-cols-2 gap-3">
-        {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
-          <button
-            onClick={() => handleMediaChoice("fb")}
-            className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-          >
-            <Facebook size={14} /> Facebook
-          </button>
-        )}
-        {
-          !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
-            <button
-              onClick={() => handleMediaChoice("ig")}
-              className="py-3.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-            >
-              <Instagram size={14} /> Instagram
-            </button>
-          )
-        }
-      </div>
-      {hasVideoAsset && (
-        <button
-          onClick={() => handleMediaChoice("youtube")}
-          className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
-        >
-          <Youtube size={14} /> YouTube
-        </button>
-      )}
-    </div>
-  )
-}
+                  {/* Quick Post to other platforms if not scheduled/posted */}
+                  {
+                    ((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
+                      (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
+                      <div className="space-y-3 mt-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
+                          <button
+                            onClick={() => handleMediaChoice("fb")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Facebook size={13} /> Post to Facebook
+                          </button>
+                          )}
+                          {
+                            !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
+                            <button
+                              onClick={() => handleMediaChoice("ig")}
+                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                            >
+                              <Instagram size={13} /> Post to Instagram
+                            </button>
+                            )
+                          }
+                        </div>
+                        {hasVideoAsset && (
+                          <button
+                            onClick={() => handleMediaChoice("youtube")}
+                            className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
+                          >
+                            <Youtube size={13} /> Post to YouTube
+                          </button>
+                        )}
+                      </div>
+                    )
+                  }
                 </>
               )}
 

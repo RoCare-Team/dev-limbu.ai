@@ -58,63 +58,127 @@
       let paidLeads = []; // For tracking which leads have paid
 
       // SuperAdmin: See ALL revenue (both user onboarding and franchise leads)
-      if (role === "superAdmin" || role === "superFranchiseAdmin") {
-        revenueData = await FranchiseRevenue.find({ status: "active", ...dateMatchQuery })
-          .populate("onboardedBy", "fullName email role")
-          .sort({ createdAt: -1 })
-          .lean();
-        
-        // Calculate totals
-        totalRevenue = revenueData.reduce((sum, rev) => sum + (rev.amount || 0), 0);
-        userOnboardRevenue = revenueData
-          .filter(rev => rev.type === "user_onboard")
-          .reduce((sum, rev) => sum + (rev.amount || 0), 0);
-        franchiseLeadRevenue = revenueData
-          .filter(rev => rev.type === "franchise_lead")
-          .reduce((sum, rev) => sum + (rev.amount || 0), 0);
-        userOnboardCount = revenueData.filter(rev => rev.type === "user_onboard").length;
-        franchiseLeadCount = revenueData.filter(rev => rev.type === "franchise_lead").length;
-        paidLeads = revenueData.filter(rev => rev.type === "franchise_lead").map(rev => rev.leadId);
-      } 
-      // FranchiseAdmin: See only their own franchise lead revenue (not user onboards)
-      else if (role === "franchiseAdmin") {
-        revenueData = await FranchiseRevenue.find({ 
-          onboardedBy: admin._id,
-          status: "active",
-          type: { $ne: "user_onboard" }, // Exclude user onboards
-          ...dateMatchQuery
-        })
-          .populate("onboardedBy", "fullName email role")
-          .sort({ createdAt: -1 })
-          .lean();
-        
-        totalRevenue = revenueData.reduce((sum, rev) => sum + (rev.amount || 0), 0);
-        franchiseLeadRevenue = totalRevenue;
-        franchiseLeadCount = revenueData.length;
-        paidLeads = revenueData.map(rev => rev.leadId);
-      }
-      // Agent: See only their own user onboarding revenue
-      else if (role === "agent") {
-        revenueData = await FranchiseRevenue.find({ 
-          onboardedBy: admin._id,
-          status: "active",
-          type: "user_onboard", // Only user onboards
-          ...dateMatchQuery
-        })
-          .populate("onboardedBy", "fullName email role")
-          .sort({ createdAt: -1 })
-          .lean();
-        
-        totalRevenue = revenueData.reduce((sum, rev) => sum + (rev.amount || 0), 0);
-        userOnboardRevenue = totalRevenue;
-        userOnboardCount = revenueData.length;
-      }
-      else {
-        return NextResponse.json(
-          { success: false, message: "Unauthorized role" },
-          { status: 403 }
-        );
-      }
+     // SuperAdmin: See ALL revenue (both user onboarding and franchise leads)
+if (role === "superAdmin" || role === "superFranchiseAdmin") {
+  revenueData = await FranchiseRevenue.find({
+    status: "active",
+    ...dateMatchQuery,
+  })
+    .populate("onboardedBy", "fullName email role")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Calculate totals
+  totalRevenue = revenueData.reduce(
+    (sum, rev) => sum + (rev.amount || 0),
+    0
+  );
+
+  userOnboardRevenue = revenueData
+    .filter((rev) => rev.type === "user_onboard")
+    .reduce((sum, rev) => sum + (rev.amount || 0), 0);
+
+  franchiseLeadRevenue = revenueData
+    .filter((rev) => rev.type === "franchise_lead")
+    .reduce((sum, rev) => sum + (rev.amount || 0), 0);
+
+  userOnboardCount = revenueData.filter(
+    (rev) => rev.type === "user_onboard"
+  ).length;
+
+  franchiseLeadCount = revenueData.filter(
+    (rev) => rev.type === "franchise_lead"
+  ).length;
+
+  paidLeads = revenueData
+    .filter((rev) => rev.type === "franchise_lead")
+    .map((rev) => rev.leadId);
+}
+
+// FranchiseAdmin: See only their own franchise lead revenue
+else if (role === "franchiseAdmin") {
+  revenueData = await FranchiseRevenue.find({
+    onboardedBy: admin._id,
+    status: "active",
+    type: { $ne: "user_onboard" },
+    ...dateMatchQuery,
+  })
+    .populate("onboardedBy", "fullName email role")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  totalRevenue = revenueData.reduce(
+    (sum, rev) => sum + (rev.amount || 0),
+    0
+  );
+
+  franchiseLeadRevenue = totalRevenue;
+  franchiseLeadCount = revenueData.length;
+
+  paidLeads = revenueData.map((rev) => rev.leadId);
+}
+
+// Agent: See only their own user onboarding revenue
+else if (role === "agent") {
+  revenueData = await FranchiseRevenue.find({
+    onboardedBy: admin._id,
+    status: "active",
+    type: "user_onboard",
+    ...dateMatchQuery,
+  })
+    .populate("onboardedBy", "fullName email role")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  totalRevenue = revenueData.reduce(
+    (sum, rev) => sum + (rev.amount || 0),
+    0
+  );
+
+  userOnboardRevenue = totalRevenue;
+  userOnboardCount = revenueData.length;
+}
+
+else {
+  return NextResponse.json(
+    { success: false, message: "Unauthorized role" },
+    { status: 403 }
+  );
+}
+
+/* 🔥 USER EXPIRY FETCH FOR ALL ROLES */
+
+const userIds = revenueData.map((item) => item.leadId);
+
+const users = await User.find({
+  userId: { $in: userIds },
+})
+  .select("userId packageExpiryDate packageStartDate")
+  .lean();
+
+
+
+const userMap = {};
+
+users.forEach((user) => {
+  userMap[String(user.userId).trim()] = user;
+});
+
+
+
+revenueData = revenueData.map((item) => ({
+  ...item,
+
+  userPackageExpiryDate:
+    userMap[String(item.leadId).trim()]
+      ?.packageExpiryDate || null,
+
+  userPackageStartDate:
+    userMap[String(item.leadId).trim()]
+      ?.packageStartDate || null,
+}));
+
+// console.log("FINAL RESPONSE:", revenueData);
 
       return NextResponse.json({
   success: true,

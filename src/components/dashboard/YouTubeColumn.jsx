@@ -87,7 +87,7 @@ const YouTubeColumn = React.memo(({
           className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scroll flex-1 bg-slate-50/50"
         >
           {youtubeChannels.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5">
               {youtubeChannels.map((channel) => (
                 <div
                   key={channel.channelId}

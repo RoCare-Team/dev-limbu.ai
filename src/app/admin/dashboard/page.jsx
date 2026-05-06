@@ -124,7 +124,7 @@ const router = useRouter();
   });
 
   const fetchRevenueUsers = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
-    setLoadingRevenueUsers(true);
+    setLoading(true);
 
     try {
       const email = localStorage.getItem("email");
@@ -164,7 +164,7 @@ const router = useRouter();
       console.error(err);
       setRevenueUsersList([]);
     } finally {
-      setLoadingRevenueUsers(false);
+      setLoading(false);
     }
   };
 
@@ -645,7 +645,7 @@ const router = useRouter();
         showRevenueUsersModal={showRevenueUsersModal}
         fetchRevenueUsers={fetchRevenueUsers}
         setShowRevenueUsersModal={() => router.push("/admin/dashboard/revenue-users")}
-        loadingRevenueUsers={loadingRevenueUsers}
+        loadingRevenueUsers={loading}
         revenueUsersList={revenueUsersList}
         setRevenueUsersList={setRevenueUsersList}
         setStageModal={setStageModal}

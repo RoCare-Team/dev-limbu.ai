@@ -932,33 +932,8 @@ const PostCard = React.memo(
                   {/* Quick Post to other platforms if not scheduled/posted */}
                   {
                     ((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
-                      (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
-                      <div className="grid grid-cols-2 gap-3 mt-4">
-                        {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
-                          <button
-                            onClick={() => handleMediaChoice("fb")}
-                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                          >
-                            <Facebook size={13} /> Post to Facebook
-                          </button>
-                        )}
-                        {
-                          !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
-                            <button
-                              onClick={() => handleMediaChoice("ig")}
-                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                            >
-                              <Instagram size={13} /> Post to Instagram
-                            </button>
-                          )
-                        }
-                      </div >
-                    )
-                  }
-                  {/* Quick Post to other platforms if not scheduled/posted */}
-                  {
-                    ((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
-                      (!post.scheduledDateSource?.includes("ig") && !isPostedIg)) && (
+                      (!post.scheduledDateSource?.includes("ig") && !isPostedIg) ||
+                      hasVideoAsset) && (
                       <div className="space-y-3 mt-4">
                         <div className="grid grid-cols-2 gap-3">
                           {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (

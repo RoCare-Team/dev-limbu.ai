@@ -853,19 +853,31 @@ export default function PostManagementPage() {
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
         );
+        const scheduleImageUrl = post.aiOutput || "";
+        const getInstagramId = (account = {}) => account.igId || account.igUserId || account.id;
+
         const fbPages = socialState.facebookPages
           .filter((p) => selectedTargets.fb.includes(p.pageId))
           .map((p) => ({
             pageId: p.pageId,
             pageAccessToken: p.pageAccessToken,
             pageName: p.pageName,
+            caption: post.fbDescription || post.description || "",
+            imageUrl: scheduleImageUrl,
+            isPosted: false,
+            error: "",
           }));
         const igPages = socialState.instagramAccounts
-          .filter((a) => selectedTargets.ig.includes(a.igId))
+          .filter((a) => selectedTargets.ig.includes(getInstagramId(a)))
           .map((a) => ({
-            igUserId: a.igId,
-            accessToken: a.pageAccessToken,
+            igUserId: getInstagramId(a),
+            pageId: a.pageId,
+            accessToken: a.pageAccessToken || a.accessToken,
             igUsername: a.igUsername,
+            caption: post.igDescription || post.description || "",
+            imageUrl: scheduleImageUrl,
+            isPosted: false,
+            error: "",
           }));
 
         setScheduledPlatforms({ gmb: gmbLocs, fb: fbPages, ig: igPages });
@@ -878,7 +890,6 @@ export default function PostManagementPage() {
           sources,
           fbPages,
           igPages,
-          null, // targetMedia
           selectedTargets.meta // pass the new meta configuration
         );
         updateUiState({

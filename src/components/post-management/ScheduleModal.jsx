@@ -19,6 +19,24 @@ const RECOMMENDED_GMB = [9, 10, 13, 14];
 const RECOMMENDED_INSTA = [11, 12, 18, 19, 20];
 const RECOMMENDED_FB = [13, 14, 18, 19];
 
+const formatInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getInitialSchedule = () => {
+  const next = new Date();
+  next.setHours(next.getHours() + 1, 0, 0, 0);
+  return {
+    date: formatInputDate(next),
+    slot: next.getHours(),
+  };
+};
+
+const getInstagramId = (account = {}) => account.igId || account.igUserId || account.id;
+
 const ScheduleModal = React.memo(({
   isOpen,
   onClose,
@@ -35,18 +53,8 @@ const ScheduleModal = React.memo(({
   setShowInsufficientBalance,
   setRequiredCoins
 }) => {
-  const [date, setDate] = useState(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
-
-  const [slot, setSlot] = useState(() => {
-    const now = new Date();
-    return now.getHours() + 1;
-  });
+  const [date, setDate] = useState(() => getInitialSchedule().date);
+  const [slot, setSlot] = useState(() => getInitialSchedule().slot);
 
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState('gmb');
@@ -97,6 +105,16 @@ const ScheduleModal = React.memo(({
   // Pre-select existing targets when editing
   useEffect(() => {
     if (post) {
+      setSelectedGmb([]);
+      setSelectedFb([]);
+      setSelectedIg([]);
+      setPostType(post.gmbPostMeta?.postType || "standard");
+      setCtaType(post.gmbPostMeta?.ctaType || "book");
+      setCustomUrl(post.gmbPostMeta?.customUrl || "");
+      setEventTitle(post.gmbPostMeta?.eventTitle || "");
+      setEventStartDate(post.gmbPostMeta?.startDate || "");
+      setEventEndDate(post.gmbPostMeta?.endDate || "");
+
       if (post.checkmark) {
         if (post.checkmark === "both") setCheckmark(["post", "photo"]);
         else if (post.checkmark === "video") setCheckmark(["video"]);
@@ -117,14 +135,11 @@ const ScheduleModal = React.memo(({
         setSelectedFb(post.fbPages.map(pg => pg.pageId));
       }
       if (post.igPages && post.igPages.length > 0) {
-        setSelectedIg(post.igPages.map(acc => acc.igUserId || acc.igId));
+        setSelectedIg(post.igPages.map(getInstagramId).filter(Boolean));
       }
       if (post.scheduledDate) {
         const d = new Date(post.scheduledDate);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        setDate(`${year}-${month}-${day}`);
+        setDate(formatInputDate(d));
         setSlot(d.getHours());
       }
     }
@@ -142,7 +157,22 @@ const ScheduleModal = React.memo(({
   const totalCost = useMemo(() => selectedGmb.length * 20, [selectedGmb.length]);
 
   const handleConfirm = useCallback(() => {
-    if (activeTab === 'gmb') {
+    if (selectedGmb.length === 0 && selectedFb.length === 0 && selectedIg.length === 0) {
+      alert("Please select at least one platform or account.");
+      return;
+    }
+
+    const [year, month, day] = date.split("-").map(Number);
+    const scheduledTime = new Date(year, month - 1, day, parseInt(slot, 10), 0, 0, 0);
+
+    if (Number.isNaN(scheduledTime.getTime()) || scheduledTime <= new Date()) {
+      alert("Please select a future date and time.");
+      return;
+    }
+
+    const payloadCheckmark = getPayload();
+
+    if (selectedGmb.length > 0 && payloadCheckmark !== "video") {
       if (postType === "event") {
         if (!eventTitle.trim()) {
           alert("Please provide an Event Title.");
@@ -150,6 +180,10 @@ const ScheduleModal = React.memo(({
         }
         if (!eventStartDate || !eventEndDate) {
           alert("Please provide both Start and End dates for the event.");
+          return;
+        }
+        if (new Date(eventEndDate) < new Date(eventStartDate)) {
+          alert("Event End date cannot be before Start date.");
           return;
         }
       }
@@ -166,13 +200,11 @@ const ScheduleModal = React.memo(({
       return;
     }
 
-    const scheduledTime = new Date(date);
-    scheduledTime.setHours(parseInt(slot), 0, 0, 0);
-
     onConfirm(post._id, "scheduled", scheduledTime.toISOString(), {
       gmb: selectedGmb,
       fb: selectedFb,
       ig: selectedIg,
+      checkmark: payloadCheckmark,
       meta: {
         postType,
         ctaType,
@@ -183,7 +215,7 @@ const ScheduleModal = React.memo(({
       }
     });
     onClose();
-  }, [activeTab, userWallet, totalCost, date, slot, onConfirm, post?._id, selectedGmb, selectedFb, selectedIg, postType, ctaType, customUrl, eventTitle, eventStartDate, eventEndDate, onClose, setRequiredCoins, setShowInsufficientBalance]);
+  }, [userWallet, totalCost, date, slot, getPayload, onConfirm, post?._id, selectedGmb, selectedFb, selectedIg, postType, ctaType, customUrl, eventTitle, eventStartDate, eventEndDate, onClose, setRequiredCoins, setShowInsufficientBalance]);
 
   const timeSlots = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
@@ -218,10 +250,13 @@ const ScheduleModal = React.memo(({
   }, []);
 
   const toggleAll = useCallback((items, selected, setSelected, idKey = 'id') => {
-    if (selected.length === items.length) {
+    const getId = typeof idKey === "function" ? idKey : (item) => item[idKey];
+    const ids = items.map(getId).filter(Boolean);
+
+    if (selected.length === ids.length) {
       setSelected([]);
     } else {
-      setSelected(items.map(i => i[idKey]));
+      setSelected(ids);
     }
   }, []);
 
@@ -592,7 +627,7 @@ const ScheduleModal = React.memo(({
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4">
                     <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Connected Accounts</span>
                     <button
-                      onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, 'igId')}
+                      onClick={() => toggleAll(instagramAccounts, selectedIg, setSelectedIg, getInstagramId)}
                       className="text-xs font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
                     >
                       {selectedIg.length === instagramAccounts.length && instagramAccounts.length > 0 ? 'Deselect All' : 'Select All'}
@@ -603,11 +638,12 @@ const ScheduleModal = React.memo(({
                     <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-pink-600" /></div>
                   ) : instagramAccounts.length > 0 ? (
                     instagramAccounts.map(acc => {
-                      const isSelected = selectedIg.includes(acc.igId);
+                      const accountId = getInstagramId(acc);
+                      const isSelected = selectedIg.includes(accountId);
                       return (
                         <div
-                          key={acc.igId}
-                          onClick={() => toggleSelection(acc.igId, selectedIg, setSelectedIg)}
+                          key={accountId}
+                          onClick={() => accountId && toggleSelection(accountId, selectedIg, setSelectedIg)}
                           className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-pink-500 bg-pink-50 shadow-sm' : 'border-slate-100 bg-white hover:border-pink-200 hover:shadow-sm'}`}
                         >
                           <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors shrink-0 ${isSelected ? 'bg-pink-600 border-pink-600' : 'border-slate-300 bg-white'}`}>

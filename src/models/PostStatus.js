@@ -85,6 +85,14 @@ const PostSchema = new mongoose.Schema(
     accessToken: { type: String },
     refreshToken: { type: String },
     checkmark: { type: String, default: "both" },
+    gmbPostMeta: {
+      postType: { type: String, default: "standard" },
+      ctaType: { type: String, default: "book" },
+      customUrl: { type: String, default: "" },
+      eventTitle: { type: String, default: "" },
+      startDate: { type: String, default: "" },
+      endDate: { type: String, default: "" },
+    },
     locations: [
       {
         locationId: String,
@@ -94,6 +102,7 @@ const PostSchema = new mongoose.Schema(
         city: String,
         locality: String,
         websiteUrl: String,
+        primaryPhone: String,
         isPosted: { type: Boolean, default: false },
         error: String,
         postedAt: Date,
@@ -103,5 +112,9 @@ const PostSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+if (mongoose.models.Post && !mongoose.models.Post.schema.path("gmbPostMeta")) {
+  delete mongoose.models.Post;
+}
 
 export default mongoose.models.Post || mongoose.model("Post", PostSchema);

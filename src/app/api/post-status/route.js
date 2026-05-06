@@ -455,6 +455,8 @@ export async function PUT(req) {
       reason,
       locations,
       checkmark,
+      meta,
+      gmbPostMeta,
       refreshToken,
       whenPosted,
       scheduledDateSource,
@@ -524,17 +526,30 @@ export async function PUT(req) {
         updateData.locations = locations.map(loc => ({
           locationId: loc.locationId,
           accountId: loc.accountId,
-          name: loc.name,
+          name: loc.name || loc.title || loc.locationName || loc.storeName || "",
           address: loc.address,
           city: loc.city || "",
           locality: loc.locality || "",
           websiteUrl: loc.websiteUrl || "",
+          primaryPhone: loc.primaryPhone || "",
           isPosted: false,
           error: ""
         }));
       }
       if (Array.isArray(fbPages)) updateData.fbPages = fbPages;
       if (Array.isArray(igPages)) updateData.igPages = igPages;
+
+      const rawGmbMeta = gmbPostMeta || meta;
+      if (rawGmbMeta && typeof rawGmbMeta === "object" && !Array.isArray(rawGmbMeta)) {
+        updateData.gmbPostMeta = {
+          postType: rawGmbMeta.postType || "standard",
+          ctaType: rawGmbMeta.ctaType || "book",
+          customUrl: rawGmbMeta.customUrl || "",
+          eventTitle: rawGmbMeta.eventTitle || "",
+          startDate: rawGmbMeta.startDate || "",
+          endDate: rawGmbMeta.endDate || "",
+        };
+      }
     }
 
     /* ---------- REJECTED ---------- */

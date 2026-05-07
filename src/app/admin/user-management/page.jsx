@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import {  useEffect, useState, useMemo } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
 import { useRef } from "react";
@@ -64,7 +64,6 @@ import {
   Button,
   FormControl,
   InputAdornment,
-  InputLabel,
   MenuItem,
   Paper,
   Select,
@@ -234,6 +233,7 @@ export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState("All");
+  const [remarkCountFilter, setRemarkCountFilter] = useState("All");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -326,6 +326,7 @@ export default function UserManagement() {
   const filteredUsers = useMemo(() => {
     let list =
       !isAgent || followUpFilter === "all" ? users : followUpTableUsers;
+
     if (isAgent && followUpFilter !== "all" && searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((u) => {
@@ -334,8 +335,28 @@ export default function UserManagement() {
         return hay.includes(q);
       });
     }
+
+    if (remarkCountFilter !== "All") {
+      list = list.filter((u) => {
+        const remarkCount = Array.isArray(u.remarksHistory)
+          ? u.remarksHistory.length
+          : 0;
+
+        if (remarkCountFilter === "None") return remarkCount === 0;
+        if (remarkCountFilter === "More") return remarkCount > 3;
+        return remarkCount === Number(remarkCountFilter);
+      });
+    }
+
     return list;
-  }, [users, isAgent, followUpFilter, followUpTableUsers, searchQuery]);
+  }, [
+    users,
+    isAgent,
+    followUpFilter,
+    followUpTableUsers,
+    searchQuery,
+    remarkCountFilter,
+  ]);
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
     if (role !== "superAdmin") return [];
@@ -747,6 +768,8 @@ export default function UserManagement() {
         params.append("leadStatus", leadStatusFilter);
       if (leadStageFilter !== "All")
         params.append("leadStage", leadStageFilter);
+      if (remarkCountFilter !== "All")
+        params.append("remarkCount", remarkCountFilter);
 
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
@@ -792,6 +815,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    remarkCountFilter,
   ]);
 
   const fetchUsers = async (silent = false) => {
@@ -837,6 +861,10 @@ export default function UserManagement() {
         params.append("leadStage", leadStageFilter);
       }
 
+      if (remarkCountFilter !== "All") {
+        params.append("remarkCount", remarkCountFilter);
+      }
+
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
 
@@ -875,6 +903,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    remarkCountFilter,
   ]);
 
   useEffect(() => {
@@ -1338,7 +1367,15 @@ export default function UserManagement() {
   // When filters change, reset to the first page
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterDate, assigneeFilter]);
+  }, [
+    searchQuery,
+    filterStatus,
+    filterDate,
+    assigneeFilter,
+    leadStatusFilter,
+    leadStageFilter,
+    remarkCountFilter,
+  ]);
 
   const isUserConnected = (email) => {
     return connectedBusinessUsers.some(
@@ -2217,6 +2254,7 @@ const packageExpiryDate = planExpiryDate;
     setAssigneeFilter("All");
     setLeadStatusFilter("All");
     setLeadStageFilter("All");
+    setRemarkCountFilter("All");
   };
 
   const handlePageChange = (newPage) => {
@@ -2238,7 +2276,11 @@ const packageExpiryDate = planExpiryDate;
   }, {});
 };
 
-const groupedUsers = groupByDate(users); // 🔥 यही use होगा
+const groupedUsers = groupByDate(filteredUsers); // 🔥 यही use होगा
+const currentLeadTotal =
+  isAgent && followUpFilter !== "all"
+    ? filteredUsers.length
+    : pagination?.totalUsers ?? filteredUsers.length;
 
 
 
@@ -2601,9 +2643,10 @@ const groupedUsers = groupByDate(users); // 🔥 यही use होगा
           elevation={0}
           sx={{
             border: "1px solid #e5e7eb",
-            borderRadius: "16px",
-            p: 2,
+            borderRadius: "14px",
+            p: { xs: 1, sm: 1.25 },
             mb: 1,
+            backgroundColor: "#f8fafc",
           }}
         >
           {isAgent && followUpFilter !== "all" && (
@@ -2618,161 +2661,262 @@ const groupedUsers = groupByDate(users); // 🔥 यही use होगा
           )}
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                xl: "2fr repeat(4, minmax(0, 1fr)) auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              "& .MuiOutlinedInput-root": {
+                height: 38,
+                borderRadius: "10px",
+                backgroundColor: "#fff",
               },
-              gap: 1.5,
-              alignItems: "center",
+              "& .MuiInputBase-input": {
+                py: "7px",
+                fontSize: 14,
+              },
+              "& .MuiSelect-select": {
+                py: "7px",
+                fontSize: 14,
+              },
             }}
           >
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="Search by email, user ID, phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search size={16} />
-                  </InputAdornment>
-                ),
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "minmax(0, 3fr) minmax(150px, 1fr)",
+                },
+                alignItems: "stretch",
+                gap: 1,
+                width: "100%",
+                minWidth: 0,
               }}
-            />
-            <Button
-              variant="contained"
-              onClick={handleSearch}
-              startIcon={<Search size={16} />}
-              sx={{ height: 40, textTransform: "none", fontWeight: 700 }}
             >
-              Search
-            </Button>
-
-            <FormControl size="small" fullWidth>
-              <InputLabel id="lead-stage-filter-label">Lead Stage</InputLabel>
-              <Select
-                labelId="lead-stage-filter-label"
-                value={leadStageFilter}
-                label="Lead Stage"
-                onChange={(e) => setLeadStageFilter(e.target.value)}
-              >
-                <MenuItem value="All">All Stages</MenuItem>
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Follow Up">Follow Up</MenuItem>
-                <MenuItem value="Inactive">Inactive</MenuItem>
-                <MenuItem value="Onboard">Onboard</MenuItem>
-              </Select>
-            </FormControl>
-
-            {(role === "superAdmin" ||
-              role === "admin" ||
-              role === "superfranchiseAdmin") && (
-              <>
-                <FormControl size="small" fullWidth>
-                  <InputLabel id="assignee-filter-label">Assign To</InputLabel>
-                  <Select
-                    labelId="assignee-filter-label"
-                    value={assigneeFilter}
-                    label="Assign To"
-                    onChange={(e) => setAssigneeFilter(e.target.value)}
-                  >
-                    <MenuItem value="All">All Agents</MenuItem>
-                    <MenuItem value="Unassigned">Unassigned</MenuItem>
-                    {agents.map((agent) => (
-                      <MenuItem key={agent._id} value={agent._id}>
-                        {agent.fullName}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                {(role === "superAdmin" ||
-                  role === "admin" ||
-                  role === "superfranchiseAdmin") && (
-                  <FormControl size="small" fullWidth>
-                    <InputLabel id="lead-status-filter-label">
-                      Lead Status
-                    </InputLabel>
-                    <Select
-                      labelId="lead-status-filter-label"
-                      value={leadStatusFilter}
-                      label="Lead Status"
-                      onChange={(e) => setLeadStatusFilter(e.target.value)}
-                    >
-                      <MenuItem value="All">All Lead Status</MenuItem>
-                      <MenuItem value="Hot">Hot Leads</MenuItem>
-                      <MenuItem value="Warm">Warm Leads</MenuItem>
-                      <MenuItem value="Cold">Cold Leads</MenuItem>
-                      <MenuItem value="Untagged">None</MenuItem>
-                    </Select>
-                  </FormControl>
-                )}
-              </>
-            )}
-
-            <FormControl size="small" fullWidth>
-              <InputLabel id="date-filter-label">Date Range</InputLabel>
-              <Select
-                labelId="date-filter-label"
-                value={filterDate}
-                label="Date Range"
-                onChange={(e) => setFilterDate(e.target.value)}
-              >
-                <MenuItem value="All">All Time</MenuItem>
-                <MenuItem value="Today">Today</MenuItem>
-                <MenuItem value="Last 7 Days">Last 7 Days</MenuItem>
-                <MenuItem value="Last 30 Days">Last 30 Days</MenuItem>
-                <MenuItem value="This Month">This Month</MenuItem>
-                <MenuItem value="Custom Range">Custom Range</MenuItem>
-              </Select>
-            </FormControl>
-
-            {filterDate === "Custom Range" && (
               <Box
                 sx={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  gridColumn: { xs: "1 / -1", xl: "1 / span 2" },
+                  flex: 1,
+                  minWidth: 0,
                 }}
               >
                 <TextField
                   size="small"
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
                   fullWidth
+                  placeholder="Search email, ID, phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search size={16} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                    },
+                  }}
                 />
-                <span className="text-sm text-gray-500">to</span>
-                <TextField
-                  size="small"
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  fullWidth
-                />
+                <Button
+                  variant="contained"
+                  onClick={handleSearch}
+                  aria-label="Search users"
+                  sx={{
+                    height: 38,
+                    minWidth: { xs: 44, sm: 104 },
+                    px: { xs: 1.25, sm: 2 },
+                    borderRadius: "0 10px 10px 0",
+                    textTransform: "none",
+                    fontWeight: 800,
+                    boxShadow: "none",
+                    gap: 0.75,
+                  }}
+                >
+                  <Search size={16} />
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    Search
+                  </Box>
+                </Button>
               </Box>
-            )}
 
-            {(searchQuery ||
-              filterStatus !== "All" ||
-              filterDate !== "All" ||
-              assigneeFilter !== "All" ||
-              leadStatusFilter !== "All") && (
-              <Button
-                onClick={clearFilters}
-                variant="outlined"
-                color="inherit"
-                startIcon={<X size={16} />}
-                sx={{ height: 40, textTransform: "none", fontWeight: 600 }}
-              >
-                Clear
-              </Button>
-            )}
+              <FormControl size="small" fullWidth>
+                <Select
+                  displayEmpty
+                  value={leadStageFilter}
+                  onChange={(e) => setLeadStageFilter(e.target.value)}
+                  renderValue={(selected) =>
+                    selected === "All" ? "Stage: All" : `Stage: ${selected}`
+                  }
+                  inputProps={{ "aria-label": "Lead Stage" }}
+                >
+                  <MenuItem value="All">All Stages</MenuItem>
+                  <MenuItem value="Active">Active</MenuItem>
+                  <MenuItem value="Follow Up">Follow Up</MenuItem>
+                  <MenuItem value="Inactive">Inactive</MenuItem>
+                  <MenuItem value="Onboard">Onboard</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "repeat(4, minmax(0, 1fr))",
+                  xl: "repeat(4, minmax(150px, 1fr)) auto",
+                },
+                gap: 1,
+                alignItems: "center",
+              }}
+            >
+              {(role === "superAdmin" ||
+                role === "admin" ||
+                role === "superfranchiseAdmin") && (
+                <>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      displayEmpty
+                      value={assigneeFilter}
+                      onChange={(e) => setAssigneeFilter(e.target.value)}
+                      renderValue={(selected) => {
+                        if (selected === "All") return "Agent: All";
+                        if (selected === "Unassigned") return "Agent: Unassigned";
+                        const agent = agents.find((a) => a._id === selected);
+                        return `Agent: ${agent?.fullName || "Selected"}`;
+                      }}
+                      inputProps={{ "aria-label": "Assign To" }}
+                    >
+                      <MenuItem value="All">All Agents</MenuItem>
+                      <MenuItem value="Unassigned">Unassigned</MenuItem>
+                      {agents.map((agent) => (
+                        <MenuItem key={agent._id} value={agent._id}>
+                          {agent.fullName}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {(role === "superAdmin" ||
+                    role === "admin" ||
+                    role === "superfranchiseAdmin") && (
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        displayEmpty
+                        value={leadStatusFilter}
+                        onChange={(e) => setLeadStatusFilter(e.target.value)}
+                        renderValue={(selected) =>
+                          selected === "All" ? "Status: All" : `Status: ${selected}`
+                        }
+                        inputProps={{ "aria-label": "Lead Status" }}
+                      >
+                        <MenuItem value="All">All Lead Status</MenuItem>
+                        <MenuItem value="Hot">Hot Leads</MenuItem>
+                        <MenuItem value="Warm">Warm Leads</MenuItem>
+                        <MenuItem value="Cold">Cold Leads</MenuItem>
+                        <MenuItem value="Untagged">None</MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+                </>
+              )}
+
+              <FormControl size="small" fullWidth>
+                <Select
+                  displayEmpty
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  renderValue={(selected) =>
+                    selected === "All" ? "Date: All Time" : `Date: ${selected}`
+                  }
+                  inputProps={{ "aria-label": "Date Range" }}
+                >
+                  <MenuItem value="All">All Time</MenuItem>
+                  <MenuItem value="Today">Today</MenuItem>
+                  <MenuItem value="Last 7 Days">Last 7 Days</MenuItem>
+                  <MenuItem value="Last 30 Days">Last 30 Days</MenuItem>
+                  <MenuItem value="This Month">This Month</MenuItem>
+                  <MenuItem value="Custom Range">Custom Range</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" fullWidth>
+                <Select
+                  displayEmpty
+                  value={remarkCountFilter}
+                  onChange={(e) => setRemarkCountFilter(e.target.value)}
+                  renderValue={(selected) => {
+                    if (selected === "All") return "Remark: All";
+                    if (selected === "None") return "Remark: 0";
+                    if (selected === "More") return "Remark: More";
+                    return `Remark: ${selected}`;
+                  }}
+                  inputProps={{ "aria-label": "Remark Count" }}
+                >
+                  <MenuItem value="All">All Remarks</MenuItem>
+                  <MenuItem value="None">No Remark</MenuItem>
+                  <MenuItem value="1">Remark 1</MenuItem>
+                  <MenuItem value="2">Remark 2</MenuItem>
+                  <MenuItem value="3">Remark 3</MenuItem>
+                  <MenuItem value="More">More</MenuItem>
+                </Select>
+              </FormControl>
+
+              {filterDate === "Custom Range" && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    gridColumn: { xs: "1 / -1", md: "span 2" },
+                  }}
+                >
+                  <TextField
+                    size="small"
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    fullWidth
+                  />
+                  <span className="text-sm text-gray-500">to</span>
+                  <TextField
+                    size="small"
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    fullWidth
+                  />
+                </Box>
+              )}
+
+              {(searchQuery ||
+                filterStatus !== "All" ||
+                filterDate !== "All" ||
+                assigneeFilter !== "All" ||
+                leadStatusFilter !== "All" ||
+                leadStageFilter !== "All" ||
+                remarkCountFilter !== "All") && (
+                <Button
+                  onClick={clearFilters}
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<X size={16} />}
+                  sx={{
+                    height: 38,
+                    borderRadius: "10px",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </Box>
           </Box>
         </Paper>
 
@@ -2807,13 +2951,36 @@ const groupedUsers = groupByDate(users); // 🔥 यही use होगा
                           <Typography
                             variant="subtitle1"
                             sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              alignItems: "center",
+                              gap: 1,
                               fontWeight: 800,
                               letterSpacing: "-0.02em",
                               color: "text.primary",
                               lineHeight: 1.3,
                             }}
                           >
-                            Leads
+                            <span>Leads</span>
+                            <Box
+                              component="span"
+                              sx={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                minHeight: 22,
+                                px: 1,
+                                borderRadius: "999px",
+                                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                                border: "1px solid",
+                                borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
+                                color: "primary.main",
+                                fontSize: 12,
+                                fontWeight: 800,
+                                lineHeight: 1,
+                              }}
+                            >
+                              Total: {currentLeadTotal.toLocaleString("en-IN")}
+                            </Box>
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
                             Manage records and sync from Meta

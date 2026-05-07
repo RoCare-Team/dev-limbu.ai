@@ -2,7 +2,7 @@
 
 import { Toaster } from "react-hot-toast";
 import { User, Shirt, Image as ImageIcon, Tags, Loader2, AlertCircle } from "lucide-react";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 import { useAssetsManager, showToast } from "@/hooks/useAssetsManager";
 
 // Sub-components

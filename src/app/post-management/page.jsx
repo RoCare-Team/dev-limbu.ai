@@ -1716,7 +1716,10 @@ export default function PostManagementPage() {
         {uiState.showInstagramModal && (
           <InstagramShareModal
             isOpen={uiState.showInstagramModal}
-            onClose={() => updateUiState({ showInstagramModal: false })}
+            onClose={() => {
+              updateUiState({ showInstagramModal: false });
+              setSelectedMediaForAction(null);
+            }}
             onConfirm={(p, a, c, igVideoKind) => {
               updateUiState({ showInstagramModal: false });
               handleInstagramPostAction(
@@ -1729,6 +1732,7 @@ export default function PostManagementPage() {
               setSelectedMediaForAction(null);
             }}
             post={socialState.postToInstagram}
+            selectedMedia={selectedMediaForAction}
             accounts={socialState.instagramAccounts}
             loading={socialState.loadingIgAccounts}
           />

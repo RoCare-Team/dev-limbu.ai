@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Instagram, X, Loader2, Send, Video } from "lucide-react";
+import { Instagram, X, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { metaPublishMedia } from "@/lib/postMediaUrls";
 
@@ -10,6 +10,7 @@ const InstagramShareModal = ({
   onClose,
   onConfirm,
   post,
+  selectedMedia = null,
   accounts = [],
   loading = false,
 }) => {
@@ -40,10 +41,9 @@ const InstagramShareModal = ({
   /* =========================
      Check Video/Reel
   ========================= */
-  const publishAsVideo = useMemo(() => {
-    if (!post) return false;
-    return metaPublishMedia(post)?.type === "video";
-  }, [post]);
+  const publishMedia = useMemo(() => {
+    return selectedMedia || metaPublishMedia(post);
+  }, [post, selectedMedia]);
 
   /* =========================
      Submit
@@ -56,15 +56,14 @@ const InstagramShareModal = ({
       accounts[0];
 
     if (account && post) {
-      const m = metaPublishMedia(post);
       onConfirm(
         post,
         account,
         caption,
-        m.type === "video" ? igVideoKind : undefined,
+        publishMedia?.type === "video" ? igVideoKind : undefined,
       );
     }
-  }, [accounts, selectedAccountId, post, caption, onConfirm, igVideoKind]);
+  }, [accounts, selectedAccountId, post, caption, onConfirm, igVideoKind, publishMedia]);
 
   if (!isOpen) return null;
 
@@ -133,42 +132,6 @@ const InstagramShareModal = ({
               </select>
             </div>
 
-            {/* Video: feed vs Reel */}
-            {publishAsVideo && (
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 text-xs bg-pink-50 border border-pink-200 text-pink-900 p-3 rounded-lg">
-                  <Video className="w-4 h-4 mt-[2px] shrink-0" />
-                  <p>
-                    Choose <strong>Feed video</strong> for normal timeline
-                    posts, or <strong>Reel</strong> for the Reels tab. Processing
-                    can take a minute.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="igVideoKind"
-                      checked={igVideoKind === "VIDEO"}
-                      onChange={() => setIgVideoKind("VIDEO")}
-                      className="text-pink-600"
-                    />
-                    <span>Feed video</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="igVideoKind"
-                      checked={igVideoKind === "REELS"}
-                      onChange={() => setIgVideoKind("REELS")}
-                      className="text-pink-600"
-                    />
-                    <span>Reel</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
             {/* Caption */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -195,7 +158,7 @@ const InstagramShareModal = ({
 
               <button
                 onClick={handleSubmit}
-                disabled={!post || !metaPublishMedia(post)?.url}
+                disabled={!post || !publishMedia?.url}
                 className="flex-1 py-2.5 rounded-lg bg-pink-600 text-white font-semibold hover:bg-pink-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />

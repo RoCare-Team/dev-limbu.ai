@@ -59,7 +59,7 @@ const Call =
 /* ================= AISENSY CONFIG ================= */
 
 const AISENSY_URL =
-  "https://backend.aisensy.com/campaign/t1/api/v2";
+  "https://whatsapp.limbu.ai/api/campaigns/send";
 
 const CAMPAIGN_CONFIG = {
   demo_session_confirmation1: {

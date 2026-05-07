@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const AISENSY_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
+const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
 export async function POST(req) {
   try {

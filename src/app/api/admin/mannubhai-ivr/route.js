@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 const AISENSY_URL =
-  "https://backend.aisensy.com/campaign/t1/api/v2";
+  "https://whatsapp.limbu.ai/api/campaigns/send";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

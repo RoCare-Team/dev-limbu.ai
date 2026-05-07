@@ -28,7 +28,7 @@ async function dbConnect() {
 /* ================= AISENSY CONFIG ================= */
 
 const AISENSY_URL =
-  "https://backend.aisensy.com/campaign/t1/api/v2";
+  "https://whatsapp.limbu.ai/api/campaigns/send";
 
 const MEDIA = {
   session4pm:

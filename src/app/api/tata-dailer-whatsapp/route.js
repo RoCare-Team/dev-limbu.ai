@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const AISENSY_URL =
-  "https://backend.aisensy.com/campaign/t1/api/v2";
+  "https://whatsapp.limbu.ai/api/campaigns/send";
 
 /* ===========================
    Normalize Indian Numbers
@@ -77,7 +77,7 @@ export async function POST(req) {
 
         // ✅ FIXED TEMPLATE PARAMS
         templateParams: [
-          "05 May 2026, 4:00 PM",
+          "07 May 2026, 4:00 PM",
           "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w",
           "864 3594 1427",
           "800770",

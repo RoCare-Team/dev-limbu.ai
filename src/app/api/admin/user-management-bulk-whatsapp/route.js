@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
 
-const AISENSY_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
+const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
 const normalizeNumber = (num) => {
   if (!num) return null;
@@ -78,7 +78,7 @@ export async function POST(req) {
         destination,
         userName: "LimbuAI",
         templateParams: [
-          "05 May 2026, 4:00 PM",
+          "07 May 2026, 4:00 PM",
           "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w",
           "864 3594 1427",
           "800770",

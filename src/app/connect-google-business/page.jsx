@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Building2, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Loader2, LogOut, Mail } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,20 +58,77 @@ function ConnectGoogleBusinessInner() {
   // Phone is the ONLY identifier — no session_id anywhere
   const phone = normalizePhone(searchParams.get("phone") || "");
 
-  const [listLoading,   setListLoading]   = useState(false);
-  const [listError,     setListError]     = useState("");
-  const [email,         setEmail]         = useState("");
-  const [linkedVerified, setLinkedVerified] = useState([]);
-  const [notLinked,     setNotLinked]     = useState([]);
-  const [continueBusy,  setContinueBusy]  = useState(false);
-  const [continueSuccess, setContinueSuccess] = useState(false);
+  // ── Phone check state (new vs existing user) ─────────────────────────────────
+  const [phoneCheckLoading, setPhoneCheckLoading] = useState(true);
+  const [phoneCheckError, setPhoneCheckError]     = useState("");
+  const [isNewUser,       setIsNewUser]           = useState(null);
+  const [existingEmail,   setExistingEmail]       = useState("");
+  const [existingLocations, setExistingLocations] = useState(0);
+
+  // ── Authentication & listing state ──────────────────────────────────────────
+  const [listLoading,      setListLoading]      = useState(false);
+  const [listError,        setListError]        = useState("");
+  const [email,            setEmail]            = useState("");
+  const [linkedVerified,   setLinkedVerified]   = useState([]);
+  const [notLinked,        setNotLinked]        = useState([]);
+  const [continueBusy,     setContinueBusy]     = useState(false);
+  const [continueSuccess,  setContinueSuccess]  = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(0);
-  const [signInError,   setSignInError]   = useState(false);
-  const [autoSignInStarted, setAutoSignInStarted] = useState(false);
+  const [signInError,      setSignInError]      = useState(false);
+  const [autoSignInTriggered, setAutoSignInTriggered] = useState(false);
   const [autoContinueStarted, setAutoContinueStarted] = useState(false);
+  const [locationsLoaded,  setLocationsLoaded]  = useState(false);
+  const [waitSeconds,      setWaitSeconds]      = useState(10);
+  const [waitActive,       setWaitActive]       = useState(false);
+  const [reconnecting,     setReconnecting]     = useState(false);
+
+  // ── Check if phone already exists in database ─────────────────────────────────
+  const checkPhoneStatus = useCallback(async () => {
+    if (!phone) {
+      setPhoneCheckError("The URL requires ?phone=919876543210 — use the WhatsApp chatbot link.");
+      setIsNewUser(true);
+      setPhoneCheckLoading(false);
+      return;
+    }
+    setPhoneCheckLoading(true);
+    try {
+      const res  = await fetch(`/api/gmb/check-phone?phone=${phone}`, { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Check failed");
+
+      if (data.exists) {
+        setIsNewUser(false);
+        setExistingEmail(data.userEmail || "");
+        setExistingLocations(data.locationsCount || 0);
+      } else {
+        setIsNewUser(true);
+      }
+    } catch (e) {
+      setPhoneCheckError(e?.message || "Could not verify phone");
+      setIsNewUser(true); // Default to new user on error
+    } finally {
+      setPhoneCheckLoading(false);
+    }
+  }, [phone]);
+
+  // Check phone status on mount
+  useEffect(() => {
+    void checkPhoneStatus();
+  }, [phone, checkPhoneStatus]);
+
+  useEffect(() => {
+    if (phoneCheckLoading || isNewUser !== true || status !== "unauthenticated" || autoSignInTriggered) return;
+    if (!phone) return;
+
+    const timer = window.setTimeout(() => {
+      handleGoogleSignIn();
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [phoneCheckLoading, isNewUser, status, autoSignInTriggered, phone]);
 
   // Load GMB listings once authenticated
   const loadLocations = useCallback(async () => {
+    setLocationsLoaded(false);
     setListLoading(true);
     setListError("");
     try {
@@ -85,13 +142,11 @@ function ConnectGoogleBusinessInner() {
       setListError(e?.message || "Could not load businesses");
     } finally {
       setListLoading(false);
+      setLocationsLoaded(true);
+      setWaitActive(true);
+      setWaitSeconds(10);
     }
   }, []);
-
-  useEffect(() => {
-    if (status !== "authenticated" || !session?.accessToken) return;
-    void loadLocations();
-  }, [status, session?.accessToken, loadLocations]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -101,13 +156,14 @@ function ConnectGoogleBusinessInner() {
     const qs     = phone ? `?phone=${phone}` : "";
     const callbackUrl = `${origin}/connect-google-business${qs}`;
     setSignInError(false);
+    setAutoSignInTriggered(true);
     void signIn("google", { callbackUrl }).catch(() => setSignInError(true));
   };
 
-  const handleContinue = async () => {
+  const handleContinue = useCallback(async () => {
     if (!phone) {
       setListError(
-        "URL mein ?phone=919876543210 zaroori hai — chatbot wala link use karein."
+        "The URL requires ?phone=919876543210 — use the WhatsApp chatbot link."
       );
       return;
     }
@@ -153,35 +209,99 @@ function ConnectGoogleBusinessInner() {
     } finally {
       setContinueBusy(false);
     }
-  };
+  }, [phone]);
 
-  const handleSwitchAccount = () => {
+  const handleSignInWithSavedEmail = useCallback(() => {
+    // User selected "Sign in with saved business email"
+    // Redirect directly to chatbot
+    window.location.href = "https://wa.me/917065178662";
+  }, []);
+
+  const handleConnectDifferent = useCallback(() => {
+    // User wants to connect with different email — start the Google sign-in flow
+    setReconnecting(true);
+    void handleGoogleSignIn();
+  }, [handleGoogleSignIn]);
+
+  const handleSwitchAccount = useCallback(() => {
     const qs = phone ? `?phone=${phone}` : "";
     void signOut({ callbackUrl: `/connect-google-business${qs}` });
-  };
+  }, [phone]);
+
+  // Check phone status on mount
+  useEffect(() => {
+    void checkPhoneStatus();
+  }, [phone, checkPhoneStatus]);
 
   useEffect(() => {
-    if (
-      status === "unauthenticated" &&
-      phone &&
-      !autoSignInStarted &&
-      !signInError
-    ) {
-      setAutoSignInStarted(true);
+    if (phoneCheckLoading || isNewUser !== true || status !== "unauthenticated" || autoSignInTriggered) return;
+    if (!phone) return;
+
+    const timer = window.setTimeout(() => {
       handleGoogleSignIn();
-    }
-  }, [status, phone, autoSignInStarted, signInError, handleGoogleSignIn]);
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [phoneCheckLoading, isNewUser, status, autoSignInTriggered, phone]);
+
+  // Handle reconnecting flow (user clicked "Connect with different email")
+  useEffect(() => {
+    if (!reconnecting || status !== "authenticated" || locationsLoaded || listLoading) return;
+    void loadLocations();
+  }, [reconnecting, status, locationsLoaded, listLoading, loadLocations]);
+
+  useEffect(() => {
+    if (!isNewUser) return;
+    if (status !== "authenticated" || !session?.accessToken) return;
+    if (locationsLoaded || listLoading) return;
+    void loadLocations();
+  }, [isNewUser, status, session?.accessToken, locationsLoaded, listLoading, loadLocations]);
 
   useEffect(() => {
     if (
-      status === "authenticated" &&
-      phone &&
-      !autoContinueStarted
+      (!isNewUser && !reconnecting) ||
+      status !== "authenticated" ||
+      listLoading ||
+      continueSuccess ||
+      continueBusy ||
+      !locationsLoaded ||
+      autoContinueStarted ||
+      waitSeconds > 0 ||
+      listError
     ) {
-      setAutoContinueStarted(true);
-      void handleContinue();
+      return;
     }
-  }, [status, phone, autoContinueStarted, handleContinue]);
+
+    setAutoContinueStarted(true);
+    void handleContinue();
+  }, [
+    isNewUser,
+    reconnecting,
+    status,
+    listLoading,
+    continueSuccess,
+    continueBusy,
+    locationsLoaded,
+    autoContinueStarted,
+    waitSeconds,
+    listError,
+    handleContinue,
+  ]);
+
+  useEffect(() => {
+    if ((!isNewUser && !reconnecting) || status !== "authenticated" || listLoading || continueSuccess) return;
+    if (!waitActive && locationsLoaded) {
+      setWaitActive(true);
+      setWaitSeconds(10);
+    }
+  }, [isNewUser, reconnecting, status, listLoading, continueSuccess, waitActive, locationsLoaded]);
+
+  useEffect(() => {
+    if (!waitActive || waitSeconds <= 0) return;
+    const timeout = window.setTimeout(() => {
+      setWaitSeconds((prev) => prev - 1);
+    }, 1000);
+    return () => window.clearTimeout(timeout);
+  }, [waitActive, waitSeconds]);
 
   useEffect(() => {
     if (!continueSuccess || redirectCountdown <= 0) return;
@@ -202,17 +322,17 @@ function ConnectGoogleBusinessInner() {
   const totalListings = linkedVerified.length + notLinked.length;
   const headline =
     totalListings === 0
-      ? "Is Google account par koi Business Profile location nahi mili"
+      ? "No Business Profile locations found for this Google account"
       : linkedVerified.length > 0 && notLinked.length === 0
         ? "Business profiles linked to this Google account"
         : "Your Google Business Profile listings";
   const subline =
     totalListings === 0
-      ? "Sahi Google account se sign in karein jisme Business Profile ho."
-      : `${totalListings} listing${totalListings === 1 ? "" : "s"} is Gmail ke saath mili — neeche status dekhein.`;
+      ? "Sign in with the correct Google account that has your Business Profile."
+      : `${totalListings} listing${totalListings === 1 ? "" : "s"} found for this Gmail account — see status below.`;
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
       {/* Header */}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/80 bg-white px-4 py-3 shadow-sm">
         <p className="text-lg font-bold tracking-tight text-[#0B0F19]">
@@ -221,13 +341,94 @@ function ConnectGoogleBusinessInner() {
       </header>
 
       <main className="mx-auto max-w-lg px-4 pb-28 pt-8">
-        {/* Loading */}
-        {status === "loading" && (
+        {/* Initial phone check loading */}
+        {phoneCheckLoading && (
           <div className="flex min-h-[42vh] flex-col items-center justify-center">
             <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <Loader2 className="mx-auto h-11 w-11 animate-spin text-amber-500" />
-              <h2 className="mt-5 text-lg font-bold text-slate-900">Connect your business</h2>
-              <p className="mt-2 text-sm text-slate-600">Please wait — session check ho raha hai…</p>
+              <h2 className="mt-5 text-lg font-bold text-slate-900">Checking account…</h2>
+              <p className="mt-2 text-sm text-slate-600">Verifying phone number...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error checking phone */}
+        {!phoneCheckLoading && phoneCheckError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-sm text-red-800 shadow-sm">
+            {phoneCheckError}
+          </div>
+        )}
+
+        {/* New user — choose account first */}
+        {!phoneCheckLoading && isNewUser && status !== "authenticated" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-xl font-bold text-slate-900">Choose your Google account</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Select the Google account you want to use to connect your Business Profile.
+            </p>
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B0F19] py-3.5 text-sm font-semibold text-[#FFC107] shadow-lg transition hover:bg-slate-800"
+              >
+                <Mail className="h-4 w-4" />
+                Choose Google account
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Existing user — show already connected option */}
+        {!phoneCheckLoading && !isNewUser && !continueSuccess && (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-600 text-white">
+              <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">Account already connected!</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Your phone number <span className="font-semibold">+{phone}</span> is already connected.
+            </p>
+            <p className="mt-1 text-[13px] text-slate-500">
+              <Mail className="mb-0.5 inline h-3.5 w-3.5" /> {existingEmail}
+            </p>
+            <p className="mt-3 text-xs text-slate-600">
+              {existingLocations} business location{existingLocations !== 1 ? "s" : ""} connected
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleSignInWithSavedEmail}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B0F19] py-3.5 text-sm font-semibold text-[#FFC107] shadow-lg transition hover:bg-slate-800"
+              >
+                <CheckCircle2 className="h-4 w-4" strokeWidth={2.5} />
+                Sign in with saved business email
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConnectDifferent}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
+              >
+                <LogOut className="h-4 w-4" strokeWidth={2.5} />
+                Connect with different email
+              </button>
+            </div>
+
+            <p className="mt-4 text-[11px] text-slate-500">
+              Signing in with a different email will replace the current connection.
+            </p>
+          </div>
+        )}
+
+        {/* Session loading */}
+        {!phoneCheckLoading && isNewUser && status === "loading" && (
+          <div className="flex min-h-[42vh] flex-col items-center justify-center">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <Loader2 className="mx-auto h-11 w-11 animate-spin text-amber-500" />
+              <h2 className="mt-5 text-lg font-bold text-slate-900">Connecting your business</h2>
+              <p className="mt-2 text-sm text-slate-600">Please wait — checking your session.</p>
             </div>
           </div>
         )}
@@ -238,9 +439,9 @@ function ConnectGoogleBusinessInner() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
               <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Business connected</h1>
+            <h1 className="text-xl font-bold text-slate-900">Business connected! ✨</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Listings fetched successfully. Aage WhatsApp par redirect ho raha hai.
+              Listings were fetched successfully. You will be redirected to WhatsApp.
             </p>
             <p className="mt-3 text-xs text-slate-500">
               Redirecting in {redirectCountdown} second{redirectCountdown === 1 ? "" : "s"}...
@@ -248,21 +449,20 @@ function ConnectGoogleBusinessInner() {
           </div>
         )}
 
-
-        {/* Fetching listings */}
-        {status === "authenticated" && listLoading && (
+        {/* Fetching listings (new user after auth) */}
+        {!phoneCheckLoading && isNewUser && status === "authenticated" && listLoading && (
           <div className="flex min-h-[48vh] flex-col items-center justify-center">
             <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <Building2 className="mx-auto h-10 w-10 text-amber-500" strokeWidth={2} />
               <Loader2 className="mx-auto mt-4 h-8 w-8 animate-spin text-amber-500" />
-              <h2 className="mt-4 text-lg font-bold text-slate-900">Fetching businesses…</h2>
-              <p className="mt-2 text-sm text-slate-500">Google API se locations load ho rahi hain</p>
+              <h2 className="mt-4 text-lg font-bold text-slate-900">Fetching listings…</h2>
+              <p className="mt-2 text-sm text-slate-500">Loading locations from Google…</p>
             </div>
           </div>
         )}
 
-        {/* Listings ready */}
-        {status === "authenticated" && !listLoading && !continueSuccess && (
+        {/* Listings ready for review */}
+        {!phoneCheckLoading && isNewUser && status === "authenticated" && !listLoading && !continueSuccess && (
           <>
             <div className="mb-2 flex justify-center">
               <div
@@ -308,8 +508,8 @@ function ConnectGoogleBusinessInner() {
                 {notLinked.length === 0 ? (
                   <p className="px-4 py-6 text-center text-[13px] text-slate-500">
                     {linkedVerified.length > 0
-                      ? "Sab dikhai de rahi listings verified hain."
-                      : "Yahan unverified ya pending listings dikhengi."}
+                      ? "All visible listings are verified."
+                      : "Unverified or pending listings will appear here."}
                   </p>
                 ) : (
                   notLinked.map((loc) => (
@@ -328,8 +528,8 @@ function ConnectGoogleBusinessInner() {
                 {linkedVerified.length === 0 ? (
                   <p className="px-4 py-6 text-center text-[13px] text-slate-500">
                     {notLinked.length > 0
-                      ? "Verification complete hone ke baad yahan Verified dikhega."
-                      : "Koi verified location abhi match nahi hui."}
+                      ? "Verified listings will appear here once verification completes."
+                      : "No verified locations matched yet."}
                   </p>
                 ) : (
                   linkedVerified.map((loc) => (
@@ -352,13 +552,13 @@ function ConnectGoogleBusinessInner() {
         )}
       </main>
 
-      {/* Sticky Continue button */}
-      {status === "authenticated" && !listLoading && !continueSuccess && (
+      {/* Sticky Continue button (for new users reviewing listings) */}
+      {!phoneCheckLoading && isNewUser && status === "authenticated" && !listLoading && !continueSuccess && (
         <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-white/80">
           <div className="mx-auto flex max-w-lg flex-col gap-2">
             <button
               type="button"
-              disabled={continueBusy}
+              disabled={continueBusy || waitSeconds > 0}
               onClick={() => void handleContinue()}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B0F19] py-3.5 text-sm font-semibold text-[#FFC107] shadow-lg transition hover:bg-slate-800 disabled:opacity-50"
             >
@@ -370,12 +570,14 @@ function ConnectGoogleBusinessInner() {
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" strokeWidth={2.5} />
-                  Continue to chatbot
+                  {waitSeconds > 0 ? `Please wait ${waitSeconds}s` : "Continue to chatbot"}
                 </>
               )}
             </button>
             <p className="text-center text-[11px] text-slate-400">
-              Listings save hongi, phir Limbu AI chat khulega
+              {waitSeconds > 0
+                ? "Listings are loading. The button will be active after 10 seconds."
+                : "Listings will be saved, then Limbu AI chat will open."}
             </p>
           </div>
         </div>

@@ -71,10 +71,12 @@ export async function GET(req) {
     const formId = searchParams.get("formId");
     const leadId = searchParams.get("leadId");
     const email = searchParams.get("email");
+    const remarkFilter = searchParams.get("remarkFilter");
+    const remarkCountFilter = searchParams.get("remarkCountFilter");
     
     let limit = parseInt(searchParams.get("limit") || "500", 10);
     if (isNaN(limit) || limit < 1) limit = 500;
-    if (limit > 1500) limit = 1500;
+    if (limit > 3000) limit = 3000;
 
     // ========== FETCH SINGLE LEAD WITH REMARKS ==========
     if (leadId) {
@@ -260,13 +262,42 @@ export async function GET(req) {
       );
     }
 
+    const filteredLeads = combinedLeads.filter((lead) => {
+      let valid = true;
+      const remarkCount = (lead.remarks?.length || 0);
+
+      if (remarkFilter && remarkFilter !== "All") {
+        if (remarkFilter === "Has Remarks") {
+          valid = remarkCount > 0;
+        } else if (remarkFilter === "No Remarks") {
+          valid = remarkCount === 0;
+        } else {
+          valid = lead.remarks?.some((r) => r.text === remarkFilter) || false;
+        }
+      }
+
+      if (valid && remarkCountFilter && remarkCountFilter !== "All") {
+        if (remarkCountFilter === "1 Remark") {
+          valid = remarkCount === 1;
+        } else if (remarkCountFilter === "2 Remarks") {
+          valid = remarkCount === 2;
+        } else if (remarkCountFilter === "3 Remarks") {
+          valid = remarkCount === 3;
+        } else if (remarkCountFilter === "More than 3 Remarks") {
+          valid = remarkCount > 3;
+        }
+      }
+
+      return valid;
+    });
+
     return NextResponse.json({
       success: true,
       message: "Leads synced successfully",
       summary: {
-        total_count: combinedLeads.length
+        total_count: filteredLeads.length,
       },
-      leads: combinedLeads,
+      leads: filteredLeads,
       newLeadsSaved: newLeadsToInsert.length,
     });
   } catch (error) {

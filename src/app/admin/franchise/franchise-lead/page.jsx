@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo,useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   Users,
   Phone,
@@ -216,7 +216,10 @@ export default function FranchiseLeadsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [assigneeFilter, setAssigneeFilter] = useState("All");
   const [remarkFilter, setRemarkFilter] = useState("All");
+  const [remarkCountFilter, setRemarkCountFilter] = useState("All");
+  const [filterLoading, setFilterLoading] = useState(false);
   const [qualityFilter, setQualityFilter] = useState("All");
+  const remarkFilterMounted = useRef(false);
   /** Table view: all leads vs only IVR “Me interested” (mutually exclusive tabs). */
   const [ivrLeadTab, setIvrLeadTab] = useState("all");
   const [dateRange, setDateRange] = useState("all");
@@ -235,6 +238,11 @@ export default function FranchiseLeadsPage() {
   const [newLead, setNewLead] = useState({ lead_quality: "None" });
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+
+  const handleFilterChange = (setter, value) => {
+    setFilterLoading(true);
+    setter(value);
+  };
 
   const [followUpDateFranchise, setFollowUpDateFranchise] = useState("");
   const [followUpTimeFranchise, setFollowUpTimeFranchise] = useState("10:00");
@@ -444,7 +452,8 @@ export default function FranchiseLeadsPage() {
 
     try {
       const res = await fetch(
-        `/api/franchise-leads?formId=${formId}&limit=2000&summary=true&email=${userEmail || ""}`
+        `/api/franchise-leads?formId=${formId}&limit=3000&summary=true&email=${userEmail || ""}` +
+          `&remarkFilter=${encodeURIComponent(remarkFilter)}&remarkCountFilter=${encodeURIComponent(remarkCountFilter)}`
       );
       
       if (!res.ok) {
@@ -480,6 +489,7 @@ export default function FranchiseLeadsPage() {
     }
 
     setLoading(false);
+    setFilterLoading(false);
   };
 
   const openFranchiseRemarkForLeadId = useCallback(
@@ -551,6 +561,15 @@ export default function FranchiseLeadsPage() {
     setRole(userRole);
     fetchFranchiseAdmins();
   }, [formId, fetchFranchiseAdmins]);
+
+  useEffect(() => {
+    if (!remarkFilterMounted.current) {
+      remarkFilterMounted.current = true;
+      return;
+    }
+
+    fetchLeads();
+  }, [remarkFilter, remarkCountFilter]);
 
   /* ---------------- FETCH ADMINS & ROLE ---------------- */
   useEffect(() => {
@@ -757,6 +776,19 @@ export default function FranchiseLeadsPage() {
       }
     }
 
+    // Remark Count Filter
+    if (remarkCountFilter !== "All") {
+      if (remarkCountFilter === "1 Remark") {
+        result = result.filter(lead => lead.remarks?.length === 1);
+      } else if (remarkCountFilter === "2 Remarks") {
+        result = result.filter(lead => lead.remarks?.length === 2);
+      } else if (remarkCountFilter === "3 Remarks") {
+        result = result.filter(lead => lead.remarks?.length === 3);
+      } else if (remarkCountFilter === "More than 3 Remarks") {
+        result = result.filter(lead => (lead.remarks?.length || 0) > 3);
+      }
+    }
+
     // Quality Filter
     if (qualityFilter !== "All") {
       result = result.filter(lead => lead.lead_quality === qualityFilter);
@@ -835,6 +867,7 @@ export default function FranchiseLeadsPage() {
     customEndDate,
     assigneeFilter,
     remarkFilter,
+    remarkCountFilter,
     qualityFilter,
     franchiseFollowUpFilter,
     ivrLeadTab,
@@ -842,7 +875,7 @@ export default function FranchiseLeadsPage() {
 
   /* ---------------- STATS ---------------- */
   const stats = useMemo(() => {
-    const sourceData = dateFilteredLeads;
+    const sourceData = filteredLeads;
 
     const today = sourceData.filter((l) => {
       if (!l.created_time) return false;
@@ -1691,6 +1724,13 @@ if (!executiveMobile && typeof window !== "undefined") {
               <span className="text-sm font-medium text-gray-700">Filters:</span>
             </div>
 
+            {filterLoading && (
+              <div className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 rounded-lg bg-blue-50 border border-blue-100">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Applying filter...
+              </div>
+            )}
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -1718,7 +1758,7 @@ if (!executiveMobile && typeof window !== "undefined") {
 
             <select
               value={remarkFilter}
-              onChange={(e) => setRemarkFilter(e.target.value)}
+              onChange={(e) => handleFilterChange(setRemarkFilter, e.target.value)}
               className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Remarks</option>
@@ -1727,6 +1767,18 @@ if (!executiveMobile && typeof window !== "undefined") {
               {QUICK_REMARKS.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
+            </select>
+
+            <select
+              value={remarkCountFilter}
+              onChange={(e) => handleFilterChange(setRemarkCountFilter, e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="All">All Remark Counts</option>
+              <option value="1 Remark">1 Remark</option>
+              <option value="2 Remarks">2 Remarks</option>
+              <option value="3 Remarks">3 Remarks</option>
+              <option value="More than 3 Remarks">More than 3 Remarks</option>
             </select>
 
             <select
@@ -1770,12 +1822,13 @@ if (!executiveMobile && typeof window !== "undefined") {
               </div>
             )}
 
-            {(search || statusFilter !== "All" || dateRange !== "all" || remarkFilter !== "All" || qualityFilter !== "All" || ivrLeadTab !== "all" || assigneeFilter !== "All") && (
+            {(search || statusFilter !== "All" || dateRange !== "all" || remarkFilter !== "All" || remarkCountFilter !== "All" || qualityFilter !== "All" || ivrLeadTab !== "all" || assigneeFilter !== "All") && (
               <button
                 onClick={() => {
                   setSearch("");
                   setStatusFilter("All");
                   setRemarkFilter("All");
+                  setRemarkCountFilter("All");
                   setQualityFilter("All");
                   setAssigneeFilter("All");
                   setIvrLeadTab("all");

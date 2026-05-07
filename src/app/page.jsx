@@ -54,6 +54,9 @@ const AppDownloadSection = lazy(
 const ComparisonSection = lazy(
   () => import("../components/sections/ComparisonSection"),
 );
+const PopularCitiesSection = lazy(
+  () => import("../components/sections/PopularCitiesSection"),
+);
 const FAQSection = lazy(() => import("../components/sections/FAQSection"));
 const FooterSection = lazy(
   () => import("../components/sections/FooterSection"),
@@ -672,6 +675,10 @@ export default function LimbuAILanding() {
         <BusinessTypesSection />
       </Suspense>
 
+      <Suspense fallback={<SectionSkeleton />}>
+        <PopularCitiesSection />
+      </Suspense>
+
 
       {/* <Suspense fallback={<SectionSkeleton />}>
         <VideoTestimonialSection />
@@ -743,6 +750,8 @@ export default function LimbuAILanding() {
       <Suspense fallback={<SectionSkeleton />}>
         <ComparisonSection />
       </Suspense>
+
+
 
       <Suspense fallback={<SectionSkeleton />}>
         <FAQSection />

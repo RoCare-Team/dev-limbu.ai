@@ -16,7 +16,8 @@ import {
   ArrowBack, Save, Add, Delete, CloudUpload, Image as ImageIcon,
   Info, BarChart, QuestionAnswer, FormatQuote, Work, Settings, Search
 } from "@mui/icons-material";
-const PREFIX = "google-bussiness-service-";
+const PREFIX = "google-bussiness-profile-management-";
+const OLD_PREFIXES = ["google-bussiness-service-"];
 
 const theme = createTheme({
   palette: {
@@ -95,6 +96,7 @@ export default function CityServiceForm() {
     testimonials: [],
     caseStudies: [],
     isActive: true,
+    allowIndex: true,
   });
 
   const [loading, setLoading] = useState(isEdit);
@@ -141,7 +143,11 @@ export default function CityServiceForm() {
     try {
       const res = await axios.get(`/api/admin/city-services/${slug}`);
       if (res.data.success) {
-        setFormData(res.data.data);
+        setFormData((prev) => ({
+          ...prev,
+          ...res.data.data,
+          allowIndex: res.data.data.allowIndex !== false,
+        }));
       }
     } catch (error) {
       toast.error("Failed to load page data");
@@ -154,7 +160,21 @@ export default function CityServiceForm() {
     return text.toString().toLowerCase().trim()
       .replace(/\s+/g, '-')        // Replace spaces with -
       .replace(/[^\w\-]+/g, '')    // Remove all non-word chars
-      .replace(/\-\-+/g, '-');     // Replace multiple - with single -
+      .replace(/\-\-+/g, '-')      // Replace multiple - with single -
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const getCitySlugPart = (slug = "") => {
+    let value = generateSlug(slug);
+    [PREFIX, ...OLD_PREFIXES].forEach((prefix) => {
+      if (value.startsWith(prefix)) value = value.slice(prefix.length);
+    });
+    return value;
+  };
+
+  const buildCitySlug = (value) => {
+    const citySlug = getCitySlugPart(value);
+    return citySlug ? `${PREFIX}${citySlug}` : "";
   };
 
   const handleHeroImageUpload = async (e) => {
@@ -208,7 +228,7 @@ export default function CityServiceForm() {
 
       // Auto-generate slug when cityName changes (only if it's a new page)
       if (name === "cityName" && !isEdit) {
-        updated.citySlug = PREFIX + generateSlug(value);
+        updated.citySlug = buildCitySlug(value);
       }
 
       return updated;
@@ -216,8 +236,7 @@ export default function CityServiceForm() {
   };
 
   const handleSlugChange = (e) => {
-    const baseSlug = generateSlug(e.target.value);
-    setFormData((prev) => ({ ...prev, citySlug: PREFIX + baseSlug }));
+    setFormData((prev) => ({ ...prev, citySlug: buildCitySlug(e.target.value) }));
   };
 
   const handleArrayChange = (index, field, value, arrayName) => {
@@ -321,7 +340,7 @@ export default function CityServiceForm() {
                           Basic Information
                         </Typography>
 
-                        <Box ml={2}>
+                        <Box ml={2} display="flex" alignItems="center" gap={2} flexWrap="wrap">
                           <FormControlLabel
                             control={
                               <Switch
@@ -337,6 +356,25 @@ export default function CityServiceForm() {
                             label={
                               <Typography fontWeight="bold">
                                 {formData.isActive ? "Active (Public)" : "Draft"}
+                              </Typography>
+                            }
+                          />
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={formData.allowIndex !== false}
+                                color="success"
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    allowIndex: e.target.checked,
+                                  })
+                                }
+                              />
+                            }
+                            label={
+                              <Typography fontWeight="bold">
+                                {formData.allowIndex !== false ? "Index" : "Noindex"}
                               </Typography>
                             }
                           />
@@ -370,7 +408,7 @@ export default function CityServiceForm() {
                         name="citySlug"
                         value={
                           formData.citySlug
-                            ? formData.citySlug.replace(PREFIX, "")
+                            ? getCitySlugPart(formData.citySlug)
                             : ""
                         }
                         onChange={handleSlugChange}
@@ -682,7 +720,7 @@ export default function CityServiceForm() {
                     <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                       <Box component="img" src="/favicon.ico" alt="Limbu AI" sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: '#f1f3f4', p: 0.5 }} />
                       <Typography variant="body2" sx={{ color: '#202124', fontSize: '14px', fontFamily: 'Arial, sans-serif' }}>
-                        limbu.ai <span style={{ color: '#5f6368' }}>› services › {formData.citySlug ? formData.citySlug.replace(PREFIX, '') : 'city-slug'}</span>
+                        limbu.ai <span style={{ color: '#5f6368' }}>› services › {formData.citySlug ? getCitySlugPart(formData.citySlug) : 'city-slug'}</span>
                       </Typography>
                     </Box>
                     <Typography variant="h6" sx={{ color: '#1a0dab', fontSize: '20px', lineHeight: 1.3, mb: 0.5, cursor: 'pointer', fontFamily: 'Arial, sans-serif', '&:hover': { textDecoration: 'underline' } }}>
@@ -690,6 +728,9 @@ export default function CityServiceForm() {
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#4d5156', fontSize: '14px', lineHeight: 1.58, fontFamily: 'Arial, sans-serif' }}>
                       {formData.metaDescription || `Rank #1 on Google Maps in ${formData.cityName || 'your city'}. Get automated GMB posts, 5-star reviews, and local SEO services with Limbu AI.`}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 2, color: formData.allowIndex !== false ? '#188038' : '#d93025', fontWeight: 700 }}>
+                      Robots: {formData.allowIndex !== false ? 'index, follow' : 'noindex, nofollow'}
                     </Typography>
                   </Box>
                 </CardContent>

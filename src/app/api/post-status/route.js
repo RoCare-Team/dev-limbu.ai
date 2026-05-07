@@ -8,13 +8,51 @@ const json = (body, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
+const PLATFORM_ALIASES = {
+  gmb: "gmb",
+  google: "gmb",
+  googlebusiness: "gmb",
+  google_business: "gmb",
+  facebook: "facebook",
+  fb: "facebook",
+  instagram: "instagram",
+  ig: "instagram",
+  pinterest: "pinterest",
+  pin: "pinterest",
+  pi: "pinterest",
+  linkedin: "linkedin",
+  li: "linkedin",
+  youtube: "youtube",
+  yt: "youtube",
+};
+
+const DEFAULT_WHEN_POSTED = [
+  "gmb",
+  "facebook",
+  "instagram",
+  "pinterest",
+  "linkedin",
+  "youtube",
+].map((platform) => ({
+  platform,
+  posted: false,
+  postedDate: null,
+  postId: "",
+  error: "",
+}));
+
+const normalizePlatform = (value) => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  const compact = normalized.replace(/[\s-]/g, "");
+  return PLATFORM_ALIASES[normalized] || PLATFORM_ALIASES[compact] || null;
+};
+
 const normalizePostedPlatform = (value) => {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toLowerCase();
-  if (["facebook", "instagram", "gmb", "both"].includes(normalized)) {
-    return normalized;
-  }
-  return null;
+  if (normalized === "both") return "both";
+  return normalizePlatform(normalized);
 };
 
 const mergePostedPlatform = (existingValue, incomingValue) => {
@@ -25,6 +63,117 @@ const mergePostedPlatform = (existingValue, incomingValue) => {
   if (existing === "both" || incoming === "both") return "both";
   if (existing !== incoming) return "both";
   return existing;
+};
+
+const isValidDate = (value) => {
+  if (!value) return false;
+  const date = value instanceof Date ? value : new Date(value);
+  return !Number.isNaN(date.getTime());
+};
+
+const toDateOrNull = (value) => (isValidDate(value) ? new Date(value) : null);
+
+const normalizePlatformPost = (platform, value, existing = null) => {
+  const base = {
+    platform,
+    posted: Boolean(existing?.posted),
+    postedDate: existing?.postedDate || null,
+    postId: existing?.postId || "",
+    error: existing?.error || "",
+  };
+
+  if (value === undefined || value === null) return base;
+
+  if (typeof value === "boolean") {
+    return {
+      ...base,
+      posted: value,
+      postedDate: value ? new Date() : null,
+      error: value ? "" : base.error,
+    };
+  }
+
+  if (typeof value === "string" || value instanceof Date) {
+    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+    const looksPosted = normalized === "posted" || normalized === "true";
+    const postedDate = toDateOrNull(value);
+
+    return {
+      ...base,
+      posted: looksPosted || Boolean(postedDate),
+      postedDate: postedDate || (looksPosted ? new Date() : base.postedDate),
+      error: looksPosted || postedDate ? "" : base.error,
+    };
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const posted =
+      typeof value.posted === "boolean"
+        ? value.posted
+        : value.isPosted === true || value.status === "posted" || base.posted;
+    const postedDate =
+      toDateOrNull(value.postedDate) ||
+      toDateOrNull(value.postedAt) ||
+      toDateOrNull(value.date) ||
+      (posted && !base.postedDate ? new Date() : base.postedDate);
+
+    return {
+      ...base,
+      posted,
+      postedDate: posted ? postedDate : null,
+      postId:
+        typeof value.postId === "string"
+          ? value.postId
+          : typeof value.id === "string"
+            ? value.id
+            : base.postId,
+      error: typeof value.error === "string" ? value.error : posted ? "" : base.error,
+    };
+  }
+
+  return base;
+};
+
+const mergeWhenPosted = (existingWhenPosted, incomingWhenPosted) => {
+  const byPlatform = new Map(
+    DEFAULT_WHEN_POSTED.map((item) => [item.platform, { ...item }]),
+  );
+
+  const applyEntry = (platformValue, value) => {
+    const platform = normalizePlatform(platformValue);
+    if (!platform) return;
+    byPlatform.set(
+      platform,
+      normalizePlatformPost(platform, value, byPlatform.get(platform)),
+    );
+  };
+
+  const applyCollection = (collection) => {
+    if (!collection) return;
+
+    if (Array.isArray(collection)) {
+      collection.forEach((entry) => {
+        if (!entry || typeof entry !== "object") return;
+        applyEntry(entry.platform, entry);
+      });
+      return;
+    }
+
+    if (typeof collection === "object") {
+      Object.entries(collection).forEach(([key, value]) => {
+        if (/^\d+$/.test(key) && value && typeof value === "object") {
+          applyEntry(value.platform, value);
+          return;
+        }
+        applyEntry(key, value);
+      });
+    }
+  };
+
+  applyCollection(existingWhenPosted);
+  applyCollection(incomingWhenPosted);
+
+  return DEFAULT_WHEN_POSTED.map(({ platform }) => byPlatform.get(platform));
 };
 
 /**
@@ -218,6 +367,7 @@ export async function POST(req) {
       igDescription,
       liDescription,   // 👈 ADDED
       piDescription,   // 👈 ADDED
+      ytDescription,
       whenPosted,
       mediaType,
       videoOutput,
@@ -235,6 +385,15 @@ export async function POST(req) {
 
     const mt =
       mediaType === "video" || mediaType === "image" ? mediaType : "image";
+    const normalizedCreatePlatform = normalizePostedPlatform(postedPlatform);
+    const initialWhenPosted =
+      whenPosted !== undefined && whenPosted !== null
+        ? mergeWhenPosted(null, whenPosted)
+        : status === "posted" &&
+            normalizedCreatePlatform &&
+            normalizedCreatePlatform !== "both"
+          ? mergeWhenPosted(null, { [normalizedCreatePlatform]: true })
+          : null;
 
     const newPost = await Post.create({
       userId,
@@ -246,8 +405,9 @@ export async function POST(req) {
       igDescription,
       liDescription,   // 👈 ADDED
       piDescription,   // 👈 ADDED
+      ytDescription,
       promat,
-      whenPosted: whenPosted || {},
+      ...(initialWhenPosted ? { whenPosted: initialWhenPosted } : {}),
       status: status || "pending",
       ...(typeof videoOutput === "string" && videoOutput.trim()
         ? { videoOutput: videoOutput.trim() }
@@ -291,9 +451,12 @@ export async function PUT(req) {
       igDescription,
       liDescription,
       piDescription,
+      ytDescription,
       reason,
       locations,
       checkmark,
+      meta,
+      gmbPostMeta,
       refreshToken,
       whenPosted,
       scheduledDateSource,
@@ -320,6 +483,7 @@ export async function PUT(req) {
       igDescription,
       liDescription,
       piDescription,
+      ytDescription,
       reason,
     })
 
@@ -362,17 +526,30 @@ export async function PUT(req) {
         updateData.locations = locations.map(loc => ({
           locationId: loc.locationId,
           accountId: loc.accountId,
-          name: loc.name,
+          name: loc.name || loc.title || loc.locationName || loc.storeName || "",
           address: loc.address,
           city: loc.city || "",
           locality: loc.locality || "",
           websiteUrl: loc.websiteUrl || "",
+          primaryPhone: loc.primaryPhone || "",
           isPosted: false,
           error: ""
         }));
       }
       if (Array.isArray(fbPages)) updateData.fbPages = fbPages;
       if (Array.isArray(igPages)) updateData.igPages = igPages;
+
+      const rawGmbMeta = gmbPostMeta || meta;
+      if (rawGmbMeta && typeof rawGmbMeta === "object" && !Array.isArray(rawGmbMeta)) {
+        updateData.gmbPostMeta = {
+          postType: rawGmbMeta.postType || "standard",
+          ctaType: rawGmbMeta.ctaType || "book",
+          customUrl: rawGmbMeta.customUrl || "",
+          eventTitle: rawGmbMeta.eventTitle || "",
+          startDate: rawGmbMeta.startDate || "",
+          endDate: rawGmbMeta.endDate || "",
+        };
+      }
     }
 
     /* ---------- REJECTED ---------- */
@@ -391,13 +568,16 @@ export async function PUT(req) {
     if (typeof igDescription === "string") updateData.igDescription = igDescription;
     if (typeof liDescription === "string") updateData.liDescription = liDescription;   // ✅
     if (typeof piDescription === "string") updateData.piDescription = piDescription;   // ✅
+    if (typeof ytDescription === "string") updateData.ytDescription = ytDescription;
     if (checkmark !== undefined && checkmark !== null) updateData.checkmark = checkmark;
     if (typeof videoOutput === "string" && videoOutput.trim()) updateData.videoOutput = videoOutput.trim();
     if (typeof videoPrompt === "string") updateData.videoPrompt = videoPrompt.trim();
     if (typeof facebookPostId === "string" && facebookPostId.trim()) updateData.facebookPostId = facebookPostId.trim();
     if (typeof facebookPageAccessToken === "string" && facebookPageAccessToken.trim()) updateData.facebookPageAccessToken = facebookPageAccessToken.trim();
 
+    let normalizedIncomingPostedPlatform = null;
     if (typeof postedPlatform === "string") {
+      normalizedIncomingPostedPlatform = normalizePostedPlatform(postedPlatform);
       const currentPost = await getCurrentPost();
       const mergedPlatform = mergePostedPlatform(currentPost?.postedPlatform, postedPlatform);
       if (mergedPlatform) updateData.postedPlatform = mergedPlatform;
@@ -406,17 +586,17 @@ export async function PUT(req) {
     if (typeof postError === "string") updateData.error = postError;
 
     if (whenPosted !== undefined && whenPosted !== null) {
-      if (typeof whenPosted === 'object' && !Array.isArray(whenPosted)) {
-        const currentPost = await getCurrentPost();
-        if (currentPost && (currentPost.whenPosted === null || currentPost.whenPosted === undefined)) {
-          updateData.whenPosted = {};
-        }
-        for (const key in whenPosted) {
-          updateData[`whenPosted.${key}`] = whenPosted[key];
-        }
-      } else {
-        updateData.whenPosted = whenPosted;
-      }
+      const currentPost = await getCurrentPost();
+      updateData.whenPosted = mergeWhenPosted(currentPost?.whenPosted, whenPosted);
+    } else if (
+      status === "posted" &&
+      normalizedIncomingPostedPlatform &&
+      normalizedIncomingPostedPlatform !== "both"
+    ) {
+      const currentPost = await getCurrentPost();
+      updateData.whenPosted = mergeWhenPosted(currentPost?.whenPosted, {
+        [normalizedIncomingPostedPlatform]: true,
+      });
     }
 
     if (mediaStatus && typeof mediaStatus === "object" && !Array.isArray(mediaStatus)) {

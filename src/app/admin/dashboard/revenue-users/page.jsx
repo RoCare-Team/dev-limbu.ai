@@ -15,8 +15,27 @@ import {
   Headphones,
   Settings,
   Search,
+  AlertCircle,
+  Calendar,
+  MessageCircle,
+  Send,
+  Mail,
+  Smartphone,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+
+import RevenueHeader from "./components/RevenueHeader";
+import RevenueStats from "./components/RevenueStats";
+import RevenueFilters from "./components/RevenueFilters";
+import RevenueBulkActionBar from "./components/RevenueBulkActionBar";
+import RevenueTableWrapper from "./components/RevenueTableWrapper";
+import RevenueFooter from "./components/RevenueFooter";
+import DeleteModal from "./components/DeleteModal";
+import ImagePreviewModal from "./components/ImagePreviewModal";
+import EditPackageModal from "./components/EditPackageModal";
+import EditServiceModal from "./components/EditServiceModal";
+
 
 export default function RevenueUsersPage() {
   // "package" | "service"
@@ -29,6 +48,8 @@ export default function RevenueUsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [planFilter, setPlanFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  const [expiryFilter, setExpiryFilter] = useState("");
 
   //service
 
@@ -66,6 +87,28 @@ export default function RevenueUsersPage() {
   // service
   const serviceUsersCount = users?.filter((u) => u.paidService).length || 0;
   const serviceUsers = users.filter((u) => u.paidService || u.isServiceBooked);
+
+  // check box select
+  const [selectedRows, setSelectedRows] = useState([]);
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      const allIds =
+        activeView === "package"
+          ? filteredData.map((r) => r._id)
+          : users.map((u) => u._id);
+
+      setSelectedRows(allIds);
+    } else {
+      setSelectedRows([]);
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
+  };
 
   // refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -143,7 +186,7 @@ export default function RevenueUsersPage() {
     fetch(`/api/users?email=${email}`)
       .then((res) => res.json())
       .then((data) => {
-        console.log("USERS DATA 👉", data);
+        // console.log("USERS DATA 👉", data);
         setUsers(data.users || []);
       });
   }, []);
@@ -164,6 +207,17 @@ export default function RevenueUsersPage() {
       return `${window.location.origin}${t}`;
     }
     return t;
+  };
+
+  const formatDateIST = (dateStr) => {
+    if (!dateStr) return "No Date";
+
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
   const fetchRevenueUsers = async () => {
@@ -294,15 +348,63 @@ export default function RevenueUsersPage() {
 
     // 📦 PLAN / SERVICE
     const plan = item.plan || item.paidService || "";
+
     const matchPlan = planFilter
       ? plan.toLowerCase().includes(planFilter)
       : true;
 
     // ✅ STATUS
     const status = item.planApprovalStatus || "pending";
+
     const matchStatus = statusFilter ? status === statusFilter : true;
 
-    return matchSearch && matchPlan && matchStatus;
+    // 🔥 EXPIRY FILTER
+    const expiryRaw = item.userPackageExpiryDate || item.packageExpiryDate;
+
+    let matchExpiry = true;
+
+    if (expiryRaw) {
+      const expiryDate = new Date(expiryRaw);
+
+      const now = new Date();
+
+      // 🔥 EXPIRED USERS
+      if (expiryFilter === "expired") {
+        matchExpiry = expiryDate < now;
+      }
+
+      // 🔥 TODAY
+      else if (expiryFilter === "today") {
+        matchExpiry = expiryDate.toDateString() === now.toDateString();
+      }
+
+      // 🔥 NEXT 7 DAYS
+      else if (expiryFilter === "7days") {
+        const next7Days = new Date();
+
+        next7Days.setDate(now.getDate() + 7);
+
+        matchExpiry = expiryDate >= now && expiryDate <= next7Days;
+      }
+
+      // 🔥 NEXT 15 DAYS
+      else if (expiryFilter === "15days") {
+        const next15Days = new Date();
+
+        next15Days.setDate(now.getDate() + 15);
+
+        matchExpiry = expiryDate >= now && expiryDate <= next15Days;
+      }
+
+      // 🔥 CURRENT MONTH EXPIRING
+      else if (expiryFilter === "this_month") {
+        matchExpiry =
+          expiryDate.getMonth() === now.getMonth() &&
+          expiryDate.getFullYear() === now.getFullYear();
+      }
+    }
+
+    return matchSearch && matchPlan && matchStatus && matchExpiry;
   });
 
   // reshresh
@@ -455,335 +557,78 @@ export default function RevenueUsersPage() {
   return (
     <>
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          {/* LEFT SIDE */}
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight">
-              User Onboard Revenue
-            </h2>
-          </div>
-
-          {/* RIGHT SIDE ACTION */}
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-            bg-gradient-to-r from-indigo-600 to-purple-600 text-white
-            shadow-md hover:shadow-lg hover:scale-[1.03] transition-all duration-200
-             disabled:opacity-70"
-          >
-            <RefreshCw
-              size={18}
-              className={isRefreshing ? "animate-spin" : ""}
-            />
-            {isRefreshing ? "Refreshing..." : "Refresh Data"}
-          </button>
-        </div>
-
-        {/* ===== TOGGLE ===== */}
-        <div className="flex mb-2">
-          <div className="relative flex bg-gray-100 rounded-xl p-1">
-            {/* Sliding background */}
-            <div
-              className={`absolute top-1 bottom-1 w-1/2 rounded-lg transition-all duration-300 ${
-                activeView === "package"
-                  ? "left-1 bg-indigo-600"
-                  : "left-1/2 bg-purple-600"
-              }`}
-            />
-
-            {/* PACKAGE */}
-            <button
-              onClick={() => setActiveView("package")}
-              className={`relative z-10 px-5 py-2 text-sm font-medium rounded-lg transition ${
-                activeView === "package" ? "text-white" : "text-gray-600"
-              }`}
-            >
-              📦 Package
-            </button>
-
-            {/* SERVICE */}
-            <button
-              onClick={() => setActiveView("service")}
-              className={`relative z-10 px-5 py-2 text-sm font-medium rounded-lg transition ${
-                activeView === "service" ? "text-white" : "text-gray-600"
-              }`}
-            >
-              🛠 Service
-            </button>
-          </div>
-        </div>
+          <RevenueHeader
+  handleRefresh={handleRefresh}
+  isRefreshing={isRefreshing}
+  activeView={activeView}
+  setActiveView={setActiveView}
+/>
 
         {/* ===== STATS ===== */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
-          {/* TOTAL Revenue USERS */}
-          <div className="bg-white rounded-2xl p-5  shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between">
-            {/* LEFT TEXT */}
-            <div>
-              <p className="text-sm text-gray-500">Total Revenue Users</p>
-              <h2 className="text-2xl font-bold text-dark  mt-2">
-                {totalUsers}
-              </h2>
-            </div>
-
-            {/* RIGHT ICON */}
-            <div className="bg-indigo-100 text-dark p-3 rounded-xl">
-              <Users size={20} />
-            </div>
-          </div>
-
-          {/* TODAY Revenue USERS */}
-          <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Today Revenue Users</p>
-              <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                {todayUsers.length}
-              </h2>
-            </div>
-
-            <div className="bg-blue-100 text-da p-3 rounded-xl">
-              <Users size={20} />
-            </div>
-          </div>
-
-          {/* 🔥 MAIN REVENUE CARD (highlight) */}
-          <div className="bg-white rounded-2xl p-3 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between ">
-            <div>
-              <p className="text-sm text-dark opacity-90">Total Revenue</p>
-              <h2 className="text-2xl text-gray-700 font-bold mt-2">
-                ₹{totalRevenue.toLocaleString("en-IN")}
-              </h2>
-            </div>
-
-            <div className="bg-blue-100 p-3  text-gray-700 rounded-xl backdrop-blur ml-2">
-              <IndianRupee size={20} />
-            </div>
-          </div>
-
-          {/* TODAY REVENUE */}
-          <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 whitespace-nowrap">
-                Today Revenue
-              </p>
-
-              <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                ₹{todayRevenue.toLocaleString("en-IN")}
-              </h2>
-            </div>
-
-            <div className="bg-purple-100 text-gray-700 p-3 rounded-xl ml-2">
-              <TrendingUp size={20} />
-            </div>
-          </div>
-
-          {/* CONDITIONAL */}
-          {activeView === "package" && (
-            <>
-              {/* // basic plane */}
-              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Basic Plan</p>
-                  <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                    {
-                      revenueUsersList.filter((r) =>
-                        r.plan?.toLowerCase().includes("basic"),
-                      ).length
-                    }
-                  </h2>
-                </div>
-
-                <div className="bg-indigo-100 text-gray-700 p-3 rounded-xl">
-                  <Layers size={24} />
-                </div>
-              </div>
-
-              {/* professonal plane */}
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Professional</p>
-                  <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                    {
-                      revenueUsersList.filter((r) =>
-                        r.plan?.toLowerCase().includes("professional"),
-                      ).length
-                    }
-                  </h2>
-                </div>
-
-                <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-                  <Briefcase size={24} />
-                </div>
-              </div>
-
-              {/* premium plane */}
-              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Premium</p>
-                  <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                    {
-                      revenueUsersList.filter((r) =>
-                        r.plan?.toLowerCase().includes("premium"),
-                      ).length
-                    }
-                  </h2>
-                </div>
-
-                <div className="bg-purple-100 text-gray-700 p-3 rounded-xl">
-                  <Crown size={24} />
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeView === "service" && (
-            <>
-              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Assistance</p>
-                  <h2 className="text-2xl font-bold text-gray mt-2">
-                    {
-                      users.filter((u) =>
-                        u.paidService?.toLowerCase().includes("assistance"),
-                      ).length
-                    }
-                  </h2>
-                </div>
-
-                <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-                  <Headphones size={24} />
-                </div>
-              </div>
-
-              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Creation</p>
-                  <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                    {
-                      users.filter((u) =>
-                        u.paidService?.toLowerCase().includes("creation"),
-                      ).length
-                    }
-                  </h2>
-                </div>
-
-                <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-                  <Settings size={24} />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        
+        <RevenueStats
+  activeView={activeView}
+  totalUsers={totalUsers}
+  todayUsers={todayUsers}
+  totalRevenue={totalRevenue}
+  todayRevenue={todayRevenue}
+  revenueUsersList={revenueUsersList}
+  users={users}
+/>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+
           {/* SERACH TOOL BAAR  */}
 
-          <div className="bg-white border border-gray-200 rounded-t-2xl px-5 py-3 shadow-sm">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-              {/* 🔍 SEARCH */}
-              <div className="relative w-full max-w-md">
-                <input
-                  type="text"
-                  placeholder="Search by name, email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-4 pr-11 py-2.5 rounded-xl border border-gray-300 
-    text-sm bg-white shadow-sm 
-    focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-    transition"
-                />
+          <RevenueFilters
+  searchTerm={searchTerm}
+  setSearchTerm={setSearchTerm}
+  expiryFilter={expiryFilter}
+  setExpiryFilter={setExpiryFilter}
+  planFilter={planFilter}
+  setPlanFilter={setPlanFilter}
+  statusFilter={statusFilter}
+  setStatusFilter={setStatusFilter}
+/>
 
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  <Search size={18} />
-                </div>
-              </div>
-
-              {/* RIGHT SIDE */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <select
-                  value={planFilter}
-                  onChange={(e) => setPlanFilter(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-gray-50"
-                >
-                  <option value="">All Plans</option>
-                  <option value="basic">Basic</option>
-                  <option value="professional">Professional</option>
-                  <option value="premium">Premium</option>
-                </select>
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-gray-50"
-                >
-                  <option value="">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-
-                <button
-                  onClick={() => {
-                    setSearchTerm("");
-                    setPlanFilter("");
-                    setStatusFilter("");
-                  }}
-                  className="px-3 py-2 rounded-lg text-xs bg-gray-100 hover:bg-gray-200"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          </div>
-          {loadingRevenueUsers ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center text-center">
-                <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-3" />
-                <p className="text-gray-600 font-medium">
-                  Loading onboarded users...
-                </p>
-              </div>
-            </div>
-          ) : revenueUsersList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
-              <Wallet className="w-16 h-16 mx-auto mb-4 opacity-40" />
-              <h3 className="text-xl font-semibold mb-2 text-gray-600">
-                No Onboarded Users Yet
-              </h3>
-              <p className="text-gray-500">
-                No users with `user_onboard` revenue entries found for your
-                account.
-              </p>
-              <p className="text-sm mt-1 text-gray-400">
-                Onboard users using the ✅ button in the user table
-              </p>
-            </div>
-          ) : (
+          <RevenueTableWrapper
+  loadingRevenueUsers={loadingRevenueUsers}
+  revenueUsersList={revenueUsersList}
+  selectedRows={selectedRows}
+>
             <>
               {/* Table */}
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm ">
-                <div className="mb-6 flex items-center justify-between p-4 bg-indigo-600 ">
-                  {/* LEFT SIDE */}
-                  <div>
-                    <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                      Revenue Users List
-                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                        Live
-                      </span>
-                    </h3>
-                  </div>
-                </div>
+               
                 <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold">
-                          User
-                        </th>
-
                         {activeView === "package" && (
                           <>
+                            <th className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  activeView === "package"
+                                    ? filteredData.length > 0 &&
+                                      selectedRows.length ===
+                                        filteredData.length
+                                    : users.length > 0 &&
+                                      selectedRows.length === users.length
+                                }
+                                onChange={(e) =>
+                                  handleSelectAll(e.target.checked)
+                                }
+                                className="w-4 h-4 accent-indigo-600"
+                              />
+                            </th>
+
+                            <th className="px-6 py-3 text-left text-xs font-semibold">
+                              User
+                            </th>
+
                             <th className="px-6 py-3 text-left text-xs font-semibold">
                               Plan
                             </th>
@@ -813,6 +658,10 @@ export default function RevenueUsersPage() {
 
                         {activeView === "service" && (
                           <>
+                            <th className="px-6 py-3 text-left text-xs font-semibold">
+                              User
+                            </th>
+
                             <th className="px-6 py-3 text-left text-xs font-semibold">
                               service
                             </th>
@@ -850,13 +699,24 @@ export default function RevenueUsersPage() {
                               key={i}
                               className="border-t hover:bg-gray-50 transition"
                             >
+                              <td className="px-4 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.includes(r._id)}
+                                  onChange={() => handleSelectRow(r._id)}
+                                  className="w-4 h-4 accent-indigo-600"
+                                />
+                              </td>
+
                               <td className="px-6 py-4">
                                 <div className="font-semibold text-gray-900">
                                   {r.leadName}
                                 </div>
+
                                 <div className="text-xs text-gray-500">
                                   ID: {r.leadId}
                                 </div>
+
                                 <div className="text-xs text-gray-500">
                                   UTR: {r.utrNumber || "N/A"}
                                 </div>
@@ -872,20 +732,23 @@ export default function RevenueUsersPage() {
                                 ₹{r.amount}
                               </td>
 
+     
+
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {new Date(r.createdAt).toLocaleDateString()}
+                                {r.userPackageStartDate ? (
+                                  new Date(
+                                    r.userPackageStartDate,
+                                  ).toLocaleDateString("en-IN")
+                                ) : (
+                                  <span className="text-red-500">No Date</span>
+                                )}
+                              </td>
+
+                              <td className="px-6 py-4 text-sm text-gray-600">
+                                {formatDateIST(r.userPackageExpiryDate)}
                               </td>
 
                               {/* 🔥 EXPIRY */}
-                              <td className="px-6 py-4 text-sm text-gray-600">
-                                {r.packageExpiryDate ? (
-                                  new Date(
-                                    r.packageExpiryDate,
-                                  ).toLocaleDateString("en-IN")
-                                ) : (
-                                  <span className="text-red-500"></span>
-                                )}
-                              </td>
 
                               <td className="px-6 py-4">
                                 <button
@@ -893,7 +756,7 @@ export default function RevenueUsersPage() {
                                     setFullViewImage(r.paymentScreenshot)
                                   }
                                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
-                                 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
+                               bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
                                 >
                                   View Proof
                                 </button>
@@ -1143,265 +1006,55 @@ export default function RevenueUsersPage() {
               </div>
 
               {/* Footer Totals */}
-              <div className="mt-6 pt-6 border-t border-gray-200 bg-emerald-50/50 rounded-2xl p-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  {/* TOTAL USERS */}
-                  <div>
-                    <p className="text-sm text-gray-600">
-                      Total Onboarded Users:
-                    </p>
-
-                    <p className="text-2xl font-bold text-emerald-800">
-                      {activeView === "package"
-                        ? revenueUsersList.length
-                        : users.filter((u) => u.paidService).length}
-                    </p>
-                  </div>
-
-                  {/* TOTAL REVENUE */}
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Total Revenue:</p>
-
-                    <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                      ₹
-                      {(activeView === "package"
-                        ? revenueUsersList.reduce(
-                            (sum, r) => sum + (r.amount || 0),
-                            0,
-                          )
-                        : users
-                            .filter((u) => u.paidService)
-                            .reduce((sum, u) => sum + (u.amount || 0), 0)
-                      ).toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RevenueFooter
+  activeView={activeView}
+  revenueUsersList={revenueUsersList}
+  users={users}
+/>
             </>
-          )}
+          
+          </RevenueTableWrapper>
+
         </div>
 
         {/* // package edit moada */}
-        {editModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
-            <div className="bg-white w-[380px] rounded-2xl shadow-2xl p-6 animate-scaleIn">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  Edit Package
-                </h2>
-
-                <button
-                  onClick={() => setEditModal(false)}
-                  className="w-7 h-7 flex items-center justify-center rounded-full 
-          bg-gray-100 hover:bg-gray-200 text-gray-500 transition"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Form */}
-              <div className="space-y-4">
-                {/* Plan */}
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">
-                    Plan
-                  </label>
-                  <input
-                    value={editPlan}
-                    onChange={(e) => setEditPlan(e.target.value)}
-                    placeholder="Enter plan name"
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg 
-            bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
-                  />
-                </div>
-
-                {/* Amount */}
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg 
-            bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
-                  />
-                </div>
-
-                {/* Remarks */}
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">
-                    Remarks
-                  </label>
-                  <textarea
-                    value={editRemarks}
-                    onChange={(e) => setEditRemarks(e.target.value)}
-                    placeholder="Write remarks..."
-                    rows={3}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg 
-            bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setEditModal(false)}
-                  className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-100 transition"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleUpdatePackage}
-                  className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white 
-          hover:bg-indigo-700 shadow-sm hover:shadow-md transition"
-                >
-                  Update
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <EditPackageModal
+  editModal={editModal}
+  setEditModal={setEditModal}
+  editPlan={editPlan}
+  setEditPlan={setEditPlan}
+  editAmount={editAmount}
+  setEditAmount={setEditAmount}
+  editRemarks={editRemarks}
+  setEditRemarks={setEditRemarks}
+  handleUpdatePackage={handleUpdatePackage}
+/>
         {/* // service modal */}
-        {editServiceModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white w-[380px] rounded-2xl shadow-2xl p-6">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  Edit Service
-                </h2>
+        
+        <EditServiceModal
+  editServiceModal={editServiceModal}
+  setEditServiceModal={setEditServiceModal}
+  editAmount={editAmount}
+  setEditAmount={setEditAmount}
+  editNotes={editNotes}
+  setEditNotes={setEditNotes}
+  updateService={updateService}
+/>
 
-                <button
-                  onClick={() => setEditServiceModal(false)}
-                  className="w-7 h-7 flex items-center justify-center rounded-full 
-          bg-gray-100 hover:bg-gray-200 text-gray-500 transition"
-                >
-                  ✕
-                </button>
-              </div>
+          {/* // Delete modal */}
 
-              {/* Form */}
-              <div className="space-y-4">
-                {/* Amount */}
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg 
-            bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
-                  />
-                </div>
+          <DeleteModal
+  deleteModal={deleteModal}
+  setDeleteModal={setDeleteModal}
+  confirmDelete={confirmDelete}
+/>
 
-                {/* Notes */}
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">
-                    Notes
-                  </label>
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Write notes..."
-                    rows={3}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg 
-            bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition resize-none"
-                  />
-                </div>
-              </div>
+        {/* // image Previe modal */}
 
-              {/* Footer */}
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setEditServiceModal(false)}
-                  className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-100 transition"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={updateService}
-                  className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white 
-          hover:bg-indigo-700 shadow-sm hover:shadow-md transition"
-                >
-                  Update
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {deleteModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            {/* Modal Box */}
-            <div className="bg-white rounded-2xl shadow-2xl w-[340px] p-6 text-center animate-scaleIn">
-              {/* Icon */}
-              <div className="flex justify-center mb-3">
-                <div className="bg-red-100 text-red-600 w-12 h-12 flex items-center justify-center rounded-full text-xl">
-                  ⚠️
-                </div>
-              </div>
-
-              {/* Title */}
-              <h2 className="text-lg font-semibold text-gray-800">
-                Delete Record?
-              </h2>
-
-              {/* Description */}
-              <p className="text-sm text-gray-500 mt-2 mb-5">
-                This action cannot be undone.
-              </p>
-
-              {/* Buttons */}
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setDeleteModal(false)}
-                  className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-100 transition"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={confirmDelete}
-                  className="px-4 py-2 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600 shadow-md transition"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {fullViewImage && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
-            onClick={() => setFullViewImage(null)}
-            role="presentation"
-          >
-            <button
-              type="button"
-              className="absolute right-4 top-4 z-10 rounded-full bg-white p-2 text-gray-800 shadow-lg transition hover:bg-gray-100"
-              onClick={() => setFullViewImage(null)}
-              aria-label="Close preview"
-            >
-              <X size={20} />
-            </button>
-            <img
-              src={fullViewImage}
-              alt="Payment proof"
-              className="max-h-[90vh] max-w-[min(100%,896px)] rounded-lg object-contain shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
+        <ImagePreviewModal
+  fullViewImage={fullViewImage}
+  setFullViewImage={setFullViewImage}
+/>
       </div>
     </>
   );

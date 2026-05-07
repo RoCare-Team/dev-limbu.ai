@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import User from "@/models/User";
 import FacebookPage from "@/models/FacebookPage";
-import { postToGmbAction } from "@/lib/gmb/postToGmb";
-import { deductFromWalletAction } from "@/app/actions/postActions";
+import { deductFromWalletAction, postToGmbAction } from "@/app/actions/postActions";
 
 // Vercel & Next.js Config
 // --------------------------------------------------
@@ -27,6 +25,73 @@ const log = (...args) => {
   });
   try { console.log(...formatted); } catch { }
   debugLogs.push(formatted.join(" "));
+};
+
+const DEFAULT_WHEN_POSTED = [
+  { platform: "gmb", posted: false, postedDate: null, postId: "", error: "" },
+  { platform: "facebook", posted: false, postedDate: null, postId: "", error: "" },
+  { platform: "instagram", posted: false, postedDate: null, postId: "", error: "" },
+  { platform: "pinterest", posted: false, postedDate: null, postId: "", error: "" },
+  { platform: "linkedin", posted: false, postedDate: null, postId: "", error: "" },
+  { platform: "youtube", posted: false, postedDate: null, postId: "", error: "" },
+];
+
+const PLATFORM_ALIASES = {
+  gmb: "gmb",
+  fb: "facebook",
+  facebook: "facebook",
+  ig: "instagram",
+  instagram: "instagram",
+  pi: "pinterest",
+  pinterest: "pinterest",
+  li: "linkedin",
+  linkedin: "linkedin",
+  yt: "youtube",
+  youtube: "youtube",
+};
+
+const normalizePlatform = (platform) => PLATFORM_ALIASES[platform] || platform;
+
+const markWhenPosted = (currentWhenPosted, platform, postId = "") => {
+  const map = new Map(DEFAULT_WHEN_POSTED.map((entry) => [entry.platform, { ...entry }]));
+
+  if (Array.isArray(currentWhenPosted)) {
+    currentWhenPosted.forEach((entry) => {
+      const rawEntry = entry?.toObject ? entry.toObject() : entry;
+      const key = normalizePlatform(rawEntry?.platform);
+      if (key && map.has(key)) map.set(key, { ...map.get(key), ...rawEntry, platform: key });
+    });
+  } else if (currentWhenPosted && typeof currentWhenPosted === "object") {
+    Object.entries(currentWhenPosted).forEach(([key, value]) => {
+      const platformKey = normalizePlatform(key);
+      if (!platformKey || !map.has(platformKey)) return;
+      const existing = map.get(platformKey);
+      if (typeof value === "object" && value !== null) {
+        map.set(platformKey, { ...existing, ...value, platform: platformKey });
+      } else if (value === true || value === "posted" || value === "true") {
+        map.set(platformKey, { ...existing, posted: true, postedDate: existing.postedDate || new Date() });
+      }
+    });
+  }
+
+  const key = normalizePlatform(platform);
+  const existing = map.get(key) || { platform: key, posted: false, postedDate: null, postId: "", error: "" };
+  map.set(key, {
+    ...existing,
+    platform: key,
+    posted: true,
+    postedDate: new Date(),
+    postId: postId || existing.postId || "",
+    error: "",
+  });
+
+  return Array.from(map.values());
+};
+
+const formatGmbDate = (value) => {
+  if (!value) return "";
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}-${month}-${year}` : "";
 };
 
 /* -------------------------------------------------- 
@@ -194,7 +259,7 @@ async function postToInstagram(account, log) {
 /* -------------------------------------------------- 
    MAIN CRON FUNCTION
 -------------------------------------------------- */
-export async function GET() {
+export async function GET(req) {
   debugLogs = [];
   log("🚀 Cron started");
 
@@ -272,6 +337,7 @@ export async function GET() {
       }
 
       let failed = false;
+      const platformsPosted = new Set();
 
       /* -------------------------------------------------- 
          1. PROCESS FACEBOOK
@@ -312,9 +378,12 @@ export async function GET() {
             page.postId = result.id;
             page.error = null;
 
-            // Update whenPosted for Facebook
-            if (!post.whenPosted) post.whenPosted = {};
-            post.whenPosted.facebook = "posted";
+            post.whenPosted = markWhenPosted(post.whenPosted, "facebook", result.id);
+            post.postedPlatform = Array.from(new Set([
+              ...(post.postedPlatform ? post.postedPlatform.split(",").map((p) => p.trim()).filter(Boolean) : []),
+              "facebook",
+            ])).join(",");
+            platformsPosted.add("Facebook");
             post.markModified('whenPosted');
             if (!post.mediaStatus) post.mediaStatus = {};
             post.mediaStatus.image = "posted";
@@ -363,9 +432,12 @@ export async function GET() {
             account.postId = result.id;
             account.error = null;
 
-            // Update whenPosted for Instagram
-            if (!post.whenPosted) post.whenPosted = {};
-            post.whenPosted.instagram = "posted";
+            post.whenPosted = markWhenPosted(post.whenPosted, "instagram", result.id);
+            post.postedPlatform = Array.from(new Set([
+              ...(post.postedPlatform ? post.postedPlatform.split(",").map((p) => p.trim()).filter(Boolean) : []),
+              "instagram",
+            ])).join(",");
+            platformsPosted.add("Instagram");
             post.markModified('whenPosted');
             if (!post.mediaStatus) post.mediaStatus = {};
             post.mediaStatus.image = "posted";
@@ -393,6 +465,8 @@ export async function GET() {
             log("🔑 Using stored refreshToken from post document to get a fresh access token.");
             const accessToken = await getFreshAccessToken(refreshToken);
             const processedLocIds = new Set();
+            const gmbMeta = post.gmbPostMeta || {};
+            const isVideoSelection = post.checkmark === "video" || post.mediaType === "video";
 
             for (let i = 0; i < post.locations.length; i++) {
               const loc = post.locations[i];
@@ -405,12 +479,21 @@ export async function GET() {
                   locationData: [{
                     city: loc.locationId,
                     cityName: loc.locality || loc.city || "",
-                    bookUrl: loc.websiteUrl || "",
+                    bookUrl: !isVideoSelection && gmbMeta.ctaType === "call_now"
+                      ? (loc.primaryPhone || "")
+                      : (gmbMeta.customUrl || loc.websiteUrl || ""),
                   }],
-                  output: post.aiOutput,
-                  description: post.description || "",
+                  output: isVideoSelection ? "" : post.aiOutput,
+                  video_url: isVideoSelection ? (post.videoOutput || post.aiOutput || "") : "",
+                  description: post.gmbDescription || post.description || "",
                   accessToken,
-                  checkmark: ["post", "photo", "both"].includes(post.checkmark) ? post.checkmark : "both",
+                  checkmark: ["post", "photo", "both", "video"].includes(post.checkmark) ? post.checkmark : "both",
+                  post_type: isVideoSelection ? "standard" : (gmbMeta.postType || "standard"),
+                  cta: isVideoSelection ? "learn_more" : (gmbMeta.ctaType || "book"),
+                  startDate: isVideoSelection ? "" : formatGmbDate(gmbMeta.startDate),
+                  endDate: isVideoSelection ? "" : formatGmbDate(gmbMeta.endDate),
+                  tittle: isVideoSelection ? "" : (gmbMeta.eventTitle || ""),
+                  wait_video: false,
                 };
 
                 log("📦 Payload:", payload);
@@ -448,9 +531,12 @@ export async function GET() {
                   }
                 });
 
-                // Update whenPosted for GMB
-                if (!post.whenPosted) post.whenPosted = {};
-                post.whenPosted.gmb = "posted";
+                post.whenPosted = markWhenPosted(post.whenPosted, "gmb");
+                post.postedPlatform = Array.from(new Set([
+                  ...(post.postedPlatform ? post.postedPlatform.split(",").map((p) => p.trim()).filter(Boolean) : []),
+                  "gmb",
+                ])).join(",");
+                platformsPosted.add("Google My Business");
                 post.markModified('whenPosted');
                 if (!post.mediaStatus) post.mediaStatus = {};
                 post.mediaStatus[post.mediaType === "video" ? "video" : "image"] = "posted";
@@ -481,11 +567,7 @@ export async function GET() {
 
         // Send post published email notification
         try {
-          // Determine which platform(s) were posted
-          const platforms = [];
-          if (post.whenPosted?.gmb === "posted") platforms.push("Google My Business");
-          if (post.whenPosted?.facebook === "posted") platforms.push("Facebook");
-          if (post.whenPosted?.instagram === "posted") platforms.push("Instagram");
+          const platforms = Array.from(platformsPosted);
 
           // Get business name from first location if available
           const businessName = post.locations?.[0]?.name || post.locations?.[0]?.city || "";

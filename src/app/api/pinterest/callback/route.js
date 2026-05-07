@@ -50,7 +50,7 @@ export async function GET(req) {
       }),
       { 
         headers: { 
-          "Content-Type": "application/x-forwarded-urlencoded",
+          "Content-Type": "application/x-www-form-urlencoded",
           "Authorization": `Basic ${authHeader}`
         } 
       }

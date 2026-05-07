@@ -13,6 +13,41 @@ import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
 
+function getRemarkCountMatch(remarkCount) {
+  if (!remarkCount || remarkCount === "All") return null;
+
+  if (remarkCount === "None") {
+    return { "remarksHistory.0": { $exists: false } };
+  }
+
+  if (remarkCount === "1") {
+    return {
+      "remarksHistory.0": { $exists: true },
+      "remarksHistory.1": { $exists: false },
+    };
+  }
+
+  if (remarkCount === "2") {
+    return {
+      "remarksHistory.1": { $exists: true },
+      "remarksHistory.2": { $exists: false },
+    };
+  }
+
+  if (remarkCount === "3") {
+    return {
+      "remarksHistory.2": { $exists: true },
+      "remarksHistory.3": { $exists: false },
+    };
+  }
+
+  if (remarkCount === "More") {
+    return { "remarksHistory.3": { $exists: true } };
+  }
+
+  return null;
+}
+
 /* ================= DB CONNECT ================= */
 
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -237,6 +272,7 @@ export async function GET(req) {
     const endDateParam = searchParams.get("endDate");
     const leadStatus = searchParams.get("leadStatus");
     const leadStage = searchParams.get("leadStage");
+    const remarkCount = searchParams.get("remarkCount");
 
     if (!email) {
       return NextResponse.json(
@@ -340,6 +376,11 @@ export async function GET(req) {
         } else {
           matchStage.leadStage = leadStage;
         }
+      }
+
+      const remarkCountMatch = getRemarkCountMatch(remarkCount);
+      if (remarkCountMatch) {
+        Object.assign(matchStage, remarkCountMatch);
       }
 
       const stats = await User.aggregate([
@@ -574,6 +615,11 @@ export async function GET(req) {
       } else {
         query.leadStage = leadStage;
       }
+    }
+
+    const remarkCountMatch = getRemarkCountMatch(remarkCount);
+    if (remarkCountMatch) {
+      query = { ...query, ...remarkCountMatch };
     }
 
     if (search) {

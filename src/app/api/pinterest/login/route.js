@@ -13,7 +13,12 @@ export async function GET(req) {
     const clientId = process.env.PINTEREST_CLIENT_ID;
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/pinterest/callback`;
-    const state = userId; 
+    
+    // Check if the request is from a mobile app
+    const mobile = url.searchParams.get("mobile") === "true";
+    
+    // Encode userId and mobile flag into state
+    const state = encodeURIComponent(JSON.stringify({ userId, mobile })); 
     
     // Scopes needed for fetching boards and creating pins
     const scope = "user_accounts:read,boards:read,boards:write,pins:read,pins:write";

@@ -2,9 +2,8 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Facebook, X, Loader2, Send, Video } from "lucide-react";
-import { metaPublishMedia } from "@/lib/postMediaUrls";
+import React, { useState, useEffect, useCallback } from "react";
+import { Facebook, X, Loader2, Send } from "lucide-react";
 
 const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages, loading }) => {
   const [caption, setCaption] = useState("");
@@ -21,8 +20,6 @@ const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages
       setSelectedPageId(pages[0].pageId);
     }
   }, [pages, selectedPageId]);
-
-  const publishAsVideo = useMemo(() => post ? metaPublishMedia(post).type === "video" : false, [post]);
 
   const handleSubmit = useCallback(() => {
     if (!pages || pages.length === 0) return;
@@ -75,17 +72,6 @@ const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages
               </select>
             </div>
 
-            {publishAsVideo && (
-              <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-900">
-                <Video className="w-4 h-4 shrink-0" />
-                <span>
-                  Video is sent as a <strong>multipart</strong> upload (form field{" "}
-                  <code className="text-[10px]">source</code>) to the Page videos
-                  endpoint; if that fails we retry with <code className="text-[10px]">file_url</code>.
-                </span>
-              </div>
-            )}
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
               <textarea
@@ -105,7 +91,8 @@ const FacebookShareModal = React.memo(({ isOpen, onClose, onConfirm, post, pages
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex-1 bg-lightPrimary textdark py-2.5 rounded-lg font-semibold hover:bg-[#166fe5] transition flex items-center justify-center gap-2"
+                disabled={!post || !selectedPageId}
+                className="flex-1 bg-[#1877F2] text-white py-2.5 rounded-lg font-semibold hover:bg-[#166FE5] transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
                 Post Now

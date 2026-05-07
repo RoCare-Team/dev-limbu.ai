@@ -47,7 +47,7 @@ import Toast from "../../components/Toast";
 import LocationSelectionModal from "../../components/LocationSelectionModal";
 import InsufficientBalanceModal from "../../components/InsufficientBalanceModal";
 import SuccessOverlay from "../../components/SuccessOverlay";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 import FirstPostModal from "../../components/FirstPostModal";
 import PostInput from "@/components/PostInput";
 import TabButton from "@/components/TabButton";
@@ -75,6 +75,16 @@ import PostResultModal from "../../components/post-management/PostResultModal";
 
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
+
+const buildBrandAssetSlots = (savedAssets = {}) => [
+  { name: "Logo", url: savedAssets.logoImage || "" },
+  { name: "Character", url: savedAssets.characterImage || "" },
+  { name: "Product", url: savedAssets.productImage || "" },
+  { name: "Uniform", url: savedAssets.uniformImage || "" },
+  { name: "Background", url: savedAssets.backgroundImage || "" },
+  { name: "Size", url: savedAssets.size || "3:4" },
+  { name: "Color", url: savedAssets.colourPalette || "none" },
+];
 
 const buildWhenPostedUpdate = (platform, postId = "") => ({
   [platform]: {
@@ -158,7 +168,7 @@ export default function PostManagementPage() {
   const [selectedBusiness, setSelectedBusiness] = useState(null);
 
   // --- Assets ---
-  const [userAssets, setUserAssets] = useState([]);
+  const [userAssets, setUserAssets] = useState(() => buildBrandAssetSlots());
   const [assetId, setAssetId] = useState(null);
   const [selectedAssets, setSelectedAssets] = useState([]);
 
@@ -375,21 +385,17 @@ export default function PostManagementPage() {
     if (!userId) return;
     try {
       const result = await loadAssetsFromServerAction(userId);
-      if (result.success && result.data.length > 0) {
+      if (result.success && result.data?.length > 0) {
         const latestAssets = result.data[0];
         setAssetId(latestAssets._id);
-        setUserAssets([
-          { name: "Logo", url: latestAssets.logoImage || "" },
-          { name: "Character", url: latestAssets.characterImage || "" },
-          { name: "Product", url: latestAssets.productImage || "" },
-          { name: "Uniform", url: latestAssets.uniformImage || "" },
-          { name: "Background", url: latestAssets.backgroundImage || "" },
-          { name: "Size", url: latestAssets.size || "" },
-          { name: "Color", url: latestAssets.colourPalette || "" },
-        ]);
+        setUserAssets(buildBrandAssetSlots(latestAssets));
+      } else {
+        setAssetId(null);
+        setUserAssets(buildBrandAssetSlots());
       }
     } catch (error) {
       console.error(error);
+      setUserAssets(buildBrandAssetSlots());
     }
   }, [userId]);
 
@@ -1716,7 +1722,10 @@ export default function PostManagementPage() {
         {uiState.showInstagramModal && (
           <InstagramShareModal
             isOpen={uiState.showInstagramModal}
-            onClose={() => updateUiState({ showInstagramModal: false })}
+            onClose={() => {
+              updateUiState({ showInstagramModal: false });
+              setSelectedMediaForAction(null);
+            }}
             onConfirm={(p, a, c, igVideoKind) => {
               updateUiState({ showInstagramModal: false });
               handleInstagramPostAction(
@@ -1729,6 +1738,7 @@ export default function PostManagementPage() {
               setSelectedMediaForAction(null);
             }}
             post={socialState.postToInstagram}
+            selectedMedia={selectedMediaForAction}
             accounts={socialState.instagramAccounts}
             loading={socialState.loadingIgAccounts}
           />
@@ -1871,6 +1881,7 @@ export default function PostManagementPage() {
               setUserAssets={setUserAssets}
               fetchUserAssets={fetchUserAssets}
               assetId={assetId}
+              setAssetId={setAssetId}
               showToast={showToast}
               selectedAssets={selectedAssets}
               setSelectedAssets={setSelectedAssets}

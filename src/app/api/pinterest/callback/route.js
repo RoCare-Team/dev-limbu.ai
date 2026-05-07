@@ -9,11 +9,27 @@ export async function GET(req) {
     await dbConnect();
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const userId = url.searchParams.get("state"); 
+    const stateParam = url.searchParams.get("state"); 
     
+    let userId = stateParam;
+    let isMobile = false;
+
+    try {
+      if (stateParam) {
+        // Try to parse state as JSON (for mobile flow support)
+        const decodedState = JSON.parse(decodeURIComponent(stateParam));
+        userId = decodedState.userId;
+        isMobile = decodedState.mobile === true;
+      }
+    } catch (e) {
+      // Fallback: if not JSON, treat stateParam as the plain userId
+      userId = stateParam;
+    }
+
     const baseUrl = getBaseUrl(req);
 
     if (!code || !userId) {
+      if (isMobile) return NextResponse.redirect(`limbuai://pinterest-error?error=missing_params`);
       return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=missing_params`);
     }
 
@@ -52,6 +68,7 @@ export async function GET(req) {
       profileData = profileRes.data || {};
     } catch (error) {
       console.error("Failed to fetch Pinterest profile:", error.response?.data || error.message);
+      if (isMobile) return NextResponse.redirect(`limbuai://pinterest-error?error=profile_error`);
       return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=profile_error`);
     }
 
@@ -89,11 +106,14 @@ export async function GET(req) {
     }
 
     // 5️⃣ Save/Update the entire Profile Document
+    // Use consistent ID assignment to prevent duplicates on reconnect
+    const resolvedPinterestId = profileData.id;
+    
     await PinterestProfile.findOneAndUpdate(
-      { userId, pinterestUserId: profileData.account_type === 'BUSINESS' ? profileData.id : (profileData.username || profileData.id) },
+      { userId, pinterestUserId: resolvedPinterestId },
       {
         userId,
-        pinterestUserId: profileData.id,
+        pinterestUserId: resolvedPinterestId,
         username: profileData.username,
         profileImage: profileData.profile_image,
         websiteUrl: profileData.website_url,
@@ -107,10 +127,25 @@ export async function GET(req) {
       { upsert: true, new: true }
     );
 
+    if (isMobile) {
+      return NextResponse.redirect(`limbuai://pinterest-success?status=connected`);
+    }
+
     return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=connected`);
   } catch (err) {
     console.error("PINTEREST CALLBACK ERROR:", err.response?.data || err.message);
     const baseUrl = getBaseUrl(req);
+    // Note: isMobile might not be defined here if it failed very early, 
+    // but try-catch block for stateParam is above this.
+    // However, to be safe:
+    const stateParam = new URL(req.url).searchParams.get("state");
+    let isMobile = false;
+    try {
+      const decodedState = JSON.parse(decodeURIComponent(stateParam));
+      isMobile = decodedState.mobile === true;
+    } catch(e) {}
+
+    if (isMobile) return NextResponse.redirect(`limbuai://pinterest-error?error=unknown`);
     return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=error`);
   }
 }

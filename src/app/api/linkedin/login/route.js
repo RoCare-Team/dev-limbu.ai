@@ -13,7 +13,12 @@ export async function GET(req) {
     const clientId = process.env.LINKEDIN_CLIENT_ID;
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/linkedin/callback`;
-    const state = userId; // Passing userId as state so we know who logged in during callback
+    
+    // Check if the request is from a mobile app
+    const mobile = url.searchParams.get("mobile") === "true";
+    
+    // Encode userId and mobile flag into state
+    const state = encodeURIComponent(JSON.stringify({ userId, mobile })); // Passing userId and mobile as state
     
     // Scopes needed for standard sharing. 
     // basic: openid, profile, email (Sign In with LinkedIn using OpenID Connect)

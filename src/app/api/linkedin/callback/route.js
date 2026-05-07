@@ -10,11 +10,27 @@ export async function GET(req) {
 
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const userId = url.searchParams.get("state");
+    const stateParam = url.searchParams.get("state");
+
+    let userId = stateParam;
+    let isMobile = false;
+
+    try {
+      if (stateParam) {
+        // Try to parse state as JSON (for mobile flow support)
+        const decodedState = JSON.parse(decodeURIComponent(stateParam));
+        userId = decodedState.userId;
+        isMobile = decodedState.mobile === true;
+      }
+    } catch (e) {
+      // Fallback: if not JSON, treat stateParam as the plain userId
+      userId = stateParam;
+    }
 
     const baseUrl = getBaseUrl(req);
 
     if (!code || !userId) {
+      if (isMobile) return NextResponse.redirect(`limbuai://linkedin-error?error=missing_params`);
       return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=missing_params`);
     }
 
@@ -153,10 +169,23 @@ export async function GET(req) {
       console.log("Note: Could not fetch orgs. This is normal if the app lacks company page scopes.", err.response?.data || err.message);
     }
 
+    if (isMobile) {
+      return NextResponse.redirect(`limbuai://linkedin-success?status=connected`);
+    }
+
     return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=connected`);
   } catch (err) {
     console.error("LINKEDIN CALLBACK ERROR:", err.response?.data || err.message);
     const baseUrl = getBaseUrl(req);
+    
+    const stateParam = new URL(req.url).searchParams.get("state");
+    let isMobile = false;
+    try {
+      const decodedState = JSON.parse(decodeURIComponent(stateParam));
+      isMobile = decodedState.mobile === true;
+    } catch(e) {}
+
+    if (isMobile) return NextResponse.redirect(`limbuai://linkedin-error?error=unknown`);
     return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=error`);
   }
 }

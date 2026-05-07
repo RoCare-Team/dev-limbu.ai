@@ -60,9 +60,6 @@ export default function PopularCitiesSection() {
       </div>
 
       <div className="relative w-full">
-        {/* Left/Right Fade Gradients for a seamless effect */}
-        <div className="absolute top-0 left-0 w-24 md:w-48 h-full bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-24 md:w-48 h-full bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
 
         <div className="animate-marquee gap-6 px-4">
           {marqueeCities.map((city, idx) => {

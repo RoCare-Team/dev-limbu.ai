@@ -55,7 +55,7 @@ export async function POST(req) {
 
     const igUserId = accountData.igId;
 
-    console.log("Publishing to Instagram for user ID:", igUserId);
+    // console.log("Publishing to Instagram for user ID:", igUserId);
     const accessToken = accountData.pageAccessToken;
 
     // Step 1: Create Media Container
@@ -78,7 +78,7 @@ export async function POST(req) {
           access_token: accessToken,
         };
 
-    console.log(`[IG] Creating media container for ${media.type}:`, mediaContainerPayload);
+    // console.log(`[IG] Creating media container for ${media.type}:`, mediaContainerPayload);
 
     const mediaRes = await fetch(mediaContainerUrl, {
       method: "POST",

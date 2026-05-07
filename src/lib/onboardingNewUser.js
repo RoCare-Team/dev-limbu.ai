@@ -2,7 +2,7 @@ import User from "@/models/User";
 import dbConnect from "@/lib/dbConnect";
 import { computeWebinarAssignment } from "@/lib/webinarScheduleIST";
 
-const AISENSY_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
+const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
 const DEMO_MEDIA = {
   url:

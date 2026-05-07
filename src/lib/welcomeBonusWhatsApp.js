@@ -1,7 +1,7 @@
 import User from "@/models/User";
 import dbConnect from "@/lib/dbConnect";
 
-const AISENSY_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
+const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/14/send";
 
 /** Same default key as legacy `api/whatsapp-message` when env is unset */
 const DEFAULT_AISENSY_KEY =

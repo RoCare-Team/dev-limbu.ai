@@ -21,7 +21,8 @@ import Site from "@/models/Site";
 import MagicQR from "@/models/MagicQR";
 import ChatbotAction from "@/models/ChatbotAction";
 
-import { fetchLocationInsights } from "@/lib/gmb-api";
+import { fetchLocationInsights } from "@/utils/fetchLocationInsights";
+import { fetchSearchKeywords } from "@/utils/fetchSearchKeywords";
 import {
   calculateMetrics,
   calculateMetricsInRange,
@@ -38,7 +39,7 @@ import {
 import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
 import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
-import { generateSlug } from "../../utils/generateSlug";
+import { generateUniversalSlug } from "@/utils/slugify";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -358,16 +359,33 @@ async function handleHealthScore({ location, email, accessToken }) {
  * Build the review page slug — mirrors useMagicQR.js reviewUrl logic exactly.
  * URL: https://limbu.ai/reviews/<slug>
  */
-function buildReviewUrl(title = "", locality = "", address = "") {
-  const streetLine = String(address || "")
-    .split(",")[0]
-    .trim();
-  const slug = `${title}${locality ? `-${locality}` : ""}${streetLine ? `-${streetLine}` : ""}`
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+function buildReviewUrl(location, allLocations) {
+  const getLocationIdentifier = (loc) => {
+    return (loc?.locationId || loc?.name || "").toString();
+  };
+
+  const buildUniqueReviewSlug = (location, locations) => {
+    if (!location) return "";
+
+    const baseSlug = generateUniversalSlug(location);
+    if (!baseSlug) return "";
+
+    const currentId = getLocationIdentifier(location);
+    const conflict = (locations || []).some((loc) => {
+      const locId = getLocationIdentifier(loc);
+      if (!loc || !locId || locId === currentId) return false;
+      return generateUniversalSlug(loc) === baseSlug;
+    });
+
+    if (!conflict) {
+      return baseSlug;
+    }
+
+    const idPart = currentId.substring(0, 5);
+    return `${baseSlug}-${idPart}`;
+  };
+
+  const slug = buildUniqueReviewSlug(location, allLocations);
   const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.limbu.ai").replace(/\/$/, "");
   return `${base}/reviews/${slug}`;
 }
@@ -389,7 +407,7 @@ function buildReviewUrl(title = "", locality = "", address = "") {
  *
  * @returns {{ url: string, reviewUrl: string, message: string }}
  */
-async function handleMagicQr({ location, email, locationId }) {
+async function handleMagicQr({ location, email, locationId, allLocations }) {
   await dbConnect();
 
   const businessTitle = location.title || "Business";
@@ -398,22 +416,12 @@ async function handleMagicQr({ location, email, locationId }) {
   const slugify = (t) =>
     (t || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
 
-  // ── Mirror useMagicQR.js exactly ─────────────────────────────────────────
-  // locality → storefrontAddress.locality  (e.g. "Ahmedabad")  stored as location.locality
-  // address  → storefrontAddress.addressLines (street only)    stored as location.addressLine
-  // Fallback for sessions stored before this field was added:
-  //   try to strip locality/region/postal from the end of the full address string.
-  const locality = location.locality || "";
-  const addressLine =
-    location.addressLine ||
-    location.storefrontAddress?.addressLines?.[0] ||
-    (location.address || "").split(",")[0]?.trim() ||
-    "";
+  const locality = location.locality || location.storefrontAddress?.locality || "";
 
   // Build review URL — exact same logic as useMagicQR.js
-  const reviewUrl = buildReviewUrl(businessTitle, locality, addressLine);
+  const reviewUrl = buildReviewUrl(location, allLocations);
 
-  console.log(`[qr] location=${shortId} reviewUrl=${reviewUrl}`);
+  console.log(`[qr] location=${shortId} locality=${locality} reviewUrl=${reviewUrl}`);
 
   // ── Step 1: Reuse existing styled QR only if its reviewUrl still matches ──
   // (old records may have been generated with a different/wrong URL; regenerate
@@ -527,22 +535,9 @@ async function handleInsights({ accessToken, locationId, location }) {
       startMonth.year  -= 1;
     }
 
-    const kwUrl =
-      `https://businessprofileperformance.googleapis.com/v1/locations/${shortId}` +
-      `/searchkeywords/impressions/monthly` +
-      `?monthlyRange.start_month.year=${startMonth.year}` +
-      `&monthlyRange.start_month.month=${startMonth.month}` +
-      `&monthlyRange.end_month.year=${endMonth.year}` +
-      `&monthlyRange.end_month.month=${endMonth.month}`;
-
-    const kwRes = await fetch(kwUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (kwRes.ok) {
-      const kwData = await kwRes.json();
-      // kwData.searchKeywordsCounts is the array used in PerformanceInsightsReport
-      keywords = kwData.searchKeywordsCounts || [];
-    }
+    const kwData = await fetchSearchKeywords(accessToken, shortId, startMonth, endMonth);
+    // kwData.searchKeywordsCounts is the array used in PerformanceInsightsReport
+    keywords = kwData.searchKeywordsCounts || [];
   } catch (e) {
     console.warn("[chatbotAction:insights] keywords fetch failed:", e.message);
   }
@@ -861,7 +856,7 @@ export async function processAction(actionDoc, sessionDoc) {
         break;
 
       case "magic_qr":
-        result = await handleMagicQr({ location, email, locationId });
+        result = await handleMagicQr({ location, email, locationId, allLocations: sessionDoc.locationsData || [] });
         break;
 
       case "insights":

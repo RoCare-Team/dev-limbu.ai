@@ -11,6 +11,7 @@ export const generateUniversalSlug = (listing) => {
   const locality =
     listing.address?.locality ||
     listing.storefrontAddress?.locality ||
+    listing.locality ||
     listing.profile?.address?.locality ||
     "";
 

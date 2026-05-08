@@ -2,9 +2,10 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import YouTubeChannel from "@/models/YouTubeChannel";
+import { getBaseUrl } from "@/utils/urlHelper";
 
 export async function GET(req) {
-  console.log("👉 YouTube Callback Hit");
+  // console.log("👉 YouTube Callback Hit");
 
   try {
     await dbConnect();
@@ -12,14 +13,34 @@ export async function GET(req) {
 
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const userId = url.searchParams.get("state");
+    const stateParam = url.searchParams.get("state");
+    const baseUrl = getBaseUrl(req);
+    const redirectUri = `${baseUrl}/api/youtube/callback`;
+
+    let userId = stateParam;
+    let isMobile = false;
+
+    try {
+      if (stateParam) {
+        const decodedState = JSON.parse(decodeURIComponent(stateParam));
+        userId = decodedState.userId;
+        isMobile = decodedState.mobile === true;
+      }
+    } catch (e) {
+      userId = stateParam;
+    }
 
     console.log("📥 Received Params:", { code, userId });
 
     if (!code || !userId) {
       console.log("❌ Missing code or userId");
+      if (isMobile) {
+        return NextResponse.redirect(
+          "limbuai://youtube-error?error=missing_params"
+        );
+      }
       return NextResponse.redirect(
-        `${process.env.BASE_URL}/dashboard?youtube=missing_params`
+        `${baseUrl}/dashboard?youtube=missing_params`
       );
     }
 
@@ -35,7 +56,7 @@ export async function GET(req) {
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
         code,
         grant_type: "authorization_code",
-        redirect_uri: `${process.env.BASE_URL}/api/youtube/callback`,
+        redirect_uri: redirectUri,
       },
       {
         headers: {
@@ -84,8 +105,13 @@ export async function GET(req) {
 
     if (!channels || channels.length === 0) {
       console.log("❌ No channels found");
+      if (isMobile) {
+        return NextResponse.redirect(
+          "limbuai://youtube-error?error=no_channels"
+        );
+      }
       return NextResponse.redirect(
-        `${process.env.BASE_URL}/dashboard?youtube=no_channels`
+        `${baseUrl}/dashboard?youtube=no_channels`
       );
     }
 
@@ -114,17 +140,35 @@ export async function GET(req) {
 
     console.log("🎉 YouTube Connected Successfully");
 
+    if (isMobile) {
+      return NextResponse.redirect(
+        "limbuai://youtube-success?status=connected"
+      );
+    }
+
     return NextResponse.redirect(
-      `${process.env.BASE_URL}/dashboard?youtube=connected`
+      `${baseUrl}/dashboard?youtube=connected`
     );
 
   } catch (err) {
     console.error("🔥 YOUTUBE CALLBACK ERROR:");
     console.error("Message:", err.message);
     console.error("Response:", err.response?.data);
+    const baseUrl = getBaseUrl(req);
+
+    const stateParam = new URL(req.url).searchParams.get("state");
+    let isMobile = false;
+    try {
+      const decodedState = JSON.parse(decodeURIComponent(stateParam));
+      isMobile = decodedState.mobile === true;
+    } catch (e) {}
+
+    if (isMobile) {
+      return NextResponse.redirect("limbuai://youtube-error?error=unknown");
+    }
 
     return NextResponse.redirect(
-      `${process.env.BASE_URL}/dashboard?youtube=error`
+      `${baseUrl}/dashboard?youtube=error`
     );
   }
 }

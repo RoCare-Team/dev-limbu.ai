@@ -85,7 +85,7 @@ const InstagramColumn = React.memo(({
           className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scroll flex-1 bg-slate-50/50"
         >
           {instagramPages.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5">
               {instagramPages.map((page) => (
                 <div
                   key={page.igId}
@@ -102,7 +102,7 @@ const InstagramColumn = React.memo(({
                     </div>
                     <button
                       onClick={() => setDisconnectModalState({ isOpen: true, pageId: page.igId, isAll: false })}
-                      className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all ml-2"
+                      className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all ml-2"
                       title="Remove Profile"
                     >
                       <LogOut className="w-3.5 h-3.5" />

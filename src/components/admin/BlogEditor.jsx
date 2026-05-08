@@ -35,6 +35,7 @@ export default function BlogEditor({ initialData = null, isEdit = false }) {
     content: "",
     excerpt: "",
     featuredImage: "",
+    author: "",
     category: "General",
     tags: "",
     status: "draft",
@@ -314,6 +315,18 @@ export default function BlogEditor({ initialData = null, isEdit = false }) {
               InputProps={{
                 startAdornment: <InputAdornment position="start">/blog/</InputAdornment>,
               }}
+            />
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Author Name</Typography>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="e.g. Amit Sharma"
+              name="author"
+              value={formData.author}
+              onChange={handleChange}
+              variant="outlined"
+              sx={{ bgcolor: "white", mb: 3 }}
             />
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Category</Typography>

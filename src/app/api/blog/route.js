@@ -56,7 +56,13 @@ export async function POST(req) {
       );
     }
 
-    const newBlog = await Blog.create(body);
+    const newBlog = await Blog.create({
+      ...body,
+      author:
+        typeof body.author === "string" && body.author.trim()
+          ? body.author.trim()
+          : "Admin",
+    });
 
     return NextResponse.json({
       success: true,
@@ -129,7 +135,7 @@ export async function PUT(req) {
       existingBlog.featuredImage = featuredImage;
     }
     if (typeof author === "string") {
-      existingBlog.author = author;
+      existingBlog.author = author.trim() || "Admin";
     }
     if (Array.isArray(tags)) {
       existingBlog.tags = tags;

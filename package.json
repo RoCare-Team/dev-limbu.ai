@@ -16,6 +16,7 @@
     "@aws-sdk/lib-storage": "^3.1032.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@fontsource/noto-sans": "^5.2.5",
     "@heroicons/react": "^2.2.0",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",

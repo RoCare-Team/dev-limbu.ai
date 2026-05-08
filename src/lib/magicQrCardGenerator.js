@@ -8,6 +8,10 @@
 import path from "path";
 import fs from "fs/promises";
 import sharp from "sharp";
+import {
+  getEmbeddedNotoSansFontDefs,
+  SHARP_SVG_FONT_FAMILY,
+} from "@/lib/sharpSvgEmbeddedFonts";
 
 const G = {
   blue: "#4285F4",
@@ -59,6 +63,18 @@ function truncUrl(url, maxLen) {
   const u = String(url || "");
   if (u.length <= maxLen) return u;
   return `${u.slice(0, maxLen - 1)}…`;
+}
+
+const FF = `'${SHARP_SVG_FONT_FAMILY}', sans-serif`;
+
+/** Vector stars — avoids ★ (U+2605) missing from Noto Latin subsets when rasterizing on Linux. */
+function goldStarsRowGroup(cx, starsY) {
+  const d =
+    "M0,-8 L2.35,-2.47 L8,-2.47 L3.1,1.23 L5.1,7.8 L0,4.5 L-5.1,7.8 L-3.1,1.23 L-8,-2.47 L-2.35,-2.47 Z";
+  const offsets = [-42, -21, 0, 21, 42];
+  return `<g transform="translate(${cx},${starsY}) scale(1.65)">${offsets
+    .map((dx) => `<path transform="translate(${dx},0)" d="${d}" fill="#FBBF24"/>`)
+    .join("")}</g>`;
 }
 
 async function fetchQrPng(reviewUrl) {
@@ -127,7 +143,7 @@ function layout(lineCount) {
   };
 }
 
-function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
+function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf, embeddedFontStyle) {
   const {
     cx,
     height,
@@ -148,7 +164,7 @@ function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
   const bizText = businessLines
     .map((line, i) => {
       const yy = bizStartY + (i + 1) * 34;
-      return `<text x="${cx}" y="${yy}" text-anchor="middle" font-size="32" font-weight="700" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(line)}</text>`;
+      return `<text x="${cx}" y="${yy}" text-anchor="middle" font-size="32" font-weight="700" fill="#111827" font-family="${FF}">${escapeXml(line)}</text>`;
     })
     .join("\n");
 
@@ -180,18 +196,18 @@ function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
 
   const footer = logoB64
     ? `<g transform="translate(${cx}, ${footY})">
-  <text x="-30" y="4" text-anchor="end" font-size="22" fill="#6B7280" font-family="Arial, Helvetica, sans-serif" font-weight="500">Powered by</text>
+  <text x="-30" y="4" text-anchor="end" font-size="22" fill="#6B7280" font-family="${FF}" font-weight="500">Powered by</text>
   <image href="data:image/png;base64,${logoB64}" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>
-  <text x="30" y="4" text-anchor="start" font-size="24" font-weight="700" fill="#0f172a" font-family="Arial, Helvetica, sans-serif">LimbuAI</text>
+  <text x="30" y="4" text-anchor="start" font-size="24" font-weight="700" fill="#0f172a" font-family="${FF}">LimbuAI</text>
 </g>`
-    : `<text x="${cx}" y="${footY}" text-anchor="middle" font-size="22" font-family="Arial, Helvetica, sans-serif">
+    : `<text x="${cx}" y="${footY}" text-anchor="middle" font-size="22" font-family="${FF}">
   <tspan fill="#6B7280" font-weight="500">Powered by </tspan><tspan font-weight="700" fill="#0f172a">LimbuAI</tspan>
 </text>`;
 
   const H = height;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>${qrShadow}</defs>
+  <defs>${embeddedFontStyle}${qrShadow}</defs>
   <clipPath id="outerClip"><rect x="0" y="0" width="${W}" height="${H}" rx="${OUTER_RX}" ry="${OUTER_RX}"/></clipPath>
   <g clip-path="url(#outerClip)">
     <rect x="0" y="0" width="${W / 2}" height="${H / 2}" fill="${G.yellow}"/>
@@ -200,18 +216,18 @@ function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
     <rect x="${W / 2}" y="${H / 2}" width="${W / 2}" height="${H / 2}" fill="${G.blue}"/>
   </g>
   <rect x="${FRAME}" y="${FRAME}" width="${W - FRAME * 2}" height="${H - FRAME * 2}" rx="${INNER_RX}" ry="${INNER_RX}" fill="#ffffff"/>
-  <text x="${cx}" y="${googleY}" text-anchor="middle" font-size="84" font-weight="900" font-family="Arial, Helvetica, sans-serif" letter-spacing="-2">
+  <text x="${cx}" y="${googleY}" text-anchor="middle" font-size="84" font-weight="900" font-family="${FF}" letter-spacing="-2">
     <tspan fill="${G.blue}">G</tspan><tspan fill="${G.red}">o</tspan><tspan fill="${G.yellow}">o</tspan><tspan fill="${G.blue}">g</tspan><tspan fill="${G.green}">l</tspan><tspan fill="${G.red}">e</tspan>
   </text>
-  <text x="${cx}" y="${starsY}" text-anchor="middle" font-size="40" fill="#FBBF24" font-family="Arial, Helvetica, sans-serif" letter-spacing="10">★★★★★</text>
-  <text x="${cx}" y="${scanY}" text-anchor="middle" font-size="26" fill="#374151" font-family="Arial, Helvetica, sans-serif">
+  ${goldStarsRowGroup(cx, starsY)}
+  <text x="${cx}" y="${scanY}" text-anchor="middle" font-size="26" fill="#374151" font-family="${FF}">
     <tspan font-weight="400">Scan to Rate Us on </tspan><tspan font-weight="700" fill="#111827">Google</tspan>
   </text>
   ${bizText}
   ${whiteQrBg}
   ${lShapes}
   ${qrImg}
-  <text x="${cx}" y="${urlY}" text-anchor="middle" font-size="20" fill="#9CA3AF" font-family="Arial, Helvetica, sans-serif">${escapeXml(urlText)}</text>
+  <text x="${cx}" y="${urlY}" text-anchor="middle" font-size="20" fill="#9CA3AF" font-family="${FF}">${escapeXml(urlText)}</text>
   <rect x="${FRAME + 32}" y="${dividerY}" width="${W - (FRAME + 32) * 2}" height="2" fill="#E5E7EB"/>
   ${footer}
 </svg>`;
@@ -223,13 +239,17 @@ function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
  * @returns {Promise<Buffer>} PNG bytes
  */
 export async function generateMagicQrCard(businessName, reviewUrl) {
-  const [qrBuf, logoBuf] = await Promise.all([fetchQrPng(reviewUrl), loadFooterLogoPng()]);
+  const [qrBuf, logoBuf, embeddedFontStyle] = await Promise.all([
+    fetchQrPng(reviewUrl),
+    loadFooterLogoPng(),
+    getEmbeddedNotoSansFontDefs(),
+  ]);
 
   const businessLines = wrapLines(businessName || "Business", 24);
   const urlText = truncUrl(reviewUrl, 52);
   const pos = layout(businessLines.length);
   const qrBase64 = qrBuf.toString("base64");
-  const svg = buildCardSvg(pos, businessLines, urlText, qrBase64, logoBuf);
+  const svg = buildCardSvg(pos, businessLines, urlText, qrBase64, logoBuf, embeddedFontStyle);
 
   return sharp(Buffer.from(svg), { density: 192 })
     .png({ quality: 95, compressionLevel: 9 })

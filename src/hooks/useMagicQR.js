@@ -2,34 +2,74 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { getLocalStorage } from "@/utils/storage";
 import { toast } from "react-hot-toast";
 import { toPng } from "html-to-image";
-import { generateUniversalSlug } from "@/utils/slugify";
+import {
+  buildMagicQrReviewUrl,
+  getMagicQrLocationIdentifier,
+} from "@/lib/magicQrReviewUrl";
 
-export function useMagicQR() {
+/**
+ * @param {object} [options]
+ * @param {object[]} [options.locations] — When set (including `[]`), skips localStorage and uses this list (e.g. GMB session / chatbot payload). When omitted, loads `locationDetails` from localStorage.
+ * @param {string} [options.initialLocationId] — Selected row when `locations` is provided; falls back to first row id.
+ * @param {string} [options.baseUrl] — Review link origin (default: `window.location.origin` in the browser).
+ */
+export function useMagicQR(options = {}) {
+  const { locations: locationsProp, initialLocationId, baseUrl: baseUrlOption } = options;
+
   const [isMounted, setIsMounted] = useState(false);
   const [allLocations, setAllLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const [copied, setCopied] = useState(false);
 
-  // Initial Load from LocalStorage
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (locationsProp === undefined) return;
+    const locs = Array.isArray(locationsProp) ? locationsProp : [];
+    setAllLocations(locs);
+    if (locs.length === 0) {
+      setSelectedLocationId("");
+      return;
+    }
+    setSelectedLocationId((prev) => {
+      if (prev && locs.some((l) => getMagicQrLocationIdentifier(l) === prev)) {
+        return prev;
+      }
+      if (
+        initialLocationId &&
+        locs.some((l) => getMagicQrLocationIdentifier(l) === initialLocationId)
+      ) {
+        return initialLocationId;
+      }
+      return getMagicQrLocationIdentifier(locs[0]);
+    });
+  }, [locationsProp, initialLocationId]);
+
+  useEffect(() => {
+    if (locationsProp !== undefined) return;
     const raw = getLocalStorage("locationDetails");
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setAllLocations(parsed);
-          setSelectedLocationId(parsed[0].locationId);
+          setSelectedLocationId(getMagicQrLocationIdentifier(parsed[0]));
         }
       } catch (e) {
         console.error("localStorage parse error", e);
       }
     }
-  }, []);
+  }, [locationsProp]);
 
   // Derived State: Selected Location
   const selectedLocation = useMemo(() => {
-    return allLocations.find((loc) => loc.locationId === selectedLocationId) || allLocations[0] || null;
+    return (
+      allLocations.find((loc) => getMagicQrLocationIdentifier(loc) === selectedLocationId) ||
+      allLocations[0] ||
+      null
+    );
   }, [allLocations, selectedLocationId]);
 
   // Derived State: Business Name
@@ -40,38 +80,17 @@ export function useMagicQR() {
     return locality ? `${title} - ${locality}` : title;
   }, [selectedLocation]);
 
-  const getLocationIdentifier = (location) => {
-    return (location?.locationId || location?.name || "").toString();
-  };
-
-  const buildUniqueReviewSlug = (location, locations) => {
-    if (!location) return "";
-
-    const baseSlug = generateUniversalSlug(location);
-    if (!baseSlug) return "";
-
-    const currentId = getLocationIdentifier(location);
-    const conflict = (locations || []).some((loc) => {
-      const locId = getLocationIdentifier(loc);
-      if (!loc || !locId || locId === currentId) return false;
-      return generateUniversalSlug(loc) === baseSlug;
-    });
-
-    if (!conflict) {
-      return baseSlug;
-    }
-
-    const idPart = currentId.substring(0, 5);
-    return `${baseSlug}-${idPart}`;
-  };
-
   // Derived State: Clean Review URL (without query params)
   const reviewUrl = useMemo(() => {
     if (!selectedLocation) return "";
-    const slug = buildUniqueReviewSlug(selectedLocation, allLocations);
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    return `${baseUrl}/reviews/${slug}`;
-  }, [selectedLocation, allLocations]);
+    const base =
+      baseUrlOption || (typeof window !== "undefined" ? window.location.origin : "");
+    return buildMagicQrReviewUrl({
+      location: selectedLocation,
+      allLocations,
+      baseUrl: base,
+    });
+  }, [selectedLocation, allLocations, baseUrlOption]);
 
   // Derived State: QR Image URL
   const qrImage = useMemo(() => {

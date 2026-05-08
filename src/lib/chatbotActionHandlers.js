@@ -39,10 +39,7 @@ import {
 import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
 import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
-import {
-  buildMagicQrReviewUrl,
-  resolveMagicQrBaseUrlForServer,
-} from "@/lib/magicQrReviewUrl";
+import { generateUniversalSlug } from "@/utils/slugify";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -359,6 +356,41 @@ async function handleHealthScore({ location, email, accessToken }) {
 // ── ACTION: magic_qr ─────────────────────────────────────────────────────────
 
 /**
+ * Build the review page slug — mirrors useMagicQR.js reviewUrl logic exactly.
+ * URL: https://limbu.ai/reviews/<slug>
+ */
+function buildReviewUrl(location, allLocations) {
+  const getLocationIdentifier = (loc) => {
+    return (loc?.locationId || loc?.name || "").toString();
+  };
+
+  const buildUniqueReviewSlug = (location, locations) => {
+    if (!location) return "";
+
+    const baseSlug = generateUniversalSlug(location);
+    if (!baseSlug) return "";
+
+    const currentId = getLocationIdentifier(location);
+    const conflict = (locations || []).some((loc) => {
+      const locId = getLocationIdentifier(loc);
+      if (!loc || !locId || locId === currentId) return false;
+      return generateUniversalSlug(loc) === baseSlug;
+    });
+
+    if (!conflict) {
+      return baseSlug;
+    }
+
+    const idPart = currentId.substring(0, 5);
+    return `${baseSlug}-${idPart}`;
+  };
+
+  const slug = buildUniqueReviewSlug(location, allLocations);
+  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.limbu.ai").replace(/\/$/, "");
+  return `${base}/reviews/${slug}`;
+}
+
+/**
  * Generate the EXACT same styled Magic QR card shown on /get-magic-qr (QRPreviewCard.jsx):
  *   - 4 Google color quadrants (yellow/red/green/blue corners)
  *   - White rounded inner card
@@ -386,11 +418,8 @@ async function handleMagicQr({ location, email, locationId, allLocations }) {
 
   const locality = location.locality || location.storefrontAddress?.locality || "";
 
-  const reviewUrl = buildMagicQrReviewUrl({
-    location,
-    allLocations,
-    baseUrl: resolveMagicQrBaseUrlForServer(),
-  });
+  // Build review URL — exact same logic as useMagicQR.js
+  const reviewUrl = buildReviewUrl(location, allLocations);
 
   console.log(`[qr] location=${shortId} locality=${locality} reviewUrl=${reviewUrl}`);
 

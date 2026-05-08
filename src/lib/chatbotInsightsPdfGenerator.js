@@ -23,31 +23,6 @@ import {
   isYmdInClosedRange,
   toYmd,
 } from "./performanceInsightsUtils.js";
-import {
-  getEmbeddedNotoSansFontDefs,
-  SHARP_SVG_FONT_FAMILY,
-} from "./sharpSvgEmbeddedFonts.js";
-
-const FF = `'${SHARP_SVG_FONT_FAMILY}',sans-serif`;
-
-/** Vector KPI icons (emoji U+1F4xx fail on headless Linux / Sharp). */
-function kpiIconSvg(kind, accent) {
-  const c = accent;
-  switch (kind) {
-    case "bars":
-      return `<g fill="${c}"><rect x="-10" y="-2" width="5" height="12" rx="1"/><rect x="-2" y="-8" width="5" height="18" rx="1"/><rect x="6" y="-5" width="5" height="15" rx="1"/></g>`;
-    case "map":
-      return `<g fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"><path d="M-9,-6 L-2,-9 L8,-5 L8,7 L0,9 L-9,5 Z"/><path d="M-2,-9 L-2,9"/></g>`;
-    case "search":
-      return `<g fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round"><circle cx="-3" cy="-3" r="6"/><path d="M3 3 L9 9"/></g>`;
-    case "phone":
-      return `<g fill="${c}"><rect x="-8" y="-10" width="16" height="20" rx="3" ry="3"/><rect x="-5" y="7" width="10" height="2" rx="1" fill="#fff" opacity="0.85"/></g>`;
-    case "globe":
-      return `<g fill="none" stroke="${c}" stroke-width="2"><circle cx="0" cy="0" r="9"/><ellipse cx="0" cy="0" rx="4" ry="9"/><path d="M-9,0 H9 M0,-9 Q4,0 0,9 Q-4,0 0,-9"/></g>`;
-    default:
-      return `<circle r="6" fill="${c}"/>`;
-  }
-}
 
 // ── Colours ───────────────────────────────────────────────────────────────────
 const BG        = "#F8FAFC";
@@ -148,8 +123,8 @@ function buildHeader({ businessName, locationName, city, dateRange }, y) {
   const PAD = 32;
   const H   = 120;
   const drLabel = dateRange
-    ? `${fmtDate(dateRange.startDate)} - ${fmtDate(dateRange.endDate)}`
-    : "-";
+    ? `${fmtDate(dateRange.startDate)} – ${fmtDate(dateRange.endDate)}`
+    : "—";
 
   const parts = [];
 
@@ -162,36 +137,36 @@ function buildHeader({ businessName, locationName, city, dateRange }, y) {
   parts.push(`<path d="${rr(bx, by, 160, 22, 6)}" fill="${LEMON}"/>`);
   // dot
   parts.push(`<circle cx="${bx + 10}" cy="${by + 11}" r="4" fill="${BLACK}"/>`);
-  parts.push(`<text x="${bx + 22}" y="${by + 15}" font-family="${FF}" font-size="10" font-weight="800" fill="${BLACK}" letter-spacing="1">LIMBU AI ANALYTICS</text>`);
+  parts.push(`<text x="${bx + 22}" y="${by + 15}" font-family="Arial,sans-serif" font-size="10" font-weight="800" fill="${BLACK}" letter-spacing="1">LIMBU AI ANALYTICS</text>`);
 
   // Business name
   const nameText = esc(businessName || "Business Profile");
-  parts.push(`<text x="${bx}" y="${y + 64}" font-family="${FF}" font-size="26" font-weight="900" fill="${BLACK}">${nameText}</text>`);
+  parts.push(`<text x="${bx}" y="${y + 64}" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="${BLACK}">${nameText}</text>`);
 
   // Location / city (no emoji — keeps SVG XML friendly for librsvg)
   const locRaw = [locationName, city].filter(Boolean).join("  /  ");
-  parts.push(`<text x="${bx}" y="${y + 88}" font-family="${FF}" font-size="12" fill="${SILVER}">${locRaw ? esc(locRaw) : ""}</text>`);
+  parts.push(`<text x="${bx}" y="${y + 88}" font-family="Arial,sans-serif" font-size="12" fill="${SILVER}">${locRaw ? esc(locRaw) : ""}</text>`);
 
   // ── Right side: dark report window box ──
   const boxW = 200, boxH = 60;
   const bpx  = W - PAD - 24 - boxW;
   const bpy  = y + (H - boxH) / 2;
   parts.push(`<path d="${rr(bpx, bpy, boxW, boxH, 10)}" fill="${BLACK}"/>`);
-  parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 18}" text-anchor="middle" font-family="${FF}" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">REPORT WINDOW</text>`);
+  parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 18}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">REPORT WINDOW</text>`);
   // Split date label into 2 lines if long
-  const drParts = drLabel.split(" - ");
+  const drParts = drLabel.split("–");
   if (drParts.length === 2) {
-    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 36}" text-anchor="middle" font-family="${FF}" font-size="11" font-weight="700" fill="${WHITE}">${esc(drParts[0].trim())}</text>`);
-    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 52}" text-anchor="middle" font-family="${FF}" font-size="11" font-weight="700" fill="${WHITE}">- ${esc(drParts[1].trim())}</text>`);
+    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 36}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${esc(drParts[0].trim())}</text>`);
+    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 52}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">– ${esc(drParts[1].trim())}</text>`);
   } else {
-    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 40}" text-anchor="middle" font-family="${FF}" font-size="11" font-weight="700" fill="${WHITE}">${esc(drLabel)}</text>`);
+    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 40}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${esc(drLabel)}</text>`);
   }
 
   return { svg: parts.join("\n"), height: H + 24 };
 }
 
 /** Single KPI card */
-function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softBg, iconKind }, x, y, w) {
+function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softBg, iconSymbol }, x, y, w) {
   const H   = 150;
   const PAD = 16;
   const parts = [];
@@ -205,34 +180,34 @@ function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softB
   // Icon circle
   const iconX = x + PAD, iconY = y + PAD + 4;
   parts.push(`<path d="${rr(iconX, iconY, 36, 36, 8)}" fill="${softBg}"/>`);
-  parts.push(`<g transform="translate(${iconX + 18},${iconY + 20})">${kpiIconSvg(iconKind, accentColor)}</g>`);
+  parts.push(`<text x="${iconX + 18}" y="${iconY + 24}" text-anchor="middle" font-size="18" font-family="Arial,sans-serif">${esc(iconSymbol)}</text>`);
 
   // Delta badge
   const d = deltaInfo(value, prevValue, prevHasData);
   if (d) {
     const dColor = d.up ? GREEN : (d.flat ? GRAY : RED);
     const dBg    = d.up ? "#F0FDF4" : (d.flat ? "#F8FAFC" : "#FEF2F2");
-    const dText  = `${d.up ? "^" : (d.flat ? ">" : "v")} ${d.label}`;
+    const dText  = `${d.up ? "▲" : (d.flat ? "→" : "▼")} ${d.label}`;
     const dW     = dText.length * 7 + 16;
     const dX     = x + w - PAD - dW;
     const dY     = iconY;
     parts.push(`<path d="${rr(dX, dY, dW, 22, 11)}" fill="${dBg}" stroke="${dColor}" stroke-width="0.5"/>`);
-    parts.push(`<text x="${dX + dW / 2}" y="${dY + 15}" text-anchor="middle" font-family="${FF}" font-size="10" font-weight="800" fill="${dColor}">${esc(dText)}</text>`);
+    parts.push(`<text x="${dX + dW / 2}" y="${dY + 15}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" fill="${dColor}">${esc(dText)}</text>`);
   }
 
   // Value (large number)
-  parts.push(`<text x="${x + PAD}" y="${y + 78}" font-family="${FF}" font-size="30" font-weight="900" fill="${BLACK}">${esc(fmt(value))}</text>`);
+  parts.push(`<text x="${x + PAD}" y="${y + 78}" font-family="Arial,sans-serif" font-size="30" font-weight="900" fill="${BLACK}">${esc(fmt(value))}</text>`);
 
   // Label
-  parts.push(`<text x="${x + PAD}" y="${y + 96}" font-family="${FF}" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">${esc(label.toUpperCase())}</text>`);
+  parts.push(`<text x="${x + PAD}" y="${y + 96}" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">${esc(label.toUpperCase())}</text>`);
 
   // Dashed separator
   parts.push(dashLine(x + PAD, y + 110, x + w - PAD));
 
   // Previous period
-  parts.push(`<text x="${x + PAD}" y="${y + 126}" font-family="${FF}" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">PREVIOUS PERIOD</text>`);
+  parts.push(`<text x="${x + PAD}" y="${y + 126}" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">PREVIOUS PERIOD</text>`);
   const prvText = prevHasData ? fmt(prevValue) : "No data";
-  parts.push(`<text x="${x + PAD}" y="${y + 142}" font-family="${FF}" font-size="12" font-weight="700" fill="${SILVER}">${esc(prvText)}</text>`);
+  parts.push(`<text x="${x + PAD}" y="${y + 142}" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${SILVER}">${esc(prvText)}</text>`);
 
   return { svg: parts.join("\n"), height: H };
 }
@@ -244,11 +219,11 @@ function buildKpiRow({ metrics, prevMetrics, prevHasData }, y) {
   const cardW = (W - PAD * 2 - GAP * 4) / 5;
 
   const cards = [
-    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconKind: "bars" },
-    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconKind: "map" },
-    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconKind: "search" },
-    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconKind: "phone" },
-    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconKind: "globe" },
+    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconSymbol: "\u{1F4CA}" },
+    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconSymbol: "\u{1F5FA}" },
+    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconSymbol: "\u{1F50D}" },
+    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconSymbol: "\u{1F4DE}" },
+    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconSymbol: "\u{1F310}" },
   ];
 
   const parts = [];
@@ -276,13 +251,13 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
 
   // Title accent bar
   parts.push(`<rect x="${x + PAD}" y="${y + PAD}" width="4" height="18" rx="2" fill="${accentColor}"/>`);
-  parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 14}" font-family="${FF}" font-size="14" font-weight="900" fill="${BLACK}">${esc(title.toUpperCase())}</text>`);
+  parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 14}" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">${esc(title.toUpperCase())}</text>`);
   if (subtitle) {
-    parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 32}" font-family="${FF}" font-size="10" fill="${SILVER}">${esc(subtitle)}</text>`);
+    parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 32}" font-family="Arial,sans-serif" font-size="10" fill="${SILVER}">${esc(subtitle)}</text>`);
   }
 
   if (!data || data.length === 0) {
-    parts.push(`<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" font-family="${FF}" font-size="11" fill="${SILVER}">No data available</text>`);
+    parts.push(`<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="${SILVER}">No data available</text>`);
     return { svg: parts.join("\n") };
   }
 
@@ -296,7 +271,7 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
     const gy     = innerY + innerH - (gi / 4) * innerH;
     const gLabel = Math.round((gi / 4) * maxVal);
     parts.push(`<line x1="${innerX}" y1="${gy}" x2="${innerX + innerW}" y2="${gy}" stroke="${BORDER}" stroke-width="0.5"/>`);
-    parts.push(`<text x="${innerX - 6}" y="${gy + 4}" text-anchor="end" font-family="${FF}" font-size="9" fill="${GRAY}">${gLabel}</text>`);
+    parts.push(`<text x="${innerX - 6}" y="${gy + 4}" text-anchor="end" font-family="Arial,sans-serif" font-size="9" fill="${GRAY}">${gLabel}</text>`);
   }
 
   // Bars
@@ -321,7 +296,7 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
     });
 
     // X-axis label
-    parts.push(`<text x="${gx + groupW / 2}" y="${innerY + innerH + 14}" text-anchor="middle" font-family="${FF}" font-size="9" font-weight="700" fill="${GRAY}">${esc(row.label)}</text>`);
+    parts.push(`<text x="${gx + groupW / 2}" y="${innerY + innerH + 14}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}">${esc(row.label)}</text>`);
   });
 
   // Legend
@@ -329,7 +304,7 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
   let lx = innerX;
   series.forEach(({ key, color }) => {
     parts.push(`<circle cx="${lx + 6}" cy="${legendY + 6}" r="5" fill="${color}"/>`);
-    parts.push(`<text x="${lx + 16}" y="${legendY + 11}" font-family="${FF}" font-size="10" font-weight="700" fill="${GRAY}" letter-spacing="0.5">${esc(key.toUpperCase())}</text>`);
+    parts.push(`<text x="${lx + 16}" y="${legendY + 11}" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="${GRAY}" letter-spacing="0.5">${esc(key.toUpperCase())}</text>`);
     lx += 16 + key.length * 7 + 20;
   });
 
@@ -383,7 +358,7 @@ function buildKeywords(keywords, y) {
     const emptyH = 80;
     return {
       svg: `<path d="${rr(panelX, y, panelW, emptyH, 20)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>
-<text x="${W / 2}" y="${y + 46}" text-anchor="middle" font-family="${FF}" font-size="12" font-weight="700" fill="${SILVER}">NO KEYWORD DATA AVAILABLE FOR THIS RANGE</text>`,
+<text x="${W / 2}" y="${y + 46}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${SILVER}">NO KEYWORD DATA AVAILABLE FOR THIS RANGE</text>`,
       height: emptyH + 24,
     };
   }
@@ -404,8 +379,8 @@ function buildKeywords(keywords, y) {
 
   // Section title
   parts.push(`<rect x="${panelX + 24}" y="${y + 20}" width="4" height="18" rx="2" fill="${LEMON}"/>`);
-  parts.push(`<text x="${panelX + 36}" y="${y + 34}" font-family="${FF}" font-size="14" font-weight="900" fill="${BLACK}">SEARCH QUERIES</text>`);
-  parts.push(`<text x="${panelX + 36}" y="${y + 52}" font-family="${FF}" font-size="10" fill="${SILVER}">Top keywords leading customers to your business</text>`);
+  parts.push(`<text x="${panelX + 36}" y="${y + 34}" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">SEARCH QUERIES</text>`);
+  parts.push(`<text x="${panelX + 36}" y="${y + 52}" font-family="Arial,sans-serif" font-size="10" fill="${SILVER}">Top keywords leading customers to your business</text>`);
 
   // Keyword cards
   kwList.forEach((kw, i) => {
@@ -420,11 +395,11 @@ function buildKeywords(keywords, y) {
     // Number badge
     const badgeSize = 26;
     parts.push(`<path d="${rr(cx + 8, cy + (CARD_H - badgeSize) / 2, badgeSize, badgeSize, 6)}" fill="${BLACK}"/>`);
-    parts.push(`<text x="${cx + 8 + badgeSize / 2}" y="${cy + (CARD_H - badgeSize) / 2 + 17}" text-anchor="middle" font-family="${FF}" font-size="9" font-weight="900" fill="${LEMON}">${String(i + 1).padStart(2, "0")}</text>`);
+    parts.push(`<text x="${cx + 8 + badgeSize / 2}" y="${cy + (CARD_H - badgeSize) / 2 + 17}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="900" fill="${LEMON}">${String(i + 1).padStart(2, "0")}</text>`);
 
     // Keyword text
-    const kwText = esc((kw.searchKeyword || kw.keyword || "-").slice(0, 36));
-    parts.push(`<text x="${cx + 44}" y="${cy + 21}" font-family="${FF}" font-size="11" font-weight="700" fill="${BLACK}">${kwText}</text>`);
+    const kwText = esc((kw.searchKeyword || kw.keyword || "—").slice(0, 36));
+    parts.push(`<text x="${cx + 44}" y="${cy + 21}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${BLACK}">${kwText}</text>`);
 
     // Count
     const countVal = kw.insightsValue?.value
@@ -432,8 +407,8 @@ function buildKeywords(keywords, y) {
       : kw.insightsValue?.threshold
         ? `<${kw.insightsValue.threshold}`
         : "0";
-    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 21}" text-anchor="end" font-family="${FF}" font-size="12" font-weight="900" fill="${BLACK}">${esc(countVal)}</text>`);
-    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 34}" text-anchor="end" font-family="${FF}" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">SEARCHES</text>`);
+    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 21}" text-anchor="end" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${BLACK}">${esc(countVal)}</text>`);
+    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 34}" text-anchor="end" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">SEARCHES</text>`);
   });
 
   return { svg: parts.join("\n"), height: panelH + 24 };
@@ -449,14 +424,14 @@ function buildFooter({ businessName }, y) {
 
   // Left: Limbu AI
   parts.push(`<path d="${rr(PAD, y + 10, 36, 36, 8)}" fill="${LEMON}"/>`);
-  parts.push(`<text x="${PAD + 18}" y="${y + 33}" text-anchor="middle" font-family="${FF}" font-size="14" font-weight="900" fill="${BLACK}">L</text>`);
-  parts.push(`<text x="${PAD + 46}" y="${y + 25}" font-family="${FF}" font-size="11" font-weight="900" fill="${BLACK}">Limbu AI</text>`);
-  parts.push(`<text x="${PAD + 46}" y="${y + 40}" font-family="${FF}" font-size="9" font-weight="700" fill="${SILVER}" letter-spacing="1">ANALYTICS REPORT</text>`);
+  parts.push(`<text x="${PAD + 18}" y="${y + 33}" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">L</text>`);
+  parts.push(`<text x="${PAD + 46}" y="${y + 25}" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="${BLACK}">Limbu AI</text>`);
+  parts.push(`<text x="${PAD + 46}" y="${y + 40}" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${SILVER}" letter-spacing="1">ANALYTICS REPORT</text>`);
 
   // Right: date
   const dateStr = `DOCUMENT GENERATED ON: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
   parts.push(`<path d="${rr(W - PAD - 300, y + 14, 300, 28, 14)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
-  parts.push(`<text x="${W - PAD - 150}" y="${y + 32}" text-anchor="middle" font-family="${FF}" font-size="9" fill="${GRAY}">${esc(dateStr)}</text>`);
+  parts.push(`<text x="${W - PAD - 150}" y="${y + 32}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="${GRAY}">${esc(dateStr)}</text>`);
 
   return { svg: parts.join("\n"), height: H };
 }
@@ -467,7 +442,6 @@ function buildFullSvg({
   businessName, locationName, city, dateRange,
   metrics, prevMetrics, prevHasData,
   monthlyVis, monthlyEng, keywords,
-  fontDefs,
 }) {
   const SECTION_GAP = 24;
   let cursor = 24; // start y
@@ -502,7 +476,6 @@ function buildFullSvg({
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${W}" height="${totalH}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <defs>${fontDefs}</defs>
   <!-- Background -->
   <rect width="${W}" height="${totalH}" fill="${BG}"/>
   ${sections.join("\n")}
@@ -558,8 +531,7 @@ export async function generateInsightsPdf({
   ]);
 
   // ── 2. Build SVG → PNG ───────────────────────────────────────────────────────
-  const fontDefs = await getEmbeddedNotoSansFontDefs();
-  const svg       = buildFullSvg({ businessName, locationName, city, dateRange, metrics, prevMetrics, prevHasData, monthlyVis, monthlyEng, keywords, fontDefs });
+  const svg       = buildFullSvg({ businessName, locationName, city, dateRange, metrics, prevMetrics, prevHasData, monthlyVis, monthlyEng, keywords });
   const svgBuf    = Buffer.from(svg, "utf8");
 
   // Opaque RGB raster (JPEG) to avoid PNG/smask quirks in some PDF viewers.

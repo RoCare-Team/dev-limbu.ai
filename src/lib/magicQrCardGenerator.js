@@ -8,10 +8,6 @@
 import path from "path";
 import fs from "fs/promises";
 import sharp from "sharp";
-import {
-  getEmbeddedNotoSansFontDefs,
-  SHARP_SVG_FONT_FAMILY,
-} from "@/lib/sharpSvgEmbeddedFonts";
 
 const G = {
   blue: "#4285F4",
@@ -63,18 +59,6 @@ function truncUrl(url, maxLen) {
   const u = String(url || "");
   if (u.length <= maxLen) return u;
   return `${u.slice(0, maxLen - 1)}…`;
-}
-
-const FF = `'${SHARP_SVG_FONT_FAMILY}', sans-serif`;
-
-/** Vector stars — avoids ★ (U+2605) missing from Noto Latin subsets when rasterizing on Linux. */
-function goldStarsRowGroup(cx, starsY) {
-  const d =
-    "M0,-8 L2.35,-2.47 L8,-2.47 L3.1,1.23 L5.1,7.8 L0,4.5 L-5.1,7.8 L-3.1,1.23 L-8,-2.47 L-2.35,-2.47 Z";
-  const offsets = [-42, -21, 0, 21, 42];
-  return `<g transform="translate(${cx},${starsY}) scale(1.65)">${offsets
-    .map((dx) => `<path transform="translate(${dx},0)" d="${d}" fill="#FBBF24"/>`)
-    .join("")}</g>`;
 }
 
 async function fetchQrPng(reviewUrl) {

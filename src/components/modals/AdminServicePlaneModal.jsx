@@ -1,6 +1,8 @@
   "use client";
   import { useState, useEffect } from "react";
 
+  import { uploadToS3Action } from "../../app/actions/uploadS3Actions";
+
   const servicePlans = [
     {
       title: "GMB Assistance & Update Plan",
@@ -104,24 +106,38 @@
       return;
     }
 
-    const payload = {
-  userId: service?.userId,
-  paidService: selectedPlan.title,
-  amount: selectedPlan.price,   // 🔥 ADD THIS
-  isServiceBooked: true,
+   const payload = {
+  type: "service",
+
+  leadId: service?.userId,
+
+  leadName:
+    service?.fullName ||
+    service?.name ||
+    service?.leadName ||
+    "Unknown User",
+
+  email: localStorage.getItem("email"),
+
+  plan: selectedPlan.title,
+  amount: selectedPlan.price,
+
   planDuration: "monthly",
+
   packageStartDate: serviceDate,
   packageExpiryDate: expiryDate,
 
-  screenshot: preview,          // 🔥 ADD THIS
-  notes: serviceNote,           // 🔥 ADD THIS
+  paymentScreenshot: paymentScreenshot,
+  notes: serviceNote,
+
+  planApprovalStatus: "pending",
 };
 
     console.log("🔥 FINAL PAYLOAD:", payload);
 
     try {
-      const res = await fetch(`/api/users`, {
-        method: "PUT",   // 🔥 CHANGE THIS
+      const res = await fetch(`/api/franchise-revenue`, {
+  method: "POST",  // 🔥 CHANGE THIS
         headers: {
           "Content-Type": "application/json",
         },
@@ -140,13 +156,47 @@
     }
   };
 
-    const handleScreenshotChange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        setPaymentScreenshot(file);
-        setPreview(URL.createObjectURL(file));
-      }
-    };
+    const handleScreenshotChange = async (e) => {
+  const file = e.target.files[0];
+
+  if (!file) return;
+
+  // preview
+  setPreview(URL.createObjectURL(file));
+
+  try {
+    // 🔥 upload to S3
+    const uploadedUrl = await formData(file);
+
+    console.log("S3 URL:", uploadedUrl);
+
+    // 🔥 save actual S3 url
+    setPaymentScreenshot(uploadedUrl);
+
+  } catch (err) {
+    console.log(err);
+    alert("Image upload failed");
+  }
+};
+
+const formData = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadToS3Action(formData);
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to upload to S3");
+    }
+
+    return result.url;
+
+  } catch (error) {
+    console.error("S3 upload error:", error);
+    throw error;
+  }
+};
 
     // ❌ agar service nahi hai to modal hi nahi dikhega
     if (!service) return null;

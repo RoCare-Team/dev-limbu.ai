@@ -37,12 +37,15 @@ export async function POST(req) {
     }
 
     const rev = await FranchiseRevenue.findById(revenueId);
-    if (!rev || rev.type !== "user_onboard") {
-      return NextResponse.json(
-        { success: false, message: "Invalid onboard revenue entry" },
-        { status: 400 },
-      );
-    }
+    if (
+  !rev ||
+  (rev.type !== "user_onboard" && rev.type !== "service")
+) {
+  return NextResponse.json(
+    { success: false, message: "Invalid revenue entry" },
+    { status: 400 },
+  );
+}
 
     const current = rev.planApprovalStatus || "pending";
     if (current === "approved" || current === "rejected") {
@@ -57,26 +60,71 @@ export async function POST(req) {
     await rev.save();
 
     if (decision === "approved") {
-      const planName = rev.plan?.trim() || "Premium Plan";
-      const oneYearMs = 365 * 24 * 60 * 60 * 1000;
-      const now = new Date();
-      const expiry = new Date(now.getTime() + oneYearMs);
 
-      await User.findOneAndUpdate(
-        { userId: rev.leadId },
-        {
-          $set: {
-            "subscription.plan": planName,
-            "subscription.status": "active",
-            "subscription.date": now,
-            "subscription.expiry": expiry,
-            paidPackage: planName,
-            leadStage: "Onboard",
-          },
+  // =========================
+  // 📦 PACKAGE APPROVAL
+  // =========================
+  if (rev.type === "user_onboard") {
+
+    const planName = rev.plan?.trim() || "Premium Plan";
+
+    const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+
+    const now = new Date();
+
+    const expiry = new Date(now.getTime() + oneYearMs);
+
+    await User.findOneAndUpdate(
+      { userId: rev.leadId },
+
+      {
+        $set: {
+          "subscription.plan": planName,
+          "subscription.status": "active",
+          "subscription.date": now,
+          "subscription.expiry": expiry,
+
+          paidPackage: planName,
+
+          leadStage: "Onboard",
         },
-        { new: true },
-      );
-    }
+      },
+
+      { new: true },
+    );
+  }
+
+  // =========================
+  // 🛠 SERVICE APPROVAL
+  // =========================
+  if (rev.type === "service") {
+
+    await User.findOneAndUpdate(
+      { userId: rev.leadId },
+
+      {
+        $set: {
+
+          packageStartDate: rev.packageStartDate,
+
+          packageExpiryDate: rev.packageExpiryDate,
+
+          paidService: rev.plan,
+
+          serviceAmount: rev.amount,
+
+          serviceStatus: "active",
+
+          serviceApproval: "approved",
+
+          serviceNotes: rev.notes || "",
+        },
+      },
+
+      { new: true },
+    );
+  }
+}
 
     return NextResponse.json({
       success: true,

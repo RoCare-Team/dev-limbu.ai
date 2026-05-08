@@ -724,14 +724,20 @@ export async function PUT(req) {
      
 
     const {
-  userId,
-  newPlan,
-
-  planExpiry,
-  leadStage,
-  leadStatus,
-  utrNumber,
-} = body;
+      userId,
+      newPlan,
+      paidService,
+       amount,
+      paidPackage,
+      planDuration,
+      isServiceBooked,
+      planExpiry,
+      leadStage,
+      leadStatus,
+      utrNumber,
+       screenshot,   // 🔥
+      notes,
+    } = body;
 
     const remark = body.remark || body.remarks;
     let followUpDate = body.followUpDate ? new Date(body.followUpDate) : null;
@@ -849,7 +855,26 @@ export async function PUT(req) {
       };
     }
 
-    /* -------- SERVICE UPDATE -------- */  
+    /* -------- SERVICE UPDATE -------- */
+    /* -------- SERVICE UPDATE -------- */
+if (isServiceBooked === true) {
+  updateData.$set = {
+    ...updateData.$set,
+
+    // 🔥 service fields
+    ...(paidService && { paidService }),
+    ...(paidPackage && { paidPackage }),
+    ...(planDuration && { planDuration }),
+
+    // 🔥 ADD THESE (IMPORTANT)
+    ...(amount && { amount }),
+    ...(screenshot && { screenshot }),
+    ...(notes && { notes }),
+
+    // 🔥 mark service booked
+    isServiceBooked: true,
+  };
+}
 
     /* -------- LEAD STAGE UPDATE -------- */
     if (leadStage) {

@@ -267,11 +267,9 @@ export default function RevenueStats({
               <p className="text-sm text-gray-600">Assistance</p>
               <h2 className="text-2xl font-bold text-gray mt-2">
                 {
-                  users.filter(
-  (u) =>
-    u.type === "service" &&
-    u.plan?.toLowerCase().includes("assistance"),
-).length
+                  users.filter((u) =>
+                    u.paidService?.toLowerCase().includes("assistance"),
+                  ).length
                 }
               </h2>
             </div>
@@ -286,11 +284,9 @@ export default function RevenueStats({
               <p className="text-sm text-gray-600">Creation</p>
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
-                  users.filter(
-  (u) =>
-    u.type === "service" &&
-    u.plan?.toLowerCase().includes("creation"),
-).length
+                  users.filter((u) =>
+                    u.paidService?.toLowerCase().includes("creation"),
+                  ).length
                 }
               </h2>
             </div>

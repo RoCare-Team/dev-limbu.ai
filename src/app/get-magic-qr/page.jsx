@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast, Toaster } from "react-hot-toast";
 import { useMagicQR } from "@/hooks/useMagicQR";
+import { getMagicQrLocationIdentifier } from "@/lib/magicQrReviewUrl";
 import Select from "react-select";
 import LogicDemoModal from "@/components/magic-qr/LogicDemoModal";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -36,7 +37,7 @@ export default function BusinessQR() {
     const title = loc.title || "";
     const locality = loc.storefrontAddress?.locality || loc.locality || "";
     const label = locality ? `${title} - ${locality}` : title;
-    return { value: loc.locationId, label };
+    return { value: getMagicQrLocationIdentifier(loc), label };
   });
 
   const selectedOption = locationOptions.find((opt) => opt.value === selectedLocationId) || null;

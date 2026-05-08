@@ -17,6 +17,8 @@
       const email = searchParams.get("email");
       const role = searchParams.get("role");
 
+      const type = searchParams.get("type");
+
       if (!email || !role) {
         return NextResponse.json(
           { success: false, message: "Email and role are required" },
@@ -60,10 +62,18 @@
       // SuperAdmin: See ALL revenue (both user onboarding and franchise leads)
      // SuperAdmin: See ALL revenue (both user onboarding and franchise leads)
 if (role === "superAdmin" || role === "superFranchiseAdmin") {
-  revenueData = await FranchiseRevenue.find({
-    status: "active",
-    ...dateMatchQuery,
-  })
+    const revenueQuery = {
+  status: "active",
+  ...dateMatchQuery,
+};
+
+if (type) {
+  revenueQuery.type = type;
+}
+
+revenueData = await FranchiseRevenue.find(revenueQuery)
+
+
     .populate("onboardedBy", "fullName email role")
     .sort({ createdAt: -1 })
     .lean();
@@ -257,7 +267,11 @@ revenueData = revenueData.map((item) => ({
   status: "active",
 });
 
-      await newRevenue.save();
+await newRevenue.save();
+
+
+
+
 
       return NextResponse.json({
         success: true,
@@ -353,20 +367,18 @@ revenueData = revenueData.map((item) => ({
     // ========================
     // 🔥 SERVICE UPDATE
     // ========================
-    if (type === "service") {
-  console.log("SERVICE UPDATE BODY:", body);
-
-  const updatedUser = await User.findByIdAndUpdate(
+   if (type === "service") {
+  const updatedService = await FranchiseRevenue.findByIdAndUpdate(
     id,
     {
       ...(amount && { amount }),
 
       ...(notes !== undefined && { notes }),
-      ...(notes !== undefined && { remarks: notes }), // 🔥 IMPORTANT
 
       ...(packageStartDate && {
         packageStartDate: new Date(packageStartDate),
       }),
+
       ...(packageExpiryDate && {
         packageExpiryDate: new Date(packageExpiryDate),
       }),
@@ -376,7 +388,7 @@ revenueData = revenueData.map((item) => ({
 
   return NextResponse.json({
     success: true,
-    user: updatedUser,
+    revenue: updatedService,
   });
 }
 
@@ -434,19 +446,13 @@ export async function DELETE(req) {
 
     // 🔥 SERVICE DELETE
     if (type === "service") {
-      await User.findByIdAndUpdate(id, {
-        paidService: "",
-        packageStartDate: null,
-        packageExpiryDate: null,
-        amount: 0,
-        isServiceBooked: false,
-      });
+  await FranchiseRevenue.findByIdAndDelete(id);
 
-      return NextResponse.json({
-        success: true,
-        message: "Service deleted successfully",
-      });
-    }
+  return NextResponse.json({
+    success: true,
+    message: "Service deleted successfully",
+  });
+}
 
     // 📦 PACKAGE DELETE
     const deleted = await FranchiseRevenue.findByIdAndDelete(id);

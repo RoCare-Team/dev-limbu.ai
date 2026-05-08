@@ -34,8 +34,10 @@ const FranchiseRevenueSchema = new mongoose.Schema(
       default: "active",
     },
     
-    notes: { type: String, default: "" },
+    notes: { type: String, default: "" }, 
     planRemarks: { type: String, default: "" },
+        packageStartDate :{type: String, default: ""},
+
     packageExpiryDate :{type: String, default: ""},
     plan: { type: String, default: "" },
     /** user_onboard: superAdmin approves before subscription is activated on the user */

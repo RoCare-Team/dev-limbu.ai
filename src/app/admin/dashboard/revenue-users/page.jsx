@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-
 import RevenueHeader from "./components/RevenueHeader";
 import RevenueStats from "./components/RevenueStats";
 import RevenueFilters from "./components/RevenueFilters";
@@ -35,7 +34,6 @@ import DeleteModal from "./components/DeleteModal";
 import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditPackageModal from "./components/EditPackageModal";
 import EditServiceModal from "./components/EditServiceModal";
-
 
 export default function RevenueUsersPage() {
   // "package" | "service"
@@ -55,9 +53,24 @@ export default function RevenueUsersPage() {
 
   const [showServiceModal, setShowServiceModal] = useState(false);
 
-  const [activeView, setActiveView] = useState("package");
+  const [activeView, setActiveView] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("revenueActiveView") || "package";
+    }
+
+    return "package";
+  });
+
   const [revenueUsersList, setRevenueUsersList] = useState([]);
   const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem("revenueActiveView", activeView);
+  }, [activeView]);
+
+  useEffect(() => {
+  setSelectedRows([]);
+}, [activeView]);
 
   // packge delete edit modal
   const [deleteModal, setDeleteModal] = useState(false);
@@ -78,15 +91,27 @@ export default function RevenueUsersPage() {
 
   const displayData = activeView === "package" ? revenueUsersList : users;
 
-  const todayUsers = revenueUsersList.filter((r) => {
-    const today = new Date().toDateString();
-    const userDate = new Date(r.createdAt).toDateString();
-    return today === userDate;
-  });
+  const todayUsers =
+    activeView === "package"
+      ? revenueUsersList.filter((r) => {
+          if (!r.createdAt) return false;
+
+          return (
+            new Date(r.createdAt).toDateString() === new Date().toDateString()
+          );
+        })
+      : users.filter((u) => {
+          if (!u.createdAt) return false;
+
+          return (
+            new Date(u.createdAt).toDateString() === new Date().toDateString()
+          );
+        });
 
   // service
-  const serviceUsersCount = users?.filter((u) => u.paidService).length || 0;
-  const serviceUsers = users.filter((u) => u.paidService || u.isServiceBooked);
+  const serviceUsersCount =
+    users?.filter((u) => u.type === "service").length || 0;
+  const serviceUsers = users.filter((u) => u.type === "service");
 
   // check box select
   const [selectedRows, setSelectedRows] = useState([]);
@@ -96,7 +121,9 @@ export default function RevenueUsersPage() {
       const allIds =
         activeView === "package"
           ? filteredData.map((r) => r._id)
-          : users.map((u) => u._id);
+          : users
+    .filter((u) => u.type === "service")
+    .map((u) => u._id);
 
       setSelectedRows(allIds);
     } else {
@@ -117,7 +144,7 @@ export default function RevenueUsersPage() {
   const totalUsers =
     activeView === "package"
       ? revenueUsersList.length
-      : users.filter((u) => u.paidService).length;
+      : users.filter((u) => u.type === "service").length;
 
   // total revenue ========
   // 🔥 TOTAL REVENUE
@@ -128,7 +155,7 @@ export default function RevenueUsersPage() {
           0,
         )
       : (users || [])
-          .filter((u) => u.paidService)
+          .filter((u) => u.type === "service")
           .reduce((sum, u) => sum + (Number(u.amount) || 0), 0);
 
   // 🔥 TODAY REVENUE
@@ -145,19 +172,21 @@ export default function RevenueUsersPage() {
           .reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
       : (users || [])
           .filter((u) => {
-            if (!u.packageStartDate) return false;
-            return u.packageStartDate.split("T")[0] === today && u.paidService;
+            if (!u.createdAt) return false;
+
+            return (
+              new Date(u.createdAt).toDateString() === new Date().toDateString()
+            );
           })
           .reduce((sum, u) => sum + (Number(u.amount) || 0), 0);
 
   // service package
-
   const assistanceUsers = users.filter(
-    (u) => u.paidService && u.paidService.toLowerCase().includes("assistance"),
+    (u) => u.plan && u.plan.toLowerCase().includes("assistance"),
   ).length;
 
   const creationUsers = users.filter(
-    (u) => u.paidService && u.paidService.toLowerCase().includes("creation"),
+    (u) => u.plan && u.plan.toLowerCase().includes("creation"),
   ).length;
 
   // service plane
@@ -173,22 +202,43 @@ export default function RevenueUsersPage() {
         }
       : {
           assistance: users.filter((u) =>
-            u.paidService?.toLowerCase().includes("assistance"),
+            u.plan?.toLowerCase().includes("assistance"),
           ).length,
           creation: users.filter((u) =>
-            u.paidService?.toLowerCase().includes("creation"),
+            u.plan?.toLowerCase().includes("creation"),
           ).length,
         };
 
-  useEffect(() => {
-    const email = localStorage.getItem("email"); // 🔥 IMPORTANT
+  const fetchServiceUsers = async () => {
+    try {
+      const email = localStorage.getItem("email");
+      const role = localStorage.getItem("role");
 
-    fetch(`/api/users?email=${email}`)
-      .then((res) => res.json())
-      .then((data) => {
-        // console.log("USERS DATA 👉", data);
-        setUsers(data.users || []);
+      const params = new URLSearchParams({
+        type: "service",
+        email,
+        role,
       });
+
+      const res = await fetch(`/api/franchise-revenue?${params}`);
+
+      const data = await res.json();
+
+      console.log("SERVICE API RESPONSE:", data);
+
+      if (data.success) {
+        setUsers(data.revenue || []);
+      } else {
+        setUsers([]);
+      }
+    } catch (err) {
+      console.log(err);
+      setUsers([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchServiceUsers();
   }, []);
 
   const premiumUsers = revenueUsersList.filter((r) =>
@@ -309,7 +359,7 @@ export default function RevenueUsersPage() {
         },
         body: JSON.stringify({
           email: localStorage.getItem("email"),
-          userId: user._id,
+          revenueId: user._id,
           decision,
         }),
       });
@@ -492,17 +542,7 @@ export default function RevenueUsersPage() {
         // 🔥 दोनों refresh करो
         fetchRevenueUsers();
 
-        const email = localStorage.getItem("email");
-        const usersRes = await fetch(`/api/users?email=${email}`);
-
-        let usersData = {};
-        try {
-          usersData = await usersRes.json();
-        } catch (e) {
-          console.error("Users JSON parse error", e);
-        }
-
-        setUsers(usersData.users || []);
+        await fetchServiceUsers();
       } else {
         alert(data.message || "Delete failed");
       }
@@ -541,10 +581,7 @@ export default function RevenueUsersPage() {
 
         fetchRevenueUsers();
 
-        const email = localStorage.getItem("email");
-        const usersRes = await fetch(`/api/users?email=${email}`);
-        const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
+        await fetchServiceUsers();
       } else {
         alert(data.message || "Update failed");
       }
@@ -557,50 +594,52 @@ export default function RevenueUsersPage() {
   return (
     <>
       <div>
-          <RevenueHeader
-  handleRefresh={handleRefresh}
-  isRefreshing={isRefreshing}
-  activeView={activeView}
-  setActiveView={setActiveView}
-/>
+        <RevenueHeader
+          handleRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          activeView={activeView}
+          setActiveView={setActiveView}
+        />
 
         {/* ===== STATS ===== */}
-        
+
         <RevenueStats
-  activeView={activeView}
-  totalUsers={totalUsers}
-  todayUsers={todayUsers}
-  totalRevenue={totalRevenue}
-  todayRevenue={todayRevenue}
-  revenueUsersList={revenueUsersList}
-  users={users}
-/>
+          activeView={activeView}
+          totalUsers={totalUsers}
+          todayUsers={todayUsers}
+          totalRevenue={totalRevenue}
+          todayRevenue={todayRevenue}
+          revenueUsersList={revenueUsersList}
+          users={users}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-
           {/* SERACH TOOL BAAR  */}
 
           <RevenueFilters
-  searchTerm={searchTerm}
-  setSearchTerm={setSearchTerm}
-  expiryFilter={expiryFilter}
-  setExpiryFilter={setExpiryFilter}
-  planFilter={planFilter}
-  setPlanFilter={setPlanFilter}
-  statusFilter={statusFilter}
-  setStatusFilter={setStatusFilter}
-/>
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            expiryFilter={expiryFilter}
+            setExpiryFilter={setExpiryFilter}
+            planFilter={planFilter}
+            setPlanFilter={setPlanFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+          />
 
           <RevenueTableWrapper
   loadingRevenueUsers={loadingRevenueUsers}
-  revenueUsersList={revenueUsersList}
+  revenueUsersList={
+    activeView === "package"
+      ? revenueUsersList
+      : users.filter((u) => u.type === "service")
+  }
   selectedRows={selectedRows}
 >
             <>
               {/* Table */}
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm ">
-               
                 <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
@@ -658,6 +697,23 @@ export default function RevenueUsersPage() {
 
                         {activeView === "service" && (
                           <>
+                            <th className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  users.filter((u) => u.type === "service")
+                                    .length > 0 &&
+                                  selectedRows.length ===
+                                    users.filter((u) => u.type === "service")
+                                      .length
+                                }
+                                onChange={(e) =>
+                                  handleSelectAll(e.target.checked)
+                                }
+                                className="w-4 h-4 accent-indigo-600"
+                              />
+                            </th>
+
                             <th className="px-6 py-3 text-left text-xs font-semibold">
                               User
                             </th>
@@ -731,8 +787,6 @@ export default function RevenueUsersPage() {
                               <td className="px-6 py-4 font-semibold text-green-600">
                                 ₹{r.amount}
                               </td>
-
-     
 
                               <td className="px-6 py-4 text-sm text-gray-600">
                                 {r.userPackageStartDate ? (
@@ -860,12 +914,21 @@ export default function RevenueUsersPage() {
 
                       {activeView === "service" &&
                         users
-                          .filter((u) => u.paidService || u.isServiceBooked)
+                          .filter((u) => u.type === "service")
                           .map((u, i) => (
                             <tr
                               key={i}
                               className="border-t hover:bg-gray-50 transition"
                             >
+                              <td className="px-4 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.includes(u._id)}
+                                  onChange={() => handleSelectRow(u._id)}
+                                  className="w-4 h-4 accent-indigo-600"
+                                />
+                              </td>
+
                               <td className="px-6 py-4">
                                 <div className="font-semibold text-gray-900">
                                   {u.name ||
@@ -879,25 +942,37 @@ export default function RevenueUsersPage() {
                               </td>
 
                               <td className="px-6 py-4">
-                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-                                  {u.paidService}
-                                </span>
+                                {u.planDuration || "monthly"}
                               </td>
 
-                              <td className="px-6 py-4">{u.planDuration}</td>
+                              <td className="px-6 py-4">
+                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                                  {u.plan}
+                                </span>
+                              </td>
                               <td className="px-6 py-4 font-semibold text-green-600">
                                 ₹{u.amount || 0}
                               </td>
                               <td className="px-6 py-4">
-                                {new Date(
-                                  u.packageStartDate,
-                                ).toLocaleDateString()}
+                                {u.packageStartDate
+                                  ? formatDateIST(
+                                      typeof u.packageStartDate === "string"
+                                        ? u.packageStartDate
+                                        : u.packageStartDate?.$date ||
+                                            u.packageStartDate,
+                                    )
+                                  : "-"}
                               </td>
 
                               <td className="px-6 py-4">
-                                {new Date(
-                                  u.packageExpiryDate,
-                                ).toLocaleDateString()}
+                                {u.packageExpiryDate
+                                  ? formatDateIST(
+                                      typeof u.packageExpiryDate === "string"
+                                        ? u.packageExpiryDate
+                                        : u.packageExpiryDate?.$date ||
+                                            u.packageExpiryDate,
+                                    )
+                                  : "-"}
                               </td>
 
                               {/* layout maintain */}
@@ -1007,54 +1082,52 @@ export default function RevenueUsersPage() {
 
               {/* Footer Totals */}
               <RevenueFooter
-  activeView={activeView}
-  revenueUsersList={revenueUsersList}
-  users={users}
-/>
+                activeView={activeView}
+                revenueUsersList={revenueUsersList}
+                users={users}
+              />
             </>
-          
           </RevenueTableWrapper>
-
         </div>
 
         {/* // package edit moada */}
         <EditPackageModal
-  editModal={editModal}
-  setEditModal={setEditModal}
-  editPlan={editPlan}
-  setEditPlan={setEditPlan}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editRemarks={editRemarks}
-  setEditRemarks={setEditRemarks}
-  handleUpdatePackage={handleUpdatePackage}
-/>
+          editModal={editModal}
+          setEditModal={setEditModal}
+          editPlan={editPlan}
+          setEditPlan={setEditPlan}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editRemarks={editRemarks}
+          setEditRemarks={setEditRemarks}
+          handleUpdatePackage={handleUpdatePackage}
+        />
         {/* // service modal */}
-        
+
         <EditServiceModal
-  editServiceModal={editServiceModal}
-  setEditServiceModal={setEditServiceModal}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editNotes={editNotes}
-  setEditNotes={setEditNotes}
-  updateService={updateService}
-/>
+          editServiceModal={editServiceModal}
+          setEditServiceModal={setEditServiceModal}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editNotes={editNotes}
+          setEditNotes={setEditNotes}
+          updateService={updateService}
+        />
 
-          {/* // Delete modal */}
+        {/* // Delete modal */}
 
-          <DeleteModal
-  deleteModal={deleteModal}
-  setDeleteModal={setDeleteModal}
-  confirmDelete={confirmDelete}
-/>
+        <DeleteModal
+          deleteModal={deleteModal}
+          setDeleteModal={setDeleteModal}
+          confirmDelete={confirmDelete}
+        />
 
         {/* // image Previe modal */}
 
         <ImagePreviewModal
-  fullViewImage={fullViewImage}
-  setFullViewImage={setFullViewImage}
-/>
+          fullViewImage={fullViewImage}
+          setFullViewImage={setFullViewImage}
+        />
       </div>
     </>
   );

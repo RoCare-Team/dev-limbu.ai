@@ -58,6 +58,8 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 
 import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneModal";
 
+// import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
+
 import {
   alpha,
   Box,
@@ -931,7 +933,7 @@ export default function UserManagement() {
   }, []);
 
   /* ---------------- UPLOAD TO S3 ---------------- */
-  const uploadToS3 = async (file) => {
+  const formData = async (file) => {
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -1441,7 +1443,7 @@ export default function UserManagement() {
       let screenshotUrl = null;
       // 1. Handle revenue recording if amount is provided
       if (planAmount && parseFloat(planAmount) > 0) {
-        screenshotUrl = await uploadToS3(planScreenshot);
+        screenshotUrl = await formData(planScreenshot);
         console.log("SENDING DATA:", {
           planRemarks: planRemarks,
           selectedPlan,

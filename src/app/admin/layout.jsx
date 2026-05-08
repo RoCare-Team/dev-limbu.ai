@@ -72,21 +72,20 @@ export default function AdminLayout({ children }) {
     ---------------------------- */
   const [openGroup, setOpenGroup] = useState(null);
 
-useEffect(() => {
-  const foundIndex = navGroups.findIndex((group) =>
-    group.items.some((item) =>
-      pathname.startsWith(item.href)
-    )
-  );
+  useEffect(() => {
+    const foundIndex = navGroups.findIndex((group) =>
+      group.items.some((item) => pathname.startsWith(item.href)),
+    );
 
-  if (foundIndex !== -1) {
-    setOpenGroup(foundIndex);
-  }
-}, [pathname]);
+    if (foundIndex !== -1) {
+      setOpenGroup(foundIndex);
+    }
+  }, [pathname]);
 
   const navGroups = [
     {
       title: "Overview",
+      groupIcon: <BarChart3 size={16} />,
       items: [
         {
           name: "Dashboard",
@@ -113,7 +112,8 @@ useEffect(() => {
 
     {
       title: "Leads",
-      href: "/admin/user-management", // 👈 ADD THIS
+      groupIcon: <Users size={16} />,
+      href: "/admin/user-management",
       items: [
         {
           name: "Leads",
@@ -138,8 +138,10 @@ useEffect(() => {
         },
       ],
     },
+
     {
       title: "Bookings",
+      groupIcon: <BookCheck size={16} />,
       items: [
         {
           name: "Service Booking",
@@ -156,6 +158,7 @@ useEffect(() => {
 
     {
       title: "Content",
+      groupIcon: <QrCode size={16} />,
       items: [
         {
           name: "Blog Management",
@@ -169,8 +172,10 @@ useEffect(() => {
         },
       ],
     },
+
     {
       title: "Franchise",
+      groupIcon: <LucideHeadset size={16} />,
       items: [
         {
           name: "Franchise Lead",
@@ -184,8 +189,10 @@ useEffect(() => {
         },
       ],
     },
+
     {
       title: "Team",
+      groupIcon: <CircleUser size={16} />,
       items: [
         {
           name: "Account Manager",
@@ -194,8 +201,10 @@ useEffect(() => {
         },
       ],
     },
+
     {
       title: "Integrations",
+      groupIcon: <Link2 size={16} />,
       items: [
         {
           name: "Connected Nodes",
@@ -204,8 +213,10 @@ useEffect(() => {
         },
       ],
     },
+
     {
       title: "System",
+      groupIcon: <Settings size={16} />,
       items: [
         {
           name: "Settings",
@@ -302,46 +313,56 @@ useEffect(() => {
             <div key={idx}>
               <button
                 onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
-                className="w-full flex items-center justify-between px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100"
+                className={`w-full flex items-center ${
+                  open ? "justify-between px-4" : "justify-center"
+                } py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100 transition-all`}
               >
-                {group.title}
-                <span
-                  className={`text-xl font-bold leading-none transition-transform duration-500 ease-in-out ${
-                    openGroup === idx ? "rotate-180" : ""
-                  }`}
-                >
-                  ⌵
-                </span>
+                <div className="flex items-center gap-2">
+                  {group.groupIcon}
+
+                  {open && <span>{group.title}</span>}
+                </div>
+                {open && (
+                  <span
+                    className={`text-xl font-bold leading-none transition-transform duration-500 ease-in-out ${
+                      openGroup === idx ? "rotate-180" : ""
+                    }`}
+                  >
+                    ⌵
+                  </span>
+                )}
               </button>
 
               <div
-  className={`ml-2 mt-1 space-y-1 overflow-hidden transition-all duration-500 ease-in-out
+                className={`ml-2 mt-1 space-y-1 overflow-hidden transition-all duration-500 ease-in-out
   ${
     openGroup === idx
       ? "max-h-[500px] opacity-100 translate-y-0"
       : "max-h-0 opacity-0 -translate-y-2"
   }`}
->
-  {group.items.map((item) => {
-    const active = pathname.startsWith(item.href);
+              >
+                {group.items.map((item) => {
+                  const active = pathname.startsWith(item.href);
 
-    return (
-      <Link
-        key={item.name}
-        href={item.href}
-        className={`flex items-center gap-3 px-4 py-2.5 text-[14px] rounded-lg transition-all duration-300
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center ${
+                        open ? "gap-3 px-4 justify-start" : "justify-center"
+                      } py-2.5 text-[14px] rounded-lg transition-all duration-300
         ${
           active
             ? "bg-blue-50 text-blue-600 font-medium shadow-sm scale-[1.02]"
             : "text-slate-700 hover:bg-slate-100 hover:text-black hover:translate-x-1"
         }`}
-      >
-        {item.icon}
-        {open && item.name}
-      </Link>
-    );
-  })}
-</div>
+                    >
+                      {item.icon}
+                      {open && item.name}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           ))}
 

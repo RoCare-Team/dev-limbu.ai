@@ -56,9 +56,9 @@ function wrapLines(text, maxChars) {
 }
 
 function truncUrl(url, maxLen) {
-  const u = String(url || "");
-  if (u.length <= maxLen) return u;
-  return `${u.slice(0, maxLen - 1)}…`;
+  const value = sanitizeText(url);
+  if (value.length <= maxLen) return value;
+  return `${value.slice(0, maxLen - 3)}...`;
 }
 
 async function fetchQrPng(reviewUrl) {

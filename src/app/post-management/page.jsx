@@ -122,7 +122,10 @@ export default function PostManagementPage() {
     showYouTubeModal: false,
   });
 
-  const [postResultData, setPostResultData] = useState({ successLocs: [], failedLocs: [] });
+  const [postResultData, setPostResultData] = useState({
+    successLocs: [],
+    failedLocs: [],
+  });
   const [lastPostMeta, setLastPostMeta] = useState(null);
   const [isReposting, setIsReposting] = useState(false);
 
@@ -195,10 +198,7 @@ export default function PostManagementPage() {
     fetchYouTubeChannels,
   } = useYouTube(router, searchParams);
 
-  const {
-    pinterestProfiles,
-    publishPin
-  } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
+  const { pinterestProfiles, publishPin } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
 
   const [socialState, setSocialState] = useState({
     facebookPages: [],
@@ -525,11 +525,18 @@ export default function PostManagementPage() {
         const data = res.data || {};
 
         // ✅ FIX: pi_des bhi add kiya
-        const { gmb_des, fb_des, ig_des, li_des, pi_des } = normalizePlatformDescriptions({
-          ...res,
-          ...data,
+        const { gmb_des, fb_des, ig_des, li_des, pi_des } =
+          normalizePlatformDescriptions({
+            ...res,
+            ...data,
+          });
+        console.log("Normalized descriptions in post management:", {
+          gmb_des,
+          fb_des,
+          ig_des,
+          li_des,
+          pi_des,
         });
-        console.log("Normalized descriptions in post management:", { gmb_des, fb_des, ig_des, li_des, pi_des });
 
         const saved = await savePostAction({
           userId,
@@ -609,13 +616,26 @@ export default function PostManagementPage() {
           topic: prompt,
           bussiness_name: businessName,
           keywords,
-          colourPalette: userAssets.find((a) => a.name === "Color")?.url || "none",
+          colourPalette:
+            userAssets.find((a) => a.name === "Color")?.url || "none",
           size: userAssets.find((a) => a.name === "Size")?.url || "1:1",
-          characterImage: stripBase64(selectedAssets.find((a) => a.name === "Character")?.url || ""),
-          uniformImage: stripBase64(selectedAssets.find((a) => a.name === "Uniform")?.url || ""),
-          productImage: stripBase64(selectedAssets.find((a) => a.name.startsWith("Product"))?.url || ""),
-          backgroundImage: stripBase64(selectedAssets.find((a) => a.name === "Background")?.url || ""),
-          logoImage: stripBase64(selectedAssets.find((a) => a.name === "Logo")?.url || logoBase64 || ""),
+          characterImage: stripBase64(
+            selectedAssets.find((a) => a.name === "Character")?.url || "",
+          ),
+          uniformImage: stripBase64(
+            selectedAssets.find((a) => a.name === "Uniform")?.url || "",
+          ),
+          productImage: stripBase64(
+            selectedAssets.find((a) => a.name.startsWith("Product"))?.url || "",
+          ),
+          backgroundImage: stripBase64(
+            selectedAssets.find((a) => a.name === "Background")?.url || "",
+          ),
+          logoImage: stripBase64(
+            selectedAssets.find((a) => a.name === "Logo")?.url ||
+              logoBase64 ||
+              "",
+          ),
           platform: selectedPlatforms.join(",") || "gmb",
           mode,
           instructions,
@@ -624,22 +644,32 @@ export default function PostManagementPage() {
         timer = null;
 
         if (!res.success && !res.data && !res.output && !res.image) {
-          throw new Error(res.error || res.message || "Image generation failed");
+          throw new Error(
+            res.error || res.message || "Image generation failed",
+          );
         }
 
         const data = res.success ? res.data : res;
 
         // ✅ FIX: console.log AFTER destructure, pi_des bhi add
-        const { gmb_des, fb_des, ig_des, li_des, pi_des } = normalizePlatformDescriptions({
-          ...res,
-          ...data,
+        const { gmb_des, fb_des, ig_des, li_des, pi_des } =
+          normalizePlatformDescriptions({
+            ...res,
+            ...data,
+          });
+        console.log("Normalized descriptions:", {
+          gmb_des,
+          fb_des,
+          ig_des,
+          li_des,
+          pi_des,
         });
-        console.log("Normalized descriptions:", { gmb_des, fb_des, ig_des, li_des, pi_des });
 
         const saved = await savePostAction({
           userId,
           aiOutput: data.image || data.output,
-          description: data.description || gmb_des || fb_des || ig_des || "Generated",
+          description:
+            data.description || gmb_des || fb_des || ig_des || "Generated",
           gmbDescription: gmb_des,
           fbDescription: fb_des,
           igDescription: ig_des,
@@ -668,9 +698,14 @@ export default function PostManagementPage() {
 
         if (!deductOk || walletRes?.error) {
           console.error("Coin deduction failed after save:", walletRes);
-          showToast("Post saved but coin deduction failed — contact support", "error");
+          showToast(
+            "Post saved but coin deduction failed — contact support",
+            "error",
+          );
         } else {
-          setUserWallet((prev) => Math.max(0, prev - AI_IMAGE_GENERATION_COINS));
+          setUserWallet((prev) =>
+            Math.max(0, prev - AI_IMAGE_GENERATION_COINS),
+          );
           showToast(`${AI_IMAGE_GENERATION_COINS} coins deducted ✅`);
           emitWalletDeduct(AI_IMAGE_GENERATION_COINS);
         }
@@ -686,7 +721,15 @@ export default function PostManagementPage() {
         updateUiState({ isGenerating: false, countdown: 0 });
       }
     },
-    [prompt, userId, logo, userAssets, selectedPlatforms, showToast, updateUiState],
+    [
+      prompt,
+      userId,
+      logo,
+      userAssets,
+      selectedPlatforms,
+      showToast,
+      updateUiState,
+    ],
   );
 
   const handleGenerateClick = useCallback(
@@ -782,7 +825,7 @@ export default function PostManagementPage() {
       sources = null,
       fbPages = [],
       igPages = [],
-      meta = null
+      meta = null,
     ) => {
       const postId = typeof postOrId === "string" ? postOrId : postOrId._id;
       if (typeof postOrId === "object" && !newStatus) {
@@ -807,7 +850,8 @@ export default function PostManagementPage() {
           scheduledDateSource: sources,
           fbPages,
           igPages,
-          refreshToken: newStatus === "scheduled" ? session?.refreshToken : undefined,
+          refreshToken:
+            newStatus === "scheduled" ? session?.refreshToken : undefined,
         };
 
         if (meta) {
@@ -860,7 +904,8 @@ export default function PostManagementPage() {
           selectedTargets.gmb.includes(loc.id),
         );
         const scheduleImageUrl = post.aiOutput || "";
-        const getInstagramId = (account = {}) => account.igId || account.igUserId || account.id;
+        const getInstagramId = (account = {}) =>
+          account.igId || account.igUserId || account.id;
 
         const fbPages = socialState.facebookPages
           .filter((p) => selectedTargets.fb.includes(p.pageId))
@@ -896,7 +941,7 @@ export default function PostManagementPage() {
           sources,
           fbPages,
           igPages,
-          selectedTargets.meta // pass the new meta configuration
+          selectedTargets.meta, // pass the new meta configuration
         );
         updateUiState({
           isScheduleModalOpen: false,
@@ -1008,10 +1053,7 @@ export default function PostManagementPage() {
     [updateUiState, updateSocialState],
   );
 
-  const {
-    linkedinPages,
-    publishLinkedinPost,
-  } = useLinkedin(null, null);
+  const { linkedinPages, publishLinkedinPost } = useLinkedin(null, null);
 
   const handleLinkedinPost = useCallback(
     (post, media = null) => {
@@ -1056,14 +1098,12 @@ export default function PostManagementPage() {
 
         formData.append(
           "title",
-          post.title ||
-          post.description?.slice(0, 80) ||
-          "YouTube Shorts"
+          post.title || post.description?.slice(0, 80) || "YouTube Shorts",
         );
 
         formData.append(
           "description",
-          (caption || post.description || "") + "\n#shorts"
+          (caption || post.description || "") + "\n#shorts",
         );
 
         formData.append("mediaUrl", publishMedia.url);
@@ -1079,9 +1119,7 @@ export default function PostManagementPage() {
         // ❌ HTTP error
         if (!res.ok) {
           const errorText = await res.text();
-          throw new Error(
-            `YouTube API error (${res.status}): ${errorText}`
-          );
+          throw new Error(`YouTube API error (${res.status}): ${errorText}`);
         }
 
         // ✅ Safe JSON parse
@@ -1123,10 +1161,7 @@ export default function PostManagementPage() {
       } catch (err) {
         console.error("YouTube upload error:", err);
 
-        showToast(
-          err.message || "Failed to upload to YouTube",
-          "error"
-        );
+        showToast(err.message || "Failed to upload to YouTube", "error");
       } finally {
         setTimeout(() => setIsPosting(false), 1000);
       }
@@ -1138,7 +1173,7 @@ export default function PostManagementPage() {
       setPostingPlatform,
       showToast,
       userId,
-    ]
+    ],
   );
 
   const handleAutoConvertToVideo = useCallback(
@@ -1257,31 +1292,44 @@ export default function PostManagementPage() {
           return `${day}-${month}-${year}`;
         };
 
-        const isVideoSelection = checkmark === "video" || selectedMediaForAction?.type === "video";
+        const isVideoSelection =
+          checkmark === "video" || selectedMediaForAction?.type === "video";
         let mediaUrl = "";
 
         if (isVideoSelection) {
           // If they explicitly selected "video" checkmark, ignore selectedMediaForAction if it's an image
           if (checkmark === "video") {
-            mediaUrl = postToAction.videoOutput || selectedMediaForAction?.url || "";
+            mediaUrl =
+              postToAction.videoOutput || selectedMediaForAction?.url || "";
           } else {
-            mediaUrl = selectedMediaForAction?.url || postToAction.videoOutput || "";
+            mediaUrl =
+              selectedMediaForAction?.url || postToAction.videoOutput || "";
           }
         } else {
           // For post/photo
-          if (checkmark === "post" || checkmark === "photo" || checkmark === "both" || !checkmark) {
-            mediaUrl = postToAction.aiOutput || selectedMediaForAction?.url || "";
+          if (
+            checkmark === "post" ||
+            checkmark === "photo" ||
+            checkmark === "both" ||
+            !checkmark
+          ) {
+            mediaUrl =
+              postToAction.aiOutput || selectedMediaForAction?.url || "";
           } else {
-            mediaUrl = selectedMediaForAction?.url || postToAction.aiOutput || "";
+            mediaUrl =
+              selectedMediaForAction?.url || postToAction.aiOutput || "";
           }
         }
 
         // Prepare the batched location data
-        const locationDataBatch = locs.map(l => ({
+        const locationDataBatch = locs.map((l) => ({
           city: l.locationId,
           cityName: l.locality,
-          bookUrl: (!isVideoSelection && meta.ctaType === "call_now") ? (l.primaryPhone || "") : (meta.customUrl || l.websiteUrl || ""),
-          account: l.accountId // Pass account ID per location if needed by backend mapping
+          bookUrl:
+            !isVideoSelection && meta.ctaType === "call_now"
+              ? l.primaryPhone || ""
+              : meta.customUrl || l.websiteUrl || "",
+          account: l.accountId, // Pass account ID per location if needed by backend mapping
         }));
 
         const payload = {
@@ -1292,12 +1340,14 @@ export default function PostManagementPage() {
           description: postToAction.description,
           accessToken: session?.accessToken,
           checkmark: checkmark || "post",
-          post_type: isVideoSelection ? "standard" : (meta.postType || "standard"),
-          cta: isVideoSelection ? "learn_more" : (meta.ctaType || "book"),
+          post_type: isVideoSelection
+            ? "standard"
+            : meta.postType || "standard",
+          cta: isVideoSelection ? "learn_more" : meta.ctaType || "book",
           startDate: isVideoSelection ? "" : formatDate(meta.startDate),
           endDate: isVideoSelection ? "" : formatDate(meta.endDate),
-          tittle: isVideoSelection ? "" : (meta.eventTitle || ""),
-          wait_video: false
+          tittle: isVideoSelection ? "" : meta.eventTitle || "",
+          wait_video: false,
         };
 
         console.log("Posting to GMB with batched payload:", payload);
@@ -1314,26 +1364,42 @@ export default function PostManagementPage() {
         const postedDate = new Date().toISOString();
 
         if (postres.ok && (successList.length > 0 || failList.length > 0)) {
-          successList.forEach(s => {
-            const loc = locs.find(l => l.locationId === s.location_id);
-            if (loc) successfulLocs.push({ ...loc, isPosted: true, postedAt: postedDate });
+          successList.forEach((s) => {
+            const loc = locs.find((l) => l.locationId === s.location_id);
+            if (loc)
+              successfulLocs.push({
+                ...loc,
+                isPosted: true,
+                postedAt: postedDate,
+              });
           });
-          failList.forEach(f => {
-            const loc = locs.find(l => l.locationId === f.location_id);
+          failList.forEach((f) => {
+            const loc = locs.find((l) => l.locationId === f.location_id);
             if (loc) failedLocs.push(loc);
           });
 
           // Catch any locations that were not listed in success or fail
           if (successfulLocs.length + failedLocs.length < locs.length) {
-            locs.forEach(l => {
-              if (!successfulLocs.find(s => s.id === l.id) && !failedLocs.find(f => f.id === l.id)) {
+            locs.forEach((l) => {
+              if (
+                !successfulLocs.find((s) => s.id === l.id) &&
+                !failedLocs.find((f) => f.id === l.id)
+              ) {
                 failedLocs.push(l);
               }
             });
           }
-        } else if (postres.ok && successList.length === 0 && failList.length === 0) {
+        } else if (
+          postres.ok &&
+          successList.length === 0 &&
+          failList.length === 0
+        ) {
           // Fallback if backend returned OK but empty lists
-          successfulLocs = locs.map(l => ({ ...l, isPosted: true, postedAt: postedDate }));
+          successfulLocs = locs.map((l) => ({
+            ...l,
+            isPosted: true,
+            postedAt: postedDate,
+          }));
         } else {
           // If completely failed (e.g., 500 error or format mismatch)
           failedLocs = [...locs];
@@ -1381,17 +1447,25 @@ export default function PostManagementPage() {
               },
             },
             mediaStatus: {
-              [selectedMediaForAction?.type === "video" ? "video" : "image"]: "posted",
+              [selectedMediaForAction?.type === "video" ? "video" : "image"]:
+                "posted",
             },
           });
           fetchPosts(1, true);
         }
 
         // Save state for result modal and repost logic
-        setPostResultData({ successLocs: successfulLocs, failedLocs: failedLocs });
-        setLastPostMeta({ checkmark, meta, postToAction, selectedMediaForAction });
+        setPostResultData({
+          successLocs: successfulLocs,
+          failedLocs: failedLocs,
+        });
+        setLastPostMeta({
+          checkmark,
+          meta,
+          postToAction,
+          selectedMediaForAction,
+        });
         updateUiState({ showPostResultModal: true });
-
       } catch (err) {
         showToast(err.message || "Post failed", "error");
       } finally {
@@ -1428,9 +1502,9 @@ export default function PostManagementPage() {
 
     // We pass the failed IDs back into handleLocationConfirm
     await handleLocationConfirm(
-      postResultData.failedLocs.map(l => l.id),
+      postResultData.failedLocs.map((l) => l.id),
       lastPostMeta.checkmark,
-      lastPostMeta.meta
+      lastPostMeta.meta,
     );
 
     setIsReposting(false);
@@ -1573,7 +1647,7 @@ export default function PostManagementPage() {
       try {
         const p = JSON.parse(stored);
         if (p.length) setBussinessTitle(p[0].title);
-      } catch (e) { }
+      } catch (e) {}
     }
   }, []);
 
@@ -1709,9 +1783,17 @@ export default function PostManagementPage() {
           <FacebookShareModal
             isOpen={uiState.showFacebookModal}
             onClose={() => updateUiState({ showFacebookModal: false })}
-            onConfirm={(p, pg, c) => {
+            onConfirm={async (p, selectedPages, c) => {
               updateUiState({ showFacebookModal: false });
-              handleFacebookPostAction(p, pg, c, selectedMediaForAction);
+              const pagesToPost = Array.isArray(selectedPages)
+                ? selectedPages
+                : [selectedPages].filter(Boolean);
+              await handleFacebookPostAction(
+                p,
+                pagesToPost,
+                c,
+                selectedMediaForAction,
+              );
               setSelectedMediaForAction(null);
             }}
             post={socialState.postToFacebook}
@@ -1726,11 +1808,14 @@ export default function PostManagementPage() {
               updateUiState({ showInstagramModal: false });
               setSelectedMediaForAction(null);
             }}
-            onConfirm={(p, a, c, igVideoKind) => {
+            onConfirm={(p, selectedAccounts, c, igVideoKind) => {
               updateUiState({ showInstagramModal: false });
+              const accountsToPost = Array.isArray(selectedAccounts)
+                ? selectedAccounts
+                : [selectedAccounts].filter(Boolean);
               handleInstagramPostAction(
                 p,
-                a,
+                accountsToPost,
                 c,
                 igVideoKind,
                 selectedMediaForAction,
@@ -1752,7 +1837,12 @@ export default function PostManagementPage() {
             onPost={async (post, boardId) => {
               const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
               // ✅ FIX: piDescription pehle check karo
-              let description = post.piDescription || post.pinterestDescription || post.description || post.fbDescription || "";
+              let description =
+                post.piDescription ||
+                post.pinterestDescription ||
+                post.description ||
+                post.fbDescription ||
+                "";
 
               if (description.length > 800) {
                 description = description.substring(0, 797) + "...";
@@ -1763,7 +1853,7 @@ export default function PostManagementPage() {
                 description,
                 boardId,
                 mediaUrl,
-                link: availableLocations[0]?.websiteUrl || ""
+                link: availableLocations[0]?.websiteUrl || "",
               });
 
               if (result && result.success) {
@@ -1821,7 +1911,12 @@ export default function PostManagementPage() {
             loading={loadingYoutubeChannels}
             onConfirm={(post, channel, caption) => {
               updateUiState({ showYouTubeModal: false });
-              handleYouTubePostAction(post, channel, caption, selectedMediaForAction);
+              handleYouTubePostAction(
+                post,
+                channel,
+                caption,
+                selectedMediaForAction,
+              );
               setSelectedMediaForAction(null);
             }}
           />
@@ -1839,7 +1934,10 @@ export default function PostManagementPage() {
           failedLocs={postResultData.failedLocs}
           onRepost={handleRepostFailed}
           isReposting={isReposting}
-          isVideo={lastPostMeta?.checkmark === "video" || lastPostMeta?.selectedMediaForAction?.type === "video"}
+          isVideo={
+            lastPostMeta?.checkmark === "video" ||
+            lastPostMeta?.selectedMediaForAction?.type === "video"
+          }
         />
 
         {/* gmb post success modal */}
@@ -1997,8 +2095,13 @@ export default function PostManagementPage() {
               onPost={async (post, pageId) => {
                 const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
                 // Safely determine mediaType without relying on undefined postHasVideoAsset
-                const isVideo = selectedMediaForAction?.type === 'video' || (!selectedMediaForAction && post.videoOutput && mediaUrl === post.videoOutput) || (mediaUrl && mediaUrl.includes('.mp4'));
-                const mediaType = isVideo ? 'video' : 'image';
+                const isVideo =
+                  selectedMediaForAction?.type === "video" ||
+                  (!selectedMediaForAction &&
+                    post.videoOutput &&
+                    mediaUrl === post.videoOutput) ||
+                  (mediaUrl && mediaUrl.includes(".mp4"));
+                const mediaType = isVideo ? "video" : "image";
 
                 // The modal passes the newly edited text inside `post.linkedinDescription`
                 let text = post.linkedinDescription || post.liDescription || "";
@@ -2007,7 +2110,7 @@ export default function PostManagementPage() {
                   text,
                   mediaUrl,
                   mediaType,
-                  pageId
+                  pageId,
                 });
 
                 if (result && result.success) {

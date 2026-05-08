@@ -73,7 +73,9 @@ const getPlatformPost = (whenPosted, platformKey) => {
   if (Array.isArray(whenPosted)) {
     return (
       whenPosted.find(
-        (item) => PLATFORM_ALIASES[item?.platform] === platform || item?.platform === platform,
+        (item) =>
+          PLATFORM_ALIASES[item?.platform] === platform ||
+          item?.platform === platform,
       ) || null
     );
   }
@@ -242,7 +244,8 @@ const PostCard = React.memo(
           color: "border-green-100",
           accent: "bg-green-50 text-green-700",
           posted: isPostedGmb,
-          fallbackDate: post.locations?.find((l) => l.isPosted && l.postedAt)?.postedAt,
+          fallbackDate: post.locations?.find((l) => l.isPosted && l.postedAt)
+            ?.postedAt,
         },
         {
           key: "facebook",
@@ -252,7 +255,8 @@ const PostCard = React.memo(
           color: "border-blue-100",
           accent: "bg-blue-50 text-blue-700",
           posted: isPostedFb,
-          fallbackDate: post.fbPages?.find((p) => p.isPosted && p.postedAt)?.postedAt,
+          fallbackDate: post.fbPages?.find((p) => p.isPosted && p.postedAt)
+            ?.postedAt,
         },
         {
           key: "instagram",
@@ -262,7 +266,8 @@ const PostCard = React.memo(
           color: "border-pink-100",
           accent: "bg-pink-50 text-pink-700",
           posted: isPostedIg,
-          fallbackDate: post.igPages?.find((p) => p.isPosted && p.postedAt)?.postedAt,
+          fallbackDate: post.igPages?.find((p) => p.isPosted && p.postedAt)
+            ?.postedAt,
         },
         {
           key: "pinterest",
@@ -321,8 +326,6 @@ const PostCard = React.memo(
       } else if (isLoading) {
         setIsLoading(false);
         setIsVideoSuccess(true);
-
-
       }
     }, [isConvertingThisPost]);
     // Countdown Timer State
@@ -384,13 +387,18 @@ const PostCard = React.memo(
     const handleMediaChoice = (type) => {
       if (type === "gmb") {
         if (dualCardMedia) {
-          const forcedMedia = cardMediaTab === "video" ? { type: "video", url: vidUrl } : { type: "image", url: imgUrl };
+          const forcedMedia =
+            cardMediaTab === "video"
+              ? { type: "video", url: vidUrl }
+              : { type: "image", url: imgUrl };
           handlePost(post, forcedMedia);
         } else {
           handlePost(post);
         }
       } else if (type === "youtube") {
-        const forcedMedia = dualCardMedia ? { type: "video", url: vidUrl } : null;
+        const forcedMedia = dualCardMedia
+          ? { type: "video", url: vidUrl }
+          : null;
         handleYoutubePost(post, forcedMedia);
       } else if (dualCardMedia) {
         setSelectionModal({ isOpen: true, type });
@@ -429,10 +437,11 @@ const PostCard = React.memo(
                   <button
                     key={tab}
                     onClick={() => setCardMediaTab(tab)}
-                    className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${cardMediaTab === tab
-                      ? "bg-white text-black shadow-sm"
-                      : "text-white/70 hover:text-white"
-                      }`}
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                      cardMediaTab === tab
+                        ? "bg-white text-black shadow-sm"
+                        : "text-white/70 hover:text-white"
+                    }`}
                   >
                     {tab === "image" ? (
                       <ImageIconLucide size={12} />
@@ -527,10 +536,11 @@ const PostCard = React.memo(
                   <button
                     key={p.id}
                     onClick={() => setActiveDesc(p.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeDesc === p.id
-                      ? "bg-white text-black shadow-sm"
-                      : "text-black/30 hover:text-black/50"
-                      }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                      activeDesc === p.id
+                        ? "bg-white text-black shadow-sm"
+                        : "text-black/30 hover:text-black/50"
+                    }`}
                   >
                     <p.icon
                       size={12}
@@ -567,8 +577,17 @@ const PostCard = React.memo(
                       rows={4}
                     />
                     <div className="absolute bottom-3 right-4">
-                      <span className={`text-[9px] font-black uppercase tracking-tighter ${drafts[activeDesc]?.length > (activeDesc === 'li' ? 3000 : activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200) ? 'text-red-500' : 'text-black/20'}`}>
-                        {drafts[activeDesc]?.length || 0} / {activeDesc === 'li' ? 3000 : activeDesc === 'pinterest' ? 800 : activeDesc === 'gmb' ? 1500 : 2200}
+                      <span
+                        className={`text-[9px] font-black uppercase tracking-tighter ${drafts[activeDesc]?.length > (activeDesc === "li" ? 3000 : activeDesc === "pinterest" ? 800 : activeDesc === "gmb" ? 1500 : 2200) ? "text-red-500" : "text-black/20"}`}
+                      >
+                        {drafts[activeDesc]?.length || 0} /{" "}
+                        {activeDesc === "li"
+                          ? 3000
+                          : activeDesc === "pinterest"
+                            ? 800
+                            : activeDesc === "gmb"
+                              ? 1500
+                              : 2200}
                       </span>
                     </div>
                   </div>
@@ -657,7 +676,7 @@ const PostCard = React.memo(
                       onClick={() => handleMediaChoice("fb")}
                       className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                     >
-                      <Facebook size={13} /> Post to Facebook
+                      <Facebook size={13} /> Post to FB Pages
                     </button>
                     <button
                       onClick={() => handleMediaChoice("ig")}
@@ -677,7 +696,8 @@ const PostCard = React.memo(
                         height={13}
                         className="object-contain"
                         alt="Pinterest"
-                      /> Post to Pinterest
+                      />{" "}
+                      Post to Pinterest
                     </button>
                     <button
                       onClick={() => handleMediaChoice("linkedin")}
@@ -689,7 +709,8 @@ const PostCard = React.memo(
                         height={13}
                         className="object-contain"
                         alt="LinkedIn"
-                      /> Post to LinkedIn
+                      />{" "}
+                      Post to LinkedIn
                     </button>
                   </div>
                   {hasVideoAsset && (
@@ -719,7 +740,8 @@ const PostCard = React.memo(
                           Published
                         </p>
                         <p className="text-[8px] font-bold uppercase tracking-widest text-slate-300">
-                          {publishedPlatforms.length} platform{publishedPlatforms.length === 1 ? "" : "s"} live
+                          {publishedPlatforms.length} platform
+                          {publishedPlatforms.length === 1 ? "" : "s"} live
                         </p>
                       </div>
                       {lastPostedDate && (
@@ -742,15 +764,23 @@ const PostCard = React.memo(
                             className={`min-w-0 rounded-lg border bg-white px-1.5 py-1.5 shadow-sm ${platform.color}`}
                           >
                             <div className="mb-0.5 flex min-w-0 items-center">
-                              <span className={`truncate rounded px-1 py-0.5 text-[7px] font-black uppercase tracking-widest ${platform.accent}`}>
+                              <span
+                                className={`truncate rounded px-1 py-0.5 text-[7px] font-black uppercase tracking-widest ${platform.accent}`}
+                              >
                                 {platform.label}
                               </span>
                             </div>
                             <div
                               className="flex min-w-0 items-center gap-0.5 text-[8px] font-bold text-slate-500"
-                              title={formatPostedDate(platform.postedAt) || "Posted date not saved"}
+                              title={
+                                formatPostedDate(platform.postedAt) ||
+                                "Posted date not saved"
+                              }
                             >
-                              <Clock size={8} className="shrink-0 text-slate-300" />
+                              <Clock
+                                size={8}
+                                className="shrink-0 text-slate-300"
+                              />
                               <span className="truncate">
                                 {formatPostedDate(platform.postedAt) ||
                                   "No date"}
@@ -785,7 +815,7 @@ const PostCard = React.memo(
                         size={13}
                         className="text-[#EAB308] group-hover:text-black"
                       />{" "}
-                      {isPostedFb ? "Repost to Facebook" : "Post to Facebook"}
+                      {isPostedFb ? "Repost to FB Pages" : "Post to FB Pages"}
                     </button>
                     <button
                       onClick={() => handleMediaChoice("ig")}
@@ -810,7 +840,9 @@ const PostCard = React.memo(
                         className="object-contain"
                         alt="Pinterest"
                       />
-                      {isPlatformPosted(post.whenPosted, "pinterest") ? "Repost to Pinterest" : "Post to Pinterest"}
+                      {isPlatformPosted(post.whenPosted, "pinterest")
+                        ? "Repost to Pinterest"
+                        : "Post to Pinterest"}
                     </button>
                     <button
                       onClick={() => handleMediaChoice("linkedin")}
@@ -823,7 +855,9 @@ const PostCard = React.memo(
                         className="object-contain"
                         alt="LinkedIn"
                       />
-                      {isPlatformPosted(post.whenPosted, "linkedin") ? "Repost to LinkedIn" : "Post to LinkedIn"}
+                      {isPlatformPosted(post.whenPosted, "linkedin")
+                        ? "Repost to LinkedIn"
+                        : "Post to LinkedIn"}
                     </button>
                   </div>
                   <button
@@ -847,14 +881,14 @@ const PostCard = React.memo(
                         <p className="text-xs font-black text-black/80">
                           {post.scheduledDate
                             ? new Date(post.scheduledDate).toLocaleString(
-                              "en-IN",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )
+                                "en-IN",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )
                             : "N/A"}
                         </p>
                       </div>
@@ -867,8 +901,8 @@ const PostCard = React.memo(
                     </div>
 
                     {/* Scheduled Targets Details */}
-                    {
-                      post.scheduledDateSource && post.scheduledDateSource.length > 0 && (
+                    {post.scheduledDateSource &&
+                      post.scheduledDateSource.length > 0 && (
                         <div className="space-y-3 pt-2 border-t border-[#EAB308]/10">
                           {post.scheduledDateSource.map((src) => {
                             let items = [];
@@ -876,13 +910,19 @@ const PostCard = React.memo(
                             let title = "";
 
                             if (src === "gmb" && post.locations) {
-                              items = post.locations.map(loc => loc.locality || "Location");
+                              items = post.locations.map(
+                                (loc) => loc.locality || "Location",
+                              );
                               title = "Google Business Locations";
                             } else if (src === "fb" && post.fbPages) {
-                              items = post.fbPages.map(pg => pg.pageName || pg.name || "Page");
+                              items = post.fbPages.map(
+                                (pg) => pg.pageName || pg.name || "Page",
+                              );
                               title = "Facebook Pages";
                             } else if (src === "ig" && post.igPages) {
-                              items = post.igPages.map(acc => acc.igUsername || "Profile");
+                              items = post.igPages.map(
+                                (acc) => acc.igUsername || "Profile",
+                              );
                               title = "Instagram Profiles";
                             }
 
@@ -894,11 +934,30 @@ const PostCard = React.memo(
                             return (
                               <div key={src} className="space-y-1.5">
                                 <div className="flex items-center gap-1.5">
-                                  {src === "gmb" && <MapPin size={10} className="text-[#EAB308]" />}
-                                  {src === "fb" && <Facebook size={10} className="text-blue-600" />}
-                                  {src === "ig" && <Instagram size={10} className="text-pink-600" />}
+                                  {src === "gmb" && (
+                                    <MapPin
+                                      size={10}
+                                      className="text-[#EAB308]"
+                                    />
+                                  )}
+                                  {src === "fb" && (
+                                    <Facebook
+                                      size={10}
+                                      className="text-blue-600"
+                                    />
+                                  )}
+                                  {src === "ig" && (
+                                    <Instagram
+                                      size={10}
+                                      className="text-pink-600"
+                                    />
+                                  )}
                                   <span className="text-[9px] font-black uppercase tracking-widest text-black/60">
-                                    {src === "gmb" ? "Google Business" : src === "fb" ? "Facebook" : "Instagram"}
+                                    {src === "gmb"
+                                      ? "Google Business"
+                                      : src === "fb"
+                                        ? "Facebook"
+                                        : "Instagram"}
                                   </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1 pl-4">
@@ -907,7 +966,9 @@ const PostCard = React.memo(
                                   </span>
                                   {extraCount > 0 && (
                                     <button
-                                      onClick={() => openShowMoreModal(title, items)}
+                                      onClick={() =>
+                                        openShowMoreModal(title, items)
+                                      }
                                       className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-black/5 rounded-md text-[8px] font-bold text-black/60 transition-colors"
                                     >
                                       +{extraCount} more
@@ -918,8 +979,7 @@ const PostCard = React.memo(
                             );
                           })}
                         </div>
-                      )
-                    }
+                      )}
 
                     <button
                       onClick={() => handleMediaChoice("gmb")}
@@ -927,113 +987,107 @@ const PostCard = React.memo(
                     >
                       Post to GMB
                     </button>
-                  </div >
+                  </div>
 
                   {/* Quick Post to other platforms if not scheduled/posted */}
-                  {
-                    ((!post.scheduledDateSource?.includes("fb") && !isPostedFb) ||
-                      (!post.scheduledDateSource?.includes("ig") && !isPostedIg) ||
-                      hasVideoAsset) && (
-                      <div className="space-y-3 mt-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          {!post.scheduledDateSource?.includes("fb") && !isPostedFb && (
-                          <button
-                            onClick={() => handleMediaChoice("fb")}
-                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                          >
-                            <Facebook size={13} /> Post to Facebook
-                          </button>
+                  {((!post.scheduledDateSource?.includes("fb") &&
+                    !isPostedFb) ||
+                    (!post.scheduledDateSource?.includes("ig") &&
+                      !isPostedIg) ||
+                    hasVideoAsset) && (
+                    <div className="space-y-3 mt-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        {!post.scheduledDateSource?.includes("fb") &&
+                          !isPostedFb && (
+                            <button
+                              onClick={() => handleMediaChoice("fb")}
+                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                            >
+                              <Facebook size={13} /> Post to FB Pages
+                            </button>
                           )}
-                          {
-                            !post.scheduledDateSource?.includes("ig") && !isPostedIg && (
+                        {!post.scheduledDateSource?.includes("ig") &&
+                          !isPostedIg && (
                             <button
                               onClick={() => handleMediaChoice("ig")}
                               className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
                             >
                               <Instagram size={13} /> Post to Instagram
                             </button>
-                            )
-                          }
-                        </div>
-                        {hasVideoAsset && (
-                          <button
-                            onClick={() => handleMediaChoice("youtube")}
-                            className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
-                          >
-                            <Youtube size={13} /> Post to YouTube
-                          </button>
-                        )}
+                          )}
                       </div>
-                    )
-                  }
+                      {hasVideoAsset && (
+                        <button
+                          onClick={() => handleMediaChoice("youtube")}
+                          className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
+                        >
+                          <Youtube size={13} /> Post to YouTube
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
-              {
-                post.status === "failed" && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
-                      <XCircle size={18} className="text-red-500 shrink-0" />
-                      <p className="text-[10px] text-red-700 font-bold uppercase line-clamp-1">
-                        {post.error || "Failed to publish"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleMediaChoice("gmb")}
-                      className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
-                    >
-                      <RefreshCw size={14} /> Retry Delivery
-                    </button>
+              {post.status === "failed" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
+                    <XCircle size={18} className="text-red-500 shrink-0" />
+                    <p className="text-[10px] text-red-700 font-bold uppercase line-clamp-1">
+                      {post.error || "Failed to publish"}
+                    </p>
                   </div>
-                )
-              }
+                  <button
+                    onClick={() => handleMediaChoice("gmb")}
+                    className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw size={14} /> Retry Delivery
+                  </button>
+                </div>
+              )}
 
               {/* AI Video Conversion Mini-CTA */}
-              {
-                imgUrl && !vidUrl && post.status !== "rejected" && (
-                  <button
-                    disabled={isConvertingThisPost}
-                    onClick={() => {
-                      console.log("VIDEO API CALLED", post._id);
-                      onConvertToVideo(post);
-                    }}
-                    className="w-full flex items-center justify-between p-3.5 bg-slate-50 border border-black/[0.03] rounded-2xl hover:border-[#EAB308] hover:bg-white transition-all group/v"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-white rounded-xl shadow-sm text-black group-hover/v:text-[#EAB308] transition-colors">
-                        {isConvertingThisPost ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <Video size={16} />
-                        )}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-black/80">
-                          {isConvertingThisPost
-                            ? "Generating Video..."
-                            : "Convert into video"}
-                        </p>
-                        <p className="text-[8px] font-bold text-black/30 uppercase tracking-tighter">
-                          AI Video Motion • {videoGenerationCoins} Coins
-                        </p>
-                      </div>
+              {imgUrl && !vidUrl && post.status !== "rejected" && (
+                <button
+                  disabled={isConvertingThisPost}
+                  onClick={() => {
+                    console.log("VIDEO API CALLED", post._id);
+                    onConvertToVideo(post);
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 bg-slate-50 border border-black/[0.03] rounded-2xl hover:border-[#EAB308] hover:bg-white transition-all group/v"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm text-black group-hover/v:text-[#EAB308] transition-colors">
+                      {isConvertingThisPost ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Video size={16} />
+                      )}
                     </div>
-                    <ChevronRight
-                      size={14}
-                      className="text-black/10 group-hover/v:translate-x-1 transition-transform"
-                    />
-                  </button>
-                )
-              }
-            </div >
-          </div >
-        </div >
+                    <div className="text-left">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-black/80">
+                        {isConvertingThisPost
+                          ? "Generating Video..."
+                          : "Convert into video"}
+                      </p>
+                      <p className="text-[8px] font-bold text-black/30 uppercase tracking-tighter">
+                        AI Video Motion • {videoGenerationCoins} Coins
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={14}
+                    className="text-black/10 group-hover/v:translate-x-1 transition-transform"
+                  />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         {(isLoading || isVideoSuccess) && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-[200] flex items-center justify-center px-4 animate-fadeIn">
-
             <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-scaleIn relative">
-
               {/* ❌ CLOSE BUTTON */}
               {isVideoSuccess && (
                 <button
@@ -1048,7 +1102,6 @@ const PostCard = React.memo(
                 <>
                   {/* ✅ SUCCESS ICON */}
                   <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-black shadow-inner">
-
                     <svg
                       className="w-14 h-14 text-[#EAB308] animate-tick"
                       fill="none"
@@ -1063,7 +1116,6 @@ const PostCard = React.memo(
                         className="tick-path"
                       />
                     </svg>
-
                   </div>
 
                   {/* TITLE */}
@@ -1073,8 +1125,8 @@ const PostCard = React.memo(
 
                   {/* SUBTEXT */}
                   <p className="text-sm text-slate-600 mb-6 animate-fadeUp delay-100">
-                    Aapki video successfully generate ho gayi hai.
-                    Ab aap ise post ya download kar sakte ho 🚀
+                    Aapki video successfully generate ho gayi hai. Ab aap ise
+                    post ya download kar sakte ho 🚀
                   </p>
 
                   {/* DONE BUTTON */}
@@ -1101,7 +1153,8 @@ const PostCard = React.memo(
                   </h3>
 
                   <p className="text-sm text-slate-500 mb-5">
-                    ⏳ {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
+                    ⏳{" "}
+                    {timeLeft > 0 ? `${timeLeft}s remaining` : "Almost done..."}
                   </p>
 
                   <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative mb-4">
@@ -1196,44 +1249,38 @@ const PostCard = React.memo(
         .animate-bounceIn { animation: bounceIn 0.4s ease; }
         `}
               </style>
-
             </div>
           </div>
         )}
 
-
-
-
         {/* Show More Modal */}
-        {
-          showMoreModal.isOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
-                <div className="p-4 border-b border-black/5 flex items-center justify-between bg-slate-50">
-                  <h3 className="text-sm font-bold text-slate-800">
-                    {showMoreModal.title}
-                  </h3>
-                  <button
-                    onClick={closeShowMoreModal}
-                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+        {showMoreModal.isOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="p-4 border-b border-black/5 flex items-center justify-between bg-slate-50">
+                <h3 className="text-sm font-bold text-slate-800">
+                  {showMoreModal.title}
+                </h3>
+                <button
+                  onClick={closeShowMoreModal}
+                  className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-2">
+                {showMoreModal.items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-700 font-medium"
                   >
-                    <XCircle size={18} />
-                  </button>
-                </div>
-                <div className="p-4 overflow-y-auto space-y-2">
-                  {showMoreModal.items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-700 font-medium"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
+                    {item}
+                  </div>
+                ))}
               </div>
             </div>
-          )
-        }
+          </div>
+        )}
 
         <MediaSelectionModal
           isOpen={selectionModal.isOpen}

@@ -1,168 +1,54 @@
 /**
- * Server-side Magic QR review card PNG.
+ * Server Magic QR card — mirrors only the inner `ref={qrCardRef}` block from QRPreviewCard.jsx
+ * (260px-wide design); rasterized at 3× (~780px) like manual `toPng(..., { pixelRatio: 3 })`.
  *
- * Important: this file intentionally does not use SVG <text>. In some server
- * environments sharp/librsvg cannot resolve fonts and renders text as square
- * missing-glyph boxes. All labels below are drawn with tiny vector rectangles.
+ * Typography: fontkit + Inter paths (server-safe). Colours: Tailwind tokens from QRPreviewCard.
  */
 
 import path from "path";
 import fs from "fs/promises";
 import sharp from "sharp";
+import {
+  ensureInterFonts,
+  interGoogleBrandWord,
+  interTextPath,
+  interTextPathsColored,
+} from "@/lib/svgInterText";
 
-const G = {
-  blue: "#4285F4",
-  red: "#EA4335",
-  yellow: "#FBBC05",
-  green: "#34A853",
+/** Tailwind quadrant backgrounds: yellow-400, red-500, green-500, blue-500 */
+const Q = {
+  yellow: "#FACC15",
+  red: "#EF4444",
+  green: "#22C55E",
+  blue: "#3B82F6",
 };
 
-const QR_CORNER = {
+/** QR corner accents: same as spans on client */
+const QR_STROKE = {
   tl: "#EF4444",
   tr: "#3B82F6",
   bl: "#FACC15",
   br: "#22C55E",
 };
 
-const W = 640;
-const OUTER_RX = 56;
-const FRAME = 28;
-const INNER_RX = 36;
+/** Logical width = client `width: min(260px, 100%)` */
+const W = 260;
+const OUTER_RX = 24; // rounded-[1.5rem] sm:rounded-3xl
+const INSET = 16; // m-2 sm:m-4 → use sm
+const PAD = 24; // p-3 sm:p-6 → use sm p-6
+const INNER_RX = 16; // rounded-xl sm:rounded-2xl
 
-const GLYPHS = {
-  A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
-  B: ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
-  C: ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
-  D: ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
-  E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
-  F: ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
-  G: ["01111", "10000", "10000", "10011", "10001", "10001", "01111"],
-  H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
-  I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
-  J: ["00111", "00010", "00010", "00010", "10010", "10010", "01100"],
-  K: ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
-  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
-  M: ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
-  N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
-  O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
-  P: ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
-  Q: ["01110", "10001", "10001", "10001", "10101", "10010", "01101"],
-  R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
-  S: ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
-  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
-  U: ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
-  V: ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
-  W: ["10001", "10001", "10001", "10101", "10101", "10101", "01010"],
-  X: ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
-  Y: ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
-  Z: ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
-  "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
-  "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
-  "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
-  "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
-  "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
-  "5": ["11111", "10000", "10000", "11110", "00001", "00001", "11110"],
-  "6": ["01110", "10000", "10000", "11110", "10001", "10001", "01110"],
-  "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
-  "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
-  "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
-  ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
-  ",": ["00000", "00000", "00000", "00000", "01100", "00100", "01000"],
-  "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
-  "_": ["00000", "00000", "00000", "00000", "00000", "00000", "11111"],
-  "/": ["00001", "00010", "00010", "00100", "01000", "01000", "10000"],
-  ":": ["00000", "01100", "01100", "00000", "01100", "01100", "00000"],
-  "&": ["01100", "10010", "10100", "01000", "10101", "10010", "01101"],
-  "+": ["00000", "00100", "00100", "11111", "00100", "00100", "00000"],
-  "#": ["01010", "01010", "11111", "01010", "11111", "01010", "01010"],
-  "'": ["00100", "00100", "01000", "00000", "00000", "00000", "00000"],
-  "(": ["00010", "00100", "01000", "01000", "01000", "00100", "00010"],
-  ")": ["01000", "00100", "00010", "00010", "00010", "00100", "01000"],
-  "?": ["01110", "10001", "00001", "00010", "00100", "00000", "00100"],
-  " ": ["000", "000", "000", "000", "000", "000", "000"],
-};
+const QR_IMG = 150; // min(150px, 75%)
+const QR_PAD = 12; // p-3
+const QR_OUTER_RX = 12; // rounded-xl
+const STROKE_W = 2; // border-2
+const BRACKET = 12; // w-3 h-3
 
-function sanitizeText(value) {
-  return String(value || "")
-    .normalize("NFKD")
-    .replace(/[^\x20-\x7E]/g, "")
-    .toUpperCase();
-}
-
-function glyphFor(char) {
-  return GLYPHS[char] || GLYPHS["?"];
-}
-
-function glyphWidth(char) {
-  return glyphFor(char)[0].length;
-}
-
-function measurePixelText(text, scale, gap = 1) {
-  const chars = sanitizeText(text).split("");
-  if (chars.length === 0) return 0;
-  const units = chars.reduce((sum, char) => sum + glyphWidth(char), 0) + gap * (chars.length - 1);
-  return units * scale;
-}
-
-function drawPixelText({ text, x, y, scale, fill, align = "left", gap = 1, maxWidth = null }) {
-  const sanitized = sanitizeText(text);
-  if (!sanitized) return "";
-
-  let finalScale = scale;
-  const measured = measurePixelText(sanitized, finalScale, gap);
-  if (maxWidth && measured > maxWidth) {
-    finalScale = Math.max(1, Math.floor((finalScale * maxWidth) / measured));
-  }
-
-  const width = measurePixelText(sanitized, finalScale, gap);
-  let cursorX = align === "center" ? x - width / 2 : align === "right" ? x - width : x;
-
-  const rects = [];
-  for (const char of sanitized) {
-    const glyph = glyphFor(char);
-    glyph.forEach((row, rowIndex) => {
-      row.split("").forEach((cell, colIndex) => {
-        if (cell !== "1") return;
-        rects.push(
-          `<rect x="${cursorX + colIndex * finalScale}" y="${y + rowIndex * finalScale}" width="${finalScale}" height="${finalScale}" fill="${fill}"/>`,
-        );
-      });
-    });
-    cursorX += (glyph[0].length + gap) * finalScale;
-  }
-
-  return rects.join("\n");
-}
-
-function drawGoogleWord(cx, y) {
-  const letters = [
-    ["G", G.blue],
-    ["O", G.red],
-    ["O", G.yellow],
-    ["G", G.blue],
-    ["L", G.green],
-    ["E", G.red],
-  ];
-  const scale = 8;
-  const gap = 2;
-  const totalWidth = letters.reduce(
-    (sum, [letter], index) =>
-      sum + glyphWidth(letter) * scale + (index === letters.length - 1 ? 0 : gap * scale),
-    0,
-  );
-  let cursorX = cx - totalWidth / 2;
-
-  return letters
-    .map(([letter, color], index) => {
-      const out = drawPixelText({ text: letter, x: cursorX, y, scale, fill: color });
-      cursorX += glyphWidth(letter) * scale + (index === letters.length - 1 ? 0 : gap * scale);
-      return out;
-    })
-    .join("\n");
-}
+/** Export width = manual ~260 × 3 */
+const EXPORT_SCALE = 3;
 
 function wrapLines(text, maxChars) {
-  const words = sanitizeText(text)
+  const words = String(text || "")
     .trim()
     .split(/\s+/)
     .filter(Boolean);
@@ -175,24 +61,23 @@ function wrapLines(text, maxChars) {
       current = candidate;
       continue;
     }
-
     if (current) lines.push(current);
-    current = word.length > maxChars ? `${word.slice(0, maxChars - 3)}...` : word;
+    current =
+      word.length > maxChars ? `${word.slice(0, maxChars - 3)}…` : word;
   }
-
   if (current) lines.push(current);
   return lines.slice(0, 3);
 }
 
-function truncUrl(url, maxLen) {
-  const value = sanitizeText(url);
-  if (value.length <= maxLen) return value;
-  return `${value.slice(0, maxLen - 3)}...`;
+function truncUrl(urlStr, maxLen) {
+  const v = String(urlStr || "");
+  if (v.length <= maxLen) return v;
+  return `${v.slice(0, maxLen - 3)}…`;
 }
 
 async function fetchQrPng(reviewUrl) {
   const encodedUrl = encodeURIComponent(reviewUrl);
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=6&data=${encodedUrl}`;
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=2&data=${encodedUrl}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`QR fetch failed: ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
@@ -209,193 +94,291 @@ async function loadFooterLogoPng() {
       const buffer = await fs.readFile(filePath);
       return await sharp(buffer)
         .resize({
-          width: 88,
-          height: 88,
+          width: 40,
+          height: 40,
           fit: "contain",
           background: { r: 0, g: 0, b: 0, alpha: 0 },
         })
         .png()
         .toBuffer();
     } catch {
-      /* try next */
+      /* next */
     }
   }
-
   return null;
+}
+
+function buildStars(cx, yCenter) {
+  const outerR = 9;
+  const gap = 4;
+  const step = outerR * 2 + gap;
+  const startX = cx - 2 * step;
+
+  const starPoints = (sx, sy) => {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+      const r = i % 2 === 0 ? outerR : outerR * 0.45;
+      pts.push(`${sx + Math.cos(ang) * r},${sy + Math.sin(ang) * r}`);
+    }
+    return pts.join(" ");
+  };
+
+  return Array.from({ length: 5 }, (_, i) => {
+    const sx = startX + i * step;
+    return `<polygon points="${starPoints(sx, yCenter)}" fill="#FACC15"/>`;
+  }).join("\n");
+}
+
+/** L-shaped corner like `border-t-2 border-l-2` at (x0,y0) outer corner of QR image */
+function qrCornerAccents(qx, qy, qSize) {
+  const s = STROKE_W;
+  const L = BRACKET;
+  const se = (c, d) =>
+    `<path d="${d}" fill="none" stroke="${c}" stroke-width="${s}" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  return [
+    se(QR_STROKE.tl, `M ${qx} ${qy + L} L ${qx} ${qy} L ${qx + L} ${qy}`),
+    se(
+      QR_STROKE.tr,
+      `M ${qx + qSize - L} ${qy} L ${qx + qSize} ${qy} L ${qx + qSize} ${qy + L}`,
+    ),
+    se(
+      QR_STROKE.bl,
+      `M ${qx} ${qy + qSize - L} L ${qx} ${qy + qSize} L ${qx + L} ${qy + qSize}`,
+    ),
+    se(
+      QR_STROKE.br,
+      `M ${qx + qSize - L} ${qy + qSize} L ${qx + qSize} ${qy + qSize} L ${qx + qSize} ${qy + qSize - L}`,
+    ),
+  ].join("\n");
 }
 
 function layout(lineCount) {
   const cx = W / 2;
-  let y = FRAME + 42;
-  const googleY = y;
-  y += 78;
-  const starsY = y + 20;
-  y += 44;
-  const scanY = y;
-  y += 32;
-  const bizStartY = y;
-  y += lineCount * 34 + 20;
-  const qrSize = 400;
-  const qrX = cx - qrSize / 2;
+  let y = INSET + PAD;
+
+  const googlePx = 36; // sm:text-4xl
+  const googleBaseline = y + googlePx * 0.78;
+  y += googlePx + 8; // mb-2
+
+  const starsY = y + 2;
+  y += 20 + 8; // star row + mb-2
+
+  const scanPx = 14; // sm:text-sm
+  const scanBaseline = y + scanPx * 0.78;
+  y += scanPx + 6;
+
+  const bizPx = 16; // sm:text-base
+  const bizStartBaseline = y + 8 + bizPx * 0.78; // mt-2
+  y += 8 + bizPx * lineCount + (lineCount > 1 ? (lineCount - 1) * 4 : 0) + 16; // mb-4
+
+  const qrBox = QR_IMG + 2 * QR_PAD;
+  const qrX = cx - qrBox / 2;
   const qrY = y;
-  y += qrSize + 24;
-  const urlY = y;
-  y += 22;
+  const qrIx = cx - QR_IMG / 2;
+  const qrIy = qrY + QR_PAD;
+  y += qrBox + 12; // mt-3
+
+  const urlPx = 9;
+  const urlBaseline = y + urlPx * 0.9;
+  y += 26; // ~2 lines clamp
+
   const dividerY = y;
-  y += 28;
-  const footY = y;
-  const height = Math.ceil(footY + FRAME + 40);
+  y += 1 + 12; // border + pt-3
+  const footBaseline = y + 10;
+
+  const innerBottom = footBaseline + 22 + PAD;
+  const cardH = innerBottom + INSET;
 
   return {
     cx,
-    height,
-    googleY,
+    cardH,
+    innerBottom,
+    googlePx,
+    googleBaseline,
     starsY,
-    scanY,
-    bizStartY,
+    scanPx,
+    scanBaseline,
+    bizStartBaseline,
+    bizPx,
     qrX,
     qrY,
-    qrSize,
-    urlY,
+    qrBox,
+    qrIx,
+    qrIy,
     dividerY,
-    footY,
+    footBaseline,
+    urlBaseline,
+    urlPx,
   };
 }
 
-function buildStars(cx, y) {
-  const pointsForStar = (centerX, centerY, outerRadius = 17, innerRadius = 7) => {
-    const points = [];
-    for (let i = 0; i < 10; i++) {
-      const angle = -Math.PI / 2 + (i * Math.PI) / 5;
-      const radius = i % 2 === 0 ? outerRadius : innerRadius;
-      points.push(
-        `${centerX + Math.cos(angle) * radius},${centerY + Math.sin(angle) * radius}`,
-      );
-    }
-    return points.join(" ");
-  };
-
-  return Array.from({ length: 5 }, (_, index) => {
-    const x = cx - 56 + index * 28;
-    return `<polygon points="${pointsForStar(x, y)}" fill="#FBBF24"/>`;
-  }).join("\n");
-}
-
-function buildCardSvg(layoutPos, businessLines, urlText, qrBase64, logoPngBuf) {
+function buildCardSvg(
+  layoutPos,
+  businessLines,
+  urlText,
+  qrBase64,
+  logoPngBuf,
+) {
   const {
     cx,
-    height,
-    googleY,
+    cardH,
+    innerBottom,
+    googlePx,
+    googleBaseline,
     starsY,
-    scanY,
-    bizStartY,
+    scanPx,
+    scanBaseline,
+    bizStartBaseline,
+    bizPx,
     qrX,
     qrY,
-    qrSize,
-    urlY,
+    qrBox,
+    qrIx,
+    qrIy,
     dividerY,
-    footY,
+    footBaseline,
+    urlBaseline,
+    urlPx,
   } = layoutPos;
 
-  const logoBase64 = logoPngBuf ? logoPngBuf.toString("base64") : null;
+  const logoB64 = logoPngBuf ? logoPngBuf.toString("base64") : null;
+  const innerW = W - 2 * INSET;
 
-  const businessText = businessLines
-    .map((line, index) =>
-      drawPixelText({
+  const bizPaths = businessLines
+    .map((line, i) =>
+      interTextPath({
         text: line,
         x: cx,
-        y: bizStartY + index * 34,
-        scale: 4,
+        y: bizStartBaseline + i * (bizPx + 4),
+        size: bizPx,
         fill: "#111827",
-        align: "center",
-        maxWidth: W - FRAME * 4,
+        anchor: "center",
+        weight: 700,
       }),
     )
     .join("\n");
 
-  const qrShadow = `
-    <filter id="qrShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
-    </filter>`;
+  const qrFilter = `
+  <filter id="qrSh" x="-25%" y="-25%" width="150%" height="150%">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.12"/>
+  </filter>`;
 
-  const pad = 16;
-  const whiteQrBg = `
-    <rect x="${qrX - pad}" y="${qrY - pad}" width="${qrSize + pad * 2}" height="${qrSize + pad * 2}" rx="20" ry="20"
-      fill="#ffffff" filter="url(#qrShadow)"/>`;
+  const scanLine = interTextPathsColored(
+    [
+      { text: "Scan to Rate Us on ", weight: 600, fill: "#374151" },
+      { text: "Google", weight: 700, fill: "#000000" },
+    ],
+    scanBaseline,
+    scanPx,
+    cx,
+    "center",
+  );
 
-  const corner = 6;
-  const arm = 28;
-  const tl = { x: qrX - pad, y: qrY - pad, c: QR_CORNER.tl };
-  const tr = { x: qrX + qrSize + pad - corner, y: qrY - pad, c: QR_CORNER.tr };
-  const bl = { x: qrX - pad, y: qrY + qrSize + pad - corner, c: QR_CORNER.bl };
-  const br = { x: qrX + qrSize + pad - corner, y: qrY + qrSize + pad - corner, c: QR_CORNER.br };
-
-  const cornerShapes = [
-    `<rect x="${tl.x}" y="${tl.y}" width="${arm}" height="${corner}" fill="${tl.c}"/><rect x="${tl.x}" y="${tl.y}" width="${corner}" height="${arm}" fill="${tl.c}"/>`,
-    `<rect x="${tr.x - arm + corner}" y="${tr.y}" width="${arm}" height="${corner}" fill="${tr.c}"/><rect x="${tr.x}" y="${tr.y}" width="${corner}" height="${arm}" fill="${tr.c}"/>`,
-    `<rect x="${bl.x}" y="${bl.y}" width="${arm}" height="${corner}" fill="${bl.c}"/><rect x="${bl.x}" y="${bl.y + corner - arm}" width="${corner}" height="${arm}" fill="${bl.c}"/>`,
-    `<rect x="${br.x - arm + corner}" y="${br.y}" width="${arm}" height="${corner}" fill="${br.c}"/><rect x="${br.x}" y="${br.y + corner - arm}" width="${corner}" height="${arm}" fill="${br.c}"/>`,
-  ].join("\n");
-
-  const qrImage = `<image href="data:image/png;base64,${qrBase64}" x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" preserveAspectRatio="xMidYMid meet"/>`;
-
-  const footer = logoBase64
+  const footer = logoB64
     ? `<g>
-  ${drawPixelText({ text: "POWERED BY", x: cx - 34, y: footY + 4, scale: 2, fill: "#6B7280", align: "right" })}
-  <image href="data:image/png;base64,${logoBase64}" x="${cx - 20}" y="${footY - 6}" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
-  ${drawPixelText({ text: "LIMBUAI", x: cx + 34, y: footY + 4, scale: 2, fill: "#0f172a", align: "left" })}
+  ${interTextPath({
+    text: "Powered by",
+    x: cx - 34,
+    y: footBaseline,
+    size: 10,
+    fill: "#6B7280",
+    anchor: "right",
+    weight: 400,
+  })}
+  <image href="data:image/png;base64,${logoB64}" x="${cx - 11}" y="${footBaseline - 14}" width="20" height="20" preserveAspectRatio="xMidYMid meet"/>
+  ${interTextPath({
+    text: "LimbuAI",
+    x: cx + 34,
+    y: footBaseline,
+    size: 14,
+    fill: "#0f172a",
+    anchor: "left",
+    weight: 700,
+  })}
 </g>`
-    : drawPixelText({
-        text: "POWERED BY LIMBUAI",
-        x: cx,
-        y: footY + 4,
-        scale: 2,
-        fill: "#0f172a",
-        align: "center",
-      });
+    : interTextPathsColored(
+        [
+          { text: "Powered by ", weight: 400, fill: "#6B7280" },
+          { text: "LimbuAI", weight: 700, fill: "#0f172a" },
+        ],
+        footBaseline,
+        10,
+        cx,
+        "center",
+      );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${height}" viewBox="0 0 ${W} ${height}">
-  <defs>${qrShadow}</defs>
-  <clipPath id="outerClip"><rect x="0" y="0" width="${W}" height="${height}" rx="${OUTER_RX}" ry="${OUTER_RX}"/></clipPath>
-  <g clip-path="url(#outerClip)">
-    <rect x="0" y="0" width="${W / 2}" height="${height / 2}" fill="${G.yellow}"/>
-    <rect x="${W / 2}" y="0" width="${W / 2}" height="${height / 2}" fill="${G.red}"/>
-    <rect x="0" y="${height / 2}" width="${W / 2}" height="${height / 2}" fill="${G.green}"/>
-    <rect x="${W / 2}" y="${height / 2}" width="${W / 2}" height="${height / 2}" fill="${G.blue}"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${cardH}" viewBox="0 0 ${W} ${cardH}">
+  <defs>${qrFilter}</defs>
+  <clipPath id="cOut"><rect x="0" y="0" width="${W}" height="${cardH}" rx="${OUTER_RX}" ry="${OUTER_RX}"/></clipPath>
+
+  <g clip-path="url(#cOut)">
+    <rect x="0" y="0" width="${W / 2}" height="${cardH / 2}" fill="${Q.yellow}"/>
+    <rect x="${W / 2}" y="0" width="${W / 2}" height="${cardH / 2}" fill="${Q.red}"/>
+    <rect x="0" y="${cardH / 2}" width="${W / 2}" height="${cardH / 2}" fill="${Q.green}"/>
+    <rect x="${W / 2}" y="${cardH / 2}" width="${W / 2}" height="${cardH / 2}" fill="${Q.blue}"/>
   </g>
-  <rect x="${FRAME}" y="${FRAME}" width="${W - FRAME * 2}" height="${height - FRAME * 2}" rx="${INNER_RX}" ry="${INNER_RX}" fill="#ffffff"/>
-  ${drawGoogleWord(cx, googleY)}
+
+  <rect x="${INSET}" y="${INSET}" width="${innerW}" height="${innerBottom - INSET}" rx="${INNER_RX}" ry="${INNER_RX}" fill="#ffffff"/>
+
+  ${interGoogleBrandWord(cx, googleBaseline, googlePx)}
   ${buildStars(cx, starsY)}
-  ${drawPixelText({ text: "SCAN TO RATE US ON GOOGLE", x: cx, y: scanY, scale: 3, fill: "#374151", align: "center" })}
-  ${businessText}
-  ${whiteQrBg}
-  ${cornerShapes}
-  ${qrImage}
-  ${drawPixelText({ text: urlText, x: cx, y: urlY, scale: 1, fill: "#9CA3AF", align: "center", maxWidth: W - FRAME * 3 })}
-  <rect x="${FRAME + 32}" y="${dividerY}" width="${W - (FRAME + 32) * 2}" height="2" fill="#E5E7EB"/>
+  ${scanLine}
+  ${bizPaths}
+
+  <rect x="${qrX}" y="${qrY}" width="${qrBox}" height="${qrBox}" rx="${QR_OUTER_RX}" ry="${QR_OUTER_RX}" fill="#ffffff" stroke="#F1F5F9" stroke-width="1" filter="url(#qrSh)"/>
+  <image href="data:image/png;base64,${qrBase64}" x="${qrIx}" y="${qrIy}" width="${QR_IMG}" height="${QR_IMG}" preserveAspectRatio="xMidYMid meet"/>
+  ${qrCornerAccents(qrIx, qrIy, QR_IMG)}
+
+  ${interTextPath({
+    text: urlText,
+    x: cx,
+    y: urlBaseline,
+    size: urlPx,
+    fill: "#9CA3AF",
+    anchor: "center",
+    weight: 400,
+  })}
+
+  <line x1="${INSET + PAD}" y1="${dividerY}" x2="${W - INSET - PAD}" y2="${dividerY}" stroke="#F3F4F6" stroke-width="1"/>
   ${footer}
 </svg>`;
 }
 
-/**
- * @param {string} businessName
- * @param {string} reviewUrl
- * @returns {Promise<Buffer>} PNG bytes
- */
 export async function generateMagicQrCard(businessName, reviewUrl) {
+  await ensureInterFonts();
+
   const [qrBuffer, logoBuffer] = await Promise.all([
     fetchQrPng(reviewUrl),
     loadFooterLogoPng(),
   ]);
 
-  const businessLines = wrapLines(businessName || "Business", 24);
-  const urlText = truncUrl(reviewUrl, 52);
+  const businessLines = wrapLines(businessName || "Business", 26);
+  const urlText = truncUrl(reviewUrl, 48);
   const positions = layout(businessLines.length);
   const qrBase64 = qrBuffer.toString("base64");
-  const svg = buildCardSvg(positions, businessLines, urlText, qrBase64, logoBuffer);
+  const svg = buildCardSvg(
+    positions,
+    businessLines,
+    urlText,
+    qrBase64,
+    logoBuffer,
+  );
 
-  return sharp(Buffer.from(svg), { density: 192 })
+  const outH = Math.round(positions.cardH * EXPORT_SCALE);
+  return sharp(Buffer.from(svg))
+    .resize({
+      width: W * EXPORT_SCALE,
+      height: outH,
+      kernel: sharp.kernel.lanczos3,
+      fit: "fill",
+    })
     .png({ quality: 95, compressionLevel: 9 })
     .toBuffer();
 }
+
+// re-export layout constants for tests
+export const MAGIC_QR_CARD_REF_WIDTH = W;
+export const MAGIC_QR_EXPORT_SCALE = EXPORT_SCALE;

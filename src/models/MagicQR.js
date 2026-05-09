@@ -28,6 +28,11 @@ const magicQrSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    /** 0 = legacy; MAGIC_QR_SERVER_CARD_VERSION = server render; MAGIC_QR_CLIENT_UPLOAD_VERSION = client upload */
+    cardGeneratorVersion: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ["generated", "failed", "pending"],

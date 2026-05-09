@@ -66,6 +66,17 @@ const formatPostedDate = (value) => {
   });
 };
 
+const formatCreatedDate = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "long",
+  });
+};
+
 const getPlatformPost = (whenPosted, platformKey) => {
   const platform = PLATFORM_ALIASES[platformKey] || platformKey;
   if (!whenPosted || !platform) return null;
@@ -154,6 +165,28 @@ const PostCard = React.memo(
       ],
     );
 
+    const scheduledPlatforms = useMemo(() => {
+      const sources = Array.isArray(post.scheduledDateSource)
+        ? post.scheduledDateSource
+        : post.scheduledDateSource
+          ? [post.scheduledDateSource]
+          : [];
+
+      return new Set(
+        sources
+          .map((source) => PLATFORM_ALIASES[source] || source)
+          .filter(Boolean),
+      );
+    }, [post.scheduledDateSource]);
+
+    const isPlatformScheduled = useCallback(
+      (platformKey) => {
+        const platform = PLATFORM_ALIASES[platformKey] || platformKey;
+        return scheduledPlatforms.has(platform);
+      },
+      [scheduledPlatforms],
+    );
+
     const initialDescriptions = useMemo(
       () => ({
         gmb: post?.gmbDescription ?? post?.description ?? "",
@@ -187,6 +220,14 @@ const PostCard = React.memo(
     const cardShowVideo = useMemo(() => {
       return dualCardMedia ? cardMediaTab === "video" : isPostVideoMedia(post);
     }, [dualCardMedia, cardMediaTab, post]);
+
+    const createdDateLabel = useMemo(
+      () =>
+        formatCreatedDate(
+          post.createdAt || post.created_at || post.createdDate || post.date,
+        ),
+      [post.createdAt, post.created_at, post.createdDate, post.date],
+    );
 
     const isConvertingThisPost = useMemo(() => {
       return (
@@ -485,7 +526,7 @@ const PostCard = React.memo(
             </a>
 
             {/* Status Chip */}
-            <div className="absolute top-4 left-4 z-10">
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
               <div
                 className={`px-3 py-1 rounded-full border backdrop-blur-md flex items-center gap-1.5 shadow-sm ${STATUS_COLORS[post.status] || "bg-slate-50 text-slate-600 border-slate-100"}`}
               >
@@ -496,6 +537,11 @@ const PostCard = React.memo(
                   {post.status}
                 </span>
               </div>
+              {createdDateLabel && (
+                <div className="px-3 py-1 rounded-full border border-white/70 bg-white/90 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-sm">
+                  {createdDateLabel}
+                </div>
+              )}
             </div>
 
             {/* Floating Icons (Download/Share) */}
@@ -981,24 +1027,29 @@ const PostCard = React.memo(
                         </div>
                       )}
 
-                    <button
-                      onClick={() => handleMediaChoice("gmb")}
-                      className="w-full py-3 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em]"
-                    >
-                      Post to GMB
-                    </button>
+                    {!isPlatformScheduled("gmb") && !isPostedGmb && (
+                      <button
+                        onClick={() => handleMediaChoice("gmb")}
+                        className="w-full py-3 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em]"
+                      >
+                        Post to GMB
+                      </button>
+                    )}
                   </div>
 
                   {/* Quick Post to other platforms if not scheduled/posted */}
-                  {((!post.scheduledDateSource?.includes("fb") &&
-                    !isPostedFb) ||
-                    (!post.scheduledDateSource?.includes("ig") &&
-                      !isPostedIg) ||
-                    hasVideoAsset) && (
+                  {((!isPlatformScheduled("fb") && !isPostedFb) ||
+                    (!isPlatformScheduled("ig") && !isPostedIg) ||
+                    (!isPlatformScheduled("pinterest") &&
+                      !isPlatformPosted(post.whenPosted, "pinterest")) ||
+                    (!isPlatformScheduled("linkedin") &&
+                      !isPlatformPosted(post.whenPosted, "linkedin")) ||
+                    (hasVideoAsset &&
+                      !isPlatformScheduled("youtube") &&
+                      !isPlatformPosted(post.whenPosted, "youtube"))) && (
                     <div className="space-y-3 mt-4">
                       <div className="grid grid-cols-2 gap-3">
-                        {!post.scheduledDateSource?.includes("fb") &&
-                          !isPostedFb && (
+                        {!isPlatformScheduled("fb") && !isPostedFb && (
                             <button
                               onClick={() => handleMediaChoice("fb")}
                               className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
@@ -1006,8 +1057,7 @@ const PostCard = React.memo(
                               <Facebook size={13} /> Post to FB Pages
                             </button>
                           )}
-                        {!post.scheduledDateSource?.includes("ig") &&
-                          !isPostedIg && (
+                        {!isPlatformScheduled("ig") && !isPostedIg && (
                             <button
                               onClick={() => handleMediaChoice("ig")}
                               className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
@@ -1016,7 +1066,48 @@ const PostCard = React.memo(
                             </button>
                           )}
                       </div>
-                      {hasVideoAsset && (
+                      {((!isPlatformScheduled("pinterest") &&
+                        !isPlatformPosted(post.whenPosted, "pinterest")) ||
+                        (!isPlatformScheduled("linkedin") &&
+                          !isPlatformPosted(post.whenPosted, "linkedin"))) && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {!isPlatformScheduled("pinterest") &&
+                            !isPlatformPosted(post.whenPosted, "pinterest") && (
+                              <button
+                                onClick={() => handleMediaChoice("pinterest")}
+                                className="w-full py-3.5 bg-[#E60023] text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#c5001f] transition-all shadow-sm"
+                              >
+                                <Image
+                                  src="/social-icon/pinterest-icon.png"
+                                  width={13}
+                                  height={13}
+                                  className="object-contain"
+                                  alt="Pinterest"
+                                />
+                                Post to Pinterest
+                              </button>
+                            )}
+                          {!isPlatformScheduled("linkedin") &&
+                            !isPlatformPosted(post.whenPosted, "linkedin") && (
+                              <button
+                                onClick={() => handleMediaChoice("linkedin")}
+                                className="w-full py-3.5 bg-[#0A66C2] text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#004182] transition-all shadow-sm"
+                              >
+                                <Image
+                                  src="/social-icon/linkedin.png"
+                                  width={13}
+                                  height={13}
+                                  className="object-contain"
+                                  alt="LinkedIn"
+                                />
+                                Post to LinkedIn
+                              </button>
+                            )}
+                        </div>
+                      )}
+                      {hasVideoAsset &&
+                        !isPlatformScheduled("youtube") &&
+                        !isPlatformPosted(post.whenPosted, "youtube") && (
                         <button
                           onClick={() => handleMediaChoice("youtube")}
                           className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"

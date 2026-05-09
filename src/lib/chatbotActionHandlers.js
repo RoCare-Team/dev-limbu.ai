@@ -38,6 +38,11 @@ import {
 } from "@/lib/chatbotHealthPdfGenerator";
 import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
+import { formatMagicQrBusinessTitle } from "@/lib/magicQrBusinessName";
+import {
+  MAGIC_QR_CLIENT_UPLOAD_VERSION,
+  MAGIC_QR_SERVER_CARD_VERSION,
+} from "@/lib/magicQrServerVersion";
 import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
 import { generateUniversalSlug } from "@/utils/slugify";
 
@@ -402,15 +407,17 @@ function buildReviewUrl(location, allLocations) {
  *   - "Powered by LimbuAI" footer
  *
  * Priority:
- *   1. Existing MagicQR in DB (if dashboard already saved styled image → reuse it).
- *   2. Generate styled card server-side with sharp → upload to S3.
+ *   1. Reuse DB image only if reviewUrl matches AND asset is trusted (client upload
+ *      or same cardGeneratorVersion as current server pipeline). Legacy v0 PNGs are
+ *      regenerated so fixed fonts/layout are not stuck behind stale S3 URLs.
+ *   2. Otherwise generate styled card server-side → upload to S3.
  *
  * @returns {{ url: string, reviewUrl: string, message: string }}
  */
 async function handleMagicQr({ location, email, locationId, allLocations }) {
   await dbConnect();
 
-  const businessTitle = location.title || "Business";
+  const businessTitle = formatMagicQrBusinessTitle(location);
   const shortId       = toShortLocationId(locationId);
 
   const slugify = (t) =>
@@ -423,23 +430,36 @@ async function handleMagicQr({ location, email, locationId, allLocations }) {
 
   console.log(`[qr] location=${shortId} locality=${locality} reviewUrl=${reviewUrl}`);
 
-  // ── Step 1: Reuse existing styled QR only if its reviewUrl still matches ──
-  // (old records may have been generated with a different/wrong URL; regenerate
-  //  if the stored reviewUrl differs from the one we just computed)
+  // ── Step 1: Reuse existing S3 asset only when URL matches AND we trust the PNG ──
   const existing = await MagicQR.findOne({ locationId: shortId }).lean();
-  const existingHasManualStyledCard = Boolean(existing?.s3ImageUrl);
-  const existingReviewMatches = existing?.reviewUrl === reviewUrl;
-  const existingReviewMissing = !existing?.reviewUrl;
-  if (existingHasManualStyledCard && (existingReviewMatches || existingReviewMissing)) {
+  const existingHasCard         = Boolean(existing?.s3ImageUrl);
+  const existingReviewMatches   = existing?.reviewUrl === reviewUrl;
+  const existingReviewMissing   = !existing?.reviewUrl;
+  const existingVersion         = existing?.cardGeneratorVersion ?? 0;
+  const trustedClientUpload =
+    existingVersion === MAGIC_QR_CLIENT_UPLOAD_VERSION;
+  const trustedCurrentServer =
+    existingVersion === MAGIC_QR_SERVER_CARD_VERSION;
+  const canReuseCachedPng =
+    existingHasCard &&
+    (existingReviewMatches || existingReviewMissing) &&
+    (trustedClientUpload || trustedCurrentServer);
+
+  if (canReuseCachedPng) {
     console.log(
-      `[qr] Reusing saved styled QR: ${existing.s3ImageUrl}` +
-      (existingReviewMissing ? " (reviewUrl missing in legacy record)" : "")
+      `[qr] Reusing saved QR (version=${existingVersion}): ${existing.s3ImageUrl}` +
+        (existingReviewMissing ? " (reviewUrl missing in legacy record)" : "")
     );
     return {
       url:      existing.s3ImageUrl,
       reviewUrl,
       message:  `QR code ready for ${businessTitle}`,
     };
+  }
+  if (existingHasCard && (existingReviewMatches || existingReviewMissing) && !canReuseCachedPng) {
+    console.log(
+      `[qr] Ignoring stale cached QR (version=${existingVersion}, need server=${MAGIC_QR_SERVER_CARD_VERSION} or client=${MAGIC_QR_CLIENT_UPLOAD_VERSION}) — regenerating`
+    );
   }
   if (existing?.s3ImageUrl && existing?.reviewUrl !== reviewUrl) {
     console.log(`[qr] Stored reviewUrl mismatch — regenerating. old=${existing.reviewUrl} new=${reviewUrl}`);
@@ -452,7 +472,7 @@ async function handleMagicQr({ location, email, locationId, allLocations }) {
 
   // ── Step 3: Upload PNG to S3 ───────────────────────────────────────────────
   const folder   = `magic-qrs/${slugify(businessTitle)}`;
-  const fileName = `${slugify(locality || "hq")}-qr-card.png`;
+  const fileName = `${Date.now()}-v${MAGIC_QR_SERVER_CARD_VERSION}-${slugify(locality || "hq")}-qr-card.png`;
 
   const s3Result = await uploadToS3(cardBuffer, fileName, "image/png", folder);
   if (!s3Result.success) {
@@ -463,7 +483,16 @@ async function handleMagicQr({ location, email, locationId, allLocations }) {
   // ── Step 4: Upsert MagicQR DB record ──────────────────────────────────────
   await MagicQR.findOneAndUpdate(
     { locationId: shortId },
-    { userEmail: email, businessTitle, locality, locationId: shortId, s3ImageUrl: s3Result.url, reviewUrl, status: "generated" },
+    {
+      userEmail:              email,
+      businessTitle,
+      locality,
+      locationId:             shortId,
+      s3ImageUrl:             s3Result.url,
+      reviewUrl,
+      status:                 "generated",
+      cardGeneratorVersion:   MAGIC_QR_SERVER_CARD_VERSION,
+    },
     { upsert: true, new: true }
   );
 

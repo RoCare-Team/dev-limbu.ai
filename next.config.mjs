@@ -112,7 +112,7 @@ const nextConfig = {
    * Without this, Next.js webpack mangles the paths and you get ENOENT errors
    * like "no such file or directory, open .../.next/.../Helvetica.afm".
    */
-  serverExternalPackages: ["pdfkit", "canvas", "sharp"],
+  serverExternalPackages: ["pdfkit", "canvas", "sharp", "fontkit"],
 
   experimental: {
     serverActions: {

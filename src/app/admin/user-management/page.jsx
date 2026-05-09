@@ -1,10 +1,11 @@
 "use client";
 
-import {  useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import Link from "next/link";
 import { useRef } from "react";
 import { Fragment } from "react";
+
 /* user-management */
 import {
   Search,
@@ -42,7 +43,6 @@ import {
   Send,
   Smartphone,
   MessageCircle,
-  
 } from "lucide-react";
 import {
   USER_SOURCE_OPTIONS,
@@ -94,6 +94,8 @@ export default function UserManagement() {
   });
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
+
+  
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [fullViewImage, setFullViewImage] = useState(null);
   const [pagination, setPagination] = useState(null);
@@ -122,13 +124,13 @@ export default function UserManagement() {
   const [planExpiryDate, setPlanExpiryDate] = useState("");
 
   useEffect(() => {
-  if (planStartDate) {
-    const date = new Date(planStartDate);
-    date.setMonth(date.getMonth() + 1);
+    if (planStartDate) {
+      const date = new Date(planStartDate);
+      date.setMonth(date.getMonth() + 1);
 
-    setPlanExpiryDate(date.toISOString().split("T")[0]);
-  }
-}, [planStartDate]);
+      setPlanExpiryDate(date.toISOString().split("T")[0]);
+    }
+  }, [planStartDate]);
   const [planScreenshot, setPlanScreenshot] = useState(null);
   const [chatStats, setChatStats] = useState({
     total: 0,
@@ -211,7 +213,6 @@ export default function UserManagement() {
   const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
 
   // Revenue Users Modal state ✅ NEW
-
 
   // Onboarded Client state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
@@ -798,9 +799,15 @@ export default function UserManagement() {
 
         setLeadSourceStats({
           metaLeads:
-            data.metaLeadsCount ?? data.totalMetaLeads ?? data.totalMetaLeadUsers ?? 0,
+            data.metaLeadsCount ??
+            data.totalMetaLeads ??
+            data.totalMetaLeadUsers ??
+            0,
           signupLeads:
-            data.signupLeadsCount ?? data.totalSignupUsers ?? data.totalSignups ?? 0,
+            data.signupLeadsCount ??
+            data.totalSignupUsers ??
+            data.totalSignups ??
+            0,
         });
       }
     } catch (error) {
@@ -956,7 +963,6 @@ export default function UserManagement() {
   };
 
   /* ---------------- FETCH REVENUE USERS LIST ✅ NEW ---------------- */
-
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
@@ -1252,8 +1258,6 @@ export default function UserManagement() {
         }),
       });
 
-
-      
       const data = await res.json();
 
       if (data.success) {
@@ -1424,12 +1428,12 @@ export default function UserManagement() {
     setPlanScreenshot(null); // Reset screenshot
   };
 
- const confirmPlanChange = async () => {
+  const confirmPlanChange = async () => {
     const packageStartDate = planStartDate || "";
-  const packageExpiryDate = planExpiryDate || "";
+    const packageExpiryDate = planExpiryDate || "";
 
-  console.log("Start:", packageStartDate);
-  console.log("Expiry:", packageExpiryDate);
+    console.log("Start:", packageStartDate);
+    console.log("Expiry:", packageExpiryDate);
     if (!selectedUser || !selectedPlan) return;
 
     // If amount is entered, screenshot is mandatory
@@ -1458,23 +1462,23 @@ export default function UserManagement() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-  leadId: selectedUser.userId,
-  leadName: selectedUser.fullName,
-  amount: parseFloat(planAmount),
-  paymentScreenshot: screenshotUrl,
-  email: localStorage.getItem("email"),
-  plan: selectedPlan,   // ✅ comma जरूरी
+            leadId: selectedUser.userId,
+            leadName: selectedUser.fullName,
+            amount: parseFloat(planAmount),
+            paymentScreenshot: screenshotUrl,
+            email: localStorage.getItem("email"),
+            plan: selectedPlan, // ✅ comma जरूरी
 
-  packageStartDate: planStartDate,   // ✅
-  packageExpiryDate: planExpiryDate, // ✅
+            packageStartDate: planStartDate, // ✅
+            packageExpiryDate: planExpiryDate, // ✅
 
-  notes: `Plan upgrade to ${selectedPlan}`,
-  planRemarks: planRemarks,
-  utrNumber: utrNumber,
-  type: selectedPlan.toLowerCase().includes("seo")
-    ? "selectedPlan"
-    : "user_onboard",
-}),
+            notes: `Plan upgrade to ${selectedPlan}`,
+            planRemarks: planRemarks,
+            utrNumber: utrNumber,
+            type: selectedPlan.toLowerCase().includes("seo")
+              ? "selectedPlan"
+              : "user_onboard",
+          }),
         });
 
         const revenueData = await revenueRes.json();
@@ -1487,7 +1491,7 @@ export default function UserManagement() {
       }
 
       const packageStartDate = planStartDate;
-const packageExpiryDate = planExpiryDate;
+      const packageExpiryDate = planExpiryDate;
       // 2. Update user plan details
       const userUpdateRes = await fetch(`/api/users`, {
         method: "PUT",
@@ -1747,25 +1751,56 @@ const packageExpiryDate = planExpiryDate;
     }
   };
 
+  // ✅ Is function ko UserManagement component ke andar replace karo
+  // ✅ handleViewPosts ko is code se replace karo
+  // Problem: API response me posts `data.posts` me aa rahe hain,
+  // lekin tum `data.data` read kar rahe the.
+
   const handleViewPosts = async (user) => {
-    setServiceUser(null); // 🔥 IMPORTANT
-    setViewingUserPosts(user);
-    setActiveModal("posts");
+    // Loading start
+    setLoadingPosts(true);
+
+    // Purana data clear
+    setUserPosts([]);
+
+    // Service modal close
+    setServiceUser(null);
+
+    
+
     try {
+      // API call
       const res = await fetch(`/api/post-status?userId=${user.userId}`);
+      // console.log("handle post view res: ",res)
       const data = await res.json();
-      if (data.success) {
-        setUserPosts(data.data || []);
-      } else {
-        setUserPosts([]);
-      }
-    } catch (err) {
-      console.error("Error fetching user posts:", err);
+
+      
+
+      // Modal open
+      setViewingUserPosts(user);
+      setActiveModal("posts");
+
+      // ✅ API se jo bhi array aaye use set karo
+      const posts =
+        data.posts || // agar API { posts: [...] } return kar rahi hai
+        data.data || // agar API { data: [...] } return kar rahi hai
+        data.result || // fallback
+        [];
+
+      setUserPosts(Array.isArray(posts) ? posts : []);
+    } catch (error) {
+      console.error("Error fetching user posts:", error);
+
+      // Error hone par bhi modal open rahe
+      setViewingUserPosts(user);
+      setActiveModal("posts");
       setUserPosts([]);
     } finally {
+      // Loading stop
       setLoadingPosts(false);
     }
   };
+
 
   const handleOpenWalletModal = (user) => {
     setWalletModalUser(user);
@@ -1962,7 +1997,7 @@ const packageExpiryDate = planExpiryDate;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-        
+
       const data = await res.json();
 
       if (data.success) {
@@ -2270,25 +2305,23 @@ const packageExpiryDate = planExpiryDate;
   };
 
   const groupByDate = (data) => {
-  return data.reduce((acc, item) => {
-    const date = new Date(item.createdAt).toLocaleDateString("en-IN");
+    return data.reduce((acc, item) => {
+      const date = new Date(item.createdAt).toLocaleDateString("en-IN");
 
-    if (!acc[date]) {
-      acc[date] = [];
-    }
+      if (!acc[date]) {
+        acc[date] = [];
+      }
 
-    acc[date].push(item);
-    return acc;
-  }, {});
-};
+      acc[date].push(item);
+      return acc;
+    }, {});
+  };
 
-const groupedUsers = groupByDate(filteredUsers); // 🔥 यही use होगा
-const currentLeadTotal =
-  isAgent && followUpFilter !== "all"
-    ? filteredUsers.length
-    : pagination?.totalUsers ?? filteredUsers.length;
-
-
+  const groupedUsers = groupByDate(filteredUsers); // 🔥 यही use होगा
+  const currentLeadTotal =
+    isAgent && followUpFilter !== "all"
+      ? filteredUsers.length
+      : (pagination?.totalUsers ?? filteredUsers.length);
 
   if (loading) {
     return (
@@ -2304,2458 +2337,3203 @@ const currentLeadTotal =
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-2 sm:p-3">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
-          <div
-            className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
-              toast.type === "success"
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            )}
-            <div className="flex-1">
-              <p className="font-semibold text-sm">{toast.message}</p>
-            </div>
-            <button
-              onClick={() => setToast(null)}
-              className="hover:bg-white/10 rounded-full p-1 transition-colors"
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-2 sm:p-3">
+        {/* Toast Notification */}
+        {toast && (
+          <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
+            <div
+              className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
+                toast.type === "success"
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                  : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+              }`}
             >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-[98vw] mx-auto">
-        {/* ── Agent Performance Dashboard ──────────────────────────────── */}
-        {isAgent && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                  <Phone className="text-indigo-600" size={16} />
+              {toast.type === "success" ? (
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 </div>
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
-                  My Performance
-                </h3>
-              </div>
-              <span className="text-xs text-gray-400">
-                {new Date().toLocaleDateString("en-IN", {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-
-            {/* ── Row 1: Leads & Calls ── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {[
-                {
-                  label: "Today's Leads",
-                  value: agentTodayLeads,
-                  sub: "assigned today",
-                  from: "from-teal-50",
-                  to: "to-cyan-50",
-                  border: "border-teal-100",
-                  text: "text-teal-600",
-                  bold: "text-teal-800",
-                },
-                {
-                  label: "Total Leads",
-                  value: stats.total ?? 0,
-                  sub: "all-time assigned",
-                  from: "from-indigo-50",
-                  to: "to-blue-50",
-                  border: "border-indigo-100",
-                  text: "text-indigo-600",
-                  bold: "text-indigo-800",
-                },
-                {
-                  label: "Calls Today",
-                  value: callStats?.myCallsToday ?? 0,
-                  sub: "handled today",
-                  from: "from-violet-50",
-                  to: "to-purple-50",
-                  border: "border-violet-100",
-                  text: "text-violet-600",
-                  bold: "text-violet-800",
-                },
-                {
-                  label: "Total Calls",
-                  value: callStats?.myCallsTotal ?? 0,
-                  sub: "all-time calls",
-                  from: "from-blue-50",
-                  to: "to-sky-50",
-                  border: "border-blue-100",
-                  text: "text-blue-600",
-                  bold: "text-blue-800",
-                },
-              ].map(({ label, value, sub, from, to, border, text, bold }) => (
-                <div
-                  key={label}
-                  className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}
-                >
-                  <p
-                    className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
                   >
-                    {label}
-                  </p>
-                  <p className={`text-lg font-bold mt-0.5 ${bold}`}>{value}</p>
-                  <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>
-                    {sub}
-                  </p>
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 </div>
-              ))}
-            </div>
-
-            {/* ── Row 2: Follow-up quick stats (clickable → filter leads below) ── */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {[
-                {
-                  key: "today",
-                  label: "Today",
-                  count: followUpStats.todayFollowUps,
-                  bg: "bg-amber-500",
-                  ring: "ring-amber-400",
-                },
-                {
-                  key: "tomorrow",
-                  label: "Tomorrow",
-                  count: followUpStats.tomorrowFollowUps,
-                  bg: "bg-rose-500",
-                  ring: "ring-rose-400",
-                },
-                {
-                  key: "next7days",
-                  label: "Next 7 days",
-                  count: followUpStats.next7DaysFollowUps,
-                  bg: "bg-violet-500",
-                  ring: "ring-violet-400",
-                },
-                {
-                  key: "thisMonth",
-                  label: "This Month",
-                  count: followUpStats.thisMonthFollowUps,
-                  bg: "bg-emerald-500",
-                  ring: "ring-emerald-400",
-                },
-                {
-                  key: "all",
-                  label: "All Time",
-                  count: followUpStats.totalFollowUps,
-                  bg: "bg-gray-600",
-                  ring: "ring-gray-400",
-                },
-              ].map(({ key, label, count, bg, ring }) => {
-                const active = followUpFilter === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setFollowUpFilter(key)}
-                    className={`rounded-lg p-2 border-2 text-left transition-all ${
-                      active
-                        ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
-                        : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
-                    }`}
-                  >
-                    <p
-                      className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}
-                    >
-                      Follow-ups
-                    </p>
-                    <p
-                      className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}
-                    >
-                      {count}
-                    </p>
-                    <p
-                      className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}
-                    >
-                      {label}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Pending follow-ups — same bucket as the table filter */}
-
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                Stages &amp; temperature
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  {
-                    label: "Active",
-                    v: stageStats["Active"] ?? 0,
-                    cls: "bg-green-50 text-green-800 border-green-200",
-                  },
-                  {
-                    label: "Follow Up",
-                    v: stageStats["Follow Up"] ?? 0,
-                    cls: "bg-amber-50 text-amber-900 border-amber-200",
-                  },
-                  {
-                    label: "Inactive",
-                    v: stageStats["Inactive"] ?? 0,
-                    cls: "bg-gray-50 text-gray-800 border-gray-200",
-                  },
-                  {
-                    label: "Onboard",
-                    v: stageStats["Onboard"] ?? 0,
-                    cls: "bg-blue-50 text-blue-800 border-blue-200",
-                  },
-                  {
-                    label: "Hot",
-                    v: leadStatusStats.Hot ?? 0,
-                    cls: "bg-red-50 text-red-800 border-red-200",
-                  },
-                  {
-                    label: "Warm",
-                    v: leadStatusStats.Warm ?? 0,
-                    cls: "bg-orange-50 text-orange-800 border-orange-200",
-                  },
-                  {
-                    label: "Cold",
-                    v: leadStatusStats.Cold ?? 0,
-                    cls: "bg-sky-50 text-sky-800 border-sky-200",
-                  },
-                ].map(({ label, v, cls }) => (
-                  <div
-                    key={label}
-                    className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}
-                  >
-                    <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">
-                      {label}
-                    </p>
-                    <p className="text-sm font-black leading-tight tabular-nums">
-                      {v}
-                    </p>
-                  </div>
-                ))}
+              )}
+              <div className="flex-1">
+                <p className="font-semibold text-sm">{toast.message}</p>
               </div>
+              <button
+                onClick={() => setToast(null)}
+                className="hover:bg-white/10 rounded-full p-1 transition-colors"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
-
-        {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
-        {false &&
-          (role === "superAdmin" || role === "admin") &&
-          todayStats.assignments.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-0.5">
+        <div className="max-w-[98vw] mx-auto">
+          {/* ── Agent Performance Dashboard ──────────────────────────────── */}
+          {isAgent && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 space-y-3">
               {/* Header */}
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1">
-                  <div className="w-6 h-6 bg-teal-100 rounded-md flex items-center justify-center">
-                    <UserCheck className="text-teal-600" size={12} />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <Phone className="text-indigo-600" size={16} />
                   </div>
-                  <h3 className="text-[11px] font-semibold text-gray-700 uppercase">
-                    Today Lead Assignments
+                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                    My Performance
                   </h3>
                 </div>
-
-                <span className="bg-teal-50 text-teal-700 text-[10px] font-medium px-2 py-[2px] rounded-full border border-teal-200">
-                  {todayStats.assignments.reduce(
-                    (s, a) => s + (a.count || 0),
-                    0,
-                  )}
+                <span className="text-xs text-gray-400">
+                  {new Date().toLocaleDateString("en-IN", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
                 </span>
               </div>
 
-              {/* Cards */}
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {todayStats.assignments
-                  .slice()
-                  .sort((a, b) => (b.count || 0) - (a.count || 0))
-                  .map((agent, idx) => {
-                    const colors = [
-                      ["bg-indigo-100", "text-indigo-800", "bg-indigo-500"],
-                      ["bg-teal-100", "text-teal-800", "bg-teal-500"],
-                      ["bg-blue-100", "text-blue-800", "bg-blue-500"],
-                      ["bg-purple-100", "text-purple-800", "bg-purple-500"],
-                    ];
-                    const [bg, text, badge] = colors[idx % colors.length];
+              {/* ── Row 1: Leads & Calls ── */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  {
+                    label: "Today's Leads",
+                    value: agentTodayLeads,
+                    sub: "assigned today",
+                    from: "from-teal-50",
+                    to: "to-cyan-50",
+                    border: "border-teal-100",
+                    text: "text-teal-600",
+                    bold: "text-teal-800",
+                  },
+                  {
+                    label: "Total Leads",
+                    value: stats.total ?? 0,
+                    sub: "all-time assigned",
+                    from: "from-indigo-50",
+                    to: "to-blue-50",
+                    border: "border-indigo-100",
+                    text: "text-indigo-600",
+                    bold: "text-indigo-800",
+                  },
+                  {
+                    label: "Calls Today",
+                    value: callStats?.myCallsToday ?? 0,
+                    sub: "handled today",
+                    from: "from-violet-50",
+                    to: "to-purple-50",
+                    border: "border-violet-100",
+                    text: "text-violet-600",
+                    bold: "text-violet-800",
+                  },
+                  {
+                    label: "Total Calls",
+                    value: callStats?.myCallsTotal ?? 0,
+                    sub: "all-time calls",
+                    from: "from-blue-50",
+                    to: "to-sky-50",
+                    border: "border-blue-100",
+                    text: "text-blue-600",
+                    bold: "text-blue-800",
+                  },
+                ].map(({ label, value, sub, from, to, border, text, bold }) => (
+                  <div
+                    key={label}
+                    className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}
+                  >
+                    <p
+                      className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}
+                    >
+                      {label}
+                    </p>
+                    <p className={`text-lg font-bold mt-0.5 ${bold}`}>
+                      {value}
+                    </p>
+                    <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>
+                      {sub}
+                    </p>
+                  </div>
+                ))}
+              </div>
 
-                    return (
-                      <div
-                        key={agent._id || idx}
-                        className={`min-w-[98px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
+              {/* ── Row 2: Follow-up quick stats (clickable → filter leads below) ── */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {[
+                  {
+                    key: "today",
+                    label: "Today",
+                    count: followUpStats.todayFollowUps,
+                    bg: "bg-amber-500",
+                    ring: "ring-amber-400",
+                  },
+                  {
+                    key: "tomorrow",
+                    label: "Tomorrow",
+                    count: followUpStats.tomorrowFollowUps,
+                    bg: "bg-rose-500",
+                    ring: "ring-rose-400",
+                  },
+                  {
+                    key: "next7days",
+                    label: "Next 7 days",
+                    count: followUpStats.next7DaysFollowUps,
+                    bg: "bg-violet-500",
+                    ring: "ring-violet-400",
+                  },
+                  {
+                    key: "thisMonth",
+                    label: "This Month",
+                    count: followUpStats.thisMonthFollowUps,
+                    bg: "bg-emerald-500",
+                    ring: "ring-emerald-400",
+                  },
+                  {
+                    key: "all",
+                    label: "All Time",
+                    count: followUpStats.totalFollowUps,
+                    bg: "bg-gray-600",
+                    ring: "ring-gray-400",
+                  },
+                ].map(({ key, label, count, bg, ring }) => {
+                  const active = followUpFilter === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setFollowUpFilter(key)}
+                      className={`rounded-lg p-2 border-2 text-left transition-all ${
+                        active
+                          ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
+                          : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
+                      }`}
+                    >
+                      <p
+                        className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}
                       >
-                        <div className="flex items-center gap-1">
-                          <div
-                            className={`w-4 h-4 rounded-full ${badge} flex items-center justify-center text-white text-[9px]`}
-                          >
-                            {(agent.agentName || "?")[0]}
+                        Follow-ups
+                      </p>
+                      <p
+                        className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}
+                      >
+                        {count}
+                      </p>
+                      <p
+                        className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}
+                      >
+                        {label}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Pending follow-ups — same bucket as the table filter */}
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Stages &amp; temperature
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    {
+                      label: "Active",
+                      v: stageStats["Active"] ?? 0,
+                      cls: "bg-green-50 text-green-800 border-green-200",
+                    },
+                    {
+                      label: "Follow Up",
+                      v: stageStats["Follow Up"] ?? 0,
+                      cls: "bg-amber-50 text-amber-900 border-amber-200",
+                    },
+                    {
+                      label: "Inactive",
+                      v: stageStats["Inactive"] ?? 0,
+                      cls: "bg-gray-50 text-gray-800 border-gray-200",
+                    },
+                    {
+                      label: "Onboard",
+                      v: stageStats["Onboard"] ?? 0,
+                      cls: "bg-blue-50 text-blue-800 border-blue-200",
+                    },
+                    {
+                      label: "Hot",
+                      v: leadStatusStats.Hot ?? 0,
+                      cls: "bg-red-50 text-red-800 border-red-200",
+                    },
+                    {
+                      label: "Warm",
+                      v: leadStatusStats.Warm ?? 0,
+                      cls: "bg-orange-50 text-orange-800 border-orange-200",
+                    },
+                    {
+                      label: "Cold",
+                      v: leadStatusStats.Cold ?? 0,
+                      cls: "bg-sky-50 text-sky-800 border-sky-200",
+                    },
+                  ].map(({ label, v, cls }) => (
+                    <div
+                      key={label}
+                      className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}
+                    >
+                      <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">
+                        {label}
+                      </p>
+                      <p className="text-sm font-black leading-tight tabular-nums">
+                        {v}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
+
+          {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
+          {false &&
+            (role === "superAdmin" || role === "admin") &&
+            todayStats.assignments.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-0.5">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <div className="w-6 h-6 bg-teal-100 rounded-md flex items-center justify-center">
+                      <UserCheck className="text-teal-600" size={12} />
+                    </div>
+                    <h3 className="text-[11px] font-semibold text-gray-700 uppercase">
+                      Today Lead Assignments
+                    </h3>
+                  </div>
+
+                  <span className="bg-teal-50 text-teal-700 text-[10px] font-medium px-2 py-[2px] rounded-full border border-teal-200">
+                    {todayStats.assignments.reduce(
+                      (s, a) => s + (a.count || 0),
+                      0,
+                    )}
+                  </span>
+                </div>
+
+                {/* Cards */}
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {todayStats.assignments
+                    .slice()
+                    .sort((a, b) => (b.count || 0) - (a.count || 0))
+                    .map((agent, idx) => {
+                      const colors = [
+                        ["bg-indigo-100", "text-indigo-800", "bg-indigo-500"],
+                        ["bg-teal-100", "text-teal-800", "bg-teal-500"],
+                        ["bg-blue-100", "text-blue-800", "bg-blue-500"],
+                        ["bg-purple-100", "text-purple-800", "bg-purple-500"],
+                      ];
+                      const [bg, text, badge] = colors[idx % colors.length];
+
+                      return (
+                        <div
+                          key={agent._id || idx}
+                          className={`min-w-[98px] rounded-md px-2 py-1 border ${bg} flex flex-col`}
+                        >
+                          <div className="flex items-center gap-1">
+                            <div
+                              className={`w-4 h-4 rounded-full ${badge} flex items-center justify-center text-white text-[9px]`}
+                            >
+                              {(agent.agentName || "?")[0]}
+                            </div>
+                            <span className={`text-[9px] truncate ${text}`}>
+                              {agent.agentName}
+                            </span>
                           </div>
-                          <span className={`text-[9px] truncate ${text}`}>
-                            {agent.agentName}
+
+                          <span
+                            className={`text-xs font-bold leading-tight ${text}`}
+                          >
+                            {agent.count || 0}
+                          </span>
+
+                          <span className="text-[9px] text-gray-400 leading-none">
+                            leads
                           </span>
                         </div>
-
-                        <span
-                          className={`text-xs font-bold leading-tight ${text}`}
-                        >
-                          {agent.count || 0}
-                        </span>
-
-                        <span className="text-[9px] text-gray-400 leading-none">
-                          leads
-                        </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-        <Paper
-          elevation={0}
-          sx={{
-            border: "1px solid #e5e7eb",
-            borderRadius: "14px",
-            p: { xs: 1, sm: 1.25 },
-            mb: 1,
-            backgroundColor: "#f8fafc",
-          }}
-        >
-          {isAgent && followUpFilter !== "all" && (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
-                <span className="text-indigo-600/90">Table filter:</span>
-                <span className="text-rose-700">
-                  {agentFollowUpFilterLabel}
-                </span>
-              </span>
-            </div>
-          )}
-          <Box
+          <Paper
+            elevation={0}
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-              "& .MuiOutlinedInput-root": {
-                height: 38,
-                borderRadius: "10px",
-                backgroundColor: "#fff",
-              },
-              "& .MuiInputBase-input": {
-                py: "7px",
-                fontSize: 14,
-              },
-              "& .MuiSelect-select": {
-                py: "7px",
-                fontSize: 14,
-              },
+              border: "1px solid #e5e7eb",
+              borderRadius: "14px",
+              p: { xs: 1, sm: 1.25 },
+              mb: 1,
+              backgroundColor: "#f8fafc",
             }}
           >
+            {isAgent && followUpFilter !== "all" && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
+                  <span className="text-indigo-600/90">Table filter:</span>
+                  <span className="text-rose-700">
+                    {agentFollowUpFilterLabel}
+                  </span>
+                </span>
+              </div>
+            )}
             <Box
               sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "minmax(0, 3fr) minmax(150px, 1fr)",
-                },
-                alignItems: "stretch",
+                display: "flex",
+                flexDirection: "column",
                 gap: 1,
-                width: "100%",
-                minWidth: 0,
+                "& .MuiOutlinedInput-root": {
+                  height: 38,
+                  borderRadius: "10px",
+                  backgroundColor: "#fff",
+                },
+                "& .MuiInputBase-input": {
+                  py: "7px",
+                  fontSize: 14,
+                },
+                "& .MuiSelect-select": {
+                  py: "7px",
+                  fontSize: 14,
+                },
               }}
             >
               <Box
                 sx={{
-                  display: "flex",
-                  flex: 1,
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "minmax(0, 3fr) minmax(150px, 1fr)",
+                  },
+                  alignItems: "stretch",
+                  gap: 1,
+                  width: "100%",
                   minWidth: 0,
                 }}
               >
-                <TextField
-                  size="small"
-                  fullWidth
-                  placeholder="Search email, ID, phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search size={16} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderTopRightRadius: 0,
-                      borderBottomRightRadius: 0,
-                    },
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleSearch}
-                  aria-label="Search users"
-                  sx={{
-                    height: 38,
-                    minWidth: { xs: 44, sm: 104 },
-                    px: { xs: 1.25, sm: 2 },
-                    borderRadius: "0 10px 10px 0",
-                    textTransform: "none",
-                    fontWeight: 800,
-                    boxShadow: "none",
-                    gap: 0.75,
-                  }}
-                >
-                  <Search size={16} />
-                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                    Search
-                  </Box>
-                </Button>
-              </Box>
-
-              <FormControl size="small" fullWidth>
-                <Select
-                  displayEmpty
-                  value={leadStageFilter}
-                  onChange={(e) => setLeadStageFilter(e.target.value)}
-                  renderValue={(selected) =>
-                    selected === "All" ? "Stage: All" : `Stage: ${selected}`
-                  }
-                  inputProps={{ "aria-label": "Lead Stage" }}
-                >
-                  <MenuItem value="All">All Stages</MenuItem>
-                  <MenuItem value="Active">Active</MenuItem>
-                  <MenuItem value="Follow Up">Follow Up</MenuItem>
-                  <MenuItem value="Inactive">Inactive</MenuItem>
-                  <MenuItem value="Onboard">Onboard</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  md: "repeat(4, minmax(0, 1fr))",
-                  xl: "repeat(4, minmax(150px, 1fr)) auto",
-                },
-                gap: 1,
-                alignItems: "center",
-              }}
-            >
-              {(role === "superAdmin" ||
-                role === "admin" ||
-                role === "superfranchiseAdmin") && (
-                <>
-                  <FormControl size="small" fullWidth>
-                    <Select
-                      displayEmpty
-                      value={assigneeFilter}
-                      onChange={(e) => setAssigneeFilter(e.target.value)}
-                      renderValue={(selected) => {
-                        if (selected === "All") return "Agent: All";
-                        if (selected === "Unassigned") return "Agent: Unassigned";
-                        const agent = agents.find((a) => a._id === selected);
-                        return `Agent: ${agent?.fullName || "Selected"}`;
-                      }}
-                      inputProps={{ "aria-label": "Assign To" }}
-                    >
-                      <MenuItem value="All">All Agents</MenuItem>
-                      <MenuItem value="Unassigned">Unassigned</MenuItem>
-                      {agents.map((agent) => (
-                        <MenuItem key={agent._id} value={agent._id}>
-                          {agent.fullName}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  {(role === "superAdmin" ||
-                    role === "admin" ||
-                    role === "superfranchiseAdmin") && (
-                    <FormControl size="small" fullWidth>
-                      <Select
-                        displayEmpty
-                        value={leadStatusFilter}
-                        onChange={(e) => setLeadStatusFilter(e.target.value)}
-                        renderValue={(selected) =>
-                          selected === "All" ? "Status: All" : `Status: ${selected}`
-                        }
-                        inputProps={{ "aria-label": "Lead Status" }}
-                      >
-                        <MenuItem value="All">All Lead Status</MenuItem>
-                        <MenuItem value="Hot">Hot Leads</MenuItem>
-                        <MenuItem value="Warm">Warm Leads</MenuItem>
-                        <MenuItem value="Cold">Cold Leads</MenuItem>
-                        <MenuItem value="Untagged">None</MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
-                </>
-              )}
-
-              <FormControl size="small" fullWidth>
-                <Select
-                  displayEmpty
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  renderValue={(selected) =>
-                    selected === "All" ? "Date: All Time" : `Date: ${selected}`
-                  }
-                  inputProps={{ "aria-label": "Date Range" }}
-                >
-                  <MenuItem value="All">All Time</MenuItem>
-                  <MenuItem value="Today">Today</MenuItem>
-                  <MenuItem value="Last 7 Days">Last 7 Days</MenuItem>
-                  <MenuItem value="Last 30 Days">Last 30 Days</MenuItem>
-                  <MenuItem value="This Month">This Month</MenuItem>
-                  <MenuItem value="Custom Range">Custom Range</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" fullWidth>
-                <Select
-                  displayEmpty
-                  value={remarkCountFilter}
-                  onChange={(e) => setRemarkCountFilter(e.target.value)}
-                  renderValue={(selected) => {
-                    if (selected === "All") return "Remark: All";
-                    if (selected === "None") return "Remark: 0";
-                    if (selected === "More") return "Remark: More";
-                    return `Remark: ${selected}`;
-                  }}
-                  inputProps={{ "aria-label": "Remark Count" }}
-                >
-                  <MenuItem value="All">All Remarks</MenuItem>
-                  <MenuItem value="None">No Remark</MenuItem>
-                  <MenuItem value="1">Remark 1</MenuItem>
-                  <MenuItem value="2">Remark 2</MenuItem>
-                  <MenuItem value="3">Remark 3</MenuItem>
-                  <MenuItem value="More">More</MenuItem>
-                </Select>
-              </FormControl>
-
-              {filterDate === "Custom Range" && (
                 <Box
                   sx={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    gridColumn: { xs: "1 / -1", md: "span 2" },
+                    flex: 1,
+                    minWidth: 0,
                   }}
                 >
                   <TextField
                     size="small"
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
                     fullWidth
+                    placeholder="Search email, ID, phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search size={16} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
+                      },
+                    }}
                   />
-                  <span className="text-sm text-gray-500">to</span>
-                  <TextField
-                    size="small"
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    fullWidth
-                  />
+                  <Button
+                    variant="contained"
+                    onClick={handleSearch}
+                    aria-label="Search users"
+                    sx={{
+                      height: 38,
+                      minWidth: { xs: 44, sm: 104 },
+                      px: { xs: 1.25, sm: 2 },
+                      borderRadius: "0 10px 10px 0",
+                      textTransform: "none",
+                      fontWeight: 800,
+                      boxShadow: "none",
+                      gap: 0.75,
+                    }}
+                  >
+                    <Search size={16} />
+                    <Box
+                      component="span"
+                      sx={{ display: { xs: "none", sm: "inline" } }}
+                    >
+                      Search
+                    </Box>
+                  </Button>
                 </Box>
-              )}
 
-              {(searchQuery ||
-                filterStatus !== "All" ||
-                filterDate !== "All" ||
-                assigneeFilter !== "All" ||
-                leadStatusFilter !== "All" ||
-                leadStageFilter !== "All" ||
-                remarkCountFilter !== "All") && (
-                <Button
-                  onClick={clearFilters}
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<X size={16} />}
-                  sx={{
-                    height: 38,
-                    borderRadius: "10px",
-                    textTransform: "none",
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Clear
-                </Button>
-              )}
-            </Box>
-          </Box>
-        </Paper>
+                <FormControl size="small" fullWidth>
+                  <Select
+                    displayEmpty
+                    value={leadStageFilter}
+                    onChange={(e) => setLeadStageFilter(e.target.value)}
+                    renderValue={(selected) =>
+                      selected === "All" ? "Stage: All" : `Stage: ${selected}`
+                    }
+                    inputProps={{ "aria-label": "Lead Stage" }}
+                  >
+                    <MenuItem value="All">All Stages</MenuItem>
+                    <MenuItem value="Active">Active</MenuItem>
+                    <MenuItem value="Follow Up">Follow Up</MenuItem>
+                    <MenuItem value="Inactive">Inactive</MenuItem>
+                    <MenuItem value="Onboard">Onboard</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
 
-        <Paper
-          elevation={0}
-          sx={{
-            border: "1px solid #dbe1ea",
-            borderRadius: "16px",
-            overflow: "hidden",
-            backgroundColor: "#fff",
-          }}
-        >
-             {(role === "superAdmin" ||
-                      role === "admin" || role === "agent" ||
-                      role === "superfranchiseAdmin") && (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 2,
-                          px: { xs: 2, sm: 2.5 },
-                          py: { xs: 1.75, sm: 2 },
-                          borderBottom: "1px solid",
-                          borderColor: "divider",
-                          background: (theme) =>
-                            `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(4, minmax(0, 1fr))",
+                    xl: "repeat(4, minmax(150px, 1fr)) auto",
+                  },
+                  gap: 1,
+                  alignItems: "center",
+                }}
+              >
+                {(role === "superAdmin" ||
+                  role === "admin" ||
+                  role === "superfranchiseAdmin") && (
+                  <>
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        displayEmpty
+                        value={assigneeFilter}
+                        onChange={(e) => setAssigneeFilter(e.target.value)}
+                        renderValue={(selected) => {
+                          if (selected === "All") return "Agent: All";
+                          if (selected === "Unassigned")
+                            return "Agent: Unassigned";
+                          const agent = agents.find((a) => a._id === selected);
+                          return `Agent: ${agent?.fullName || "Selected"}`;
                         }}
+                        inputProps={{ "aria-label": "Assign To" }}
                       >
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography
-                            variant="subtitle1"
-                            sx={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                              gap: 1,
-                              fontWeight: 800,
-                              letterSpacing: "-0.02em",
-                              color: "text.primary",
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            <span>Leads</span>
-                            <Box
-                              component="span"
-                              sx={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                minHeight: 22,
-                                px: 1,
-                                borderRadius: "999px",
-                                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                                border: "1px solid",
-                                borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
-                                color: "primary.main",
-                                fontSize: 12,
-                                fontWeight: 800,
-                                lineHeight: 1,
-                              }}
-                            >
-                              Total: {currentLeadTotal.toLocaleString("en-IN")}
-                            </Box>
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-                            Manage records and sync from Meta
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
-                          <Button
-                            variant="contained"
-                            onClick={() => setAddingUser(true)}
-                            startIcon={<Plus size={18} strokeWidth={2.5} />}
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: 700,
-                              borderRadius: 2,
-                              px: 2.5,
-                              py: 1,
-                              boxShadow: (theme) => `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
-                              background: (theme) =>
-                                `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                              "&:hover": {
-                                background: (theme) =>
-                                  `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
-                                boxShadow: (theme) => `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
-                              },
-                            }}
-                          >
-                            Add Lead
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            disabled={isRefreshingMetaLeads}
-                            onClick={() => handleRefreshMetaLeads({ silent: false })}
-                            startIcon={
-                              <RefreshCw
-                                size={16}
-                                className={isRefreshingMetaLeads ? "animate-spin" : ""}
-                              />
-                            }
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: 700,
-                              borderRadius: 2,
-                              px: 2.25,
-                              py: 1,
-                              borderWidth: 2,
-                              borderColor: "primary.main",
-                              color: "primary.main",
-                              "&:hover": {
-                                borderWidth: 2,
-                                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-                                borderColor: "primary.dark",
-                              },
-                              "&.Mui-disabled": {
-                                borderWidth: 2,
-                              },
-                            }}
-                          >
-                            Refresh
-                          </Button>
-                        </Stack>
-                      </Box> 
+                        <MenuItem value="All">All Agents</MenuItem>
+                        <MenuItem value="Unassigned">Unassigned</MenuItem>
+                        {agents.map((agent) => (
+                          <MenuItem key={agent._id} value={agent._id}>
+                            {agent.fullName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {(role === "superAdmin" ||
+                      role === "admin" ||
+                      role === "superfranchiseAdmin") && (
+                      <FormControl size="small" fullWidth>
+                        <Select
+                          displayEmpty
+                          value={leadStatusFilter}
+                          onChange={(e) => setLeadStatusFilter(e.target.value)}
+                          renderValue={(selected) =>
+                            selected === "All"
+                              ? "Status: All"
+                              : `Status: ${selected}`
+                          }
+                          inputProps={{ "aria-label": "Lead Status" }}
+                        >
+                          <MenuItem value="All">All Lead Status</MenuItem>
+                          <MenuItem value="Hot">Hot Leads</MenuItem>
+                          <MenuItem value="Warm">Warm Leads</MenuItem>
+                          <MenuItem value="Cold">Cold Leads</MenuItem>
+                          <MenuItem value="Untagged">None</MenuItem>
+                        </Select>
+                      </FormControl>
                     )}
-          {role === "superAdmin" && (
-            <>
-              {bulkWaSelectedUserIds.length > 0 && (
-                <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                    <div className="flex items-center gap-3 text-white">
-                      <div className="bg-white/20 rounded-full p-3">
-                        <MessageSquare className="text-white" size={24} />
-                      </div>
-                      <div>
-                        <p className="text-sm opacity-90">Selected leads</p>
-                        <p className="text-2xl font-bold">
-                          {bulkWaSelectedUserIds.length}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex-1 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setBulkWaShowPanel(true)}
-                        className="flex items-center justify-center gap-2 bg-white text-green-600 px-4 py-3 rounded-lg font-medium hover:bg-green-50 transition shadow-md min-w-[160px]"
-                      >
-                        <MessageSquare size={20} />
-                        WhatsApp 
-                      </button>
+                  </>
+                )}
 
+                <FormControl size="small" fullWidth>
+                  <Select
+                    displayEmpty
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    renderValue={(selected) =>
+                      selected === "All"
+                        ? "Date: All Time"
+                        : `Date: ${selected}`
+                    }
+                    inputProps={{ "aria-label": "Date Range" }}
+                  >
+                    <MenuItem value="All">All Time</MenuItem>
+                    <MenuItem value="Today">Today</MenuItem>
+                    <MenuItem value="Last 7 Days">Last 7 Days</MenuItem>
+                    <MenuItem value="Last 30 Days">Last 30 Days</MenuItem>
+                    <MenuItem value="This Month">This Month</MenuItem>
+                    <MenuItem value="Custom Range">Custom Range</MenuItem>
+                  </Select>
+                </FormControl>
 
-                      <button
-  type="button"
-  onClick={() => setIsOpen(true)}
-  className="group bg-white px-6 py-3 rounded-2xl
+                <FormControl size="small" fullWidth>
+                  <Select
+                    displayEmpty
+                    value={remarkCountFilter}
+                    onChange={(e) => setRemarkCountFilter(e.target.value)}
+                    renderValue={(selected) => {
+                      if (selected === "All") return "Remark: All";
+                      if (selected === "None") return "Remark: 0";
+                      if (selected === "More") return "Remark: More";
+                      return `Remark: ${selected}`;
+                    }}
+                    inputProps={{ "aria-label": "Remark Count" }}
+                  >
+                    <MenuItem value="All">All Remarks</MenuItem>
+                    <MenuItem value="None">No Remark</MenuItem>
+                    <MenuItem value="1">Remark 1</MenuItem>
+                    <MenuItem value="2">Remark 2</MenuItem>
+                    <MenuItem value="3">Remark 3</MenuItem>
+                    <MenuItem value="More">More</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {filterDate === "Custom Range" && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      gridColumn: { xs: "1 / -1", md: "span 2" },
+                    }}
+                  >
+                    <TextField
+                      size="small"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      fullWidth
+                    />
+                    <span className="text-sm text-gray-500">to</span>
+                    <TextField
+                      size="small"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      fullWidth
+                    />
+                  </Box>
+                )}
+
+                {(searchQuery ||
+                  filterStatus !== "All" ||
+                  filterDate !== "All" ||
+                  assigneeFilter !== "All" ||
+                  leadStatusFilter !== "All" ||
+                  leadStageFilter !== "All" ||
+                  remarkCountFilter !== "All") && (
+                  <Button
+                    onClick={clearFilters}
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<X size={16} />}
+                    sx={{
+                      height: 38,
+                      borderRadius: "10px",
+                      textTransform: "none",
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Paper>
+
+          <Paper
+            elevation={0}
+            sx={{
+              border: "1px solid #dbe1ea",
+              borderRadius: "16px",
+              overflow: "hidden",
+              backgroundColor: "#fff",
+            }}
+          >
+            {(role === "superAdmin" ||
+              role === "admin" ||
+              role === "agent" ||
+              role === "superfranchiseAdmin") && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2,
+                  px: { xs: 2, sm: 2.5 },
+                  py: { xs: 1.75, sm: 2 },
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  background: (theme) =>
+                    `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 1,
+                      fontWeight: 800,
+                      letterSpacing: "-0.02em",
+                      color: "text.primary",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    <span>Leads</span>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        minHeight: 22,
+                        px: 1,
+                        borderRadius: "999px",
+                        bgcolor: (theme) =>
+                          alpha(theme.palette.primary.main, 0.1),
+                        border: "1px solid",
+                        borderColor: (theme) =>
+                          alpha(theme.palette.primary.main, 0.18),
+                        color: "primary.main",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        lineHeight: 1,
+                      }}
+                    >
+                      Total: {currentLeadTotal.toLocaleString("en-IN")}
+                    </Box>
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 0.25 }}
+                  >
+                    Manage records and sync from Meta
+                  </Typography>
+                </Box>
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  <Button
+                    variant="contained"
+                    onClick={() => setAddingUser(true)}
+                    startIcon={<Plus size={18} strokeWidth={2.5} />}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      px: 2.5,
+                      py: 1,
+                      boxShadow: (theme) =>
+                        `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
+                      background: (theme) =>
+                        `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                      "&:hover": {
+                        background: (theme) =>
+                          `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                        boxShadow: (theme) =>
+                          `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
+                      },
+                    }}
+                  >
+                    Add Lead
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    disabled={isRefreshingMetaLeads}
+                    onClick={() => handleRefreshMetaLeads({ silent: false })}
+                    startIcon={
+                      <RefreshCw
+                        size={16}
+                        className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                      />
+                    }
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      px: 2.25,
+                      py: 1,
+                      borderWidth: 2,
+                      borderColor: "primary.main",
+                      color: "primary.main",
+                      "&:hover": {
+                        borderWidth: 2,
+                        bgcolor: (theme) =>
+                          alpha(theme.palette.primary.main, 0.08),
+                        borderColor: "primary.dark",
+                      },
+                      "&.Mui-disabled": {
+                        borderWidth: 2,
+                      },
+                    }}
+                  >
+                    Refresh
+                  </Button>
+                </Stack>
+              </Box>
+            )}
+            {role === "superAdmin" && (
+              <>
+                {bulkWaSelectedUserIds.length > 0 && (
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                      <div className="flex items-center gap-3 text-white">
+                        <div className="bg-white/20 rounded-full p-3">
+                          <MessageSquare className="text-white" size={24} />
+                        </div>
+                        <div>
+                          <p className="text-sm opacity-90">Selected leads</p>
+                          <p className="text-2xl font-bold">
+                            {bulkWaSelectedUserIds.length}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setBulkWaShowPanel(true)}
+                          className="flex items-center justify-center gap-2 bg-white text-green-600 px-4 py-3 rounded-lg font-medium hover:bg-green-50 transition shadow-md min-w-[160px]"
+                        >
+                          <MessageSquare size={20} />
+                          WhatsApp
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsOpen(true)}
+                          className="group bg-white px-6 py-3 rounded-2xl
   flex items-center gap-2 text-green-600 font-semibold
   shadow-md hover:shadow-xl hover:-translate-y-1
   hover:scale-105 active:scale-95
   transition-all duration-300"
->
-  <MessageCircle
-    size={20}
-    className="group-hover:rotate-12 transition"
-  />
-  WhatsApp
-</button>
+                        >
+                          <MessageCircle
+                            size={20}
+                            className="group-hover:rotate-12 transition"
+                          />
+                          WhatsApp
+                        </button>
 
-
-                      <button
-                                      className="group bg-white px-6 py-3 rounded-2xl
+                        <button
+                          className="group bg-white px-6 py-3 rounded-2xl
                                       flex items-center gap-2 text-blue-600 font-semibold
                                       shadow-md hover:shadow-xl hover:-translate-y-1
                                       hover:scale-105 active:scale-95
                                       transition-all duration-300"
-                                    >
-                                      <Send
-                                        size={20}
-                                        className="group-hover:-rotate-12 transition"
-                                      />
-                                      RCS
-                                    </button>
-                      
-                                    <button
-                                      className="group bg-white px-6 py-3 rounded-2xl
+                        >
+                          <Send
+                            size={20}
+                            className="group-hover:-rotate-12 transition"
+                          />
+                          RCS
+                        </button>
+
+                        <button
+                          className="group bg-white px-6 py-3 rounded-2xl
                                       flex items-center gap-2 text-purple-600 font-semibold
                                       shadow-md hover:shadow-xl hover:-translate-y-1
                                       hover:scale-105 active:scale-95
                                       transition-all duration-300"
-                                    >
-                                      <Mail
-                                        size={20}
-                                        className="group-hover:scale-110 transition"
-                                      />
-                                      Email
-                                    </button>
-                      
-                                    <button
-                                      className="group bg-white px-6 py-3 rounded-2xl
+                        >
+                          <Mail
+                            size={20}
+                            className="group-hover:scale-110 transition"
+                          />
+                          Email
+                        </button>
+
+                        <button
+                          className="group bg-white px-6 py-3 rounded-2xl
                                       flex items-center gap-2 text-orange-600 font-semibold
                                       shadow-md hover:shadow-xl hover:-translate-y-1
                                       hover:scale-105 active:scale-95
                                       transition-all duration-300"
-                                    >
-                                      <Smartphone
-                                        size={20}
-                                        className="group-hover:rotate-6 transition"
-                                      />
-                                      SMS
-                                    </button>
-                    </div>
+                        >
+                          <Smartphone
+                            size={20}
+                            className="group-hover:rotate-6 transition"
+                          />
+                          SMS
+                        </button>
+                      </div>
 
-                          {/* Modal */}
-      <WhatsappModal
-        isOpen={isOpen}
-        setIsOpen={setIsOpen}
-      />
-
-                  </div>
-                </div>
-              )}
-              {bulkWaShowPanel && bulkWaSelectedUserIds.length > 0 && (
-                <div className="bg-white px-4 py-6 md:px-8 border-b border-indigo-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                      <MessageSquare className="text-green-600" size={22} />
-                      Send WHATSAPP to {bulkWaSelectedUserIds.length} leads
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setBulkWaShowPanel(false)}
-                      className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100"
-                      aria-label="Close"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Schedule Date & Time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                        value={bulkWaSendDate}
-                        onChange={(e) => setBulkWaSendDate(e.target.value)}
-                      />
+                      {/* Modal */}
+                      <WhatsappModal isOpen={isOpen} setIsOpen={setIsOpen} />
                     </div>
-                    <div className="flex items-end">
+                  </div>
+                )}
+                {bulkWaShowPanel && bulkWaSelectedUserIds.length > 0 && (
+                  <div className="bg-white px-4 py-6 md:px-8 border-b border-indigo-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <MessageSquare className="text-green-600" size={22} />
+                        Send WHATSAPP to {bulkWaSelectedUserIds.length} leads
+                      </h3>
                       <button
                         type="button"
-                        onClick={sendBulkUserManagementWhatsApp}
-                        disabled={bulkWaSending}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        onClick={() => setBulkWaShowPanel(false)}
+                        className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100"
+                        aria-label="Close"
                       >
-                        {bulkWaSending ? (
-                          <>
-                            <RefreshCw size={18} className="animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <Send size={18} />
-                            Send WHATSAPP
-                          </>
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Schedule Date & Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                          value={bulkWaSendDate}
+                          onChange={(e) => setBulkWaSendDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={sendBulkUserManagementWhatsApp}
+                          disabled={bulkWaSending}
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {bulkWaSending ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send size={18} />
+                              Send WHATSAPP
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {bulkWaResult && (
+                  <div
+                    className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
+                      bulkWaResult.success
+                        ? "bg-green-50 text-green-800 border-green-500"
+                        : "bg-red-50 text-red-800 border-red-500"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <p className="font-bold text-lg mb-1">
+                          {bulkWaResult.success ? "✓ Success" : "✗ Error"}
+                        </p>
+                        <p>{bulkWaResult.message}</p>
+                        {bulkWaResult.sent !== undefined && (
+                          <p className="mt-2 font-semibold">
+                            . Messages sent: {bulkWaResult.sent}
+                          </p>
                         )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setBulkWaResult(null)}
+                        className="text-gray-500 hover:text-gray-700 p-1"
+                        aria-label="Dismiss"
+                      >
+                        <X size={20} />
                       </button>
                     </div>
                   </div>
-                </div>
-              )}
-              {bulkWaResult && (
-                <div
-                  className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
-                    bulkWaResult.success
-                      ? "bg-green-50 text-green-800 border-green-500"
-                      : "bg-red-50 text-red-800 border-red-500"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <p className="font-bold text-lg mb-1">
-                        {bulkWaResult.success ? "✓ Success" : "✗ Error"}
-                      </p>
-                      <p>{bulkWaResult.message}</p>
-                      {bulkWaResult.sent !== undefined && (
-                        <p className="mt-2 font-semibold">.
-                          Messages sent: {bulkWaResult.sent}
-                        </p>
+                )}
+              </>
+            )}
+            <TableContainer
+              sx={{
+                maxHeight: { xs: "60vh", md: "72vh" },
+                overflowX: "auto",
+              }}
+            >
+              <div className="max-h-[500px] overflow-x-auto pb-1">
+                <table className="min-w-full">
+                  <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur">
+                    <tr>
+                      {role === "superAdmin" && (
+                        <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
+                          <input
+                            type="checkbox"
+                            title="Select all leads with phone on this page"
+                            checked={
+                              bulkWaEligibleIdsOnPage.length > 0 &&
+                              bulkWaEligibleIdsOnPage.every((id) =>
+                                bulkWaSelectedUserIds.includes(id),
+                              )
+                            }
+                            onChange={selectAllBulkWaOnPage}
+                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                          />
+                        </th>
                       )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setBulkWaResult(null)}
-                      className="text-gray-500 hover:text-gray-700 p-1"
-                      aria-label="Dismiss"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-          <TableContainer
-            sx={{
-              maxHeight: { xs: "60vh", md: "72vh" },
-              overflowX: "auto",
-            }}
-          >
-            <div  className="max-h-[500px] overflow-x-auto pb-1">
-              <table className="min-w-full">
-                <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur"> 
-                  <tr>
-                    {role === "superAdmin" && (
-                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
-                        <input
-                          type="checkbox"
-                          title="Select all leads with phone on this page"
-                          checked={
-                            bulkWaEligibleIdsOnPage.length > 0 &&
-                            bulkWaEligibleIdsOnPage.every((id) =>
-                              bulkWaSelectedUserIds.includes(id),
-                            )
-                          }
-                          onChange={selectAllBulkWaOnPage}
-                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-                        />
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        {isAgent && followUpFilter !== "all"
+                          ? "Follow-up"
+                          : "Joined Date"}
                       </th>
-                    )}
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      {isAgent && followUpFilter !== "all"
-                        ? "Follow-up"
-                        : "Joined Date"}
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      User Name
-                    </th>
-                    {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        User Name
+                      </th>
+                      {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Plan
                   </th> */}
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Assign To
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Remarks
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Lead Stage
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Contact
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Chat
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Service
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Wallet
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Posts
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Business Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-100">
-                  {loadingFollowUpTable &&
-                  isAgent &&
-                  followUpFilter !== "all" ? (
-                    <tr>
-                      <td
-                        colSpan={role === "superAdmin" ? 13 : 12}
-                        className="text-center py-14"
-                      >
-                        <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
-                          <RefreshCw
-                            size={28}
-                            className="animate-spin opacity-80"
-                          />
-                          <p className="text-sm font-semibold text-gray-700">
-                            Loading follow-ups ({agentFollowUpFilterLabel})…
-                          </p>
-                        </div>
-                      </td>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Assign To
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Remarks
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Lead Stage
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Contact
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Chat
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Service
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Wallet
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Posts
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Business Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        Actions
+                      </th>
                     </tr>
-                  ) : (
-                    <>
-          {Object.entries(groupedUsers).map(([date, users]) => {
-  return (
-    <Fragment key={date}>
+                  </thead>
 
-      {/* 🔥 DATE HEADING */}
-      <tr>
-        <td
-          colSpan={role === "superAdmin" ? 13 : 12}
-          className="bg-gray-100 font-bold px-6 py-3 text-gray-700"
-        >
-          {date} (Total: {users.length})
-        </td>
-      </tr>
+                  <tbody className="divide-y divide-gray-100">
+                    {loadingFollowUpTable &&
+                    isAgent &&
+                    followUpFilter !== "all" ? (
+                      <tr>
+                        <td
+                          colSpan={role === "superAdmin" ? 13 : 12}
+                          className="text-center py-14"
+                        >
+                          <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
+                            <RefreshCw
+                              size={28}
+                              className="animate-spin opacity-80"
+                            />
+                            <p className="text-sm font-semibold text-gray-700">
+                              Loading follow-ups ({agentFollowUpFilterLabel})…
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <>
+                        {Object.entries(groupedUsers).map(([date, users]) => {
+                          return (
+                            <Fragment key={date}>
+                              {/* 🔥 DATE HEADING */}
+                              <tr>
+                                <td
+                                  colSpan={role === "superAdmin" ? 13 : 12}
+                                  className="bg-gray-100 font-bold px-6 py-3 text-gray-700"
+                                >
+                                  {date} (Total: {users.length})
+                                </td>
+                              </tr>
 
-      {/* 🔥 USERS */}
-      {users.map((user, rowIndex) => {
-        const postData = userPostsData[user.userId] || {
-          total: 0,
-          posted: 0,
-          rejected: 0,
-        };
+                              {/* 🔥 USERS */}
+                              {users.map((user, rowIndex) => {
+                                const postData = userPostsData[user.userId] || {
+                                  total: 0,
+                                  posted: 0,
+                                  rejected: 0,
+                                };
 
-        return (
-          <tr
-            key={user._id || user.userId}
-            className={`cursor-pointer ${
-              rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-            }`}
-          >
-            {/* 👉 तेरा पूरा existing row code यहाँ same रहेगा */}
-            {/* 👉 यहाँ तेरा पूरा existing code रहेगा */}
-                            {role === "superAdmin" && (
-                              <td
-                                className="px-3 py-5 w-14 align-middle"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <input
-                                  type="checkbox"
-                                  disabled={!(user.phone || user.mobileNumber)}
-                                  title={
-                                    user.phone || user.mobileNumber
-                                      ? "Select for WhatsApp"
-                                      : "No phone on record"
-                                  }
-                                  checked={bulkWaSelectedUserIds.includes(
-                                    String(user.userId),
-                                  )}
-                                  onChange={() => toggleBulkWaUserId(user.userId)}
-                                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                                />
-                              </td>
-                            )}
-                            <td className="px-6 py-5">
-                              {isAgent && followUpFilter !== "all" ? (
-                                (() => {
-                                  const raw = followUpMetaByUserId.get(
-                                    String(user.userId),
-                                  );
-                                  const d = raw ? new Date(raw) : null;
-                                  const valid = d && !Number.isNaN(d.getTime());
-                                  const now = new Date();
-                                  const tmr = new Date(now);
-                                  tmr.setDate(tmr.getDate() + 1);
-                                  const sameDay = (a, b) =>
-                                    valid &&
-                                    a.getFullYear() === b.getFullYear() &&
-                                    a.getMonth() === b.getMonth() &&
-                                    a.getDate() === b.getDate();
-                                  const isFuToday = sameDay(d, now);
-                                  const isFuTomorrow = sameDay(d, tmr);
-                                  return (
-                                    <div className="flex items-center gap-2">
-                                      <Clock
-                                        size={14}
-                                        className="text-gray-400 shrink-0"
-                                      />
-                                      <div className="text-sm text-gray-700">
-                                        {valid ? (
-                                          <>
-                                            <div className="font-medium">
-                                              {d.toLocaleString("en-IN", {
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                                hour12: true,
-                                              })}
-                                            </div>
-                                            <div className="flex flex-wrap gap-1 mt-0.5">
-                                              {isFuToday && (
-                                                <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
-                                                  Today
-                                                </span>
-                                              )}
-                                              {isFuTomorrow && (
-                                                <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
-                                                  Tomorrow
-                                                </span>
-                                              )}
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            N/A
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })()
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <Calendar
-                                    size={14}
-                                    className="text-gray-400"
-                                  />
-                                  <div className="text-sm text-gray-700">
-                                    {user.createdAt ? (
-                                      <>
-                                        <div className="font-medium">
-                                          {new Date(
-                                            user.createdAt,
-                                          ).toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                          })}
-                                        </div>
-                                        {new Date(
-                                          user.createdAt,
-                                        ).toDateString() ===
-                                          new Date().toDateString() && (
-                                          <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
-                                            Today
-                                          </span>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="text-gray-400 italic">
-                                        N/A
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-
-                            <td className="px-6 py-5">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  {user.fullName && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                      <User2Icon
-                                        size={14}
-                                        className="text-gray-400"
-                                      />
-                                      {user.fullName}
-                                    </div>
-                                  )}
-                                  {paidUsersStatus[user.userId] && ( // A URL exists for this user
-                                    <>
-                                      <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                        Paid
-                                      </span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setFullViewImage(
-                                            paidUsersStatus[user.userId],
-                                          );
-                                        }}
-                                        className="p-1 hover:bg-gray-200 rounded-full"
-                                        title="View Payment Screenshot"
-                                      >
-                                        <Eye
-                                          size={14}
-                                          className="text-gray-500"
-                                        />
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <select
-                                    value={user.leadStatus || ""}
-                                    onChange={(e) =>
-                                      handleLeadStatusChange(
-                                        user.userId,
-                                        e.target.value,
-                                      )
-                                    }
-                                    className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                      user.leadStatus === "Hot"
-                                        ? "bg-red-50 text-red-700 border-red-200"
-                                        : user.leadStatus === "Warm"
-                                          ? "bg-orange-50 text-orange-700 border-orange-200"
-                                          : user.leadStatus === "Cold"
-                                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                                            : "bg-gray-50 text-gray-600 border-gray-200"
+                                return (
+                                  <tr
+                                    key={user._id || user.userId}
+                                    onClick={() => handleViewPosts(user)}
+                                    className={`cursor-pointer ${
+                                      rowIndex % 2 === 0
+                                        ? "bg-white"
+                                        : "bg-slate-50/40"
                                     }`}
                                   >
-                                    <option value="">Untagged</option>
-                                    <option value="Hot">Hot</option>
-                                    <option value="Warm">Warm</option>
-                                    <option value="Cold">Cold</option>
-                                  </select>
-                                </div>
-                                <div className="flex flex-wrap gap-1 mt-1 items-center">
-  <span
-    className={userAcquisitionTagClassName(user.source)}
-    title="Acquisition source"
-  >
-    {userAcquisitionLabel(user.source)}
-  </span>
+                                    {/* 👉 तेरा पूरा existing row code यहाँ same रहेगा */}
+                                    {/* 👉 यहाँ तेरा पूरा existing code रहेगा */}
+                                    {role === "superAdmin" && (
+                                      <td
+                                        className="px-3 py-5 w-14 align-middle"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          disabled={
+                                            !(user.phone || user.mobileNumber)
+                                          }
+                                          title={
+                                            user.phone || user.mobileNumber
+                                              ? "Select for WhatsApp"
+                                              : "No phone on record"
+                                          }
+                                          checked={bulkWaSelectedUserIds.includes(
+                                            String(user.userId),
+                                          )}
+                                          onChange={() =>
+                                            toggleBulkWaUserId(user.userId)
+                                          }
+                                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                        />
+                                      </td>
+                                    )}
+                                    <td className="px-6 py-5">
+                                      {isAgent && followUpFilter !== "all" ? (
+                                        (() => {
+                                          const raw = followUpMetaByUserId.get(
+                                            String(user.userId),
+                                          );
+                                          const d = raw ? new Date(raw) : null;
+                                          const valid =
+                                            d && !Number.isNaN(d.getTime());
+                                          const now = new Date();
+                                          const tmr = new Date(now);
+                                          tmr.setDate(tmr.getDate() + 1);
+                                          const sameDay = (a, b) =>
+                                            valid &&
+                                            a.getFullYear() ===
+                                              b.getFullYear() &&
+                                            a.getMonth() === b.getMonth() &&
+                                            a.getDate() === b.getDate();
+                                          const isFuToday = sameDay(d, now);
+                                          const isFuTomorrow = sameDay(d, tmr);
+                                          return (
+                                            <div className="flex items-center gap-2">
+                                              <Clock
+                                                size={14}
+                                                className="text-gray-400 shrink-0"
+                                              />
+                                              <div className="text-sm text-gray-700">
+                                                {valid ? (
+                                                  <>
+                                                    <div className="font-medium">
+                                                      {d.toLocaleString(
+                                                        "en-IN",
+                                                        {
+                                                          day: "numeric",
+                                                          month: "short",
+                                                          year: "numeric",
+                                                          hour: "2-digit",
+                                                          minute: "2-digit",
+                                                          hour12: true,
+                                                        },
+                                                      )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                                      {isFuToday && (
+                                                        <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
+                                                          Today
+                                                        </span>
+                                                      )}
+                                                      {isFuTomorrow && (
+                                                        <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
+                                                          Tomorrow
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  </>
+                                                ) : (
+                                                  <span className="text-gray-400 italic">
+                                                    N/A
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })()
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          <Calendar
+                                            size={14}
+                                            className="text-gray-400"
+                                          />
+                                          <div className="text-sm text-gray-700">
+                                            {user.createdAt ? (
+                                              <>
+                                                <div className="font-medium">
+                                                  {new Date(
+                                                    user.createdAt,
+                                                  ).toLocaleDateString(
+                                                    "en-US",
+                                                    {
+                                                      month: "short",
+                                                      day: "numeric",
+                                                      year: "numeric",
+                                                    },
+                                                  )}
+                                                </div>
+                                                {new Date(
+                                                  user.createdAt,
+                                                ).toDateString() ===
+                                                  new Date().toDateString() && (
+                                                  <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
+                                                    Today
+                                                  </span>
+                                                )}
+                                              </>
+                                            ) : (
+                                              <span className="text-gray-400 italic">
+                                                N/A
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </td>
 
-  {(user.leadTags || [])
-    .filter(Boolean)
-    .filter(
-      (tag) =>
-        formatLeadTagLabel(tag).toLowerCase() !==
-        userAcquisitionLabel(user.source).toLowerCase()
-    )
-    .map((tag) => (
-      <span
-        key={String(tag)}
-        className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
-        title="Lead tag"
-      >
-        {formatLeadTagLabel(tag)}
-      </span>
-    ))}
+                                    <td className="px-6 py-5">
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          {user.fullName && (
+                                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                              <User2Icon
+                                                size={14}
+                                                className="text-gray-400"
+                                              />
+                                              {user.fullName}
+                                            </div>
+                                          )}
+                                          {paidUsersStatus[user.userId] && ( // A URL exists for this user
+                                            <>
+                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                                Paid
+                                              </span>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setFullViewImage(
+                                                    paidUsersStatus[
+                                                      user.userId
+                                                    ],
+                                                  );
+                                                }}
+                                                className="p-1 hover:bg-gray-200 rounded-full"
+                                                title="View Payment Screenshot"
+                                              >
+                                                <Eye
+                                                  size={14}
+                                                  className="text-gray-500"
+                                                />
+                                              </button>
+                                            </>
+                                          )}
+                                        </div>
 
-  {user.paidPackage && (
-    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
-      {user.paidPackage}
-    </span>
-  )}
-</div>
-                              </div>
-                            </td>
+                                        <div
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <select
+                                            value={user.leadStatus || ""}
+                                            onChange={(e) =>
+                                              handleLeadStatusChange(
+                                                user.userId,
+                                                e.target.value,
+                                              )
+                                            }
+                                            className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
+                                              user.leadStatus === "Hot"
+                                                ? "bg-red-50 text-red-700 border-red-200"
+                                                : user.leadStatus === "Warm"
+                                                  ? "bg-orange-50 text-orange-700 border-orange-200"
+                                                  : user.leadStatus === "Cold"
+                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                    : "bg-gray-50 text-gray-600 border-gray-200"
+                                            }`}
+                                          >
+                                            <option value="">Untagged</option>
+                                            <option value="Hot">Hot</option>
+                                            <option value="Warm">Warm</option>
+                                            <option value="Cold">Cold</option>
+                                          </select>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-1 items-center">
+                                          <span
+                                            className={userAcquisitionTagClassName(
+                                              user.source,
+                                            )}
+                                            title="Acquisition source"
+                                          >
+                                            {userAcquisitionLabel(user.source)}
+                                          </span>
 
-                            <td
-                              className="px-6 py-5 whitespace-nowrap"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {role === "superAdmin" ||
-                              role === "admin" ||
-                              role === "superfranchiseAdmin" ? (
-                                <div
-                                  className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                                    getAgentName(user.assignedAgentId),
-                                  )}`}
-                                >
-                                  <select
-                                    className="
+                                          {(user.leadTags || [])
+                                            .filter(Boolean)
+                                            .filter(
+                                              (tag) =>
+                                                formatLeadTagLabel(
+                                                  tag,
+                                                ).toLowerCase() !==
+                                                userAcquisitionLabel(
+                                                  user.source,
+                                                ).toLowerCase(),
+                                            )
+                                            .map((tag) => (
+                                              <span
+                                                key={String(tag)}
+                                                className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
+                                                title="Lead tag"
+                                              >
+                                                {formatLeadTagLabel(tag)}
+                                              </span>
+                                            ))}
+
+                                          {user.paidPackage && (
+                                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
+                                              {user.paidPackage}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    <td
+                                      className="px-6 py-5 whitespace-nowrap"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {role === "superAdmin" ||
+                                      role === "admin" ||
+                                      role === "superfranchiseAdmin" ? (
+                                        <div
+                                          className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
+                                            getAgentName(user.assignedAgentId),
+                                          )}`}
+                                        >
+                                          <select
+                                            className="
                              appearance-none bg-transparent 
                              px-4 py-1.5 pr-8 
                              text-xs font-bold 
                              focus:outline-none 
                              cursor-pointer
                                             "
-                                    value={
-                                      // ✅ Handle populated object, string ID, null, and undefined
-                                      user.assignedAgentId?._id ||
-                                      (typeof user.assignedAgentId ===
-                                        "string" &&
-                                        user.assignedAgentId) ||
-                                      ""
-                                    }
-                                    onChange={(e) =>
-                                      handleAssignChange(
-                                        user.userId,
-                                        e.target.value,
-                                      )
-                                    }
-                                  >
-                                    <option value="">-- Unassigned --</option>
+                                            value={
+                                              // ✅ Handle populated object, string ID, null, and undefined
+                                              user.assignedAgentId?._id ||
+                                              (typeof user.assignedAgentId ===
+                                                "string" &&
+                                                user.assignedAgentId) ||
+                                              ""
+                                            }
+                                            onChange={(e) =>
+                                              handleAssignChange(
+                                                user.userId,
+                                                e.target.value,
+                                              )
+                                            }
+                                          >
+                                            <option value="">
+                                              -- Unassigned --
+                                            </option>
 
-                                    {agents.map((agent) => (
-                                      <option key={agent._id} value={agent._id}>
-                                        {agent.fullName}
-                                      </option>
-                                    ))}
-                                  </select>
+                                            {agents.map((agent) => (
+                                              <option
+                                                key={agent._id}
+                                                value={agent._id}
+                                              >
+                                                {agent.fullName}
+                                              </option>
+                                            ))}
+                                          </select>
 
-                                  {!user.assignedAgentId && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRoundRobinAssign(user.userId);
-                                      }}
-                                      className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
-                                      title="Auto Assign (Round Robin)"
-                                    >
-                                      <RefreshCw size={12} />
-                                    </button>
-                                  )}
+                                          {!user.assignedAgentId && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRoundRobinAssign(
+                                                  user.userId,
+                                                );
+                                              }}
+                                              className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                              title="Auto Assign (Round Robin)"
+                                            >
+                                              <RefreshCw size={12} />
+                                            </button>
+                                          )}
 
-                                  <span className="pointer-events-none absolute right-2 flex items-center">
-                                    <ChevronDown className="h-3 w-3" />
-                                  </span>
-                                </div>
-                              ) : (
-                                <span
-                                  className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                                    getAgentName(user.assignedAgentId),
-                                  )}`}
-                                >
-                                  {getAgentName(user.assignedAgentId)}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenRemarksModal(user);
-                                }}
-                                className="group cursor-pointer flex flex-col items-start gap-1.5"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
-                                    <MessageSquare
-                                      size={14}
-                                      className="mr-1.5"
-                                    />
-                                    <span className="font-bold text-xs">
-                                      {user.remarksHistory?.length || 0}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {user.Remarks ? (
-                                  <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
-                                    <span className="font-semibold text-gray-800 mr-1">
-                                      Latest:
-                                    </span>
-                                    <span className="truncate">
-                                      {user.Remarks}
-                                    </span>
-                                    {user.remarksHistory &&
-                                      user.remarksHistory.length > 0 &&
-                                      user.remarksHistory[
-                                        user.remarksHistory.length - 1
-                                      ].messageSent && (
-                                        <CheckCircle
-                                          size={12}
-                                          className="text-green-600 ml-1 flex-shrink-0"
-                                        />
+                                          <span className="pointer-events-none absolute right-2 flex items-center">
+                                            <ChevronDown className="h-3 w-3" />
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span
+                                          className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
+                                            getAgentName(user.assignedAgentId),
+                                          )}`}
+                                        >
+                                          {getAgentName(user.assignedAgentId)}
+                                        </span>
                                       )}
-                                  </div>
-                                ) : (
-                                  <span className="text-[10px] text-gray-400 italic pl-1">
-                                    Tap to add...
-                                  </span>
-                                )}
-                              </div>
-                            </td>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenRemarksModal(user);
+                                        }}
+                                        className="group cursor-pointer flex flex-col items-start gap-1.5"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
+                                            <MessageSquare
+                                              size={14}
+                                              className="mr-1.5"
+                                            />
+                                            <span className="font-bold text-xs">
+                                              {user.remarksHistory?.length || 0}
+                                            </span>
+                                          </div>
+                                        </div>
 
-                            <td className="px-6 py-5">
-                              <select
-                                value={user.leadStage || "Active"}
-                                onChange={(e) =>
-                                  handleLeadStageChange(
-                                    user.userId,
-                                    e.target.value,
-                                  )
-                                }
-                                onClick={(e) => e.stopPropagation()}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
-                                  user.leadStage === "Active"
-                                    ? "bg-green-50 text-green-700 border-green-200"
-                                    : user.leadStage === "Follow Up"
-                                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                      : user.leadStage === "Onboard"
-                                        ? "bg-blue-50 text-blue-700 border-blue-200"
-                                        : "bg-gray-50 text-gray-700 border-gray-200"
-                                }`}
+                                        {user.Remarks ? (
+                                          <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
+                                            <span className="font-semibold text-gray-800 mr-1">
+                                              Latest:
+                                            </span>
+                                            <span className="truncate">
+                                              {user.Remarks}
+                                            </span>
+                                            {user.remarksHistory &&
+                                              user.remarksHistory.length > 0 &&
+                                              user.remarksHistory[
+                                                user.remarksHistory.length - 1
+                                              ].messageSent && (
+                                                <CheckCircle
+                                                  size={12}
+                                                  className="text-green-600 ml-1 flex-shrink-0"
+                                                />
+                                              )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[10px] text-gray-400 italic pl-1">
+                                            Tap to add...
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+
+                                    <td className="px-6 py-5">
+                                      <select
+                                        value={user.leadStage || "Active"}
+                                        onChange={(e) =>
+                                          handleLeadStageChange(
+                                            user.userId,
+                                            e.target.value,
+                                          )
+                                        }
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
+                                          user.leadStage === "Active"
+                                            ? "bg-green-50 text-green-700 border-green-200"
+                                            : user.leadStage === "Follow Up"
+                                              ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                              : user.leadStage === "Onboard"
+                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                : "bg-gray-50 text-gray-700 border-gray-200"
+                                        }`}
+                                      >
+                                        <option value="Active">Active</option>
+                                        <option value="Follow Up">
+                                          Follow Up
+                                        </option>
+                                        <option value="Inactive">
+                                          Inactive
+                                        </option>
+                                        <option value="Onboard">Onboard</option>
+                                      </select>
+                                    </td>
+
+                                    <td className="px-6 py-5">
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                                          <Mail
+                                            size={14}
+                                            className="text-gray-400"
+                                          />
+                                          {user.email}
+                                        </div>
+                                        {user.phone && (
+                                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <Phone
+                                              size={14}
+                                              className="text-gray-400"
+                                            />
+                                            {user.phone}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleUpgradePlan(user);
+                                        }}
+                                        className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
+                                        title="Change Plan"
+                                      >
+                                        <Crown size={16} />
+                                      </button>
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+
+                                          handleOpenServiceModal(user);
+                                        }}
+                                        className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+                                        title="Add Service "
+                                      >
+                                        🛡️
+                                      </button>
+                                    </td>
+
+                                    <td className="px-6 py-5">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenWalletModal(user);
+                                          }}
+                                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
+                                        >
+                                          <Wallet size={16} />
+                                          <span className="font-bold text-base">
+                                            {user.wallet || 0}
+                                          </span>
+                                          <span className="text-xs font-medium">
+                                            coins
+                                          </span>
+                                        </button>
+                                      </div>
+                                    </td>
+
+                                    <td className="px-6 py-5">
+                                      <div className="flex items-center gap-2">
+                                        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
+                                          <div className="flex items-center gap-3">
+                                            <div className="text-center">
+                                              <p className="text-xs text-gray-600">
+                                                Total
+                                              </p>
+                                              <p className="text-lg font-bold text-indigo-600">
+                                                {postData.total}
+                                              </p>
+                                            </div>
+                                            <div className="w-px h-8 bg-gray-300"></div>
+                                            <div className="text-center">
+                                              <p className="text-xs text-green-600">
+                                                Posted
+                                              </p>
+                                              <p className="text-lg font-bold text-green-600">
+                                                {postData.posted}
+                                              </p>
+                                            </div>
+                                            <div className="w-px h-8 bg-gray-300"></div>
+                                            <div className="text-center">
+                                              <p className="text-xs text-red-600">
+                                                Rejected
+                                              </p>
+                                              <p className="text-lg font-bold text-red-600">
+                                                {postData.rejected}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    <td className="px-6 py-5">
+                                      <div onClick={(e) => e.stopPropagation()}>
+                                        <AddAddUserActivity
+                                          userId={user.userId}
+                                        />
+                                      </div>
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                      {user.businessListings &&
+                                      user.businessListings.length > 0 ? (
+                                        <div>
+                                          <div className="font-semibold text-gray-800">
+                                            {user.businessListings[0].title}{" "}
+                                            {
+                                              user.businessListings[0].address
+                                                .locality
+                                            }
+                                          </div>
+                                          {user.businessListings.length > 1 && (
+                                            <Link
+                                              href={`/admin/user-listings?userId=${user.userId}`}
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                              className="text-xs text-blue-600 hover:underline mt-1"
+                                            >
+                                              View More (
+                                              {user.businessListings.length - 1}
+                                              )
+                                            </Link>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="text-xs text-gray-500 italic">
+                                          Waiting......
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            AdminPanelButton(user.userId);
+                                          }}
+                                          disabled={
+                                            impersonatingUser === user.userId
+                                          }
+                                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
+                                        >
+                                          {impersonatingUser === user.userId ? (
+                                            <div className="flex justify-center items-center">
+                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                            </div>
+                                          ) : (
+                                            "Login"
+                                          )}
+                                        </button>
+                                        {(role === "superAdmin" ||
+                                          role === "agent") && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOnboardModalUser(user);
+                                              setShowOnboardModal(true);
+                                            }}
+                                            className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
+                                            title="Onboard Client"
+                                          >
+                                            <CheckCircle size={16} />
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            sendSubscriptionExpiredNotification(
+                                              user,
+                                            );
+                                          }}
+                                          className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
+                                          title="Send Expiry Notification"
+                                        >
+                                          <Bell size={16} />
+                                        </button>
+                                        {role === "superAdmin" && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setDeleteUserModal(user);
+                                            }}
+                                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
+                                            title="Delete User"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleVoiceCall(
+                                              user.phone || user.mobileNumber,
+                                            );
+                                          }}
+                                          disabled={
+                                            callingUserId === user.userId
+                                          }
+                                          className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
+                                          title="Voice Call"
+                                        >
+                                          {callingUserId === user.userId ? (
+                                            <RefreshCw
+                                              size={16}
+                                              className="animate-spin"
+                                            />
+                                          ) : (
+                                            <Phone size={16} />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </Fragment>
+                          );
+                        })}
+
+                        {!loadingFollowUpTable &&
+                          filteredUsers.length === 0 && (
+                            <tr>
+                              <td
+                                colSpan={role === "superAdmin" ? 13 : 12}
+                                className="text-center py-12"
                               >
-                                <option value="Active">Active</option>
-                                <option value="Follow Up">Follow Up</option>
-                                <option value="Inactive">Inactive</option>
-                                <option value="Onboard">Onboard</option>
-                              </select>
-                            </td>
-
-                            <td className="px-6 py-5">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-sm text-gray-700">
-                                  <Mail size={14} className="text-gray-400" />
-                                  {user.email}
-                                </div>
-                                {user.phone && (
-                                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Phone
-                                      size={14}
-                                      className="text-gray-400"
-                                    />
-                                    {user.phone}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUpgradePlan(user);
-                                }}
-                                className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
-                                title="Change Plan"
-                              >
-                                <Crown size={16} />
-                              </button>
-                            </td>
-
-                            <td className="px-6 py-4">
-                              <button
-                                
-                                onClick={(e) => {
-                                  e.stopPropagation();
-
-                                  handleOpenServiceModal(user);
-                                }}
-                                className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-                                title="Add Service "
-                              >
-                                🛡️
-                              </button>
-                            </td>
-
-                            <td className="px-6 py-5">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenWalletModal(user);
-                                  }}
-                                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
-                                >
-                                  <Wallet size={16} />
-                                  <span className="font-bold text-base">
-                                    {user.wallet || 0}
-                                  </span>
-                                  <span className="text-xs font-medium">
-                                    coins
-                                  </span>
-                                </button>
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-5">
-                              <div className="flex items-center gap-2">
-                                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
-                                  <div className="flex items-center gap-3">
-                                    <div className="text-center">
-                                      <p className="text-xs text-gray-600">
-                                        Total
-                                      </p>
-                                      <p className="text-lg font-bold text-indigo-600">
-                                        {postData.total}
-                                      </p>
-                                    </div>
-                                    <div className="w-px h-8 bg-gray-300"></div>
-                                    <div className="text-center">
-                                      <p className="text-xs text-green-600">
-                                        Posted
-                                      </p>
-                                      <p className="text-lg font-bold text-green-600">
-                                        {postData.posted}
-                                      </p>
-                                    </div>
-                                    <div className="w-px h-8 bg-gray-300"></div>
-                                    <div className="text-center">
-                                      <p className="text-xs text-red-600">
-                                        Rejected
-                                      </p>
-                                      <p className="text-lg font-bold text-red-600">
-                                        {postData.rejected}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-5">
-                              <div onClick={(e) => e.stopPropagation()}>
-                                <AddAddUserActivity userId={user.userId} />
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-4">
-                              {user.businessListings &&
-                              user.businessListings.length > 0 ? (
-                                <div>
-                                  <div className="font-semibold text-gray-800">
-                                    {user.businessListings[0].title}{" "}
-                                    {user.businessListings[0].address.locality}
-                                  </div>
-                                  {user.businessListings.length > 1 && (
-                                    <Link
-                                      href={`/admin/user-listings?userId=${user.userId}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="text-xs text-blue-600 hover:underline mt-1"
-                                    >
-                                      View More (
-                                      {user.businessListings.length - 1})
-                                    </Link>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-xs text-gray-500 italic">
-                                  Waiting......
-                                </div>
-                              )}
-                            </td>
-
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    AdminPanelButton(user.userId);
-                                  }}
-                                  disabled={impersonatingUser === user.userId}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
-                                >
-                                  {impersonatingUser === user.userId ? (
-                                    <div className="flex justify-center items-center">
-                                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                                    </div>
-                                  ) : (
-                                    "Login"
-                                  )}
-                                </button>
-                                {(role === "superAdmin" ||
-                                  role === "agent") && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOnboardModalUser(user);
-                                      setShowOnboardModal(true);
-                                    }}
-                                    className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
-                                    title="Onboard Client"
-                                  >
-                                    <CheckCircle size={16} />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    sendSubscriptionExpiredNotification(user);
-                                  }}
-                                  className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
-                                  title="Send Expiry Notification"
-                                >
-                                  <Bell size={16} />
-                                </button>
-                                {role === "superAdmin" && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteUserModal(user);
-                                    }}
-                                    className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
-                                    title="Delete User"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleVoiceCall(
-                                      user.phone || user.mobileNumber,
-                                    );
-                                  }}
-                                  disabled={callingUserId === user.userId}
-                                  className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
-                                  title="Voice Call"
-                                >
-                                  {callingUserId === user.userId ? (
-                                    <RefreshCw
-                                      size={16}
-                                      className="animate-spin"
-                                    />
-                                  ) : (
-                                    <Phone size={16} />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-          </tr>
-              
-      );
-      })}
-
-    </Fragment>
-  );
-})}
-
-  {!loadingFollowUpTable && filteredUsers.length === 0 && (
-    <tr>
-      <td
-        colSpan={role === "superAdmin" ? 13 : 12}
-        className="text-center py-12"
-      >
-        No users found
-      </td>
-    </tr>
-  )}
-</>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </TableContainer>
-
-         
-          
-
-
-        </Paper>
-        {/* Pagination Controls */}
-        {isAgent && followUpFilter !== "all" ? (
-          <div className="mt-2 flex items-center justify-center sm:justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-              <span className="font-semibold text-gray-800">
-                Showing {filteredUsers.length} users
-              </span>
-              <span className="text-gray-400"> · </span>
-              <span className="text-indigo-700 font-medium">
-                follow-up: {agentFollowUpFilterLabel}
-              </span>
-            </p>
-          </div>
-        ) : (
-          pagination &&
-          pagination.totalPages > 1 && (
-            <div className="mt-2 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-sm text-gray-600">
-                Page{" "}
-                <span className="font-semibold">{pagination.currentPage}</span>{" "}
-                of{" "}
-                <span className="font-semibold">{pagination.totalPages}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <ChevronLeft size={16} />
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  Next
-                  <ChevronRight size={16} />
-                </button>
+                                No users found
+                              </td>
+                            </tr>
+                          )}
+                      </>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <span className="text-sm text-gray-600">
-                Total Users:{" "}
-                <span className="font-semibold">{pagination.totalUsers}</span>
-              </span>
-            </div>
-          )
-        )}
-      </div>
-
-      {/* Wallet Update Modal */}
-      {walletModalUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
-                  <Wallet className="text-white" size={20} />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Update Wallet
-                </h2>
-              </div>
-              <button
-                onClick={() => setWalletModalUser(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
-              <p className="text-xs text-gray-600 mb-0.5">User</p>
-              <p className="font-semibold text-sm text-gray-800">
-                {walletModalUser.email}
+            </TableContainer>
+          </Paper>
+          {/* Pagination Controls */}
+          {isAgent && followUpFilter !== "all" ? (
+            <div className="mt-2 flex items-center justify-center sm:justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                <span className="font-semibold text-gray-800">
+                  Showing {filteredUsers.length} users
+                </span>
+                <span className="text-gray-400"> · </span>
+                <span className="text-indigo-700 font-medium">
+                  follow-up: {agentFollowUpFilterLabel}
+                </span>
               </p>
-              <div className="mt-2 pt-2 border-t border-gray-200">
-                <p className="text-xs text-gray-600">Current Balance</p>
-                <p className="text-xl font-bold text-emerald-600">
-                  {walletModalUser.wallet || 0} coins
+            </div>
+          ) : (
+            pagination &&
+            pagination.totalPages > 1 && (
+              <div className="mt-2 flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                <span className="text-sm text-gray-600">
+                  Page{" "}
+                  <span className="font-semibold">
+                    {pagination.currentPage}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold">{pagination.totalPages}</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <ChevronLeft size={16} />
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === pagination.totalPages}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    Next
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <span className="text-sm text-gray-600">
+                  Total Users:{" "}
+                  <span className="font-semibold">{pagination.totalUsers}</span>
+                </span>
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Wallet Update Modal */}
+        {walletModalUser && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
+                    <Wallet className="text-white" size={20} />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-800">
+                    Update Wallet
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setWalletModalUser(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
+                <p className="text-xs text-gray-600 mb-0.5">User</p>
+                <p className="font-semibold text-sm text-gray-800">
+                  {walletModalUser.email}
+                </p>
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <p className="text-xs text-gray-600">Current Balance</p>
+                  <p className="text-xl font-bold text-emerald-600">
+                    {walletModalUser.wallet || 0} coins
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Transaction Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label
+                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                        walletUpdate.type === "credit"
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="type"
+                        value="credit"
+                        checked={walletUpdate.type === "credit"}
+                        onChange={(e) =>
+                          setWalletUpdate({
+                            ...walletUpdate,
+                            type: e.target.value,
+                          })
+                        }
+                        className="sr-only"
+                      />
+                      <div className="text-center">
+                        <Plus
+                          className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`}
+                          size={18}
+                        />
+                        <span
+                          className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}
+                        >
+                          Add
+                        </span>
+                      </div>
+                    </label>
+                    <label
+                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                        walletUpdate.type === "debit"
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="type"
+                        value="debit"
+                        checked={walletUpdate.type === "debit"}
+                        onChange={(e) =>
+                          setWalletUpdate({
+                            ...walletUpdate,
+                            type: e.target.value,
+                          })
+                        }
+                        className="sr-only"
+                      />
+                      <div className="text-center">
+                        <X
+                          className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`}
+                          size={18}
+                        />
+                        <span
+                          className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}
+                        >
+                          Deduct
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Amount (Coins)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={walletUpdate.amount}
+                    onChange={(e) =>
+                      setWalletUpdate({
+                        ...walletUpdate,
+                        amount: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Reason
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., admin add by bonus"
+                    value={walletUpdate.reason}
+                    onChange={(e) =>
+                      setWalletUpdate({
+                        ...walletUpdate,
+                        reason: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                  />
+                </div>
+
+                {walletUpdate.amount && (
+                  <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-0.5">
+                      New Balance Preview
+                    </p>
+                    <p className="text-lg font-bold text-indigo-600">
+                      {walletUpdate.type === "credit"
+                        ? (
+                            parseFloat(walletModalUser.wallet || 0) +
+                            parseFloat(walletUpdate.amount || 0)
+                          ).toFixed(2)
+                        : (
+                            parseFloat(walletModalUser.wallet || 0) -
+                            parseFloat(walletUpdate.amount || 0)
+                          ).toFixed(2)}{" "}
+                      coins
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setWalletModalUser(null)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateWallet}
+                  disabled={updatingWallet}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {updatingWallet ? "Updating..." : "Update Wallet"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedUser && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Upgrade Plan
+                </h2>
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+                <p className="text-sm text-gray-600 mb-1">User</p>
+                <p className="font-semibold text-gray-800">
+                  {selectedUser.email}
                 </p>
               </div>
-            </div>
 
-            <div className="space-y-3 mb-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Transaction Type
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label
-                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                      walletUpdate.type === "credit"
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="type"
-                      value="credit"
-                      checked={walletUpdate.type === "credit"}
-                      onChange={(e) =>
-                        setWalletUpdate({
-                          ...walletUpdate,
-                          type: e.target.value,
-                        })
-                      }
-                      className="sr-only"
-                    />
-                    <div className="text-center">
-                      <Plus
-                        className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`}
-                        size={18}
-                      />
-                      <span
-                        className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}
-                      >
-                        Add
-                      </span>
-                    </div>
-                  </label>
-                  <label
-                    className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                      walletUpdate.type === "debit"
-                        ? "border-red-500 bg-red-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="type"
-                      value="debit"
-                      checked={walletUpdate.type === "debit"}
-                      onChange={(e) =>
-                        setWalletUpdate({
-                          ...walletUpdate,
-                          type: e.target.value,
-                        })
-                      }
-                      className="sr-only"
-                    />
-                    <div className="text-center">
-                      <X
-                        className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`}
-                        size={18}
-                      />
-                      <span
-                        className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}
-                      >
-                        Deduct
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Amount (Coins)
-                </label>
-                <input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={walletUpdate.amount}
-                  onChange={(e) =>
-                    setWalletUpdate({ ...walletUpdate, amount: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Reason
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., admin add by bonus"
-                  value={walletUpdate.reason}
-                  onChange={(e) =>
-                    setWalletUpdate({ ...walletUpdate, reason: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              {walletUpdate.amount && (
-                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-0.5">
-                    New Balance Preview
-                  </p>
-                  <p className="text-lg font-bold text-indigo-600">
-                    {walletUpdate.type === "credit"
-                      ? (
-                          parseFloat(walletModalUser.wallet || 0) +
-                          parseFloat(walletUpdate.amount || 0)
-                        ).toFixed(2)
-                      : (
-                          parseFloat(walletModalUser.wallet || 0) -
-                          parseFloat(walletUpdate.amount || 0)
-                        ).toFixed(2)}{" "}
-                    coins
-                  </p>
+              {subscriptionPlans && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+                  {subscriptionPlans.billingCycles.map((cycle) => (
+                    <button
+                      key={cycle.cycle}
+                      onClick={() => setSelectedCycle(cycle.cycle)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                        selectedCycle === cycle.cycle
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {cycle.label}
+                    </button>
+                  ))}
                 </div>
               )}
-            </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setWalletModalUser(null)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateWallet}
-                disabled={updatingWallet}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                {updatingWallet ? "Updating..." : "Update Wallet"}
-              </button>
+              <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+                {(subscriptionPlans
+                  ? subscriptionPlans.billingCycles.find(
+                      (c) => c.cycle === selectedCycle,
+                    )?.plans
+                  : ["Basic Plan", "Professional Plan", "Premium Plan"].map(
+                      (p) => ({
+                        title: p,
+                      }),
+                    )
+                ).map((plan) => {
+                  const planName = plan.title || plan;
+                  return (
+                    <label
+                      key={planName}
+                      className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                        selectedPlan === planName
+                          ? "border-indigo-500 bg-indigo-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 w-full">
+                        <input
+                          type="radio"
+                          name="plan"
+                          value={planName}
+                          checked={selectedPlan === planName}
+                          onChange={(e) => setSelectedPlan(e.target.value)}
+                          className="w-4 h-4 text-indigo-600 shrink-0"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            {planName.includes("Premium") && (
+                              <Crown size={18} className="text-purple-600" />
+                            )}
+                            {planName.includes("Professional") && (
+                              <Zap size={18} className="text-blue-600" />
+                            )}
+                            {planName.includes("Basic") && (
+                              <Shield size={18} className="text-gray-600" />
+                            )}
+                            <span className="font-semibold text-gray-800">
+                              {planName}
+                            </span>
+                          </div>
+
+                          {plan.totalAmount && (
+                            <div className="text-xs text-gray-500 mt-1 ml-7">
+                              ₹{plan.totalAmount} / {plan.duration}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Amount (₹){" "}
+                    <span className="text-gray-400">(for new revenue)</span>
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 5000"
+                    value={planAmount}
+                    onChange={(e) => setPlanAmount(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={planStartDate}
+                    onChange={(e) => setPlanStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Expiry Date
+                  </label>
+                  <input
+                    type="date"
+                    value={planExpiryDate}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Screenshot Upload */}
+              <div className="mb-6">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Payment Screenshot{" "}
+                  <span className="text-gray-400">(if amount entered)</span>
+                </label>
+
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setPlanScreenshot(file);
+                      }
+                    }}
+                    className="hidden"
+                    id="plan-screenshot-upload"
+                  />
+
+                  <label
+                    htmlFor="plan-screenshot-upload"
+                    className="flex flex-col items-center cursor-pointer"
+                  >
+                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+
+                    <span className="text-sm text-gray-600">
+                      {planScreenshot
+                        ? planScreenshot.name
+                        : "Click to upload payment screenshot"}
+                    </span>
+
+                    <span className="text-xs text-gray-400 mt-1">
+                      PNG, JPG up to 10MB
+                    </span>
+                  </label>
+                </div>
+
+                {/* UTR Number Field */}
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    UTR Number
+                  </label>
+
+                  <input
+                    type="text"
+                    value={utrNumber}
+                    onChange={(e) => setUtrNumber(e.target.value)}
+                    placeholder="Enter UTR / Transaction ID"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                {/* Remark Field */}
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Remark
+                  </label>
+
+                  <textarea
+                    value={planRemarks}
+                    onChange={(e) => setplanRemarks(e.target.value)}
+                    placeholder="Enter remark..."
+                    rows={2}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={confirmPlanChange}
+                  disabled={updating === selectedUser.userId}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
+                >
+                  {updating === selectedUser.userId ? "Updating..." : "Confirm"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        {/* Remarks Modal */}
+        {remarksModalUser && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-800">
+                  Remarks History
+                </h2>
+                <button
+                  onClick={() => setRemarksModalUser(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
-            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-              <p className="text-sm text-gray-600 mb-1">User</p>
-              <p className="font-semibold text-gray-800">
-                {selectedUser.email}
-              </p>
-            </div>
+              {/* Add Remark Section (Input + Button in one line) */}
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="text"
+                  value={remarksInput}
+                  onChange={(e) => setRemarksInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddRemark()}
+                  className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  placeholder="Type a new remark..."
+                />
+                <button
+                  onClick={handleAddRemark}
+                  disabled={!remarksInput.trim()}
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium text-sm whitespace-nowrap"
+                >
+                  Submit
+                </button>
+              </div>
 
-            {subscriptionPlans && (
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-                {subscriptionPlans.billingCycles.map((cycle) => (
+              {/* Follow-up date picker — shown when remark requires a callback */}
+              {FOLLOW_UP_REMARKS.some((r) => remarksInput.startsWith(r)) && (
+                <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Calendar size={13} className="text-amber-600" />
+                    <span className="text-xs font-bold text-amber-700">
+                      Schedule Follow-up
+                    </span>
+                    {followUpDate && (
+                      <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold tabular-nums">
+                        {new Date(
+                          `${followUpDate}T${(followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim()) ? followUpTime.trim() : "09:00").padStart(5, "0")}:00`,
+                        ).toLocaleString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {/* Quick date buttons */}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {[
+                      { label: "Today", days: 0 },
+                      { label: "Tomorrow", days: 1 },
+                      { label: "Next 7 Days", days: 7 },
+                      { label: "This Month", days: null },
+                    ].map(({ label, days }) => {
+                      const getDate = () => {
+                        const d = new Date();
+                        if (days === null) {
+                          // last day of this month
+                          d.setMonth(d.getMonth() + 1, 0);
+                        } else {
+                          d.setDate(d.getDate() + days);
+                        }
+                        return d.toISOString().split("T")[0];
+                      };
+                      const val = getDate();
+                      const isActive = followUpDate === val;
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => setFollowUpDate(isActive ? "" : val)}
+                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                            isActive
+                              ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                              : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Custom date + time */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="date"
+                      value={followUpDate}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="flex-1 min-w-[8rem] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                    />
+                    <input
+                      type="time"
+                      value={followUpTime}
+                      onChange={(e) => setFollowUpTime(e.target.value)}
+                      disabled={!followUpDate}
+                      className="text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white disabled:opacity-40"
+                    />
+                    {followUpDate && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFollowUpDate("");
+                          setFollowUpTime("09:00");
+                        }}
+                        className="text-amber-500 hover:text-red-500 transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Default Remarks */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {defaultRemarks.map((remark, idx) => (
                   <button
-                    key={cycle.cycle}
-                    onClick={() => setSelectedCycle(cycle.cycle)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                      selectedCycle === cycle.cycle
-                        ? "bg-indigo-600 text-white shadow-md"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
+                    key={idx}
+                    onClick={() => handleDefaultRemarkClick(remark)}
+                    className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-indigo-100 hover:text-indigo-700 transition-colors border border-gray-200"
                   >
-                    {cycle.label}
+                    {remark}
                   </button>
                 ))}
               </div>
-            )}
 
-            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
-              {(subscriptionPlans
-                ? subscriptionPlans.billingCycles.find(
-                    (c) => c.cycle === selectedCycle,
-                  )?.plans
-                : ["Basic Plan", "Professional Plan", "Premium Plan"].map(
-                    (p) => ({
-                      title: p,
-                    }),
-                  )
-              ).map((plan) => {
-                const planName = plan.title || plan;
-                return (
-                  <label
-                    key={planName}
-                    className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      selectedPlan === planName
-                        ? "border-indigo-500 bg-indigo-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <input
-                        type="radio"
-                        name="plan"
-                        value={planName}
-                        checked={selectedPlan === planName}
-                        onChange={(e) => setSelectedPlan(e.target.value)}
-                        className="w-4 h-4 text-indigo-600 shrink-0"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          {planName.includes("Premium") && (
-                            <Crown size={18} className="text-purple-600" />
-                          )}
-                          {planName.includes("Professional") && (
-                            <Zap size={18} className="text-blue-600" />
-                          )}
-                          {planName.includes("Basic") && (
-                            <Shield size={18} className="text-gray-600" />
-                          )}
-                          <span className="font-semibold text-gray-800">
-                            {planName}
-                          </span>
-                        </div>
+              {/* Remarks List */}
+              <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
+                {loadingRemarks ? (
+                  <div className="text-center py-6 text-gray-500 text-xs">
+                    Loading history...
+                  </div>
+                ) : !remarksHistory || remarksHistory.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <MessageSquare size={20} className="mb-1 opacity-20" />
+                    No remarks found
+                  </div>
+                ) : (
+                  remarksHistory
+                    .slice()
+                    .reverse()
+                    .map((r, idx) => {
+                      const isLatest = idx === 0;
 
-                        {plan.totalAmount && (
-                          <div className="text-xs text-gray-500 mt-1 ml-7">
-                            ₹{plan.totalAmount} / {plan.duration}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Amount (₹){" "}
-                  <span className="text-gray-400">(for new revenue)</span>
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g., 5000"
-                  value={planAmount}
-                  onChange={(e) => setPlanAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={planStartDate}
-                  onChange={(e) => setPlanStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Expiry Date
-                </label>
-                <input
-                  type="date"
-                  value={planExpiryDate}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            {/* Payment Screenshot Upload */}
-            <div className="mb-6">
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Payment Screenshot{" "}
-                <span className="text-gray-400">(if amount entered)</span>
-              </label>
-
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      setPlanScreenshot(file);
-                    }
-                  }}
-                  className="hidden"
-                  id="plan-screenshot-upload"
-                />
-
-                <label
-                  htmlFor="plan-screenshot-upload"
-                  className="flex flex-col items-center cursor-pointer"
-                >
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-
-                  <span className="text-sm text-gray-600">
-                    {planScreenshot
-                      ? planScreenshot.name
-                      : "Click to upload payment screenshot"}
-                  </span>
-
-                  <span className="text-xs text-gray-400 mt-1">
-                    PNG, JPG up to 10MB
-                  </span>
-                </label>
-              </div>
-
-              {/* UTR Number Field */}
-              <div className="mt-4">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  UTR Number
-                </label>
-
-                <input
-                  type="text"
-                  value={utrNumber}
-                  onChange={(e) => setUtrNumber(e.target.value)}
-                  placeholder="Enter UTR / Transaction ID"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                />
-              </div>
-
-              {/* Remark Field */}
-              <div className="mt-4">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Remark
-                </label>
-
-                <textarea
-                  value={planRemarks}
-                  onChange={(e) => setplanRemarks(e.target.value)}
-                  placeholder="Enter remark..."
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={confirmPlanChange}
-                disabled={updating === selectedUser.userId}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
-              >
-                {updating === selectedUser.userId ? "Updating..." : "Confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Remarks Modal */}
-      {remarksModalUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-800">
-                Remarks History
-              </h2>
-              <button
-                onClick={() => setRemarksModalUser(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Add Remark Section (Input + Button in one line) */}
-            <div className="flex items-center gap-2 mb-3">
-              <input
-                type="text"
-                value={remarksInput}
-                onChange={(e) => setRemarksInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddRemark()}
-                className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                placeholder="Type a new remark..."
-              />
-              <button
-                onClick={handleAddRemark}
-                disabled={!remarksInput.trim()}
-                className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium text-sm whitespace-nowrap"
-              >
-                Submit
-              </button>
-            </div>
-
-            {/* Follow-up date picker — shown when remark requires a callback */}
-            {FOLLOW_UP_REMARKS.some((r) => remarksInput.startsWith(r)) && (
-              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Calendar size={13} className="text-amber-600" />
-                  <span className="text-xs font-bold text-amber-700">
-                    Schedule Follow-up
-                  </span>
-                  {followUpDate && (
-                    <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold tabular-nums">
-                      {new Date(
-                        `${followUpDate}T${(followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim()) ? followUpTime.trim() : "09:00").padStart(5, "0")}:00`,
-                      ).toLocaleString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  )}
-                </div>
-                {/* Quick date buttons */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {[
-                    { label: "Today", days: 0 },
-                    { label: "Tomorrow", days: 1 },
-                    { label: "Next 7 Days", days: 7 },
-                    { label: "This Month", days: null },
-                  ].map(({ label, days }) => {
-                    const getDate = () => {
-                      const d = new Date();
-                      if (days === null) {
-                        // last day of this month
-                        d.setMonth(d.getMonth() + 1, 0);
-                      } else {
-                        d.setDate(d.getDate() + days);
-                      }
-                      return d.toISOString().split("T")[0];
-                    };
-                    const val = getDate();
-                    const isActive = followUpDate === val;
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => setFollowUpDate(isActive ? "" : val)}
-                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                          isActive
-                            ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                            : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Custom date + time */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={followUpDate}
-                    min={new Date().toISOString().split("T")[0]}
-                    onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="flex-1 min-w-[8rem] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
-                  />
-                  <input
-                    type="time"
-                    value={followUpTime}
-                    onChange={(e) => setFollowUpTime(e.target.value)}
-                    disabled={!followUpDate}
-                    className="text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white disabled:opacity-40"
-                  />
-                  {followUpDate && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFollowUpDate("");
-                        setFollowUpTime("09:00");
-                      }}
-                      className="text-amber-500 hover:text-red-500 transition-colors"
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Default Remarks */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              {defaultRemarks.map((remark, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleDefaultRemarkClick(remark)}
-                  className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-indigo-100 hover:text-indigo-700 transition-colors border border-gray-200"
-                >
-                  {remark}
-                </button>
-              ))}
-            </div>
-
-            {/* Remarks List */}
-            <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
-              {loadingRemarks ? (
-                <div className="text-center py-6 text-gray-500 text-xs">
-                  Loading history...
-                </div>
-              ) : !remarksHistory || remarksHistory.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <MessageSquare size={20} className="mb-1 opacity-20" />
-                  No remarks found
-                </div>
-              ) : (
-                remarksHistory
-                  .slice()
-                  .reverse()
-                  .map((r, idx) => {
-                    const isLatest = idx === 0;
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-3 rounded-xl border transition-all shadow-sm
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border transition-all shadow-sm
                     ${
                       isLatest
                         ? "bg-green-50 border-green-300"
                         : "bg-white border-gray-200"
                     }`}
-                      >
-                        {/* Top Row */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-semibold text-gray-600">
-                            Remark
-                          </span>
-
-                          {isLatest && (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">
-                              Latest
+                        >
+                          {/* Top Row */}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-semibold text-gray-600">
+                              Remark
                             </span>
+
+                            {isLatest && (
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">
+                                Latest
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Remark Text */}
+                          <p className="text-sm text-gray-800 leading-relaxed">
+                            {r.text}
+                          </p>
+
+                          {r.messageSent && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <CheckCircle
+                                size={12}
+                                className="text-green-500"
+                              />
+                              <span className="text-[10px] text-green-600 font-medium">
+                                Message Sent
+                              </span>
+                            </div>
                           )}
+
+                          {r.followUpDate && (
+                            <div className="flex items-center gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-0.5 w-fit">
+                              <Calendar size={10} className="text-amber-500" />
+                              <span className="text-[10px] text-amber-700 font-semibold">
+                                Follow-up:{" "}
+                                {new Date(r.followUpDate).toLocaleString(
+                                  "en-IN",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Timestamp */}
+                          <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                            <Calendar size={9} />
+                            {new Date(r.createdAt).toLocaleString([], {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}
+                          </p>
                         </div>
-
-                        {/* Remark Text */}
-                        <p className="text-sm text-gray-800 leading-relaxed">
-                          {r.text}
-                        </p>
-
-                        {r.messageSent && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <CheckCircle size={12} className="text-green-500" />
-                            <span className="text-[10px] text-green-600 font-medium">
-                              Message Sent
-                            </span>
-                          </div>
-                        )}
-
-                        {r.followUpDate && (
-                          <div className="flex items-center gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-0.5 w-fit">
-                            <Calendar size={10} className="text-amber-500" />
-                            <span className="text-[10px] text-amber-700 font-semibold">
-                              Follow-up:{" "}
-                              {new Date(r.followUpDate).toLocaleString(
-                                "en-IN",
-                                {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Timestamp */}
-                        <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">
-                          <Calendar size={9} />
-                          {new Date(r.createdAt).toLocaleString([], {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
-                        </p>
-                      </div>
-                    );
-                  })
-              )}
+                      );
+                    })
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {addingUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                Add New User
-              </h2>
-              <button
-                onClick={() => setAddingUser(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-              >
-                <X size={20} className="text-gray-700 dark:text-gray-300" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <div className="space-y-4 mb-6">
-              {/* Full Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter full name"
-                  value={newUser.fullName}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, fullName: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  placeholder="user@example.com"
-                  value={newUser.email}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, email: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                />
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+91 9876543210"
-                  value={newUser.phone}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, phone: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
-                />
-              </div>
-
-              {/* Plan */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Plan
-                </label>
-                <select
-                  value={newUser.plan}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, plan: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+        {addingUser && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                  Add New User
+                </h2>
+                <button
+                  onClick={() => setAddingUser(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                 >
-                  <option value="Free">Free</option>
-                  <option value="Basic">Basic</option>
-                  <option value="Standard">Standard</option>
-                  <option value="Premium">Premium</option>
-                </select>
+                  <X size={20} className="text-gray-700 dark:text-gray-300" />
+                </button>
               </div>
-            </div>
 
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setAddingUser(false)}
-                className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
+              {/* Form */}
+              <div className="space-y-4 mb-6">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter full name"
+                    value={newUser.fullName}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, fullName: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUser.email}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, email: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="+91 9876543210"
+                    value={newUser.phone}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, phone: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                  />
+                </div>
+
+                {/* Plan */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Plan
+                  </label>
+                  <select
+                    value={newUser.plan}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, plan: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                       rounded-xl focus:ring-2 focus:ring-indigo-500 
+                       focus:border-transparent outline-none"
+                  >
+                    <option value="Free">Free</option>
+                    <option value="Basic">Basic</option>
+                    <option value="Standard">Standard</option>
+                    <option value="Premium">Premium</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setAddingUser(false)}
+                  className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
                      text-gray-700 dark:text-gray-200 rounded-xl 
                      hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
-              >
-                Cancel
-              </button>
+                >
+                  Cancel
+                </button>
 
-              <button
-                onClick={handleAddUser}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
+                <button
+                  onClick={handleAddUser}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
                      transition-all font-medium"
-              >
-                Add User
-              </button>
+                >
+                  Add User
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {activeModal === "posts" && viewingUserPosts && (
+        )}
+        {activeModal === "posts" && viewingUserPosts && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    User Posts
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {viewingUserPosts.email}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setViewingUserPosts(null);
+                    setActiveModal(null);
+                    setUserPosts([]);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
+                    <p className="text-2xl font-bold text-indigo-600">
+                      {viewingUserPosts.wallet || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Total Posts</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {loadingPosts ? "..." : userPosts.length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Posted</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {loadingPosts
+                        ? "..."
+                        : userPosts.filter((p) => p.status === "posted").length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Rejected</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {loadingPosts
+                        ? "..."
+                        : userPosts.filter((p) => p.status === "rejected")
+                            .length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {loadingPosts ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+                  </div>
+                ) : userPosts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ImageIcon
+                      size={48}
+                      className="mx-auto mb-3 text-gray-300"
+                    />
+                    <p className="text-gray-500 font-medium">No posts yet</p>
+                    <p className="text-gray-400 text-sm">
+                      This user hasn't created any posts
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {userPosts.map((post, index) => (
+                      <div
+                        key={post._id || index}
+                        className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
+                      >
+                        <div className="aspect-square relative">
+                          <img
+                            src={post.aiOutput}
+                            alt={`Post ${index + 1}`}
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => setFullViewImage(post.aiOutput)}
+                            onError={(e) => {
+                              e.target.src =
+                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
+                            }}
+                          />
+
+                          <div className="absolute top-2 right-2">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                post.status === "posted"
+                                  ? "bg-green-100 text-green-700 border border-green-300"
+                                  : post.status === "rejected"
+                                    ? "bg-red-100 text-red-700 border border-red-300"
+                                    : "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                              }`}
+                            >
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  post.status === "posted"
+                                    ? "bg-green-500"
+                                    : post.status === "rejected"
+                                      ? "bg-red-500"
+                                      : "bg-yellow-500"
+                                }`}
+                              ></div>
+                              {post.status === "posted"
+                                ? "Posted"
+                                : post.status === "rejected"
+                                  ? "Rejected"
+                                  : "Pending"}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => setFullViewImage(post.aiOutput)}
+                            className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <ZoomIn size={16} className="text-gray-700" />
+                          </button>
+                        </div>
+
+                        <div className="p-4 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">
+                              Post #{index + 1}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(post.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          {post.promat && (
+                            <p className="text-sm text-gray-700 line-clamp-2">
+                              <span className="font-bold">Prompt:</span>{" "}
+                              {post.promat}
+                            </p>
+                          )}
+                          {post.status === "rejected" && post.rejectReason && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <p className="text-xs font-semibold text-red-700 mb-1">
+                                Rejection Reason:
+                              </p>
+                              <p className="text-xs text-red-600">
+                                {post.rejectReason}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setViewingUserPosts(null);
+                    setUserPosts([]);
+                  }}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {fullViewImage && (
+          <div
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+            onClick={() => setFullViewImage(null)}
+          >
+            <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+              <button
+                onClick={() => setFullViewImage(null)}
+                className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
+              >
+                <X size={24} />
+              </button>
+              <img
+                src={fullViewImage}
+                alt="Full view"
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+        )}
+
+        {showIssuesModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Reported Issues
+                </h2>
+                <button
+                  onClick={() => setShowIssuesModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                        Issue
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {issues.map((issue, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {new Date(issue.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                          <div>{issue.fullName || "Unknown"}</div>
+                          <div className="text-xs text-gray-500">
+                            {issue.mobile}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
+                          {issue.issue}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              issue.status === "resolved"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {issue.status || "open"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {issues.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan="5"
+                          className="px-6 py-8 text-center text-gray-500"
+                        >
+                          No issues found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete User Confirmation Modal */}
+        {deleteUserModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle className="text-red-600" size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  Delete User?
+                </h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  Are you sure you want to delete{" "}
+                  <strong>
+                    {deleteUserModal.fullName || deleteUserModal.email}
+                  </strong>
+                  ? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => setDeleteUserModal(null)}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteUser}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* User Onboard Revenue Details Modal ✅ NEW */}
+
+        {/* Onboard Client Modal */}
+        {showOnboardModal && onboardModalUser && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">
+                    Onboard Client
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {onboardModalUser.fullName}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowOnboardModal(false);
+                    setOnboardModalUser(null);
+                    setOnboardData({
+                      plan: "",
+                      amount: "",
+                      screenshot: null,
+                      notes: "",
+                    });
+                  }}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Plan <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={onboardData.plan}
+                    onChange={(e) =>
+                      setOnboardData({ ...onboardData, plan: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                  >
+                    <option value="">Select Plan</option>
+                    <option value="Basic Plan">Basic Plan</option>
+                    <option value="Professional Plan">Professional Plan</option>
+                    <option value="Premium Plan">Premium Plan</option>
+                    <option value="Enterprise Plan">Enterprise Plan</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (₹) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={onboardData.amount}
+                    onChange={(e) =>
+                      setOnboardData({ ...onboardData, amount: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Screenshot <span className="text-red-500">*</span>
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-emerald-500 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          setOnboardData({ ...onboardData, screenshot: file });
+                        }
+                      }}
+                      className="hidden"
+                      id="onboard-screenshot-upload"
+                    />
+                    <label
+                      htmlFor="onboard-screenshot-upload"
+                      className="flex flex-col items-center cursor-pointer"
+                    >
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600">
+                        {onboardData.screenshot
+                          ? onboardData.screenshot.name
+                          : "Click to upload screenshot"}
+                      </span>
+                      <span className="text-xs text-gray-400 mt-1">
+                        PNG, JPG up to 10MB
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    placeholder="Add any additional notes..."
+                    value={onboardData.notes}
+                    onChange={(e) =>
+                      setOnboardData({ ...onboardData, notes: e.target.value })
+                    }
+                    rows="3"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleOnboardSubmit}
+                  disabled={
+                    uploadingOnboard ||
+                    !onboardData.plan ||
+                    !onboardData.amount ||
+                    !onboardData.screenshot
+                  }
+                  className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {uploadingOnboard ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Onboard Client
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Meeting Schedule Modal */}
+        {showMeetingModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800">
+                  Schedule Meeting
+                </h2>
+                <button
+                  onClick={() => setShowMeetingModal(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={meetingData.date}
+                    onChange={(e) =>
+                      setMeetingData({ ...meetingData, date: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting Link
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://zoom.us/..."
+                    value={meetingData.link}
+                    onChange={(e) =>
+                      setMeetingData({ ...meetingData, link: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Meeting ID"
+                    value={meetingData.meetingId}
+                    onChange={(e) =>
+                      setMeetingData({
+                        ...meetingData,
+                        meetingId: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Passcode (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="123456"
+                    value={meetingData.passcode}
+                    onChange={(e) =>
+                      setMeetingData({
+                        ...meetingData,
+                        passcode: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleMeetingSubmit}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
+                >
+                  Schedule & Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}
+        {/* Meeting Schedule Modal */}
+        {showMeetingModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800">
+                  Schedule Meeting
+                </h2>
+                <button
+                  onClick={() => setShowMeetingModal(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={meetingData.date}
+                    onChange={(e) =>
+                      setMeetingData({ ...meetingData, date: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting Link
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://zoom.us/..."
+                    value={meetingData.link}
+                    onChange={(e) =>
+                      setMeetingData({ ...meetingData, link: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Meeting ID"
+                    value={meetingData.meetingId}
+                    onChange={(e) =>
+                      setMeetingData({
+                        ...meetingData,
+                        meetingId: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Passcode (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="123456"
+                    value={meetingData.passcode}
+                    onChange={(e) =>
+                      setMeetingData({
+                        ...meetingData,
+                        passcode: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleMeetingSubmit}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
+                >
+                  Schedule & Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <FollowUpDueAlertModal
+          alert={followUpDueAlert}
+          onDismiss={() => setFollowUpDueAlert(null)}
+          onVoiceCall={
+            followUpDueAlert?.kind === "user" ? handleVoiceCall : undefined
+          }
+        />
+
+        {activeModal === "service" && serviceUser && (
+          <AdminServicepaneModal
+            service={serviceUser}
+            onClose={() => {
+              setActiveModal(null);
+              setServiceUser(null);
+            }}
+          />
+        )}
+      </div>
+
+      {viewingUserPosts && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
             <div className="flex items-center justify-between mb-6">
@@ -4768,7 +5546,6 @@ const currentLeadTotal =
               <button
                 onClick={() => {
                   setViewingUserPosts(null);
-                  setActiveModal(null);
                   setUserPosts([]);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -4785,26 +5562,41 @@ const currentLeadTotal =
                     {viewingUserPosts.wallet || 0}
                   </p>
                 </div>
+                {/* Total Posts */}
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Posts</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {loadingPosts ? "..." : userPosts.length}
+                    {loadingPosts
+                      ? "..."
+                      : userPostsData?.[viewingUserPosts?.userId]?.total ||
+                        viewingUserPosts?.totalPosts ||
+                        viewingUserPosts?.postsCount ||
+                        userPosts.length ||
+                        0}
                   </p>
                 </div>
+
+                {/* Posted */}
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Posted</p>
                   <p className="text-2xl font-bold text-green-600">
                     {loadingPosts
                       ? "..."
-                      : userPosts.filter((p) => p.status === "posted").length}
+                      : userPostsData?.[viewingUserPosts?.userId]?.posted ||
+                        userPosts.filter((p) => p.status === "posted").length ||
+                        0}
                   </p>
                 </div>
+                {/* Rejected */}
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Rejected</p>
                   <p className="text-2xl font-bold text-red-600">
                     {loadingPosts
                       ? "..."
-                      : userPosts.filter((p) => p.status === "rejected").length}
+                      : userPostsData?.[viewingUserPosts?.userId]?.rejected ||
+                        userPosts.filter((p) => p.status === "rejected")
+                          .length ||
+                        0}
                   </p>
                 </div>
               </div>
@@ -4946,468 +5738,7 @@ const currentLeadTotal =
           </div>
         </div>
       )}
-
-      {showIssuesModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">
-                Reported Issues
-              </h2>
-              <button
-                onClick={() => setShowIssuesModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Issue
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {issues.map((issue, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {new Date(issue.createdAt).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                        <div>{issue.fullName || "Unknown"}</div>
-                        <div className="text-xs text-gray-500">
-                          {issue.mobile}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
-                        {issue.issue}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            issue.status === "resolved"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {issue.status || "open"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {issues.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="px-6 py-8 text-center text-gray-500"
-                      >
-                        No issues found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete User Confirmation Modal */}
-      {deleteUserModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="text-red-600" size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Delete User?
-              </h3>
-              <p className="text-gray-500 text-sm mb-6">
-                Are you sure you want to delete{" "}
-                <strong>
-                  {deleteUserModal.fullName || deleteUserModal.email}
-                </strong>
-                ? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 w-full">
-                <button
-                  onClick={() => setDeleteUserModal(null)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDeleteUser}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
-                >
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* User Onboard Revenue Details Modal ✅ NEW */}
-
-      {/* Onboard Client Modal */}
-      {showOnboardModal && onboardModalUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Onboard Client
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {onboardModalUser.fullName}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowOnboardModal(false);
-                  setOnboardModalUser(null);
-                  setOnboardData({
-                    plan: "",
-                    amount: "",
-                    screenshot: null,
-                    notes: "",
-                  });
-                }}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Plan <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={onboardData.plan}
-                  onChange={(e) =>
-                    setOnboardData({ ...onboardData, plan: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                >
-                  <option value="">Select Plan</option>
-                  <option value="Basic Plan">Basic Plan</option>
-                  <option value="Professional Plan">Professional Plan</option>
-                  <option value="Premium Plan">Premium Plan</option>
-                  <option value="Enterprise Plan">Enterprise Plan</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount (₹) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={onboardData.amount}
-                  onChange={(e) =>
-                    setOnboardData({ ...onboardData, amount: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Screenshot <span className="text-red-500">*</span>
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-emerald-500 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setOnboardData({ ...onboardData, screenshot: file });
-                      }
-                    }}
-                    className="hidden"
-                    id="onboard-screenshot-upload"
-                  />
-                  <label
-                    htmlFor="onboard-screenshot-upload"
-                    className="flex flex-col items-center cursor-pointer"
-                  >
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600">
-                      {onboardData.screenshot
-                        ? onboardData.screenshot.name
-                        : "Click to upload screenshot"}
-                    </span>
-                    <span className="text-xs text-gray-400 mt-1">
-                      PNG, JPG up to 10MB
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  placeholder="Add any additional notes..."
-                  value={onboardData.notes}
-                  onChange={(e) =>
-                    setOnboardData({ ...onboardData, notes: e.target.value })
-                  }
-                  rows="3"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
-                />
-              </div>
-
-              <button
-                onClick={handleOnboardSubmit}
-                disabled={
-                  uploadingOnboard ||
-                  !onboardData.plan ||
-                  !onboardData.amount ||
-                  !onboardData.screenshot
-                }
-                className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {uploadingOnboard ? (
-                  <>
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Onboard Client
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Meeting Schedule Modal */}
-      {showMeetingModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                Schedule Meeting
-              </h2>
-              <button
-                onClick={() => setShowMeetingModal(false)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={meetingData.date}
-                  onChange={(e) =>
-                    setMeetingData({ ...meetingData, date: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting Link
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://zoom.us/..."
-                  value={meetingData.link}
-                  onChange={(e) =>
-                    setMeetingData({ ...meetingData, link: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting ID
-                </label>
-                <input
-                  type="text"
-                  placeholder="Meeting ID"
-                  value={meetingData.meetingId}
-                  onChange={(e) =>
-                    setMeetingData({
-                      ...meetingData,
-                      meetingId: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Passcode (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="123456"
-                  value={meetingData.passcode}
-                  onChange={(e) =>
-                    setMeetingData({ ...meetingData, passcode: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <button
-                onClick={handleMeetingSubmit}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
-              >
-                Schedule & Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}
-      {/* Meeting Schedule Modal */}
-      {showMeetingModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                Schedule Meeting
-              </h2>
-              <button
-                onClick={() => setShowMeetingModal(false)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={meetingData.date}
-                  onChange={(e) =>
-                    setMeetingData({ ...meetingData, date: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting Link
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://zoom.us/..."
-                  value={meetingData.link}
-                  onChange={(e) =>
-                    setMeetingData({ ...meetingData, link: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting ID
-                </label>
-                <input
-                  type="text"
-                  placeholder="Meeting ID"
-                  value={meetingData.meetingId}
-                  onChange={(e) =>
-                    setMeetingData({
-                      ...meetingData,
-                      meetingId: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Passcode (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="123456"
-                  value={meetingData.passcode}
-                  onChange={(e) =>
-                    setMeetingData({ ...meetingData, passcode: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <button
-                onClick={handleMeetingSubmit}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
-              >
-                Schedule & Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <FollowUpDueAlertModal
-        alert={followUpDueAlert}
-        onDismiss={() => setFollowUpDueAlert(null)}
-        onVoiceCall={
-          followUpDueAlert?.kind === "user" ? handleVoiceCall : undefined
-        }
-      />
-
-      {activeModal === "service" && serviceUser && (
-        <AdminServicepaneModal
-          service={serviceUser}
-          onClose={() => {
-            setActiveModal(null);
-            setServiceUser(null);
-          }}
-        />
-      )}
-    </div>
+    </>
   );
 }
 
@@ -5427,3 +5758,7 @@ export const getTodayUsersData = async () => {
     return null;
   }
 };
+
+
+
+

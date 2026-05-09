@@ -19,6 +19,12 @@
 import PDFDocument from "pdfkit";
 import sharp from "sharp";
 import {
+  ensureInterFonts,
+  interTextPath,
+  kpiLucideIcon,
+  mapPinIcon,
+} from "@/lib/svgInterText";
+import {
   ymdFromApi,
   isYmdInClosedRange,
   toYmd,
@@ -54,14 +60,6 @@ const ROSE_SOFT    = "#FFF1F2";
 const W = 1200;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 const fmt = (n) => Number(n ?? 0).toLocaleString("en-IN");
 
 function fmtDate(d) {
@@ -137,36 +135,106 @@ function buildHeader({ businessName, locationName, city, dateRange }, y) {
   parts.push(`<path d="${rr(bx, by, 160, 22, 6)}" fill="${LEMON}"/>`);
   // dot
   parts.push(`<circle cx="${bx + 10}" cy="${by + 11}" r="4" fill="${BLACK}"/>`);
-  parts.push(`<text x="${bx + 22}" y="${by + 15}" font-family="Arial,sans-serif" font-size="10" font-weight="800" fill="${BLACK}" letter-spacing="1">LIMBU AI ANALYTICS</text>`);
+  parts.push(
+    interTextPath({
+      text: "LIMBU AI ANALYTICS",
+      x: bx + 22,
+      y: by + 15,
+      size: 10,
+      fill: BLACK,
+      anchor: "left",
+      weight: 900,
+    }),
+  );
 
   // Business name
-  const nameText = esc(businessName || "Business Profile");
-  parts.push(`<text x="${bx}" y="${y + 64}" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="${BLACK}">${nameText}</text>`);
+  parts.push(
+    interTextPath({
+      text: businessName || "Business Profile",
+      x: bx,
+      y: y + 64,
+      size: 26,
+      fill: BLACK,
+      anchor: "left",
+      weight: 900,
+    }),
+  );
 
-  // Location / city (no emoji — keeps SVG XML friendly for librsvg)
   const locRaw = [locationName, city].filter(Boolean).join("  /  ");
-  parts.push(`<text x="${bx}" y="${y + 88}" font-family="Arial,sans-serif" font-size="12" fill="${SILVER}">${locRaw ? esc(locRaw) : ""}</text>`);
+  if (locRaw) {
+    parts.push(mapPinIcon(SILVER, bx + 8, y + 83, 0.78));
+    parts.push(
+      interTextPath({
+        text: locRaw,
+        x: bx + 26,
+        y: y + 88,
+        size: 12,
+        fill: SILVER,
+        anchor: "left",
+        weight: 500,
+      }),
+    );
+  }
 
   // ── Right side: dark report window box ──
   const boxW = 200, boxH = 60;
   const bpx  = W - PAD - 24 - boxW;
   const bpy  = y + (H - boxH) / 2;
   parts.push(`<path d="${rr(bpx, bpy, boxW, boxH, 10)}" fill="${BLACK}"/>`);
-  parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 18}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">REPORT WINDOW</text>`);
-  // Split date label into 2 lines if long
+  parts.push(
+    interTextPath({
+      text: "REPORT WINDOW",
+      x: bpx + boxW / 2,
+      y: bpy + 18,
+      size: 9,
+      fill: GRAY,
+      anchor: "center",
+      weight: 700,
+    }),
+  );
   const drParts = drLabel.split("–");
   if (drParts.length === 2) {
-    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 36}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${esc(drParts[0].trim())}</text>`);
-    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 52}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">– ${esc(drParts[1].trim())}</text>`);
+    parts.push(
+      interTextPath({
+        text: drParts[0].trim(),
+        x: bpx + boxW / 2,
+        y: bpy + 36,
+        size: 11,
+        fill: WHITE,
+        anchor: "center",
+        weight: 700,
+      }),
+    );
+    parts.push(
+      interTextPath({
+        text: `– ${drParts[1].trim()}`,
+        x: bpx + boxW / 2,
+        y: bpy + 52,
+        size: 11,
+        fill: WHITE,
+        anchor: "center",
+        weight: 700,
+      }),
+    );
   } else {
-    parts.push(`<text x="${bpx + boxW / 2}" y="${bpy + 40}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${WHITE}">${esc(drLabel)}</text>`);
+    parts.push(
+      interTextPath({
+        text: drLabel,
+        x: bpx + boxW / 2,
+        y: bpy + 40,
+        size: 11,
+        fill: WHITE,
+        anchor: "center",
+        weight: 700,
+      }),
+    );
   }
 
   return { svg: parts.join("\n"), height: H + 24 };
 }
 
 /** Single KPI card */
-function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softBg, iconSymbol }, x, y, w) {
+function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softBg, iconType }, x, y, w) {
   const H   = 150;
   const PAD = 16;
   const parts = [];
@@ -180,7 +248,7 @@ function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softB
   // Icon circle
   const iconX = x + PAD, iconY = y + PAD + 4;
   parts.push(`<path d="${rr(iconX, iconY, 36, 36, 8)}" fill="${softBg}"/>`);
-  parts.push(`<text x="${iconX + 18}" y="${iconY + 24}" text-anchor="middle" font-size="18" font-family="Arial,sans-serif">${esc(iconSymbol)}</text>`);
+  parts.push(kpiLucideIcon(iconType, accentColor, iconX + 18, iconY + 18, 0.82));
 
   // Delta badge
   const d = deltaInfo(value, prevValue, prevHasData);
@@ -192,22 +260,68 @@ function buildKpiCard({ label, value, prevValue, prevHasData, accentColor, softB
     const dX     = x + w - PAD - dW;
     const dY     = iconY;
     parts.push(`<path d="${rr(dX, dY, dW, 22, 11)}" fill="${dBg}" stroke="${dColor}" stroke-width="0.5"/>`);
-    parts.push(`<text x="${dX + dW / 2}" y="${dY + 15}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" fill="${dColor}">${esc(dText)}</text>`);
+    parts.push(
+      interTextPath({
+        text: dText,
+        x: dX + dW / 2,
+        y: dY + 15,
+        size: 10,
+        fill: dColor,
+        anchor: "center",
+        weight: 800,
+      }),
+    );
   }
 
-  // Value (large number)
-  parts.push(`<text x="${x + PAD}" y="${y + 78}" font-family="Arial,sans-serif" font-size="30" font-weight="900" fill="${BLACK}">${esc(fmt(value))}</text>`);
+  parts.push(
+    interTextPath({
+      text: fmt(value),
+      x: x + PAD,
+      y: y + 78,
+      size: 30,
+      fill: BLACK,
+      anchor: "left",
+      weight: 900,
+    }),
+  );
 
-  // Label
-  parts.push(`<text x="${x + PAD}" y="${y + 96}" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}" letter-spacing="1">${esc(label.toUpperCase())}</text>`);
+  parts.push(
+    interTextPath({
+      text: label.toUpperCase(),
+      x: x + PAD,
+      y: y + 96,
+      size: 9,
+      fill: GRAY,
+      anchor: "left",
+      weight: 700,
+    }),
+  );
 
-  // Dashed separator
   parts.push(dashLine(x + PAD, y + 110, x + w - PAD));
 
-  // Previous period
-  parts.push(`<text x="${x + PAD}" y="${y + 126}" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">PREVIOUS PERIOD</text>`);
+  parts.push(
+    interTextPath({
+      text: "PREVIOUS PERIOD",
+      x: x + PAD,
+      y: y + 126,
+      size: 8,
+      fill: GRAY,
+      anchor: "left",
+      weight: 700,
+    }),
+  );
   const prvText = prevHasData ? fmt(prevValue) : "No data";
-  parts.push(`<text x="${x + PAD}" y="${y + 142}" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${SILVER}">${esc(prvText)}</text>`);
+  parts.push(
+    interTextPath({
+      text: prvText,
+      x: x + PAD,
+      y: y + 142,
+      size: 12,
+      fill: SILVER,
+      anchor: "left",
+      weight: 700,
+    }),
+  );
 
   return { svg: parts.join("\n"), height: H };
 }
@@ -219,11 +333,11 @@ function buildKpiRow({ metrics, prevMetrics, prevHasData }, y) {
   const cardW = (W - PAD * 2 - GAP * 4) / 5;
 
   const cards = [
-    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconSymbol: "\u{1F4CA}" },
-    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconSymbol: "\u{1F5FA}" },
-    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconSymbol: "\u{1F50D}" },
-    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconSymbol: "\u{1F4DE}" },
-    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconSymbol: "\u{1F310}" },
+    { label: "Impressions",   value: metrics.totalImpressions,      prevValue: prevMetrics?.totalImpressions,      accentColor: BLUE,    softBg: BLUE_SOFT,    iconType: "activity" },
+    { label: "Maps Views",    value: metrics.totalMapsImpressions,   prevValue: prevMetrics?.totalMapsImpressions,  accentColor: EMERALD, softBg: EMERALD_SOFT, iconType: "map" },
+    { label: "Search Views",  value: metrics.totalSearchImpressions, prevValue: prevMetrics?.totalSearchImpressions,accentColor: AMBER,   softBg: AMBER_SOFT,   iconType: "search" },
+    { label: "Phone Calls",   value: metrics.totalCalls,             prevValue: prevMetrics?.totalCalls,            accentColor: VIOLET,  softBg: VIOLET_SOFT,  iconType: "phone" },
+    { label: "Web Clicks",    value: metrics.totalWebsiteClicks,     prevValue: prevMetrics?.totalWebsiteClicks,    accentColor: ROSE,    softBg: ROSE_SOFT,    iconType: "globe" },
   ];
 
   const parts = [];
@@ -251,13 +365,43 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
 
   // Title accent bar
   parts.push(`<rect x="${x + PAD}" y="${y + PAD}" width="4" height="18" rx="2" fill="${accentColor}"/>`);
-  parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 14}" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">${esc(title.toUpperCase())}</text>`);
+  parts.push(
+    interTextPath({
+      text: title.toUpperCase(),
+      x: x + PAD + 12,
+      y: y + PAD + 14,
+      size: 14,
+      fill: BLACK,
+      anchor: "left",
+      weight: 900,
+    }),
+  );
   if (subtitle) {
-    parts.push(`<text x="${x + PAD + 12}" y="${y + PAD + 32}" font-family="Arial,sans-serif" font-size="10" fill="${SILVER}">${esc(subtitle)}</text>`);
+    parts.push(
+      interTextPath({
+        text: subtitle,
+        x: x + PAD + 12,
+        y: y + PAD + 32,
+        size: 10,
+        fill: SILVER,
+        anchor: "left",
+        weight: 400,
+      }),
+    );
   }
 
   if (!data || data.length === 0) {
-    parts.push(`<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="${SILVER}">No data available</text>`);
+    parts.push(
+      interTextPath({
+        text: "No data available",
+        x: x + w / 2,
+        y: y + h / 2,
+        size: 11,
+        fill: SILVER,
+        anchor: "center",
+        weight: 500,
+      }),
+    );
     return { svg: parts.join("\n") };
   }
 
@@ -271,7 +415,17 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
     const gy     = innerY + innerH - (gi / 4) * innerH;
     const gLabel = Math.round((gi / 4) * maxVal);
     parts.push(`<line x1="${innerX}" y1="${gy}" x2="${innerX + innerW}" y2="${gy}" stroke="${BORDER}" stroke-width="0.5"/>`);
-    parts.push(`<text x="${innerX - 6}" y="${gy + 4}" text-anchor="end" font-family="Arial,sans-serif" font-size="9" fill="${GRAY}">${gLabel}</text>`);
+    parts.push(
+      interTextPath({
+        text: String(gLabel),
+        x: innerX - 6,
+        y: gy + 4,
+        size: 9,
+        fill: GRAY,
+        anchor: "end",
+        weight: 500,
+      }),
+    );
   }
 
   // Bars
@@ -296,7 +450,17 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
     });
 
     // X-axis label
-    parts.push(`<text x="${gx + groupW / 2}" y="${innerY + innerH + 14}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${GRAY}">${esc(row.label)}</text>`);
+    parts.push(
+      interTextPath({
+        text: row.label,
+        x: gx + groupW / 2,
+        y: innerY + innerH + 14,
+        size: 9,
+        fill: GRAY,
+        anchor: "center",
+        weight: 700,
+      }),
+    );
   });
 
   // Legend
@@ -304,7 +468,17 @@ function buildBarChart({ title, subtitle, accentColor, data, series }, x, y, w, 
   let lx = innerX;
   series.forEach(({ key, color }) => {
     parts.push(`<circle cx="${lx + 6}" cy="${legendY + 6}" r="5" fill="${color}"/>`);
-    parts.push(`<text x="${lx + 16}" y="${legendY + 11}" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="${GRAY}" letter-spacing="0.5">${esc(key.toUpperCase())}</text>`);
+    parts.push(
+      interTextPath({
+        text: key.toUpperCase(),
+        x: lx + 16,
+        y: legendY + 11,
+        size: 10,
+        fill: GRAY,
+        anchor: "left",
+        weight: 700,
+      }),
+    );
     lx += 16 + key.length * 7 + 20;
   });
 
@@ -358,7 +532,15 @@ function buildKeywords(keywords, y) {
     const emptyH = 80;
     return {
       svg: `<path d="${rr(panelX, y, panelW, emptyH, 20)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>
-<text x="${W / 2}" y="${y + 46}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${SILVER}">NO KEYWORD DATA AVAILABLE FOR THIS RANGE</text>`,
+${interTextPath({
+  text: "NO KEYWORD DATA AVAILABLE FOR THIS RANGE",
+  x: W / 2,
+  y: y + 46,
+  size: 12,
+  fill: SILVER,
+  anchor: "center",
+  weight: 700,
+})}`,
       height: emptyH + 24,
     };
   }
@@ -379,8 +561,28 @@ function buildKeywords(keywords, y) {
 
   // Section title
   parts.push(`<rect x="${panelX + 24}" y="${y + 20}" width="4" height="18" rx="2" fill="${LEMON}"/>`);
-  parts.push(`<text x="${panelX + 36}" y="${y + 34}" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">SEARCH QUERIES</text>`);
-  parts.push(`<text x="${panelX + 36}" y="${y + 52}" font-family="Arial,sans-serif" font-size="10" fill="${SILVER}">Top keywords leading customers to your business</text>`);
+  parts.push(
+    interTextPath({
+      text: "SEARCH QUERIES",
+      x: panelX + 36,
+      y: y + 34,
+      size: 14,
+      fill: BLACK,
+      anchor: "left",
+      weight: 900,
+    }),
+  );
+  parts.push(
+    interTextPath({
+      text: "Top keywords leading customers to your business",
+      x: panelX + 36,
+      y: y + 52,
+      size: 10,
+      fill: SILVER,
+      anchor: "left",
+      weight: 400,
+    }),
+  );
 
   // Keyword cards
   kwList.forEach((kw, i) => {
@@ -395,20 +597,58 @@ function buildKeywords(keywords, y) {
     // Number badge
     const badgeSize = 26;
     parts.push(`<path d="${rr(cx + 8, cy + (CARD_H - badgeSize) / 2, badgeSize, badgeSize, 6)}" fill="${BLACK}"/>`);
-    parts.push(`<text x="${cx + 8 + badgeSize / 2}" y="${cy + (CARD_H - badgeSize) / 2 + 17}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="900" fill="${LEMON}">${String(i + 1).padStart(2, "0")}</text>`);
+    parts.push(
+      interTextPath({
+        text: String(i + 1).padStart(2, "0"),
+        x: cx + 8 + badgeSize / 2,
+        y: cy + (CARD_H - badgeSize) / 2 + 17,
+        size: 9,
+        fill: LEMON,
+        anchor: "center",
+        weight: 900,
+      }),
+    );
 
-    // Keyword text
-    const kwText = esc((kw.searchKeyword || kw.keyword || "—").slice(0, 36));
-    parts.push(`<text x="${cx + 44}" y="${cy + 21}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${BLACK}">${kwText}</text>`);
+    const kwText = (kw.searchKeyword || kw.keyword || "—").slice(0, 36);
+    parts.push(
+      interTextPath({
+        text: kwText,
+        x: cx + 44,
+        y: cy + 21,
+        size: 11,
+        fill: BLACK,
+        anchor: "left",
+        weight: 700,
+      }),
+    );
 
-    // Count
     const countVal = kw.insightsValue?.value
       ? Number(kw.insightsValue.value).toLocaleString()
       : kw.insightsValue?.threshold
         ? `<${kw.insightsValue.threshold}`
         : "0";
-    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 21}" text-anchor="end" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${BLACK}">${esc(countVal)}</text>`);
-    parts.push(`<text x="${cx + CARD_W - 12}" y="${cy + 34}" text-anchor="end" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="${GRAY}" letter-spacing="1">SEARCHES</text>`);
+    parts.push(
+      interTextPath({
+        text: countVal,
+        x: cx + CARD_W - 12,
+        y: cy + 21,
+        size: 12,
+        fill: BLACK,
+        anchor: "end",
+        weight: 900,
+      }),
+    );
+    parts.push(
+      interTextPath({
+        text: "SEARCHES",
+        x: cx + CARD_W - 12,
+        y: cy + 34,
+        size: 8,
+        fill: GRAY,
+        anchor: "end",
+        weight: 700,
+      }),
+    );
   });
 
   return { svg: parts.join("\n"), height: panelH + 24 };
@@ -424,14 +664,53 @@ function buildFooter({ businessName }, y) {
 
   // Left: Limbu AI
   parts.push(`<path d="${rr(PAD, y + 10, 36, 36, 8)}" fill="${LEMON}"/>`);
-  parts.push(`<text x="${PAD + 18}" y="${y + 33}" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="${BLACK}">L</text>`);
-  parts.push(`<text x="${PAD + 46}" y="${y + 25}" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="${BLACK}">Limbu AI</text>`);
-  parts.push(`<text x="${PAD + 46}" y="${y + 40}" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="${SILVER}" letter-spacing="1">ANALYTICS REPORT</text>`);
+  parts.push(
+    interTextPath({
+      text: "L",
+      x: PAD + 18,
+      y: y + 33,
+      size: 14,
+      fill: BLACK,
+      anchor: "center",
+      weight: 900,
+    }),
+  );
+  parts.push(
+    interTextPath({
+      text: "Limbu AI",
+      x: PAD + 46,
+      y: y + 25,
+      size: 11,
+      fill: BLACK,
+      anchor: "left",
+      weight: 900,
+    }),
+  );
+  parts.push(
+    interTextPath({
+      text: "ANALYTICS REPORT",
+      x: PAD + 46,
+      y: y + 40,
+      size: 9,
+      fill: SILVER,
+      anchor: "left",
+      weight: 700,
+    }),
+  );
 
-  // Right: date
   const dateStr = `DOCUMENT GENERATED ON: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
   parts.push(`<path d="${rr(W - PAD - 300, y + 14, 300, 28, 14)}" fill="${WHITE}" stroke="${BORDER}" stroke-width="1"/>`);
-  parts.push(`<text x="${W - PAD - 150}" y="${y + 32}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="${GRAY}">${esc(dateStr)}</text>`);
+  parts.push(
+    interTextPath({
+      text: dateStr,
+      x: W - PAD - 150,
+      y: y + 32,
+      size: 9,
+      fill: GRAY,
+      anchor: "center",
+      weight: 400,
+    }),
+  );
 
   return { svg: parts.join("\n"), height: H };
 }
@@ -530,7 +809,8 @@ export async function generateInsightsPdf({
     [dvFiltered(insightsData, "WEBSITE_CLICKS",                     startYmd, endYmd), "Website Clicks"],
   ]);
 
-  // ── 2. Build SVG → PNG ───────────────────────────────────────────────────────
+  // ── 2. Build SVG → PNG (Inter as paths — no system fonts required) ───────────
+  await ensureInterFonts();
   const svg       = buildFullSvg({ businessName, locationName, city, dateRange, metrics, prevMetrics, prevHasData, monthlyVis, monthlyEng, keywords });
   const svgBuf    = Buffer.from(svg, "utf8");
 

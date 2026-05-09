@@ -1,5 +1,6 @@
 import { uploadToS3 } from "@/utils/s3Config";
 import mongoose from "mongoose";
+import { MAGIC_QR_CLIENT_UPLOAD_VERSION } from "@/lib/magicQrServerVersion";
 
 // Use the same connection logic as the other admin APIs
 let magicQrConn = null;
@@ -22,9 +23,10 @@ async function getMagicQrModel() {
       locality: { type: String, default: "" },
       locationId: { type: String, required: true, unique: true },
       s3ImageUrl: { type: String, required: true },
+      reviewUrl: { type: String, default: "" },
+      cardGeneratorVersion: { type: Number, default: 0 },
       status: { type: String, enum: ["generated", "failed", "pending"], default: "generated" },
       whatsappSent: { type: Boolean, default: false },
-      reviewUrl: { type: String, default: "" },
     },
     { timestamps: true }
   );
@@ -76,6 +78,7 @@ export async function POST(req) {
         s3ImageUrl: s3Result.url,
         status: "generated",
         reviewUrl,
+        cardGeneratorVersion: MAGIC_QR_CLIENT_UPLOAD_VERSION,
       },
       { upsert: true, new: true }
     );

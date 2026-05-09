@@ -7,6 +7,8 @@ import {
 } from "@/lib/gmbSessionStore";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
 import MagicQR from "@/models/MagicQR";
+import { formatMagicQrBusinessTitle } from "@/lib/magicQrBusinessName";
+import { MAGIC_QR_SERVER_CARD_VERSION } from "@/lib/magicQrServerVersion";
 import { uploadToS3 } from "@/utils/s3Config";
 import { generateUniversalSlug } from "@/utils/slugify";
 
@@ -116,8 +118,9 @@ export async function POST(req) {
 
     await dbConnect();
 
-    const businessTitle = location.title || "Business";
-    const locality = location.locality || "";
+    const businessTitle = formatMagicQrBusinessTitle(location);
+    const locality =
+      location.locality || location.storefrontAddress?.locality || "";
     const shortLocationId = toShortLocationId(locationId);
     const reviewUrl = buildReviewUrl(location, locations);
 
@@ -149,6 +152,7 @@ export async function POST(req) {
         s3ImageUrl: s3Result.url,
         reviewUrl,
         status: "generated",
+        cardGeneratorVersion: MAGIC_QR_SERVER_CARD_VERSION,
       },
       { upsert: true, new: true },
     );

@@ -60,7 +60,7 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 
 import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneModal";
 
-import WhatsappModal from "./components/WhatsAppButton";
+import WhatsappModal from "./components/WhatsAppTemplateModel";
 
 // import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
 
@@ -257,6 +257,7 @@ export default function UserManagement() {
   const [bulkWaShowPanel, setBulkWaShowPanel] = useState(false);
   const [bulkWaSendDate, setBulkWaSendDate] = useState("");
   const [bulkWaSending, setBulkWaSending] = useState(false);
+  const [templateWaSendingId, setTemplateWaSendingId] = useState("");
   const [bulkWaResult, setBulkWaResult] = useState(null);
 
   // remark
@@ -1710,6 +1711,78 @@ const packageExpiryDate = planExpiryDate;
     }
   };
 
+  const getSelectedWhatsAppUsersPayload = () =>
+    filteredUsers
+      .filter((u) => bulkWaSelectedUserIds.includes(String(u.userId)))
+      .map((u) => {
+        let num = u.phone || u.mobileNumber;
+        if (!num) return null;
+        num = String(num).replace(/\D/g, "");
+        if (num.length === 10) num = `91${num}`;
+        if (num.length !== 12) return null;
+        return {
+          userId: u.userId,
+          customer_no_with_prefix: num,
+          name: u.fullName || u.name || "User",
+        };
+      })
+      .filter(Boolean);
+
+  const sendTemplateWhatsApp = async (template) => {
+    if (role !== "superAdmin") return;
+
+    const usersPayload = getSelectedWhatsAppUsersPayload();
+    if (!usersPayload.length) {
+      setBulkWaResult({
+        success: false,
+        message: "No valid phone numbers in selection",
+      });
+      return;
+    }
+
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) {
+      setBulkWaResult({ success: false, message: "Not logged in" });
+      return;
+    }
+
+    setTemplateWaSendingId(template.id);
+    setBulkWaResult(null);
+    try {
+      const response = await fetch("/api/admin/user-management-template-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          users: usersPayload,
+          templateId: template.id,
+        }),
+      });
+      const json = await response.json();
+
+      setBulkWaResult({
+        success: response.ok && json.success,
+        message:
+          json.message ||
+          (response.ok ? "Message processed" : "Server error occurred"),
+        sent: json.sent ?? 0,
+      });
+
+      if (response.ok && json.success) {
+        setBulkWaSelectedUserIds([]);
+        setIsOpen(false);
+      }
+    } catch (error) {
+      console.error("Template WhatsApp error:", error);
+      setBulkWaResult({
+        success: false,
+        message: "Something went wrong while sending",
+      });
+    } finally {
+      setTemplateWaSendingId("");
+    }
+  };
+
   const handleAddUser = async () => {
     if (!newUser.fullName || !newUser.email) {
       alert("Please enter Full Name and Email");
@@ -3140,6 +3213,9 @@ const currentLeadTotal =
       <WhatsappModal
         isOpen={isOpen}
         setIsOpen={setIsOpen}
+        selectedCount={bulkWaSelectedUserIds.length}
+        onSendTemplate={sendTemplateWhatsApp}
+        sendingTemplateId={templateWaSendingId}
       />
 
                   </div>

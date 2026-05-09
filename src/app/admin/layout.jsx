@@ -85,146 +85,159 @@ useEffect(() => {
 }, [pathname]);
 
   const navGroups = [
-    {
-      title: "Overview",
-      items: [
-        {
-          name: "Dashboard",
-          href: "/admin/dashboard",
-          icon: <BarChart3 size={16} />,
-        },
-        {
-          name: "Store Business",
-          href: "/admin/store-bussiness",
-          icon: <QrCode size={16} />,
-        },
-        {
-          name: "User Recharge",
-          href: "/admin/user-recharge",
-          icon: <Wallet size={16} />,
-        },
-        {
-          name: "User Management",
-          href: "/admin/rbac",
-          icon: <UserSquare size={16} />,
-        },
-      ],
-    },
+  {
+    title: "Overview",
+    groupIcon: <BarChart3 size={16} />,
+    items: [
+      {
+        name: "Dashboard",
+        href: "/admin/dashboard",
+        icon: <BarChart3 size={16} />,
+      },
+      {
+        name: "Store Business",
+        href: "/admin/store-bussiness",
+        icon: <QrCode size={16} />,
+      },
+      {
+        name: "User Recharge",
+        href: "/admin/user-recharge",
+        icon: <Wallet size={16} />,
+      },
+      {
+        name: "User Management",
+        href: "/admin/rbac",
+        icon: <UserSquare size={16} />,
+      },
+    ],
+  },
 
-    {
-      title: "Leads",
-      href: "/admin/user-management", // 👈 ADD THIS
-      items: [
-        {
-          name: "Leads",
-          icon: <Users size={18} />,
-          href: "/admin/user-management",
-          key: "manageUsers",
-        },
-        {
-          name: "Contact Leads",
-          href: "/admin/contact-form",
-          icon: <Users size={16} />,
-        },
-        {
-          name: "Demo Leads",
-          href: "/admin/demoBook",
-          icon: <Users size={16} />,
-        },
-        {
-          name: "Tata Dialer Leads",
-          href: "/admin/tata-dialer-lead",
-          icon: <Users size={16} />,
-        },
-      ],
-    },
-    {
-      title: "Bookings",
-      items: [
-        {
-          name: "Service Booking",
-          href: "/admin/service-booking",
-          icon: <CircleUser size={16} />,
-        },
-        {
-          name: "Package Booking",
-          href: "/admin/our-package",
-          icon: <Users size={16} />,
-        },
-      ],
-    },
+  {
+    title: "Leads",
+    groupIcon: <Users size={16} />,
+    href: "/admin/user-management",
+    items: [
+      {
+        name: "Leads",
+        icon: <Users size={18} />,
+        href: "/admin/user-management",
+        key: "manageUsers",
+      },
+      {
+        name: "Contact Leads",
+        href: "/admin/contact-form",
+        icon: <Users size={16} />,
+      },
+      {
+        name: "Demo Leads",
+        href: "/admin/demoBook",
+        icon: <Users size={16} />,
+      },
+      {
+        name: "Tata Dialer Leads",
+        href: "/admin/tata-dialer-lead",
+        icon: <Users size={16} />,
+      },
+    ],
+  },
 
-    {
-      title: "Content",
-      items: [
-        {
-          name: "Blog Management",
-          href: "/admin/blog",
-          icon: <BookCheck size={16} />,
-        },
-        {
-          name: "City Services",
-          href: "/admin/citys",
-          icon: <Map size={16} />,
-        },
-      ],
-    },
-    {
-      title: "Franchise",
-      items: [
-        {
-          name: "Franchise Lead",
-          href: "/admin/franchise/franchise-lead",
-          icon: <LucideHeadset size={16} />,
-        },
-        {
-          name: "Create Franchise",
-          href: "/admin/create-franchise",
-          icon: <LucideHeadset size={16} />,
-        },
-      ],
-    },
-    {
-      title: "Team",
-      items: [
-        {
-          name: "Account Manager",
-          href: "/admin/manager-assignment",
-          icon: <UserSquare size={16} />,
-        },
-      ],
-    },
-    {
-      title: "Integrations",
-      items: [
-        {
-          name: "Connected Nodes",
-          href: "/admin/connected-node",
-          icon: <Link2 size={16} />,
-        },
-      ],
-    },
-    {
-      title: "System",
-      items: [
-        {
-          name: "Settings",
-          href: "/admin/settings",
-          icon: <Settings size={16} />,
-        },
-        {
-          name: "Maintenance",
-          href: "/admin/maintenance",
-          icon: <PanelLeftDashed size={16} />,
-        },
-        {
-          name: "API Logs",
-          href: "/admin/logs",
-          icon: <BarChart3 size={16} />,
-        },
-      ],
-    },
-  ];
+  {
+    title: "Bookings",
+    groupIcon: <BookCheck size={16} />,
+    items: [
+      {
+        name: "Service Booking",
+        href: "/admin/service-booking",
+        icon: <CircleUser size={16} />,
+      },
+      {
+        name: "Package Booking",
+        href: "/admin/our-package",
+        icon: <Users size={16} />,
+      },
+    ],
+  },
+
+  {
+    title: "Content",
+    groupIcon: <QrCode size={16} />,
+    items: [
+      {
+        name: "Blog Management",
+        href: "/admin/blog",
+        icon: <BookCheck size={16} />,
+      },
+      {
+        name: "City Services",
+        href: "/admin/citys",
+        icon: <Map size={16} />,
+      },
+    ],
+  },
+
+  {
+    title: "Franchise",
+    groupIcon: <LucideHeadset size={16} />,
+    items: [
+      {
+        name: "Franchise Lead",
+        href: "/admin/franchise/franchise-lead",
+        icon: <LucideHeadset size={16} />,
+      },
+      {
+        name: "Create Franchise",
+        href: "/admin/create-franchise",
+        icon: <LucideHeadset size={16} />,
+      },
+    ],
+  },
+
+  {
+    title: "Team",
+    groupIcon: <CircleUser size={16} />,
+    items: [
+      {
+        name: "Account Manager",
+        href: "/admin/manager-assignment",
+        icon: <UserSquare size={16} />,
+      },
+    ],
+  },
+
+  {
+    title: "Integrations",
+    groupIcon: <Link2 size={16} />,
+    items: [
+      {
+        name: "Connected Nodes",
+        href: "/admin/connected-node",
+        icon: <Link2 size={16} />,
+      },
+    ],
+  },
+
+  {
+    title: "System",
+    groupIcon: <Settings size={16} />,
+    items: [
+      {
+        name: "Settings",
+        href: "/admin/settings",
+        icon: <Settings size={16} />,
+      },
+      {
+        name: "Maintenance",
+        href: "/admin/maintenance",
+        icon: <PanelLeftDashed size={16} />,
+      },
+      {
+        name: "API Logs",
+        href: "/admin/logs",
+        icon: <BarChart3 size={16} />,
+      },
+    ],
+  },
+];
 
   /* ----------------------------
       ROLE-BASED FILTER
@@ -301,18 +314,26 @@ useEffect(() => {
           {navGroups.map((group, idx) => (
             <div key={idx}>
               <button
-                onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
-                className="w-full flex items-center justify-between px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100"
-              >
-                {group.title}
-                <span
-                  className={`text-xl font-bold leading-none transition-transform duration-500 ease-in-out ${
-                    openGroup === idx ? "rotate-180" : ""
-                  }`}
-                >
-                  ⌵
-                </span>
-              </button>
+  onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
+  className={`w-full flex items-center ${
+    open ? "justify-between px-4" : "justify-center"
+  } py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100 transition-all`}
+>
+  <div className="flex items-center gap-2">
+    {group.groupIcon}
+    {open && <span>{group.title}</span>}
+  </div>
+
+  {open && (
+    <span
+      className={`text-xl font-bold leading-none transition-transform duration-500 ease-in-out ${
+        openGroup === idx ? "rotate-180" : ""
+      }`}
+    >
+      ⌵
+    </span>
+  )}
+</button>
 
               <div
   className={`ml-2 mt-1 space-y-1 overflow-hidden transition-all duration-500 ease-in-out
@@ -329,7 +350,9 @@ useEffect(() => {
       <Link
         key={item.name}
         href={item.href}
-        className={`flex items-center gap-3 px-4 py-2.5 text-[14px] rounded-lg transition-all duration-300
+        className={`flex items-center ${
+  open ? "gap-3 px-4 justify-start" : "justify-center"
+} py-2.5 text-[14px] rounded-lg transition-all duration-300
         ${
           active
             ? "bg-blue-50 text-blue-600 font-medium shadow-sm scale-[1.02]"

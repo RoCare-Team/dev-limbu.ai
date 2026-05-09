@@ -1,10 +1,33 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import SelectedLeadsActionBar4 from "./component-modal/SelectedLeadsActionBar4"
+
 export default function TransactionsPage() {
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  
+    const [selectedRows, setSelectedRows] = useState([]);
+  
+  // Select all rows
+  const handleSelectAll = (checked) => {
+  if (checked) {
+    setSelectedRows(data.map((tx) => tx._id));
+  } else {
+    setSelectedRows([]);
+  }
+};
+  
+  // Select single row
+  const handleSelectRow = (id) => {
+    setSelectedRows((prev) =>
+      prev.includes(id)
+        ? prev.filter((rowId) => rowId !== id)
+        : [...prev, id]
+    );
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -44,9 +67,26 @@ export default function TransactionsPage() {
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full text-sm">
+
+            <>
+
+                <SelectedLeadsActionBar4 selectedRows={selectedRows} />
+
+              <table className="min-w-full text-sm">
               <thead className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
                 <tr>
+                   {/* Select All Checkbox */}
+        <th className="py-4 px-6 text-center">
+          <input
+            type="checkbox"
+            checked={
+  data.length > 0 &&
+  selectedRows.length === data.length
+}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 accent-blue-600 cursor-pointer"
+          />
+        </th>
                   <th className="px-4 py-3 text-left font-semibold">User Name</th>
                   <th className="px-4 py-3 text-left font-semibold">Email</th>
                   <th className="px-4 py-3 text-left font-semibold">Total Wallet</th>
@@ -60,6 +100,16 @@ export default function TransactionsPage() {
               <tbody className="divide-y divide-slate-100">
                 {data.map((tx, i) => (
                   <tr key={i} className={i % 2 === 0 ? "bg-slate-50/50" : "bg-white"}>
+
+                     {/* Row Checkbox */}
+          <td className="py-4 px-6 text-center">
+            <input
+              type="checkbox"
+              checked={selectedRows.includes(tx._id)}
+onChange={() => handleSelectRow(tx._id)}
+              className="w-4 h-4 accent-blue-600 cursor-pointer"
+            />
+          </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{tx.user?.fullName || "-"}</td>
                     <td className="px-4 py-3 text-slate-600">{tx.user?.email || "-"}</td>
                     <td className="px-4 py-3 text-slate-700">{tx.user?.wallet ?? "-"}</td>
@@ -73,6 +123,9 @@ export default function TransactionsPage() {
                 ))}
               </tbody>
             </table>
+            </>
+
+            
           </div>
         </>
       )}

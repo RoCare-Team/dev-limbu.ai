@@ -5,6 +5,7 @@
 import { Search } from "lucide-react";
 
 export default function RevenueFilters({
+  activeView,
   searchTerm,
   setSearchTerm,
   expiryFilter,
@@ -61,10 +62,20 @@ export default function RevenueFilters({
           className="h-[42px] min-w-[150px] px-3 rounded-xl border border-gray-300 
           text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
         >
-          <option value="">All Plans</option>
-          <option value="basic">Basic</option>
-          <option value="professional">Professional</option>
-          <option value="premium">Premium</option>
+         {activeView === "package" ? (
+  <>
+    <option value="">All Plans</option>
+    <option value="basic">Basic</option>
+    <option value="professional">Professional</option>
+    <option value="premium">Premium</option>
+  </>
+) : (
+  <>
+    <option value="">All Plans</option>
+    <option value="assistance">Assistance</option>
+    <option value="creation">Creation</option>
+  </>
+)}
         </select>
 
         {/* STATUS FILTER */}

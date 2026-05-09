@@ -89,7 +89,32 @@ export default function RevenueUsersPage() {
   const serviceUsers = users.filter((u) => u.paidService || u.isServiceBooked);
 
   // check box select
-  const [selectedRows, setSelectedRows] = useState([]);
+  // ===============================
+// Separate Selection for Package and Service
+// ===============================
+const [selectedPackageRows, setSelectedPackageRows] = useState([]);
+const [selectedServiceRows, setSelectedServiceRows] = useState([]);
+
+// Current active selection
+const selectedRows =
+  activeView === "package"
+    ? selectedPackageRows
+    : selectedServiceRows;
+
+// Current active setter
+const setSelectedRows =
+  activeView === "package"
+    ? setSelectedPackageRows
+    : setSelectedServiceRows;
+
+// Clear selection when switching tabs
+useEffect(() => {
+  if (activeView === "package") {
+    setSelectedServiceRows([]);
+  } else {
+    setSelectedPackageRows([]);
+  }
+}, [activeView]);
 
   const handleSelectAll = (checked) => {
     if (checked) {
@@ -582,15 +607,16 @@ export default function RevenueUsersPage() {
           {/* SERACH TOOL BAAR  */}
 
           <RevenueFilters
-  searchTerm={searchTerm}
-  setSearchTerm={setSearchTerm}
-  expiryFilter={expiryFilter}
-  setExpiryFilter={setExpiryFilter}
-  planFilter={planFilter}
-  setPlanFilter={setPlanFilter}
-  statusFilter={statusFilter}
-  setStatusFilter={setStatusFilter}
-/>
+          activeView={activeView}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            expiryFilter={expiryFilter}
+            setExpiryFilter={setExpiryFilter}
+            planFilter={planFilter}
+            setPlanFilter={setPlanFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+          />
 
           <RevenueTableWrapper
   loadingRevenueUsers={loadingRevenueUsers}
@@ -859,9 +885,9 @@ export default function RevenueUsersPage() {
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-                        users
-                          .filter((u) => u.paidService || u.isServiceBooked)
-                          .map((u, i) => (
+                        filteredData
+    .filter((u) => u.type === "service")
+    .map((u, i) => (
                             <tr
                               key={i}
                               className="border-t hover:bg-gray-50 transition"

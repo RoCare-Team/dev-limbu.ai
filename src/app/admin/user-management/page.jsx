@@ -40,6 +40,8 @@ import {
   Bell,
   Upload,
   Send,
+  Smartphone,
+  MessageCircle,
   
 } from "lucide-react";
 import {
@@ -57,6 +59,10 @@ import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 
 import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneModal";
+
+import WhatsappModal from "./components/WhatsAppButton";
+
+// import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
 
 import {
   alpha,
@@ -187,7 +193,7 @@ export default function UserManagement() {
     leads: [],
   });
 
-  
+  const [isOpen, setIsOpen] = useState(false);
 
   const [followUpFilter, setFollowUpFilter] = useState("all");
   const [followUpLeads, setFollowUpLeads] = useState([]);
@@ -3066,9 +3072,76 @@ const currentLeadTotal =
                         className="flex items-center justify-center gap-2 bg-white text-green-600 px-4 py-3 rounded-lg font-medium hover:bg-green-50 transition shadow-md min-w-[160px]"
                       >
                         <MessageSquare size={20} />
-                        WhatsApp
+                        WhatsApp 
                       </button>
+
+
+                      <button
+  type="button"
+  onClick={() => setIsOpen(true)}
+  className="group bg-white px-6 py-3 rounded-2xl
+  flex items-center gap-2 text-green-600 font-semibold
+  shadow-md hover:shadow-xl hover:-translate-y-1
+  hover:scale-105 active:scale-95
+  transition-all duration-300"
+>
+  <MessageCircle
+    size={20}
+    className="group-hover:rotate-12 transition"
+  />
+  WhatsApp
+</button>
+
+
+                      <button
+                                      className="group bg-white px-6 py-3 rounded-2xl
+                                      flex items-center gap-2 text-blue-600 font-semibold
+                                      shadow-md hover:shadow-xl hover:-translate-y-1
+                                      hover:scale-105 active:scale-95
+                                      transition-all duration-300"
+                                    >
+                                      <Send
+                                        size={20}
+                                        className="group-hover:-rotate-12 transition"
+                                      />
+                                      RCS
+                                    </button>
+                      
+                                    <button
+                                      className="group bg-white px-6 py-3 rounded-2xl
+                                      flex items-center gap-2 text-purple-600 font-semibold
+                                      shadow-md hover:shadow-xl hover:-translate-y-1
+                                      hover:scale-105 active:scale-95
+                                      transition-all duration-300"
+                                    >
+                                      <Mail
+                                        size={20}
+                                        className="group-hover:scale-110 transition"
+                                      />
+                                      Email
+                                    </button>
+                      
+                                    <button
+                                      className="group bg-white px-6 py-3 rounded-2xl
+                                      flex items-center gap-2 text-orange-600 font-semibold
+                                      shadow-md hover:shadow-xl hover:-translate-y-1
+                                      hover:scale-105 active:scale-95
+                                      transition-all duration-300"
+                                    >
+                                      <Smartphone
+                                        size={20}
+                                        className="group-hover:rotate-6 transition"
+                                      />
+                                      SMS
+                                    </button>
                     </div>
+
+                          {/* Modal */}
+      <WhatsappModal
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
+      />
+
                   </div>
                 </div>
               )}

@@ -3,10 +3,34 @@
 import { useEffect, useState } from "react";
 import { BOOKING_SOURCE_VALUES, bookingSourceLabel } from "@/lib/bookingSource";
 
+import SelectedLeadsActionBar2 from "./component-modal/SelectedLeadsActionBar2"
+
 export default function PackageBookingList() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+
+  // Selected rows state
+const [selectedRows, setSelectedRows] = useState([]);
+
+// Select all rows
+const handleSelectAll = (checked) => {
+  if (checked) {
+    setSelectedRows(data.map((item) => item._id));
+  } else {
+    setSelectedRows([]);
+  }
+};
+
+// Select single row
+const handleSelectRow = (id) => {
+  setSelectedRows((prev) =>
+    prev.includes(id)
+      ? prev.filter((rowId) => rowId !== id)
+      : [...prev, id]
+  );
+};
 
   const patchBookingSource = async (bookingId, bookingSource) => {
     try {
@@ -85,125 +109,159 @@ export default function PackageBookingList() {
   </div>
 
   <div className="overflow-x-auto">
-    <table className="min-w-full text-sm text-gray-700">
-
-      {/* THEAD */}
-      <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
-        <tr className="text-xs uppercase tracking-wider">
-          <th className="px-6 py-4 text-left font-semibold">Customer</th>
-          <th className="px-6 py-4 text-left">Contact</th>
-          <th className="px-6 py-4 text-left">Plan</th>
-          <th className="px-6 py-4 text-left">Source</th>
-          <th className="px-6 py-4 text-right">Amount</th>
-          <th className="px-6 py-4 text-left">GST No.</th>
-          <th className="px-6 py-4 text-center">Status</th>
-          <th className="px-6 py-4 text-right">Date</th>
-        </tr>
-      </thead>
-
-      {/* TBODY */}
-      <tbody className="divide-y divide-gray-100">
-
-        {data.map((item) => (
-          <tr
-            key={item._id}
-            className="group hover:bg-blue-50 transition duration-200"
-          >
-
-            {/* Customer */}
-            <td className="px-6 py-5">
-              <div className="flex items-center gap-4">
-
-                {/* Avatar */}
-                <div className="w-11 h-11 flex items-center justify-center rounded-full 
-                bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-semibold text-sm
-                shadow-md ring-2 ring-blue-100">
-                  {item.name?.charAt(0)}
-                </div>
-
-                {/* Info */}
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    {item.name}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {item.email}
-                  </div>
-                </div>
-
-              </div>
-            </td>
-
-            {/* Contact */}
-            <td className="px-6 py-5 text-gray-700 font-medium">
-              {item.phone}
-            </td>
-
-            {/* Plan FIX */}
-            <td className="px-6 py-5">
-              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
-                {item.planTitle}
-              </span>
-            </td>
-
-            <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
-              <select
-                value={item.bookingSource || "website"}
-                onChange={(e) => patchBookingSource(item._id, e.target.value)}
-                className="text-xs font-semibold border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none focus:ring-2 focus:ring-blue-200"
-                title="Where this booking came from"
-              >
-                {BOOKING_SOURCE_VALUES.map((v) => (
-                  <option key={v} value={v}>
-                    {bookingSourceLabel(v)}
-                  </option>
-                ))}
-              </select>
-            </td>
-
-            {/* Amount FIX (₹ remove) */}
-            <td className="px-6 py-5 text-right">
-              <span className="font-bold text-gray-900 text-base">
-                {item.totalAmount}
-              </span>
-            </td>
-
-            {/* GST */}
-            <td className="px-6 py-5 text-gray-600">
-              {item.gstNumber || "—"}
-            </td>
-
-            {/* Status */}
-            <td className="px-6 py-5 text-center">
-              <span
-                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                  item.status === "paid"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${
-                  item.status === "paid" ? "bg-green-500" : "bg-yellow-500"
-                }`}></span>
-                {item.status.toUpperCase()}
-              </span>
-            </td>
-
-            {/* Date */}
-            <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
-              {new Date(item.createdAt).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
-            </td>
-
-          </tr>
-        ))}
-
-      </tbody>
-    </table>
+    
   </div>
+  <>
+  {/* Bulk Action Bar */}
+  <SelectedLeadsActionBar2 selectedRows={selectedRows} />
+
+  <table className="min-w-full text-sm text-gray-700">
+    {/* THEAD */}
+    <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
+      <tr className="text-xs uppercase tracking-wider">
+        {/* Select All Checkbox */}
+        <th className="px-6 py-4 text-center">
+          <input
+            type="checkbox"
+            checked={
+              data.length > 0 &&
+              selectedRows.length === data.length
+            }
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 accent-blue-600 cursor-pointer"
+          />
+        </th>
+
+        <th className="px-6 py-4 text-left font-semibold">Customer</th>
+        <th className="px-6 py-4 text-left">Contact</th>
+        <th className="px-6 py-4 text-left">Plan</th>
+        <th className="px-6 py-4 text-left">Source</th>
+        <th className="px-6 py-4 text-right">Amount</th>
+        <th className="px-6 py-4 text-left">GST No.</th>
+        <th className="px-6 py-4 text-center">Status</th>
+        <th className="px-6 py-4 text-right">Date</th>
+      </tr>
+    </thead>
+
+    {/* TBODY */}
+    <tbody className="divide-y divide-gray-100">
+      {data.map((item) => (
+        <tr
+          key={item._id}
+          className="group hover:bg-blue-50 transition duration-200"
+        >
+          {/* Row Checkbox */}
+          <td className="px-6 py-5 text-center">
+            <input
+              type="checkbox"
+              checked={selectedRows.includes(item._id)}
+              onChange={() => handleSelectRow(item._id)}
+              className="w-4 h-4 accent-blue-600 cursor-pointer"
+            />
+          </td>
+
+          {/* Customer */}
+          <td className="px-6 py-5">
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div
+                className="w-11 h-11 flex items-center justify-center rounded-full 
+                bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-semibold text-sm
+                shadow-md ring-2 ring-blue-100"
+              >
+                {item.name?.charAt(0)}
+              </div>
+
+              {/* Info */}
+              <div>
+                <div className="font-semibold text-gray-900">
+                  {item.name}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {item.email}
+                </div>
+              </div>
+            </div>
+          </td>
+
+          {/* Contact */}
+          <td className="px-6 py-5 text-gray-700 font-medium">
+            {item.phone}
+          </td>
+
+          {/* Plan */}
+          <td className="px-6 py-5">
+            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+              {item.planTitle}
+            </span>
+          </td>
+
+          {/* Source */}
+          <td
+            className="px-6 py-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <select
+              value={item.bookingSource || "website"}
+              onChange={(e) =>
+                patchBookingSource(item._id, e.target.value)
+              }
+              className="text-xs font-semibold border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none focus:ring-2 focus:ring-blue-200"
+              title="Where this booking came from"
+            >
+              {BOOKING_SOURCE_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {bookingSourceLabel(v)}
+                </option>
+              ))}
+            </select>
+          </td>
+
+          {/* Amount */}
+          <td className="px-6 py-5 text-right">
+            <span className="font-bold text-gray-900 text-base">
+              {item.totalAmount}
+            </span>
+          </td>
+
+          {/* GST */}
+          <td className="px-6 py-5 text-gray-600">
+            {item.gstNumber || "—"}
+          </td>
+
+          {/* Status */}
+          <td className="px-6 py-5 text-center">
+            <span
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                item.status === "paid"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  item.status === "paid"
+                    ? "bg-green-500"
+                    : "bg-yellow-500"
+                }`}
+              ></span>
+              {item.status.toUpperCase()}
+            </span>
+          </td>
+
+          {/* Date */}
+          <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
+            {new Date(item.createdAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</>
 </div>
 
 

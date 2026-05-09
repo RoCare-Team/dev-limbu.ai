@@ -2248,6 +2248,20 @@ if (!executiveMobile && typeof window !== "undefined") {
                         <table className="w-full text-xs min-w-[640px]">
                           <thead className="sticky top-0 z-10 shadow-sm">
                             <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
+
+                               <th className="px-4 py-2.5 text-center">
+          <input
+            type="checkbox"
+            checked={
+              (franchiseFollowUpStats.byAgent || []).length > 0 &&
+              selectedRows.length ===
+                (franchiseFollowUpStats.byAgent || []).length
+            }
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 accent-blue-600 cursor-pointer"
+          />
+        </th>
+
                               <th className="px-4 py-2.5 text-left">Agent</th>
                               <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
                               <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
@@ -2270,6 +2284,17 @@ if (!executiveMobile && typeof window !== "undefined") {
                               const name = agent.agentName || "Unknown";
                               return (
                                 <tr key={`franchise-fu-agent-${idx}`} className="hover:bg-gray-50 transition-colors">
+
+                                    {/* Row Checkbox */}
+            <td className="px-4 py-2.5 text-center">
+              <input
+                type="checkbox"
+                checked={selectedRows.includes(rowId)}
+                onChange={() => handleSelectRow(rowId)}
+                className="w-4 h-4 accent-blue-600 cursor-pointer"
+              />
+            </td>
+
                                   <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-2">
                                       <div

@@ -1,9 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import SelectedLeadsActionBar3 from "./component-modal/SelectedLeadsActionBar3"
+
 export default function LeadsAdminPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [selectedRows, setSelectedRows] = useState([]);
+
+// Select all rows
+const handleSelectAll = (checked) => {
+  if (checked) {
+    setSelectedRows(leads.map((lead) => lead._id));
+  } else {
+    setSelectedRows([]);
+  }
+};
+
+// Select single row
+const handleSelectRow = (id) => {
+  setSelectedRows((prev) =>
+    prev.includes(id)
+      ? prev.filter((rowId) => rowId !== id)
+      : [...prev, id]
+  );
+};
 
   const fetchLeads = async () => {
     try {
@@ -55,11 +77,28 @@ export default function LeadsAdminPage() {
   {/* Table Wrapper */}
   <div className="overflow-x-auto rounded-2xl border border-gray-100">
 
-    <table className="min-w-full">
+    <>
+
+          <SelectedLeadsActionBar3 selectedRows={selectedRows} />
+
+         <table className="min-w-full">
 
       {/* THEAD */}
       <thead>
         <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 text-xs uppercase tracking-wider">
+
+           {/* Select All Checkbox */}
+        <th className="py-4 px-6 text-center">
+          <input
+            type="checkbox"
+            checked={
+              leads.length > 0 &&
+              selectedRows.length === leads.length
+            }
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 accent-blue-600 cursor-pointer"
+          />
+        </th>
           <th className="py-4 px-6 text-left font-semibold">Name</th>
           <th className="py-4 px-6 text-left font-semibold">Email</th>
           <th className="py-4 px-6 text-left font-semibold">Phone</th>
@@ -76,6 +115,16 @@ export default function LeadsAdminPage() {
             key={lead._id}
             className="group hover:bg-gray-50 transition duration-200"
           >
+
+              {/* Row Checkbox */}
+          <td className="py-4 px-6 text-center">
+            <input
+              type="checkbox"
+              checked={selectedRows.includes(lead._id)}
+              onChange={() => handleSelectRow(lead._id)}
+              className="w-4 h-4 accent-blue-600 cursor-pointer"
+            />
+          </td>
 
             {/* Name + Avatar */}
             <td className="py-4 px-6">
@@ -125,6 +174,9 @@ export default function LeadsAdminPage() {
 
       </tbody>
     </table>
+    </>
+
+   
   </div>
 </div>
       )}

@@ -7,8 +7,10 @@ import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
+  const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId");
   const phoneRaw = searchParams.get("phone");
+  const source = (searchParams.get("source") || "").toLowerCase();
 
   if (!userId && phoneRaw) {
     const resolved = await resolveDashboardUserIdByPhone(phoneRaw);
@@ -33,13 +35,16 @@ export async function GET(req) {
 
   // Manual dashboard: `state === userId`. Chatbot + phone: wrapped `m.…` for return URL.
   let oauthState = userId;
-  if (phoneRaw) {
+  const shouldUseChatbotState =
+    !!phoneRaw && (source === "chatbot" || !userIdParam);
+  if (shouldUseChatbotState) {
     const digits = normalizeMetaPhoneDigits(phoneRaw);
     if (digits) {
       oauthState = encodeMetaOAuthState({
         userId,
         phone: digits,
         platform: "ig",
+        source: "chatbot",
       });
     }
   }

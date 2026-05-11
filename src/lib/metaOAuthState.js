@@ -17,14 +17,19 @@ function getBaseUrl() {
 }
 
 /**
- * @param {{ userId: string, phone: string, platform: 'fb' | 'ig' }} payload
+ * @param {{ userId: string, phone: string, platform: 'fb' | 'ig', source?: 'chatbot' | 'manual' }} payload
  */
 export function encodeMetaOAuthState(payload) {
   const phone = normalizeMetaPhoneDigits(payload.phone);
+  const source =
+    payload.source === "chatbot" || payload.source === "manual"
+      ? payload.source
+      : undefined;
   const json = JSON.stringify({
     u: payload.userId,
     p: phone,
     t: payload.platform,
+    ...(source ? { s: source } : {}),
   });
   const b64 = Buffer.from(json, "utf8").toString("base64url");
   return `m.${b64}`;
@@ -32,18 +37,25 @@ export function encodeMetaOAuthState(payload) {
 
 /**
  * @param {string | null | undefined} state
- * @returns {{ userId: string | null, phone: string, platform: 'fb'|'ig'|'', isMetaReturn: boolean }}
+ * @returns {{ userId: string | null, phone: string, platform: 'fb'|'ig'|'', source: 'chatbot'|'manual'|'', isMetaReturn: boolean }}
  */
 export function parseMetaOAuthState(state) {
   const raw = state && String(state).trim();
   if (!raw) {
-    return { userId: null, phone: "", platform: "", isMetaReturn: false };
+    return {
+      userId: null,
+      phone: "",
+      platform: "",
+      source: "",
+      isMetaReturn: false,
+    };
   }
   if (!raw.startsWith("m.")) {
     return {
       userId: raw,
       phone: "",
       platform: "",
+      source: "manual",
       isMetaReturn: false,
     };
   }
@@ -53,14 +65,29 @@ export function parseMetaOAuthState(state) {
     const uid = typeof o.u === "string" && o.u.trim() ? o.u.trim() : null;
     const phone = normalizeMetaPhoneDigits(typeof o.p === "string" ? o.p : "");
     const t = o.t === "ig" ? "ig" : o.t === "fb" ? "fb" : "";
+    const source =
+      o.s === "chatbot" ? "chatbot" : o.s === "manual" ? "manual" : "";
     return {
       userId: uid,
       phone,
       platform: t,
-      isMetaReturn: !!(uid && phone && (t === "fb" || t === "ig")),
+      source,
+      // Keep old behavior for already-issued links where `s` was not present.
+      isMetaReturn: !!(
+        uid &&
+        phone &&
+        (t === "fb" || t === "ig") &&
+        (source === "chatbot" || source === "")
+      ),
     };
   } catch {
-    return { userId: null, phone: "", platform: "", isMetaReturn: false };
+    return {
+      userId: null,
+      phone: "",
+      platform: "",
+      source: "",
+      isMetaReturn: false,
+    };
   }
 }
 

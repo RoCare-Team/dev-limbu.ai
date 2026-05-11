@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Facebook, Instagram, Loader2 } from "lucide-react";
 
@@ -36,6 +36,14 @@ function ConnectBusinessInner() {
     loading: true,
     ok: false,
     error: "",
+    userId: null,
+  });
+
+  const [metaPages, setMetaPages] = useState({
+    loading: false,
+    facebook: [],
+    instagram: [],
+    error: "",
   });
 
   useEffect(() => {
@@ -65,14 +73,20 @@ function ConnectBusinessInner() {
   const showInstagram =
     !platform || platform === "instagram" || platform === "ig";
 
+  const buttonsReady = resolveState.ok && !!phone && !resolveState.loading;
+  const chatUrl = "/?limbu_chat=1";
+  const handleOpenChat = useCallback(() => {
+    router.push(chatUrl);
+  }, [router]);
+
   const fbLoginHref = useMemo(() => {
     if (!phone) return "#";
-    return `/api/facebook/login?phone=${encodeURIComponent(phone)}`;
+    return `/api/facebook/login?phone=${encodeURIComponent(phone)}&source=chatbot`;
   }, [phone]);
 
   const igLoginHref = useMemo(() => {
     if (!phone) return "#";
-    return `/api/instagram/login?phone=${encodeURIComponent(phone)}`;
+    return `/api/instagram/login?phone=${encodeURIComponent(phone)}&source=chatbot`;
   }, [phone]);
 
   useEffect(() => {
@@ -90,12 +104,14 @@ function ConnectBusinessInner() {
         ok: false,
         error:
           "Your link must include a phone number in the URL, for example ?type=meta&phone=917740847114 (use the chatbot link you were sent).",
+        userId: null,
       });
       return;
     }
 
     let cancelled = false;
-    setResolveState({ loading: true, ok: false, error: "" });
+    setResolveState({ loading: true, ok: false, error: "", userId: null });
+    setMetaPages({ loading: false, facebook: [], instagram: [], error: "" });
 
     void fetch(`/api/meta/resolve-user?phone=${encodeURIComponent(phone)}`, {
       cache: "no-store",
@@ -104,7 +120,7 @@ function ConnectBusinessInner() {
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (res.ok && data?.userId) {
-          setResolveState({ loading: false, ok: true, error: "" });
+          setResolveState({ loading: false, ok: true, error: "", userId: data.userId });
         } else {
           setResolveState({
             loading: false,
@@ -112,6 +128,7 @@ function ConnectBusinessInner() {
             error:
               data?.error ||
               "No Limbu account was found for this number. Sign in once at /login with OTP using the same phone, then come back here to connect Facebook or Instagram.",
+            userId: null,
           });
         }
       })
@@ -121,6 +138,7 @@ function ConnectBusinessInner() {
             loading: false,
             ok: false,
             error: "We could not verify your account. Check your connection and try again.",
+            userId: null,
           });
         }
       });
@@ -129,6 +147,64 @@ function ConnectBusinessInner() {
       cancelled = true;
     };
   }, [phone, type]);
+
+  useEffect(() => {
+    if (!resolveState.ok || !resolveState.userId) return;
+
+    let cancelled = false;
+    setMetaPages((prev) => ({ ...prev, loading: true, error: "" }));
+
+    const loadPages = async () => {
+      try {
+        const [fbRes, igRes] = await Promise.all([
+          fetch(`/api/facebook/pages?userId=${encodeURIComponent(resolveState.userId)}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/instagram/pages?userId=${encodeURIComponent(resolveState.userId)}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        const fbData = await fbRes.json().catch(() => ({}));
+        const igData = await igRes.json().catch(() => ({}));
+
+        if (cancelled) return;
+
+        setMetaPages({
+          loading: false,
+          facebook: fbData.success && Array.isArray(fbData.pages) ? fbData.pages : [],
+          instagram: igData.success && Array.isArray(igData.pages) ? igData.pages : [],
+          error:
+            (!fbData.success && fbData.message ? fbData.message : "") ||
+            (!igData.success && igData.message ? igData.message : ""),
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Error fetching Meta pages:", error);
+          setMetaPages({
+            loading: false,
+            facebook: [],
+            instagram: [],
+            error: "We could not load connected pages. Please refresh after connecting.",
+          });
+        }
+      }
+    };
+
+    void loadPages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolveState.ok, resolveState.userId]);
+
+  useEffect(() => {
+    if (oauthFlash?.done !== "instagram") return;
+    const timer = window.setTimeout(() => {
+      router.replace(`/?limbu_chat=1`);
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [oauthFlash, router]);
 
   if (type === "google") {
     return (
@@ -140,9 +216,9 @@ function ConnectBusinessInner() {
 
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-  const fullPageUrl = `${baseUrl}/connect-business?type=meta&phone=${phone}`;
-  const fullFbUrl = `${baseUrl}/api/facebook/login?phone=${phone}`;
-  const fullIgUrl = `${baseUrl}/api/instagram/login?phone=${phone}`;
+  const fullPageUrl = `${baseUrl}/connect-business?type=meta&source=chatbot&phone=${phone}`;
+  const fullFbUrl = `${baseUrl}/api/facebook/login?phone=${phone}&source=chatbot`;
+  const fullIgUrl = `${baseUrl}/api/instagram/login?phone=${phone}&source=chatbot`;
 
   return (
     <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
@@ -184,16 +260,31 @@ function ConnectBusinessInner() {
           </div>
         )}
         {oauthFlash?.done === "instagram" && (
-          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 shadow-sm">
-            <CheckCircle2
-              className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
-              aria-hidden
-            />
-            <p>
-              <strong>Instagram Business connected successfully.</strong> Your
-              connection is saved. You can review it anytime after signing in to
-              Limbu with OTP on /login — you do not have to redo this OAuth step.
-            </p>
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+            <div className="flex items-start gap-3 text-sm text-emerald-950">
+              <CheckCircle2
+                className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
+                aria-hidden
+              />
+              <div>
+                <p>
+                  <strong>Instagram Business connected successfully.</strong> Your
+                  connection is saved. You can review it anytime after signing in
+                  to Limbu with OTP on /login — you do not have to redo this OAuth
+                  step.
+                </p>
+                <p className="mt-2 text-sm text-slate-700">
+                  We will open the Limbu chat automatically in a few seconds.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Open chat now
+                </button>
+              </div>
+            </div>
           </div>
         )}
         {(oauthFlash?.fbError || oauthFlash?.igError) && (
@@ -212,31 +303,113 @@ function ConnectBusinessInner() {
         )}
 
         {resolveState.loading && (
-          <div className="mt-10 flex flex-col items-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mt-10 flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
             <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
-            <p className="mt-4 text-sm text-slate-600">Checking your account…</p>
+            <p className="mt-4 text-sm text-slate-600">Resolving your Limbu account…</p>
           </div>
         )}
 
         {!resolveState.loading && resolveState.error && (
-          <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-sm text-amber-950 shadow-sm">
+          <div className="mt-8 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-center text-sm text-amber-950 shadow-sm">
             {resolveState.error}
           </div>
         )}
 
         {!resolveState.loading && resolveState.ok && (
           <>
-            <section className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="mt-8 space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Meta connect checklist</p>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                    Connect Facebook and Instagram from your chatbot link. We resolve your
+                    WhatsApp phone to a Limbu account and keep the same server OAuth flow
+                    as the dashboard.
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 shadow-inner">
+                  {metaPages.loading ? (
+                    <span>Loading connected pages…</span>
+                  ) : (
+                    <span>
+                      {metaPages.facebook.length} Facebook page{metaPages.facebook.length === 1 ? "" : "s"} · {metaPages.instagram.length} Instagram account{metaPages.instagram.length === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Facebook Pages</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">{metaPages.facebook.length}</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {metaPages.facebook.length > 0
+                      ? "Pages saved to Limbu.ai."
+                      : "No Facebook pages connected yet."}
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Instagram Accounts</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">{metaPages.instagram.length}</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {metaPages.instagram.length > 0
+                      ? "Instagram Business connected."
+                      : "No Instagram account connected yet."}
+                  </p>
+                </div>
+              </div>
+
+              {metaPages.error ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+                  {metaPages.error}
+                </div>
+              ) : null}
+
+              {metaPages.loading ? (
+                <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching connected pages…
+                </div>
+              ) : null}
+            </section>
+
+            {!metaPages.loading && metaPages.facebook.length + metaPages.instagram.length > 0 && (
+              <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-700 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-semibold text-slate-900">Connected Meta pages</p>
+                  <button
+                    type="button"
+                    onClick={handleOpenChat}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open Limbu chat
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {metaPages.facebook.map((page) => (
+                    <div key={`fb-${page.pageId}`} className="rounded-2xl bg-white p-3 shadow-sm">
+                      <p className="font-medium text-slate-900">{page.pageName}</p>
+                      <p className="text-xs text-slate-500">Facebook Page ID: {page.pageId}</p>
+                    </div>
+                  ))}
+                  {metaPages.instagram.map((page) => (
+                    <div key={`ig-${page.igId || page.pageId}`} className="rounded-2xl bg-white p-3 shadow-sm">
+                      <p className="font-medium text-slate-900">{page.igName || page.pageName || page.username}</p>
+                      <p className="text-xs text-slate-500">Instagram Business ID: {page.igId || page.pageId}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <section className="mt-8 space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-[13px] leading-snug text-slate-600">
                 <strong className="text-slate-900">Steps:</strong> connect your
                 Facebook Page first using a Meta account that is an admin of that
                 page. Your Instagram Business profile must already be linked to
                 that Page in Meta; then authorize with the Instagram button.
                 After each OAuth completion you&apos;ll{" "}
-                <span className="font-medium text-slate-800">
-                  land back on this page
-                </span>
-                . Data is stored the same way as the manual dashboard flow (
+                <span className="font-medium text-slate-800">land back on this page</span>.
+                Data is stored the same way as the manual dashboard flow (
                 <code className="text-slate-800">FacebookPage</code> |{" "}
                 <code className="text-slate-800">InstagramPage</code> collections).
               </p>
@@ -261,7 +434,8 @@ function ConnectBusinessInner() {
                   </p>
                   <a
                     href={fbLoginHref}
-                    className="flex w-full items-center justify-center rounded-xl bg-[#1877F2] py-3.5 text-sm font-semibold text-white shadow-md transition hover:bg-[#1463d6]"
+                    className={`flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-semibold text-white shadow-md transition ${buttonsReady ? "bg-[#1877F2] hover:bg-[#1463d6]" : "bg-slate-300 text-slate-500 cursor-not-allowed"}`}
+                    aria-disabled={!buttonsReady}
                   >
                     Connect Facebook
                   </a>
@@ -292,7 +466,8 @@ function ConnectBusinessInner() {
                   </p>
                   <a
                     href={igLoginHref}
-                    className="flex w-full items-center justify-center rounded-xl bg-[#E1306C] py-3.5 text-sm font-semibold text-white shadow-md transition hover:bg-[#c1275b]"
+                    className={`flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-semibold text-white shadow-md transition ${buttonsReady ? "bg-[#E1306C] hover:bg-[#c1275b]" : "bg-slate-300 text-slate-500 cursor-not-allowed"}`}
+                    aria-disabled={!buttonsReady}
                   >
                     Connect Instagram
                   </a>

@@ -10,8 +10,10 @@ import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
 //  Ye GET request handler hai. || Jab user browser me hit kare:
 export async function GET(req) {
   const { searchParams } = new URL(req.url); // ye Request ke URL ko parse kar raha hai.
+  const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId"); // ye URL se userId nikaal raha hai.
   const phoneRaw = searchParams.get("phone");
+  const source = (searchParams.get("source") || "").toLowerCase();
 
   if (!userId && phoneRaw) {
     const resolved = await resolveDashboardUserIdByPhone(phoneRaw);
@@ -36,13 +38,16 @@ export async function GET(req) {
 
   // Manual dashboard: `state === userId`. Chatbot + phone: wrapped `m.…` for return URL.
   let oauthState = userId;
-  if (phoneRaw) {
+  const shouldUseChatbotState =
+    !!phoneRaw && (source === "chatbot" || !userIdParam);
+  if (shouldUseChatbotState) {
     const digits = normalizeMetaPhoneDigits(phoneRaw);
     if (digits) {
       oauthState = encodeMetaOAuthState({
         userId,
         phone: digits,
         platform: "fb",
+        source: "chatbot",
       });
     }
   }

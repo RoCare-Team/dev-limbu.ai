@@ -144,6 +144,8 @@ function serializeMessagesForStorage(messages) {
 }
 /** Clean entry: OAuth → home with chat + GMB sync (saveBussiness) */
 export const LIMBU_CONNECT_BUSINESS_PATH = "/connect-google-business";
+/** Meta (FB + IG) chatbot landing — use `?type=meta&phone=` (+ optional `&platform=facebook|instagram`) */
+export const LIMBU_CONNECT_META_BUSINESS_PATH = "/connect-business";
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const ACCEPT_ATTR =

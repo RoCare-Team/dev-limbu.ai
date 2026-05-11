@@ -15,6 +15,7 @@ import {
 import HeaderSection from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col relative overflow-hidden">

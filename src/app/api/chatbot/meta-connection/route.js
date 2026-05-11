@@ -47,6 +47,7 @@ export async function GET(request) {
         phone,
         platform: "facebook",
         connectionSource: "chatbot",
+        $or: [{ type: "facebook" }, { type: { $exists: false } }, { type: "" }],
       })
         .sort({ updatedAt: -1 })
         .lean();
@@ -64,6 +65,7 @@ export async function GET(request) {
         phone,
         platform: "instagram",
         connectionSource: "chatbot",
+        $or: [{ type: "instagram" }, { type: { $exists: false } }, { type: "" }],
       })
         .sort({ updatedAt: -1 })
         .lean();

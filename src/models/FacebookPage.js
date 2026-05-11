@@ -4,6 +4,7 @@ const FacebookPageSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true },   // 🔥 Important
     phone: { type: String, default: "" },
+    type: { type: String, default: "facebook" },
     pageId: String,
     pageName: String,
     pageAccessToken: String,

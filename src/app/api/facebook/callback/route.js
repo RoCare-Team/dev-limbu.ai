@@ -107,6 +107,8 @@ export async function GET(req) {
           userAccessToken,                   // ye User long-lived token
           userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
           platform: "facebook", // ye Identify karne ke liye
+          phone: parsed.phone || "",
+          connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
         },
         { upsert: true, new: true } // ye upsert: true Agar record nahi mila → create karo || new: true Updated document return karo
       );

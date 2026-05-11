@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Facebook, Instagram, Loader2 } from "lucide-react";
 
@@ -31,6 +31,8 @@ function ConnectBusinessInner() {
   const phone = normalizePhone(searchParams.get("phone") || "");
 
   const [oauthFlash, setOauthFlash] = useState(null);
+  const hasScheduledRedirect = useRef(false);
+  const [isLaunchingOAuth, setIsLaunchingOAuth] = useState(false);
 
   const [resolveState, setResolveState] = useState({
     loading: true,
@@ -72,12 +74,16 @@ function ConnectBusinessInner() {
     !platform || platform === "facebook" || platform === "fb";
   const showInstagram =
     !platform || platform === "instagram" || platform === "ig";
+  const isInstagramFlow = platform === "instagram" || platform === "ig";
+  const activePlatform = isInstagramFlow ? "instagram" : "facebook";
 
   const buttonsReady = resolveState.ok && !!phone && !resolveState.loading;
-  const chatUrl = "/?limbu_chat=1";
+  const chatUrl = "https://wa.me/917065178662";
   const handleOpenChat = useCallback(() => {
-    router.push(chatUrl);
-  }, [router]);
+    if (typeof window !== "undefined") {
+      window.location.href = chatUrl;
+    }
+  }, [chatUrl]);
 
   const fbLoginHref = useMemo(() => {
     if (!phone) return "#";
@@ -88,6 +94,25 @@ function ConnectBusinessInner() {
     if (!phone) return "#";
     return `/api/instagram/login?phone=${encodeURIComponent(phone)}&source=chatbot`;
   }, [phone]);
+
+  const activeLoginHref = activePlatform === "facebook" ? fbLoginHref : igLoginHref;
+  const activeConnectedPages =
+    activePlatform === "facebook" ? metaPages.facebook : metaPages.instagram;
+  const activeOauthError =
+    activePlatform === "facebook" ? oauthFlash?.fbError : oauthFlash?.igError;
+
+  const handleConnect = useCallback(
+    (event) => {
+      if (!buttonsReady) {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      setIsLaunchingOAuth(true);
+      window.location.href = activeLoginHref;
+    },
+    [activeLoginHref, buttonsReady]
+  );
 
   useEffect(() => {
     if (type === "google") {
@@ -199,12 +224,17 @@ function ConnectBusinessInner() {
   }, [resolveState.ok, resolveState.userId]);
 
   useEffect(() => {
-    if (oauthFlash?.done !== "instagram") return;
+    const done = oauthFlash?.done;
+    if (!done || done !== activePlatform) return;
+    if (metaPages.loading) return;
+    if (hasScheduledRedirect.current) return;
+
+    hasScheduledRedirect.current = true;
     const timer = window.setTimeout(() => {
-      router.replace(`/?limbu_chat=1`);
-    }, 3500);
+      window.location.href = "https://wa.me/917065178662";
+    }, 2200);
     return () => window.clearTimeout(timer);
-  }, [oauthFlash, router]);
+  }, [activePlatform, oauthFlash, metaPages.loading]);
 
   if (type === "google") {
     return (
@@ -216,9 +246,22 @@ function ConnectBusinessInner() {
 
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-  const fullPageUrl = `${baseUrl}/connect-business?type=meta&source=chatbot&phone=${phone}`;
-  const fullFbUrl = `${baseUrl}/api/facebook/login?phone=${phone}&source=chatbot`;
-  const fullIgUrl = `${baseUrl}/api/instagram/login?phone=${phone}&source=chatbot`;
+  const fullFacebookPageUrl = `${baseUrl}/connect-business?type=meta&source=chatbot&platform=facebook&phone=${phone}`;
+  const fullInstagramPageUrl = `${baseUrl}/connect-business?type=meta&source=chatbot&platform=instagram&phone=${phone}`;
+  const cardTheme =
+    activePlatform === "facebook"
+      ? {
+          badgeClass: "bg-[#1877F2]/10 text-[#1877F2]",
+          buttonClass: "bg-[#1877F2] hover:bg-[#1463d6]",
+          title: "Connect Facebook Page",
+          helper: "Authorizing with Meta and fetching your Facebook pages.",
+        }
+      : {
+          badgeClass: "bg-pink-100 text-[#E1306C]",
+          buttonClass: "bg-[#E1306C] hover:bg-[#c1275b]",
+          title: "Connect Instagram Business",
+          helper: "Authorizing with Meta and fetching your Instagram business accounts.",
+        };
 
   return (
     <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
@@ -229,261 +272,143 @@ function ConnectBusinessInner() {
       </header>
 
       <main className="mx-auto max-w-lg px-4 pb-16 pt-8">
-        <h1 className="text-center text-[22px] font-bold leading-tight text-slate-900">
-          Connect Facebook &amp; Instagram
-        </h1>
-        <p className="mt-2 text-center text-sm text-slate-600">
-          This uses the same Meta OAuth flow as the dashboard — your chatbot link
-          only carries your WhatsApp phone number so we resolve your Limbu{" "}
-          <span className="font-semibold text-slate-800">account</span>. Facebook
-          and Instagram each use their own button and URL (same server routes).
-        </p>
-
-        {phone ? (
-          <p className="mt-3 text-center text-xs text-slate-500">
-            Phone:{" "}
-            <span className="font-medium text-slate-700">+{phone}</span>
-          </p>
-        ) : null}
-
-        {oauthFlash?.done === "facebook" && (
-          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 shadow-sm">
-            <CheckCircle2
-              className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
-              aria-hidden
-            />
-            <p>
-              <strong>Facebook Page connected successfully.</strong> Your pages
-              and tokens are saved the same way as on the dashboard. Use the
-              Instagram button below to finish linking Instagram Business.
-            </p>
-          </div>
-        )}
-        {oauthFlash?.done === "instagram" && (
-          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-            <div className="flex items-start gap-3 text-sm text-emerald-950">
-              <CheckCircle2
-                className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
-                aria-hidden
-              />
-              <div>
-                <p>
-                  <strong>Instagram Business connected successfully.</strong> Your
-                  connection is saved. You can review it anytime after signing in
-                  to Limbu with OTP on /login — you do not have to redo this OAuth
-                  step.
-                </p>
-                <p className="mt-2 text-sm text-slate-700">
-                  We will open the Limbu chat automatically in a few seconds.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleOpenChat}
-                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Open chat now
-                </button>
-              </div>
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-[24px] font-bold leading-tight text-slate-900">
+                {cardTheme.title}
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">
+                Clean OAuth flow with server-side save to DB, then WhatsApp redirect.
+              </p>
+            </div>
+            <div className={`rounded-full px-3 py-1 text-xs font-semibold ${cardTheme.badgeClass}`}>
+              Limbu.ai
             </div>
           </div>
-        )}
-        {(oauthFlash?.fbError || oauthFlash?.igError) && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 shadow-sm">
-            {oauthFlash.fbError ? (
-              <p className="font-medium">
-                Facebook: {metaErrorMessage(oauthFlash.fbError)}
-              </p>
-            ) : null}
-            {oauthFlash.igError ? (
-              <p className={oauthFlash.fbError ? "mt-2 font-medium" : "font-medium"}>
-                Instagram: {metaErrorMessage(oauthFlash.igError)}
-              </p>
-            ) : null}
-          </div>
-        )}
 
-        {resolveState.loading && (
-          <div className="mt-10 flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
-            <p className="mt-4 text-sm text-slate-600">Resolving your Limbu account…</p>
+          <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Phone</p>
+            <p className="mt-1 text-sm font-semibold text-slate-800">+{phone || "Not provided"}</p>
           </div>
-        )}
 
-        {!resolveState.loading && resolveState.error && (
-          <div className="mt-8 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-center text-sm text-amber-950 shadow-sm">
-            {resolveState.error}
-          </div>
-        )}
+          {resolveState.loading && (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Resolving account...
+            </div>
+          )}
 
-        {!resolveState.loading && resolveState.ok && (
-          <>
-            <section className="mt-8 space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+          {!resolveState.loading && resolveState.error && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {resolveState.error}
+            </div>
+          )}
+
+          {activeOauthError && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+              {metaErrorMessage(activeOauthError)}
+            </div>
+          )}
+
+          {oauthFlash?.done === activePlatform && (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Meta connect checklist</p>
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                    Connect Facebook and Instagram from your chatbot link. We resolve your
-                    WhatsApp phone to a Limbu account and keep the same server OAuth flow
-                    as the dashboard.
+                  <p className="font-semibold">
+                    Connected successfully. Data fetched and saved in DB.
+                  </p>
+                  <p className="mt-1 text-emerald-800">
+                    Redirecting to WhatsApp in a moment...
                   </p>
                 </div>
-                <div className="rounded-3xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 shadow-inner">
-                  {metaPages.loading ? (
-                    <span>Loading connected pages…</span>
+              </div>
+            </div>
+          )}
+
+          {metaPages.loading && oauthFlash?.done === activePlatform && (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {cardTheme.helper}
+            </div>
+          )}
+
+          {!metaPages.loading &&
+            oauthFlash?.done === activePlatform &&
+            activeConnectedPages.length > 0 && (
+              <div className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Fetched {activeConnectedPages.length} item
+                  {activeConnectedPages.length === 1 ? "" : "s"}
+                </p>
+                {activeConnectedPages.map((page) => (
+                  <div
+                    key={`${activePlatform}-${page.pageId || page.igId}`}
+                    className="rounded-xl bg-white px-3 py-2 text-sm text-slate-800"
+                  >
+                    {page.pageName || page.igName || page.username || "Connected"}
+                  </div>
+                ))}
+              </div>
+            )}
+
+          {!resolveState.loading && resolveState.ok && (
+            <button
+              type="button"
+              onClick={handleConnect}
+              disabled={!buttonsReady || isLaunchingOAuth}
+              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold text-white shadow-md transition ${
+                !buttonsReady || isLaunchingOAuth
+                  ? "cursor-not-allowed bg-slate-300 text-slate-500 shadow-none"
+                  : cardTheme.buttonClass
+              }`}
+            >
+              {isLaunchingOAuth ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Working...
+                </>
+              ) : (
+                <>
+                  {activePlatform === "facebook" ? (
+                    <Facebook className="h-5 w-5 text-white" aria-hidden />
                   ) : (
-                    <span>
-                      {metaPages.facebook.length} Facebook page{metaPages.facebook.length === 1 ? "" : "s"} · {metaPages.instagram.length} Instagram account{metaPages.instagram.length === 1 ? "" : "s"}
-                    </span>
+                    <Instagram className="h-5 w-5 text-white" aria-hidden />
                   )}
-                </div>
-              </div>
+                  {activePlatform === "facebook"
+                    ? "Connect Facebook"
+                    : "Connect Instagram"}
+                </>
+              )}
+            </button>
+          )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Facebook Pages</p>
-                  <p className="mt-3 text-2xl font-semibold text-slate-900">{metaPages.facebook.length}</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {metaPages.facebook.length > 0
-                      ? "Pages saved to Limbu.ai."
-                      : "No Facebook pages connected yet."}
-                  </p>
-                </div>
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Instagram Accounts</p>
-                  <p className="mt-3 text-2xl font-semibold text-slate-900">{metaPages.instagram.length}</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {metaPages.instagram.length > 0
-                      ? "Instagram Business connected."
-                      : "No Instagram account connected yet."}
-                  </p>
-                </div>
-              </div>
+          <button
+            type="button"
+            onClick={handleOpenChat}
+            className="mt-3 w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            Open WhatsApp
+          </button>
+        </section>
 
-              {metaPages.error ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-                  {metaPages.error}
-                </div>
-              ) : null}
-
-              {metaPages.loading ? (
-                <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching connected pages…
-                </div>
-              ) : null}
-            </section>
-
-            {!metaPages.loading && metaPages.facebook.length + metaPages.instagram.length > 0 && (
-              <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-700 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="font-semibold text-slate-900">Connected Meta pages</p>
-                  <button
-                    type="button"
-                    onClick={handleOpenChat}
-                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    Open Limbu chat
-                  </button>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {metaPages.facebook.map((page) => (
-                    <div key={`fb-${page.pageId}`} className="rounded-2xl bg-white p-3 shadow-sm">
-                      <p className="font-medium text-slate-900">{page.pageName}</p>
-                      <p className="text-xs text-slate-500">Facebook Page ID: {page.pageId}</p>
-                    </div>
-                  ))}
-                  {metaPages.instagram.map((page) => (
-                    <div key={`ig-${page.igId || page.pageId}`} className="rounded-2xl bg-white p-3 shadow-sm">
-                      <p className="font-medium text-slate-900">{page.igName || page.pageName || page.username}</p>
-                      <p className="text-xs text-slate-500">Instagram Business ID: {page.igId || page.pageId}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <section className="mt-8 space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[13px] leading-snug text-slate-600">
-                <strong className="text-slate-900">Steps:</strong> connect your
-                Facebook Page first using a Meta account that is an admin of that
-                page. Your Instagram Business profile must already be linked to
-                that Page in Meta; then authorize with the Instagram button.
-                After each OAuth completion you&apos;ll{" "}
-                <span className="font-medium text-slate-800">land back on this page</span>.
-                Data is stored the same way as the manual dashboard flow (
-                <code className="text-slate-800">FacebookPage</code> |{" "}
-                <code className="text-slate-800">InstagramPage</code> collections).
-              </p>
-            </section>
-
-            {showFacebook && (
-              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center gap-2 bg-[#1877F2]/10 px-4 py-3">
-                  <Facebook className="h-5 w-5 text-[#1877F2]" aria-hidden />
-                  <span className="text-sm font-semibold text-slate-900">
-                    Facebook Page
-                  </span>
-                </div>
-                <div className="space-y-3 p-5">
-                  <p className="text-[13px] text-slate-600">
-                    Tap the button below. It opens{" "}
-                    <code className="text-slate-800">/api/facebook/login</code> —
-                    the same endpoint as the dashboard. Your phone resolves to
-                    your Limbu{" "}
-                    <code className="text-slate-800">userId</code> and then Meta
-                    OAuth begins.
-                  </p>
-                  <a
-                    href={fbLoginHref}
-                    className={`flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-semibold text-white shadow-md transition ${buttonsReady ? "bg-[#1877F2] hover:bg-[#1463d6]" : "bg-slate-300 text-slate-500 cursor-not-allowed"}`}
-                    aria-disabled={!buttonsReady}
-                  >
-                    Connect Facebook
-                  </a>
-                  <p className="break-all text-[11px] text-slate-400">
-                    Direct link (chatbot copy): {fullFbUrl}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {showInstagram && (
-              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center gap-2 bg-pink-50 px-4 py-3">
-                  <Instagram className="h-5 w-5 text-[#E1306C]" aria-hidden />
-                  <span className="text-sm font-semibold text-slate-900">
-                    Instagram Business
-                  </span>
-                </div>
-                <div className="space-y-3 p-5">
-                  <p className="text-[13px] text-slate-600">
-                    Tap the button below —{" "}
-                    <code className="text-slate-800">/api/instagram/login</code>.
-                    Permissions differ slightly (InstagramBasic and Content
-                    Publish). Authorization still happens through Meta&apos;s login
-                    dialog, exactly like{" "}
-                    <span className="font-medium">the dashboard Instagram flow</span>
-                    .
-                  </p>
-                  <a
-                    href={igLoginHref}
-                    className={`flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-semibold text-white shadow-md transition ${buttonsReady ? "bg-[#E1306C] hover:bg-[#c1275b]" : "bg-slate-300 text-slate-500 cursor-not-allowed"}`}
-                    aria-disabled={!buttonsReady}
-                  >
-                    Connect Instagram
-                  </a>
-                  <p className="break-all text-[11px] text-slate-400">
-                    Direct link (chatbot copy): {fullIgUrl}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <section className="mt-8 rounded-xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+        {showFacebook && showInstagram && (
+          <>
+            <section className="mt-6 rounded-xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
               <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                All-in-one page URL (both steps here)
+                Facebook-only page URL
               </p>
               <p className="mt-1 break-all text-center text-[11px] text-slate-600">
-                {fullPageUrl}
+                {fullFacebookPageUrl}
+              </p>
+            </section>
+            <section className="mt-3 rounded-xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+              <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Instagram-only page URL
+              </p>
+              <p className="mt-1 break-all text-center text-[11px] text-slate-600">
+                {fullInstagramPageUrl}
               </p>
             </section>
           </>

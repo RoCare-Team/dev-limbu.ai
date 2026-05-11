@@ -86,10 +86,12 @@ export async function GET(req) {
         if (igRes.data.instagram_business_account) {
           igAccounts.push({
             userId,
+            phone: parsed.phone || "",
             igId: igRes.data.instagram_business_account.id,
             igUsername: igRes.data.instagram_business_account.username,
             pageAccessToken: page.access_token,
             platform: "instagram",
+            connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
           });
         }
       } catch (err) {

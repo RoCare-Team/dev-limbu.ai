@@ -3,10 +3,12 @@ import mongoose from "mongoose";
 const InstagramPageSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true },
+    phone: { type: String, default: "" },
     igId: { type: String, required: true },
     igUsername: String,
     pageAccessToken: String,
     platform: { type: String, default: "instagram" },
+    connectionSource: { type: String, default: "manual" },
   },
   { timestamps: true }
 );

@@ -94,7 +94,7 @@ export function parseMetaOAuthState(state) {
 export function facebookSuccessRedirect(parsed) {
   const base = getBaseUrl();
   if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&phone=${encodeURIComponent(parsed.phone)}&done=facebook`;
+    return `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&done=facebook`;
   }
   return `${base}/dashboard?fb=connected`;
 }
@@ -102,7 +102,7 @@ export function facebookSuccessRedirect(parsed) {
 export function facebookErrorRedirect(parsed, errorKey) {
   const base = getBaseUrl();
   if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&phone=${encodeURIComponent(parsed.phone)}&fb_error=${encodeURIComponent(errorKey)}`;
+    return `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&fb_error=${encodeURIComponent(errorKey)}`;
   }
   return `${base}/dashboard?fb=${encodeURIComponent(errorKey)}`;
 }
@@ -110,7 +110,7 @@ export function facebookErrorRedirect(parsed, errorKey) {
 export function instagramSuccessRedirect(parsed, igCount = 1) {
   const base = getBaseUrl();
   if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&phone=${encodeURIComponent(parsed.phone)}&done=instagram`;
+    return `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&done=instagram`;
   }
   return `${base}/dashboard?ig=connected&count=${igCount}`;
 }
@@ -118,7 +118,7 @@ export function instagramSuccessRedirect(parsed, igCount = 1) {
 export function instagramErrorRedirect(parsed, errorKey) {
   const base = getBaseUrl();
   if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&phone=${encodeURIComponent(parsed.phone)}&ig_error=${encodeURIComponent(errorKey)}`;
+    return `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&ig_error=${encodeURIComponent(errorKey)}`;
   }
   return `${base}/dashboard?ig=${encodeURIComponent(errorKey)}`;
 }

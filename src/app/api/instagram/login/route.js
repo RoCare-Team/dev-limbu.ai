@@ -6,6 +6,7 @@ import {
 import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
 
 export async function GET(req) {
+  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
   const { searchParams } = new URL(req.url);
   const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId");
@@ -51,7 +52,7 @@ export async function GET(req) {
 
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
-    redirect_uri: `${process.env.BASE_URL}/api/instagram/callback`,
+    redirect_uri: `${baseUrl}/api/instagram/callback`,
     scope: "pages_show_list,instagram_basic,instagram_content_publish,pages_read_engagement",
     response_type: "code",
     state: oauthState,

@@ -20,6 +20,7 @@ import {
 // Facebook OAuth ke baad callback GET request aati hai. || Facebook redirect karta hai:
 // `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
 export async function GET(req) {
+  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
   const reqUrl = new URL(req.url);
   const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
   const code = reqUrl.searchParams.get("code");
@@ -43,7 +44,7 @@ export async function GET(req) {
         params: {
           client_id: process.env.META_APP_ID, // ye client_id Facebook app ID
           client_secret: process.env.META_APP_SECRET, // ye client_secret Facebook app secret
-          redirect_uri: `${process.env.BASE_URL}/api/facebook/callback`, // ye redirect_uri Same hona chahiye jo login time pe diya
+          redirect_uri: `${baseUrl}/api/facebook/callback`, // ye redirect_uri Same hona chahiye jo login time pe diya
           code,
         },
       }
@@ -107,6 +108,9 @@ export async function GET(req) {
           userAccessToken,                   // ye User long-lived token
           userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
           platform: "facebook", // ye Identify karne ke liye
+          type: "facebook",
+          phone: parsed.phone || "",
+          connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
         },
         { upsert: true, new: true } // ye upsert: true Agar record nahi mila → create karo || new: true Updated document return karo
       );

@@ -10,6 +10,7 @@ import {
 
 // `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
 export async function GET(req) {
+  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
   const reqUrl = new URL(req.url);
   const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
   const code = reqUrl.searchParams.get("code");
@@ -31,7 +32,7 @@ export async function GET(req) {
         params: {
           client_id: process.env.META_APP_ID,
           client_secret: process.env.META_APP_SECRET,
-          redirect_uri: `${process.env.BASE_URL}/api/instagram/callback`,
+          redirect_uri: `${baseUrl}/api/instagram/callback`,
           code,
         },
       }
@@ -90,6 +91,7 @@ export async function GET(req) {
         if (igRes.data.instagram_business_account) {
           igAccounts.push({
             userId,
+            phone: parsed.phone || "",
             igId: igRes.data.instagram_business_account.id,
             igUsername: igRes.data.instagram_business_account.username,
             pageId: page.id,
@@ -97,6 +99,8 @@ export async function GET(req) {
             userAccessToken: userToken,
             ...(tokenExpiryDate ? { userTokenExpiresAt: tokenExpiryDate } : {}),
             platform: "instagram",
+            type: "instagram",
+            connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
           });
         }
       } catch (err) {
@@ -111,7 +115,22 @@ export async function GET(req) {
     }
 
     // 5️⃣ Save All Accounts
-    await InstagramPage.deleteMany({ userId });
+    if (parsed.source === "chatbot" && parsed.phone) {
+      await InstagramPage.deleteMany({
+        userId,
+        phone: parsed.phone,
+        connectionSource: "chatbot",
+      });
+    } else {
+      await InstagramPage.deleteMany({
+        userId,
+        $or: [
+          { connectionSource: { $exists: false } },
+          { connectionSource: "manual" },
+          { connectionSource: "" },
+        ],
+      });
+    }
     await InstagramPage.insertMany(igAccounts);
 
     return NextResponse.redirect(

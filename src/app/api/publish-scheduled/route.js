@@ -90,6 +90,39 @@ const markWhenPosted = (currentWhenPosted, platform, postId = "") => {
   return Array.from(map.values());
 };
 
+const markWhenFailed = (currentWhenPosted, platform, error = "") => {
+  const map = new Map(DEFAULT_WHEN_POSTED.map((entry) => [entry.platform, { ...entry }]));
+
+  if (Array.isArray(currentWhenPosted)) {
+    currentWhenPosted.forEach((entry) => {
+      const rawEntry = entry?.toObject ? entry.toObject() : entry;
+      const key = normalizePlatform(rawEntry?.platform);
+      if (key && map.has(key)) map.set(key, { ...map.get(key), ...rawEntry, platform: key });
+    });
+  } else if (currentWhenPosted && typeof currentWhenPosted === "object") {
+    Object.entries(currentWhenPosted).forEach(([key, value]) => {
+      const platformKey = normalizePlatform(key);
+      if (!platformKey || !map.has(platformKey)) return;
+      const existing = map.get(platformKey);
+      if (typeof value === "object" && value !== null) {
+        map.set(platformKey, { ...existing, ...value, platform: platformKey });
+      }
+    });
+  }
+
+  const key = normalizePlatform(platform);
+  const existing = map.get(key) || { platform: key, posted: false, postedDate: null, postId: "", error: "" };
+  map.set(key, {
+    ...existing,
+    platform: key,
+    posted: false,
+    postedDate: null,
+    error: error || "Failed to publish",
+  });
+
+  return Array.from(map.values());
+};
+
 const formatGmbDate = (value) => {
   if (!value) return "";
   const [year, month, day] = value.split("-");
@@ -403,6 +436,8 @@ export async function GET(req) {
       }
 
       let failed = false;
+      let successCount = 0;
+      let failedCount = 0;
       const platformsPosted = new Set();
 
       /* -------------------------------------------------- 
@@ -452,11 +487,15 @@ export async function GET(req) {
             platformsPosted.add("Facebook");
             post.markModified('whenPosted');
             if (!post.mediaStatus) post.mediaStatus = {};
-            post.mediaStatus.image = "posted";
+            post.mediaStatus[pagePayload.mediaType === "video" ? "video" : "image"] = "posted";
             post.markModified('mediaStatus');
+            successCount++;
           } else {
             page.error = result.error;
+            post.whenPosted = markWhenFailed(post.whenPosted, "facebook", result.error);
+            post.markModified('whenPosted');
             failed = true;
+            failedCount++;
           }
         }
         post.markModified('fbPages');
@@ -512,11 +551,15 @@ export async function GET(req) {
             platformsPosted.add("Instagram");
             post.markModified('whenPosted');
             if (!post.mediaStatus) post.mediaStatus = {};
-            post.mediaStatus.image = "posted";
+            post.mediaStatus[accountPayload.mediaType === "video" ? "video" : "image"] = "posted";
             post.markModified('mediaStatus');
+            successCount++;
           } else {
             account.error = result.error;
+            post.whenPosted = markWhenFailed(post.whenPosted, "instagram", result.error);
+            post.markModified('whenPosted');
             failed = true;
+            failedCount++;
           }
         }
         post.markModified('igPages');
@@ -531,7 +574,10 @@ export async function GET(req) {
           log("❌ No refresh token on post document:", postId);
           // Mark GMB locations as failed? Or fail whole post?
           // For now, we log error and set failed flag, but continue to other platforms
+          post.whenPosted = markWhenFailed(post.whenPosted, "gmb", "No Google refresh token on scheduled post.");
+          post.markModified('whenPosted');
           failed = true;
+          failedCount++;
         } else {
           try {
             log("🔑 Using stored refreshToken from post document to get a fresh access token.");
@@ -611,20 +657,30 @@ export async function GET(req) {
                 platformsPosted.add("Google My Business");
                 post.markModified('whenPosted');
                 if (!post.mediaStatus) post.mediaStatus = {};
-                post.mediaStatus[post.mediaType === "video" ? "video" : "image"] = "posted";
+                post.mediaStatus[isVideoSelection ? "video" : "image"] = "posted";
                 post.markModified('mediaStatus');
 
                 processedLocIds.add(loc.locationId);
+                successCount++;
 
               } catch (err) {
                 log(`❌ Error posting to location ${loc.locationId}:`, err.message || "Unknown error");
+                loc.error = err.message || "Unknown error";
+                loc.isPosted = false;
+                post.whenPosted = markWhenFailed(post.whenPosted, "gmb", err.message || "Unknown error");
+                post.markModified('whenPosted');
                 failed = true;
+                failedCount++;
                 // We don't break here, try other locations
               }
             }
+            post.markModified('locations');
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
+            post.whenPosted = markWhenFailed(post.whenPosted, "gmb", err.message || "GMB critical error");
+            post.markModified('whenPosted');
             failed = true;
+            failedCount++;
           }
         }
       }
@@ -632,7 +688,7 @@ export async function GET(req) {
       // Determine final status
       // If ANY target failed, we mark as failed (or partially failed).
       // Current logic: if !failed, then posted.
-      if (!failed) {
+      if (!failed && successCount > 0) {
         post.status = "posted";
         post.error = null;
         stats.posted++;
@@ -673,6 +729,10 @@ export async function GET(req) {
           log(`⚠️ Error sending post published email:`, emailError.message);
           // Don't fail the post if email fails
         }
+      } else if (successCount > 0 && failedCount > 0) {
+        post.status = "partial_failed";
+        post.error = "Some platforms posted successfully, one or more failed.";
+        stats.failed++;
       } else {
         post.status = "failed";
         post.error = "One or more targets failed to post.";

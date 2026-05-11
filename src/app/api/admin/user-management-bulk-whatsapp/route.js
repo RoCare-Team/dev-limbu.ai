@@ -8,7 +8,7 @@ const normalizeNumber = (num) => {
   if (!num) return null;
   let n = num.toString().replace(/\D/g, "");
   if (n.startsWith("0")) n = n.slice(1);
-  if (n.length === 10) n = "91" + n;
+  if (n.length === 10) n = "9h1" + n;
   return n.length === 12 ? n : null;
 };
 

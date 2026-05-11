@@ -1,16 +1,17 @@
-
 import mongoose from "mongoose";
 
 const FacebookPageSchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },   // 🔥 Important
+    userId: { type: String, required: true }, // 🔥 Important
     pageId: String,
     pageName: String,
     pageAccessToken: String,
     pageTokenExpiresAt: Date,
+    userAccessToken: String,
+    userTokenExpiresAt: Date,
     platform: { type: String, default: "facebook" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.models.FacebookPage ||

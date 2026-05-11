@@ -133,28 +133,26 @@ export async function updatePostStatusAction(payload) {
 export async function postToGmbAction(payload) {
     try {
         const response = await fetch(
-            " https://gmb-post.limbutech.in/gmb-post",
+            `${API_URL}/api/gmb/publish`,
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "Authorization": `Bearer ${process.env.GMB_API_SECRET || "Xk9mP2qR8vLnJ4wZ7dF3yT6hQ1GMB"}`
+                    "Accept": "application/json"
                 },
                 body: JSON.stringify(payload),
             }
         );
-        console.log("🚀 ~ Received response from GMB Python API - Status:", response.status);
+        console.log("GMB publish API response status:", response.status);
         const text = await response.text();
         try {
             const data = text ? JSON.parse(text) : {};
-            return { ok: response.ok, data };
+            return { ok: response.ok && data?.ok !== false, data: data?.data ?? data };
         } catch (error) {
             return { ok: response.ok, data: text };
         }
     } catch (error) {
-        console.error("🚀 ~ Fetch failed in postToGmbAction:", error.message);
-        // This gracefully returns a failed state to the frontend, triggering the refund process
+        console.error("Fetch failed in postToGmbAction:", error.message);
         return { ok: false, data: { error: "API Unreachable", details: error.message } };
     }
 }

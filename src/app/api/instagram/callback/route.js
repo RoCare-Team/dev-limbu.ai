@@ -44,6 +44,10 @@ export async function GET(req) {
     );
 
     const userToken = longRes.data.access_token;
+    const expiresIn = longRes.data.expires_in;
+    const tokenExpiryDate = expiresIn
+      ? new Date(Date.now() + expiresIn * 1000)
+      : undefined;
 
     // 3️⃣ Get Facebook Pages
     const pagesRes = await axios.get(
@@ -77,7 +81,10 @@ export async function GET(req) {
             userId,
             igId: igRes.data.instagram_business_account.id,
             igUsername: igRes.data.instagram_business_account.username,
+            pageId: page.id,
             pageAccessToken: page.access_token,
+            userAccessToken: userToken,
+            ...(tokenExpiryDate ? { userTokenExpiresAt: tokenExpiryDate } : {}),
             platform: "instagram",
           });
         }

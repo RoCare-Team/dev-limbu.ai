@@ -6,17 +6,25 @@ import { useAuthStore } from "@/stores/useAuthStore";
 const clientLogos = [
   // { name: "Anup Gupta", src: "/images/clients/anup_gupta_ai.png" },
   { name: "Ro-Care India", src: "/images/clients/ro-care-india.webp" },
-  { name: "Dynamic Drapry", src: "/images/clients/unnamed-5.png" },
-  { name: "Mannubhai", src: "/images/clients/mannubhai.webp" },
+  { name: "unnamedd-1", src: "/images/clients/unnamedd-1.png" },
+  { name: "Mannubhai", src: "/images/clients/mannubhai-12.png" },
   { name: "Banjara Salon", src: "/images/clients/banjara_salon-3.png" },
-  { name: "Mazz", src: "/images/clients/mazz-2.png" },
+  { name: "Mazz", src: "/images/clients/mazz-4.png" },
   { name: "Gudiya Collection", src: "/images/clients/gudiya_collection-2.png" },
-   { name: "dynamic_drapry-1", src: "/images/clients/dynamic_drapry-2.png" },
+   { name: "dynamic_drapry", src: "/images/clients/dynamic_drapry-24.png" },
   { name: "unnamed", src: "/images/clients/unnamed-2.png" },
   { name: "Lucky Dry", src: "/images/clients/bpc-1-2.png" },
   { name: "ssd logo", src: "/images/clients/srinus-2.png" },
   
 ];
+
+
+
+
+
+
+
+
 
 export default function HeroSection() {
   const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);

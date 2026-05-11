@@ -6,10 +6,11 @@ import {
   resolveDashboardUserIdByPhone,
 } from "@/lib/metaChatbotResolveUser";
 import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
+import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 //  Ye GET request handler hai. || Jab user browser me hit kare:
 export async function GET(req) {
-  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
+  const baseUrl = resolveOAuthRedirectOrigin(req);
   const { searchParams } = new URL(req.url); // ye Request ke URL ko parse kar raha hai.
   const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId"); // ye URL se userId nikaal raha hai.

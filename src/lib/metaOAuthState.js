@@ -12,8 +12,13 @@ import { normalizeMetaPhoneDigits } from "@/lib/metaChatbotResolveUser";
  *    after success or error, while still using the same decoded `userId` for Mongo writes.
  */
 
-function getBaseUrl() {
-  return (process.env.BASE_URL || "").replace(/\/$/, "");
+function getBaseUrl(override) {
+  const o = (override || process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "")
+    .toString()
+    .trim()
+    .replace(/\/$/, "");
+  if (o) return o;
+  return "https://limbu.ai";
 }
 
 /**
@@ -91,32 +96,32 @@ export function parseMetaOAuthState(state) {
   }
 }
 
-export function facebookSuccessRedirect(parsed) {
-  const base = getBaseUrl();
+export function facebookSuccessRedirect(parsed, originOverride) {
+  const base = getBaseUrl(originOverride);
   if (parsed.isMetaReturn && parsed.phone) {
     return `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&done=facebook`;
   }
   return `${base}/dashboard?fb=connected`;
 }
 
-export function facebookErrorRedirect(parsed, errorKey) {
-  const base = getBaseUrl();
+export function facebookErrorRedirect(parsed, errorKey, originOverride) {
+  const base = getBaseUrl(originOverride);
   if (parsed.isMetaReturn && parsed.phone) {
     return `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&fb_error=${encodeURIComponent(errorKey)}`;
   }
   return `${base}/dashboard?fb=${encodeURIComponent(errorKey)}`;
 }
 
-export function instagramSuccessRedirect(parsed, igCount = 1) {
-  const base = getBaseUrl();
+export function instagramSuccessRedirect(parsed, igCount = 1, originOverride) {
+  const base = getBaseUrl(originOverride);
   if (parsed.isMetaReturn && parsed.phone) {
     return `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&done=instagram`;
   }
   return `${base}/dashboard?ig=connected&count=${igCount}`;
 }
 
-export function instagramErrorRedirect(parsed, errorKey) {
-  const base = getBaseUrl();
+export function instagramErrorRedirect(parsed, errorKey, originOverride) {
+  const base = getBaseUrl(originOverride);
   if (parsed.isMetaReturn && parsed.phone) {
     return `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&ig_error=${encodeURIComponent(errorKey)}`;
   }

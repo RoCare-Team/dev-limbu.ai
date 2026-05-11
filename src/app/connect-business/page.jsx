@@ -347,7 +347,11 @@ function ConnectBusinessInner() {
                     key={`${activePlatform}-${page.pageId || page.igId}`}
                     className="rounded-xl bg-white px-3 py-2 text-sm text-slate-800"
                   >
-                    {page.pageName || page.igName || page.username || "Connected"}
+                    {page.pageName ||
+                      page.igUsername ||
+                      page.igName ||
+                      page.username ||
+                      "Connected"}
                   </div>
                 ))}
               </div>

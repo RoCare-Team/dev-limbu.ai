@@ -4,9 +4,10 @@ import {
   resolveDashboardUserIdByPhone,
 } from "@/lib/metaChatbotResolveUser";
 import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
+import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 export async function GET(req) {
-  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
+  const baseUrl = resolveOAuthRedirectOrigin(req);
   const { searchParams } = new URL(req.url);
   const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId");

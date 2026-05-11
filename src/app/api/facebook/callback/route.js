@@ -11,20 +11,29 @@ import dbConnect from "@/lib/dbConnect";
 // Mongoose model — jisme page info save hogi.
 import FacebookPage from "@/models/FacebookPage";
 
+import {
+  parseMetaOAuthState,
+  facebookSuccessRedirect,
+  facebookErrorRedirect,
+} from "@/lib/metaOAuthState";
+
 // Facebook OAuth ke baad callback GET request aati hai. || Facebook redirect karta hai:
+// `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
 export async function GET(req) {
+  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
+  const reqUrl = new URL(req.url);
+  const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
+  const code = reqUrl.searchParams.get("code");
+  const userId = parsed.userId;
+
+  if (!code || !userId) {
+    return NextResponse.redirect(
+      facebookErrorRedirect(parsed, "missing_params")
+    );
+  }
+
   try {
     await dbConnect(); // ye DB connect kar raha hai.
-
-    const url = new URL(req.url); // ye Request URL ko parse kar raha hai.
-    const code = url.searchParams.get("code"); // ye Facebook se authorization code
-    const userId = url.searchParams.get("state"); // ye Custom value jo humne bheja tha (userId) || agr code mising ho Token exchange nahi ho paayega.
-
-    if (!code || !userId) { // ye Agar parameters missing hain → error redirect.
-      return NextResponse.redirect(
-        `${process.env.BASE_URL}/dashboard?fb=missing_params`
-      ); // User ko dashboard pe bhej raha hai error ke saath.
-    }
 
     /* ---------------------------------------------
        1️⃣ SHORT-LIVED USER TOKEN
@@ -35,7 +44,7 @@ export async function GET(req) {
         params: {
           client_id: process.env.META_APP_ID, // ye client_id Facebook app ID
           client_secret: process.env.META_APP_SECRET, // ye client_secret Facebook app secret
-          redirect_uri: `${process.env.BASE_URL}/api/facebook/callback`, // ye redirect_uri Same hona chahiye jo login time pe diya
+          redirect_uri: `${baseUrl}/api/facebook/callback`, // ye redirect_uri Same hona chahiye jo login time pe diya
           code,
         },
       }
@@ -80,7 +89,7 @@ export async function GET(req) {
 
     if (!pages || pages.length === 0) { // ye Agar user ke paas koi page nahi hai → error redirect.
       return NextResponse.redirect(
-        `${process.env.BASE_URL}/dashboard?fb=no_pages`
+        facebookErrorRedirect(parsed, "no_pages")
       );
     }
 
@@ -99,20 +108,21 @@ export async function GET(req) {
           userAccessToken,                   // ye User long-lived token
           userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
           platform: "facebook", // ye Identify karne ke liye
+          type: "facebook",
+          phone: parsed.phone || "",
+          connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
         },
         { upsert: true, new: true } // ye upsert: true Agar record nahi mila → create karo || new: true Updated document return karo
       );
     }
 
-    return NextResponse.redirect(
-      `${process.env.BASE_URL}/dashboard?fb=connected`
-    ); // ye User ko success ke saath dashboard bhej diya.
+    return NextResponse.redirect(facebookSuccessRedirect(parsed));
 
   } catch (err) {
     console.error("FB CALLBACK ERROR:", err.response?.data || err.message); // Error log karega.
 
     return NextResponse.redirect(
-      `https://www.facebook.com/v24.0/dialog/oauth?client_id=${process.env.META_APP_ID}&redirect_uri=${process.env.BASE_URL}/api/facebook/callback&scope=pages_show_list,pages_manage_posts,pages_read_engagement&state=RECONNECT`
-    ); // ye Agar error aaye → dobara Facebook login page pe bhej dega (reconnect flow).
+      facebookErrorRedirect(parsed, "oauth_failed")
+    );
   }
 }

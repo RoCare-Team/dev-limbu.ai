@@ -9,7 +9,6 @@ import {
   generateWithAssetsAction,
   deletePostFromGmbAction,
   updatePostStatusAction,
-  postToGmbAction,
 } from "@/app/actions/postActions";
 import { loadAssetsFromServerAction } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
@@ -848,6 +847,7 @@ export default function PostManagementPage() {
           locations,
           checkmark,
           scheduledDateSource: sources,
+          mediaType: checkmark === "video" ? "video" : undefined,
           fbPages,
           igPages,
           refreshToken:
@@ -903,7 +903,17 @@ export default function PostManagementPage() {
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
         );
+        const selectedCheckmark = selectedTargets.checkmark || post.checkmark;
+        const selectedMediaType = selectedTargets.mediaType || "image";
+        
+        // STABLE VIDEO CHECK: Check if videoOutput exists and is a valid string, and user selected video intent
+        const hasValidVideoOutput = typeof post.videoOutput === "string" && post.videoOutput.trim().length > 0;
+        const isVideoIntent = selectedMediaType === "video" || selectedCheckmark === "video";
+        const isVideoSchedule = isVideoIntent && hasValidVideoOutput;
+
         const scheduleImageUrl = post.aiOutput || "";
+        const scheduleVideoUrl = isVideoSchedule ? post.videoOutput : "";
+        const scheduleMediaType = isVideoSchedule ? "video" : "image";
         const getInstagramId = (account = {}) =>
           account.igId || account.igUserId || account.id;
 
@@ -915,6 +925,8 @@ export default function PostManagementPage() {
             pageName: p.pageName,
             caption: post.fbDescription || post.description || "",
             imageUrl: scheduleImageUrl,
+            videoUrl: scheduleVideoUrl,
+            mediaType: scheduleMediaType,
             isPosted: false,
             error: "",
           }));
@@ -927,6 +939,8 @@ export default function PostManagementPage() {
             igUsername: a.igUsername,
             caption: post.igDescription || post.description || "",
             imageUrl: scheduleImageUrl,
+            videoUrl: scheduleVideoUrl,
+            mediaType: scheduleMediaType,
             isPosted: false,
             error: "",
           }));
@@ -1352,7 +1366,16 @@ export default function PostManagementPage() {
 
         console.log("Posting to GMB with batched payload:", payload);
 
-        const postres = await postToGmbAction(payload);
+        const gmbResponse = await fetch("/api/gmb/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const gmbData = await gmbResponse.json().catch(() => ({}));
+        const postres = {
+          ok: gmbResponse.ok && gmbData?.ok !== false,
+          data: gmbData?.data ?? gmbData,
+        };
         console.log("GMB batch post response:", postres);
 
         let successfulLocs = [];
@@ -1516,7 +1539,7 @@ export default function PostManagementPage() {
 
   const handlePost = useCallback(
     async (post, media = null) => {
-      if (!["approved", "scheduled", "posted", "failed"].includes(post.status))
+      if (!["approved", "scheduled", "posted", "partial_failed", "failed"].includes(post.status))
         return showToast("Approve first", "error");
 
       // Check for GMB Session Expiry before showing the location modal

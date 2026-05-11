@@ -45,6 +45,7 @@ const PostSchema = new mongoose.Schema(
         "scheduled",
         "processing",
         "posted",
+        "partial_failed",
         "rejected",
         "failed",
       ],

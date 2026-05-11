@@ -12,8 +12,11 @@ import {
   Instagram,
   Wallet,
   Check,
+  Image as ImageIcon,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
+import { postHasVideoAsset, postImageUrl, postVideoUrl } from "@/lib/postMediaUrls";
 
 const RECOMMENDED_GMB = [9, 10, 13, 14];
 const RECOMMENDED_INSTA = [11, 12, 18, 19, 20];
@@ -62,6 +65,7 @@ const ScheduleModal = React.memo(({
   const [selectedGmb, setSelectedGmb] = useState([]);
   const [selectedFb, setSelectedFb] = useState([]);
   const [selectedIg, setSelectedIg] = useState([]);
+  const [mediaMode, setMediaMode] = useState("image");
 
   // --- GMB Post Configuration States ---
   const [checkmark, setCheckmark] = useState(["post", "photo"]);
@@ -75,12 +79,19 @@ const ScheduleModal = React.memo(({
   const [eventStartDate, setEventStartDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
 
+  const hasImageAsset = useMemo(() => Boolean(postImageUrl(post)), [post]);
+  const hasVideoAsset = useMemo(() => postHasVideoAsset(post), [post]);
+  const videoUrl = useMemo(() => postVideoUrl(post), [post]);
+
   const handleCheckmarkChange = useCallback((option) => {
     if (option === "video") {
       setCheckmark(["video"]);
+      setMediaMode("video");
     } else if (option === "both") {
       setCheckmark(["post", "photo"]);
+      setMediaMode("image");
     } else {
+      setMediaMode("image");
       setCheckmark((prev) => {
         const filtered = prev.filter((item) => item !== "video");
         if (filtered.includes(option)) {
@@ -119,6 +130,15 @@ const ScheduleModal = React.memo(({
         if (post.checkmark === "both") setCheckmark(["post", "photo"]);
         else if (post.checkmark === "video") setCheckmark(["video"]);
         else setCheckmark([post.checkmark]);
+      }
+      if (post.checkmark === "video" && postHasVideoAsset(post)) {
+        setMediaMode("video");
+      } else if (!postImageUrl(post) && postHasVideoAsset(post)) {
+        setMediaMode("video");
+        setCheckmark(["video"]);
+      } else {
+        setMediaMode("image");
+        if (post.checkmark === "video") setCheckmark(["post", "photo"]);
       }
       if (post.locations && post.locations.length > 0) {
         // Match post locations with available locations using locationId or id
@@ -170,7 +190,16 @@ const ScheduleModal = React.memo(({
       return;
     }
 
-    const payloadCheckmark = getPayload();
+    if (mediaMode === "video" && !videoUrl) {
+      alert("This post does not have a video to schedule.");
+      return;
+    }
+    if (mediaMode === "image" && !hasImageAsset) {
+      alert("This post does not have an image to schedule.");
+      return;
+    }
+
+    const payloadCheckmark = mediaMode === "video" ? "video" : getPayload();
 
     if (selectedGmb.length > 0 && payloadCheckmark !== "video") {
       if (postType === "event") {
@@ -205,6 +234,7 @@ const ScheduleModal = React.memo(({
       fb: selectedFb,
       ig: selectedIg,
       checkmark: payloadCheckmark,
+      mediaType: mediaMode,
       meta: {
         postType,
         ctaType,
@@ -215,7 +245,7 @@ const ScheduleModal = React.memo(({
       }
     });
     onClose();
-  }, [userWallet, totalCost, date, slot, getPayload, onConfirm, post?._id, selectedGmb, selectedFb, selectedIg, postType, ctaType, customUrl, eventTitle, eventStartDate, eventEndDate, onClose, setRequiredCoins, setShowInsufficientBalance]);
+  }, [userWallet, totalCost, date, slot, mediaMode, videoUrl, hasImageAsset, getPayload, onConfirm, post?._id, selectedGmb, selectedFb, selectedIg, postType, ctaType, customUrl, eventTitle, eventStartDate, eventEndDate, onClose, setRequiredCoins, setShowInsufficientBalance]);
 
   const timeSlots = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
@@ -379,6 +409,45 @@ const ScheduleModal = React.memo(({
                 </div>
               </div>
 
+              {/* Media Selector */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Media</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={!hasImageAsset}
+                    onClick={() => {
+                      setMediaMode("image");
+                      if (checkmark.includes("video")) setCheckmark(["post", "photo"]);
+                    }}
+                    className={`h-12 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all ${
+                      mediaMode === "image"
+                        ? "border-[#EAB308] bg-[#EAB308]/10 text-slate-950"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                    } ${!hasImageAsset ? "opacity-40 cursor-not-allowed hover:border-slate-200" : ""}`}
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Image
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!hasVideoAsset}
+                    onClick={() => {
+                      setMediaMode("video");
+                      setCheckmark(["video"]);
+                    }}
+                    className={`h-12 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all ${
+                      mediaMode === "video"
+                        ? "border-[#EAB308] bg-[#EAB308]/10 text-slate-950"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                    } ${!hasVideoAsset ? "opacity-40 cursor-not-allowed hover:border-slate-200" : ""}`}
+                  >
+                    <Video className="w-4 h-4" />
+                    Video
+                  </button>
+                </div>
+              </div>
+
               {/* Info Box */}
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-6">
                 <p className="text-xs text-blue-800 leading-relaxed font-medium">
@@ -430,25 +499,37 @@ const ScheduleModal = React.memo(({
               {activeTab === 'gmb' && (
                 <div className="space-y-4">
                   {/* Media Checkmarks */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-3 block">Media Type</label>
-                    <div className="flex flex-wrap items-center gap-6">
-                      {["post", "photo", "video", "both"].map((opt) => (
-                        <label key={opt} className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={opt === "both" ? (checkmark.includes("post") && checkmark.includes("photo")) : checkmark.includes(opt)}
-                            onChange={() => handleCheckmarkChange(opt)}
-                            className="w-5 h-5 rounded-lg border-2 border-slate-200 accent-[#EAB308] transition-all"
-                          />
-                          <span className="text-[11px] font-black uppercase tracking-widest text-black/70 group-hover:text-black">{opt}</span>
-                        </label>
-                      ))}
+                  {mediaMode === "image" ? (
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-3 block">Google Format</label>
+                      <div className="flex flex-wrap items-center gap-6">
+                        {["post", "photo", "both"].map((opt) => (
+                          <label key={opt} className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={opt === "both" ? (checkmark.includes("post") && checkmark.includes("photo")) : checkmark.includes(opt)}
+                              onChange={() => handleCheckmarkChange(opt)}
+                              className="w-5 h-5 rounded-lg border-2 border-slate-200 accent-[#EAB308] transition-all"
+                            />
+                            <span className="text-[11px] font-black uppercase tracking-widest text-black/70 group-hover:text-black">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#EAB308]/10 flex items-center justify-center text-[#A16207]">
+                        <Video className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-900">Video selected</p>
+                        <p className="text-xs font-semibold text-slate-500 mt-0.5">Google will use video format.</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Post Configuration for GMB */}
-                  {!checkmark.includes("video") && (
+                  {mediaMode === "image" && (
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Post Type</label>

@@ -220,6 +220,8 @@ export async function GET(req) {
       // Let's match the "total" tab's behavior of excluding rejected if needed,
       // but the user didn't specify. For now, let's just filter by video criteria.
       query.status = { $ne: "rejected" };
+    } else if (status === "posted") {
+      query.status = { $in: ["posted", "partial_failed"] };
     } else if (status) {
       query.status = status;
     }
@@ -311,7 +313,7 @@ export async function POST(req) {
                 $cond: [{ $ne: ["$status", "rejected"] }, 1, 0]
               }
             },
-            posted: { $sum: { $cond: [{ $eq: ["$status", "posted"] }, 1, 0] } },
+            posted: { $sum: { $cond: [{ $in: ["$status", ["posted", "partial_failed"]] }, 1, 0] } },
             approved: { $sum: { $cond: [{ $eq: ["$status", "approved"] }, 1, 0] } },
             rejected: { $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] } },
             pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
@@ -463,6 +465,7 @@ export async function PUT(req) {
       fbPages,
       aiOutput,
       igPages,
+      mediaType,
       videoOutput,
       videoPrompt,
       facebookPostId,
@@ -563,6 +566,7 @@ export async function PUT(req) {
     /* ---------- OPTIONAL FIELDS ---------- */
     if (typeof description === "string") updateData.description = description;
     if (typeof aiOutput === "string") updateData.aiOutput = aiOutput;
+    if (mediaType === "image" || mediaType === "video") updateData.mediaType = mediaType;
     if (typeof gmbDescription === "string") updateData.gmbDescription = gmbDescription;
     if (typeof fbDescription === "string") updateData.fbDescription = fbDescription;
     if (typeof igDescription === "string") updateData.igDescription = igDescription;
@@ -628,15 +632,28 @@ export async function PUT(req) {
 
     console.log("🛠 Updating Post:", updateData);
 
-    const updated = await Post.findOneAndUpdate(
-      { _id: id, userId },
-      { $set: updateData },
-      { new: true }
-    );
-
-    if (!updated) {
+    const postDoc = await Post.findOne({ _id: id, userId });
+    if (!postDoc) {
       return json({ success: false, error: "Post not found" }, 404);
     }
+
+    // Apply updates manually to the document
+    for (const key in updateData) {
+      if (key.startsWith("mediaStatus.")) {
+        const mediaKey = key.split(".")[1];
+        if (!postDoc.mediaStatus) postDoc.mediaStatus = {};
+        postDoc.mediaStatus[mediaKey] = updateData[key];
+        postDoc.markModified("mediaStatus");
+      } else {
+        postDoc[key] = updateData[key];
+      }
+    }
+
+    if (updateData.whenPosted) {
+      postDoc.markModified("whenPosted");
+    }
+
+    const updated = await postDoc.save();
 
     return json({ success: true, data: updated });
 

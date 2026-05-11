@@ -62,6 +62,7 @@ export default function AuthGuard({ children }) {
       "/education-marketing-software",
       "/realestate-marketing-software",
       "/connect-google-business",
+      "/connect-business",
     ];
 
     const allowedAdminRoles = [

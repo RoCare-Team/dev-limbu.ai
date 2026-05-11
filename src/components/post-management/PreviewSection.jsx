@@ -28,6 +28,8 @@ import {
 } from "@/lib/postMediaUrls";
 import Image from "next/image";
 
+const FALLBACK_POST_IMAGE = "/images/GMB.jpg";
+
 const STATUS_CONFIG = {
   approved: "bg-green-500/10 text-green-400 border-green-500/30",
   pending: "bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/30",
@@ -284,7 +286,7 @@ const PreviewSection = React.memo(({
               <Image
                 width={400}
                 height={300}
-                src={activeMediaUrl || "https://via.placeholder.com/400x300?text=Preview+Not+Available"}
+                src={activeMediaUrl || FALLBACK_POST_IMAGE}
                 alt="Preview"
                 referrerPolicy="no-referrer"
                 className="relative w-full h-full object-contain z-10 transition-transform duration-500 group-hover:scale-[1.015]"

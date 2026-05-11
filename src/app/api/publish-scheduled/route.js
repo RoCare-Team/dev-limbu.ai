@@ -3,7 +3,9 @@ import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import User from "@/models/User";
 import FacebookPage from "@/models/FacebookPage";
+import InstagramPage from "@/models/InstagramPage";
 import { deductFromWalletAction, postToGmbAction } from "@/app/actions/postActions";
+import { graphApiFormEncode } from "@/utils/postHelpers";
 
 // Vercel & Next.js Config
 // --------------------------------------------------
@@ -88,6 +90,39 @@ const markWhenPosted = (currentWhenPosted, platform, postId = "") => {
   return Array.from(map.values());
 };
 
+const markWhenFailed = (currentWhenPosted, platform, error = "") => {
+  const map = new Map(DEFAULT_WHEN_POSTED.map((entry) => [entry.platform, { ...entry }]));
+
+  if (Array.isArray(currentWhenPosted)) {
+    currentWhenPosted.forEach((entry) => {
+      const rawEntry = entry?.toObject ? entry.toObject() : entry;
+      const key = normalizePlatform(rawEntry?.platform);
+      if (key && map.has(key)) map.set(key, { ...map.get(key), ...rawEntry, platform: key });
+    });
+  } else if (currentWhenPosted && typeof currentWhenPosted === "object") {
+    Object.entries(currentWhenPosted).forEach(([key, value]) => {
+      const platformKey = normalizePlatform(key);
+      if (!platformKey || !map.has(platformKey)) return;
+      const existing = map.get(platformKey);
+      if (typeof value === "object" && value !== null) {
+        map.set(platformKey, { ...existing, ...value, platform: platformKey });
+      }
+    });
+  }
+
+  const key = normalizePlatform(platform);
+  const existing = map.get(key) || { platform: key, posted: false, postedDate: null, postId: "", error: "" };
+  map.set(key, {
+    ...existing,
+    platform: key,
+    posted: false,
+    postedDate: null,
+    error: error || "Failed to publish",
+  });
+
+  return Array.from(map.values());
+};
+
 const formatGmbDate = (value) => {
   if (!value) return "";
   const [year, month, day] = value.split("-");
@@ -154,13 +189,55 @@ async function getFreshPageToken(userAccessToken, pageId) {
   return page.access_token;
 }
 
+async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 300000) {
+  const start = Date.now();
+
+  while (Date.now() - start < maxMs) {
+    const url = new URL(`https://graph.facebook.com/v24.0/${creationId}`);
+    url.searchParams.set("fields", "status_code,status");
+    url.searchParams.set("access_token", accessToken);
+
+    const res = await fetch(url.toString());
+    const data = await res.json();
+
+    if (data.status_code === "FINISHED") return;
+    if (data.status_code === "ERROR" || data.status_code === "EXPIRED") {
+      throw new Error(
+        data.status?.error_message ||
+        data.error?.message ||
+        `Instagram processing failed: ${data.status_code}`
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  throw new Error("Instagram video processing timed out after 5 minutes.");
+}
+
 /* -------------------------------------------------- 
    FACEBOOK POST HELPER
 -------------------------------------------------- */
 async function postToFacebook(page, log) {
   try {
-    const { pageId, pageAccessToken, caption, imageUrl } = page;
+    const { pageId, pageAccessToken, caption, imageUrl, videoUrl, mediaType } = page;
     if (!pageId || !pageAccessToken) throw new Error("Missing Page ID or Access Token");
+
+    if (mediaType === "video" && videoUrl) {
+      const videoRes = await fetch(`https://graph.facebook.com/v24.0/${pageId}/videos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: graphApiFormEncode({
+          file_url: new URL(videoUrl.trim()).href,
+          description: caption || "",
+          access_token: pageAccessToken,
+        }),
+      });
+      const videoData = await videoRes.json();
+      if (!videoData.id) throw new Error(videoData.error?.message || "FB Video publish failed");
+      log(`✅ Posted video to FB Page ${pageId}`);
+      return { success: true, id: videoData.id };
+    }
 
     // 1. Upload Photo (if image exists)
     let mediaId;
@@ -213,25 +290,47 @@ async function postToFacebook(page, log) {
 -------------------------------------------------- */
 async function postToInstagram(account, log) {
   try {
-    const { igUserId, accessToken, caption, imageUrl } = account;
-    if (!igUserId || !accessToken || !imageUrl) throw new Error("Missing IG details");
+    const { igUserId, accessToken, caption, imageUrl, videoUrl, mediaType } = account;
+    const mediaUrlValue = mediaType === "video" ? videoUrl : imageUrl;
+    if (!igUserId || !accessToken || !mediaUrlValue) throw new Error("Missing IG details");
 
     // 1. Create Media Container
     const mediaUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
+    const payload =
+      mediaType === "video"
+        ? {
+            video_url: videoUrl.trim(),
+            caption: caption || "",
+            media_type: "REELS",
+            share_to_feed: true,
+            access_token: accessToken,
+          }
+        : {
+            image_url: imageUrl,
+            caption: caption || "",
+            access_token: accessToken,
+          };
+
     const mediaRes = await fetch(mediaUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_url: imageUrl,
-        caption: caption || "",
-        access_token: accessToken,
-      }),
+      headers:
+        mediaType === "video"
+          ? { "Content-Type": "application/x-www-form-urlencoded" }
+          : { "Content-Type": "application/json" },
+      body:
+        mediaType === "video"
+          ? graphApiFormEncode(payload)
+          : JSON.stringify(payload),
     });
     const mediaData = await mediaRes.json();
     if (!mediaData.id) throw new Error(mediaData.error?.message || "IG Media creation failed");
 
     // Wait for processing
-    await new Promise(r => setTimeout(r, 5000));
+    if (mediaType === "video") {
+      await waitForInstagramVideoContainer(mediaData.id, accessToken);
+    } else {
+      await new Promise(r => setTimeout(r, 5000));
+    }
 
     // 2. Publish
     const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
@@ -337,6 +436,8 @@ export async function GET(req) {
       }
 
       let failed = false;
+      let successCount = 0;
+      let failedCount = 0;
       const platformsPosted = new Set();
 
       /* -------------------------------------------------- 
@@ -386,11 +487,15 @@ export async function GET(req) {
             platformsPosted.add("Facebook");
             post.markModified('whenPosted');
             if (!post.mediaStatus) post.mediaStatus = {};
-            post.mediaStatus.image = "posted";
+            post.mediaStatus[pagePayload.mediaType === "video" ? "video" : "image"] = "posted";
             post.markModified('mediaStatus');
+            successCount++;
           } else {
             page.error = result.error;
+            post.whenPosted = markWhenFailed(post.whenPosted, "facebook", result.error);
+            post.markModified('whenPosted');
             failed = true;
+            failedCount++;
           }
         }
         post.markModified('fbPages');
@@ -408,9 +513,15 @@ export async function GET(req) {
           // Attempt to refresh IG token (which is usually a linked FB page token)
           let tokenToUse = account.accessToken;
           try {
-            // Assuming account.pageId exists or we can find it via igUserId if you store it. 
-            // If not, we rely on the stored token.
-            // If you store the linked Page ID in your IG account object:
+            const freshIg = await InstagramPage.findOne({ igId: account.igUserId, userId: post.userId });
+            if (freshIg?.userAccessToken && freshIg?.pageId) {
+              tokenToUse = await getFreshPageToken(freshIg.userAccessToken, freshIg.pageId);
+              log(`🔄 Generated fresh IG token via Instagram record for ${freshIg.pageId}`);
+            } else if (freshIg?.pageAccessToken) {
+              tokenToUse = freshIg.pageAccessToken;
+              log(`🔄 Using stored fresh IG token for ${account.igUserId}`);
+            }
+
             if (account.pageId) {
               const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
               if (freshPage && freshPage.userAccessToken) {
@@ -440,11 +551,15 @@ export async function GET(req) {
             platformsPosted.add("Instagram");
             post.markModified('whenPosted');
             if (!post.mediaStatus) post.mediaStatus = {};
-            post.mediaStatus.image = "posted";
+            post.mediaStatus[accountPayload.mediaType === "video" ? "video" : "image"] = "posted";
             post.markModified('mediaStatus');
+            successCount++;
           } else {
             account.error = result.error;
+            post.whenPosted = markWhenFailed(post.whenPosted, "instagram", result.error);
+            post.markModified('whenPosted');
             failed = true;
+            failedCount++;
           }
         }
         post.markModified('igPages');
@@ -459,7 +574,10 @@ export async function GET(req) {
           log("❌ No refresh token on post document:", postId);
           // Mark GMB locations as failed? Or fail whole post?
           // For now, we log error and set failed flag, but continue to other platforms
+          post.whenPosted = markWhenFailed(post.whenPosted, "gmb", "No Google refresh token on scheduled post.");
+          post.markModified('whenPosted');
           failed = true;
+          failedCount++;
         } else {
           try {
             log("🔑 Using stored refreshToken from post document to get a fresh access token.");
@@ -539,20 +657,30 @@ export async function GET(req) {
                 platformsPosted.add("Google My Business");
                 post.markModified('whenPosted');
                 if (!post.mediaStatus) post.mediaStatus = {};
-                post.mediaStatus[post.mediaType === "video" ? "video" : "image"] = "posted";
+                post.mediaStatus[isVideoSelection ? "video" : "image"] = "posted";
                 post.markModified('mediaStatus');
 
                 processedLocIds.add(loc.locationId);
+                successCount++;
 
               } catch (err) {
                 log(`❌ Error posting to location ${loc.locationId}:`, err.message || "Unknown error");
+                loc.error = err.message || "Unknown error";
+                loc.isPosted = false;
+                post.whenPosted = markWhenFailed(post.whenPosted, "gmb", err.message || "Unknown error");
+                post.markModified('whenPosted');
                 failed = true;
+                failedCount++;
                 // We don't break here, try other locations
               }
             }
+            post.markModified('locations');
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
+            post.whenPosted = markWhenFailed(post.whenPosted, "gmb", err.message || "GMB critical error");
+            post.markModified('whenPosted');
             failed = true;
+            failedCount++;
           }
         }
       }
@@ -560,7 +688,7 @@ export async function GET(req) {
       // Determine final status
       // If ANY target failed, we mark as failed (or partially failed).
       // Current logic: if !failed, then posted.
-      if (!failed) {
+      if (!failed && successCount > 0) {
         post.status = "posted";
         post.error = null;
         stats.posted++;
@@ -601,6 +729,10 @@ export async function GET(req) {
           log(`⚠️ Error sending post published email:`, emailError.message);
           // Don't fail the post if email fails
         }
+      } else if (successCount > 0 && failedCount > 0) {
+        post.status = "partial_failed";
+        post.error = "Some platforms posted successfully, one or more failed.";
+        stats.failed++;
       } else {
         post.status = "failed";
         post.error = "One or more targets failed to post.";

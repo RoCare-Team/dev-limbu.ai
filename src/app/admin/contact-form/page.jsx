@@ -79,7 +79,13 @@ const handleSelectRow = (id) => {
 
     <>
 
-          <SelectedLeadsActionBar3 selectedRows={selectedRows} />
+
+{selectedRows.length > 0 && (
+  <SelectedLeadsActionBar3
+    selectedRows={selectedRows}
+    leads={leads}
+  />
+)}
 
          <table className="min-w-full">
 
@@ -100,8 +106,9 @@ const handleSelectRow = (id) => {
           />
         </th>
           <th className="py-4 px-6 text-left font-semibold">Name</th>
-          <th className="py-4 px-6 text-left font-semibold">Email</th>
+          
           <th className="py-4 px-6 text-left font-semibold">Phone</th>
+          <th className="py-4 px-6 text-left font-semibold">Email</th>
           <th className="py-4 px-6 text-left font-semibold">Message</th>
           <th className="py-4 px-6 text-left font-semibold">Date</th>
         </tr>
@@ -145,17 +152,19 @@ const handleSelectRow = (id) => {
   </div>
 </td>
 
-            {/* Email */}
-            <td className="py-4 px-6 text-gray-600 group-hover:text-black transition">
-              {lead.email}
-            </td>
-
-            {/* Phone */}
+             {/* Phone */}
             <td className="py-4 px-6">
               <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
                 {lead.phone}
               </span>
             </td>
+
+            {/* Email */}
+            <td className="py-4 px-6 text-gray-600 group-hover:text-black transition">
+              {lead.email}
+            </td>
+
+           
 
             {/* Message */}
             <td className="py-4 px-6 max-w-xs">
@@ -163,6 +172,8 @@ const handleSelectRow = (id) => {
                 {lead.message}
               </p>
             </td>
+
+
 
             {/* Date */}
             <td className="py-4 px-6 text-gray-500 text-sm whitespace-nowrap">

@@ -36,6 +36,7 @@ const STATUS_COLORS = {
   pending: "bg-yellow-50 text-yellow-600 border-yellow-100",
   approved: "bg-blue-50 text-blue-600 border-blue-100",
   posted: "bg-green-50 text-green-600 border-green-100",
+  partial_failed: "bg-orange-50 text-orange-600 border-orange-100",
   failed: "bg-red-50 text-red-600 border-red-100",
   scheduled: "bg-purple-50 text-purple-600 border-purple-100",
 };
@@ -120,6 +121,11 @@ const isPlatformPosted = (whenPosted, platformKey) => {
 const getPlatformPostedDate = (whenPosted, platformKey) => {
   const entry = getPlatformPost(whenPosted, platformKey);
   return entry?.postedDate || entry?.postedAt || entry?.date || null;
+};
+
+const getPlatformError = (whenPosted, platformKey) => {
+  const entry = getPlatformPost(whenPosted, platformKey);
+  return entry?.posted ? "" : entry?.error || "";
 };
 
 const PostCard = React.memo(
@@ -239,7 +245,8 @@ const PostCard = React.memo(
     }, [convertingVideoPostId, post._id]);
 
     const lastPostedDate = useMemo(() => {
-      if (post.status !== "posted") return null;
+      if (post.status !== "posted" && post.status !== "partial_failed")
+        return null;
       let latest = null;
 
       const checkDate = (dateStr) => {
@@ -357,6 +364,69 @@ const PostCard = React.memo(
       post.igPages,
       post.locations,
       post.whenPosted,
+    ]);
+
+    const failedPlatforms = useMemo(() => {
+      const platformMeta = [
+        {
+          key: "gmb",
+          label: "Google",
+          title: "Google Business",
+          icon: "/social-icon/gmb-icon.png",
+          color: "border-red-100",
+          accent: "bg-red-50 text-red-700",
+          error:
+            getPlatformError(post.whenPosted, "gmb") ||
+            post.locations?.find((l) => l.error && !l.isPosted)?.error ||
+            "",
+          wasTargeted:
+            scheduledPlatforms.has("gmb") ||
+            (Array.isArray(post.locations) && post.locations.length > 0),
+        },
+        {
+          key: "facebook",
+          label: "Facebook",
+          title: "Facebook",
+          icon: "/social-icon/facebook-icon.png",
+          color: "border-red-100",
+          accent: "bg-red-50 text-red-700",
+          error:
+            getPlatformError(post.whenPosted, "facebook") ||
+            post.fbPages?.find((p) => p.error && !p.isPosted)?.error ||
+            "",
+          wasTargeted:
+            scheduledPlatforms.has("facebook") ||
+            (Array.isArray(post.fbPages) && post.fbPages.length > 0),
+        },
+        {
+          key: "instagram",
+          label: "Instagram",
+          title: "Instagram",
+          icon: "/social-icon/instagram-icon.png",
+          color: "border-red-100",
+          accent: "bg-red-50 text-red-700",
+          error:
+            getPlatformError(post.whenPosted, "instagram") ||
+            post.igPages?.find((p) => p.error && !p.isPosted)?.error ||
+            "",
+          wasTargeted:
+            scheduledPlatforms.has("instagram") ||
+            (Array.isArray(post.igPages) && post.igPages.length > 0),
+        },
+      ];
+
+      return platformMeta.filter(
+        (platform) =>
+          platform.wasTargeted &&
+          platform.error &&
+          !isPlatformPosted(post.whenPosted, platform.key),
+      );
+    }, [
+      post.fbPages,
+      post.igPages,
+      post.locations,
+      post.whenPosted,
+      scheduledPlatforms,
     ]);
 
     const [isVideoSuccess, setIsVideoSuccess] = useState(false);
@@ -779,7 +849,7 @@ const PostCard = React.memo(
                 </div>
               )}
 
-              {post.status === "posted" && (
+              {(post.status === "posted" || post.status === "partial_failed") && (
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-black/[0.04] bg-slate-50/80 p-2 shadow-inner shadow-white">
                     <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -841,6 +911,36 @@ const PostCard = React.memo(
                     {publishedPlatforms.length === 0 && (
                       <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Platform publish details not saved
+                      </div>
+                    )}
+                    {failedPlatforms.length > 0 && (
+                      <div className="mt-2 rounded-xl border border-red-100 bg-red-50/70 p-2">
+                        <p className="mb-1.5 text-[8px] font-black uppercase tracking-widest text-red-500">
+                          Failed
+                        </p>
+                        <div className="space-y-1">
+                          {failedPlatforms.map((platform) => (
+                            <div
+                              key={platform.key}
+                              className="flex min-w-0 items-center gap-2 rounded-lg border border-red-100 bg-white px-2 py-1.5"
+                              title={platform.error}
+                            >
+                              <Image
+                                src={platform.icon}
+                                width={14}
+                                height={14}
+                                alt={platform.title}
+                                className="shrink-0 object-contain"
+                              />
+                              <span className="shrink-0 text-[8px] font-black uppercase tracking-widest text-red-600">
+                                {platform.label}
+                              </span>
+                              <span className="truncate text-[8px] font-bold text-red-500/80">
+                                {platform.error}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1122,7 +1222,7 @@ const PostCard = React.memo(
                 </>
               )}
 
-              {post.status === "failed" && (
+              {(post.status === "failed" || post.status === "partial_failed") && (
                 <div className="space-y-4">
                   <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
                     <XCircle size={18} className="text-red-500 shrink-0" />
@@ -1130,6 +1230,31 @@ const PostCard = React.memo(
                       {post.error || "Failed to publish"}
                     </p>
                   </div>
+                  {failedPlatforms.length > 0 && (
+                    <div className="space-y-1.5 rounded-2xl border border-red-100 bg-red-50/70 p-3">
+                      {failedPlatforms.map((platform) => (
+                        <div
+                          key={platform.key}
+                          className="flex min-w-0 items-center gap-2 rounded-xl bg-white px-3 py-2"
+                          title={platform.error}
+                        >
+                          <Image
+                            src={platform.icon}
+                            width={14}
+                            height={14}
+                            alt={platform.title}
+                            className="shrink-0 object-contain"
+                          />
+                          <span className="shrink-0 text-[8px] font-black uppercase tracking-widest text-red-600">
+                            {platform.label}
+                          </span>
+                          <span className="truncate text-[9px] font-bold text-red-500/80">
+                            {platform.error}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <button
                     onClick={() => handleMediaChoice("gmb")}
                     className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"

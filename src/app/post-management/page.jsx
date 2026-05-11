@@ -847,6 +847,7 @@ export default function PostManagementPage() {
           locations,
           checkmark,
           scheduledDateSource: sources,
+          mediaType: checkmark === "video" ? "video" : undefined,
           fbPages,
           igPages,
           refreshToken:
@@ -904,14 +905,15 @@ export default function PostManagementPage() {
         );
         const selectedCheckmark = selectedTargets.checkmark || post.checkmark;
         const selectedMediaType = selectedTargets.mediaType || "image";
-        const isVideoSchedule =
-          selectedMediaType === "video" ||
-          selectedCheckmark === "video";
+        
+        // STABLE VIDEO CHECK: Check if videoOutput exists and is a valid string, and user selected video intent
+        const hasValidVideoOutput = typeof post.videoOutput === "string" && post.videoOutput.trim().length > 0;
+        const isVideoIntent = selectedMediaType === "video" || selectedCheckmark === "video";
+        const isVideoSchedule = isVideoIntent && hasValidVideoOutput;
+
         const scheduleImageUrl = post.aiOutput || "";
-        const scheduleVideoUrl =
-          post.videoOutput || (isVideoSchedule ? post.aiOutput || "" : "");
-        const scheduleMediaType =
-          isVideoSchedule && scheduleVideoUrl ? "video" : "image";
+        const scheduleVideoUrl = isVideoSchedule ? post.videoOutput : "";
+        const scheduleMediaType = isVideoSchedule ? "video" : "image";
         const getInstagramId = (account = {}) =>
           account.igId || account.igUserId || account.id;
 
@@ -1537,7 +1539,7 @@ export default function PostManagementPage() {
 
   const handlePost = useCallback(
     async (post, media = null) => {
-      if (!["approved", "scheduled", "posted", "failed"].includes(post.status))
+      if (!["approved", "scheduled", "posted", "partial_failed", "failed"].includes(post.status))
         return showToast("Approve first", "error");
 
       // Check for GMB Session Expiry before showing the location modal

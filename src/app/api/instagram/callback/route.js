@@ -2,18 +2,27 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InstagramPage from "@/models/InstagramPage";
+import {
+  parseMetaOAuthState,
+  instagramSuccessRedirect,
+  instagramErrorRedirect,
+} from "@/lib/metaOAuthState";
 
+// `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
 export async function GET(req) {
+  const reqUrl = new URL(req.url);
+  const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
+  const code = reqUrl.searchParams.get("code");
+  const userId = parsed.userId;
+
+  if (!code || !userId) {
+    return NextResponse.redirect(
+      instagramErrorRedirect(parsed, "missing_params")
+    );
+  }
+
   try {
     await dbConnect();
-
-    const url = new URL(req.url);
-    const code = url.searchParams.get("code");
-    const userId = url.searchParams.get("state");
-
-    if (!code || !userId) {
-      throw new Error("Missing OAuth code or userId");
-    }
 
     // 1️⃣ Exchange Code → Short-Lived Token
     const tokenRes = await axios.get(
@@ -54,7 +63,9 @@ export async function GET(req) {
     );
 
     if (!pagesRes.data.data.length) {
-      throw new Error("No Facebook pages found");
+      return NextResponse.redirect(
+        instagramErrorRedirect(parsed, "no_pages")
+      );
     }
 
     // 4️⃣ Get ALL Instagram Accounts
@@ -87,7 +98,9 @@ export async function GET(req) {
     }
 
     if (!igAccounts.length) {
-      throw new Error("No Instagram Business/Creator accounts found");
+      return NextResponse.redirect(
+        instagramErrorRedirect(parsed, "no_instagram")
+      );
     }
 
     // 5️⃣ Save All Accounts
@@ -95,14 +108,13 @@ export async function GET(req) {
     await InstagramPage.insertMany(igAccounts);
 
     return NextResponse.redirect(
-      `${process.env.BASE_URL}/dashboard?ig=connected&count=${igAccounts.length}`
+      instagramSuccessRedirect(parsed, igAccounts.length)
     );
-
   } catch (err) {
     console.error("IG CALLBACK ERROR:", err.message);
 
     return NextResponse.redirect(
-      `${process.env.BASE_URL}/dashboard?ig=error`
+      instagramErrorRedirect(parsed, "oauth_failed")
     );
   }
 }

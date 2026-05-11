@@ -32,6 +32,7 @@ export async function POST(req) {
         { status: 400 },
       );
     }
+    
 
     const admin = await Admin.findOne({
       email: adminEmail.trim(),
@@ -78,7 +79,7 @@ export async function POST(req) {
         destination,
         userName: "LimbuAI",
         templateParams: [
-          "07 May 2026, 4:00 PM",
+          "09 May 2026, 4:00 PM",
           "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w",
           "864 3594 1427",
           "800770",
@@ -88,13 +89,7 @@ export async function POST(req) {
           url: CAMPAIGN_CONFIG[campaignName].mediaUrl,
           filename: "session_image",
         },
-        buttons: [],
-        carouselCards: [],
-        location: {},
-        attributes: {},
-        paramsFallbackValue: {
-          FirstName: user?.name || "User",
-        },
+       
       };
 
       try {

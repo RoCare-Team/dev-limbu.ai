@@ -91,7 +91,6 @@ export async function GET(req) {
         if (igRes.data.instagram_business_account) {
           igAccounts.push({
             userId,
-            phone: parsed.phone || "",
             igId: igRes.data.instagram_business_account.id,
             igUsername: igRes.data.instagram_business_account.username,
             pageId: page.id,
@@ -99,8 +98,6 @@ export async function GET(req) {
             userAccessToken: userToken,
             ...(tokenExpiryDate ? { userTokenExpiresAt: tokenExpiryDate } : {}),
             platform: "instagram",
-            type: "instagram",
-            connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
           });
         }
       } catch (err) {
@@ -132,6 +129,24 @@ export async function GET(req) {
       });
     }
     await InstagramPage.insertMany(igAccounts);
+
+    // Keep chatbot tagging as best-effort so manual-equivalent OAuth never fails.
+    if (parsed.phone && parsed.source === "chatbot") {
+      try {
+        await InstagramPage.updateMany(
+          { userId, igId: { $in: igAccounts.map((a) => a.igId) } },
+          {
+            $set: {
+              phone: parsed.phone,
+              type: "instagram",
+              connectionSource: "chatbot",
+            },
+          }
+        );
+      } catch (tagErr) {
+        console.error("IG chatbot tagging warning:", tagErr?.message || tagErr);
+      }
+    }
 
     return NextResponse.redirect(
       instagramSuccessRedirect(parsed, igAccounts.length)

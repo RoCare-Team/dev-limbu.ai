@@ -108,12 +108,27 @@ export async function GET(req) {
           userAccessToken,                   // ye User long-lived token
           userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
           platform: "facebook", // ye Identify karne ke liye
-          type: "facebook",
-          phone: parsed.phone || "",
-          connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
         },
         { upsert: true, new: true } // ye upsert: true Agar record nahi mila → create karo || new: true Updated document return karo
       );
+    }
+
+    // Keep chatbot tagging as best-effort so manual-equivalent OAuth never fails.
+    if (parsed.phone && parsed.source === "chatbot") {
+      try {
+        await FacebookPage.updateMany(
+          { userId, pageId: { $in: pages.map((p) => p.id) } },
+          {
+            $set: {
+              phone: parsed.phone,
+              type: "facebook",
+              connectionSource: "chatbot",
+            },
+          }
+        );
+      } catch (tagErr) {
+        console.error("FB chatbot tagging warning:", tagErr?.message || tagErr);
+      }
     }
 
     return NextResponse.redirect(facebookSuccessRedirect(parsed));

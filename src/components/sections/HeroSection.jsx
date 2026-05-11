@@ -11,12 +11,18 @@ const clientLogos = [
   { name: "Banjara Salon", src: "/images/clients/banjara_salon-3.png" },
   { name: "Mazz", src: "/images/clients/mazz-4.png" },
   { name: "Gudiya Collection", src: "/images/clients/gudiya_collection-2.png" },
-   { name: "dynamic_drapry-1", src: "/images/clients/dynamic_drapry-23.png" },
+   { name: "dynamic_drapry", src: "/images/clients/dynamic_drapry-24.png" },
   { name: "unnamed", src: "/images/clients/unnamed-2.png" },
   { name: "Lucky Dry", src: "/images/clients/bpc-1-2.png" },
   { name: "ssd logo", src: "/images/clients/srinus-2.png" },
   
 ];
+
+
+
+
+
+
 
 
 

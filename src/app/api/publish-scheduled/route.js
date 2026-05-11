@@ -3,7 +3,9 @@ import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import User from "@/models/User";
 import FacebookPage from "@/models/FacebookPage";
+import InstagramPage from "@/models/InstagramPage";
 import { deductFromWalletAction, postToGmbAction } from "@/app/actions/postActions";
+import { graphApiFormEncode } from "@/utils/postHelpers";
 
 // Vercel & Next.js Config
 // --------------------------------------------------
@@ -154,13 +156,55 @@ async function getFreshPageToken(userAccessToken, pageId) {
   return page.access_token;
 }
 
+async function waitForInstagramVideoContainer(creationId, accessToken, maxMs = 300000) {
+  const start = Date.now();
+
+  while (Date.now() - start < maxMs) {
+    const url = new URL(`https://graph.facebook.com/v24.0/${creationId}`);
+    url.searchParams.set("fields", "status_code,status");
+    url.searchParams.set("access_token", accessToken);
+
+    const res = await fetch(url.toString());
+    const data = await res.json();
+
+    if (data.status_code === "FINISHED") return;
+    if (data.status_code === "ERROR" || data.status_code === "EXPIRED") {
+      throw new Error(
+        data.status?.error_message ||
+        data.error?.message ||
+        `Instagram processing failed: ${data.status_code}`
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  throw new Error("Instagram video processing timed out after 5 minutes.");
+}
+
 /* -------------------------------------------------- 
    FACEBOOK POST HELPER
 -------------------------------------------------- */
 async function postToFacebook(page, log) {
   try {
-    const { pageId, pageAccessToken, caption, imageUrl } = page;
+    const { pageId, pageAccessToken, caption, imageUrl, videoUrl, mediaType } = page;
     if (!pageId || !pageAccessToken) throw new Error("Missing Page ID or Access Token");
+
+    if (mediaType === "video" && videoUrl) {
+      const videoRes = await fetch(`https://graph.facebook.com/v24.0/${pageId}/videos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: graphApiFormEncode({
+          file_url: new URL(videoUrl.trim()).href,
+          description: caption || "",
+          access_token: pageAccessToken,
+        }),
+      });
+      const videoData = await videoRes.json();
+      if (!videoData.id) throw new Error(videoData.error?.message || "FB Video publish failed");
+      log(`✅ Posted video to FB Page ${pageId}`);
+      return { success: true, id: videoData.id };
+    }
 
     // 1. Upload Photo (if image exists)
     let mediaId;
@@ -213,25 +257,47 @@ async function postToFacebook(page, log) {
 -------------------------------------------------- */
 async function postToInstagram(account, log) {
   try {
-    const { igUserId, accessToken, caption, imageUrl } = account;
-    if (!igUserId || !accessToken || !imageUrl) throw new Error("Missing IG details");
+    const { igUserId, accessToken, caption, imageUrl, videoUrl, mediaType } = account;
+    const mediaUrlValue = mediaType === "video" ? videoUrl : imageUrl;
+    if (!igUserId || !accessToken || !mediaUrlValue) throw new Error("Missing IG details");
 
     // 1. Create Media Container
     const mediaUrl = `https://graph.facebook.com/v24.0/${igUserId}/media`;
+    const payload =
+      mediaType === "video"
+        ? {
+            video_url: videoUrl.trim(),
+            caption: caption || "",
+            media_type: "REELS",
+            share_to_feed: true,
+            access_token: accessToken,
+          }
+        : {
+            image_url: imageUrl,
+            caption: caption || "",
+            access_token: accessToken,
+          };
+
     const mediaRes = await fetch(mediaUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_url: imageUrl,
-        caption: caption || "",
-        access_token: accessToken,
-      }),
+      headers:
+        mediaType === "video"
+          ? { "Content-Type": "application/x-www-form-urlencoded" }
+          : { "Content-Type": "application/json" },
+      body:
+        mediaType === "video"
+          ? graphApiFormEncode(payload)
+          : JSON.stringify(payload),
     });
     const mediaData = await mediaRes.json();
     if (!mediaData.id) throw new Error(mediaData.error?.message || "IG Media creation failed");
 
     // Wait for processing
-    await new Promise(r => setTimeout(r, 5000));
+    if (mediaType === "video") {
+      await waitForInstagramVideoContainer(mediaData.id, accessToken);
+    } else {
+      await new Promise(r => setTimeout(r, 5000));
+    }
 
     // 2. Publish
     const publishUrl = `https://graph.facebook.com/v24.0/${igUserId}/media_publish`;
@@ -408,9 +474,15 @@ export async function GET(req) {
           // Attempt to refresh IG token (which is usually a linked FB page token)
           let tokenToUse = account.accessToken;
           try {
-            // Assuming account.pageId exists or we can find it via igUserId if you store it. 
-            // If not, we rely on the stored token.
-            // If you store the linked Page ID in your IG account object:
+            const freshIg = await InstagramPage.findOne({ igId: account.igUserId, userId: post.userId });
+            if (freshIg?.userAccessToken && freshIg?.pageId) {
+              tokenToUse = await getFreshPageToken(freshIg.userAccessToken, freshIg.pageId);
+              log(`🔄 Generated fresh IG token via Instagram record for ${freshIg.pageId}`);
+            } else if (freshIg?.pageAccessToken) {
+              tokenToUse = freshIg.pageAccessToken;
+              log(`🔄 Using stored fresh IG token for ${account.igUserId}`);
+            }
+
             if (account.pageId) {
               const freshPage = await FacebookPage.findOne({ pageId: account.pageId, userId: post.userId });
               if (freshPage && freshPage.userAccessToken) {

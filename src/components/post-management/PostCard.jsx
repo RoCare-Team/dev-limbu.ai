@@ -40,6 +40,8 @@ const STATUS_COLORS = {
   scheduled: "bg-purple-50 text-purple-600 border-purple-100",
 };
 
+const FALLBACK_POST_IMAGE = "/images/GMB.jpg";
+
 const PLATFORM_ALIASES = {
   gmb: "gmb",
   fb: "facebook",
@@ -515,7 +517,7 @@ const PostCard = React.memo(
                   src={
                     displayMediaUrl?.startsWith("http")
                       ? displayMediaUrl
-                      : "https://via.placeholder.com/400"
+                      : FALLBACK_POST_IMAGE
                   }
                   width={400}
                   height={300}

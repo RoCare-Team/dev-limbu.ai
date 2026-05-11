@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+
+import SelectedLeadsActionBar7 from "./component-modal/SelectedLeadsActionBar7";
+
+
 import {
   Box,
   Typography,
@@ -26,6 +30,26 @@ export default function ConnectedNodePage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [total, setTotal] = useState(0);
+
+  // 2) state add karo (useState ke saath)
+const [selectedRows, setSelectedRows] = useState([]);
+
+// 3) functions add karo
+const handleSelectAll = (checked) => {
+  if (checked) {
+    setSelectedRows(data.map((row) => row._id));
+  } else {
+    setSelectedRows([]);
+  }
+};
+
+const handleSelectRow = (id) => {
+  setSelectedRows((prev) =>
+    prev.includes(id)
+      ? prev.filter((rowId) => rowId !== id)
+      : [...prev, id]
+  );
+};
 
   const fetchCommonUsers = async (pageIndex, limit) => {
     setLoading(true);
@@ -97,10 +121,34 @@ export default function ConnectedNodePage() {
           boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
         }}
       >
+
+          
+            <SelectedLeadsActionBar7 selectedRows={selectedRows} />
+
         <TableContainer sx={{ flex: 1, overflowY: "auto" }}>
           <Table stickyHeader aria-label="connected users table">
+
+
             <TableHead>
               <TableRow>
+
+                <TableCell
+      padding="checkbox"
+      sx={{ fontWeight: "bold", bgcolor: "#f8f9fa" }}
+    >
+      <input
+        type="checkbox"
+        checked={
+          data.length > 0 &&
+          selectedRows.length === data.length
+        }
+        onChange={(e) =>
+          handleSelectAll(e.target.checked)
+        }
+        className="w-4 h-4 accent-blue-600 cursor-pointer"
+      />
+    </TableCell>
+
                 <TableCell sx={{ fontWeight: "bold", bgcolor: "#f8f9fa" }}>
                   User ID
                 </TableCell>
@@ -144,6 +192,16 @@ export default function ConnectedNodePage() {
                     hover
                     sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                   >
+
+                    <TableCell padding="checkbox">
+    <input
+      type="checkbox"
+      checked={selectedRows.includes(row._id)}
+      onChange={() => handleSelectRow(row._id)}
+      className="w-4 h-4 accent-blue-600 cursor-pointer"
+    />
+  </TableCell>
+
                     <TableCell component="th" scope="row">
                       <Typography variant="body2" fontWeight="medium">
                         {row.userId}
@@ -197,7 +255,7 @@ export default function ConnectedNodePage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
                     <Typography color="text.secondary">
                       No connected nodes found.
                     </Typography>

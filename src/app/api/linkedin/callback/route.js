@@ -103,7 +103,7 @@ export async function GET(req) {
           platform: "linkedin",
           type: "profile",
           connectionSource,
-          ...(tagPhone ? { phone: tagPhone } : {}),
+          phone: tagPhone || "",
         },
         { upsert: true, new: true }
       );
@@ -151,7 +151,7 @@ export async function GET(req) {
             platform: "linkedin",
             type: "organization",
             connectionSource,
-            ...(tagPhone ? { phone: tagPhone } : {}),
+            phone: tagPhone || "",
           },
           { upsert: true, new: true }
         );

@@ -499,7 +499,7 @@ function ConnectBusinessInner() {
       try {
         if (flowType === "youtube") {
           const res = await fetch(
-            `/api/youtube/channels?userId=${encodeURIComponent(uid)}`,
+            `/api/youtube/channels?userId=${encodeURIComponent(uid)}&type=chatbot&phone=${encodeURIComponent(phone)}`,
             { cache: "no-store" }
           );
           const data = await res.json().catch(() => ({}));
@@ -516,7 +516,7 @@ function ConnectBusinessInner() {
         }
         if (flowType === "linkedin") {
           const res = await fetch(
-            `/api/linkedin/pages?userId=${encodeURIComponent(uid)}`,
+            `/api/linkedin/pages?userId=${encodeURIComponent(uid)}&type=chatbot&phone=${encodeURIComponent(phone)}`,
             { cache: "no-store" }
           );
           const data = await res.json().catch(() => ({}));

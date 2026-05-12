@@ -24,7 +24,7 @@ export function useYouTube(router, searchParams) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/youtube/channels?userId=${activeId}`);
+      const res = await fetch(`/api/youtube/channels?userId=${activeId}&type=manual`);
       const data = await res.json();
 
       if (data.success) {

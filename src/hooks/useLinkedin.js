@@ -20,7 +20,7 @@ export function useLinkedin(router, searchParams) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/linkedin/pages?userId=${activeId}`);
+      const res = await fetch(`/api/linkedin/pages?userId=${activeId}&type=manual`);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {

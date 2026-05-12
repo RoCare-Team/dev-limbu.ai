@@ -93,16 +93,9 @@ export async function GET(req) {
           tokenExpiresAt: tokenExpiryDate,
           platform: "youtube",
           connectionSource,
-          ...(tagPhone ? { phone: tagPhone } : {}),
+          phone: tagPhone || "",
         },
         { upsert: true, new: true }
-      );
-    }
-
-    if (parsed.source === "chatbot" && parsed.phone) {
-      await YouTubeChannel.updateMany(
-        { userId, channelId: { $in: channels.map((c) => c.id) } },
-        { $set: { phone: parsed.phone, connectionSource: "chatbot" } }
       );
     }
 

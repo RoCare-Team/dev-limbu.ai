@@ -105,7 +105,12 @@ export async function POST(req) {
         { userId, channelId },
         {
           $set: buildUpdate(channel, body),
-          $setOnInsert: { userId, channelId },
+          $setOnInsert: {
+            userId,
+            channelId,
+            connectionSource: "manual",
+            phone: "",
+          },
         },
         { upsert: true, new: true },
       );

@@ -239,6 +239,9 @@ export default function FranchiseLeadsPage() {
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
 
+  // State add karo component ke top me
+const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(false);
+
   const handleFilterChange = (setter, value) => {
     setFilterLoading(true);
     setter(value);
@@ -1636,6 +1639,68 @@ if (!executiveMobile && typeof window !== "undefined") {
     }
   };
 
+  // Send Message button par click hote hi
+// selected lead ke phone_number par WhatsApp template chala jayega
+
+  const handleSendTemplateMessage = async () => {
+  if (!selectedLead && selectedLeads.length === 0) {
+    toast.error("Please select at least one lead");
+    return;
+  }
+
+  let leadToSend = selectedLead;
+
+  if (!leadToSend && selectedLeads.length > 0) {
+    const selectedId = franchiseLeadIdKey(selectedLeads[0]);
+    leadToSend = leads.find(
+      (lead) => franchiseLeadIdKey(lead.id) === selectedId
+    );
+  }
+
+  if (!leadToSend) {
+    toast.error("Lead not found");
+    return;
+  }
+
+  setSendingFranchiseMsg(true);
+
+  try {
+    const firstName =
+      leadToSend.full_name?.split(" ")[0] || "firstname";
+
+    const response = await fetch(
+      "/api/franchise-leads/send-template",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: leadToSend.phone_number,
+          firstName: firstName,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      toast.success(
+        `Message sent to ${leadToSend.full_name}`
+      );
+      setIsWhatsappTemplateModalOpen(false);
+      setSelectedLeads([]);
+    } else {
+      toast.error(data.message || "Failed to send message");
+    }
+  } catch (error) {
+    console.error("WhatsApp send error:", error);
+    toast.error("Failed to send WhatsApp template");
+  } finally {
+    setSendingFranchiseMsg(false);
+  }
+};
+
   /* ---------------- EXPORT TO CSV ---------------- */
   const handleExport = () => {
     const headers = ["Name", "City", "Occupation", "Investment", "Phone", "Email", "Date", "Status"];
@@ -2656,6 +2721,17 @@ if (!executiveMobile && typeof window !== "undefined") {
                 )}
                 Send to WhatsApp
               </button>
+
+                  {/* WhatsApp Template Button */}
+<button
+  type="button"
+  onClick={() => setIsWhatsappTemplateModalOpen(true)}
+  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+>
+  <Send className="w-4 h-4" />
+  WhatsApp Template
+</button>
+
               {role === "superAdmin" && (
               <button
                 onClick={handleBulkDelete}
@@ -3765,6 +3841,112 @@ if (!executiveMobile && typeof window !== "undefined") {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Template Modal */}
+  {/* WhatsApp Template Modal */}
+        {/* WhatsApp Template Modal */}
+      {/* WhatsApp Template Modal */}
+        {/* WhatsApp Template Modal */}
+{isWhatsappTemplateModalOpen && (
+  <div className="fixed inset-0 z-50 bg-black/70 p-4">
+    {/* Center the modal and keep viewport fixed */}
+    <div className="h-full flex items-center justify-center">
+      {/* Modal Box with internal scrolling */}
+      <div className="w-full max-w-[430px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+        
+        {/* Header (Fixed) */}
+        <div className="bg-[#0b6e5e] px-4 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
+              W
+            </div>
+            <h2 className="text-white font-semibold text-lg">
+              WhatsApp Preview
+            </h2>
+          </div>
+
+          <button
+            onClick={() => setIsWhatsappTemplateModalOpen(false)}
+            className="text-white/90 hover:text-white text-3xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto bg-[#f3efea] p-4">
+          {/* Message Card */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Message Content */}
+            <div className="p-5 text-[14px] text-gray-700 leading-8">
+              <p className="mb-6">Hi {"{{1}}"},</p>
+
+              <p className="mb-6">
+                Your franchise enquiry details for Limbu AI are available.
+              </p>
+
+              <p className="mb-6">
+                This includes information related to franchise onboarding,
+                business operations, and account-related franchise resources.
+              </p>
+
+              <p className="mb-6">
+                To access your franchise details and related information, chat
+                with the Limbu AI Assistant.
+              </p>
+
+              {/* Extra content for testing scroll */}
+              <p className="mb-6">
+                Additional message content can go here. If the content becomes
+                longer, only this middle section will scroll.
+              </p>
+
+              <p className="mb-6">
+                More content... More content... More content... More content...
+              </p>
+
+              <div className="text-[12px] text-gray-400 text-right">
+                12:00 PM ✓✓
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <button
+              type="button"
+              className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
+            >
+              Chat Now
+            </button>
+
+            <button
+              type="button"
+              className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
+            >
+              Need Support
+            </button>
+          </div>
+        </div>
+
+        {/* Footer (Fixed) */}
+        <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+          <button
+  type="button"
+  onClick={handleSendTemplateMessage}
+  disabled={sendingFranchiseMsg}
+  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
+>
+  {sendingFranchiseMsg ? (
+    <Loader2 className="w-5 h-5 animate-spin" />
+  ) : (
+    <Send className="w-5 h-5" />
+  )}
+  {sendingFranchiseMsg ? "Sending..." : "Send Message"}
+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       <FollowUpDueAlertModal
         alert={followUpDueAlert}

@@ -16,11 +16,12 @@ import {
   facebookSuccessRedirect,
   facebookErrorRedirect,
 } from "@/lib/metaOAuthState";
+import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 // Facebook OAuth ke baad callback GET request aati hai. || Facebook redirect karta hai:
 // `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
 export async function GET(req) {
-  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
+  const baseUrl = resolveOAuthRedirectOrigin(req);
   const reqUrl = new URL(req.url);
   const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
   const code = reqUrl.searchParams.get("code");
@@ -28,7 +29,7 @@ export async function GET(req) {
 
   if (!code || !userId) {
     return NextResponse.redirect(
-      facebookErrorRedirect(parsed, "missing_params")
+      facebookErrorRedirect(parsed, "missing_params", baseUrl)
     );
   }
 
@@ -53,27 +54,33 @@ export async function GET(req) {
     const shortToken = shortTokenRes.data.access_token;
 
     /* ---------------------------------------------
-       2️⃣ LONG-LIVED USER TOKEN (60 days)
+       2️⃣ LONG-LIVED USER TOKEN (60 days) — fall back to short if exchange fails
     --------------------------------------------- */
-    const longTokenRes = await axios.get( // ye Short-lived token mil gaya (1-2 hours valid).
-      "https://graph.facebook.com/v24.0/oauth/access_token",
-      {
-        params: {
-          grant_type: "fb_exchange_token", // ye Facebook ka special method jo short token ko long token me convert karta hai.
-          client_id: process.env.META_APP_ID,
-          client_secret: process.env.META_APP_SECRET,
-          fb_exchange_token: shortToken, // ye Short token ko exchange kar raha hai.
-        },
+    let userAccessToken = shortToken;
+    let tokenExpiryDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    try {
+      const longTokenRes = await axios.get(
+        "https://graph.facebook.com/v24.0/oauth/access_token",
+        {
+          params: {
+            grant_type: "fb_exchange_token",
+            client_id: process.env.META_APP_ID,
+            client_secret: process.env.META_APP_SECRET,
+            fb_exchange_token: shortToken,
+          },
+        }
+      );
+      userAccessToken = longTokenRes.data.access_token;
+      const expiresIn = longTokenRes.data.expires_in;
+      if (expiresIn) {
+        tokenExpiryDate = new Date(Date.now() + expiresIn * 1000);
       }
-    );
-
-    // ye Seconds me validity (usually ~5184000 seconds = 60 days)
-    const userAccessToken = longTokenRes.data.access_token;
-    const expiresIn = longTokenRes.data.expires_in; // seconds
-
-    const tokenExpiryDate = new Date(
-      Date.now() + expiresIn * 1000
-    ); // ye Expiry date calculate kar raha hai. || Agar multiply by 1000 na kare: || Milliseconds galat ho jayenge.
+    } catch (longErr) {
+      console.warn(
+        "FB long-lived token exchange failed, using short-lived token:",
+        longErr.response?.data || longErr.message
+      );
+    }
 
     /* ---------------------------------------------
        3️⃣ FETCH FACEBOOK PAGES
@@ -89,7 +96,7 @@ export async function GET(req) {
 
     if (!pages || pages.length === 0) { // ye Agar user ke paas koi page nahi hai → error redirect.
       return NextResponse.redirect(
-        facebookErrorRedirect(parsed, "no_pages")
+        facebookErrorRedirect(parsed, "no_pages", baseUrl)
       );
     }
 
@@ -108,21 +115,39 @@ export async function GET(req) {
           userAccessToken,                   // ye User long-lived token
           userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
           platform: "facebook", // ye Identify karne ke liye
-          type: "facebook",
-          phone: parsed.phone || "",
-          connectionSource: parsed.source === "chatbot" ? "chatbot" : "manual",
         },
         { upsert: true, new: true } // ye upsert: true Agar record nahi mila → create karo || new: true Updated document return karo
       );
     }
 
-    return NextResponse.redirect(facebookSuccessRedirect(parsed));
+    // Keep chatbot tagging as best-effort so manual-equivalent OAuth never fails.
+    if (parsed.phone && parsed.source === "chatbot") {
+      try {
+        await FacebookPage.updateMany(
+          { userId, pageId: { $in: pages.map((p) => p.id) } },
+          {
+            $set: {
+              phone: parsed.phone,
+              type: "facebook",
+              connectionSource: "chatbot",
+            },
+          }
+        );
+      } catch (tagErr) {
+        console.error("FB chatbot tagging warning:", tagErr?.message || tagErr);
+      }
+    }
+
+    return NextResponse.redirect(facebookSuccessRedirect(parsed, baseUrl));
 
   } catch (err) {
-    console.error("FB CALLBACK ERROR:", err.response?.data || err.message); // Error log karega.
+    console.error(
+      "FB CALLBACK ERROR:",
+      err.response?.data || err.response || err.message
+    );
 
     return NextResponse.redirect(
-      facebookErrorRedirect(parsed, "oauth_failed")
+      facebookErrorRedirect(parsed, "oauth_failed", baseUrl)
     );
   }
 }

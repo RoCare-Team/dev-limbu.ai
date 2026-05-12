@@ -75,37 +75,49 @@ const handleSelectRow = (id) => {
       <h1 className="text-3xl font-bold mb-6">Demo Bookings</h1>
 
 
-      <SelectedLeadsActionBar5 selectedRows={selectedRows} />
+      <SelectedLeadsActionBar5
+  selectedRows={selectedRows}
+  leads={bookings}
+/>
 
-     <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div className="max-h-[600px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
   <table className="min-w-full text-sm text-gray-700">
     {/* Table Header */}
-    <thead className="bg-gray-50 border-b border-gray-200">
+    <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 shadow-sm">
       <tr>
-
-           <th className="px-4 py-2.5 text-center">
+        <th className="px-4 py-2.5 text-center bg-gray-50">
           <input
-  type="checkbox"
-  checked={
-    bookings.length > 0 &&
-    selectedRows.length === bookings.length
-  }
-  onChange={(e) => handleSelectAll(e.target.checked)}
-  className="w-4 h-4 accent-blue-600 cursor-pointer"
-/>
+            type="checkbox"
+            checked={
+              bookings.length > 0 &&
+              selectedRows.length === bookings.length
+            }
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 accent-blue-600 cursor-pointer"
+          />
         </th>
 
-        {/* <th className="px-5 py-4 text-left font-semibold text-gray-600">#</th> */}
-        <th className="px-5 py-4 text-left font-semibold text-gray-600">Name</th>
-        <th className="px-5 py-4 text-left font-semibold text-gray-600">Phone</th>
-        <th className="px-5 py-4 text-left font-semibold text-gray-600">
+        <th className="px-5 py-4 text-left font-semibold text-gray-600 bg-gray-50">
+          Name
+        </th>
+
+        <th className="px-5 py-4 text-left font-semibold text-gray-600 bg-gray-50">
+          Phone
+        </th>
+
+        <th className="px-5 py-4 text-left font-semibold text-gray-600 bg-gray-50">
           Seminar Time
         </th>
-        <th className="px-5 py-4 text-left font-semibold text-gray-600">Date</th>
-        <th className="px-5 py-4 text-center font-semibold text-gray-600">
+
+        <th className="px-5 py-4 text-left font-semibold text-gray-600 bg-gray-50">
+          Date
+        </th>
+
+        <th className="px-5 py-4 text-center font-semibold text-gray-600 bg-gray-50">
           Status
         </th>
-        <th className="px-5 py-4 text-center font-semibold text-gray-600">
+
+        <th className="px-5 py-4 text-center font-semibold text-gray-600 bg-gray-50">
           Actions
         </th>
       </tr>

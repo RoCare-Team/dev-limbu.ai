@@ -6,10 +6,11 @@ import {
   resolveDashboardUserIdByPhone,
 } from "@/lib/metaChatbotResolveUser";
 import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
+import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 //  Ye GET request handler hai. || Jab user browser me hit kare:
 export async function GET(req) {
-  const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "");
+  const baseUrl = resolveOAuthRedirectOrigin(req);
   const { searchParams } = new URL(req.url); // ye Request ke URL ko parse kar raha hai.
   const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId"); // ye URL se userId nikaal raha hai.
@@ -55,6 +56,7 @@ export async function GET(req) {
 
   const params = new URLSearchParams({ // ye Query string parameters banane ka object. || Ye automatically encode karta hai URL ko.
     client_id: process.env.META_APP_ID, // ye Ye batata hai kaunsi app login kar rahi hai. || Agar galat ID ho → Facebook error dega.
+    // Pehle `BASE_URL` (legacy `${BASE_URL}/api/facebook/callback`), warna forwarded host / request — same origin callback route bhi yehi use karti hai.
     redirect_uri: `${baseUrl}/api/facebook/callback`, // ye Login ke baad Facebook user ko yaha bhejega.|| Agar mismatch ho → “Redirect URI mismatch” error.
     scope: "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,business_management",
     response_type: "code", // ye Hum Facebook se authorization code chahte hain.|| OAuth flow me pehle code milta hai, || phir us code se token milta hai.

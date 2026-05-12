@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Clock,
   Linkedin,
+  YoutubeIcon,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import {
@@ -225,7 +226,8 @@ const PostCard = React.memo(
       [generatedVideoOutputUrl],
     );
     const hasVideoAsset = useMemo(
-      () => Boolean(hasGeneratedVideoOutput || vidUrl || postHasVideoAsset(post)),
+      () =>
+        Boolean(hasGeneratedVideoOutput || vidUrl || postHasVideoAsset(post)),
       [hasGeneratedVideoOutput, post, vidUrl],
     );
 
@@ -522,7 +524,9 @@ const PostCard = React.memo(
         }
       } else if (type === "youtube") {
         const youtubeUrl = generatedVideoOutputUrl || vidUrl;
-        const forcedMedia = youtubeUrl ? { type: "video", url: youtubeUrl } : null;
+        const forcedMedia = youtubeUrl
+          ? { type: "video", url: youtubeUrl }
+          : null;
         handleYoutubePost(post, forcedMedia);
       } else if (dualCardMedia) {
         setSelectionModal({ isOpen: true, type });
@@ -673,6 +677,7 @@ const PostCard = React.memo(
                   { id: "ig", icon: Instagram, label: "Insta" },
                   { id: "pinterest", icon: Share2, label: "Pin" },
                   { id: "li", icon: Linkedin, label: "LinkedIn" },
+                  { id: "yt", icon: YoutubeIcon, label: "YT" }, // YouTube button
                 ].map((p) => (
                   <button
                     key={p.id}
@@ -868,7 +873,8 @@ const PostCard = React.memo(
                 </div>
               )}
 
-              {(post.status === "posted" || post.status === "partial_failed") && (
+              {(post.status === "posted" ||
+                post.status === "partial_failed") && (
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-black/[0.04] bg-slate-50/80 p-2 shadow-inner shadow-white">
                     <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -1169,21 +1175,21 @@ const PostCard = React.memo(
                     <div className="space-y-3 mt-4">
                       <div className="grid grid-cols-2 gap-3">
                         {!isPlatformScheduled("fb") && !isPostedFb && (
-                            <button
-                              onClick={() => handleMediaChoice("fb")}
-                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                            >
-                              <Facebook size={13} /> Post to FB Pages
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleMediaChoice("fb")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Facebook size={13} /> Post to FB Pages
+                          </button>
+                        )}
                         {!isPlatformScheduled("ig") && !isPostedIg && (
-                            <button
-                              onClick={() => handleMediaChoice("ig")}
-                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                            >
-                              <Instagram size={13} /> Post to Instagram
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleMediaChoice("ig")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Instagram size={13} /> Post to Instagram
+                          </button>
+                        )}
                       </div>
                       {((!isPlatformScheduled("pinterest") &&
                         !isPlatformPosted(post.whenPosted, "pinterest")) ||
@@ -1230,7 +1236,8 @@ const PostCard = React.memo(
                 </>
               )}
 
-              {(post.status === "failed" || post.status === "partial_failed") && (
+              {(post.status === "failed" ||
+                post.status === "partial_failed") && (
                 <div className="space-y-4">
                   <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
                     <XCircle size={18} className="text-red-500 shrink-0" />

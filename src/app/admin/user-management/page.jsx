@@ -487,80 +487,61 @@ export default function UserManagement() {
     );
 
   const getConversationStageFromHistory = (history = [], user = {}) => {
-    let steps = [];
+    const steps = [];
 
-    if (history.length > 0) {
-      steps.push("Started");
-    }
+    // Only assistant messages
+    const assistantMessages = history.filter(
+      (item) => String(item?.role || "").toLowerCase() === "assistant",
+    );
 
-    const hasConnectedMessage = history.some((item) => {
-      const text = String(item?.content || "").toLowerCase();
-      return (
-        text.includes("account connect ho gaya") ||
-        text.includes("connected businesses") ||
-        text.includes("account connected") ||
-        text.includes("connect ho gaya")
+    const hasText = (keyword) => {
+      return assistantMessages.some((item) =>
+        String(item?.content || "")
+          .toLowerCase()
+          .includes(keyword.toLowerCase()),
       );
-    });
+    };
 
-    if (hasConnectedMessage || hasGmbConnected(user)) {
+    // ================= GMB CONNECTED =================
+    if (hasText("Badhaai ho! Account connect ho gaya!")) {
       steps.push("GMB Connected");
     }
 
-    const hasQRRequested = history.some((item) => {
-      const text = String(item?.content || "").toLowerCase();
-      return (
-        item.role === "user" && (text.includes("magic") || text.includes("qr"))
-      );
-    });
-
-    if (hasQRRequested) {
-      steps.push("QR Req");
+    // ================= MAGIC QR =================
+    if (hasText("Magic QR ready hai!")) {
+      steps.push("Magic QR");
     }
 
-    const hasInsightsRequested = history.some((item) => {
-      const text = String(item?.content || "").toLowerCase();
-      return (
-        (item.role === "user" && text.includes("insigt")) ||
-        text.includes("insight") ||
-        (text.includes("do") &&
-          history.findIndex((h) => h === item) > 0 &&
-          String(
-            history[history.findIndex((h) => h === item) - 1]?.content || "",
-          )
-            .toLowerCase()
-            .includes("google insights"))
-      );
-    });
-
-    if (hasInsightsRequested) {
-      steps.push("Insights Req");
+    // ================= GMB INSIGHTS =================
+    if (hasText("Full Report (PDF)")) {
+      steps.push("Insights");
     }
 
-    const hasWebsiteRequested = history.some((item) => {
-      const text = String(item?.content || "").toLowerCase();
-      return (
-        item.role === "user" &&
-        (text.includes("website") || text.includes("web"))
-      );
-    });
-
-    if (hasWebsiteRequested) {
-      steps.push("Web Req");
+    // ================= WEBSITE =================
+    if (hasText("Website URL")) {
+      steps.push("Website");
     }
 
+    // ================= GMB HEALTH =================
+    if (hasText("Full Health report")) {
+      steps.push("Health");
+    }
+
+    // ================= NO STAGE =================
     if (steps.length === 0) {
       return {
-        label: "No Conversation",
+        label: "No Activity",
         className: "bg-slate-50 text-slate-500 border-slate-200",
       };
     }
 
+    // ================= FINAL =================
     return {
       label: steps.join(" ➔ "),
-      className: steps.includes("GMB Connected")
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-indigo-50 text-indigo-700 border-indigo-200",
+      className:
+        steps.length >= 3
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-indigo-50 text-indigo-700 border-indigo-200",
     };
   };
 

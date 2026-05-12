@@ -1,13 +1,8 @@
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
+import { normalizeMetaPhoneDigits } from "@/lib/normalizeMetaPhoneDigits";
 
-/**
- * Digits-only phone (same idea as GMB chatbot links).
- * @param {string} phone
- */
-export function normalizeMetaPhoneDigits(phone) {
-  return String(phone || "").replace(/\D/g, "");
-}
+export { normalizeMetaPhoneDigits };
 
 /**
  * Resolve dashboard Meta userId (User.userId) from WhatsApp / chatbot phone.

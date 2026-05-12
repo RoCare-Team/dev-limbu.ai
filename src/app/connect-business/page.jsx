@@ -11,7 +11,13 @@ import {
   AlertCircle,
   MessageCircle,
   X,
+  Youtube,
+  Linkedin,
 } from "lucide-react";
+import {
+  LIMBU_CHATBOT_WA_RETURN,
+  normalizeChatbotWaReturnUrl,
+} from "@/lib/chatbotPlatformOAuthState";
 
 // ─── utils ────────────────────────────────────────────────────────────────────
 
@@ -30,9 +36,21 @@ const META_ERRORS = {
     "Something went wrong with Meta. Wait a moment and try again, or switch browsers.",
 };
 
-function metaErrorMessage(key) {
+const YOUTUBE_ERRORS = {
+  no_channels: "No YouTube channel found on this Google account. Create a channel first, then try again.",
+  missing_params: META_ERRORS.missing_params,
+  oauth_failed: "Something went wrong with YouTube / Google sign-in. Try again in a moment.",
+};
+
+const LINKEDIN_ERRORS = {
+  missing_params: META_ERRORS.missing_params,
+  oauth_failed:
+    "Something went wrong with LinkedIn sign-in. Wait a moment and try again, or switch browsers.",
+};
+
+function platformErrorMessage(errors, key) {
   const k = (key || "").toLowerCase();
-  return META_ERRORS[k] ?? `Error: ${key || "unknown"}`;
+  return errors[k] ?? `Error: ${key || "unknown"}`;
 }
 
 // ─── platform config ──────────────────────────────────────────────────────────
@@ -52,6 +70,9 @@ const PLATFORM_CONFIG = {
     avatarBg: "bg-blue-100",
     avatarText: "text-[#1877F2]",
     Icon: Facebook,
+    listItemSingular: "page",
+    listItemPlural: "pages",
+    oauthErrorTitle: "Meta authorization failed",
   },
   instagram: {
     label: "Instagram",
@@ -68,6 +89,45 @@ const PLATFORM_CONFIG = {
     avatarBg: "bg-pink-100",
     avatarText: "text-pink-600",
     Icon: Instagram,
+    listItemSingular: "page",
+    listItemPlural: "pages",
+    oauthErrorTitle: "Meta authorization failed",
+  },
+  youtube: {
+    label: "YouTube",
+    title: "Connect YouTube Channel",
+    subtitle: "Sign in with Google to link your YouTube channel to Limbu.ai",
+    fetchingMessage: "Fetching your YouTube channels…",
+    buttonLabel: "Continue with Google / YouTube",
+    headerBg: "bg-red-50",
+    iconBg: "bg-[#FF0000]",
+    badgeBg: "bg-red-100",
+    badgeText: "text-red-600",
+    buttonBg: "bg-[#FF0000] hover:bg-[#e60000]",
+    avatarBg: "bg-red-100",
+    avatarText: "text-red-600",
+    Icon: Youtube,
+    listItemSingular: "channel",
+    listItemPlural: "channels",
+    oauthErrorTitle: "YouTube authorization failed",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    title: "Connect LinkedIn",
+    subtitle: "Authorize LinkedIn to link your profile or company pages to Limbu.ai",
+    fetchingMessage: "Fetching your LinkedIn accounts…",
+    buttonLabel: "Continue with LinkedIn",
+    headerBg: "bg-sky-50",
+    iconBg: "bg-[#0A66C2]",
+    badgeBg: "bg-sky-100",
+    badgeText: "text-[#0A66C2]",
+    buttonBg: "bg-[#0A66C2] hover:bg-[#0958a8]",
+    avatarBg: "bg-sky-100",
+    avatarText: "text-[#0A66C2]",
+    Icon: Linkedin,
+    listItemSingular: "account",
+    listItemPlural: "accounts",
+    oauthErrorTitle: "LinkedIn authorization failed",
   },
 };
 
@@ -92,12 +152,12 @@ function StatusBanner({ variant, icon, title, message }) {
 }
 
 // ─── SuccessModal ─────────────────────────────────────────────────────────────
-// Shows after OAuth callback with connected pages + countdown redirect
 
 function SuccessModal({ platform, pages, onClose, onRedirect }) {
   const cfg = PLATFORM_CONFIG[platform];
   const { Icon: PlatformIcon } = cfg;
   const [countdown, setCountdown] = useState(4);
+  const noun = pages.length === 1 ? cfg.listItemSingular : cfg.listItemPlural;
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -112,7 +172,6 @@ function SuccessModal({ platform, pages, onClose, onRedirect }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6 sm:items-center">
       <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl">
 
-        {/* top accent bar */}
         <div className={`flex items-center justify-between px-5 py-4 ${cfg.headerBg}`}>
           <div className="flex items-center gap-3">
             <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${cfg.iconBg}`}>
@@ -130,7 +189,6 @@ function SuccessModal({ platform, pages, onClose, onRedirect }) {
         </div>
 
         <div className="px-5 py-5">
-          {/* big checkmark */}
           <div className="mb-5 flex flex-col items-center gap-2 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
               <CheckCircle2 className="h-7 w-7 text-emerald-600" />
@@ -141,11 +199,10 @@ function SuccessModal({ platform, pages, onClose, onRedirect }) {
             </p>
           </div>
 
-          {/* connected pages list — only this platform's pages */}
           {pages.length > 0 && (
             <div className="mb-4 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
               <p className="border-b border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                {pages.length} page{pages.length > 1 ? "s" : ""} connected
+                {pages.length} {noun} connected
               </p>
               <div className="divide-y divide-slate-100">
                 {pages.map((page) => {
@@ -172,7 +229,6 @@ function SuccessModal({ platform, pages, onClose, onRedirect }) {
             </div>
           )}
 
-          {/* countdown row */}
           <div className="mb-3 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <MessageCircle className="h-4 w-4 text-[#25D366]" aria-hidden />
@@ -183,7 +239,6 @@ function SuccessModal({ platform, pages, onClose, onRedirect }) {
             </span>
           </div>
 
-          {/* manual redirect button */}
           <button
             onClick={onRedirect}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] py-3 text-sm font-semibold text-white transition hover:bg-[#1ebe5d] active:scale-[0.99]"
@@ -203,15 +258,14 @@ function ConnectBusinessInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const type     = (searchParams.get("type")     || "").toLowerCase().trim();
-  const platform = (searchParams.get("platform") || "").toLowerCase().trim();
-  const phone    = normalizePhone(searchParams.get("phone") || "");
+  const typeRaw     = (searchParams.get("type")     || "").toLowerCase().trim();
+  const platformQP  = (searchParams.get("platform") || "").toLowerCase().trim();
+  const phone       = normalizePhone(searchParams.get("phone") || "");
 
-  // Optional: pass ?wa_return=<encoded-url> so the redirect goes back to the
-  // exact chat the user came from (e.g. a specific WA deep-link with context).
-  // Falls back to the default bot number.
-  const waReturnUrl =
-    searchParams.get("wa_return") || "https://wa.me/917065178662";
+  const flowType =
+    typeRaw === "youtube" ? "youtube" : typeRaw === "linkedin" ? "linkedin" : "meta";
+
+  const waReturnUrl = normalizeChatbotWaReturnUrl(searchParams.get("wa_return"));
 
   const [oauthFlash,       setOauthFlash]       = useState(null);
   const [isLaunchingOAuth, setIsLaunchingOAuth] = useState(false);
@@ -225,44 +279,63 @@ function ConnectBusinessInner() {
     userId: null,
   });
 
-  const [metaPages, setMetaPages] = useState({
+  const [connectedAccounts, setConnectedAccounts] = useState({
     loading: false,
     facebook: [],
     instagram: [],
+    youtube: [],
+    linkedin: [],
     error: "",
   });
 
-  // ── strip OAuth flash params from URL ─────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
     const sp    = new URLSearchParams(window.location.search);
     const done  = sp.get("done");
     const fbErr = sp.get("fb_error");
     const igErr = sp.get("ig_error");
-    if (!done && !fbErr && !igErr) return;
+    const ytErr = sp.get("yt_error");
+    const liErr = sp.get("li_error");
+    if (!done && !fbErr && !igErr && !ytErr && !liErr) return;
 
-    setOauthFlash({ done: done || "", fbError: fbErr || "", igError: igErr || "" });
+    setOauthFlash({
+      done: done || "",
+      fbError: fbErr || "",
+      igError: igErr || "",
+      ytError: ytErr || "",
+      liError: liErr || "",
+    });
 
     const u  = new URL(window.location.href);
     u.searchParams.delete("done");
     u.searchParams.delete("fb_error");
     u.searchParams.delete("ig_error");
+    u.searchParams.delete("yt_error");
+    u.searchParams.delete("li_error");
     const qs = u.searchParams.toString();
     router.replace(`${u.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [router]);
 
-  // ── platform derivation ───────────────────────────────────────────────────
-  const isInstagramFlow = platform === "instagram" || platform === "ig";
-  const activePlatform  = isInstagramFlow ? "instagram" : "facebook";
-  const cfg             = PLATFORM_CONFIG[activePlatform];
+  const isInstagramFlow =
+    flowType === "meta" && (platformQP === "instagram" || platformQP === "ig");
+  const activePlatform =
+    flowType === "youtube"
+      ? "youtube"
+      : flowType === "linkedin"
+        ? "linkedin"
+        : isInstagramFlow
+          ? "instagram"
+          : "facebook";
+
+  const cfg = PLATFORM_CONFIG[activePlatform];
   const { Icon: PlatformIcon } = cfg;
 
   const showBothUrls =
-    (!platform || platform === "facebook" || platform === "fb") &&
-    (!platform || platform === "instagram" || platform === "ig") &&
+    flowType === "meta" &&
+    (!platformQP || platformQP === "facebook" || platformQP === "fb") &&
+    (!platformQP || platformQP === "instagram" || platformQP === "ig") &&
     !!phone;
 
-  // ── login hrefs ───────────────────────────────────────────────────────────
   const fbLoginHref = useMemo(
     () => (phone ? `/api/facebook/login?phone=${encodeURIComponent(phone)}&source=chatbot` : "#"),
     [phone]
@@ -271,28 +344,75 @@ function ConnectBusinessInner() {
     () => (phone ? `/api/instagram/login?phone=${encodeURIComponent(phone)}&source=chatbot` : "#"),
     [phone]
   );
-  const activeLoginHref = activePlatform === "facebook" ? fbLoginHref : igLoginHref;
+  const ytLoginHref = useMemo(
+    () =>
+      phone
+        ? `/api/youtube/login?phone=${encodeURIComponent(phone)}&source=chatbot&wa_return=${encodeURIComponent(waReturnUrl)}`
+        : "#",
+    [phone, waReturnUrl]
+  );
+  const liLoginHref = useMemo(
+    () =>
+      phone
+        ? `/api/linkedin/login?phone=${encodeURIComponent(phone)}&source=chatbot&wa_return=${encodeURIComponent(waReturnUrl)}`
+        : "#",
+    [phone, waReturnUrl]
+  );
 
-  // ── PLATFORM-FILTERED pages ───────────────────────────────────────────────
-  // Facebook flow → only facebook[]. Instagram flow → only instagram[].
-  // This prevents cross-platform bleed (the screenshot bug).
-  const activeConnectedPages =
-    activePlatform === "facebook"
-      ? metaPages.facebook.map((p) => ({ id: p.pageId || "", name: p.pageName || "Connected" }))
-      : metaPages.instagram.map((p) => ({
-          id: p.igId || "",
-          name: p.igUsername || p.igName || p.username || "Connected",
-        }));
+  const activeLoginHref =
+    flowType === "youtube"
+      ? ytLoginHref
+      : flowType === "linkedin"
+        ? liLoginHref
+        : activePlatform === "facebook"
+          ? fbLoginHref
+          : igLoginHref;
+
+  const activeConnectedPages = useMemo(() => {
+    if (flowType === "youtube") {
+      return connectedAccounts.youtube.map((c) => ({
+        id: c.channelId || "",
+        name: c.channelTitle || "Channel",
+      }));
+    }
+    if (flowType === "linkedin") {
+      return connectedAccounts.linkedin.map((p) => ({
+        id: p.pageId || "",
+        name: p.pageName || "LinkedIn",
+      }));
+    }
+    if (activePlatform === "facebook") {
+      return connectedAccounts.facebook.map((p) => ({
+        id: p.pageId || "",
+        name: p.pageName || "Connected",
+      }));
+    }
+    return connectedAccounts.instagram.map((p) => ({
+      id: p.igId || "",
+      name: p.igUsername || p.igName || p.username || "Connected",
+    }));
+  }, [flowType, activePlatform, connectedAccounts]);
 
   const activeOauthError =
-    activePlatform === "facebook" ? oauthFlash?.fbError : oauthFlash?.igError;
+    flowType === "youtube"
+      ? oauthFlash?.ytError
+      : flowType === "linkedin"
+        ? oauthFlash?.liError
+        : activePlatform === "facebook"
+          ? oauthFlash?.fbError
+          : oauthFlash?.igError;
 
-  // ── redirect back to originating WA chat ─────────────────────────────────
+  const oauthErrorMessage =
+    flowType === "youtube"
+      ? platformErrorMessage(YOUTUBE_ERRORS, activeOauthError)
+      : flowType === "linkedin"
+        ? platformErrorMessage(LINKEDIN_ERRORS, activeOauthError)
+        : platformErrorMessage(META_ERRORS, activeOauthError);
+
   const handleRedirectToWA = useCallback(() => {
     window.location.href = waReturnUrl;
   }, [waReturnUrl]);
 
-  // ── connect handler ───────────────────────────────────────────────────────
   const buttonsReady = resolveState.ok && !!phone && !resolveState.loading;
 
   const handleConnect = useCallback(
@@ -305,7 +425,8 @@ function ConnectBusinessInner() {
     [activeLoginHref, buttonsReady]
   );
 
-  // ── Google redirect ───────────────────────────────────────────────────────
+  const type = typeRaw;
+
   useEffect(() => {
     if (type === "google") {
       const q = phone ? `?phone=${encodeURIComponent(phone)}` : "";
@@ -313,14 +434,14 @@ function ConnectBusinessInner() {
     }
   }, [type, phone, router]);
 
-  // ── resolve user ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (type === "google") return;
     if (!phone) {
       setResolveState({
         loading: false,
         ok: false,
-        error: "Your link must include a phone number, e.g. ?type=meta&phone=917740847114",
+        error:
+          "Your link must include a phone number, e.g. ?type=meta&phone=917740847114",
         userId: null,
       });
       return;
@@ -328,7 +449,14 @@ function ConnectBusinessInner() {
 
     let cancelled = false;
     setResolveState({ loading: true, ok: false, error: "", userId: null });
-    setMetaPages({ loading: false, facebook: [], instagram: [], error: "" });
+    setConnectedAccounts({
+      loading: false,
+      facebook: [],
+      instagram: [],
+      youtube: [],
+      linkedin: [],
+      error: "",
+    });
 
     void fetch(`/api/meta/resolve-user?phone=${encodeURIComponent(phone)}`, { cache: "no-store" })
       .then(async (res) => {
@@ -360,54 +488,99 @@ function ConnectBusinessInner() {
     return () => { cancelled = true; };
   }, [phone, type]);
 
-  // ── load pages (both, but only active platform is displayed) ─────────────
   useEffect(() => {
-    if (!resolveState.ok || !resolveState.userId) return;
+    if (type === "google" || !resolveState.ok || !resolveState.userId) return;
 
     let cancelled = false;
-    setMetaPages((prev) => ({ ...prev, loading: true, error: "" }));
+    setConnectedAccounts((prev) => ({ ...prev, loading: true, error: "" }));
+    const uid = resolveState.userId;
 
-    const loadPages = async () => {
+    const load = async () => {
       try {
+        if (flowType === "youtube") {
+          const res = await fetch(
+            `/api/youtube/channels?userId=${encodeURIComponent(uid)}`,
+            { cache: "no-store" }
+          );
+          const data = await res.json().catch(() => ({}));
+          if (cancelled) return;
+          setConnectedAccounts({
+            loading: false,
+            facebook: [],
+            instagram: [],
+            youtube: data.success && Array.isArray(data.channels) ? data.channels : [],
+            linkedin: [],
+            error: !data.success && data.message ? data.message : "",
+          });
+          return;
+        }
+        if (flowType === "linkedin") {
+          const res = await fetch(
+            `/api/linkedin/pages?userId=${encodeURIComponent(uid)}`,
+            { cache: "no-store" }
+          );
+          const data = await res.json().catch(() => ({}));
+          if (cancelled) return;
+          setConnectedAccounts({
+            loading: false,
+            facebook: [],
+            instagram: [],
+            youtube: [],
+            linkedin: data.success && Array.isArray(data.pages) ? data.pages : [],
+            error: data.error || (!data.success && data.message ? data.message : ""),
+          });
+          return;
+        }
+
         const [fbRes, igRes] = await Promise.all([
-          fetch(`/api/facebook/pages?userId=${encodeURIComponent(resolveState.userId)}`,  { cache: "no-store" }),
-          fetch(`/api/instagram/pages?userId=${encodeURIComponent(resolveState.userId)}`, { cache: "no-store" }),
+          fetch(`/api/facebook/pages?userId=${encodeURIComponent(uid)}`, { cache: "no-store" }),
+          fetch(`/api/instagram/pages?userId=${encodeURIComponent(uid)}`, { cache: "no-store" }),
         ]);
         const fbData = await fbRes.json().catch(() => ({}));
         const igData = await igRes.json().catch(() => ({}));
         if (cancelled) return;
 
-        setMetaPages({
+        setConnectedAccounts({
           loading: false,
-          facebook:  fbData.success && Array.isArray(fbData.pages)  ? fbData.pages  : [],
-          instagram: igData.success && Array.isArray(igData.pages)  ? igData.pages  : [],
+          facebook:  fbData.success && Array.isArray(fbData.pages)   ? fbData.pages   : [],
+          instagram: igData.success && Array.isArray(igData.pages)   ? igData.pages   : [],
+          youtube: [],
+          linkedin: [],
           error:
             (!fbData.success && fbData.message  ? fbData.message  : "") ||
             (!igData.success && igData.message  ? igData.message  : ""),
         });
       } catch (err) {
         if (!cancelled) {
-          console.error("Error fetching Meta pages:", err);
-          setMetaPages({ loading: false, facebook: [], instagram: [], error: "Could not load connected pages. Please refresh after connecting." });
+          console.error("Error fetching connected accounts:", err);
+          setConnectedAccounts({
+            loading: false,
+            facebook: [],
+            instagram: [],
+            youtube: [],
+            linkedin: [],
+            error: "Could not load connected pages. Please refresh after connecting.",
+          });
         }
       }
     };
 
-    void loadPages();
+    void load();
     return () => { cancelled = true; };
-  }, [resolveState.ok, resolveState.userId]);
+  }, [flowType, resolveState.ok, resolveState.userId, type]);
 
-  // ── open success modal once pages are loaded ──────────────────────────────
   useEffect(() => {
     const done = oauthFlash?.done;
-    if (!done || done !== activePlatform) return;
-    if (metaPages.loading) return;
+    if (!done) return;
+    if (flowType === "youtube" && done !== "youtube") return;
+    if (flowType === "linkedin" && done !== "linkedin") return;
+    if (flowType === "meta" && done !== activePlatform) return;
+    if (connectedAccounts.loading) return;
     if (hasOpenedModal.current) return;
     hasOpenedModal.current = true;
     setShowModal(true);
-  }, [activePlatform, oauthFlash, metaPages.loading]);
+  }, [flowType, activePlatform, oauthFlash, connectedAccounts.loading]);
 
-  // ── Google loader ─────────────────────────────────────────────────────────
   if (type === "google") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -416,17 +589,26 @@ function ConnectBusinessInner() {
     );
   }
 
-  const isSuccess  = oauthFlash?.done === activePlatform;
-  const isFetching = isSuccess && metaPages.loading;
+  const isSuccess =
+    flowType === "youtube"
+      ? oauthFlash?.done === "youtube"
+      : flowType === "linkedin"
+        ? oauthFlash?.done === "linkedin"
+        : oauthFlash?.done === activePlatform;
 
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
+  const isFetching = isSuccess && connectedAccounts.loading;
+
+  const baseUrl =
+    typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
   const fullFacebookPageUrl  = `${baseUrl}/connect-business?type=meta&source=chatbot&platform=facebook&phone=${phone}`;
   const fullInstagramPageUrl = `${baseUrl}/connect-business?type=meta&source=chatbot&platform=instagram&phone=${phone}`;
+  const waReturnEnc = encodeURIComponent(LIMBU_CHATBOT_WA_RETURN);
+  const fullYoutubePageUrl   = `${baseUrl}/connect-business?type=youtube&phone=${phone}&wa_return=${waReturnEnc}`;
+  const fullLinkedinPageUrl  = `${baseUrl}/connect-business?type=linkedin&phone=${phone}&wa_return=${waReturnEnc}`;
 
   return (
     <div className="min-h-screen bg-[#f5f6f8] text-slate-900">
 
-      {/* success modal */}
       {showModal && (
         <SuccessModal
           platform={activePlatform}
@@ -436,7 +618,6 @@ function ConnectBusinessInner() {
         />
       )}
 
-      {/* header */}
       <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-3.5">
           <p className="text-[17px] font-bold tracking-tight text-slate-900">
@@ -451,7 +632,6 @@ function ConnectBusinessInner() {
       <main className="mx-auto max-w-lg space-y-3 px-4 pb-16 pt-7">
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
 
-          {/* platform stripe */}
           <div className={`flex items-center gap-3 px-6 py-5 ${cfg.headerBg}`}>
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${cfg.iconBg}`}>
               <PlatformIcon className="h-5 w-5 text-white" aria-hidden />
@@ -464,7 +644,6 @@ function ConnectBusinessInner() {
 
           <div className="space-y-3 px-6 py-5">
 
-            {/* phone */}
             <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200">
                 <Phone className="h-3.5 w-3.5 text-slate-600" aria-hidden />
@@ -480,7 +659,6 @@ function ConnectBusinessInner() {
               )}
             </div>
 
-            {/* banners */}
             {resolveState.loading && (
               <StatusBanner variant="info" icon={<Loader2 className="h-4 w-4 animate-spin" />} title="Resolving account…" />
             )}
@@ -488,13 +666,12 @@ function ConnectBusinessInner() {
               <StatusBanner variant="warning" icon={<AlertCircle className="h-4 w-4" />} title="Account not found" message={resolveState.error} />
             )}
             {activeOauthError && (
-              <StatusBanner variant="error" icon={<AlertCircle className="h-4 w-4" />} title="Meta authorization failed" message={metaErrorMessage(activeOauthError)} />
+              <StatusBanner variant="error" icon={<AlertCircle className="h-4 w-4" />} title={cfg.oauthErrorTitle} message={oauthErrorMessage} />
             )}
             {isFetching && (
               <StatusBanner variant="info" icon={<Loader2 className="h-4 w-4 animate-spin" />} title={cfg.fetchingMessage} />
             )}
 
-            {/* connect button */}
             {!resolveState.loading && resolveState.ok && (
               <button
                 type="button"
@@ -517,7 +694,6 @@ function ConnectBusinessInner() {
               </button>
             )}
 
-            {/* whatsapp button */}
             <button
               type="button"
               onClick={handleRedirectToWA}
@@ -529,7 +705,6 @@ function ConnectBusinessInner() {
           </div>
         </section>
 
-        {/* debug URL cards */}
         {showBothUrls && (
           <div className="grid grid-cols-2 gap-2">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 px-3 py-2.5">
@@ -541,6 +716,20 @@ function ConnectBusinessInner() {
               <p className="mt-0.5 break-all text-[10px] text-slate-500">{fullInstagramPageUrl}</p>
             </section>
           </div>
+        )}
+
+        {flowType === "youtube" && !!phone && (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">YouTube URL</p>
+            <p className="mt-0.5 break-all text-[10px] text-slate-500">{fullYoutubePageUrl}</p>
+          </section>
+        )}
+
+        {flowType === "linkedin" && !!phone && (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">LinkedIn URL</p>
+            <p className="mt-0.5 break-all text-[10px] text-slate-500">{fullLinkedinPageUrl}</p>
+          </section>
         )}
       </main>
     </div>

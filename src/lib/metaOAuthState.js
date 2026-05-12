@@ -1,4 +1,4 @@
-import { normalizeMetaPhoneDigits } from "@/lib/metaChatbotResolveUser";
+import { normalizeMetaPhoneDigits } from "@/lib/normalizeMetaPhoneDigits";
 
 /**
  * Two OAuth `state` shapes — both must keep working:

@@ -2,52 +2,36 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import YouTubeChannel from "@/models/YouTubeChannel";
-import { getBaseUrl } from "@/utils/urlHelper";
+import {
+  parseYoutubeLinkedinOAuthState,
+  youtubeSuccessRedirect,
+  youtubeErrorRedirect,
+} from "@/lib/chatbotPlatformOAuthState";
+import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 export async function GET(req) {
-  // console.log("👉 YouTube Callback Hit");
-
   try {
     await dbConnect();
-    console.log("✅ DB Connected");
 
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
-    const baseUrl = getBaseUrl(req);
+    const baseUrl = resolveOAuthRedirectOrigin(req);
     const redirectUri = `${baseUrl}/api/youtube/callback`;
 
-    let userId = stateParam;
-    let isMobile = false;
-
-    try {
-      if (stateParam) {
-        const decodedState = JSON.parse(decodeURIComponent(stateParam));
-        userId = decodedState.userId;
-        isMobile = decodedState.mobile === true;
-      }
-    } catch (e) {
-      userId = stateParam;
-    }
-
-    console.log("📥 Received Params:", { code, userId });
+    const parsed = parseYoutubeLinkedinOAuthState(stateParam);
+    const userId = parsed.userId;
+    const isMobile = parsed.mobile;
 
     if (!code || !userId) {
-      console.log("❌ Missing code or userId");
       if (isMobile) {
-        return NextResponse.redirect(
-          "limbuai://youtube-error?error=missing_params"
-        );
+        return NextResponse.redirect("limbuai://youtube-error?error=missing_params");
       }
-      return NextResponse.redirect(
-        `${baseUrl}/dashboard?youtube=missing_params`
-      );
+      return NextResponse.redirect(youtubeErrorRedirect(parsed, "missing_params", baseUrl));
     }
 
-    /* ---------------------------------------------
-       1️⃣ EXCHANGE CODE FOR TOKENS
-    --------------------------------------------- */
-    console.log("🔄 Exchanging code for token...");
+    const connectionSource = parsed.source === "chatbot" ? "chatbot" : "manual";
+    const tagPhone = parsed.source === "chatbot" && parsed.phone ? parsed.phone : "";
 
     const tokenRes = await axios.post(
       "https://oauth2.googleapis.com/token",
@@ -65,26 +49,15 @@ export async function GET(req) {
       }
     );
 
-    console.log("✅ Token Response:", tokenRes.data);
-
     const accessToken = tokenRes.data.access_token;
     const refreshToken = tokenRes.data.refresh_token;
     const expiresIn = tokenRes.data.expires_in;
 
     if (!accessToken) {
-      console.log("❌ Access token missing");
       throw new Error("No access token received");
     }
 
-    const tokenExpiryDate = new Date(Date.now() + expiresIn * 1000);
-
-    console.log("🔑 Access Token:", accessToken);
-    console.log("🔄 Refresh Token:", refreshToken);
-
-    /* ---------------------------------------------
-       2️⃣ FETCH YOUTUBE CHANNELS
-    --------------------------------------------- */
-    console.log("📺 Fetching YouTube channels...");
+    const tokenExpiryDate = new Date(Date.now() + (expiresIn || 3600) * 1000);
 
     const channelsRes = await axios.get(
       "https://www.googleapis.com/youtube/v3/channels",
@@ -99,30 +72,16 @@ export async function GET(req) {
       }
     );
 
-    console.log("✅ Channels Response:", channelsRes.data);
-
     const channels = channelsRes.data.items;
 
     if (!channels || channels.length === 0) {
-      console.log("❌ No channels found");
       if (isMobile) {
-        return NextResponse.redirect(
-          "limbuai://youtube-error?error=no_channels"
-        );
+        return NextResponse.redirect("limbuai://youtube-error?error=no_channels");
       }
-      return NextResponse.redirect(
-        `${baseUrl}/dashboard?youtube=no_channels`
-      );
+      return NextResponse.redirect(youtubeErrorRedirect(parsed, "no_channels", baseUrl));
     }
 
-    /* ---------------------------------------------
-       3️⃣ SAVE TOKENS + CHANNEL INFO
-    --------------------------------------------- */
-    console.log("💾 Saving channels to DB...");
-
     for (const channel of channels) {
-      console.log("➡️ Saving channel:", channel.id);
-
       await YouTubeChannel.findOneAndUpdate(
         { userId, channelId: channel.id },
         {
@@ -133,42 +92,36 @@ export async function GET(req) {
           refreshToken,
           tokenExpiresAt: tokenExpiryDate,
           platform: "youtube",
+          connectionSource,
+          ...(tagPhone ? { phone: tagPhone } : {}),
         },
         { upsert: true, new: true }
       );
     }
 
-    console.log("🎉 YouTube Connected Successfully");
-
-    if (isMobile) {
-      return NextResponse.redirect(
-        "limbuai://youtube-success?status=connected"
+    if (parsed.source === "chatbot" && parsed.phone) {
+      await YouTubeChannel.updateMany(
+        { userId, channelId: { $in: channels.map((c) => c.id) } },
+        { $set: { phone: parsed.phone, connectionSource: "chatbot" } }
       );
     }
 
-    return NextResponse.redirect(
-      `${baseUrl}/dashboard?youtube=connected`
-    );
+    if (isMobile) {
+      return NextResponse.redirect("limbuai://youtube-success?status=connected");
+    }
 
+    return NextResponse.redirect(youtubeSuccessRedirect(parsed, baseUrl));
   } catch (err) {
-    console.error("🔥 YOUTUBE CALLBACK ERROR:");
-    console.error("Message:", err.message);
-    console.error("Response:", err.response?.data);
-    const baseUrl = getBaseUrl(req);
-
+    console.error("YOUTUBE CALLBACK ERROR:", err.response?.data || err.message);
+    const baseUrl = resolveOAuthRedirectOrigin(req);
     const stateParam = new URL(req.url).searchParams.get("state");
-    let isMobile = false;
-    try {
-      const decodedState = JSON.parse(decodeURIComponent(stateParam));
-      isMobile = decodedState.mobile === true;
-    } catch (e) {}
+    const parsed = parseYoutubeLinkedinOAuthState(stateParam);
+    const isMobile = parsed.mobile;
 
     if (isMobile) {
       return NextResponse.redirect("limbuai://youtube-error?error=unknown");
     }
 
-    return NextResponse.redirect(
-      `${baseUrl}/dashboard?youtube=error`
-    );
+    return NextResponse.redirect(youtubeErrorRedirect(parsed, "oauth_failed", baseUrl));
   }
 }

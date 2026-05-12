@@ -2,7 +2,12 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import LinkedinProfile from "@/models/LinkedinProfile";
-import { getBaseUrl } from "@/utils/urlHelper";
+import {
+  parseYoutubeLinkedinOAuthState,
+  linkedinSuccessRedirect,
+  linkedinErrorRedirect,
+} from "@/lib/chatbotPlatformOAuthState";
+import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 export async function GET(req) {
   try {
@@ -11,30 +16,20 @@ export async function GET(req) {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
+    const baseUrl = resolveOAuthRedirectOrigin(req);
 
-    let userId = stateParam;
-    let isMobile = false;
-
-    try {
-      if (stateParam) {
-        // Try to parse state as JSON (for mobile flow support)
-        const decodedState = JSON.parse(decodeURIComponent(stateParam));
-        userId = decodedState.userId;
-        isMobile = decodedState.mobile === true;
-      }
-    } catch (e) {
-      // Fallback: if not JSON, treat stateParam as the plain userId
-      userId = stateParam;
-    }
-
-    const baseUrl = getBaseUrl(req);
+    const parsed = parseYoutubeLinkedinOAuthState(stateParam);
+    const userId = parsed.userId;
+    const isMobile = parsed.mobile;
 
     if (!code || !userId) {
       if (isMobile) return NextResponse.redirect(`limbuai://linkedin-error?error=missing_params`);
-      return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=missing_params`);
+      return NextResponse.redirect(linkedinErrorRedirect(parsed, "missing_params", baseUrl));
     }
 
-    // 1️⃣ Exchange Authorization Code for Access Token
+    const connectionSource = parsed.source === "chatbot" ? "chatbot" : "manual";
+    const tagPhone = parsed.source === "chatbot" && parsed.phone ? parsed.phone : "";
+
     const tokenRes = await axios.post(
       "https://www.linkedin.com/oauth/v2/accessToken",
       new URLSearchParams({
@@ -50,8 +45,6 @@ export async function GET(req) {
     const { access_token, expires_in } = tokenRes.data;
     const expiresAt = new Date(Date.now() + expires_in * 1000);
 
-    // 2️⃣ Fetch User Profile (Personal Page)
-    // Using the recommended endpoint: /v2/me with projection
     let personUrn = "";
     let personName = "LinkedIn User";
     let profilePicture = "";
@@ -62,19 +55,17 @@ export async function GET(req) {
         "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))",
         { headers: { Authorization: `Bearer ${access_token}` } }
       );
-      
+
       const meData = meRes.data;
       personUrn = meData.id;
       personName = `${meData.localizedFirstName || ""} ${meData.localizedLastName || ""}`.trim();
-      
-      // Extract profile picture
+
       const displayImage = meData.profilePicture?.["displayImage~"];
       if (displayImage && displayImage.elements && displayImage.elements.length > 0) {
-        // Get the largest image available
-        profilePicture = displayImage.elements[displayImage.elements.length - 1].identifiers[0].identifier;
+        profilePicture =
+          displayImage.elements[displayImage.elements.length - 1].identifiers[0].identifier;
       }
 
-      // 3️⃣ Fetch Email (Separate endpoint)
       try {
         const emailRes = await axios.get(
           "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))",
@@ -87,9 +78,7 @@ export async function GET(req) {
       } catch (emailErr) {
         console.log("Could not fetch email, proceeding without it.");
       }
-
     } catch (meErr) {
-      // Fallback to /v2/userinfo if /v2/me fails (in case app uses newer OpenID scopes exclusively)
       console.log("Failed to fetch /v2/me, falling back to /v2/userinfo", meErr.response?.data || meErr.message);
       const profileRes = await axios.get("https://api.linkedin.com/v2/userinfo", {
         headers: { Authorization: `Bearer ${access_token}` },
@@ -101,7 +90,6 @@ export async function GET(req) {
     }
 
     if (personUrn) {
-      // Save Personal Profile
       await LinkedinProfile.findOneAndUpdate(
         { userId, pageId: `urn:li:person:${personUrn}` },
         {
@@ -113,25 +101,26 @@ export async function GET(req) {
           pageAccessToken: access_token,
           pageTokenExpiresAt: expiresAt,
           platform: "linkedin",
-          type: "profile"
+          type: "profile",
+          connectionSource,
+          ...(tagPhone ? { phone: tagPhone } : {}),
         },
         { upsert: true, new: true }
       );
     }
 
-    // 4️⃣ Try fetching Organizations (Company Pages) and their details
     try {
-      const orgsRes = await axios.get("https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED", {
-        headers: { Authorization: `Bearer ${access_token}` },
-      });
+      const orgsRes = await axios.get(
+        "https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED",
+        { headers: { Authorization: `Bearer ${access_token}` } }
+      );
 
       const elements = orgsRes.data.elements || [];
-      
-      // 5️⃣ Loop and fetch detailed Company Page data
+
       for (const el of elements) {
-        const orgUrn = el.organization; // e.g. "urn:li:organization:12345"
+        const orgUrn = el.organization;
         const orgId = orgUrn.split(":").pop();
-        
+
         let orgName = `Company Page (${orgId})`;
         let orgLogo = "";
 
@@ -140,7 +129,7 @@ export async function GET(req) {
             `https://api.linkedin.com/v2/organizations/${orgId}?projection=(id,localizedName,logoV2(original~:playableStreams))`,
             { headers: { Authorization: `Bearer ${access_token}` } }
           );
-          
+
           orgName = orgDetailRes.data.localizedName || orgName;
           const logoV2 = orgDetailRes.data.logoV2?.["original~"];
           if (logoV2 && logoV2.elements && logoV2.elements.length > 0) {
@@ -160,7 +149,9 @@ export async function GET(req) {
             pageAccessToken: access_token,
             pageTokenExpiresAt: expiresAt,
             platform: "linkedin",
-            type: "organization"
+            type: "organization",
+            connectionSource,
+            ...(tagPhone ? { phone: tagPhone } : {}),
           },
           { upsert: true, new: true }
         );
@@ -173,19 +164,16 @@ export async function GET(req) {
       return NextResponse.redirect(`limbuai://linkedin-success?status=connected`);
     }
 
-    return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=connected`);
+    return NextResponse.redirect(linkedinSuccessRedirect(parsed, baseUrl));
   } catch (err) {
     console.error("LINKEDIN CALLBACK ERROR:", err.response?.data || err.message);
-    const baseUrl = getBaseUrl(req);
-    
+    const baseUrl = resolveOAuthRedirectOrigin(req);
+
     const stateParam = new URL(req.url).searchParams.get("state");
-    let isMobile = false;
-    try {
-      const decodedState = JSON.parse(decodeURIComponent(stateParam));
-      isMobile = decodedState.mobile === true;
-    } catch(e) {}
+    const parsed = parseYoutubeLinkedinOAuthState(stateParam);
+    const isMobile = parsed.mobile;
 
     if (isMobile) return NextResponse.redirect(`limbuai://linkedin-error?error=unknown`);
-    return NextResponse.redirect(`${baseUrl}/dashboard?linkedin=error`);
+    return NextResponse.redirect(linkedinErrorRedirect(parsed, "oauth_failed", baseUrl));
   }
 }

@@ -9,7 +9,8 @@ import {
 } from "@/lib/metaOAuthState";
 import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
-// `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
+// `state`: plain userId (dashboard) or `m.…` (phone/chatbot); DB key = parsed.userId.
+// `baseUrl`: same resolver as instagram/login (`BASE_URL` first, warna forwarded / request).
 export async function GET(req) {
   const baseUrl = resolveOAuthRedirectOrigin(req);
   const reqUrl = new URL(req.url);
@@ -33,7 +34,7 @@ export async function GET(req) {
         params: {
           client_id: process.env.META_APP_ID,
           client_secret: process.env.META_APP_SECRET,
-          redirect_uri: `${baseUrl}/api/instagram/callback`,
+          redirect_uri: `${baseUrl}/api/instagram/callback`, // login time wala hi redirect_uri (Meta strict match).
           code,
         },
       }

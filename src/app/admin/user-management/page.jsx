@@ -43,6 +43,9 @@ import {
   Send,
   Smartphone,
   MessageCircle,
+  BarChart3,
+  Globe2,
+  QrCode,
 } from "lucide-react";
 import {
   USER_SOURCE_OPTIONS,
@@ -61,6 +64,7 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneModal";
 
 import WhatsappModal from "./components/WhatsAppTemplateModel";
+import ChatHistoryModal from "./components/ChatHistoryModal";
 
 // import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
 
@@ -95,7 +99,6 @@ export default function UserManagement() {
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
 
-  
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [fullViewImage, setFullViewImage] = useState(null);
   const [pagination, setPagination] = useState(null);
@@ -115,6 +118,15 @@ export default function UserManagement() {
   const [remarksInput, setRemarksInput] = useState("");
   const [remarksHistory, setRemarksHistory] = useState([]);
   const [loadingRemarks, setLoadingRemarks] = useState(false);
+  const [chatHistoryModal, setChatHistoryModal] = useState({
+    open: false,
+    user: null,
+    userId: "",
+    history: [],
+    loading: false,
+    error: "",
+  });
+  const [conversationStages, setConversationStages] = useState({});
 
   const [subscriptionPlans, setSubscriptionPlans] = useState(null);
   const [selectedCycle, setSelectedCycle] = useState("monthly");
@@ -440,6 +452,400 @@ export default function UserManagement() {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const getLimbuBotHistoryUserId = (user = {}) => {
+    const explicit =
+      user.chatbotUserId ||
+      user.whatsappUserId ||
+      user.limbuBotUserId ||
+      user.botUserId ||
+      "";
+    if (typeof explicit === "string" && explicit.trim()) {
+      return explicit.trim().startsWith("wa_")
+        ? explicit.trim()
+        : `wa_${explicit.trim().replace(/\D/g, "")}`;
+    }
+
+    let phone = user.phone || user.mobileNumber || "";
+    phone = String(phone).replace(/\D/g, "");
+    if (!phone) return "";
+    if (phone.length === 10) phone = `91${phone}`;
+    return `wa_${phone}`;
+  };
+
+  const getConversationStageKey = (user = {}) =>
+    String(user.userId || getLimbuBotHistoryUserId(user) || user._id || "");
+
+  const hasGmbConnected = (user = {}) =>
+    Boolean(
+      user.isBusinessConnected ||
+      user.connectedBusinessEmail ||
+      user.gmbProjectId ||
+      user.selectedBusiness?.name ||
+      (Array.isArray(user.businessListings) &&
+        user.businessListings.length > 0),
+    );
+
+  const getConversationStageFromHistory = (history = [], user = {}) => {
+    let steps = [];
+
+    if (history.length > 0) {
+      steps.push("Started");
+    }
+
+    const hasConnectedMessage = history.some((item) => {
+      const text = String(item?.content || "").toLowerCase();
+      return (
+        text.includes("account connect ho gaya") ||
+        text.includes("connected businesses") ||
+        text.includes("account connected") ||
+        text.includes("connect ho gaya")
+      );
+    });
+
+    if (hasConnectedMessage || hasGmbConnected(user)) {
+      steps.push("GMB Connected");
+    }
+
+    const hasQRRequested = history.some((item) => {
+      const text = String(item?.content || "").toLowerCase();
+      return (
+        item.role === "user" && (text.includes("magic") || text.includes("qr"))
+      );
+    });
+
+    if (hasQRRequested) {
+      steps.push("QR Req");
+    }
+
+    const hasInsightsRequested = history.some((item) => {
+      const text = String(item?.content || "").toLowerCase();
+      return (
+        (item.role === "user" && text.includes("insigt")) ||
+        text.includes("insight") ||
+        (text.includes("do") &&
+          history.findIndex((h) => h === item) > 0 &&
+          String(
+            history[history.findIndex((h) => h === item) - 1]?.content || "",
+          )
+            .toLowerCase()
+            .includes("google insights"))
+      );
+    });
+
+    if (hasInsightsRequested) {
+      steps.push("Insights Req");
+    }
+
+    const hasWebsiteRequested = history.some((item) => {
+      const text = String(item?.content || "").toLowerCase();
+      return (
+        item.role === "user" &&
+        (text.includes("website") || text.includes("web"))
+      );
+    });
+
+    if (hasWebsiteRequested) {
+      steps.push("Web Req");
+    }
+
+    if (steps.length === 0) {
+      return {
+        label: "No Conversation",
+        className: "bg-slate-50 text-slate-500 border-slate-200",
+      };
+    }
+
+    return {
+      label: steps.join(" ➔ "),
+      className: steps.includes("GMB Connected")
+        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+        : "bg-indigo-50 text-indigo-700 border-indigo-200",
+    };
+  };
+
+  const fetchConversationStagesOnLoad = async () => {
+    try {
+      const usersToFetch = filteredUsers.filter((user) =>
+        getLimbuBotHistoryUserId(user),
+      );
+
+      if (!usersToFetch.length) return;
+
+      const loadingState = {};
+
+      usersToFetch.forEach((user) => {
+        const key = getConversationStageKey(user);
+
+        if (key) {
+          loadingState[key] = {
+            loading: true,
+          };
+        }
+      });
+
+      setConversationStages((prev) => ({
+        ...prev,
+        ...loadingState,
+      }));
+
+      const responses = await Promise.allSettled(
+        usersToFetch.map(async (user) => {
+          try {
+            const historyUserId = getLimbuBotHistoryUserId(user);
+
+            const res = await fetch(
+              `/api/limbubot/history?user_id=${encodeURIComponent(
+                historyUserId,
+              )}`,
+              {
+                cache: "no-store",
+              },
+            );
+
+            if (!res.ok) {
+              throw new Error("Failed to load history");
+            }
+
+            const data = await res.json();
+
+            const history = Array.isArray(data.history) ? data.history : [];
+
+            const stage = getConversationStageFromHistory(history, user);
+
+            return {
+              key: getConversationStageKey(user),
+              stage,
+            };
+          } catch (err) {
+            console.log(err);
+
+            return {
+              key: getConversationStageKey(user),
+              stage: {
+                label: "No Conversation",
+                className: "bg-slate-50 text-slate-500 border-slate-200",
+              },
+            };
+          }
+        }),
+      );
+
+      const updatedStages = {};
+
+      responses.forEach((result) => {
+        if (result.status === "fulfilled") {
+          updatedStages[result.value.key] = {
+            loading: false,
+            stage: result.value.stage,
+          };
+        }
+      });
+
+      setConversationStages((prev) => ({
+        ...prev,
+        ...updatedStages,
+      }));
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const getConversationStageDisplay = (user = {}) => {
+    if (hasGmbConnected(user)) {
+      return {
+        label: "GMB Connected",
+        className: "bg-green-50 text-green-700 border-green-200",
+      };
+    }
+
+    const key = getConversationStageKey(user);
+
+    const cached = key ? conversationStages[key] : null;
+
+    if (cached?.loading) {
+      return {
+        label: "Checking...",
+        className: "bg-amber-50 text-amber-700 border-amber-200",
+      };
+    }
+
+    if (cached?.stage) {
+      return cached.stage;
+    }
+
+    if (!getLimbuBotHistoryUserId(user)) {
+      return {
+        label: "No WhatsApp",
+        className: "bg-slate-50 text-slate-500 border-slate-200",
+      };
+    }
+
+    return {
+      label: "Not Loaded",
+      className: "bg-gray-50 text-gray-600 border-gray-200",
+    };
+  };
+
+  useEffect(() => {
+    if (filteredUsers?.length) {
+      fetchConversationStagesOnLoad();
+    }
+  }, [filteredUsers]);
+
+  const fetchChatHistoryForUser = async (user) => {
+    const historyUserId = getLimbuBotHistoryUserId(user);
+    const stageKey = getConversationStageKey(user);
+    if (!historyUserId || historyUserId === "wa_") {
+      showToast("No WhatsApp number found for this user", "error");
+      return;
+    }
+
+    setChatHistoryModal({
+      open: true,
+      user,
+      userId: historyUserId,
+      history: [],
+      loading: true,
+      error: "",
+    });
+
+    try {
+      const res = await fetch(
+        `/api/limbubot/history?user_id=${encodeURIComponent(historyUserId)}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to load chat history");
+      }
+
+      setChatHistoryModal((prev) => ({
+        ...prev,
+        history: Array.isArray(data.history) ? data.history : [],
+        loading: false,
+        error: "",
+      }));
+      if (stageKey) {
+        const history = Array.isArray(data.history) ? data.history : [];
+        setConversationStages((prev) => ({
+          ...prev,
+          [stageKey]: {
+            loading: false,
+            historyCount: history.length,
+            stage: getConversationStageFromHistory(history, user),
+          },
+        }));
+      }
+    } catch (error) {
+      setChatHistoryModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: error.message || "Failed to load chat history",
+      }));
+      if (stageKey) {
+        setConversationStages((prev) => ({
+          ...prev,
+          [stageKey]: {
+            loading: false,
+            error: error.message || "Failed to load chat history",
+            stage: {
+              label: "History Error",
+              className: "bg-red-50 text-red-700 border-red-200",
+            },
+          },
+        }));
+      }
+    }
+  };
+
+  const closeChatHistoryModal = () => {
+    setChatHistoryModal({
+      open: false,
+      user: null,
+      userId: "",
+      history: [],
+      loading: false,
+      error: "",
+    });
+  };
+
+  useEffect(() => {
+    const usersToCheck = filteredUsers
+      .filter((user) => !hasGmbConnected(user))
+      .map((user) => ({
+        user,
+        key: getConversationStageKey(user),
+        historyUserId: getLimbuBotHistoryUserId(user),
+      }))
+      .filter(
+        ({ key, historyUserId }) =>
+          key &&
+          historyUserId &&
+          historyUserId !== "wa_" &&
+          !conversationStages[key],
+      )
+      .slice(0, 25);
+
+    if (usersToCheck.length === 0) return;
+
+    let cancelled = false;
+
+    setConversationStages((prev) => {
+      const next = { ...prev };
+      usersToCheck.forEach(({ key }) => {
+        next[key] = {
+          loading: true,
+          stage: {
+            label: "Checking...",
+            className: "bg-amber-50 text-amber-700 border-amber-200",
+          },
+        };
+      });
+      return next;
+    });
+
+    usersToCheck.forEach(async ({ user, key, historyUserId }) => {
+      try {
+        const res = await fetch(
+          `/api/limbubot/history?user_id=${encodeURIComponent(historyUserId)}`,
+          { cache: "no-store" },
+        );
+        const data = await res.json().catch(() => ({}));
+        const history =
+          res.ok && data.success && Array.isArray(data.history)
+            ? data.history
+            : [];
+        if (cancelled) return;
+        setConversationStages((prev) => ({
+          ...prev,
+          [key]: {
+            loading: false,
+            historyCount: history.length,
+            stage: getConversationStageFromHistory(history, user),
+          },
+        }));
+      } catch (error) {
+        if (cancelled) return;
+        setConversationStages((prev) => ({
+          ...prev,
+          [key]: {
+            loading: false,
+            error: error.message,
+            stage: {
+              label: "History Error",
+              className: "bg-red-50 text-red-700 border-red-200",
+            },
+          },
+        }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filteredUsers, conversationStages]);
 
   const handleSearch = () => {
     if (currentPage !== 1) {
@@ -1753,15 +2159,18 @@ export default function UserManagement() {
     setTemplateWaSendingId(template.id);
     setBulkWaResult(null);
     try {
-      const response = await fetch("/api/admin/user-management-template-whatsapp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adminEmail,
-          users: usersPayload,
-          templateId: template.id,
-        }),
-      });
+      const response = await fetch(
+        "/api/admin/user-management-template-whatsapp",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            adminEmail,
+            users: usersPayload,
+            templateId: template.id,
+          }),
+        },
+      );
       const json = await response.json();
 
       setBulkWaResult({
@@ -1839,15 +2248,11 @@ export default function UserManagement() {
     // Service modal close
     setServiceUser(null);
 
-    
-
     try {
       // API call
       const res = await fetch(`/api/post-status?userId=${user.userId}`);
       // console.log("handle post view res: ",res)
       const data = await res.json();
-
-      
 
       // Modal open
       setViewingUserPosts(user);
@@ -1873,7 +2278,6 @@ export default function UserManagement() {
       setLoadingPosts(false);
     }
   };
-
 
   const handleOpenWalletModal = (user) => {
     setWalletModalUser(user);
@@ -3266,7 +3670,6 @@ export default function UserManagement() {
                           SMS
                         </button>
                       </div>
-
                     </div>
                   </div>
                 )}
@@ -3389,21 +3792,24 @@ export default function UserManagement() {
                           />
                         </th>
                       )}
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[120px]">
                         {isAgent && followUpFilter !== "all"
                           ? "Follow-up"
                           : "Joined Date"}
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
                         User Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
+                        Conversation
                       </th>
                       {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                     Plan
                   </th> */}
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         Assign To
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         Remarks
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
@@ -3413,7 +3819,7 @@ export default function UserManagement() {
                         Contact
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                        Chat
+                        Plan
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Service
@@ -3439,7 +3845,7 @@ export default function UserManagement() {
                     followUpFilter !== "all" ? (
                       <tr>
                         <td
-                          colSpan={role === "superAdmin" ? 13 : 12}
+                          colSpan={role === "superAdmin" ? 14 : 13}
                           className="text-center py-14"
                         >
                           <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
@@ -3461,7 +3867,7 @@ export default function UserManagement() {
                               {/* 🔥 DATE HEADING */}
                               <tr>
                                 <td
-                                  colSpan={role === "superAdmin" ? 13 : 12}
+                                  colSpan={role === "superAdmin" ? 14 : 13}
                                   className="bg-gray-100 font-bold px-6 py-3 text-gray-700"
                                 >
                                   {date} (Total: {users.length})
@@ -3620,15 +4026,20 @@ export default function UserManagement() {
                                     <td className="px-6 py-5">
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
-                                          {user.fullName && (
-                                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                              <User2Icon
-                                                size={14}
-                                                className="text-gray-400"
-                                              />
-                                              {user.fullName}
-                                            </div>
-                                          )}
+                                          <div className="flex min-w-0 items-center gap-2 text-sm text-gray-600">
+                                            <User2Icon
+                                              size={14}
+                                              className="shrink-0 text-gray-400"
+                                            />
+                                            <span className="truncate">
+                                              {user.fullName ||
+                                                user.name ||
+                                                user.email ||
+                                                user.phone ||
+                                                user.userId ||
+                                                "User"}
+                                            </span>
+                                          </div>
                                           {paidUsersStatus[user.userId] && ( // A URL exists for this user
                                             <>
                                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
@@ -3719,6 +4130,211 @@ export default function UserManagement() {
                                             </span>
                                           )}
                                         </div>
+                                      </div>
+                                    </td>
+
+                                    <td className="px-6 py-5">
+                                      <div className="flex flex-col gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            fetchChatHistoryForUser(user);
+                                          }}
+                                          disabled={
+                                            !getLimbuBotHistoryUserId(user)
+                                          }
+                                          className="inline-flex w-fit items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40 shadow-sm"
+                                          title="View LimbuBot conversation"
+                                        >
+                                          <MessageCircle size={11} />
+                                          Chat
+                                        </button>
+                                        {(() => {
+                                          const stage =
+                                            getConversationStageDisplay(user);
+
+                                          const steps = String(
+                                            stage?.label || "",
+                                          )
+                                            .split("➔")
+                                            .map((item) => item.trim())
+                                            .filter(Boolean);
+
+                                          // Split into rows of 2
+                                          const rows = [];
+                                          for (
+                                            let i = 0;
+                                            i < steps.length;
+                                            i += 2
+                                          ) {
+                                            rows.push(steps.slice(i, i + 2));
+                                          }
+
+                                          return (
+                                            <div className="flex flex-col gap-1 max-w-[220px]">
+                                              {rows.map((row, rowIndex) => {
+                                                const isReverse =
+                                                  rowIndex % 2 !== 0;
+
+                                                const orderedRow = isReverse
+                                                  ? [...row].reverse()
+                                                  : row;
+
+                                                return (
+                                                  <div
+                                                    key={rowIndex}
+                                                    className={`flex items-center gap-1 ${
+                                                      isReverse
+                                                        ? "justify-end"
+                                                        : "justify-start"
+                                                    }`}
+                                                  >
+                                                    {orderedRow.map(
+                                                      (step, index) => {
+                                                        const originalIndex =
+                                                          rowIndex * 2 +
+                                                          (isReverse
+                                                            ? row.length -
+                                                              1 -
+                                                              index
+                                                            : index);
+
+                                                        const stepNumber =
+                                                          originalIndex + 1;
+
+                                                        const isStarted =
+                                                          step === "Started";
+
+                                                        const isConnected =
+                                                          step ===
+                                                          "GMB Connected";
+
+                                                        const isQR =
+                                                          step === "QR Req";
+
+                                                        const isInsights =
+                                                          step ===
+                                                          "Insights Req";
+
+                                                        const isWeb =
+                                                          step === "Web Req";
+
+                                                        return (
+                                                          <Fragment
+                                                            key={`${step}-${originalIndex}`}
+                                                          >
+                                                            {/* STEP */}
+                                                            <div
+                                                              className={`
+                      flex items-center gap-1
+                      px-2 py-[4px]
+                      rounded-full
+                      text-[9px]
+                      font-semibold
+                      border
+                      shadow-sm
+                      whitespace-nowrap
+                      transition-all
+                      hover:scale-[1.02]
+
+                      ${
+                        isStarted
+                          ? "bg-slate-100 text-slate-700 border-slate-200"
+                          : isConnected
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : isQR
+                              ? "bg-violet-50 text-violet-700 border-violet-200"
+                              : isInsights
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : isWeb
+                                  ? "bg-sky-50 text-sky-700 border-sky-200"
+                                  : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      }
+                    `}
+                                                            >
+                                                              {/* NUMBER */}
+                                                              <div
+                                                                className={`
+                        flex items-center justify-center
+                        w-4 h-4
+                        rounded-full
+                        text-[8px]
+                        font-bold
+                        shrink-0
+
+                        ${
+                          isStarted
+                            ? "bg-slate-200 text-slate-700"
+                            : isConnected
+                              ? "bg-emerald-200 text-emerald-800"
+                              : isQR
+                                ? "bg-violet-200 text-violet-800"
+                                : isInsights
+                                  ? "bg-amber-200 text-amber-800"
+                                  : isWeb
+                                    ? "bg-sky-200 text-sky-800"
+                                    : "bg-indigo-200 text-indigo-800"
+                        }
+                      `}
+                                                              >
+                                                                {stepNumber}
+                                                              </div>
+
+                                                              {/* ICON */}
+                                                              {isStarted && (
+                                                                <div className="w-1 h-1 rounded-full bg-slate-500" />
+                                                              )}
+
+                                                              {isConnected && (
+                                                                <CheckCircle
+                                                                  size={9}
+                                                                />
+                                                              )}
+
+                                                              {isQR && (
+                                                                <QrCode
+                                                                  size={9}
+                                                                />
+                                                              )}
+
+                                                              {isInsights && (
+                                                                <BarChart3
+                                                                  size={9}
+                                                                />
+                                                              )}
+
+                                                              {isWeb && (
+                                                                <Globe2
+                                                                  size={9}
+                                                                />
+                                                              )}
+
+                                                              {/* LABEL */}
+                                                              <span>
+                                                                {step}
+                                                              </span>
+                                                            </div>
+
+                                                            {/* ARROW */}
+                                                            {index !==
+                                                              orderedRow.length -
+                                                                1 && (
+                                                              <ChevronRight
+                                                                size={10}
+                                                                className="text-slate-300"
+                                                              />
+                                                            )}
+                                                          </Fragment>
+                                                        );
+                                                      },
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </td>
 
@@ -4114,7 +4730,7 @@ export default function UserManagement() {
                           filteredUsers.length === 0 && (
                             <tr>
                               <td
-                                colSpan={role === "superAdmin" ? 13 : 12}
+                                colSpan={role === "superAdmin" ? 14 : 13}
                                 className="text-center py-12"
                               >
                                 No users found
@@ -4592,6 +5208,20 @@ export default function UserManagement() {
             </div>
           </div>
         )}
+
+        <ChatHistoryModal
+          open={chatHistoryModal.open}
+          onClose={closeChatHistoryModal}
+          user={chatHistoryModal.user}
+          userId={chatHistoryModal.userId}
+          history={chatHistoryModal.history}
+          loading={chatHistoryModal.loading}
+          error={chatHistoryModal.error}
+          onRetry={() =>
+            chatHistoryModal.user &&
+            fetchChatHistoryForUser(chatHistoryModal.user)
+          }
+        />
 
         {/* Remarks Modal */}
         {remarksModalUser && (

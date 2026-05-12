@@ -1347,6 +1347,8 @@ export default function PostManagementPage() {
         }));
 
         const payload = {
+          postId: postToAction._id,
+          userId,
           account: locs[0].accountId, // Root account ID fallback
           locationData: locationDataBatch,
           output: isVideoSelection ? "" : mediaUrl,

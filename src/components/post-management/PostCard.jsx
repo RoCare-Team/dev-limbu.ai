@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Clock,
   Linkedin,
+  YoutubeIcon,
 } from "lucide-react";
 import { isPostVideoMedia } from "./ImageToVideoModal";
 import {
@@ -215,7 +216,20 @@ const PostCard = React.memo(
     const imgUrl = useMemo(() => postImageUrl(post), [post]);
     const vidUrl = useMemo(() => postVideoUrl(post), [post]);
     const dualCardMedia = Boolean(imgUrl && vidUrl);
-    const hasVideoAsset = useMemo(() => postHasVideoAsset(post), [post]);
+    const generatedVideoOutputUrl = useMemo(
+      () =>
+        typeof post?.videoOutput === "string" ? post.videoOutput.trim() : "",
+      [post?.videoOutput],
+    );
+    const hasGeneratedVideoOutput = useMemo(
+      () => generatedVideoOutputUrl.length > 0,
+      [generatedVideoOutputUrl],
+    );
+    const hasVideoAsset = useMemo(
+      () =>
+        Boolean(hasGeneratedVideoOutput || vidUrl || postHasVideoAsset(post)),
+      [hasGeneratedVideoOutput, post, vidUrl],
+    );
 
     const displayMediaUrl = useMemo(() => {
       return dualCardMedia
@@ -509,8 +523,9 @@ const PostCard = React.memo(
           handlePost(post);
         }
       } else if (type === "youtube") {
-        const forcedMedia = dualCardMedia
-          ? { type: "video", url: vidUrl }
+        const youtubeUrl = generatedVideoOutputUrl || vidUrl;
+        const forcedMedia = youtubeUrl
+          ? { type: "video", url: youtubeUrl }
           : null;
         handleYoutubePost(post, forcedMedia);
       } else if (dualCardMedia) {
@@ -537,6 +552,18 @@ const PostCard = React.memo(
       else if (type === "pinterest") handlePinterestPost(post, forcedMedia);
       else if (type === "linkedin") handleLinkedinPost(post, forcedMedia);
     };
+
+    const canPostToYoutube =
+      hasGeneratedVideoOutput && post.status !== "rejected";
+
+    const youtubePostButton = canPostToYoutube ? (
+      <button
+        onClick={() => handleMediaChoice("youtube")}
+        className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
+      >
+        <Youtube size={13} /> Post to YouTube
+      </button>
+    ) : null;
 
     return (
       <>
@@ -650,6 +677,7 @@ const PostCard = React.memo(
                   { id: "ig", icon: Instagram, label: "Insta" },
                   { id: "pinterest", icon: Share2, label: "Pin" },
                   { id: "li", icon: Linkedin, label: "LinkedIn" },
+                  { id: "yt", icon: YoutubeIcon, label: "YT" }, // YouTube button
                 ].map((p) => (
                   <button
                     key={p.id}
@@ -749,31 +777,34 @@ const PostCard = React.memo(
             <div className="space-y-4 pt-4 border-t border-black/5">
               {/* Status Specific Actions */}
               {post.status === "pending" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() =>
-                      onUpdateStatus(
-                        post._id,
-                        "approved",
-                        null,
-                        [],
-                        undefined,
-                        null,
-                        [],
-                        [],
-                        cardShowVideo ? "video" : "image",
-                      )
-                    }
-                    className="py-4 bg-[#EAB308] text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#EAB308]/10 hover:brightness-105 transition-all"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => onReject(post._id)}
-                    className="py-4 border border-black/5 text-black/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all"
-                  >
-                    Reject
-                  </button>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() =>
+                        onUpdateStatus(
+                          post._id,
+                          "approved",
+                          null,
+                          [],
+                          undefined,
+                          null,
+                          [],
+                          [],
+                          cardShowVideo ? "video" : "image",
+                        )
+                      }
+                      className="py-4 bg-[#EAB308] text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#EAB308]/10 hover:brightness-105 transition-all"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => onReject(post._id)}
+                      className="py-4 border border-black/5 text-black/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                  {youtubePostButton}
                 </div>
               )}
 
@@ -831,14 +862,7 @@ const PostCard = React.memo(
                       Post to LinkedIn
                     </button>
                   </div>
-                  {hasVideoAsset && (
-                    <button
-                      onClick={() => handleMediaChoice("youtube")}
-                      className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
-                    >
-                      <Youtube size={13} /> Post to YouTube
-                    </button>
-                  )}
+                  {youtubePostButton}
                   <button
                     onClick={() => onUpdateStatus(post)}
                     className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm"
@@ -849,7 +873,8 @@ const PostCard = React.memo(
                 </div>
               )}
 
-              {(post.status === "posted" || post.status === "partial_failed") && (
+              {(post.status === "posted" ||
+                post.status === "partial_failed") && (
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-black/[0.04] bg-slate-50/80 p-2 shadow-inner shadow-white">
                     <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -1146,27 +1171,25 @@ const PostCard = React.memo(
                       !isPlatformPosted(post.whenPosted, "pinterest")) ||
                     (!isPlatformScheduled("linkedin") &&
                       !isPlatformPosted(post.whenPosted, "linkedin")) ||
-                    (hasVideoAsset &&
-                      !isPlatformScheduled("youtube") &&
-                      !isPlatformPosted(post.whenPosted, "youtube"))) && (
+                    canPostToYoutube) && (
                     <div className="space-y-3 mt-4">
                       <div className="grid grid-cols-2 gap-3">
                         {!isPlatformScheduled("fb") && !isPostedFb && (
-                            <button
-                              onClick={() => handleMediaChoice("fb")}
-                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                            >
-                              <Facebook size={13} /> Post to FB Pages
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleMediaChoice("fb")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Facebook size={13} /> Post to FB Pages
+                          </button>
+                        )}
                         {!isPlatformScheduled("ig") && !isPostedIg && (
-                            <button
-                              onClick={() => handleMediaChoice("ig")}
-                              className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
-                            >
-                              <Instagram size={13} /> Post to Instagram
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleMediaChoice("ig")}
+                            className="py-3.5 bg-black text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:bg-[#EAB308] hover:text-black transition-all shadow-sm"
+                          >
+                            <Instagram size={13} /> Post to Instagram
+                          </button>
+                        )}
                       </div>
                       {((!isPlatformScheduled("pinterest") &&
                         !isPlatformPosted(post.whenPosted, "pinterest")) ||
@@ -1207,22 +1230,14 @@ const PostCard = React.memo(
                             )}
                         </div>
                       )}
-                      {hasVideoAsset &&
-                        !isPlatformScheduled("youtube") &&
-                        !isPlatformPosted(post.whenPosted, "youtube") && (
-                        <button
-                          onClick={() => handleMediaChoice("youtube")}
-                          className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
-                        >
-                          <Youtube size={13} /> Post to YouTube
-                        </button>
-                      )}
+                      {youtubePostButton}
                     </div>
                   )}
                 </>
               )}
 
-              {(post.status === "failed" || post.status === "partial_failed") && (
+              {(post.status === "failed" ||
+                post.status === "partial_failed") && (
                 <div className="space-y-4">
                   <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
                     <XCircle size={18} className="text-red-500 shrink-0" />
@@ -1261,6 +1276,7 @@ const PostCard = React.memo(
                   >
                     <RefreshCw size={14} /> Retry Delivery
                   </button>
+                  {youtubePostButton}
                 </div>
               )}
 

@@ -20,9 +20,6 @@ export async function POST(req) {
       instructions,
     } = body;
 
-    
-
-
 
     const cleanBase64 = (str) => {
       if (typeof str === "string" && str.startsWith("data:image")) {

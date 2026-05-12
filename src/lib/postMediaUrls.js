@@ -13,7 +13,7 @@ export function postHasVideoAsset(post) {
   if (!post) return false;
   if (post.videoOutput && typeof post.videoOutput === "string") {
     const v = post.videoOutput.trim();
-    if (v && (looksLikeVideoUrl(v) || (post.mediaType === "video" && /^https?:\/\//i.test(v))))
+    if (v && (looksLikeVideoUrl(v) || /^https?:\/\//i.test(v)))
       return true;
   }
   if (post.mediaType === "video") return true;
@@ -35,7 +35,7 @@ export function postVideoUrl(post) {
     const v = post.videoOutput.trim();
     if (!v) return "";
     if (looksLikeVideoUrl(v)) return v;
-    if (post.mediaType === "video" && /^https?:\/\//i.test(v)) return v;
+    if (/^https?:\/\//i.test(v)) return v;
   }
   if (post.aiOutput && looksLikeVideoUrl(post.aiOutput)) {
     return post.aiOutput.trim();

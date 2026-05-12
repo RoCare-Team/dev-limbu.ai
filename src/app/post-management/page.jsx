@@ -164,6 +164,8 @@ export default function PostManagementPage() {
     "fb",
     "ig",
     "li",
+    "pin",
+    "yt",
   ]);
   const [keywordError, setKeywordError] = useState("");
   const [bussinessTitle, setBussinessTitle] = useState("");
@@ -639,6 +641,8 @@ export default function PostManagementPage() {
           mode,
           instructions,
         });
+
+        console.log("in post management: ", res);
         clearInterval(timer);
         timer = null;
 
@@ -651,17 +655,24 @@ export default function PostManagementPage() {
         const data = res.success ? res.data : res;
 
         // ✅ FIX: console.log AFTER destructure, pi_des bhi add
-        const { gmb_des, fb_des, ig_des, li_des, pi_des } =
-          normalizePlatformDescriptions({
-            ...res,
-            ...data,
-          });
+        const {
+          gmb_des,
+          fb_des,
+          ig_des,
+          li_des,
+          pin_des,
+          yt_des, // ✅ CHANGE HERE
+        } = normalizePlatformDescriptions({
+          ...res,
+          ...data,
+        });
         console.log("Normalized descriptions:", {
           gmb_des,
           fb_des,
           ig_des,
           li_des,
-          pi_des,
+          pin_des,
+          yt_des,
         });
 
         const saved = await savePostAction({
@@ -673,7 +684,13 @@ export default function PostManagementPage() {
           fbDescription: fb_des,
           igDescription: ig_des,
           liDescription: li_des,
-          piDescription: pi_des, // 👈 ADDED
+
+          // ✅ Pinterest
+          piDescription: pin_des,
+
+          // ✅ YouTube
+          ytDescription: yt_des,
+
           status: "pending",
           promat: prompt,
           locations: [],
@@ -905,10 +922,13 @@ export default function PostManagementPage() {
         );
         const selectedCheckmark = selectedTargets.checkmark || post.checkmark;
         const selectedMediaType = selectedTargets.mediaType || "image";
-        
+
         // STABLE VIDEO CHECK: Check if videoOutput exists and is a valid string, and user selected video intent
-        const hasValidVideoOutput = typeof post.videoOutput === "string" && post.videoOutput.trim().length > 0;
-        const isVideoIntent = selectedMediaType === "video" || selectedCheckmark === "video";
+        const hasValidVideoOutput =
+          typeof post.videoOutput === "string" &&
+          post.videoOutput.trim().length > 0;
+        const isVideoIntent =
+          selectedMediaType === "video" || selectedCheckmark === "video";
         const isVideoSchedule = isVideoIntent && hasValidVideoOutput;
 
         const scheduleImageUrl = post.aiOutput || "";
@@ -1347,6 +1367,8 @@ export default function PostManagementPage() {
         }));
 
         const payload = {
+          postId: postToAction._id,
+          userId,
           account: locs[0].accountId, // Root account ID fallback
           locationData: locationDataBatch,
           output: isVideoSelection ? "" : mediaUrl,
@@ -1539,7 +1561,15 @@ export default function PostManagementPage() {
 
   const handlePost = useCallback(
     async (post, media = null) => {
-      if (!["approved", "scheduled", "posted", "partial_failed", "failed"].includes(post.status))
+      if (
+        ![
+          "approved",
+          "scheduled",
+          "posted",
+          "partial_failed",
+          "failed",
+        ].includes(post.status)
+      )
         return showToast("Approve first", "error");
 
       // Check for GMB Session Expiry before showing the location modal

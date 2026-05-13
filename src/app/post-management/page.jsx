@@ -661,7 +661,7 @@ export default function PostManagementPage() {
           ig_des,
           li_des,
           pin_des,
-          yt_des, // ✅ CHANGE HERE
+          yt_des,
         } = normalizePlatformDescriptions({
           ...res,
           ...data,

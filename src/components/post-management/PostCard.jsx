@@ -51,6 +51,7 @@ const PLATFORM_ALIASES = {
   ig: "instagram",
   instagram: "instagram",
   pi: "pinterest",
+  pin: "pinterest",
   pinterest: "pinterest",
   li: "linkedin",
   linkedin: "linkedin",
@@ -201,8 +202,9 @@ const PostCard = React.memo(
         gmb: post?.gmbDescription ?? post?.description ?? "",
         fb: post?.fbDescription ?? post?.description ?? "",
         ig: post?.igDescription ?? post?.description ?? "",
-        pinterest: post?.pinterestDescription ?? post?.description ?? "",
+        pin: post?.piDescription ?? post?.description ?? "",
         li: post?.liDescription ?? "",
+        yt:post?.ytDescription
       }),
       [post],
     );
@@ -675,7 +677,7 @@ const PostCard = React.memo(
                   { id: "gmb", icon: MapPin, label: "GMB" },
                   { id: "fb", icon: Facebook, label: "FB" },
                   { id: "ig", icon: Instagram, label: "Insta" },
-                  { id: "pinterest", icon: Share2, label: "Pin" },
+                  { id: "pin", icon: Share2, label: "Pin" },
                   { id: "li", icon: Linkedin, label: "LinkedIn" },
                   { id: "yt", icon: YoutubeIcon, label: "YT" }, // YouTube button
                 ].map((p) => (

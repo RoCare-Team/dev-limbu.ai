@@ -46,6 +46,10 @@ import {
   BarChart3,
   Globe2,
   QrCode,
+  Activity,
+  Facebook,
+  Instagram,
+  MoveRight,
 } from "lucide-react";
 import {
   USER_SOURCE_OPTIONS,
@@ -494,6 +498,13 @@ export default function UserManagement() {
       (item) => String(item?.role || "").toLowerCase() === "assistant",
     );
 
+    // Any user message exists
+    const hasUserMessage = history.some(
+      (item) =>
+        String(item?.role || "").toLowerCase() === "user" &&
+        String(item?.content || "").trim() !== "",
+    );
+
     const hasText = (keyword) => {
       return assistantMessages.some((item) =>
         String(item?.content || "")
@@ -501,6 +512,12 @@ export default function UserManagement() {
           .includes(keyword.toLowerCase()),
       );
     };
+
+    // ================= INITIAL CONVERSATION =================
+    // Agar user ne kuch bhi message kiya hai
+    if (hasUserMessage) {
+      steps.push("Initial Conversation");
+    }
 
     // ================= GMB CONNECTED =================
     if (hasText("Badhaai ho! Account connect ho gaya!")) {
@@ -527,6 +544,16 @@ export default function UserManagement() {
       steps.push("Health");
     }
 
+    // ================= FACEBOOK CONNECTED =================
+    if (hasText("Facebook Connected Successfully")) {
+      steps.push("Facebook");
+    }
+
+    // ================= INSTAGRAM CONNECTED =================
+    if (hasText("Instagram Connected Successfully")) {
+      steps.push("Instagram");
+    }
+
     // ================= NO STAGE =================
     if (steps.length === 0) {
       return {
@@ -539,7 +566,7 @@ export default function UserManagement() {
     return {
       label: steps.join(" ➔ "),
       className:
-        steps.length >= 3
+        steps.length >= 4
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
           : "bg-indigo-50 text-indigo-700 border-indigo-200",
     };
@@ -3854,7 +3881,6 @@ export default function UserManagement() {
                                   {date} (Total: {users.length})
                                 </td>
                               </tr>
-
                               {/* 🔥 USERS */}
                               {users.map((user, rowIndex) => {
                                 const postData = userPostsData[user.userId] || {
@@ -3863,844 +3889,836 @@ export default function UserManagement() {
                                   rejected: 0,
                                 };
 
+                                // --- CONVERSATION STEPS LOGIC ---
+                                const stage = getConversationStageDisplay(user);
+                                const steps = String(stage?.label || "")
+                                  .split("➔")
+                                  .map((item) => item.trim())
+                                  .filter(
+                                    (item) => item && item !== "No Activity",
+                                  );
+
+                                const hasConversation = steps.includes(
+                                  "Initial Conversation",
+                                );
+                                // -------------------------------
+
                                 return (
-                                  <tr
-                                    key={user._id || user.userId}
-                                    onClick={() => handleViewPosts(user)}
-                                    className={`cursor-pointer ${
-                                      rowIndex % 2 === 0
-                                        ? "bg-white"
-                                        : "bg-slate-50/40"
-                                    }`}
-                                  >
-                                    {/* 👉 तेरा पूरा existing row code यहाँ same रहेगा */}
-                                    {/* 👉 यहाँ तेरा पूरा existing code रहेगा */}
-                                    {role === "superAdmin" && (
-                                      <td
-                                        className="px-3 py-5 w-14 align-middle"
-                                        onClick={(e) => e.stopPropagation()}
+                                  <Fragment key={user._id || user.userId}>
+                                    {/* 1. HORIZONTAL STEPS STRIP (Upper Row) */}
+                                    {steps.length > 0 && (
+                                      <tr
+                                        className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}
                                       >
-                                        <input
-                                          type="checkbox"
-                                          disabled={
-                                            !(user.phone || user.mobileNumber)
+                                        <td
+                                          colSpan={
+                                            role === "superAdmin" ? 14 : 13
                                           }
-                                          title={
-                                            user.phone || user.mobileNumber
-                                              ? "Select for WhatsApp"
-                                              : "No phone on record"
-                                          }
-                                          checked={bulkWaSelectedUserIds.includes(
-                                            String(user.userId),
-                                          )}
-                                          onChange={() =>
-                                            toggleBulkWaUserId(user.userId)
-                                          }
-                                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                                        />
-                                      </td>
-                                    )}
-                                    <td className="px-6 py-5">
-                                      {isAgent && followUpFilter !== "all" ? (
-                                        (() => {
-                                          const raw = followUpMetaByUserId.get(
-                                            String(user.userId),
-                                          );
-                                          const d = raw ? new Date(raw) : null;
-                                          const valid =
-                                            d && !Number.isNaN(d.getTime());
-                                          const now = new Date();
-                                          const tmr = new Date(now);
-                                          tmr.setDate(tmr.getDate() + 1);
-                                          const sameDay = (a, b) =>
-                                            valid &&
-                                            a.getFullYear() ===
-                                              b.getFullYear() &&
-                                            a.getMonth() === b.getMonth() &&
-                                            a.getDate() === b.getDate();
-                                          const isFuToday = sameDay(d, now);
-                                          const isFuTomorrow = sameDay(d, tmr);
-                                          return (
-                                            <div className="flex items-center gap-2">
-                                              <Clock
-                                                size={14}
-                                                className="text-gray-400 shrink-0"
-                                              />
-                                              <div className="text-sm text-gray-700">
-                                                {valid ? (
-                                                  <>
-                                                    <div className="font-medium">
-                                                      {d.toLocaleString(
-                                                        "en-IN",
-                                                        {
-                                                          day: "numeric",
-                                                          month: "short",
-                                                          year: "numeric",
-                                                          hour: "2-digit",
-                                                          minute: "2-digit",
-                                                          hour12: true,
-                                                        },
-                                                      )}
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-1 mt-0.5">
-                                                      {isFuToday && (
-                                                        <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
-                                                          Today
-                                                        </span>
-                                                      )}
-                                                      {isFuTomorrow && (
-                                                        <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
-                                                          Tomorrow
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                  </>
-                                                ) : (
-                                                  <span className="text-gray-400 italic">
-                                                    N/A
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })()
-                                      ) : (
-                                        <div className="flex items-center gap-2">
-                                          <Calendar
-                                            size={14}
-                                            className="text-gray-400"
-                                          />
-                                          <div className="text-sm text-gray-700">
-                                            {user.createdAt ? (
-                                              <>
-                                                <div className="font-medium">
-                                                  {new Date(
-                                                    user.createdAt,
-                                                  ).toLocaleDateString(
-                                                    "en-US",
-                                                    {
-                                                      month: "short",
-                                                      day: "numeric",
-                                                      year: "numeric",
-                                                    },
-                                                  )}
-                                                </div>
-                                                {new Date(
-                                                  user.createdAt,
-                                                ).toDateString() ===
-                                                  new Date().toDateString() && (
-                                                  <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
-                                                    Today
-                                                  </span>
-                                                )}
-                                              </>
-                                            ) : (
-                                              <span className="text-gray-400 italic">
-                                                N/A
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </td>
-
-                                    <td className="px-6 py-5">
-                                      <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex min-w-0 items-center gap-2 text-sm text-gray-600">
-                                            <User2Icon
-                                              size={14}
-                                              className="shrink-0 text-gray-400"
-                                            />
-                                            <span className="truncate">
-                                              {user.fullName ||
-                                                user.name ||
-                                                user.email ||
-                                                user.phone ||
-                                                user.userId ||
-                                                "User"}
+                                          className="px-6 pt-3 pb-1 border-b-0"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                              User Journey:
                                             </span>
-                                          </div>
-                                          {paidUsersStatus[user.userId] && ( // A URL exists for this user
-                                            <>
-                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                                Paid
-                                              </span>
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setFullViewImage(
-                                                    paidUsersStatus[
-                                                      user.userId
-                                                    ],
-                                                  );
-                                                }}
-                                                className="p-1 hover:bg-gray-200 rounded-full"
-                                                title="View Payment Screenshot"
-                                              >
-                                                <Eye
-                                                  size={14}
-                                                  className="text-gray-500"
-                                                />
-                                              </button>
-                                            </>
-                                          )}
-                                        </div>
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                              {steps.map((step, index) => {
+                                                const isInitial =
+                                                  step ===
+                                                  "Initial Conversation";
+                                                const isConnected =
+                                                  step === "GMB Connected";
+                                                const isQR =
+                                                  step === "Magic QR";
+                                                const isInsights =
+                                                  step === "Insights";
+                                                const isWebsite =
+                                                  step === "Website";
+                                                const isHealth =
+                                                  step === "Health";
+                                                const isFacebook =
+                                                  step === "Facebook";
+                                                const isInstagram =
+                                                  step === "Instagram";
 
-                                        <div
+                                                // Identify the last step
+                                                const isLastStep =
+                                                  index === steps.length - 1;
+
+                                                return (
+                                                  <Fragment
+                                                    key={`${step}-${index}`}
+                                                  >
+                                                    <div
+                                                      className={`
+                          inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
+                          ${
+                            isInitial
+                              ? "border-slate-200 bg-slate-50 text-slate-600"
+                              : isConnected
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : isQR
+                                  ? "border-violet-200 bg-violet-100 text-violet-700"
+                                  : isInsights
+                                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                                    : isWebsite
+                                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                                      : isHealth
+                                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                                        : isFacebook
+                                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                                          : isInstagram
+                                            ? "border-pink-200 bg-pink-50 text-pink-700"
+                                            : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                          }
+                        `}
+                                                    >
+                                                      {/* --- BLINKING BLUE DOT (Always blinks on the last step) --- */}
+                                                      {isLastStep && (
+                                                        <span className="relative flex h-2 w-2 mr-0.5">
+                                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                                                        </span>
+                                                      )}
+
+                                                      {isInitial && (
+                                                        <MessageCircle
+                                                          size={10}
+                                                        />
+                                                      )}
+                                                      {isConnected && (
+                                                        <CheckCircle
+                                                          size={10}
+                                                        />
+                                                      )}
+                                                      {isQR && (
+                                                        <QrCode size={10} />
+                                                      )}
+                                                      {isInsights && (
+                                                        <BarChart3 size={10} />
+                                                      )}
+                                                      {isWebsite && (
+                                                        <Globe2 size={10} />
+                                                      )}
+                                                      {isHealth && (
+                                                        <Activity size={10} />
+                                                      )}
+                                                      {isFacebook && (
+                                                        <Facebook size={10} />
+                                                      )}
+                                                      {isInstagram && (
+                                                        <Instagram size={10} />
+                                                      )}
+
+                                                      <span>{step}</span>
+                                                    </div>
+
+                                                    {index !==
+                                                      steps.length - 1 && (
+                                                      <MoveRight
+                                                        size={10}
+                                                        className="text-black"
+                                                      />
+                                                    )}
+                                                  </Fragment>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+
+                                    {/* 2. MAIN DATA ROW (Bottom Row) */}
+                                    <tr
+                                      onClick={() => handleViewPosts(user)}
+                                      className={`cursor-pointer ${
+                                        rowIndex % 2 === 0
+                                          ? "bg-white"
+                                          : "bg-slate-50/40"
+                                      } ${steps.length > 0 ? "border-t-0" : ""}`}
+                                    >
+                                      {role === "superAdmin" && (
+                                        <td
+                                          className="px-3 py-5 w-14 align-middle"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          <select
-                                            value={user.leadStatus || ""}
-                                            onChange={(e) =>
-                                              handleLeadStatusChange(
-                                                user.userId,
-                                                e.target.value,
-                                              )
+                                          <input
+                                            type="checkbox"
+                                            disabled={
+                                              !(user.phone || user.mobileNumber)
                                             }
-                                            className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                              user.leadStatus === "Hot"
-                                                ? "bg-red-50 text-red-700 border-red-200"
-                                                : user.leadStatus === "Warm"
-                                                  ? "bg-orange-50 text-orange-700 border-orange-200"
-                                                  : user.leadStatus === "Cold"
-                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                    : "bg-gray-50 text-gray-600 border-gray-200"
-                                            }`}
-                                          >
-                                            <option value="">Untagged</option>
-                                            <option value="Hot">Hot</option>
-                                            <option value="Warm">Warm</option>
-                                            <option value="Cold">Cold</option>
-                                          </select>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1 mt-1 items-center">
-                                          <span
-                                            className={userAcquisitionTagClassName(
-                                              user.source,
+                                            title={
+                                              user.phone || user.mobileNumber
+                                                ? "Select for WhatsApp"
+                                                : "No phone on record"
+                                            }
+                                            checked={bulkWaSelectedUserIds.includes(
+                                              String(user.userId),
                                             )}
-                                            title="Acquisition source"
-                                          >
-                                            {userAcquisitionLabel(user.source)}
-                                          </span>
+                                            onChange={() =>
+                                              toggleBulkWaUserId(user.userId)
+                                            }
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                          />
+                                        </td>
+                                      )}
+                                      <td className="px-6 py-5">
+                                        {isAgent && followUpFilter !== "all" ? (
+                                          (() => {
+                                            const raw =
+                                              followUpMetaByUserId.get(
+                                                String(user.userId),
+                                              );
+                                            const d = raw
+                                              ? new Date(raw)
+                                              : null;
+                                            const valid =
+                                              d && !Number.isNaN(d.getTime());
+                                            const now = new Date();
+                                            const tmr = new Date(now);
+                                            tmr.setDate(tmr.getDate() + 1);
+                                            const sameDay = (a, b) =>
+                                              valid &&
+                                              a.getFullYear() ===
+                                                b.getFullYear() &&
+                                              a.getMonth() === b.getMonth() &&
+                                              a.getDate() === b.getDate();
+                                            const isFuToday = sameDay(d, now);
+                                            const isFuTomorrow = sameDay(
+                                              d,
+                                              tmr,
+                                            );
+                                            return (
+                                              <div className="flex items-center gap-2">
+                                                <Clock
+                                                  size={14}
+                                                  className="text-gray-400 shrink-0"
+                                                />
+                                                <div className="text-sm text-gray-700">
+                                                  {valid ? (
+                                                    <>
+                                                      <div className="font-medium">
+                                                        {d.toLocaleString(
+                                                          "en-IN",
+                                                          {
+                                                            day: "numeric",
+                                                            month: "short",
+                                                            year: "numeric",
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            hour12: true,
+                                                          },
+                                                        )}
+                                                      </div>
+                                                      <div className="flex flex-wrap gap-1 mt-0.5">
+                                                        {isFuToday && (
+                                                          <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
+                                                            Today
+                                                          </span>
+                                                        )}
+                                                        {isFuTomorrow && (
+                                                          <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
+                                                            Tomorrow
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </>
+                                                  ) : (
+                                                    <span className="text-gray-400 italic">
+                                                      N/A
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })()
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <Calendar
+                                              size={14}
+                                              className="text-gray-400"
+                                            />
+                                            <div className="text-sm text-gray-700">
+                                              {user.createdAt ? (
+                                                <>
+                                                  <div className="font-medium">
+                                                    {new Date(
+                                                      user.createdAt,
+                                                    ).toLocaleDateString(
+                                                      "en-US",
+                                                      {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                        year: "numeric",
+                                                      },
+                                                    )}
+                                                  </div>
+                                                  {new Date(
+                                                    user.createdAt,
+                                                  ).toDateString() ===
+                                                    new Date().toDateString() && (
+                                                    <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
+                                                      Today
+                                                    </span>
+                                                  )}
+                                                </>
+                                              ) : (
+                                                <span className="text-gray-400 italic">
+                                                  N/A
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </td>
 
-                                          {(user.leadTags || [])
-                                            .filter(Boolean)
-                                            .filter(
-                                              (tag) =>
-                                                formatLeadTagLabel(
-                                                  tag,
-                                                ).toLowerCase() !==
-                                                userAcquisitionLabel(
-                                                  user.source,
-                                                ).toLowerCase(),
-                                            )
-                                            .map((tag) => (
-                                              <span
-                                                key={String(tag)}
-                                                className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
-                                                title="Lead tag"
-                                              >
-                                                {formatLeadTagLabel(tag)}
+                                      <td className="px-6 py-5">
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex min-w-0 items-center gap-2 text-sm text-gray-600">
+                                              <User2Icon
+                                                size={14}
+                                                className="shrink-0 text-gray-400"
+                                              />
+                                              <span className="truncate">
+                                                {user.fullName ||
+                                                  user.name ||
+                                                  user.email ||
+                                                  user.phone ||
+                                                  user.userId ||
+                                                  "User"}
                                               </span>
-                                            ))}
+                                            </div>
+                                            {paidUsersStatus[user.userId] && (
+                                              <>
+                                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                                  Paid
+                                                </span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setFullViewImage(
+                                                      paidUsersStatus[
+                                                        user.userId
+                                                      ],
+                                                    );
+                                                  }}
+                                                  className="p-1 hover:bg-gray-200 rounded-full"
+                                                  title="View Payment Screenshot"
+                                                >
+                                                  <Eye
+                                                    size={14}
+                                                    className="text-gray-500"
+                                                  />
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
 
-                                          {user.paidPackage && (
-                                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
-                                              {user.paidPackage}
+                                          <div
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <select
+                                              value={user.leadStatus || ""}
+                                              onChange={(e) =>
+                                                handleLeadStatusChange(
+                                                  user.userId,
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
+                                                user.leadStatus === "Hot"
+                                                  ? "bg-red-50 text-red-700 border-red-200"
+                                                  : user.leadStatus === "Warm"
+                                                    ? "bg-orange-50 text-orange-700 border-orange-200"
+                                                    : user.leadStatus === "Cold"
+                                                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                      : "bg-gray-50 text-gray-600 border-gray-200"
+                                              }`}
+                                            >
+                                              <option value="">Untagged</option>
+                                              <option value="Hot">Hot</option>
+                                              <option value="Warm">Warm</option>
+                                              <option value="Cold">Cold</option>
+                                            </select>
+                                          </div>
+                                          <div className="flex flex-wrap gap-1 mt-1 items-center">
+                                            <span
+                                              className={userAcquisitionTagClassName(
+                                                user.source,
+                                              )}
+                                              title="Acquisition source"
+                                            >
+                                              {userAcquisitionLabel(
+                                                user.source,
+                                              )}
                                             </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </td>
 
-                                    <td className="px-6 py-5">
-                                      <div className="flex flex-col gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            fetchChatHistoryForUser(user);
-                                          }}
-                                          disabled={
-                                            !getLimbuBotHistoryUserId(user)
-                                          }
-                                          className="inline-flex w-fit items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40 shadow-sm"
-                                          title="View LimbuBot conversation"
-                                        >
-                                          <MessageCircle size={11} />
-                                          Chat
-                                        </button>
+                                            {(user.leadTags || [])
+                                              .filter(Boolean)
+                                              .filter(
+                                                (tag) =>
+                                                  formatLeadTagLabel(
+                                                    tag,
+                                                  ).toLowerCase() !==
+                                                  userAcquisitionLabel(
+                                                    user.source,
+                                                  ).toLowerCase(),
+                                              )
+                                              .map((tag) => (
+                                                <span
+                                                  key={String(tag)}
+                                                  className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
+                                                  title="Lead tag"
+                                                >
+                                                  {formatLeadTagLabel(tag)}
+                                                </span>
+                                              ))}
+
+                                            {user.paidPackage && (
+                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
+                                                {user.paidPackage}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      <td className="px-6 py-5">
                                         {(() => {
                                           const stage =
                                             getConversationStageDisplay(user);
-
                                           const steps = String(
                                             stage?.label || "",
                                           )
                                             .split("➔")
                                             .map((item) => item.trim())
-                                            .filter(Boolean);
-
-                                          // Split into rows of 2
-                                          const rows = [];
-                                          for (
-                                            let i = 0;
-                                            i < steps.length;
-                                            i += 2
-                                          ) {
-                                            rows.push(steps.slice(i, i + 2));
-                                          }
+                                            .filter(
+                                              (item) =>
+                                                item && item !== "No Activity",
+                                            );
+                                          const hasConversation =
+                                            steps.includes(
+                                              "Initial Conversation",
+                                            );
 
                                           return (
-                                            <div className="flex flex-col gap-1 max-w-[220px]">
-                                              {rows.map((row, rowIndex) => {
-                                                const isReverse =
-                                                  rowIndex % 2 !== 0;
-
-                                                const orderedRow = isReverse
-                                                  ? [...row].reverse()
-                                                  : row;
-
-                                                return (
-                                                  <div
-                                                    key={rowIndex}
-                                                    className={`flex items-center gap-1 ${
-                                                      isReverse
-                                                        ? "justify-end"
-                                                        : "justify-start"
-                                                    }`}
-                                                  >
-                                                    {orderedRow.map(
-                                                      (step, index) => {
-                                                        const originalIndex =
-                                                          rowIndex * 2 +
-                                                          (isReverse
-                                                            ? row.length -
-                                                              1 -
-                                                              index
-                                                            : index);
-
-                                                        const stepNumber =
-                                                          originalIndex + 1;
-
-                                                        const isStarted =
-                                                          step === "Started";
-
-                                                        const isConnected =
-                                                          step ===
-                                                          "GMB Connected";
-
-                                                        const isQR =
-                                                          step === "QR Req";
-
-                                                        const isInsights =
-                                                          step ===
-                                                          "Insights Req";
-
-                                                        const isWeb =
-                                                          step === "Web Req";
-
-                                                        return (
-                                                          <Fragment
-                                                            key={`${step}-${originalIndex}`}
-                                                          >
-                                                            {/* STEP */}
-                                                            <div
-                                                              className={`
-                      flex items-center gap-1
-                      px-2 py-[4px]
-                      rounded-full
-                      text-[9px]
-                      font-semibold
-                      border
-                      shadow-sm
-                      whitespace-nowrap
-                      transition-all
-                      hover:scale-[1.02]
-
-                      ${
-                        isStarted
-                          ? "bg-slate-100 text-slate-700 border-slate-200"
-                          : isConnected
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : isQR
-                              ? "bg-violet-50 text-violet-700 border-violet-200"
-                              : isInsights
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : isWeb
-                                  ? "bg-sky-50 text-sky-700 border-sky-200"
-                                  : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                      }
-                    `}
-                                                            >
-                                                              {/* NUMBER */}
-                                                              <div
-                                                                className={`
-                        flex items-center justify-center
-                        w-4 h-4
-                        rounded-full
-                        text-[8px]
-                        font-bold
-                        shrink-0
-
-                        ${
-                          isStarted
-                            ? "bg-slate-200 text-slate-700"
-                            : isConnected
-                              ? "bg-emerald-200 text-emerald-800"
-                              : isQR
-                                ? "bg-violet-200 text-violet-800"
-                                : isInsights
-                                  ? "bg-amber-200 text-amber-800"
-                                  : isWeb
-                                    ? "bg-sky-200 text-sky-800"
-                                    : "bg-indigo-200 text-indigo-800"
-                        }
-                      `}
-                                                              >
-                                                                {stepNumber}
-                                                              </div>
-
-                                                              {/* ICON */}
-                                                              {isStarted && (
-                                                                <div className="w-1 h-1 rounded-full bg-slate-500" />
-                                                              )}
-
-                                                              {isConnected && (
-                                                                <CheckCircle
-                                                                  size={9}
-                                                                />
-                                                              )}
-
-                                                              {isQR && (
-                                                                <QrCode
-                                                                  size={9}
-                                                                />
-                                                              )}
-
-                                                              {isInsights && (
-                                                                <BarChart3
-                                                                  size={9}
-                                                                />
-                                                              )}
-
-                                                              {isWeb && (
-                                                                <Globe2
-                                                                  size={9}
-                                                                />
-                                                              )}
-
-                                                              {/* LABEL */}
-                                                              <span>
-                                                                {step}
-                                                              </span>
-                                                            </div>
-
-                                                            {/* ARROW */}
-                                                            {index !==
-                                                              orderedRow.length -
-                                                                1 && (
-                                                              <ChevronRight
-                                                                size={10}
-                                                                className="text-slate-300"
-                                                              />
-                                                            )}
-                                                          </Fragment>
-                                                        );
-                                                      },
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          );
-                                        })()}
-                                      </div>
-                                    </td>
-
-                                    <td
-                                      className="px-6 py-5 whitespace-nowrap"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {role === "superAdmin" ||
-                                      role === "admin" ||
-                                      role === "superfranchiseAdmin" ? (
-                                        <div
-                                          className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                                            getAgentName(user.assignedAgentId),
-                                          )}`}
-                                        >
-                                          <select
-                                            className="
-                             appearance-none bg-transparent 
-                             px-4 py-1.5 pr-8 
-                             text-xs font-bold 
-                             focus:outline-none 
-                             cursor-pointer
-                                            "
-                                            value={
-                                              // ✅ Handle populated object, string ID, null, and undefined
-                                              user.assignedAgentId?._id ||
-                                              (typeof user.assignedAgentId ===
-                                                "string" &&
-                                                user.assignedAgentId) ||
-                                              ""
-                                            }
-                                            onChange={(e) =>
-                                              handleAssignChange(
-                                                user.userId,
-                                                e.target.value,
-                                              )
-                                            }
-                                          >
-                                            <option value="">
-                                              -- Unassigned --
-                                            </option>
-
-                                            {agents.map((agent) => (
-                                              <option
-                                                key={agent._id}
-                                                value={agent._id}
-                                              >
-                                                {agent.fullName}
-                                              </option>
-                                            ))}
-                                          </select>
-
-                                          {!user.assignedAgentId && (
                                             <button
+                                              type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleRoundRobinAssign(
-                                                  user.userId,
-                                                );
+                                                fetchChatHistoryForUser(user);
                                               }}
-                                              className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
-                                              title="Auto Assign (Round Robin)"
+                                              disabled={
+                                                !getLimbuBotHistoryUserId(user)
+                                              }
+                                              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:cursor-not-allowed disabled:opacity-40 ${
+                                                hasConversation
+                                                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                                  : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                              }`}
+                                              title="View LimbuBot conversation"
                                             >
-                                              <RefreshCw size={12} />
-                                            </button>
-                                          )}
-
-                                          <span className="pointer-events-none absolute right-2 flex items-center">
-                                            <ChevronDown className="h-3 w-3" />
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <span
-                                          className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                                            getAgentName(user.assignedAgentId),
-                                          )}`}
-                                        >
-                                          {getAgentName(user.assignedAgentId)}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                      <div
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenRemarksModal(user);
-                                        }}
-                                        className="group cursor-pointer flex flex-col items-start gap-1.5"
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
-                                            <MessageSquare
-                                              size={14}
-                                              className="mr-1.5"
-                                            />
-                                            <span className="font-bold text-xs">
-                                              {user.remarksHistory?.length || 0}
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        {user.Remarks ? (
-                                          <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
-                                            <span className="font-semibold text-gray-800 mr-1">
-                                              Latest:
-                                            </span>
-                                            <span className="truncate">
-                                              {user.Remarks}
-                                            </span>
-                                            {user.remarksHistory &&
-                                              user.remarksHistory.length > 0 &&
-                                              user.remarksHistory[
-                                                user.remarksHistory.length - 1
-                                              ].messageSent && (
-                                                <CheckCircle
-                                                  size={12}
-                                                  className="text-green-600 ml-1 flex-shrink-0"
-                                                />
+                                              <MessageCircle size={14} />
+                                              <span>Chat</span>
+                                              {hasConversation && (
+                                                <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
+                                                  {steps.length}
+                                                </div>
                                               )}
+                                            </button>
+                                          );
+                                        })()}
+                                      </td>
+
+                                      <td
+                                        className="px-6 py-5 whitespace-nowrap"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {role === "superAdmin" ||
+                                        role === "admin" ||
+                                        role === "superfranchiseAdmin" ? (
+                                          <div
+                                            className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
+                                              getAgentName(
+                                                user.assignedAgentId,
+                                              ),
+                                            )}`}
+                                          >
+                                            <select
+                                              className="appearance-none bg-transparent px-4 py-1.5 pr-8 text-xs font-bold focus:outline-none cursor-pointer"
+                                              value={
+                                                user.assignedAgentId?._id ||
+                                                (typeof user.assignedAgentId ===
+                                                  "string" &&
+                                                  user.assignedAgentId) ||
+                                                ""
+                                              }
+                                              onChange={(e) =>
+                                                handleAssignChange(
+                                                  user.userId,
+                                                  e.target.value,
+                                                )
+                                              }
+                                            >
+                                              <option value="">
+                                                -- Unassigned --
+                                              </option>
+                                              {agents.map((agent) => (
+                                                <option
+                                                  key={agent._id}
+                                                  value={agent._id}
+                                                >
+                                                  {agent.fullName}
+                                                </option>
+                                              ))}
+                                            </select>
+
+                                            {!user.assignedAgentId && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleRoundRobinAssign(
+                                                    user.userId,
+                                                  );
+                                                }}
+                                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                                title="Auto Assign (Round Robin)"
+                                              >
+                                                <RefreshCw size={12} />
+                                              </button>
+                                            )}
+
+                                            <span className="pointer-events-none absolute right-2 flex items-center">
+                                              <ChevronDown className="h-3 w-3" />
+                                            </span>
                                           </div>
                                         ) : (
-                                          <span className="text-[10px] text-gray-400 italic pl-1">
-                                            Tap to add...
+                                          <span
+                                            className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
+                                              getAgentName(
+                                                user.assignedAgentId,
+                                              ),
+                                            )}`}
+                                          >
+                                            {getAgentName(user.assignedAgentId)}
                                           </span>
                                         )}
-                                      </div>
-                                    </td>
+                                      </td>
 
-                                    <td className="px-6 py-5">
-                                      <select
-                                        value={user.leadStage || "Active"}
-                                        onChange={(e) =>
-                                          handleLeadStageChange(
-                                            user.userId,
-                                            e.target.value,
-                                          )
-                                        }
-                                        onClick={(e) => e.stopPropagation()}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
-                                          user.leadStage === "Active"
-                                            ? "bg-green-50 text-green-700 border-green-200"
-                                            : user.leadStage === "Follow Up"
-                                              ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                              : user.leadStage === "Onboard"
-                                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                : "bg-gray-50 text-gray-700 border-gray-200"
-                                        }`}
-                                      >
-                                        <option value="Active">Active</option>
-                                        <option value="Follow Up">
-                                          Follow Up
-                                        </option>
-                                        <option value="Inactive">
-                                          Inactive
-                                        </option>
-                                        <option value="Onboard">Onboard</option>
-                                      </select>
-                                    </td>
+                                      <td className="px-6 py-4">
+                                        <div
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenRemarksModal(user);
+                                          }}
+                                          className="group cursor-pointer flex flex-col items-start gap-1.5"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
+                                              <MessageSquare
+                                                size={14}
+                                                className="mr-1.5"
+                                              />
+                                              <span className="font-bold text-xs">
+                                                {user.remarksHistory?.length ||
+                                                  0}
+                                              </span>
+                                            </div>
+                                          </div>
 
-                                    <td className="px-6 py-5">
-                                      <div className="space-y-1">
-                                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                                          <Mail
-                                            size={14}
-                                            className="text-gray-400"
-                                          />
-                                          {user.email}
+                                          {user.Remarks ? (
+                                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
+                                              <span className="font-semibold text-gray-800 mr-1">
+                                                Latest:
+                                              </span>
+                                              <span className="truncate">
+                                                {user.Remarks}
+                                              </span>
+                                              {user.remarksHistory &&
+                                                user.remarksHistory.length >
+                                                  0 &&
+                                                user.remarksHistory[
+                                                  user.remarksHistory.length - 1
+                                                ].messageSent && (
+                                                  <CheckCircle
+                                                    size={12}
+                                                    className="text-green-600 ml-1 flex-shrink-0"
+                                                  />
+                                                )}
+                                            </div>
+                                          ) : (
+                                            <span className="text-[10px] text-gray-400 italic pl-1">
+                                              Tap to add...
+                                            </span>
+                                          )}
                                         </div>
-                                        {user.phone && (
-                                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Phone
+                                      </td>
+
+                                      <td className="px-6 py-5">
+                                        <select
+                                          value={user.leadStage || "Active"}
+                                          onChange={(e) =>
+                                            handleLeadStageChange(
+                                              user.userId,
+                                              e.target.value,
+                                            )
+                                          }
+                                          onClick={(e) => e.stopPropagation()}
+                                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
+                                            user.leadStage === "Active"
+                                              ? "bg-green-50 text-green-700 border-green-200"
+                                              : user.leadStage === "Follow Up"
+                                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                : user.leadStage === "Onboard"
+                                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                  : "bg-gray-50 text-gray-700 border-gray-200"
+                                          }`}
+                                        >
+                                          <option value="Active">Active</option>
+                                          <option value="Follow Up">
+                                            Follow Up
+                                          </option>
+                                          <option value="Inactive">
+                                            Inactive
+                                          </option>
+                                          <option value="Onboard">
+                                            Onboard
+                                          </option>
+                                        </select>
+                                      </td>
+
+                                      <td className="px-6 py-5">
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                                            <Mail
                                               size={14}
                                               className="text-gray-400"
                                             />
-                                            {user.phone}
+                                            {user.email}
                                           </div>
-                                        )}
-                                      </div>
-                                    </td>
+                                          {user.phone && (
+                                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                              <Phone
+                                                size={14}
+                                                className="text-gray-400"
+                                              />
+                                              {user.phone}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
 
-                                    <td className="px-6 py-4">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleUpgradePlan(user);
-                                        }}
-                                        className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
-                                        title="Change Plan"
-                                      >
-                                        <Crown size={16} />
-                                      </button>
-                                    </td>
-
-                                    <td className="px-6 py-4">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-
-                                          handleOpenServiceModal(user);
-                                        }}
-                                        className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-                                        title="Add Service "
-                                      >
-                                        🛡️
-                                      </button>
-                                    </td>
-
-                                    <td className="px-6 py-5">
-                                      <div className="flex items-center gap-2">
+                                      <td className="px-6 py-4">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            handleOpenWalletModal(user);
+                                            handleUpgradePlan(user);
                                           }}
-                                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
+                                          className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
+                                          title="Change Plan"
                                         >
-                                          <Wallet size={16} />
-                                          <span className="font-bold text-base">
-                                            {user.wallet || 0}
-                                          </span>
-                                          <span className="text-xs font-medium">
-                                            coins
-                                          </span>
+                                          <Crown size={16} />
                                         </button>
-                                      </div>
-                                    </td>
+                                      </td>
 
-                                    <td className="px-6 py-5">
-                                      <div className="flex items-center gap-2">
-                                        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
-                                          <div className="flex items-center gap-3">
-                                            <div className="text-center">
-                                              <p className="text-xs text-gray-600">
-                                                Total
-                                              </p>
-                                              <p className="text-lg font-bold text-indigo-600">
-                                                {postData.total}
-                                              </p>
-                                            </div>
-                                            <div className="w-px h-8 bg-gray-300"></div>
-                                            <div className="text-center">
-                                              <p className="text-xs text-green-600">
-                                                Posted
-                                              </p>
-                                              <p className="text-lg font-bold text-green-600">
-                                                {postData.posted}
-                                              </p>
-                                            </div>
-                                            <div className="w-px h-8 bg-gray-300"></div>
-                                            <div className="text-center">
-                                              <p className="text-xs text-red-600">
-                                                Rejected
-                                              </p>
-                                              <p className="text-lg font-bold text-red-600">
-                                                {postData.rejected}
-                                              </p>
+                                      <td className="px-6 py-4">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenServiceModal(user);
+                                          }}
+                                          className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+                                          title="Add Service "
+                                        >
+                                          🛡️
+                                        </button>
+                                      </td>
+
+                                      <td className="px-6 py-5">
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleOpenWalletModal(user);
+                                            }}
+                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
+                                          >
+                                            <Wallet size={16} />
+                                            <span className="font-bold text-base">
+                                              {user.wallet || 0}
+                                            </span>
+                                            <span className="text-xs font-medium">
+                                              coins
+                                            </span>
+                                          </button>
+                                        </div>
+                                      </td>
+
+                                      <td className="px-6 py-5">
+                                        <div className="flex items-center gap-2">
+                                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
+                                            <div className="flex items-center gap-3">
+                                              <div className="text-center">
+                                                <p className="text-xs text-gray-600">
+                                                  Total
+                                                </p>
+                                                <p className="text-lg font-bold text-indigo-600">
+                                                  {postData.total}
+                                                </p>
+                                              </div>
+                                              <div className="w-px h-8 bg-gray-300"></div>
+                                              <div className="text-center">
+                                                <p className="text-xs text-green-600">
+                                                  Posted
+                                                </p>
+                                                <p className="text-lg font-bold text-green-600">
+                                                  {postData.posted}
+                                                </p>
+                                              </div>
+                                              <div className="w-px h-8 bg-gray-300"></div>
+                                              <div className="text-center">
+                                                <p className="text-xs text-red-600">
+                                                  Rejected
+                                                </p>
+                                                <p className="text-lg font-bold text-red-600">
+                                                  {postData.rejected}
+                                                </p>
+                                              </div>
                                             </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    </td>
+                                      </td>
 
-                                    <td className="px-6 py-5">
-                                      <div onClick={(e) => e.stopPropagation()}>
-                                        <AddAddUserActivity
-                                          userId={user.userId}
-                                        />
-                                      </div>
-                                    </td>
+                                      <td className="px-6 py-5">
+                                        <div
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <AddAddUserActivity
+                                            userId={user.userId}
+                                          />
+                                        </div>
+                                      </td>
 
-                                    <td className="px-6 py-4">
-                                      {user.businessListings &&
-                                      user.businessListings.length > 0 ? (
-                                        <div>
-                                          <div className="font-semibold text-gray-800">
-                                            {user.businessListings[0].title}{" "}
-                                            {
-                                              user.businessListings[0].address
-                                                .locality
-                                            }
-                                          </div>
-                                          {user.businessListings.length > 1 && (
-                                            <Link
-                                              href={`/admin/user-listings?userId=${user.userId}`}
-                                              onClick={(e) =>
-                                                e.stopPropagation()
+                                      <td className="px-6 py-4">
+                                        {user.businessListings &&
+                                        user.businessListings.length > 0 ? (
+                                          <div>
+                                            <div className="font-semibold text-gray-800">
+                                              {user.businessListings[0].title}{" "}
+                                              {
+                                                user.businessListings[0].address
+                                                  .locality
                                               }
-                                              className="text-xs text-blue-600 hover:underline mt-1"
-                                            >
-                                              View More (
-                                              {user.businessListings.length - 1}
-                                              )
-                                            </Link>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="text-xs text-gray-500 italic">
-                                          Waiting......
-                                        </div>
-                                      )}
-                                    </td>
-
-                                    <td className="px-6 py-4">
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            AdminPanelButton(user.userId);
-                                          }}
-                                          disabled={
-                                            impersonatingUser === user.userId
-                                          }
-                                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
-                                        >
-                                          {impersonatingUser === user.userId ? (
-                                            <div className="flex justify-center items-center">
-                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                                             </div>
-                                          ) : (
-                                            "Login"
-                                          )}
-                                        </button>
-                                        {(role === "superAdmin" ||
-                                          role === "agent") && (
+                                            {user.businessListings.length >
+                                              1 && (
+                                              <Link
+                                                href={`/admin/user-listings?userId=${user.userId}`}
+                                                onClick={(e) =>
+                                                  e.stopPropagation()
+                                                }
+                                                className="text-xs text-blue-600 hover:underline mt-1"
+                                              >
+                                                View More (
+                                                {user.businessListings.length -
+                                                  1}
+                                                )
+                                              </Link>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className="text-xs text-gray-500 italic">
+                                            Waiting......
+                                          </div>
+                                        )}
+                                      </td>
+
+                                      <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              setOnboardModalUser(user);
-                                              setShowOnboardModal(true);
+                                              AdminPanelButton(user.userId);
                                             }}
-                                            className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
-                                            title="Onboard Client"
+                                            disabled={
+                                              impersonatingUser === user.userId
+                                            }
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
                                           >
-                                            <CheckCircle size={16} />
+                                            {impersonatingUser ===
+                                            user.userId ? (
+                                              <div className="flex justify-center items-center">
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                              </div>
+                                            ) : (
+                                              "Login"
+                                            )}
                                           </button>
-                                        )}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            sendSubscriptionExpiredNotification(
-                                              user,
-                                            );
-                                          }}
-                                          className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
-                                          title="Send Expiry Notification"
-                                        >
-                                          <Bell size={16} />
-                                        </button>
-                                        {role === "superAdmin" && (
+                                          {(role === "superAdmin" ||
+                                            role === "agent") && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOnboardModalUser(user);
+                                                setShowOnboardModal(true);
+                                              }}
+                                              className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
+                                              title="Onboard Client"
+                                            >
+                                              <CheckCircle size={16} />
+                                            </button>
+                                          )}
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              setDeleteUserModal(user);
+                                              sendSubscriptionExpiredNotification(
+                                                user,
+                                              );
                                             }}
-                                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
-                                            title="Delete User"
+                                            className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
+                                            title="Send Expiry Notification"
                                           >
-                                            <Trash2 size={16} />
+                                            <Bell size={16} />
                                           </button>
-                                        )}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleVoiceCall(
-                                              user.phone || user.mobileNumber,
-                                            );
-                                          }}
-                                          disabled={
-                                            callingUserId === user.userId
-                                          }
-                                          className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
-                                          title="Voice Call"
-                                        >
-                                          {callingUserId === user.userId ? (
-                                            <RefreshCw
-                                              size={16}
-                                              className="animate-spin"
-                                            />
-                                          ) : (
-                                            <Phone size={16} />
+                                          {role === "superAdmin" && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDeleteUserModal(user);
+                                              }}
+                                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
+                                              title="Delete User"
+                                            >
+                                              <Trash2 size={16} />
+                                            </button>
                                           )}
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleVoiceCall(
+                                                user.phone || user.mobileNumber,
+                                              );
+                                            }}
+                                            disabled={
+                                              callingUserId === user.userId
+                                            }
+                                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
+                                            title="Voice Call"
+                                          >
+                                            {callingUserId === user.userId ? (
+                                              <RefreshCw
+                                                size={16}
+                                                className="animate-spin"
+                                              />
+                                            ) : (
+                                              <Phone size={16} />
+                                            )}
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  </Fragment>
                                 );
                               })}
                             </Fragment>

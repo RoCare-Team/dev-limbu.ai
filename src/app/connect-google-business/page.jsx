@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Building2, CheckCircle2, Loader2, LogOut, Mail } from "lucide-react";
+import { LIMBU_WHATSAPP_DIRECT_CHAT } from "@/lib/chatbotPlatformOAuthState";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ function ConnectGoogleBusinessInner() {
   const handleSignInWithSavedEmail = useCallback(() => {
     // User selected "Sign in with saved business email"
     // Redirect directly to chatbot
-    window.location.href = "https://wa.me/917065178662";
+    window.location.href = LIMBU_WHATSAPP_DIRECT_CHAT;
   }, []);
 
   const handleConnectDifferent = useCallback(() => {
@@ -313,7 +314,7 @@ function ConnectGoogleBusinessInner() {
 
   useEffect(() => {
     if (continueSuccess && redirectCountdown === 0) {
-      window.location.href = "https://wa.me/917065178662";
+      window.location.href = LIMBU_WHATSAPP_DIRECT_CHAT;
     }
   }, [continueSuccess, redirectCountdown]);
 

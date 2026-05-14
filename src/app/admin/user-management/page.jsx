@@ -527,11 +527,17 @@ export default function UserManagement() {
       steps.push("Health");
     }
 
-    // ================= NO STAGE =================
+    // ================= NO TRACKED MILESTONE =================
     if (steps.length === 0) {
+      if (!Array.isArray(history) || history.length === 0) {
+        return {
+          label: "No Activity",
+          className: "bg-slate-50 text-slate-500 border-slate-200",
+        };
+      }
       return {
-        label: "No Activity",
-        className: "bg-slate-50 text-slate-500 border-slate-200",
+        label: "Chat Initiate",
+        className: "bg-sky-50 text-sky-700 border-sky-200",
       };
     }
 
@@ -612,7 +618,7 @@ export default function UserManagement() {
         }),
       );
 
-      const updatedStages = {};
+    const updatedStages = {};
 
       responses.forEach((result) => {
         if (result.status === "fulfilled") {

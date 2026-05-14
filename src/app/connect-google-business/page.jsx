@@ -1,15 +1,46 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Building2, CheckCircle2, Loader2, LogOut, Mail } from "lucide-react";
-import { LIMBU_WHATSAPP_DIRECT_CHAT } from "@/lib/chatbotPlatformOAuthState";
+import { getLimbuWhatsAppChatUrl } from "@/lib/chatbotPlatformOAuthState";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function normalizePhone(p) {
   return String(p || "").replace(/\D/g, "");
+}
+
+function reconnectReplaceStorageKey(phoneDigits) {
+  return phoneDigits ? `gmb_reconnect_replace_${phoneDigits}` : "";
+}
+
+function isReconnectReplacePending(phoneDigits) {
+  if (typeof window === "undefined" || !phoneDigits) return false;
+  try {
+    return sessionStorage.getItem(reconnectReplaceStorageKey(phoneDigits)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setReconnectReplacePending(phoneDigits) {
+  if (typeof window === "undefined" || !phoneDigits) return;
+  try {
+    sessionStorage.setItem(reconnectReplaceStorageKey(phoneDigits), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearReconnectReplacePending(phoneDigits) {
+  if (typeof window === "undefined" || !phoneDigits) return;
+  try {
+    sessionStorage.removeItem(reconnectReplaceStorageKey(phoneDigits));
+  } catch {
+    /* ignore */
+  }
 }
 
 function formatBusinessAddress(loc) {
@@ -52,7 +83,6 @@ function BusinessCard({ loc, verified }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 function ConnectGoogleBusinessInner() {
-  const router      = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
@@ -79,9 +109,14 @@ function ConnectGoogleBusinessInner() {
   const [autoSignInTriggered, setAutoSignInTriggered] = useState(false);
   const [autoContinueStarted, setAutoContinueStarted] = useState(false);
   const [locationsLoaded,  setLocationsLoaded]  = useState(false);
-  const [waitSeconds,      setWaitSeconds]      = useState(10);
+  const [waitSeconds,      setWaitSeconds]      = useState(8);
   const [waitActive,       setWaitActive]       = useState(false);
   const [reconnecting,     setReconnecting]     = useState(false);
+  /** `null` = idle; after "saved email" CTA, counts 5→0 then opens WhatsApp */
+  const [existingUserWaCountdown, setExistingUserWaCountdown] = useState(null);
+  const existingUserWaArmedRef = useRef(false);
+
+  const inConnectFlow = isNewUser || reconnecting;
 
   // ── Check if phone already exists in database ─────────────────────────────────
   const checkPhoneStatus = useCallback(async () => {
@@ -132,6 +167,9 @@ function ConnectGoogleBusinessInner() {
     setLocationsLoaded(false);
     setListLoading(true);
     setListError("");
+    setContinueSuccess(false);
+    setRedirectCountdown(0);
+    setAutoContinueStarted(false);
     try {
       const res  = await fetch("/api/gmb/my-locations", { cache: "no-store" });
       const data = await res.json();
@@ -145,7 +183,7 @@ function ConnectGoogleBusinessInner() {
       setListLoading(false);
       setLocationsLoaded(true);
       setWaitActive(true);
-      setWaitSeconds(10);
+      setWaitSeconds(8);
     }
   }, []);
 
@@ -170,10 +208,12 @@ function ConnectGoogleBusinessInner() {
     }
     setContinueBusy(true);
     try {
+      const replaceExistingConnection =
+        reconnecting || isReconnectReplacePending(phone);
       const res  = await fetch("/api/gmb/sync-and-save", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ phone }),
+        body:    JSON.stringify({ phone, replaceExistingConnection }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
@@ -205,57 +245,47 @@ function ConnectGoogleBusinessInner() {
 
       setContinueSuccess(true);
       setRedirectCountdown(5);
+      setReconnecting(false);
+      clearReconnectReplacePending(phone);
     } catch (e) {
       setListError(e?.message || "Continue failed");
     } finally {
       setContinueBusy(false);
     }
-  }, [phone]);
+  }, [phone, reconnecting]);
 
   const handleSignInWithSavedEmail = useCallback(() => {
-    // User selected "Sign in with saved business email"
-    // Redirect directly to chatbot
-    window.location.href = LIMBU_WHATSAPP_DIRECT_CHAT;
-  }, []);
+    clearReconnectReplacePending(phone);
+    setReconnecting(false);
+    existingUserWaArmedRef.current = true;
+    setExistingUserWaCountdown(5);
+  }, [phone]);
 
   const handleConnectDifferent = useCallback(() => {
-    // User wants to connect with different email — start the Google sign-in flow
+    setAutoContinueStarted(false);
+    setReconnectReplacePending(phone);
     setReconnecting(true);
     void handleGoogleSignIn();
-  }, [handleGoogleSignIn]);
+  }, [handleGoogleSignIn, phone]);
 
   const handleSwitchAccount = useCallback(() => {
     const qs = phone ? `?phone=${phone}` : "";
     void signOut({ callbackUrl: `/connect-google-business${qs}` });
   }, [phone]);
 
-  // Check phone status on mount
+  // After OAuth full page reload: restore "new Google account" flow for existing numbers
   useEffect(() => {
-    void checkPhoneStatus();
-  }, [phone, checkPhoneStatus]);
+    if (typeof window === "undefined" || !phone || status !== "authenticated") return;
+    if (isNewUser !== false) return;
+    if (isReconnectReplacePending(phone)) setReconnecting(true);
+  }, [phone, status, isNewUser]);
 
   useEffect(() => {
-    if (phoneCheckLoading || isNewUser !== true || status !== "unauthenticated" || autoSignInTriggered) return;
-    if (!phone) return;
-
-    const timer = window.setTimeout(() => {
-      handleGoogleSignIn();
-    }, 100);
-    return () => window.clearTimeout(timer);
-  }, [phoneCheckLoading, isNewUser, status, autoSignInTriggered, phone]);
-
-  // Handle reconnecting flow (user clicked "Connect with different email")
-  useEffect(() => {
-    if (!reconnecting || status !== "authenticated" || locationsLoaded || listLoading) return;
-    void loadLocations();
-  }, [reconnecting, status, locationsLoaded, listLoading, loadLocations]);
-
-  useEffect(() => {
-    if (!isNewUser) return;
+    if (!isNewUser && !reconnecting) return;
     if (status !== "authenticated" || !session?.accessToken) return;
     if (locationsLoaded || listLoading) return;
     void loadLocations();
-  }, [isNewUser, status, session?.accessToken, locationsLoaded, listLoading, loadLocations]);
+  }, [isNewUser, reconnecting, status, session?.accessToken, locationsLoaded, listLoading, loadLocations]);
 
   useEffect(() => {
     if (
@@ -292,7 +322,7 @@ function ConnectGoogleBusinessInner() {
     if ((!isNewUser && !reconnecting) || status !== "authenticated" || listLoading || continueSuccess) return;
     if (!waitActive && locationsLoaded) {
       setWaitActive(true);
-      setWaitSeconds(10);
+      setWaitSeconds(8);
     }
   }, [isNewUser, reconnecting, status, listLoading, continueSuccess, waitActive, locationsLoaded]);
 
@@ -313,10 +343,23 @@ function ConnectGoogleBusinessInner() {
   }, [continueSuccess, redirectCountdown]);
 
   useEffect(() => {
-    if (continueSuccess && redirectCountdown === 0) {
-      window.location.href = LIMBU_WHATSAPP_DIRECT_CHAT;
-    }
+    if (!continueSuccess || redirectCountdown !== 0) return;
+    window.location.replace(getLimbuWhatsAppChatUrl());
   }, [continueSuccess, redirectCountdown]);
+
+  useEffect(() => {
+    if (existingUserWaCountdown === null || existingUserWaCountdown <= 0) return;
+    const t = window.setTimeout(() => {
+      setExistingUserWaCountdown((c) => (c === null || c <= 0 ? c : c - 1));
+    }, 1000);
+    return () => window.clearTimeout(t);
+  }, [existingUserWaCountdown]);
+
+  useEffect(() => {
+    if (!existingUserWaArmedRef.current || existingUserWaCountdown !== 0) return;
+    existingUserWaArmedRef.current = false;
+    window.location.replace(getLimbuWhatsAppChatUrl());
+  }, [existingUserWaCountdown]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -360,12 +403,14 @@ function ConnectGoogleBusinessInner() {
           </div>
         )}
 
-        {/* New user — choose account first */}
-        {!phoneCheckLoading && isNewUser && status !== "authenticated" && (
+        {/* Choose Google account (new number, or existing number switching to a new Gmail) */}
+        {!phoneCheckLoading && (isNewUser || reconnecting) && status !== "authenticated" && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <h1 className="text-xl font-bold text-slate-900">Choose your Google account</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Select the Google account you want to use to connect your Business Profile.
+              {reconnecting
+                ? "Sign in with the Google account you want to use for this phone number. This replaces the previous Gmail connection."
+                : "Select the Google account you want to use to connect your Business Profile."}
             </p>
             <div className="mt-6">
               <button
@@ -380,8 +425,12 @@ function ConnectGoogleBusinessInner() {
           </div>
         )}
 
-        {/* Existing user — show already connected option */}
-        {!phoneCheckLoading && !isNewUser && !continueSuccess && (
+        {/* Existing user — already linked to this WhatsApp number */}
+        {!phoneCheckLoading &&
+          !isNewUser &&
+          !continueSuccess &&
+          !reconnecting &&
+          existingUserWaCountdown === null && (
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-600 text-white">
               <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
@@ -418,13 +467,13 @@ function ConnectGoogleBusinessInner() {
             </div>
 
             <p className="mt-4 text-[11px] text-slate-500">
-              Signing in with a different email will replace the current connection.
+              Signing in with a different email will replace the current connection for this phone in Limbu (GMB data and dashboard user).
             </p>
           </div>
         )}
 
         {/* Session loading */}
-        {!phoneCheckLoading && isNewUser && status === "loading" && (
+        {!phoneCheckLoading && inConnectFlow && status === "loading" && (
           <div className="flex min-h-[42vh] flex-col items-center justify-center">
             <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <Loader2 className="mx-auto h-11 w-11 animate-spin text-amber-500" />
@@ -434,24 +483,32 @@ function ConnectGoogleBusinessInner() {
           </div>
         )}
 
-        {/* Continue success */}
+        {/* WhatsApp connected — auto redirect after 5s */}
         {continueSuccess && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
               <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Business connected! ✨</h1>
+            <h1 className="text-xl font-bold text-slate-900">WhatsApp connected</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Listings were fetched successfully. You will be redirected to WhatsApp.
+              You&apos;re all set. Returning to Limbu on WhatsApp (
+              <span className="font-medium">+91 70651 78662</span>)…
             </p>
             <p className="mt-3 text-xs text-slate-500">
               Redirecting in {redirectCountdown} second{redirectCountdown === 1 ? "" : "s"}...
             </p>
+            <button
+              type="button"
+              onClick={() => window.location.replace(getLimbuWhatsAppChatUrl())}
+              className="mt-4 text-[13px] font-semibold text-emerald-800 underline-offset-2 hover:underline"
+            >
+              Open WhatsApp now
+            </button>
           </div>
         )}
 
-        {/* Fetching listings (new user after auth) */}
-        {!phoneCheckLoading && isNewUser && status === "authenticated" && listLoading && (
+        {/* Fetching listings */}
+        {!phoneCheckLoading && inConnectFlow && status === "authenticated" && listLoading && (
           <div className="flex min-h-[48vh] flex-col items-center justify-center">
             <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <Building2 className="mx-auto h-10 w-10 text-amber-500" strokeWidth={2} />
@@ -463,7 +520,7 @@ function ConnectGoogleBusinessInner() {
         )}
 
         {/* Listings ready for review */}
-        {!phoneCheckLoading && isNewUser && status === "authenticated" && !listLoading && !continueSuccess && (
+        {!phoneCheckLoading && inConnectFlow && status === "authenticated" && !listLoading && !continueSuccess && (
           <>
             <div className="mb-2 flex justify-center">
               <div
@@ -553,8 +610,47 @@ function ConnectGoogleBusinessInner() {
         )}
       </main>
 
+      {/* Existing user → WhatsApp preview (5s) before opening chat */}
+      {existingUserWaCountdown !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="existing-user-wa-title"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center shadow-xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+              <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
+            </div>
+            <h1 id="existing-user-wa-title" className="text-xl font-bold text-slate-900">
+              WhatsApp connected
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Returning you to Limbu on WhatsApp (
+              <span className="font-medium">+91 70651 78662</span>)…
+            </p>
+            <p className="mt-3 text-xs text-slate-500">
+              {existingUserWaCountdown > 0
+                ? `Redirecting in ${existingUserWaCountdown} second${existingUserWaCountdown === 1 ? "" : "s"}…`
+                : "Opening WhatsApp…"}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                existingUserWaArmedRef.current = false;
+                setExistingUserWaCountdown(null);
+                window.location.replace(getLimbuWhatsAppChatUrl());
+              }}
+              className="mt-5 text-[13px] font-semibold text-emerald-800 underline-offset-2 hover:underline"
+            >
+              Open WhatsApp now
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sticky Continue button (for new users reviewing listings) */}
-      {!phoneCheckLoading && isNewUser && status === "authenticated" && !listLoading && !continueSuccess && (
+      {!phoneCheckLoading && inConnectFlow && status === "authenticated" && !listLoading && !continueSuccess && (
         <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-white/80">
           <div className="mx-auto flex max-w-lg flex-col gap-2">
             <button
@@ -577,8 +673,8 @@ function ConnectGoogleBusinessInner() {
             </button>
             <p className="text-center text-[11px] text-slate-400">
               {waitSeconds > 0
-                ? "Listings are loading. The button will be active after 10 seconds."
-                : "Listings will be saved, then Limbu AI chat will open."}
+                ? "Review your listings. Continue unlocks after 8 seconds."
+                : "Listings will be saved, then WhatsApp opens automatically in 5 seconds."}
             </p>
           </div>
         </div>

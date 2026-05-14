@@ -52,6 +52,8 @@ export async function POST(request) {
       );
     }
 
+    const replaceExistingConnection = body.replaceExistingConnection === true;
+
     // ── Fetch GMB listings ──────────────────────────────────────────────────
     let allListings = [];
     try {
@@ -107,6 +109,7 @@ export async function POST(request) {
         googleId,
         accessToken: session.accessToken || "",
         refreshToken: session.refreshToken || "",
+        replaceExistingConnection,
       });
     } catch (dashErr) {
       console.error("[sync-and-save] gmb_dashboard.users mirror error:", dashErr);

@@ -6,8 +6,17 @@ export const LIMBU_CHATBOT_WA_RETURN = "https://wa.me/917065178662";
 /** E.164 digits (91 + 7065178662) — Limbu bot line for direct chat opens. */
 export const LIMBU_WHATSAPP_PHONE_E164 = "917065178662";
 
-/** `send` link tends to open the thread reliably (mobile + desktop) vs generic WhatsApp home. */
+/** `send` link — good default for some in-app browsers. */
 export const LIMBU_WHATSAPP_DIRECT_CHAT = `https://api.whatsapp.com/send?phone=${LIMBU_WHATSAPP_PHONE_E164}`;
+
+/** Prefer this when opening from the browser: mobile → `wa.me`, desktop → web WhatsApp send (avoids landing on generic home). */
+export function getLimbuWhatsAppChatUrl() {
+  if (typeof navigator === "undefined") return `https://wa.me/${LIMBU_WHATSAPP_PHONE_E164}`;
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  if (isMobile) return `https://wa.me/${LIMBU_WHATSAPP_PHONE_E164}`;
+  return `https://web.whatsapp.com/send?phone=${LIMBU_WHATSAPP_PHONE_E164}`;
+}
 
 function trimOrigin(s) {
   return String(s || "")

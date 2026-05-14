@@ -17,6 +17,7 @@ export async function POST(req) {
       backgroundImage,
       logoImage,
       platform,
+      mode,
       prompt,
     } = body;
 
@@ -45,6 +46,7 @@ export async function POST(req) {
       backgroundImage: cleanBase64(backgroundImage),
       logoImage: cleanBase64(logoImage),
       platform: platform || "",
+      mode: mode || "",
     };
 
     // ============================

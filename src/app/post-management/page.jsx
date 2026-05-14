@@ -661,7 +661,7 @@ export default function PostManagementPage() {
           ig_des,
           li_des,
           pin_des,
-          yt_des, // ✅ CHANGE HERE
+          yt_des,
         } = normalizePlatformDescriptions({
           ...res,
           ...data,
@@ -1110,7 +1110,6 @@ export default function PostManagementPage() {
   const handleYouTubePostAction = useCallback(
     async (post, channel, caption, media = null) => {
       if (!post) return;
-
       const publishMedia = media || metaPublishMedia(post);
 
       // ❌ No video

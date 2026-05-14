@@ -1,3 +1,5 @@
+import { normalizeGenerateAdResponse } from "@/lib/normalizeGenerateAdResponse";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function POST(req) {
@@ -46,8 +48,19 @@ export async function POST(req) {
       backgroundImage: cleanBase64(backgroundImage),
       logoImage: cleanBase64(logoImage),
       platform: platform || "",
-      mode: mode || "",
+      mode: mode === "manual" ? "manual" : "ai",
     };
+
+    const refundWallet = () =>
+      fetch(`${API_URL}/api/auth/signup?userId=${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: 80,
+          type: "credit",
+          reason: "refund_failed_generation",
+        }),
+      });
 
     // ============================
     // ✅ 1. WALLET DEDUCT FIRST
@@ -80,7 +93,7 @@ export async function POST(req) {
     // ✅ 2. AI GENERATION
     // ============================
     const n8nResponse = await fetch(
-      "https://n8n.limbutech.in/webhook/6678555b-a0a2-4cbf-b157-7d0f831bd51c",
+      "https://assets-image.limbutech.in/generate-ad",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,22 +101,50 @@ export async function POST(req) {
       }
     );
 
-    const finalData = await n8nResponse.json();
-    console.log("AI Response:", finalData);
+    const responseText = await n8nResponse.text();
+    let parsed;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      await refundWallet();
+      console.error("generate-ad non-JSON:", responseText?.slice?.(0, 400));
+      return Response.json(
+        {
+          success: false,
+          error: "generate-ad returned non-JSON",
+          detail: responseText?.slice?.(0, 300) ?? "",
+        },
+        { status: 502 }
+      );
+    }
 
-    if (!finalData || !finalData.output) {
-      // refund
-      await fetch(`${API_URL}/api/auth/signup?userId=${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 80,
-          type: "credit",
-          reason: "refund_failed_generation",
-        }),
-      });
+    if (!n8nResponse.ok) {
+      await refundWallet();
+      const msg =
+        parsed?.message ||
+        parsed?.error ||
+        `generate-ad HTTP ${n8nResponse.status}`;
+      console.error("AI Response (error):", msg, parsed);
+      return Response.json(
+        { success: false, error: msg, data: parsed },
+        { status: 502 }
+      );
+    }
 
-      throw new Error("AI generation failed");
+    const finalData = normalizeGenerateAdResponse(parsed);
+    console.log("AI Response (normalized):", finalData);
+
+    if (!finalData.output) {
+      await refundWallet();
+      return Response.json(
+        {
+          success: false,
+          error: "AI generation failed",
+          detail: parsed?.message || parsed?.error || null,
+          data: parsed,
+        },
+        { status: 502 }
+      );
     }
 
     // ============================

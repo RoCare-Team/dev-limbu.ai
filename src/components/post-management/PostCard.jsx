@@ -42,7 +42,7 @@ const STATUS_COLORS = {
   scheduled: "bg-purple-50 text-purple-600 border-purple-100",
 };
 
-const FALLBACK_POST_IMAGE = "/images/GMB.jpg";
+const FALLBACK_POST_IMAGE = "/images/fallback_image.png";
 
 const PLATFORM_ALIASES = {
   gmb: "gmb",

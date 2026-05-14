@@ -15,6 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 import {
@@ -22,6 +23,7 @@ import {
   normalizePhone,
 } from "@/lib/gmbSessionStore";
 import { postJsonWithRetry } from "@/lib/limbuGmbConnectChatbot";
+import { upsertChatbotGmbUserDashboardRow } from "@/lib/gmbDashboardUsersSync";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +81,35 @@ export async function POST(request) {
         { error: e?.message || "Failed to save session" },
         { status: 500 }
       );
+    }
+
+    // ── Mirror manual Google sign-in: `gmb_dashboard.users` + `source: "chatbot"` ──
+    try {
+      let googleId = "";
+      try {
+        const jwt = await getToken({
+          req: request,
+          secret: authOptions.secret,
+        });
+        googleId = jwt?.sub || "";
+      } catch (tokErr) {
+        console.warn("[sync-and-save] getToken:", tokErr?.message);
+      }
+      if (!googleId && session?.user?.id) {
+        googleId = String(session.user.id);
+      }
+
+      await upsertChatbotGmbUserDashboardRow({
+        phoneDigits: phone,
+        userEmail: session.user.email,
+        userName: session.user?.name || "",
+        userImage: session.user?.image || "",
+        googleId,
+        accessToken: session.accessToken || "",
+        refreshToken: session.refreshToken || "",
+      });
+    } catch (dashErr) {
+      console.error("[sync-and-save] gmb_dashboard.users mirror error:", dashErr);
     }
 
     const response = {

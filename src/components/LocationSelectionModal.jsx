@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { CheckCircle, MapPin, X, Info, Wallet, Zap, ShieldAlert } from "lucide-react";
+import {
+  CheckCircle,
+  MapPin,
+  X,
+  Info,
+  Wallet,
+  Zap,
+  ShieldAlert,
+} from "lucide-react";
 
 const LocationSelectionModal = ({
   locations,
@@ -15,7 +23,7 @@ const LocationSelectionModal = ({
   const [postType, setPostType] = useState("standard");
   const [ctaType, setCtaType] = useState("book");
   const [customUrl, setCustomUrl] = useState(() => {
-    const defaultLoc = locations.find(l => l.websiteUrl);
+    const defaultLoc = locations.find((l) => l.websiteUrl);
     return defaultLoc ? defaultLoc.websiteUrl : "";
   });
   const [startDate, setStartDate] = useState("");
@@ -50,13 +58,36 @@ const LocationSelectionModal = ({
   };
 
   const handleConfirm = () => {
+    const finalPayload = {
+      selectedLocations,
+
+      checkmark: getPayload(),
+
+      options: {
+        postType,
+        ctaType,
+        customUrl,
+        startDate,
+        endDate,
+        eventTitle,
+      },
+
+      totalCoins: totalCost,
+
+      selectedLocationDetails: locations.filter((loc) =>
+        selectedLocations.includes(loc.id),
+      ),
+    };
+
+    // console.log("🚀 FINAL GMB PAYLOAD:", JSON.stringify(finalPayload, null, 2));
+
     onConfirm(selectedLocations, getPayload(), {
       postType,
       ctaType,
       customUrl,
       startDate,
       endDate,
-      eventTitle
+      eventTitle,
     });
   };
 
@@ -87,20 +118,22 @@ const LocationSelectionModal = ({
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-in fade-in duration-300 animate-fadeIn">
       <div className="relative bg-white border border-black/[0.03] rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 animate-scaleIn">
-        
         {/* ── Background Aesthetics ── */}
         <div
           className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
           style={{
-            backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
-            backgroundSize: "30px 30px"
+            backgroundImage:
+              "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+            backgroundSize: "30px 30px",
           }}
         />
 
         {/* Modal Header */}
         <div className="relative px-8 pt-8 pb-4 flex items-center justify-between z-10">
           <div>
-            <p className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] mb-1">Targeting Manager</p>
+            <p className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] mb-1">
+              Targeting Manager
+            </p>
             <h3 className="text-2xl font-black text-black uppercase tracking-tight font-heading">
               {title}
             </h3>
@@ -115,38 +148,51 @@ const LocationSelectionModal = ({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-6 relative z-10 custom-scroll">
-          
           {/* Options & Action Type */}
           <div className="flex flex-col gap-4 p-5 bg-slate-50 border border-black/5 rounded-3xl">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-6">
                 {["post", "photo", "video", "both"].map((opt) => (
-                  <label key={opt} className="flex items-center gap-2 cursor-pointer group">
+                  <label
+                    key={opt}
+                    className="flex items-center gap-2 cursor-pointer group"
+                  >
                     <input
                       type="checkbox"
-                      checked={opt === "both" ? (checkmark.includes("post") && checkmark.includes("photo")) : checkmark.includes(opt)}
+                      checked={
+                        opt === "both"
+                          ? checkmark.includes("post") &&
+                            checkmark.includes("photo")
+                          : checkmark.includes(opt)
+                      }
                       onChange={() => handleCheckmarkChange(opt)}
                       className="w-5 h-5 rounded-lg border-2 border-slate-200 accent-lemon-glow transition-all"
                     />
-                    <span className="text-[11px] font-black uppercase tracking-widest text-black/70 group-hover:text-black">{opt}</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-black/70 group-hover:text-black">
+                      {opt}
+                    </span>
                   </label>
                 ))}
               </div>
-              
-              <button 
+
+              <button
                 onClick={handleSelectAll}
                 className="text-[10px] font-black uppercase tracking-widest text-lemon-hover hover:underline"
               >
-                {selectedLocations.length === verifiedLocations.length ? "Deselect All" : "Select All Verified"}
+                {selectedLocations.length === verifiedLocations.length
+                  ? "Deselect All"
+                  : "Select All Verified"}
               </button>
             </div>
 
             {!checkmark.includes("video") && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-black/5">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Post Type</label>
-                  <select 
-                    value={postType} 
+                  <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
+                    Post Type
+                  </label>
+                  <select
+                    value={postType}
                     onChange={(e) => setPostType(e.target.value)}
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-lemon-hover"
                   >
@@ -156,9 +202,11 @@ const LocationSelectionModal = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Button CTA</label>
-                  <select 
-                    value={ctaType} 
+                  <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
+                    Button CTA
+                  </label>
+                  <select
+                    value={ctaType}
                     onChange={(e) => setCtaType(e.target.value)}
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-lemon-hover"
                   >
@@ -173,8 +221,10 @@ const LocationSelectionModal = ({
 
                 {ctaType !== "call_now" && (
                   <div className="md:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Custom URL (Optional)</label>
-                    <input 
+                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
+                      Custom URL (Optional)
+                    </label>
+                    <input
                       type="url"
                       value={customUrl}
                       onChange={(e) => setCustomUrl(e.target.value)}
@@ -187,8 +237,10 @@ const LocationSelectionModal = ({
                 {postType === "event" && (
                   <>
                     <div className="md:col-span-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Event Title</label>
-                      <input 
+                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
+                        Event Title
+                      </label>
+                      <input
                         type="text"
                         list="event-titles"
                         value={eventTitle}
@@ -208,8 +260,10 @@ const LocationSelectionModal = ({
                       </datalist>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">Start Date</label>
-                      <input 
+                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
+                        Start Date
+                      </label>
+                      <input
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
@@ -217,8 +271,10 @@ const LocationSelectionModal = ({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">End Date</label>
-                      <input 
+                      <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
+                        End Date
+                      </label>
+                      <input
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
@@ -235,44 +291,78 @@ const LocationSelectionModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white border border-black/[0.05] p-5 rounded-3xl shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-slate-50 rounded-xl"><MapPin size={16} className="text-black/30" /></div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Selection</p>
+                <div className="p-2.5 bg-slate-50 rounded-xl">
+                  <MapPin size={16} className="text-black/30" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                  Selection
+                </p>
               </div>
               <p className="text-2xl font-black text-black">
-                {selectedLocations.length} <span className="text-sm font-medium text-black/30 uppercase tracking-tighter">Locations</span>
+                {selectedLocations.length}{" "}
+                <span className="text-sm font-medium text-black/30 uppercase tracking-tighter">
+                  Locations
+                </span>
               </p>
             </div>
 
             <div className="bg-white border border-black/[0.05] p-5 rounded-3xl shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-slate-50 rounded-xl"><Wallet size={16} className={`text-black/30 ${insufficientFunds ? "text-red-400" : ""}`} /></div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Costing</p>
+                <div className="p-2.5 bg-slate-50 rounded-xl">
+                  <Wallet
+                    size={16}
+                    className={`text-black/30 ${insufficientFunds ? "text-red-400" : ""}`}
+                  />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                  Costing
+                </p>
               </div>
               <div className="flex items-baseline gap-2">
-                <p className={`text-2xl font-black ${insufficientFunds ? "text-red-500" : "text-black"}`}>
+                <p
+                  className={`text-2xl font-black ${insufficientFunds ? "text-red-500" : "text-black"}`}
+                >
                   {totalCost}
                 </p>
-                <p className="text-[10px] font-black text-black/20 uppercase tracking-widest">Total Coins</p>
+                <p className="text-[10px] font-black text-black/20 uppercase tracking-widest">
+                  Total Coins
+                </p>
               </div>
             </div>
           </div>
 
           {/* Wallet Balance Alert */}
           {isPostAction && (
-             <div className={`p-4 rounded-2xl border flex items-center justify-between ${insufficientFunds ? "bg-red-50 border-red-100" : "bg-lemon-glow/5 border-lemon-glow/20"}`}>
-                <div className="flex items-center gap-3">
-                  {insufficientFunds ? <ShieldAlert size={18} className="text-red-500" /> : <Zap size={18} className="text-lemon-hover" />}
-                  <p className={`text-[11px] font-bold uppercase tracking-tight ${insufficientFunds ? "text-red-700" : "text-black/70"}`}>
-                    {insufficientFunds ? `Need ${totalCost - walletBalance} more coins` : `Balance: ${walletBalance} Coins`}
-                  </p>
-                </div>
-                {!insufficientFunds && <span className="text-[9px] font-black text-lemon-hover uppercase">Funds Clear</span>}
-             </div>
+            <div
+              className={`p-4 rounded-2xl border flex items-center justify-between ${insufficientFunds ? "bg-red-50 border-red-100" : "bg-lemon-glow/5 border-lemon-glow/20"}`}
+            >
+              <div className="flex items-center gap-3">
+                {insufficientFunds ? (
+                  <ShieldAlert size={18} className="text-red-500" />
+                ) : (
+                  <Zap size={18} className="text-lemon-hover" />
+                )}
+                <p
+                  className={`text-[11px] font-bold uppercase tracking-tight ${insufficientFunds ? "text-red-700" : "text-black/70"}`}
+                >
+                  {insufficientFunds
+                    ? `Need ${totalCost - walletBalance} more coins`
+                    : `Balance: ${walletBalance} Coins`}
+                </p>
+              </div>
+              {!insufficientFunds && (
+                <span className="text-[9px] font-black text-lemon-hover uppercase">
+                  Funds Clear
+                </span>
+              )}
+            </div>
           )}
 
           {/* Locations List */}
           <div className="space-y-3">
-            <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em] ml-2">Available Locations</p>
+            <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em] ml-2">
+              Available Locations
+            </p>
             <div className="space-y-2">
               {verifiedLocations.map((location) => (
                 <div
@@ -299,7 +389,8 @@ const LocationSelectionModal = ({
                       </div>
                       <div>
                         <p className="font-bold text-black text-sm uppercase tracking-tight">
-                          {location.title} {location.locality ? `- ${location.locality}` : ""}
+                          {location.title}{" "}
+                          {location.locality ? `- ${location.locality}` : ""}
                         </p>
                         <p className="text-xs text-black/40 flex items-center gap-1 font-inter">
                           <MapPin className="w-3 h-3" />
@@ -308,8 +399,10 @@ const LocationSelectionModal = ({
                       </div>
                     </div>
                     <div className="text-right">
-                       <p className="text-xs font-black text-black/80">20</p>
-                       <p className="text-[8px] font-black text-black/20 uppercase">Coins</p>
+                      <p className="text-xs font-black text-black/80">20</p>
+                      <p className="text-[8px] font-black text-black/20 uppercase">
+                        Coins
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -317,7 +410,9 @@ const LocationSelectionModal = ({
 
               {unverifiedLocations.length > 0 && (
                 <div className="pt-6">
-                  <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-3 ml-2">Unverified (Locked)</p>
+                  <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-3 ml-2">
+                    Unverified (Locked)
+                  </p>
                   {unverifiedLocations.map((location) => (
                     <div
                       key={location.id}
@@ -355,9 +450,7 @@ const LocationSelectionModal = ({
               disabled={selectedLocations.length === 0 || insufficientFunds}
               className="flex-[2] bg-black text-white px-8 py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] hover:bg-lemon-glow hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-xl shadow-black/5"
             >
-              {insufficientFunds
-                ? "Recharge Required"
-                : `${confirmText} Post`}
+              {insufficientFunds ? "Recharge Required" : `${confirmText} Post`}
             </button>
             <button
               onClick={onClose}
@@ -366,7 +459,7 @@ const LocationSelectionModal = ({
               Cancel
             </button>
           </div>
-          
+
           {selectedLocations.length > 0 && !insufficientFunds && (
             <div className="mt-4 flex items-center justify-center gap-2">
               <Info size={14} className="text-lemon-hover" />

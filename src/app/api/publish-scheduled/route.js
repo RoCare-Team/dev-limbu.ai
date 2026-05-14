@@ -645,7 +645,6 @@ export async function GET(req) {
             const gmbMeta = post.gmbPostMeta || {};
             const isVideoSelection =
               post.checkmark === "video" || post.mediaType === "video";
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
             for (let i = 0; i < post.locations.length; i++) {
               const loc = post.locations[i];
@@ -700,7 +699,7 @@ export async function GET(req) {
                   wait_video: false,
                 };
 
-                log("📦 Payload:", payload);
+                console.log("Payload for sedule:", payload);
 
                 const baseUri = getBaseUrl(req);
 

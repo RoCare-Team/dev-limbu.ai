@@ -1881,6 +1881,14 @@ export default function UserManagement() {
             leadName: selectedUser.fullName,
             amount: parseFloat(planAmount),
             paymentScreenshot: screenshotUrl,
+
+            // ✅ Directly read email from the user record
+  userEmail: selectedUser.email || "",
+
+  // ✅ Directly read phone from the user record
+  phone: selectedUser.phone || "",
+
+
             email: localStorage.getItem("email"),
             plan: selectedPlan, // ✅ comma जरूरी
 
@@ -1900,10 +1908,10 @@ export default function UserManagement() {
         if (!revenueData.success) {
           throw new Error(revenueData.message || "Failed to record revenue.");
         }
-      } else if (planScreenshot) {
-        // If no amount but screenshot is there, just upload it for the user record
-        screenshotUrl = await uploadToCloudinary(planScreenshot);
-      }
+      }  else if (planScreenshot) {
+  // If no amount but screenshot is there, just upload it for the user record
+  screenshotUrl = await uploadToS3(planScreenshot);
+}
 
       const packageStartDate = planStartDate;
       const packageExpiryDate = planExpiryDate;
@@ -1924,6 +1932,42 @@ export default function UserManagement() {
       });
       const userUpdateData = await userUpdateRes.json();
       if (userUpdateData.success) {
+
+         // ==============================
+  // Send WhatsApp Template
+  // ==============================
+  try {
+    const whatsappRes = await fetch(
+      "/api/admin/package-booking-template",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone:
+            selectedUser.phone ||
+            selectedUser.mobile ||
+            selectedUser.whatsappNumber ||
+            selectedUser.contactNumber ||
+            "",
+          firstName:
+            selectedUser.fullName ||
+            selectedUser.name ||
+            "Customer",
+        }),
+      }
+    );
+
+    const whatsappData = await whatsappRes.json();
+    console.log("WhatsApp Response:", whatsappData);
+  } catch (whatsappErr) {
+    console.error(
+      "WhatsApp template send failed:",
+      whatsappErr
+    );
+  }
+
         showToast("User plan updated successfully!", "success");
         fetchUsers();
         if (planAmount && parseFloat(planAmount) > 0) {

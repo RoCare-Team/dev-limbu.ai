@@ -82,7 +82,7 @@
 
         const data = await res.json();
 
-        console.log("API RESPONSE: serive modal data ", data);
+        
 
         if (res.ok) {
           alert("Service added successfully");
@@ -96,49 +96,127 @@
     };
 
   const handleConfirmService = async () => {
+  console.log("🔥 STEP 1:", selectedPlan);
 
-    console.log("🔥 STEP 1:", selectedPlan);
+  if (!selectedPlan) {
+    alert("Please select a plan");
+    return;
+  }
 
-    if (!selectedPlan) {
-      alert("Please select a plan");
-      return;
-    }
+  // handleConfirmService() ke andar payload ko EXACTLY is tarah replace karo
 
-    const payload = {
-  userId: service?.userId,
+const payload = {
+  userId: service?.userId || service?._id,
+  type: "service",
   paidService: selectedPlan.title,
-  amount: selectedPlan.price,   // 🔥 ADD THIS
+  amount: selectedPlan.price,
   isServiceBooked: true,
   planDuration: "monthly",
   packageStartDate: serviceDate,
   packageExpiryDate: expiryDate,
 
-  screenshot: preview,          // 🔥 ADD THIS
-  notes: serviceNote,           // 🔥 ADD THIS
+  // ✅ YE DONO FIELDS SAVE KARO
+  paymentScreenshot: preview,
+  screenshot: preview,
+
+  // ✅ YE DONO FIELDS BHI SAVE KARO
+  notes: serviceNote,
+  remarks: serviceNote,
 };
 
-    console.log("🔥 FINAL PAYLOAD:", payload);
+  console.log("🔥 FINAL PAYLOAD:", payload);
 
-    try {
-      const res = await fetch(`/api/users`, {
-        method: "PUT",   // 🔥 CHANGE THIS
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload), // 🔥 ONLY THIS BODY
-      });
+  try {
+    // 1. Save booking
+    const res = await fetch(`/api/franchise-revenue`, {
+  method: "POST",  // ✅ Naya revenue record create karega
+  headers: {
+    "Content-Type": "application/json",
+  },
 
-      const data = await res.json();
-      console.log("🔥 RESPONSE:", data);
+  body: JSON.stringify({
+  type: "service",
+  leadId: service?.userId || service?._id,
+  userId: service?.userId || service?._id,
+  leadName:
+    service?.name ||
+    service?.fullName ||
+    service?.leadName ||
+    "Customer",
 
-      alert("Service booked successfully ✅");
-      onClose();
+  email: localStorage.getItem("email"),
 
-    } catch (err) {
-      console.error(err);
-      alert("Error booking service");
+  paidService: selectedPlan.title,
+  plan: selectedPlan.title,
+  amount: selectedPlan.price,
+  planDuration: "monthly",
+
+  // ✅ DATE STRING KO LOCAL FORMAT ME SAVE KARO
+  // input type="date" already returns YYYY-MM-DD (e.g. 2026-08-05)
+  // isko directly save karo, new Date() use mat karo
+  packageStartDate: serviceDate,
+  packageExpiryDate: expiryDate,
+
+  paymentScreenshot: preview,
+  notes: serviceNote,
+  remarks: serviceNote,
+  isServiceBooked: true,
+  planApprovalStatus: "pending",
+})
+
+});
+
+const data = await res.json();
+console.log("🔥 RESPONSE:", data);
+
+if (!res.ok || !data.success) {
+  alert(data.message || "Error booking service");
+  return;
+}
+
+   
+
+    // 2. Send WhatsApp template automatically
+    const whatsappRes = await fetch(
+  "/api/admin/service-booking-template",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      phone:
+        service?.customer_no_with_prefix ||
+        service?.phone ||
+        service?.mobileNumber ||
+        service?.mobile,
+      firstName:
+        service?.name ||
+        service?.fullName ||
+        "Customer",
+    }),
+  }
+);
+
+    const whatsappData = await whatsappRes.json();
+    console.log("📲 WhatsApp Response:", whatsappData);
+
+    // 3. Success message
+    if (whatsappData.success) {
+      alert("Service booked successfully and WhatsApp message sent ✅");
+    } else {
+      alert(
+        "Service booked successfully, but WhatsApp message failed ❌"
+      );
     }
-  };
+
+    // 4. Close modal
+    onClose();
+  } catch (err) {
+    console.error(err);
+    alert("Error booking service");
+  }
+};
 
     const handleScreenshotChange = (e) => {
       const file = e.target.files[0];

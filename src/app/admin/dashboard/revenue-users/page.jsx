@@ -395,43 +395,53 @@ const todayRevenue =
   };
 
   // ====service  approve and not approve ====
-  const handleServiceApproval = async (user, decision) => {
-    const id = user?._id;
-    if (!id) return;
+ const handleServiceApproval = async (revenue, decision) => {
+  const revenueId = revenue?._id;
+  if (!revenueId) return;
 
-    setApprovalBusyId(String(id)); // 🔥 ADD THIS
+  setApprovalBusyId(String(revenueId));
 
-    try {
-      const res = await fetch("/api/franchise-revenue/onboard-approval", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: localStorage.getItem("email"),
-          userId: user._id,
-          decision,
-        }),
-      });
+  try {
+    const res = await fetch("/api/franchise-revenue/onboard-approval", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: localStorage.getItem("email"),
+        revenueId: String(revenueId), // ✅ franchise-revenue document ID
+        decision,
+      }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (data.success) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u._id === user._id ? { ...u, planApprovalStatus: decision } : u,
-          ),
-        );
-      } else {
-        alert(data.message);
-      }
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setApprovalBusyId(null); // 🔥 ADD THIS
+    if (data.success) {
+      // Local table update
+      setRevenueUsersList((prev) =>
+        prev.map((item) =>
+          String(item._id) === String(revenueId)
+            ? {
+                ...item,
+                planApprovalStatus:
+                  decision === "approved" ? "approved" : "rejected",
+              }
+            : item
+        )
+      );
+
+      // Fresh fetch
+      await fetchRevenueUsers();
+    } else {
+      alert(data.message || "Approval failed");
     }
-  };
-
+  } catch (err) {
+    console.error("SERVICE APPROVAL ERROR:", err);
+    alert("Something went wrong");
+  } finally {
+    setApprovalBusyId(null);
+  }
+};
 
   const handleDownloadInvoice = async (user) => {
   try {
@@ -1084,7 +1094,7 @@ const confirmDelete = async () => {
     : "No Date"}
 </td>
 
-                              {/* layout maintain */}
+                              {/* service  */}
 
                               <td className="px-6 py-4">
                                 <button

@@ -1,6 +1,8 @@
   "use client";
   import { useState, useEffect } from "react";
 
+  import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
+
   const servicePlans = [
     {
       title: "GMB Assistance & Update Plan",
@@ -95,7 +97,7 @@
       }
     };
 
-  const handleConfirmService = async () => {
+ const handleConfirmService = async () => {
   console.log("🔥 STEP 1:", selectedPlan);
 
   if (!selectedPlan) {
@@ -103,121 +105,127 @@
     return;
   }
 
-  // handleConfirmService() ke andar payload ko EXACTLY is tarah replace karo
-
-const payload = {
-  userId: service?.userId || service?._id,
-  type: "service",
-  paidService: selectedPlan.title,
-  amount: selectedPlan.price,
-  isServiceBooked: true,
-  planDuration: "monthly",
-  packageStartDate: serviceDate,
-  packageExpiryDate: expiryDate,
-
-  // ✅ YE DONO FIELDS SAVE KARO
-  paymentScreenshot: preview,
-  screenshot: preview,
-
-  // ✅ YE DONO FIELDS BHI SAVE KARO
-  notes: serviceNote,
-  remarks: serviceNote,
-};
-
-  console.log("🔥 FINAL PAYLOAD:", payload);
+  // ✅ screenshotUrl ko sabse pehle declare karo
+  let screenshotUrl = "";
 
   try {
-    // 1. Save booking
-    const res = await fetch(`/api/franchise-revenue`, {
-  method: "POST",  // ✅ Naya revenue record create karega
-  headers: {
-    "Content-Type": "application/json",
-  },
+    // ✅ Agar screenshot selected hai to pehle S3 par upload karo
+    if (paymentScreenshot) {
+      const formData = new FormData();
+      formData.append("file", paymentScreenshot);
 
-  body: JSON.stringify({
-  type: "service",
-  leadId: service?.userId || service?._id,
-  userId: service?.userId || service?._id,
-  leadName:
-    service?.name ||
-    service?.fullName ||
-    service?.leadName ||
-    "Customer",
+      const uploadResult = await uploadToS3Action(formData);
 
-  email: localStorage.getItem("email"),
+      console.log("📸 Upload Result:", uploadResult);
 
-  paidService: selectedPlan.title,
-  plan: selectedPlan.title,
-  amount: selectedPlan.price,
-  planDuration: "monthly",
+      if (uploadResult.success) {
+        screenshotUrl = uploadResult.url;
+      } else {
+        alert(uploadResult.error || "Screenshot upload failed");
+        return;
+      }
+    }
 
-  // ✅ DATE STRING KO LOCAL FORMAT ME SAVE KARO
-  // input type="date" already returns YYYY-MM-DD (e.g. 2026-08-05)
-  // isko directly save karo, new Date() use mat karo
-  packageStartDate: serviceDate,
-  packageExpiryDate: expiryDate,
+    // ✅ Optional payload (ab screenshotUrl defined hai)
+    const payload = {
+      userId: service?.userId || service?._id,
+      type: "service",
+      paidService: selectedPlan.title,
+      amount: selectedPlan.price,
+      isServiceBooked: true,
+      planDuration: "monthly",
+      packageStartDate: serviceDate,
+      packageExpiryDate: expiryDate,
+      paymentScreenshot: screenshotUrl,
+      screenshot: screenshotUrl,
+      notes: serviceNote,
+      remarks: serviceNote,
+    };
 
-  paymentScreenshot: preview,
-  notes: serviceNote,
-  remarks: serviceNote,
-  isServiceBooked: true,
-  planApprovalStatus: "pending",
-})
+    console.log("🔥 FINAL PAYLOAD:", payload);
 
-});
+    // ✅ Revenue API call
+    const res = await fetch("/api/franchise-revenue", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "service",
+        leadId: service?.userId || service?._id,
+        userId: service?.userId || service?._id,
+        leadName:
+          service?.name ||
+          service?.fullName ||
+          service?.leadName ||
+          "Customer",
 
-const data = await res.json();
-console.log("🔥 RESPONSE:", data);
+        email: localStorage.getItem("email"),
 
-if (!res.ok || !data.success) {
-  alert(data.message || "Error booking service");
-  return;
-}
+        paidService: selectedPlan.title,
+        plan: selectedPlan.title,
+        amount: selectedPlan.price,
+        planDuration: "monthly",
 
-   
+        packageStartDate: serviceDate,
+        packageExpiryDate: expiryDate,
 
-    // 2. Send WhatsApp template automatically
+        // ✅ S3 URL
+        paymentScreenshot: screenshotUrl,
+        screenshot: screenshotUrl,
+
+        notes: serviceNote,
+        remarks: serviceNote,
+        isServiceBooked: true,
+        planApprovalStatus: "pending",
+      }),
+    });
+
+    const data = await res.json();
+    console.log("🔥 RESPONSE:", data);
+
+    if (!res.ok || !data.success) {
+      alert(data.message || "Error booking service");
+      return;
+    }
+
+    // ✅ WhatsApp template
     const whatsappRes = await fetch(
-  "/api/admin/service-booking-template",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      phone:
-        service?.customer_no_with_prefix ||
-        service?.phone ||
-        service?.mobileNumber ||
-        service?.mobile,
-      firstName:
-        service?.name ||
-        service?.fullName ||
-        "Customer",
-    }),
-  }
-);
+      "/api/admin/service-booking-template",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone:
+            service?.customer_no_with_prefix ||
+            service?.phone ||
+            service?.mobileNumber ||
+            service?.mobile,
+          firstName:
+            service?.name ||
+            service?.fullName ||
+            "Customer",
+        }),
+      }
+    );
 
     const whatsappData = await whatsappRes.json();
     console.log("📲 WhatsApp Response:", whatsappData);
 
-    // 3. Success message
     if (whatsappData.success) {
       alert("Service booked successfully and WhatsApp message sent ✅");
     } else {
-      alert(
-        "Service booked successfully, but WhatsApp message failed ❌"
-      );
+      alert("Service booked successfully, but WhatsApp message failed ❌");
     }
 
-    // 4. Close modal
     onClose();
   } catch (err) {
     console.error(err);
     alert("Error booking service");
   }
 };
-
     const handleScreenshotChange = (e) => {
       const file = e.target.files[0];
       if (file) {

@@ -210,13 +210,14 @@ revenueData = revenueData.map((item) => ({
       const body = await req.json();
       console.log("API RECEIVED:", body);
 
-      const {
+     const {
   leadId,
   leadName,
   amount,
   paymentScreenshot,
   email,
-  phone, // ✅ add this line
+  userEmail, // ✅ ADD THIS
+  phone,
   notes,
   planRemarks,
   plan,
@@ -251,8 +252,15 @@ revenueData = revenueData.map((item) => ({
   leadId,
   leadName,
   amount: parseFloat(amount),
-  paymentScreenshot,
+  paymentScreenshot: paymentScreenshot || "",
+screenshot: paymentScreenshot || "",
   onboardedBy: admin._id,
+
+   // ✅ Save customer email (optional but recommended)
+  email: userEmail || "",
+
+  // ✅ Save customer phone
+  phone: phone || "",
   onboardedByName: admin.fullName,
   onboardedByRole: admin.role,
 

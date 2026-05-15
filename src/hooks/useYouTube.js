@@ -56,15 +56,17 @@ export function useYouTube(router, searchParams) {
     setYoutubeChannels((prev) => prev.filter((c) => c.channelId !== channelId));
 
     try {
-      const res = await fetch(`/api/youtube/disconnect?userId=${activeId}&channelId=${channelId}`, {
+      const res = await fetch("/api/youtube/disconnect", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: activeId, channelId }),
       });
       const data = await res.json();
 
       if (data.success) {
         toast.success("YouTube channel disconnected");
       } else {
-        throw new Error(data.error || "Failed to disconnect");
+        throw new Error(data.message || data.error || "Failed to disconnect");
       }
     } catch (error) {
       console.error("Error disconnecting YouTube channel:", error);

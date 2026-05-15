@@ -2,7 +2,11 @@
  * Load full user rows for follow-up buckets (agent table is paginated; IDs come from follow-up-stats).
  */
 /** Chunked GET /api/users?byUserIds= for agent follow-up table rows. */
-export async function fetchFollowUpTableUsersByIds(adminEmail, uniqueIds) {
+export async function fetchFollowUpTableUsersByIds(
+  adminEmail,
+  uniqueIds,
+  conversationStage = "All",
+) {
   if (!adminEmail || !uniqueIds.length) return [];
   const CHUNK = 35;
   const chunks = [];
@@ -11,10 +15,16 @@ export async function fetchFollowUpTableUsersByIds(adminEmail, uniqueIds) {
   }
   const results = await Promise.all(
     chunks.map((chunk) => {
-      const byUserIds = chunk.map(encodeURIComponent).join(",");
-      return fetch(
-        `/api/users?email=${encodeURIComponent(adminEmail)}&byUserIds=${byUserIds}`,
-      ).then((r) => r.json());
+      const params = new URLSearchParams({
+        email: adminEmail,
+        byUserIds: chunk.join(","),
+      });
+
+      if (conversationStage !== "All") {
+        params.set("conversationStage", conversationStage);
+      }
+
+      return fetch(`/api/users?${params.toString()}`).then((r) => r.json());
     }),
   );
   const merged = [];

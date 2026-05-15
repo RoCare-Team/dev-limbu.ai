@@ -193,6 +193,7 @@ export default function UserManagement() {
   });
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
+  const [conversationStageFilter, setConversationStageFilter] = useState("All");
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
@@ -306,6 +307,227 @@ export default function UserManagement() {
     setActiveModal("service");
   };
 
+  const getLimbuBotHistoryUserId = (user = {}) => {
+    const explicit =
+      user.chatbotUserId ||
+      user.whatsappUserId ||
+      user.limbuBotUserId ||
+      user.botUserId ||
+      "";
+    if (typeof explicit === "string" && explicit.trim()) {
+      return explicit.trim().startsWith("wa_")
+        ? explicit.trim()
+        : `wa_${explicit.trim().replace(/\D/g, "")}`;
+    }
+
+    let phone = user.phone || user.mobileNumber || "";
+    phone = String(phone).replace(/\D/g, "");
+    if (!phone) return "";
+    if (phone.length === 10) phone = `91${phone}`;
+    return `wa_${phone}`;
+  };
+
+  const getConversationStageFromHistory = (history = [], user = {}) => {
+    const steps = [];
+    const assistantMessages = history.filter(
+      (item) => String(item?.role || "").toLowerCase() === "assistant",
+    );
+    const hasUserMessage = history.some(
+      (item) =>
+        String(item?.role || "").toLowerCase() === "user" &&
+        String(item?.content || "").trim() !== "",
+    );
+
+    const hasText = (...keywords) =>
+      assistantMessages.some((item) => {
+        const content = String(item?.content || "").toLowerCase();
+        return keywords.some((keyword) =>
+          content.includes(keyword.toLowerCase()),
+        );
+      });
+
+    // 1. Initial Conversation
+    if (hasUserMessage) steps.push("Initial Conversation");
+
+    // 2. GMB Connected
+    if (
+      hasText(
+        "Congrats! Apka Account connect ho gaya!",
+        "Badhaai ho! Account connect ho gaya!",
+        "Account connect ho gaya",
+      )
+    )
+      steps.push("GMB Connected");
+
+    // 3. GMB Health
+    if (hasText("Full Health report")) steps.push("GMB Health");
+
+    // 4. Magic QR
+    if (hasText("Magic QR ready hai!")) steps.push("Magic QR");
+
+    // 5. GMB Insights
+    if (hasText("Full Report (PDF)")) steps.push("GMB Insight");
+
+    // 6. Build Website
+    if (hasText("Website URL")) steps.push("Build Website");
+
+    // Agar koi activity nahi hai
+    if (steps.length === 0 && history.length === 0) {
+      return { label: "No Activity", steps: [] };
+    }
+
+    return {
+      label: steps.join(" ➔ "),
+      steps: steps, // Hum array bhi bhej rahe hain easy checking ke liye
+    };
+  };
+
+  const getConversationStageKey = (user = {}) =>
+    String(user.userId || getLimbuBotHistoryUserId(user) || user._id || "");
+
+  const hasGmbConnected = (user = {}) =>
+    Boolean(
+      user.isBusinessConnected ||
+      user.connectedBusinessEmail ||
+      user.gmbProjectId ||
+      user.selectedBusiness?.name ||
+      (Array.isArray(user.businessListings) &&
+        user.businessListings.length > 0),
+    );
+
+  const fetchConversationStagesOnLoad = async () => {
+    try {
+      const usersToFetch = preConversationFilteredUsers.filter((user) =>
+        getLimbuBotHistoryUserId(user),
+      );
+
+      if (!usersToFetch.length) return;
+
+      const loadingState = {};
+
+      usersToFetch.forEach((user) => {
+        const key = getConversationStageKey(user);
+
+        if (key) {
+          loadingState[key] = {
+            loading: true,
+          };
+        }
+      });
+
+      setConversationStages((prev) => ({
+        ...prev,
+        ...loadingState,
+      }));
+
+      const responses = await Promise.allSettled(
+        usersToFetch.map(async (user) => {
+          try {
+            const historyUserId = getLimbuBotHistoryUserId(user);
+
+            const res = await fetch(
+              `/api/limbubot/history?user_id=${encodeURIComponent(
+                historyUserId,
+              )}`,
+              {
+                cache: "no-store",
+              },
+            );
+
+            if (!res.ok) {
+              throw new Error("Failed to load history");
+            }
+
+            const data = await res.json();
+
+            const history = Array.isArray(data.history) ? data.history : [];
+
+            const stage = getConversationStageFromHistory(history, user);
+
+            return {
+              key: getConversationStageKey(user),
+              stage,
+            };
+          } catch (err) {
+            console.log(err);
+
+            return {
+              key: getConversationStageKey(user),
+              stage: {
+                label: "No Conversation",
+                className: "bg-slate-50 text-slate-500 border-slate-200",
+              },
+            };
+          }
+        }),
+      );
+
+      const updatedStages = {};
+
+      responses.forEach((result) => {
+        if (result.status === "fulfilled") {
+          updatedStages[result.value.key] = {
+            loading: false,
+            stage: result.value.stage,
+          };
+        }
+      });
+
+      setConversationStages((prev) => ({
+        ...prev,
+        ...updatedStages,
+      }));
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  const getConversationStageDisplay = (user = {}) => {
+    const key = getConversationStageKey(user);
+    const cached = key ? conversationStages[key] : null;
+
+    // Pehle steps nikalte hain history se
+    let steps = cached?.stage?.steps || [];
+
+    // Agar GMB connected hai toh manual step add karte hain
+    if (hasGmbConnected(user)) {
+      if (!steps.includes("GMB Connected")) {
+        steps = [...steps, "GMB Connected"];
+      }
+    }
+
+    if (cached?.loading) {
+      return {
+        label: "Checking...",
+        steps: steps,
+        className: "bg-amber-50 text-amber-700 border-amber-200",
+      };
+    }
+
+    if (steps.length > 0) {
+      // Jo sabse aakhri step hai wahi label dikhao
+      const lastStep = steps[steps.length - 1];
+      return {
+        label: steps.join(" ➔ "),
+        steps: steps,
+        className: "bg-green-50 text-green-700 border-green-200",
+      };
+    }
+
+    if (!getLimbuBotHistoryUserId(user)) {
+      return {
+        label: "No WhatsApp",
+        steps: [],
+        className: "bg-slate-50 text-slate-500 border-slate-200",
+      };
+    }
+
+    return {
+      label: "No Activity",
+      steps: [],
+      className: "bg-gray-50 text-gray-600 border-gray-200",
+    };
+  };
+
   const isAgent = role === "agent";
   const isManager = role === "manager";
 
@@ -347,7 +569,7 @@ export default function UserManagement() {
   ]);
 
   /** Agent: table rows loaded via byUserIds (paginated `users` often omits follow-up leads) */
-  const filteredUsers = useMemo(() => {
+  const preConversationFilteredUsers = useMemo(() => {
     let list =
       !isAgent || followUpFilter === "all" ? users : followUpTableUsers;
 
@@ -381,6 +603,10 @@ export default function UserManagement() {
     searchQuery,
     remarkCountFilter,
   ]);
+
+  const filteredUsers = useMemo(() => {
+    return preConversationFilteredUsers;
+  }, [preConversationFilteredUsers]);
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
     if (role !== "superAdmin") return [];
@@ -457,255 +683,84 @@ export default function UserManagement() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const getLimbuBotHistoryUserId = (user = {}) => {
-    const explicit =
-      user.chatbotUserId ||
-      user.whatsappUserId ||
-      user.limbuBotUserId ||
-      user.botUserId ||
-      "";
-    if (typeof explicit === "string" && explicit.trim()) {
-      return explicit.trim().startsWith("wa_")
-        ? explicit.trim()
-        : `wa_${explicit.trim().replace(/\D/g, "")}`;
-    }
+  // const getConversationStageDisplay = (user = {}) => {
+  //   if (hasGmbConnected(user)) {
+  //     return {
+  //       label: "GMB Connected",
+  //       className: "bg-green-50 text-green-700 border-green-200",
+  //     };
+  //   }
 
-    let phone = user.phone || user.mobileNumber || "";
-    phone = String(phone).replace(/\D/g, "");
-    if (!phone) return "";
-    if (phone.length === 10) phone = `91${phone}`;
-    return `wa_${phone}`;
-  };
+  //   const key = getConversationStageKey(user);
 
-  const getConversationStageKey = (user = {}) =>
-    String(user.userId || getLimbuBotHistoryUserId(user) || user._id || "");
+  //   const cached = key ? conversationStages[key] : null;
 
-  const hasGmbConnected = (user = {}) =>
-    Boolean(
-      user.isBusinessConnected ||
-      user.connectedBusinessEmail ||
-      user.gmbProjectId ||
-      user.selectedBusiness?.name ||
-      (Array.isArray(user.businessListings) &&
-        user.businessListings.length > 0),
-    );
+  //   if (cached?.loading) {
+  //     return {
+  //       label: "Checking...",
+  //       className: "bg-amber-50 text-amber-700 border-amber-200",
+  //     };
+  //   }
 
-  const getConversationStageFromHistory = (history = [], user = {}) => {
-    const steps = [];
+  //   if (cached?.stage) {
+  //     return cached.stage;
+  //   }
 
-    // Only assistant messages
-    const assistantMessages = history.filter(
-      (item) => String(item?.role || "").toLowerCase() === "assistant",
-    );
+  //   if (!getLimbuBotHistoryUserId(user)) {
+  //     return {
+  //       label: "No WhatsApp",
+  //       className: "bg-slate-50 text-slate-500 border-slate-200",
+  //     };
+  //   }
 
-    // Any user message exists
-    const hasUserMessage = history.some(
-      (item) =>
-        String(item?.role || "").toLowerCase() === "user" &&
-        String(item?.content || "").trim() !== "",
-    );
-
-    const hasText = (keyword) => {
-      return assistantMessages.some((item) =>
-        String(item?.content || "")
-          .toLowerCase()
-          .includes(keyword.toLowerCase()),
-      );
-    };
-
-    // ================= INITIAL CONVERSATION =================
-    // Agar user ne kuch bhi message kiya hai
-    if (hasUserMessage) {
-      steps.push("Initial Conversation");
-    }
-
-    // ================= GMB CONNECTED =================
-    if (hasText("Badhaai ho! Account connect ho gaya!")) {
-      steps.push("GMB Connected");
-    }
-
-    // ================= MAGIC QR =================
-    if (hasText("Magic QR ready hai!")) {
-      steps.push("Magic QR");
-    }
-
-    // ================= GMB INSIGHTS =================
-    if (hasText("Full Report (PDF)")) {
-      steps.push("Insights");
-    }
-
-    // ================= WEBSITE =================
-    if (hasText("Website URL")) {
-      steps.push("Website");
-    }
-
-    // ================= GMB HEALTH =================
-    if (hasText("Full Health report")) {
-      steps.push("Health");
-    }
-
-    // ================= FACEBOOK CONNECTED =================
-    if (hasText("Facebook Connected Successfully")) {
-      steps.push("Facebook");
-    }
-
-    // ================= INSTAGRAM CONNECTED =================
-    if (hasText("Instagram Connected Successfully")) {
-      steps.push("Instagram");
-    }
-
-    // ================= NO STAGE =================
-    if (steps.length === 0) {
-      if (!Array.isArray(history) || history.length === 0) {
-        return {
-          label: "No Activity",
-          className: "bg-slate-50 text-slate-500 border-slate-200",
-        };
-      }
-      return {
-        label: "Chat Initiate",
-        className: "bg-sky-50 text-sky-700 border-sky-200",
-      };
-    }
-
-    // ================= FINAL =================
-    return {
-      label: steps.join(" ➔ "),
-      className:
-        steps.length >= 4
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-          : "bg-indigo-50 text-indigo-700 border-indigo-200",
-    };
-  };
-
-  const fetchConversationStagesOnLoad = async () => {
-    try {
-      const usersToFetch = filteredUsers.filter((user) =>
-        getLimbuBotHistoryUserId(user),
-      );
-
-      if (!usersToFetch.length) return;
-
-      const loadingState = {};
-
-      usersToFetch.forEach((user) => {
-        const key = getConversationStageKey(user);
-
-        if (key) {
-          loadingState[key] = {
-            loading: true,
-          };
-        }
-      });
-
-      setConversationStages((prev) => ({
-        ...prev,
-        ...loadingState,
-      }));
-
-      const responses = await Promise.allSettled(
-        usersToFetch.map(async (user) => {
-          try {
-            const historyUserId = getLimbuBotHistoryUserId(user);
-
-            const res = await fetch(
-              `/api/limbubot/history?user_id=${encodeURIComponent(
-                historyUserId,
-              )}`,
-              {
-                cache: "no-store",
-              },
-            );
-
-            if (!res.ok) {
-              throw new Error("Failed to load history");
-            }
-
-            const data = await res.json();
-
-            const history = Array.isArray(data.history) ? data.history : [];
-
-            const stage = getConversationStageFromHistory(history, user);
-
-            return {
-              key: getConversationStageKey(user),
-              stage,
-            };
-          } catch (err) {
-            console.log(err);
-
-            return {
-              key: getConversationStageKey(user),
-              stage: {
-                label: "No Conversation",
-                className: "bg-slate-50 text-slate-500 border-slate-200",
-              },
-            };
-          }
-        }),
-      );
-
-    const updatedStages = {};
-
-      responses.forEach((result) => {
-        if (result.status === "fulfilled") {
-          updatedStages[result.value.key] = {
-            loading: false,
-            stage: result.value.stage,
-          };
-        }
-      });
-
-      setConversationStages((prev) => ({
-        ...prev,
-        ...updatedStages,
-      }));
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const getConversationStageDisplay = (user = {}) => {
-    if (hasGmbConnected(user)) {
-      return {
-        label: "GMB Connected",
-        className: "bg-green-50 text-green-700 border-green-200",
-      };
-    }
-
-    const key = getConversationStageKey(user);
-
-    const cached = key ? conversationStages[key] : null;
-
-    if (cached?.loading) {
-      return {
-        label: "Checking...",
-        className: "bg-amber-50 text-amber-700 border-amber-200",
-      };
-    }
-
-    if (cached?.stage) {
-      return cached.stage;
-    }
-
-    if (!getLimbuBotHistoryUserId(user)) {
-      return {
-        label: "No WhatsApp",
-        className: "bg-slate-50 text-slate-500 border-slate-200",
-      };
-    }
-
-    return {
-      label: "Not Loaded",
-      className: "bg-gray-50 text-gray-600 border-gray-200",
-    };
-  };
+  //   return {
+  //     label: "Not Loaded",
+  //     className: "bg-gray-50 text-gray-600 border-gray-200",
+  //   };
+  // };
 
   useEffect(() => {
-    if (filteredUsers?.length) {
+    if (preConversationFilteredUsers?.length) {
       fetchConversationStagesOnLoad();
     }
-  }, [filteredUsers]);
+  }, [preConversationFilteredUsers]);
+
+  const stageOptions = [
+    "Initial Conversation",
+    "GMB Connected",
+    "GMB Health",
+    "Magic QR",
+    "GMB Insight",
+    "Build Website",
+    "No Activity",
+  ];
+
+  // Logic to count leads per stage
+  const getStageCounts = () => {
+    const counts = { All: leads.length };
+
+    // Initialize counts for all stages to 0
+    stageOptions.forEach((stage) => (counts[stage] = 0));
+
+    leads.forEach((lead) => {
+      const stageData = getConversationStageFromHistory(
+        lead.chatHistory || [],
+        lead.user || {},
+      );
+
+      if (stageData.steps.length === 0) {
+        counts["No Activity"] += 1;
+      } else {
+        // Increment count for every step this lead has completed
+        stageData.steps.forEach((step) => {
+          if (counts.hasOwnProperty(step)) {
+            counts[step] += 1;
+          }
+        });
+      }
+    });
+    return counts;
+  };
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
@@ -786,7 +841,7 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    const usersToCheck = filteredUsers
+    const usersToCheck = preConversationFilteredUsers
       .filter((user) => !hasGmbConnected(user))
       .map((user) => ({
         user,
@@ -859,7 +914,7 @@ export default function UserManagement() {
     return () => {
       cancelled = true;
     };
-  }, [filteredUsers, conversationStages]);
+  }, [preConversationFilteredUsers, conversationStages]);
 
   const handleSearch = () => {
     if (currentPage !== 1) {
@@ -1097,7 +1152,11 @@ export default function UserManagement() {
 
     let cancelled = false;
     setLoadingFollowUpTable(true);
-    fetchFollowUpTableUsersByIds(adminEmail, uniqueIds)
+    fetchFollowUpTableUsersByIds(
+      adminEmail,
+      uniqueIds,
+      conversationStageFilter,
+    )
       .then((merged) => {
         if (!cancelled) setFollowUpTableUsers(merged);
       })
@@ -1112,7 +1171,7 @@ export default function UserManagement() {
     return () => {
       cancelled = true;
     };
-  }, [isAgent, followUpFilter, followUpLeads]);
+  }, [isAgent, followUpFilter, followUpLeads, conversationStageFilter]);
 
   useEffect(() => {
     const total = pagination?.totalUsers ?? 0; // Use 0 if pagination is not yet available
@@ -1196,6 +1255,8 @@ export default function UserManagement() {
         params.append("leadStatus", leadStatusFilter);
       if (leadStageFilter !== "All")
         params.append("leadStage", leadStageFilter);
+      if (conversationStageFilter !== "All")
+        params.append("conversationStage", conversationStageFilter);
       if (remarkCountFilter !== "All")
         params.append("remarkCount", remarkCountFilter);
 
@@ -1249,6 +1310,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    conversationStageFilter,
     remarkCountFilter,
   ]);
 
@@ -1295,6 +1357,10 @@ export default function UserManagement() {
         params.append("leadStage", leadStageFilter);
       }
 
+      if (conversationStageFilter !== "All") {
+        params.append("conversationStage", conversationStageFilter);
+      }
+
       if (remarkCountFilter !== "All") {
         params.append("remarkCount", remarkCountFilter);
       }
@@ -1337,6 +1403,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    conversationStageFilter,
     remarkCountFilter,
   ]);
 
@@ -1889,11 +1956,10 @@ export default function UserManagement() {
             paymentScreenshot: screenshotUrl,
 
             // ✅ Directly read email from the user record
-  userEmail: selectedUser.email || "",
+            userEmail: selectedUser.email || "",
 
-  // ✅ Directly read phone from the user record
-  phone: selectedUser.phone || "",
-
+            // ✅ Directly read phone from the user record
+            phone: selectedUser.phone || "",
 
             email: localStorage.getItem("email"),
             plan: selectedPlan, // ✅ comma जरूरी
@@ -1914,10 +1980,10 @@ export default function UserManagement() {
         if (!revenueData.success) {
           throw new Error(revenueData.message || "Failed to record revenue.");
         }
-      }  else if (planScreenshot) {
-  // If no amount but screenshot is there, just upload it for the user record
-  screenshotUrl = await uploadToS3(planScreenshot);
-}
+      } else if (planScreenshot) {
+        // If no amount but screenshot is there, just upload it for the user record
+        screenshotUrl = await uploadToS3(planScreenshot);
+      }
 
       const packageStartDate = planStartDate;
       const packageExpiryDate = planExpiryDate;
@@ -1938,41 +2004,35 @@ export default function UserManagement() {
       });
       const userUpdateData = await userUpdateRes.json();
       if (userUpdateData.success) {
+        // ==============================
+        // Send WhatsApp Template
+        // ==============================
+        try {
+          const whatsappRes = await fetch(
+            "/api/admin/package-booking-template",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                phone:
+                  selectedUser.phone ||
+                  selectedUser.mobile ||
+                  selectedUser.whatsappNumber ||
+                  selectedUser.contactNumber ||
+                  "",
+                firstName:
+                  selectedUser.fullName || selectedUser.name || "Customer",
+              }),
+            },
+          );
 
-         // ==============================
-  // Send WhatsApp Template
-  // ==============================
-  try {
-    const whatsappRes = await fetch(
-      "/api/admin/package-booking-template",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          phone:
-            selectedUser.phone ||
-            selectedUser.mobile ||
-            selectedUser.whatsappNumber ||
-            selectedUser.contactNumber ||
-            "",
-          firstName:
-            selectedUser.fullName ||
-            selectedUser.name ||
-            "Customer",
-        }),
-      }
-    );
-
-    const whatsappData = await whatsappRes.json();
-    console.log("WhatsApp Response:", whatsappData);
-  } catch (whatsappErr) {
-    console.error(
-      "WhatsApp template send failed:",
-      whatsappErr
-    );
-  }
+          const whatsappData = await whatsappRes.json();
+          console.log("WhatsApp Response:", whatsappData);
+        } catch (whatsappErr) {
+          console.error("WhatsApp template send failed:", whatsappErr);
+        }
 
         showToast("User plan updated successfully!", "success");
         fetchUsers();
@@ -2830,6 +2890,7 @@ export default function UserManagement() {
     setAssigneeFilter("All");
     setLeadStatusFilter("All");
     setLeadStageFilter("All");
+    setConversationStageFilter("All");
     setRemarkCountFilter("All");
   };
 
@@ -3451,6 +3512,21 @@ export default function UserManagement() {
                   </Select>
                 </FormControl>
 
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <Select
+                    value={conversationStageFilter}
+                    onChange={(e) => setConversationStageFilter(e.target.value)}
+                    displayEmpty
+                  >
+                    <MenuItem value="All">All Stages</MenuItem>
+                    {stageOptions.map((stage) => (
+                      <MenuItem key={stage} value={stage}>
+                        {stage}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
                 {filterDate === "Custom Range" && (
                   <Box
                     sx={{
@@ -3674,10 +3750,10 @@ export default function UserManagement() {
                           type="button"
                           onClick={() => setIsOpen(true)}
                           className="group bg-white px-6 py-3 rounded-2xl
-  flex items-center gap-2 text-green-600 font-semibold
-  shadow-md hover:shadow-xl hover:-translate-y-1
-  hover:scale-105 active:scale-95
-  transition-all duration-300"
+                          flex items-center gap-2 text-green-600 font-semibold
+                          shadow-md hover:shadow-xl hover:-translate-y-1
+                          hover:scale-105 active:scale-95
+                          transition-all duration-300"
                         >
                           <MessageCircle
                             size={20}
@@ -3941,22 +4017,60 @@ export default function UserManagement() {
 
                                 // --- CONVERSATION STEPS LOGIC ---
                                 const stage = getConversationStageDisplay(user);
-                                const steps = String(stage?.label || "")
+                                const botUserId =
+                                  getLimbuBotHistoryUserId(user);
+
+                                // 1. FIXED ROADMAP DEFINITION (Order as per your requirement)
+                                const FIXED_JOURNEY_STEPS = [
+                                  {
+                                    id: "Initial Conversation",
+                                    icon: <MessageCircle size={10} />,
+                                  },
+                                  {
+                                    id: "GMB Connected",
+                                    icon: <CheckCircle size={10} />,
+                                  },
+                                  {
+                                    id: "GMB Health",
+                                    icon: <Activity size={10} />,
+                                  },
+                                  {
+                                    id: "Magic QR",
+                                    icon: <QrCode size={10} />,
+                                  },
+                                  {
+                                    id: "GMB Insight",
+                                    icon: <BarChart3 size={10} />,
+                                  },
+                                  {
+                                    id: "Build Website",
+                                    icon: <Globe2 size={10} />,
+                                  },
+                                ];
+
+                                // 2. PARSE COMPLETED STEPS FROM LABEL
+                                const completedSteps = String(
+                                  stage?.label || "",
+                                )
                                   .split("➔")
                                   .map((item) => item.trim())
                                   .filter(
-                                    (item) => item && item !== "No Activity",
+                                    (item) =>
+                                      item &&
+                                      item !== "No Activity" &&
+                                      item !== "Not Loaded",
                                   );
 
-                                const hasConversation = steps.includes(
-                                  "Initial Conversation",
-                                );
+                                const lastCompletedStep =
+                                  completedSteps[completedSteps.length - 1];
+                                const hasAnyProgress =
+                                  completedSteps.length > 0;
                                 // -------------------------------
 
                                 return (
                                   <Fragment key={user._id || user.userId}>
-                                    {/* 1. HORIZONTAL STEPS STRIP (Upper Row) */}
-                                    {steps.length > 0 && (
+                                    {/* 1. FIXED HORIZONTAL STEPS STRIP (Upper Row) */}
+                                    {botUserId && (
                                       <tr
                                         className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}
                                       >
@@ -3971,107 +4085,49 @@ export default function UserManagement() {
                                               User Journey:
                                             </span>
                                             <div className="flex flex-wrap items-center gap-1.5">
-                                              {steps.map((step, index) => {
-                                                const isInitial =
-                                                  step ===
-                                                  "Initial Conversation";
-                                                const isConnected =
-                                                  step === "GMB Connected";
-                                                const isQR =
-                                                  step === "Magic QR";
-                                                const isInsights =
-                                                  step === "Insights";
-                                                const isWebsite =
-                                                  step === "Website";
-                                                const isHealth =
-                                                  step === "Health";
-                                                const isFacebook =
-                                                  step === "Facebook";
-                                                const isInstagram =
-                                                  step === "Instagram";
+                                              {FIXED_JOURNEY_STEPS.map(
+                                                (step, index) => {
+                                                  const isDone =
+                                                    completedSteps.includes(
+                                                      step.id,
+                                                    );
+                                                  const isLastActive =
+                                                    step.id ===
+                                                    lastCompletedStep;
 
-                                                // Identify the last step
-                                                const isLastStep =
-                                                  index === steps.length - 1;
-
-                                                return (
-                                                  <Fragment
-                                                    key={`${step}-${index}`}
-                                                  >
-                                                    <div
-                                                      className={`
+                                                  return (
+                                                    <Fragment key={step.id}>
+                                                      <div
+                                                        className={`
                           inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
                           ${
-                            isInitial
-                              ? "border-slate-200 bg-slate-50 text-slate-600"
-                              : isConnected
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : isQR
-                                  ? "border-violet-200 bg-violet-100 text-violet-700"
-                                  : isInsights
-                                    ? "border-amber-200 bg-amber-50 text-amber-700"
-                                    : isWebsite
-                                      ? "border-sky-200 bg-sky-50 text-sky-700"
-                                      : isHealth
-                                        ? "border-rose-200 bg-rose-50 text-rose-700"
-                                        : isFacebook
-                                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                                          : isInstagram
-                                            ? "border-pink-200 bg-pink-50 text-pink-700"
-                                            : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                            isDone
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
+                              : "border-rose-200 bg-rose-50 text-rose-600 opacity-60" // RED if pending
                           }
                         `}
-                                                    >
-                                                      {/* --- BLINKING BLUE DOT (Always blinks on the last step) --- */}
-                                                      {isLastStep && (
-                                                        <span className="relative flex h-2 w-2 mr-0.5">
-                                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
-                                                        </span>
-                                                      )}
+                                                      >
+                                                        {step.icon}
+                                                        <span>{step.id}</span>
+                                                      </div>
 
-                                                      {isInitial && (
-                                                        <MessageCircle
+                                                      {/* Arrow Logic */}
+                                                      {index !==
+                                                        FIXED_JOURNEY_STEPS.length -
+                                                          1 && (
+                                                        <MoveRight
                                                           size={10}
+                                                          className={
+                                                            isDone
+                                                              ? "text-emerald-400"
+                                                              : "text-slate-300"
+                                                          }
                                                         />
                                                       )}
-                                                      {isConnected && (
-                                                        <CheckCircle
-                                                          size={10}
-                                                        />
-                                                      )}
-                                                      {isQR && (
-                                                        <QrCode size={10} />
-                                                      )}
-                                                      {isInsights && (
-                                                        <BarChart3 size={10} />
-                                                      )}
-                                                      {isWebsite && (
-                                                        <Globe2 size={10} />
-                                                      )}
-                                                      {isHealth && (
-                                                        <Activity size={10} />
-                                                      )}
-                                                      {isFacebook && (
-                                                        <Facebook size={10} />
-                                                      )}
-                                                      {isInstagram && (
-                                                        <Instagram size={10} />
-                                                      )}
-
-                                                      <span>{step}</span>
-                                                    </div>
-
-                                                    {index !==
-                                                      steps.length - 1 && (
-                                                      <MoveRight
-                                                        size={10}
-                                                        className="text-black"
-                                                      />
-                                                    )}
-                                                  </Fragment>
-                                                );
-                                              })}
+                                                    </Fragment>
+                                                  );
+                                                },
+                                              )}
                                             </div>
                                           </div>
                                         </td>
@@ -4085,7 +4141,7 @@ export default function UserManagement() {
                                         rowIndex % 2 === 0
                                           ? "bg-white"
                                           : "bg-slate-50/40"
-                                      } ${steps.length > 0 ? "border-t-0" : ""}`}
+                                      } ${botUserId ? "border-t-0" : ""}`}
                                     >
                                       {role === "superAdmin" && (
                                         <td
@@ -4097,131 +4153,45 @@ export default function UserManagement() {
                                             disabled={
                                               !(user.phone || user.mobileNumber)
                                             }
-                                            title={
-                                              user.phone || user.mobileNumber
-                                                ? "Select for WhatsApp"
-                                                : "No phone on record"
-                                            }
                                             checked={bulkWaSelectedUserIds.includes(
                                               String(user.userId),
                                             )}
                                             onChange={() =>
                                               toggleBulkWaUserId(user.userId)
                                             }
-                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30"
                                           />
                                         </td>
                                       )}
+
+                                      {/* DATE / FOLLOW UP */}
                                       <td className="px-6 py-5">
-                                        {isAgent && followUpFilter !== "all" ? (
-                                          (() => {
-                                            const raw =
-                                              followUpMetaByUserId.get(
-                                                String(user.userId),
-                                              );
-                                            const d = raw
-                                              ? new Date(raw)
-                                              : null;
-                                            const valid =
-                                              d && !Number.isNaN(d.getTime());
-                                            const now = new Date();
-                                            const tmr = new Date(now);
-                                            tmr.setDate(tmr.getDate() + 1);
-                                            const sameDay = (a, b) =>
-                                              valid &&
-                                              a.getFullYear() ===
-                                                b.getFullYear() &&
-                                              a.getMonth() === b.getMonth() &&
-                                              a.getDate() === b.getDate();
-                                            const isFuToday = sameDay(d, now);
-                                            const isFuTomorrow = sameDay(
-                                              d,
-                                              tmr,
-                                            );
-                                            return (
-                                              <div className="flex items-center gap-2">
-                                                <Clock
-                                                  size={14}
-                                                  className="text-gray-400 shrink-0"
-                                                />
-                                                <div className="text-sm text-gray-700">
-                                                  {valid ? (
-                                                    <>
-                                                      <div className="font-medium">
-                                                        {d.toLocaleString(
-                                                          "en-IN",
-                                                          {
-                                                            day: "numeric",
-                                                            month: "short",
-                                                            year: "numeric",
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                            hour12: true,
-                                                          },
-                                                        )}
-                                                      </div>
-                                                      <div className="flex flex-wrap gap-1 mt-0.5">
-                                                        {isFuToday && (
-                                                          <span className="inline-block px-2 py-0.5 text-[10px] text-sky-800 bg-sky-100 rounded-full font-semibold">
-                                                            Today
-                                                          </span>
-                                                        )}
-                                                        {isFuTomorrow && (
-                                                          <span className="inline-block px-2 py-0.5 text-[10px] text-rose-800 bg-rose-100 rounded-full font-semibold">
-                                                            Tomorrow
-                                                          </span>
-                                                        )}
-                                                      </div>
-                                                    </>
-                                                  ) : (
-                                                    <span className="text-gray-400 italic">
-                                                      N/A
-                                                    </span>
-                                                  )}
-                                                </div>
+                                        <div className="flex items-center gap-2">
+                                          <Calendar
+                                            size={14}
+                                            className="text-gray-400"
+                                          />
+                                          <div className="text-sm text-gray-700">
+                                            {user.createdAt ? (
+                                              <div className="font-medium">
+                                                {new Date(
+                                                  user.createdAt,
+                                                ).toLocaleDateString("en-US", {
+                                                  month: "short",
+                                                  day: "numeric",
+                                                  year: "numeric",
+                                                })}
                                               </div>
-                                            );
-                                          })()
-                                        ) : (
-                                          <div className="flex items-center gap-2">
-                                            <Calendar
-                                              size={14}
-                                              className="text-gray-400"
-                                            />
-                                            <div className="text-sm text-gray-700">
-                                              {user.createdAt ? (
-                                                <>
-                                                  <div className="font-medium">
-                                                    {new Date(
-                                                      user.createdAt,
-                                                    ).toLocaleDateString(
-                                                      "en-US",
-                                                      {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        year: "numeric",
-                                                      },
-                                                    )}
-                                                  </div>
-                                                  {new Date(
-                                                    user.createdAt,
-                                                  ).toDateString() ===
-                                                    new Date().toDateString() && (
-                                                    <span className="inline-block mt-0.5 px-2 py-0.5 text-xs text-blue-700 bg-blue-100 rounded-full font-semibold">
-                                                      Today
-                                                    </span>
-                                                  )}
-                                                </>
-                                              ) : (
-                                                <span className="text-gray-400 italic">
-                                                  N/A
-                                                </span>
-                                              )}
-                                            </div>
+                                            ) : (
+                                              <span className="text-gray-400 italic">
+                                                N/A
+                                              </span>
+                                            )}
                                           </div>
-                                        )}
+                                        </div>
                                       </td>
 
+                                      {/* USER INFO & STATUS */}
                                       <td className="px-6 py-5">
                                         <div className="space-y-1">
                                           <div className="flex items-center gap-2">
@@ -4230,103 +4200,26 @@ export default function UserManagement() {
                                                 size={14}
                                                 className="shrink-0 text-gray-400"
                                               />
-                                              <span className="truncate">
+                                              <span className="truncate font-semibold">
                                                 {user.fullName ||
                                                   user.name ||
-                                                  user.email ||
-                                                  user.phone ||
                                                   user.userId ||
                                                   "User"}
                                               </span>
                                             </div>
-                                            {paidUsersStatus[user.userId] && (
-                                              <>
-                                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                                  Paid
-                                                </span>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setFullViewImage(
-                                                      paidUsersStatus[
-                                                        user.userId
-                                                      ],
-                                                    );
-                                                  }}
-                                                  className="p-1 hover:bg-gray-200 rounded-full"
-                                                  title="View Payment Screenshot"
-                                                >
-                                                  <Eye
-                                                    size={14}
-                                                    className="text-gray-500"
-                                                  />
-                                                </button>
-                                              </>
-                                            )}
                                           </div>
-
-                                          <div
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <select
-                                              value={user.leadStatus || ""}
-                                              onChange={(e) =>
-                                                handleLeadStatusChange(
-                                                  user.userId,
-                                                  e.target.value,
-                                                )
-                                              }
-                                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                                user.leadStatus === "Hot"
-                                                  ? "bg-red-50 text-red-700 border-red-200"
-                                                  : user.leadStatus === "Warm"
-                                                    ? "bg-orange-50 text-orange-700 border-orange-200"
-                                                    : user.leadStatus === "Cold"
-                                                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                      : "bg-gray-50 text-gray-600 border-gray-200"
-                                              }`}
-                                            >
-                                              <option value="">Untagged</option>
-                                              <option value="Hot">Hot</option>
-                                              <option value="Warm">Warm</option>
-                                              <option value="Cold">Cold</option>
-                                            </select>
-                                          </div>
-                                          <div className="flex flex-wrap gap-1 mt-1 items-center">
+                                          <div className="flex flex-wrap gap-1 mt-1">
                                             <span
                                               className={userAcquisitionTagClassName(
                                                 user.source,
                                               )}
-                                              title="Acquisition source"
                                             >
                                               {userAcquisitionLabel(
                                                 user.source,
                                               )}
                                             </span>
-
-                                            {(user.leadTags || [])
-                                              .filter(Boolean)
-                                              .filter(
-                                                (tag) =>
-                                                  formatLeadTagLabel(
-                                                    tag,
-                                                  ).toLowerCase() !==
-                                                  userAcquisitionLabel(
-                                                    user.source,
-                                                  ).toLowerCase(),
-                                              )
-                                              .map((tag) => (
-                                                <span
-                                                  key={String(tag)}
-                                                  className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-sm ${leadTagPillClassName(tag)}`}
-                                                  title="Lead tag"
-                                                >
-                                                  {formatLeadTagLabel(tag)}
-                                                </span>
-                                              ))}
-
                                             {user.paidPackage && (
-                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-900 bg-amber-100 border border-amber-300/70 rounded-full shadow-sm">
+                                              <span className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full">
                                                 {user.paidPackage}
                                               </span>
                                             )}
@@ -4334,177 +4227,70 @@ export default function UserManagement() {
                                         </div>
                                       </td>
 
+                                      {/* CHAT BUTTON & PROGRESS COUNT */}
                                       <td className="px-6 py-5">
-                                        {(() => {
-                                          const stage =
-                                            getConversationStageDisplay(user);
-                                          const steps = String(
-                                            stage?.label || "",
-                                          )
-                                            .split("➔")
-                                            .map((item) => item.trim())
-                                            .filter(
-                                              (item) =>
-                                                item && item !== "No Activity",
-                                            );
-                                          const hasConversation =
-                                            steps.includes(
-                                              "Initial Conversation",
-                                            );
-
-                                          return (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                fetchChatHistoryForUser(user);
-                                              }}
-                                              disabled={
-                                                !getLimbuBotHistoryUserId(user)
-                                              }
-                                              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:cursor-not-allowed disabled:opacity-40 ${
-                                                hasConversation
-                                                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                                  : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                              }`}
-                                              title="View LimbuBot conversation"
-                                            >
-                                              <MessageCircle size={14} />
-                                              <span>Chat</span>
-                                              {hasConversation && (
-                                                <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
-                                                  {steps.length}
-                                                </div>
-                                              )}
-                                            </button>
-                                          );
-                                        })()}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            fetchChatHistoryForUser(user);
+                                          }}
+                                          disabled={!botUserId}
+                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
+                                            hasAnyProgress
+                                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                              : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                          }`}
+                                        >
+                                          <MessageCircle size={14} />
+                                          <span>Chat</span>
+                                          {hasAnyProgress && (
+                                            <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
+                                              {completedSteps.length}
+                                            </div>
+                                          )}
+                                        </button>
                                       </td>
 
+                                      {/* AGENT ASSIGNMENT */}
                                       <td
                                         className="px-6 py-5 whitespace-nowrap"
                                         onClick={(e) => e.stopPropagation()}
                                       >
-                                        {role === "superAdmin" ||
-                                        role === "admin" ||
-                                        role === "superfranchiseAdmin" ? (
-                                          <div
-                                            className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                                              getAgentName(
-                                                user.assignedAgentId,
-                                              ),
-                                            )}`}
-                                          >
-                                            <select
-                                              className="appearance-none bg-transparent px-4 py-1.5 pr-8 text-xs font-bold focus:outline-none cursor-pointer"
-                                              value={
-                                                user.assignedAgentId?._id ||
-                                                (typeof user.assignedAgentId ===
-                                                  "string" &&
-                                                  user.assignedAgentId) ||
-                                                ""
-                                              }
-                                              onChange={(e) =>
-                                                handleAssignChange(
-                                                  user.userId,
-                                                  e.target.value,
-                                                )
-                                              }
-                                            >
-                                              <option value="">
-                                                -- Unassigned --
-                                              </option>
-                                              {agents.map((agent) => (
-                                                <option
-                                                  key={agent._id}
-                                                  value={agent._id}
-                                                >
-                                                  {agent.fullName}
-                                                </option>
-                                              ))}
-                                            </select>
-
-                                            {!user.assignedAgentId && (
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleRoundRobinAssign(
-                                                    user.userId,
-                                                  );
-                                                }}
-                                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
-                                                title="Auto Assign (Round Robin)"
-                                              >
-                                                <RefreshCw size={12} />
-                                              </button>
-                                            )}
-
-                                            <span className="pointer-events-none absolute right-2 flex items-center">
-                                              <ChevronDown className="h-3 w-3" />
-                                            </span>
-                                          </div>
-                                        ) : (
-                                          <span
-                                            className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                                              getAgentName(
-                                                user.assignedAgentId,
-                                              ),
-                                            )}`}
-                                          >
-                                            {getAgentName(user.assignedAgentId)}
-                                          </span>
-                                        )}
+                                        <div
+                                          className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(getAgentName(user.assignedAgentId))}`}
+                                        >
+                                          {getAgentName(user.assignedAgentId)}
+                                        </div>
                                       </td>
 
+                                      {/* REMARKS */}
                                       <td className="px-6 py-4">
                                         <div
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleOpenRemarksModal(user);
                                           }}
-                                          className="group cursor-pointer flex flex-col items-start gap-1.5"
+                                          className="cursor-pointer"
                                         >
-                                          <div className="flex items-center gap-2">
-                                            <div className="flex items-center justify-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 group-hover:bg-indigo-100 group-hover:border-indigo-200 transition-all shadow-sm">
-                                              <MessageSquare
-                                                size={14}
-                                                className="mr-1.5"
-                                              />
-                                              <span className="font-bold text-xs">
-                                                {user.remarksHistory?.length ||
-                                                  0}
-                                              </span>
-                                            </div>
-                                          </div>
-
-                                          {user.Remarks ? (
-                                            <div className="text-[11px] leading-tight text-white-600 bg-green-100 px-2 py-1.5 rounded-md border border-gray-100 max-w-[180px] truncate group-hover:bg-green group-hover:shadow-sm transition-all flex items-center">
-                                              <span className="font-semibold text-gray-800 mr-1">
-                                                Latest:
-                                              </span>
-                                              <span className="truncate">
-                                                {user.Remarks}
-                                              </span>
-                                              {user.remarksHistory &&
-                                                user.remarksHistory.length >
-                                                  0 &&
-                                                user.remarksHistory[
-                                                  user.remarksHistory.length - 1
-                                                ].messageSent && (
-                                                  <CheckCircle
-                                                    size={12}
-                                                    className="text-green-600 ml-1 flex-shrink-0"
-                                                  />
-                                                )}
-                                            </div>
-                                          ) : (
-                                            <span className="text-[10px] text-gray-400 italic pl-1">
-                                              Tap to add...
+                                          <div className="flex items-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 w-fit">
+                                            <MessageSquare
+                                              size={14}
+                                              className="mr-1.5"
+                                            />
+                                            <span className="font-bold text-xs">
+                                              {user.remarksHistory?.length || 0}
                                             </span>
+                                          </div>
+                                          {user.Remarks && (
+                                            <div className="text-[10px] text-gray-500 truncate max-w-[150px] mt-1 italic">
+                                              {user.Remarks}
+                                            </div>
                                           )}
                                         </div>
                                       </td>
 
+                                      {/* LEAD STAGE */}
                                       <td className="px-6 py-5">
                                         <select
                                           value={user.leadStage || "Active"}
@@ -4515,22 +4301,11 @@ export default function UserManagement() {
                                             )
                                           }
                                           onClick={(e) => e.stopPropagation()}
-                                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border outline-none cursor-pointer transition-all ${
-                                            user.leadStage === "Active"
-                                              ? "bg-green-50 text-green-700 border-green-200"
-                                              : user.leadStage === "Follow Up"
-                                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                                : user.leadStage === "Onboard"
-                                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                  : "bg-gray-50 text-gray-700 border-gray-200"
-                                          }`}
+                                          className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white"
                                         >
                                           <option value="Active">Active</option>
                                           <option value="Follow Up">
                                             Follow Up
-                                          </option>
-                                          <option value="Inactive">
-                                            Inactive
                                           </option>
                                           <option value="Onboard">
                                             Onboard
@@ -4538,198 +4313,93 @@ export default function UserManagement() {
                                         </select>
                                       </td>
 
+                                      {/* CONTACT INFO */}
                                       <td className="px-6 py-5">
-                                        <div className="space-y-1">
-                                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                                            <Mail
-                                              size={14}
-                                              className="text-gray-400"
-                                            />
-                                            {user.email}
+                                        <div className="text-xs space-y-1">
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <Mail size={12} />{" "}
+                                            {user.email || "N/A"}
                                           </div>
-                                          {user.phone && (
-                                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                              <Phone
-                                                size={14}
-                                                className="text-gray-400"
-                                              />
-                                              {user.phone}
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <Phone size={12} />{" "}
+                                            {user.phone ||
+                                              user.mobileNumber ||
+                                              "N/A"}
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* WALLET */}
+                                      <td className="px-6 py-5">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenWalletModal(user);
+                                          }}
+                                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100"
+                                        >
+                                          <Wallet size={14} />
+                                          <span className="font-bold text-sm">
+                                            {user.wallet || 0}
+                                          </span>
+                                        </button>
+                                      </td>
+
+                                      {/* POSTS DATA */}
+                                      <td className="px-6 py-5">
+                                        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                          <div className="text-center">
+                                            <div className="text-[9px] text-gray-500">
+                                              T
                                             </div>
-                                          )}
-                                        </div>
-                                      </td>
-
-                                      <td className="px-6 py-4">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleUpgradePlan(user);
-                                          }}
-                                          className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
-                                          title="Change Plan"
-                                        >
-                                          <Crown size={16} />
-                                        </button>
-                                      </td>
-
-                                      <td className="px-6 py-4">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenServiceModal(user);
-                                          }}
-                                          className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-                                          title="Add Service "
-                                        >
-                                          🛡️
-                                        </button>
-                                      </td>
-
-                                      <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleOpenWalletModal(user);
-                                            }}
-                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-lg hover:from-emerald-100 hover:to-green-100 transition-all border border-emerald-200"
-                                          >
-                                            <Wallet size={16} />
-                                            <span className="font-bold text-base">
-                                              {user.wallet || 0}
-                                            </span>
-                                            <span className="text-xs font-medium">
-                                              coins
-                                            </span>
-                                          </button>
-                                        </div>
-                                      </td>
-
-                                      <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
-                                            <div className="flex items-center gap-3">
-                                              <div className="text-center">
-                                                <p className="text-xs text-gray-600">
-                                                  Total
-                                                </p>
-                                                <p className="text-lg font-bold text-indigo-600">
-                                                  {postData.total}
-                                                </p>
-                                              </div>
-                                              <div className="w-px h-8 bg-gray-300"></div>
-                                              <div className="text-center">
-                                                <p className="text-xs text-green-600">
-                                                  Posted
-                                                </p>
-                                                <p className="text-lg font-bold text-green-600">
-                                                  {postData.posted}
-                                                </p>
-                                              </div>
-                                              <div className="w-px h-8 bg-gray-300"></div>
-                                              <div className="text-center">
-                                                <p className="text-xs text-red-600">
-                                                  Rejected
-                                                </p>
-                                                <p className="text-lg font-bold text-red-600">
-                                                  {postData.rejected}
-                                                </p>
-                                              </div>
+                                            <div className="font-bold text-indigo-600">
+                                              {postData.total}
+                                            </div>
+                                          </div>
+                                          <div className="text-center">
+                                            <div className="text-[9px] text-gray-500">
+                                              P
+                                            </div>
+                                            <div className="font-bold text-green-600">
+                                              {postData.posted}
                                             </div>
                                           </div>
                                         </div>
                                       </td>
 
-                                      <td className="px-6 py-5">
-                                        <div
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <AddAddUserActivity
-                                            userId={user.userId}
-                                          />
-                                        </div>
-                                      </td>
-
+                                      {/* LISTING INFO */}
                                       <td className="px-6 py-4">
-                                        {user.businessListings &&
-                                        user.businessListings.length > 0 ? (
-                                          <div>
-                                            <div className="font-semibold text-gray-800">
-                                              {user.businessListings[0].title}{" "}
-                                              {
-                                                user.businessListings[0].address
-                                                  .locality
-                                              }
-                                            </div>
-                                            {user.businessListings.length >
-                                              1 && (
-                                              <Link
-                                                href={`/admin/user-listings?userId=${user.userId}`}
-                                                onClick={(e) =>
-                                                  e.stopPropagation()
-                                                }
-                                                className="text-xs text-blue-600 hover:underline mt-1"
-                                              >
-                                                View More (
-                                                {user.businessListings.length -
-                                                  1}
-                                                )
-                                              </Link>
-                                            )}
+                                        {user.businessListings?.[0] ? (
+                                          <div className="text-xs font-medium max-w-[150px] truncate">
+                                            {user.businessListings[0].title}
                                           </div>
                                         ) : (
-                                          <div className="text-xs text-gray-500 italic">
-                                            Waiting......
-                                          </div>
+                                          <span className="text-[10px] text-gray-400 italic">
+                                            No Listing
+                                          </span>
                                         )}
                                       </td>
 
+                                      {/* ACTIONS */}
                                       <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5">
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               AdminPanelButton(user.userId);
                                             }}
-                                            disabled={
-                                              impersonatingUser === user.userId
-                                            }
-                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:bg-blue-400"
+                                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
                                           >
-                                            {impersonatingUser ===
-                                            user.userId ? (
-                                              <div className="flex justify-center items-center">
-                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                                              </div>
-                                            ) : (
-                                              "Login"
-                                            )}
+                                            Login
                                           </button>
-                                          {(role === "superAdmin" ||
-                                            role === "agent") && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOnboardModalUser(user);
-                                                setShowOnboardModal(true);
-                                              }}
-                                              className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
-                                              title="Onboard Client"
-                                            >
-                                              <CheckCircle size={16} />
-                                            </button>
-                                          )}
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              sendSubscriptionExpiredNotification(
-                                                user,
-                                              );
+                                              handleVoiceCall(user.phone);
                                             }}
-                                            className="p-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
-                                            title="Send Expiry Notification"
+                                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"
                                           >
-                                            <Bell size={16} />
+                                            <Phone size={14} />
                                           </button>
                                           {role === "superAdmin" && (
                                             <button
@@ -4737,34 +4407,11 @@ export default function UserManagement() {
                                                 e.stopPropagation();
                                                 setDeleteUserModal(user);
                                               }}
-                                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
-                                              title="Delete User"
+                                              className="p-1.5 bg-red-50 text-red-600 rounded-lg"
                                             >
-                                              <Trash2 size={16} />
+                                              <Trash2 size={14} />
                                             </button>
                                           )}
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleVoiceCall(
-                                                user.phone || user.mobileNumber,
-                                              );
-                                            }}
-                                            disabled={
-                                              callingUserId === user.userId
-                                            }
-                                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
-                                            title="Voice Call"
-                                          >
-                                            {callingUserId === user.userId ? (
-                                              <RefreshCw
-                                                size={16}
-                                                className="animate-spin"
-                                              />
-                                            ) : (
-                                              <Phone size={16} />
-                                            )}
-                                          </button>
                                         </div>
                                       </td>
                                     </tr>

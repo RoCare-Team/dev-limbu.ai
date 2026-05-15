@@ -11,6 +11,9 @@ const DEFAULT_IMAGE_TO_VIDEO_URL =
 
 /** Coins charged after a successful image→video render (saved via Post + Transaction). */
 const IMAGE_TO_VIDEO_COINS = 200;
+const IMAGE_TO_VIDEO_DURATION = 8;
+const IMAGE_TO_VIDEO_QUALITY = "720p";
+const IMAGE_TO_VIDEO_RATIO = "9:16";
 
 /**
  * Save video URL to Post, then deduct coins (same order as post-status + wallet rules).
@@ -166,19 +169,13 @@ export async function POST(req) {
       image_url,
       image,
       prompt,
-      business_name,
-      duration,
-      audio_folder,
-      audio_file_url,
       platform,
       userId: bodyUserId,
       postId,
       video_prompt,
     } = body;
 
-    const allowedDurations = [5, 8, 10];
     const allowedPlatforms = ["instagram", "facebook", "both"];
-    const allowedAudioFolders = ["dharmik", "motivational", "basic"];
     const trimmedPrompt = typeof prompt === "string" ? prompt.trim() : "";
     const trimmedVideoPrompt =
       typeof video_prompt === "string" ? video_prompt.trim() : "";
@@ -187,16 +184,8 @@ export async function POST(req) {
       trimmedVideoPrompt ||
       "Create an engaging business promotional video.";
 
-    const d = Number(duration);
-    if (!Number.isFinite(d) || !allowedDurations.includes(d)) {
-      return NextResponse.json(
-        { success: false, error: "duration must be one of 5, 8, or 10" },
-        { status: 400 }
-      );
-    }
-
     const platformValue = typeof platform === "string" ? platform.trim() : "";
-    if (!allowedPlatforms.includes(platformValue)) {
+    if (platformValue && !allowedPlatforms.includes(platformValue)) {
       return NextResponse.json(
         {
           success: false,
@@ -256,40 +245,17 @@ export async function POST(req) {
       );
     }
 
-    const name =
-      typeof business_name === "string" && business_name.trim()
-        ? business_name.trim()
-        : "Business";
-    const trimmedAudioFileUrl =
-      typeof audio_file_url === "string" ? audio_file_url.trim() : "";
-    const trimmedAudioFolder =
-      typeof audio_folder === "string" ? audio_folder.trim() : "";
-
-    if (
-      trimmedAudioFolder &&
-      !allowedAudioFolders.includes(trimmedAudioFolder)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "audio_folder must be one of dharmik, motivational, or basic",
-        },
-        { status: 400 }
-      );
-    }
-
     const upstreamUrl =
       process.env.IMAGE_TO_VIDEO_API_URL || DEFAULT_IMAGE_TO_VIDEO_URL;
 
     const payload = {
       image_url: finalImageUrl,
-      prompt: effectivePrompt,
-      business_name: name,
-      duration: d,
-      platform: platformValue,
-      audio_file_url: trimmedAudioFileUrl || null,
-      audio_folder: trimmedAudioFileUrl ? null : trimmedAudioFolder || null,
+      duration: IMAGE_TO_VIDEO_DURATION,
+      quality: IMAGE_TO_VIDEO_QUALITY,
+      ratio: IMAGE_TO_VIDEO_RATIO,
     };
+
+    console.log("Image-to-video upstream payload:", payload);
 
     const upstream = await fetch(upstreamUrl, {
       method: "POST",
@@ -306,6 +272,10 @@ export async function POST(req) {
     }
 
     if (!upstream.ok) {
+      console.error("Image-to-video upstream error:", {
+        status: upstream.status,
+        response: data,
+      });
       return NextResponse.json(
         { success: false, error: data?.error || data?.message || data },
         { status: upstream.status }

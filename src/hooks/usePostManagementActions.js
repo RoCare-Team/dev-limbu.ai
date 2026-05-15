@@ -8,7 +8,6 @@ import {
   metaPublishMedia,
   postImageUrl
 } from "@/lib/postMediaUrls";
-import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 
 export function usePostManagementActions({
@@ -125,7 +124,7 @@ export function usePostManagementActions({
     }
   };
 
-  const handleAutoConvertToVideo = async (post, prompt, selectedBusiness, bussinessTitle, availableLocations) => {
+  const handleAutoConvertToVideo = async (post, prompt) => {
     if (!userId || !post?._id) return;
 
     const source = postImageUrl(post);
@@ -185,27 +184,19 @@ export function usePostManagementActions({
       }
       const videoPrompt = String(prData.videoPrompt).trim();
 
-      const businessName = resolveBusinessNameForGeneration({
-        fromInput: "",
-        selectedBusinessName: selectedBusiness?.name,
-        bussinessTitle,
-        availableLocations,
-        prompt: promptBase,
-      }) || "Business";
-
       const body = {
-        prompt: videoPrompt,
-        business_name: businessName,
+        image_url: source,
         duration: 8,
-        audio_folder: "basic",
-        platform: "both",
+        quality: "720p",
+        ratio: "9:16",
       };
 
-      if (source.startsWith("http://") || source.startsWith("https://")) {
-        body.image_url = source;
-      } else {
+      if (!source.startsWith("http://") && !source.startsWith("https://")) {
+        delete body.image_url;
         body.image = source.startsWith("data:") ? source : `data:image/png;base64,${source}`;
       }
+
+      console.log("Image-to-video request payload:", body);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 seconds timeout
@@ -228,6 +219,10 @@ export function usePostManagementActions({
       }
       
       const ivData = await ivRes.json().catch(() => ({}));
+
+      if (!ivRes.ok || ivData.success === false) {
+        console.error("Image-to-video API error response:", ivData);
+      }
 
       if (!ivRes.ok || (ivData.success === false && !ivData.drive_link)) {
         throw new Error(typeof ivData.error === "string" ? ivData.error : ivData.message || "Video generation failed");
@@ -254,6 +249,7 @@ export function usePostManagementActions({
       await fetchPosts(1, true);
 
     } catch (e) {
+      console.error("Auto image-to-video conversion error:", e);
       // ✅ Refund if video generation failed or timed out
       await deductFromWalletAction(userId, {
         amount: VIDEO_GENERATION_COINS,

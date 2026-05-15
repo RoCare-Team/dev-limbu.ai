@@ -12,6 +12,152 @@ import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
+const LIMBUBOT_HISTORY_BASE =
+  process.env.LIMBUBOT_HISTORY_BASE || "https://limbubot.limbutech.in/history";
+
+function getLimbuBotHistoryUserId(user = {}) {
+  const explicit =
+    user.chatbotUserId ||
+    user.whatsappUserId ||
+    user.limbuBotUserId ||
+    user.botUserId ||
+    "";
+  if (typeof explicit === "string" && explicit.trim()) {
+    return explicit.trim().startsWith("wa_")
+      ? explicit.trim()
+      : `wa_${explicit.trim().replace(/\D/g, "")}`;
+  }
+
+  let phone = user.phone || user.mobileNumber || "";
+  phone = String(phone).replace(/\D/g, "");
+  if (!phone) return "";
+  if (phone.length === 10) phone = `91${phone}`;
+  return `wa_${phone}`;
+}
+
+function hasGmbConnected(user = {}) {
+  return Boolean(
+    user.isBusinessConnected ||
+      user.connectedBusinessEmail ||
+      user.gmbProjectId ||
+      user.selectedBusiness?.name ||
+      (Array.isArray(user.businessListings) && user.businessListings.length > 0),
+  );
+}
+
+function getConversationStageFromHistory(history = [], user = {}) {
+  const steps = [];
+  const assistantMessages = history.filter(
+    (item) => String(item?.role || "").toLowerCase() === "assistant",
+  );
+  const hasUserMessage = history.some(
+    (item) =>
+      String(item?.role || "").toLowerCase() === "user" &&
+      String(item?.content || "").trim() !== "",
+  );
+  const hasText = (...keywords) =>
+    assistantMessages.some((item) => {
+      const content = String(item?.content || "").toLowerCase();
+      return keywords.some((keyword) => content.includes(keyword.toLowerCase()));
+    });
+
+  if (hasUserMessage) steps.push("Initial Conversation");
+  if (
+    hasGmbConnected(user) ||
+    hasText(
+      "Congrats! Apka Account connect ho gaya!",
+      "Badhaai ho! Account connect ho gaya!",
+      "Account connect ho gaya",
+    )
+  ) {
+    steps.push("GMB Connected");
+  }
+  if (hasText("Full Health report")) steps.push("GMB Health");
+  if (hasText("Magic QR ready hai!")) steps.push("Magic QR");
+  if (hasText("Full Report (PDF)")) steps.push("GMB Insight");
+  if (hasText("Website URL")) steps.push("Build Website");
+
+  return { steps };
+}
+
+async function fetchLimbuBotHistory(userId) {
+  if (!userId || userId === "wa_") return [];
+
+  try {
+    const upstream = await fetch(
+      `${LIMBUBOT_HISTORY_BASE}/${encodeURIComponent(userId)}`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      },
+    );
+
+    if (!upstream.ok) return [];
+
+    const data = await upstream.json().catch(() => ({}));
+    return Array.isArray(data?.history) ? data.history : [];
+  } catch (error) {
+    console.error("Conversation stage history fetch failed:", error);
+    return [];
+  }
+}
+
+async function getConversationStageUserIds(baseQuery, conversationStage) {
+  if (!conversationStage || conversationStage === "All") return null;
+
+  const candidates = await User.find(baseQuery)
+    .select(
+      "userId phone mobileNumber chatbotUserId whatsappUserId limbuBotUserId botUserId isBusinessConnected connectedBusinessEmail gmbProjectId selectedBusiness businessListings",
+    )
+    .lean();
+
+  const matchedIds = [];
+  const chunkSize = 25;
+
+  for (let i = 0; i < candidates.length; i += chunkSize) {
+    const chunk = candidates.slice(i, i + chunkSize);
+    const matches = await Promise.all(
+      chunk.map(async (user) => {
+        if (conversationStage === "GMB Connected" && hasGmbConnected(user)) {
+          return true;
+        }
+
+        const historyUserId = getLimbuBotHistoryUserId(user);
+        if (!historyUserId || historyUserId === "wa_") {
+          return conversationStage === "No Activity" && !hasGmbConnected(user);
+        }
+
+        const history = await fetchLimbuBotHistory(historyUserId);
+        const steps = getConversationStageFromHistory(history, user).steps || [];
+
+        if (conversationStage === "No Activity") {
+          return steps.length === 0;
+        }
+
+        return steps.includes(conversationStage);
+      }),
+    );
+
+    matches.forEach((matched, index) => {
+      if (matched) matchedIds.push(chunk[index].userId);
+    });
+  }
+
+  return matchedIds;
+}
+
+async function addConversationStageFilter(query, conversationStage) {
+  const matchedIds = await getConversationStageUserIds(query, conversationStage);
+  if (!matchedIds) return query;
+
+  const stageQuery = { userId: { $in: matchedIds } };
+  if (Object.keys(query).length > 0) {
+    return { $and: [query, stageQuery] };
+  }
+
+  return stageQuery;
+}
 
 function getRemarkCountMatch(remarkCount) {
   if (!remarkCount || remarkCount === "All") return null;
@@ -272,6 +418,7 @@ export async function GET(req) {
     const endDateParam = searchParams.get("endDate");
     const leadStatus = searchParams.get("leadStatus");
     const leadStage = searchParams.get("leadStage");
+    const conversationStage = searchParams.get("conversationStage");
     const remarkCount = searchParams.get("remarkCount");
 
     if (!email) {
@@ -317,6 +464,7 @@ export async function GET(req) {
           $and: [{ userId: { $in: idList } }, { accountManager: admin._id }],
         };
       }
+      idQuery = await addConversationStageFilter(idQuery, conversationStage);
       const fetched = await User.find(idQuery)
         .populate("assignedAgentId", "fullName email role mobileNumber")
         .populate("accountManager", "fullName email role mobileNumber")
@@ -383,9 +531,14 @@ export async function GET(req) {
         Object.assign(matchStage, remarkCountMatch);
       }
 
+      const statsMatchStage = await addConversationStageFilter(
+        matchStage,
+        conversationStage,
+      );
+
       const stats = await User.aggregate([
         {
-          $match: matchStage
+          $match: statsMatchStage
         },
         {
           $group: {
@@ -637,6 +790,8 @@ export async function GET(req) {
         query = { $or: searchConditions };
       }
     }
+
+    query = await addConversationStageFilter(query, conversationStage);
 
     const totalUsers = await User.countDocuments(query);
     const skip = (page - 1) * limit;

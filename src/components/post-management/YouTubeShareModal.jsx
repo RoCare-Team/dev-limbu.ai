@@ -17,7 +17,7 @@ const YouTubeShareModal = ({
 
   useEffect(() => {
     if (post) {
-      setCaption(post.description || "");
+      setCaption(post.ytDescription || "");
     }
   }, [post]);
 

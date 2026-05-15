@@ -26,11 +26,41 @@ const parseUpstreamResponse = async (response) => {
 
 const DEFAULT_WHEN_POSTED = [
   { platform: "gmb", posted: false, postedDate: null, postId: "", error: "" },
-  { platform: "facebook", posted: false, postedDate: null, postId: "", error: "" },
-  { platform: "instagram", posted: false, postedDate: null, postId: "", error: "" },
-  { platform: "pinterest", posted: false, postedDate: null, postId: "", error: "" },
-  { platform: "linkedin", posted: false, postedDate: null, postId: "", error: "" },
-  { platform: "youtube", posted: false, postedDate: null, postId: "", error: "" },
+  {
+    platform: "facebook",
+    posted: false,
+    postedDate: null,
+    postId: "",
+    error: "",
+  },
+  {
+    platform: "instagram",
+    posted: false,
+    postedDate: null,
+    postId: "",
+    error: "",
+  },
+  {
+    platform: "pinterest",
+    posted: false,
+    postedDate: null,
+    postId: "",
+    error: "",
+  },
+  {
+    platform: "linkedin",
+    posted: false,
+    postedDate: null,
+    postId: "",
+    error: "",
+  },
+  {
+    platform: "youtube",
+    posted: false,
+    postedDate: null,
+    postId: "",
+    error: "",
+  },
 ];
 
 const normalizeLocationId = (value) =>
@@ -99,7 +129,9 @@ const mergeWhenPosted = (currentWhenPosted, postedDate, postId = "") => {
 };
 
 const mergePostedPlatform = (currentValue) => {
-  const current = String(currentValue || "").trim().toLowerCase();
+  const current = String(currentValue || "")
+    .trim()
+    .toLowerCase();
   if (!current || current === "gmb") return "gmb";
   if (current === "both") return "both";
   return "both";
@@ -115,7 +147,9 @@ const buildLocationUpdates = ({
   if (!payloadLocations.length) return existingLocations;
 
   const successIds = new Set(
-    successList.map((item) => normalizeLocationId(item?.location_id || item?.locationId)),
+    successList.map((item) =>
+      normalizeLocationId(item?.location_id || item?.locationId),
+    ),
   );
   const failMap = new Map(
     failList.map((item) => [
@@ -144,7 +178,8 @@ const buildLocationUpdates = ({
     byId.set(id, {
       ...existing,
       locationId: existing.locationId || id,
-      accountId: location.accountId || location.account || existing.accountId || "",
+      accountId:
+        location.accountId || location.account || existing.accountId || "",
       name:
         location.name ||
         location.title ||
@@ -154,7 +189,8 @@ const buildLocationUpdates = ({
       address: location.address || existing.address || "",
       city: location.city || location.locality || existing.city || "",
       locality: location.locality || existing.locality || "",
-      websiteUrl: location.websiteUrl || location.bookUrl || existing.websiteUrl || "",
+      websiteUrl:
+        location.websiteUrl || location.bookUrl || existing.websiteUrl || "",
       primaryPhone: location.primaryPhone || existing.primaryPhone || "",
       isPosted: wasPosted || existing.isPosted || false,
       error: wasPosted ? "" : error || existing.error || "",
@@ -209,7 +245,10 @@ const updatePostAfterPublish = async ({ payload, data, responseOk }) => {
   post.whenPosted = mergeWhenPosted(
     post.whenPosted,
     postedDate,
-    successList.map((item) => item?.post_id || item?.postId || item?.id).filter(Boolean).join(","),
+    successList
+      .map((item) => item?.post_id || item?.postId || item?.id)
+      .filter(Boolean)
+      .join(","),
   );
 
   if (payloadLocations.length) {
@@ -225,7 +264,9 @@ const updatePostAfterPublish = async ({ payload, data, responseOk }) => {
 
   const mediaKey = payload.video_url ? "video" : "image";
   post.mediaStatus = {
-    ...(post.mediaStatus?.toObject ? post.mediaStatus.toObject() : post.mediaStatus || {}),
+    ...(post.mediaStatus?.toObject
+      ? post.mediaStatus.toObject()
+      : post.mediaStatus || {}),
     [mediaKey]: "posted",
   };
   post.markModified("mediaStatus");
@@ -280,11 +321,15 @@ export async function POST(req) {
 
     let postStatusUpdate;
     try {
-      postStatusUpdate = await updatePostAfterPublish({
-        payload,
-        data,
-        responseOk: response.ok,
-      });
+      if (!payload.skipDbUpdate) {
+        postStatusUpdate = await updatePostAfterPublish({
+          payload,
+          data,
+          responseOk: response.ok,
+        });
+      } else {
+        postStatusUpdate = { skipped: true, reason: "handled by caller" };
+      }
     } catch (updateError) {
       console.error("[gmb/publish] PostStatus update failed:", updateError);
       postStatusUpdate = {

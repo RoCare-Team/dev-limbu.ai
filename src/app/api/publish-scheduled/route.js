@@ -697,13 +697,14 @@ export async function GET(req) {
                     : formatGmbDate(gmbMeta.endDate),
                   tittle: isVideoSelection ? "" : gmbMeta.eventTitle || "",
                   wait_video: false,
+                  skipDbUpdate: true,
                 };
 
                 console.log("Payload for sedule:", payload);
 
                 const baseUri = getBaseUrl(req);
 
-                console.log("base uri:-",baseUri)
+                console.log("base uri:-", baseUri);
 
                 // ✅ Use /api/gmb/publish directly
                 const result = await fetchWithTimeout(

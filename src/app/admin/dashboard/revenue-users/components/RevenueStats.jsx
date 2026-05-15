@@ -23,7 +23,12 @@ export default function RevenueStats({
   todayRevenue,
   revenueUsersList,
   users,
+
 }) {
+
+
+  
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
       {/* TOTAL Revenue USERS */}
@@ -260,43 +265,57 @@ export default function RevenueStats({
         </>
       )}
 
-      {activeView === "service" && (
-        <>
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Assistance</p>
-              <h2 className="text-2xl font-bold text-gray mt-2">
-                {
-                  users.filter((u) =>
-                    u.paidService?.toLowerCase().includes("assistance"),
-                  ).length
-                }
-              </h2>
-            </div>
 
-            <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-              <Headphones size={24} />
-            </div>
-          </div>
 
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Creation</p>
-              <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                {
-                  users.filter((u) =>
-                    u.paidService?.toLowerCase().includes("creation"),
-                  ).length
-                }
-              </h2>
-            </div>
+{activeView === "service" && (
+  <>
+    {/* ASSISTANCE */}
+    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600">Assistance</p>
+        <h2 className="text-2xl font-bold text-gray-700 mt-2">
+          {
+            revenueUsersList.filter(
+              (r) =>
+                r.type === "service" &&
+                r.status === "active" &&
+                (r.paidService || r.plan || "")
+                  .toLowerCase()
+                  .includes("assistance")
+            ).length
+          }
+        </h2>
+      </div>
 
-            <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-              <Settings size={24} />
-            </div>
-          </div>
-        </>
-      )}
+      <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
+        <Headphones size={24} />
+      </div>
+    </div>
+
+    {/* CREATION */}
+    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600">Creation</p>
+        <h2 className="text-2xl font-bold text-gray-700 mt-2">
+          {
+            revenueUsersList.filter(
+              (r) =>
+                r.type === "service" &&
+                r.status === "active" &&
+                (r.paidService || r.plan || "")
+                  .toLowerCase()
+                  .includes("creation")
+            ).length
+          }
+        </h2>
+      </div>
+
+      <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
+        <Settings size={24} />
+      </div>
+    </div>
+  </>
+)}
     </div>
   );
 }

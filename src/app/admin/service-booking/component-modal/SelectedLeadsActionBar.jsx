@@ -24,32 +24,7 @@ export default function SelectedLeadsActionBar({
   if (selectedRows.length === 0) return null;
 
   // Templates
-  const templates = [
-    {
-      title: "Template 1",
-      subtitle: "Welcome onboarding template",
-      border: "border-indigo-200",
-      bg: "bg-indigo-50",
-      iconBg: "bg-indigo-100",
-      iconColor: "text-indigo-600",
-    },
-    {
-      title: "Template 2",
-      subtitle: "Payment follow-up template",
-      border: "border-blue-200",
-      bg: "bg-blue-50",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-    },
-    {
-      title: "Template 3",
-      subtitle: "Expiry reminder template",
-      border: "border-purple-200",
-      bg: "bg-purple-50",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
-    },
-  ];
+
 
   return (
     <>
@@ -105,84 +80,96 @@ export default function SelectedLeadsActionBar({
       </div>
 
       {/* WhatsApp Modal */}
-      {isWhatsappModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-3xl bg-white rounded-[28px] shadow-2xl overflow-hidden animate-scaleIn">
-            {/* Header */}
-            <div className="flex items-start justify-between px-8 py-6 border-b border-gray-100">
-              <div className="flex items-start gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center">
-                  <MessageCircle
-                    size={28}
-                    className="text-indigo-600"
-                  />
-                </div>
+{isWhatsappModalOpen && (
+  <div className="fixed inset-0 z-50 bg-black/70 p-4">
+    <div className="h-full flex items-center justify-center">
+      <div className="w-full max-w-[460px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+        
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto bg-[#f3efea] p-3 relative">
+          
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={() => setIsWhatsappModalOpen(false)}
+            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-100 flex items-center justify-center transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
 
-                <div>
-                  <h2 className="text-4xl font-bold text-gray-800">
-                    WhatsApp Templates
-                  </h2>
-                  <p className="text-gray-500 mt-1">
-                    Select template for selected users
-                  </p>
+          {/* Preview Card */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            
+            {/* WhatsApp Header */}
+            <div className="bg-[#0f766e] px-4 py-3 flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold">
+                W
+              </div>
+              <span className="text-white font-semibold text-lg">
+                WhatsApp Preview
+              </span>
+            </div>
+
+            {/* Message Area */}
+            <div className="p-4 bg-[#f3efea]">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 text-[14px] text-gray-700 leading-8 shadow-sm">
+                <p className="mb-6 font-medium">
+                  Hi {"{{1}}"},
+                </p>
+
+                <p className="mb-6">
+                  Your service booking request has been received
+                  successfully.
+                </p>
+
+                <p className="mb-6">
+                  This includes your submitted booking details and
+                  related service information.
+                </p>
+
+                <p className="mb-6">
+                  To view your booking details and continue the
+                  conversation, chat with the Limbu AI Assistant.
+                </p>
+
+                <div className="text-[11px] text-gray-400 text-right">
+                  12:00 PM ✓✓
                 </div>
               </div>
 
-              {/* Close Button */}
+              {/* Chat Now */}
               <button
-                onClick={() =>
-                  setIsWhatsappModalOpen(false)
-                }
-                className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition"
+                type="button"
+                className="w-full mt-3 bg-white border border-gray-200 rounded-xl py-3 text-lg font-semibold text-blue-500 hover:bg-gray-50 transition"
               >
-                <X
-                  size={22}
-                  className="text-gray-500"
-                />
+                Chat Now
               </button>
-            </div>
 
-            {/* Template List */}
-            <div className="p-8 space-y-5">
-              {templates.map((template, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    console.log(
-                      "Selected Template:",
-                      template.title
-                    );
-                    setIsWhatsappModalOpen(false);
-                  }}
-                  className={`w-full border ${template.border} ${template.bg}
-                  rounded-3xl p-6 flex items-center justify-between
-                  hover:shadow-lg hover:scale-[1.01]
-                  transition-all duration-300 text-left`}
-                >
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-800">
-                      {template.title}
-                    </h3>
-                    <p className="text-gray-500 mt-2 text-lg">
-                      {template.subtitle}
-                    </p>
-                  </div>
-
-                  <div
-                    className={`w-14 h-14 rounded-2xl ${template.iconBg}
-                    flex items-center justify-center`}
-                  >
-                    <MessageCircle
-                      size={24}
-                      className={template.iconColor}
-                    />
-                  </div>
-                </button>
-              ))}
+              {/* Need Support */}
+              <button
+                type="button"
+                className="w-full mt-2 bg-white border border-gray-200 rounded-xl py-3 text-lg font-semibold text-blue-500 hover:bg-gray-50 transition"
+              >
+                Need Support
+              </button>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="p-4 bg-white border-t border-gray-200">
+          <button
+            type="button"
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors"
+          >
+            <Send className="w-5 h-5" />
+            Send Message
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

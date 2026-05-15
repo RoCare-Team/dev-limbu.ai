@@ -15,6 +15,9 @@ const SiteSchema = new mongoose.Schema({
 
   isPublished: { type: Boolean, default: true },
 
+  /** e.g. "chatbot" when published via WhatsApp chatbot; manual flows omit this */
+  type: { type: String },
+
   customDomain: { type: String, unique: true, sparse: true },
 
   analytics: {

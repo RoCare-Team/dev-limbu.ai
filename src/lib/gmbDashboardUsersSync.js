@@ -33,6 +33,8 @@ export async function upsertChatbotGmbUserDashboardRow({
   googleId,
   accessToken,
   refreshToken,
+  /** When user reconnects with a new Google account for the same phone — only keep this session’s project. */
+  replaceExistingConnection = false,
 }) {
   const email = String(userEmail || "").trim().toLowerCase();
   if (!email || !googleId) {
@@ -72,7 +74,9 @@ export async function upsertChatbotGmbUserDashboardRow({
     duplicateToDelete = byEmail._id;
   }
 
-  const combinedProjects = mergeProjectLists(byUsr?.projects, byEmail?.projects);
+  const combinedProjects = replaceExistingConnection
+    ? []
+    : mergeProjectLists(byUsr?.projects, byEmail?.projects);
   const prev = combinedProjects.find((p) => p.googleId === googleId);
   const mergedProject = {
     googleId,

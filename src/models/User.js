@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema(
     // Payment screenshot for plan upgrades
     paymentScreenshot: { type: String, default: null },
 
+
     // UTR Number for payment tracking
     utrNumber: { type: String, unique: true, sparse: true },
 

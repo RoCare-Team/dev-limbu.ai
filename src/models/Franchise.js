@@ -14,6 +14,9 @@ const FranchiseSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please provide a phone number"],
     },
+    userEmail:{
+      type: String,
+    },
     city: {
       type: String,
       required: [true, "Please provide a city"],

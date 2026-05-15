@@ -17,7 +17,6 @@
 import OpenAI from "openai";
 
 import dbConnect from "@/lib/dbConnect";
-import Site from "@/models/Site";
 import MagicQR from "@/models/MagicQR";
 import ChatbotAction from "@/models/ChatbotAction";
 
@@ -45,6 +44,7 @@ import {
 } from "@/lib/magicQrServerVersion";
 import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
 import { generateUniversalSlug } from "@/utils/slugify";
+import { upsertPublishSite } from "@/lib/saveSiteUpsert";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -99,13 +99,11 @@ async function refreshAndSaveAccessToken(phone, refreshToken) {
   return newAccessToken;
 }
 
-// makeSlug is replaced by the shared generateSlug utility (utils/generateSlug.js)
-
 // ── ACTION: website ──────────────────────────────────────────────────────────
 
 /**
- * Generate an AI website for the business and persist it to the Site collection.
- * Mirrors /api/ai-genrated-website/route.js logic.
+ * Generate an AI website for the business and persist via the same rules as POST /api/save-site
+ * (slug handling, limits, upsert by locationId) with `type: "chatbot"` on the Site doc.
  *
  * @returns {{ url: string, slug: string, siteId: string }}
  */
@@ -113,9 +111,19 @@ async function handleWebsite({ location, email, locationId, accessToken }) {
   const title = location.title || "Business";
 
   // ── locality: use storefrontAddress.locality (same as build-website page) ──
-  // location.locality was added to locationsData schema alongside addressLine fix.
-  // Fallback for old sessions without the field: skip (produces title-only slug).
   const locality = location.locality || "";
+
+  const rawPhone = (location.primaryPhone || "").trim();
+  if (!rawPhone) {
+    throw new Error(
+      "A primary phone number is missing from your Google Business Profile. A phone number is required to generate and publish a website."
+    );
+  }
+
+  const userId = (email || "").trim().toLowerCase();
+  if (!userId) {
+    throw new Error("No account email linked to this business session. Please connect Google Business again.");
+  }
 
   const primaryCategory =
     Array.isArray(location.categories) && location.categories[0]
@@ -124,8 +132,26 @@ async function handleWebsite({ location, email, locationId, accessToken }) {
   const additionalCategories = Array.isArray(location.categories)
     ? location.categories.slice(1)
     : [];
-  const accountId = location.accountId || "";
+
   const shortId = toShortLocationId(locationId);
+
+  /** Same shape manual /build-website + save-site expect (phone validation, templates). */
+  const businessPayload = {
+    title,
+    locality,
+    primaryCategory,
+    additionalCategories,
+    websiteUri: location.websiteUri || null,
+    accountId: location.accountId || null,
+    phoneNumbers: { primaryPhone: rawPhone },
+    primaryPhone: rawPhone,
+    storefrontAddress: {
+      addressLines: location.addressLine ? [location.addressLine] : [],
+      locality: locality || undefined,
+    },
+  };
+
+  const accountId = location.accountId || "";
 
   // Fetch GMB media images for the website (best-effort, non-fatal)
   let mediaImages = [];
@@ -200,27 +226,21 @@ Return ONLY valid JSON.`;
   raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
   const aiContent = JSON.parse(raw);
 
-  // ── Slug: use shared generateSlug (same as /api/ai-genrated-website + GoLiveButton) ──
-  await dbConnect();
-  const baseSlug = generateSlug(title, locality);
-  let finalSlug = baseSlug;
-  let counter = 0;
-
-  while (await Site.findOne({ slug: finalSlug }).lean()) {
-    counter++;
-    finalSlug = `${baseSlug}-${counter}`;
-  }
-
-  const site = await Site.create({
-    slug: finalSlug,
-    userId: email,
-    locationId: shortId,
-    business: { title, locality, primaryCategory, additionalCategories },
+  const saveResult = await upsertPublishSite({
+    business: businessPayload,
     aiContent,
     mediaImages,
-    isPublished: true,
-    updatedAt: new Date(),
+    userId,
+    locationId: shortId,
+    type: "chatbot",
   });
+
+  if (!saveResult.ok) {
+    throw new Error(saveResult.error);
+  }
+
+  const site = saveResult.site;
+  const finalSlug = site.slug;
 
   // ── URL: subdomain format — same as GoLiveButton.jsx on production ──────────
   // GoLiveButton: `https://${finalSlug}.${ROOT_DOMAIN}` where ROOT_DOMAIN = NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai"

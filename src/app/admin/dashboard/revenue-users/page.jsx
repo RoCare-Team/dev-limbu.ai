@@ -78,11 +78,6 @@ export default function RevenueUsersPage() {
 
   const displayData = activeView === "package" ? revenueUsersList : users;
 
-  const todayUsers = revenueUsersList.filter((r) => {
-    const today = new Date().toDateString();
-    const userDate = new Date(r.createdAt).toDateString();
-    return today === userDate;
-  });
 
   // service
   const serviceUsersCount = users?.filter((u) => u.paidService).length || 0;
@@ -138,42 +133,122 @@ useEffect(() => {
   // refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // tota users
-  const totalUsers =
-    activeView === "package"
-      ? revenueUsersList.length
-      : users.filter((u) => u.paidService).length;
+  const packageRows = revenueUsersList.filter(
+  (item) =>
+    item.type === "user_onboard" &&
+    item.status === "active"
+);
 
-  // total revenue ========
-  // 🔥 TOTAL REVENUE
-  const totalRevenue =
-    activeView === "package"
-      ? (revenueUsersList || []).reduce(
-          (sum, r) => sum + (Number(r.amount) || 0),
-          0,
+  const serviceRows = revenueUsersList.filter(
+  (item) =>
+    item.type === "service" &&
+    item.status === "active"
+);
+
+
+
+
+const today = new Date().toDateString();
+
+const todayUsers =
+  activeView === "package"
+    ? packageRows.filter((item) => {
+        if (!item.createdAt) return false;
+
+        return (
+          new Date(item.createdAt).toDateString() ===
+          today
+        );
+      })
+    : serviceRows.filter((item) => {
+        if (!item.createdAt) return false;
+
+        return (
+          new Date(item.createdAt).toDateString() ===
+          today
+        );
+      });
+
+  // ==============================
+// TOTAL USERS
+// ==============================
+const totalUsers =
+  activeView === "package"
+    ? revenueUsersList.filter((item) => {
+        // ✅ Sirf package records count karo
+        return (
+          item.type === "user_onboard" &&
+          item.status === "active"
+        );
+      }).length
+    : serviceRows.length;
+
+
+  // total revenue// ==============================
+// TOTAL REVENUE
+// ==============================
+const totalRevenue =
+  activeView === "package"
+    ? revenueUsersList
+        .filter((item) => {
+          // ✅ Sirf package records
+          return (
+            item.type === "user_onboard" &&
+            item.status === "active"
+          );
+        })
+        .reduce(
+          (sum, item) =>
+            sum + (Number(item.amount) || 0),
+          0
         )
-      : (users || [])
-          .filter((u) => u.paidService)
-          .reduce((sum, u) => sum + (Number(u.amount) || 0), 0);
+    : serviceRows.reduce(
+        (sum, item) =>
+          sum + (Number(item.amount) || 0),
+        0
+      );
 
   // 🔥 TODAY REVENUE
 
-  const today = new Date().toISOString().split("T")[0];
 
-  const todayRevenue =
-    activeView === "package"
-      ? (revenueUsersList || [])
-          .filter((r) => {
-            if (!r.createdAt) return false;
-            return r.createdAt.split("T")[0] === today;
-          })
-          .reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
-      : (users || [])
-          .filter((u) => {
-            if (!u.packageStartDate) return false;
-            return u.packageStartDate.split("T")[0] === today && u.paidService;
-          })
-          .reduce((sum, u) => sum + (Number(u.amount) || 0), 0);
+
+const todayRevenue =
+  activeView === "package"
+    ? revenueUsersList
+        .filter((item) => {
+          // ✅ Sirf package records
+          if (item.type !== "user_onboard") return false;
+          if (item.status !== "active") return false;
+          if (!item.createdAt) return false;
+
+          return (
+            new Date(item.createdAt).toDateString() ===
+            today
+          );
+        })
+        .reduce(
+          (sum, item) =>
+            sum + (Number(item.amount) || 0),
+          0
+        )
+    : serviceRows
+        .filter((item) => {
+          if (!item.createdAt) return false;
+
+          return (
+            new Date(item.createdAt).toDateString() ===
+            today
+          );
+        })
+        .reduce(
+          (sum, item) =>
+            sum + (Number(item.amount) || 0),
+          0
+        );
+
+    
+
+
 
   // service package
 
@@ -320,42 +395,79 @@ useEffect(() => {
   };
 
   // ====service  approve and not approve ====
-  const handleServiceApproval = async (user, decision) => {
-    const id = user?._id;
-    if (!id) return;
+ const handleServiceApproval = async (revenue, decision) => {
+  const revenueId = revenue?._id;
+  if (!revenueId) return;
 
-    setApprovalBusyId(String(id)); // 🔥 ADD THIS
+  setApprovalBusyId(String(revenueId));
 
-    try {
-      const res = await fetch("/api/franchise-revenue/onboard-approval", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: localStorage.getItem("email"),
-          userId: user._id,
-          decision,
-        }),
-      });
+  try {
+    const res = await fetch("/api/franchise-revenue/onboard-approval", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: localStorage.getItem("email"),
+        revenueId: String(revenueId), // ✅ franchise-revenue document ID
+        decision,
+      }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (data.success) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u._id === user._id ? { ...u, planApprovalStatus: decision } : u,
-          ),
-        );
-      } else {
-        alert(data.message);
-      }
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setApprovalBusyId(null); // 🔥 ADD THIS
+    if (data.success) {
+      // Local table update
+      setRevenueUsersList((prev) =>
+        prev.map((item) =>
+          String(item._id) === String(revenueId)
+            ? {
+                ...item,
+                planApprovalStatus:
+                  decision === "approved" ? "approved" : "rejected",
+              }
+            : item
+        )
+      );
+
+      // Fresh fetch
+      await fetchRevenueUsers();
+    } else {
+      alert(data.message || "Approval failed");
     }
-  };
+  } catch (err) {
+    console.error("SERVICE APPROVAL ERROR:", err);
+    alert("Something went wrong");
+  } finally {
+    setApprovalBusyId(null);
+  }
+};
+
+  const handleDownloadInvoice = async (user) => {
+  try {
+    const res = await fetch(`/api/admin/invoice-tax?id=${user._id}`);
+
+    if (!res.ok) {
+      alert("Invoice generate failed");
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Invoice-${user.leadName || "user"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert("Invoice download failed");
+  }
+};
 
   // filter and search ===============
   const filteredData = (
@@ -484,100 +596,114 @@ useEffect(() => {
     }
   };
 
-  const confirmDelete = async () => {
-    try {
-      let url = "";
+//  delte user tabe 
 
-      if (deleteType === "service") {
-        url = `/api/franchise-revenue?id=${selectedId}&type=service`;
-      } else {
-        url = `/api/franchise-revenue?id=${selectedId}`;
-      }
+const confirmDelete = async () => {
+  try {
+    let url = "";
 
-      const res = await fetch(url, { method: "DELETE" });
-
-      // ✅ SAFE JSON PARSE (IMPORTANT)
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (e) {
-        console.error("JSON parse error", e);
-      }
-
-      // ✅ अगर API fail भी करे तो proper message मिले
-      if (!res.ok) {
-        alert(data.message || "Delete failed (server error)");
-        return;
-      }
-
-      if (data.success) {
-        setDeleteModal(false);
-        setSelectedId(null);
-
-        // 🔥 दोनों refresh करो
-        fetchRevenueUsers();
-
-        const email = localStorage.getItem("email");
-        const usersRes = await fetch(`/api/users?email=${email}`);
-
-        let usersData = {};
-        try {
-          usersData = await usersRes.json();
-        } catch (e) {
-          console.error("Users JSON parse error", e);
-        }
-
-        setUsers(usersData.users || []);
-      } else {
-        alert(data.message || "Delete failed");
-      }
-    } catch (err) {
-      console.error("DELETE ERROR:", err);
-      alert("Something went wrong");
+    if (deleteType === "service") {
+      url = `/api/franchise-revenue?id=${selectedId}&type=service`;
+    } else {
+      url = `/api/franchise-revenue?id=${selectedId}`;
     }
-  };
 
-  // service handle edit
+    const res = await fetch(url, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      alert(data.message || "Delete failed");
+      return;
+    }
+
+    // ✅ Row remove from table immediately
+    setRevenueUsersList((prev) =>
+      prev.filter(
+        (item) => String(item._id) !== String(selectedId)
+      )
+    );
+
+    // Close modal
+    setDeleteModal(false);
+    setSelectedId(null);
+    setDeleteType("");
+
+    alert(
+      deleteType === "service"
+        ? "Service deleted successfully"
+        : "Package deleted successfully"
+    );
+
+    // ✅ ONLY package delete ke liye fresh fetch karo
+    if (deleteType !== "service") {
+      await fetchRevenueUsers();
+    }
+  } catch (err) {
+    console.error("DELETE ERROR:", err);
+    alert("Something went wrong");
+  }
+};
+
   const updateService = async () => {
-    try {
-      const res = await fetch("/api/franchise-revenue", {
-        // 🔥 वापस यही करो
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: selectedService._id,
-          amount: editAmount,
-          notes: editNotes,
-
-          type: "service", // 🔥 MUST (ये सबसे important)
-        }),
-      });
-
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (e) {
-        console.error("JSON parse error", e);
-      }
-
-      if (data.success) {
-        setEditServiceModal(false);
-        setSelectedService(null);
-
-        fetchRevenueUsers();
-
-        const email = localStorage.getItem("email");
-        const usersRes = await fetch(`/api/users?email=${email}`);
-        const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
-      } else {
-        alert(data.message || "Update failed");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+  try {
+    if (!selectedService?._id) {
+      alert("Service record ID not found");
+      return;
     }
-  };
+
+    const payload = {
+      id: selectedService._id,
+      _id: selectedService._id,
+      type: "service",
+      amount: Number(editAmount) || 0,
+      notes: editNotes,
+      remarks: editNotes,
+    };
+
+    const res = await fetch("/api/franchise-revenue", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      alert(data.message || "Service update failed");
+      return;
+    }
+
+    // ✅ Table ko turant local state me update karo
+    setRevenueUsersList((prev) =>
+      prev.map((item) =>
+        String(item._id) === String(selectedService._id)
+          ? {
+              ...item,
+              amount: Number(editAmount) || 0,
+              notes: editNotes,
+              remarks: editNotes,
+            }
+          : item
+      )
+    );
+
+    // Modal close
+    setEditServiceModal(false);
+    setSelectedService(null);
+    setEditAmount("");
+    setEditNotes("");
+
+    alert("Service updated successfully");
+  } catch (error) {
+    console.error("UPDATE ERROR:", error);
+    alert("Something went wrong");
+  }
+};
 
   return (
     <>
@@ -668,6 +794,9 @@ useEffect(() => {
                               Expiry DAte
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-semibold">
+                              Invoice
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold">
                               Screenshot
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-semibold">
@@ -719,7 +848,9 @@ useEffect(() => {
                     <tbody>
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
-                        filteredData.map((r, i) => {
+  filteredData
+    .filter((r) => r.type === "user_onboard")
+    .map((r, i) => {
                           return (
                             <tr
                               key={i}
@@ -773,6 +904,15 @@ useEffect(() => {
                               <td className="px-6 py-4 text-sm text-gray-600">
                                 {formatDateIST(r.userPackageExpiryDate)}
                               </td>
+
+                                <td className="px-6 py-4 text-sm text-gray-600">
+  <button
+    onClick={() => handleDownloadInvoice(r)}
+    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+  >
+    Invoice Download
+  </button>
+</td>
 
                               {/* 🔥 EXPIRY */}
 
@@ -885,9 +1025,8 @@ useEffect(() => {
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-                        filteredData
-    .filter((u) => u.type === "service")
-    .map((u, i) => (
+  serviceRows.map((u, i) => (
+
                             <tr
                               key={i}
                               className="border-t hover:bg-gray-50 transition"
@@ -905,28 +1044,57 @@ useEffect(() => {
                               </td>
 
                               <td className="px-6 py-4">
-                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-                                  {u.paidService}
-                                </span>
-                              </td>
-
-                              <td className="px-6 py-4">{u.planDuration}</td>
-                              <td className="px-6 py-4 font-semibold text-green-600">
-                                ₹{u.amount || 0}
-                              </td>
-                              <td className="px-6 py-4">
-                                {new Date(
-                                  u.packageStartDate,
-                                ).toLocaleDateString()}
-                              </td>
+  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+    {u.paidService || u.plan || "No Service"}
+  </span>
+</td>
 
                               <td className="px-6 py-4">
-                                {new Date(
-                                  u.packageExpiryDate,
-                                ).toLocaleDateString()}
-                              </td>
+  {u.planDuration || "monthly"}
+</td>
 
-                              {/* layout maintain */}
+                          <td className="px-6 py-4">
+  {u.amount}
+</td>
+                              
+{/* START DATE */}
+{/* START DATE */}
+<td className="px-6 py-4">
+  {(() => {
+    // 🔥 Actual field found from console:
+    // userPackageStartDate = "2026-05-07T00:00:00.000Z"
+
+    const rawDate =
+      u.packageStartDate ||
+      u.userPackageStartDate ||
+      u.startDate ||
+      u.date ||
+      u.createdAt;
+
+    if (!rawDate) return "No Date";
+
+    // ✅ Convert to Date object
+    const d = new Date(rawDate);
+
+    if (isNaN(d.getTime())) return "No Date";
+
+    // ✅ Use local date parts (NOT split("-"))
+    // This avoids NaN/5/2026 issue
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  })()}
+</td>
+
+                              <td className="px-6 py-4">
+  {u.packageExpiryDate
+    ? new Date(u.packageExpiryDate).toLocaleDateString("en-IN")
+    : "No Date"}
+</td>
+
+                              {/* service  */}
 
                               <td className="px-6 py-4">
                                 <button
@@ -996,8 +1164,7 @@ useEffect(() => {
                                 <div className="flex justify-center items-center gap-2">
                                   <button
                                     onClick={() => {
-                                      console.log("SERVICE USER:", u); // 🔥 ADD THIS
-
+                                       
                                       setSelectedService(u);
                                       setEditAmount(u.amount || "");
                                       setEditNotes(
@@ -1012,8 +1179,7 @@ useEffect(() => {
 
                                   <button
                                     onClick={() => {
-                                      console.log("SERVICE ITEM:", u); // 🔥 check first
-
+                                      
                                       setSelectedId(u._id); // 👈 temporarily
                                       setDeleteModal(true);
                                       setDeleteType("service");

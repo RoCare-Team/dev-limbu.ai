@@ -209,8 +209,23 @@ revenueData = revenueData.map((item) => ({
 
       const body = await req.json();
       console.log("API RECEIVED:", body);
-      const { leadId, leadName, amount, paymentScreenshot, email, notes, planRemarks, plan, type, utrNumber,  packageStartDate,   packageExpiryDate    } = body;
 
+     const {
+  leadId,
+  leadName,
+  amount,
+  paymentScreenshot,
+  email,
+  userEmail, // ✅ ADD THIS
+  phone,
+  notes,
+  planRemarks,
+  plan,
+  type,
+  utrNumber,
+  packageStartDate,
+  packageExpiryDate,
+} = body;
       // Validation
       if (!leadId || !leadName || !amount || !paymentScreenshot || !email) {
         return NextResponse.json(
@@ -237,8 +252,15 @@ revenueData = revenueData.map((item) => ({
   leadId,
   leadName,
   amount: parseFloat(amount),
-  paymentScreenshot,
+  paymentScreenshot: paymentScreenshot || "",
+screenshot: paymentScreenshot || "",
   onboardedBy: admin._id,
+
+   // ✅ Save customer email (optional but recommended)
+  email: userEmail || "",
+
+  // ✅ Save customer phone
+  phone: phone || "",
   onboardedByName: admin.fullName,
   onboardedByRole: admin.role,
 
@@ -353,20 +375,24 @@ revenueData = revenueData.map((item) => ({
     // ========================
     // 🔥 SERVICE UPDATE
     // ========================
-    if (type === "service") {
-  console.log("SERVICE UPDATE BODY:", body);
+    
 
-  const updatedUser = await User.findByIdAndUpdate(
+if (type === "service") {
+  
+
+  // ✅ Service records FranchiseRevenue collection me stored hote hain
+  const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
     id,
     {
-      ...(amount && { amount }),
+      ...(amount !== undefined && { amount: Number(amount) || 0 }),
 
       ...(notes !== undefined && { notes }),
-      ...(notes !== undefined && { remarks: notes }), // 🔥 IMPORTANT
+      ...(notes !== undefined && { remarks: notes }),
 
       ...(packageStartDate && {
         packageStartDate: new Date(packageStartDate),
       }),
+
       ...(packageExpiryDate && {
         packageExpiryDate: new Date(packageExpiryDate),
       }),
@@ -374,9 +400,20 @@ revenueData = revenueData.map((item) => ({
     { new: true }
   );
 
+  if (!updatedRevenue) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Service record not found",
+      },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({
     success: true,
-    user: updatedUser,
+    message: "Service updated successfully",
+    revenue: updatedRevenue,
   });
 }
 
@@ -434,19 +471,31 @@ export async function DELETE(req) {
 
     // 🔥 SERVICE DELETE
     if (type === "service") {
-      await User.findByIdAndUpdate(id, {
-        paidService: "",
-        packageStartDate: null,
-        packageExpiryDate: null,
-        amount: 0,
-        isServiceBooked: false,
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: "Service deleted successfully",
-      });
+  const deleted = await FranchiseRevenue.findByIdAndUpdate(
+    id,
+    {
+      status: "inactive",
+    },
+    {
+      new: true,
     }
+  );
+
+  if (!deleted) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Service record not found",
+      },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: "Service deleted successfully",
+  });
+}
 
     // 📦 PACKAGE DELETE
     const deleted = await FranchiseRevenue.findByIdAndDelete(id);

@@ -1853,7 +1853,7 @@ export default function BuildWebsitePage() {
       </div>
 
       {/* GO LIVE BUTTON */}
-      {/* <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/98 backdrop-blur-xl border-t-2 border-gray-200 flex justify-center z-40 shadow-2xl">
+       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/98 backdrop-blur-xl border-t-2 border-gray-200 flex justify-center z-40 shadow-2xl">
         <div className="w-full max-w-2xl">
           <GoLiveButton
             business={business}
@@ -1867,7 +1867,7 @@ export default function BuildWebsitePage() {
           />
         </div>
       </div>
-      <div className="h-24"></div> */}
+      <div className="h-24"></div> 
 
       {/* Animation Styles */}
       <style jsx global>{`

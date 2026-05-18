@@ -460,18 +460,6 @@ export default function DashboardPage() {
                     <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                     <span>Refresh Data</span>
                   </button>
-
-                  {(facebookPages.length > 0 || instagramPages.length > 0) && (
-                    <button onClick={() => handleMetaLogout("both")} className="btn-ghost text-red-600 hover:bg-red-50 border border-red-200 shadow-sm btn-sm gap-2 hover:border-red-300">
-                      <LogOut className="w-4 h-4" />
-                      <span>Disconnect FB/IG</span>
-                    </button>
-                  )}
-
-                  <button onClick={() => signOut({ callbackUrl: "/dashboard" })} className="btn-lemon btn-sm gap-2 border border-yellow-500 shadow-sm">
-                    <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </button>
                 </>
               )}
             </div>
@@ -485,7 +473,7 @@ export default function DashboardPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border-2 whitespace-nowrap font-bold text-xs uppercase tracking-wider transition-all duration-300 flex-shrink-0 ${activeTab === tab.id
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border-2 whitespace-nowrap font-bold text-xs uppercase tracking-wider transition-all duration-300 shrink-0 ${activeTab === tab.id
               ? "bg-yellow-50 border-yellow-300 text-slate-800 shadow-md ring-2 ring-yellow-400/20"
               : "bg-white border-slate-200 text-slate-500 hover:border-yellow-300 hover:bg-slate-50 hover:text-slate-700"
               }`}

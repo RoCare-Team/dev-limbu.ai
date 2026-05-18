@@ -471,7 +471,7 @@ export default function FranchisePage() {
 
           <h1
             className="uppercase leading-[1.15] tracking-normal text-black font-black"
-            style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", fontFamily: "var(--font-heading)" }}
+            style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", fontFamily: "var(--font-heading)" }}
           >
             Build Your Own <br />
             <span className="text-lemon-hover">AI Business Empire</span>
@@ -481,7 +481,7 @@ export default function FranchisePage() {
             India's #1 AI-Powered Google My Business Infrastructure.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-6 pt-10">
+          <div className="flex flex-wrap justify-center gap-6 pt-6">
             {[
               { val: "₹2.5L+", label: "Monthly Target" },
               { val: "100%", label: "Recurring Model" },

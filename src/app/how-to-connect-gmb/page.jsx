@@ -67,7 +67,7 @@ export default function HowToConnectGMB() {
 
       {/* ── Floating WhatsApp Button ── */}
       <a
-        href="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20need%20help%20connecting%20my%20GMB%20account."
+        href="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20need%20help%20connecting%20my%20GMB%20account."
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-8 right-8 z-50 flex items-center gap-2 p-3 pr-5 bg-[#25D366] text-white rounded-full shadow-[0_10px_30px_-10px_rgba(37,211,102,0.6)] hover:scale-105 hover:shadow-[0_15px_40px_-10px_rgba(37,211,102,0.8)] transition-all duration-300"

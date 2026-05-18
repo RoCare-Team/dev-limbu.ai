@@ -19,9 +19,9 @@ const VideoExamplesSection = lazy(
   () => import("../components/sections/VideoExamplesSection"),
 );
 const StatsSection = lazy(() => import("@/components/sections/StatsSection"));
-const VideoTestimonialSection = lazy(
-  () => import("../components/sections/VideoTestimonialSection"),
-);
+// const VideoTestimonialSection = lazy(
+//   () => import("../components/sections/VideoTestimonialSection"),
+// );
 const FeaturesSection = lazy(
   () => import("../components/sections/FeaturesSection"),
 );
@@ -557,8 +557,8 @@ export default function LimbuAILanding() {
     "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758826-3-9a4c4050-5a50-41b5-9614-7228d1f04c24-WhatsApp_Video_2026-01-07_at_11.24.52_AM_jm18dh.mp4",
     "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758630-4-cb36a2d7-1f46-42ba-8852-9a7429d1b3da-WhatsApp_Video_2026-01-07_at_11.24.14_AM_j6ck8w.mp4",
     "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965759013-5-1d0a1d2e-4af6-43b2-9680-a3b730d239ae-WhatsApp_Video_2026-01-07_at_11.25.30_AM_adbkxc.mp4",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758921-6-39fd61e5-fad7-492a-9270-80b3f15472f5-WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4"
-  ]
+    "https://limbuai.s3.ap-south-1.amazonaws.com/migrated_video/1777965758921-6-39fd61e5-fad7-492a-9270-80b3f15472f5-WhatsApp_Video_2026-01-07_at_11.26.00_AM_drdjma.mp4",
+  ];
 
   const postImages = [
     "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481384-0-45547213-4951-4c5a-ab9d-39f30bbf1040-tmpx28dvfi__qxwt1c.jpg",
@@ -568,8 +568,18 @@ export default function LimbuAILanding() {
     "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482280-4-34e89006-9fd6-4bba-aa4e-752496387bc6-Nutritionvalue_21_on_google_m2etix.jpg",
     "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482076-5-3b3066e5-ddbf-4ba1-92a2-bd7e18fc926c-output_n1ahcx.jpg",
     "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482057-6-4c702ac6-e19b-4e26-ae3d-33915bb67bbe-output_ryar6j.jpg",
-    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481136-7-5fb74cbe-4e95-4527-8720-b08089490a8e-tmp9x2d_a52_hvhpw8.jpg"
-  ]
+    "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481136-7-5fb74cbe-4e95-4527-8720-b08089490a8e-tmp9x2d_a52_hvhpw8.jpg",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/ac_service_faeb35b3.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/men_s_salon_service_8e1ac38d.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/classic_lens_aa803764.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/water_purifier_service_in_summer_1828b7c5.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/ac_service_5e8cfd05.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/home_care_services_7ec35ed4.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/ro_service_957b2151.png",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/Commercial_water_purifier_installation_3bd8819b.jpg",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/fast_fan_services_445170da.jpg",
+    "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/water_purifier_service_in_summer_0ef4c872.png",
+  ];
 
   const features = [
     {
@@ -670,7 +680,6 @@ export default function LimbuAILanding() {
         <StatsSection />
       </Suspense>
 
-
       <Suspense fallback={<SectionSkeleton />}>
         <BusinessTypesSection />
       </Suspense>
@@ -678,7 +687,6 @@ export default function LimbuAILanding() {
       <Suspense fallback={<SectionSkeleton />}>
         <PopularCitiesSection />
       </Suspense>
-
 
       {/* <Suspense fallback={<SectionSkeleton />}>
         <VideoTestimonialSection />
@@ -741,7 +749,7 @@ export default function LimbuAILanding() {
         />
       </Suspense> */}
 
-      <div className="hidden md:block">
+      <div>
         <Suspense fallback={<SectionSkeleton />}>
           <AppDownloadSection />
         </Suspense>
@@ -750,8 +758,6 @@ export default function LimbuAILanding() {
       <Suspense fallback={<SectionSkeleton />}>
         <ComparisonSection />
       </Suspense>
-
-
 
       <Suspense fallback={<SectionSkeleton />}>
         <FAQSection />

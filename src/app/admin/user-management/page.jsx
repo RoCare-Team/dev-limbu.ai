@@ -1152,11 +1152,7 @@ export default function UserManagement() {
 
     let cancelled = false;
     setLoadingFollowUpTable(true);
-    fetchFollowUpTableUsersByIds(
-      adminEmail,
-      uniqueIds,
-      conversationStageFilter,
-    )
+    fetchFollowUpTableUsersByIds(adminEmail, uniqueIds, conversationStageFilter)
       .then((merged) => {
         if (!cancelled) setFollowUpTableUsers(merged);
       })
@@ -4327,6 +4323,33 @@ export default function UserManagement() {
                                               "N/A"}
                                           </div>
                                         </div>
+                                      </td>
+
+                                      <td className="px-6 py-4">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleUpgradePlan(user);
+                                          }}
+                                          className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
+                                          title="Change Plan"
+                                        >
+                                          <Crown size={16} />
+                                        </button>
+                                      </td>
+
+                                      <td className="px-6 py-4">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+
+                                            handleOpenServiceModal(user);
+                                          }}
+                                          className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+                                          title="Add Service "
+                                        >
+                                          🛡️
+                                        </button>
                                       </td>
 
                                       {/* WALLET */}

@@ -1,90 +1,112 @@
 "use client";
 
-// Light-theme phone mockup showing the Limbu.AI "Create Content" screen
+import React from 'react';
+
+// Refined SVG paths inspired by Lucide React for better performance
+const Icons = {
+  Sparkles: () => (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f5c400" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" fill="#f5c400" />
+      <path d="M5 3v4M3 5h4M21 17v4M19 19h4" stroke="#f5c400" strokeWidth="2" />
+    </svg>
+  ),
+  Upload: () => (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+    </svg>
+  ),
+  Grid: () => (
+    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
+    </svg>
+  )
+};
+
 function AppScreenPhone() {
   return (
     <div style={{
       position: "relative",
-      width: "150px",
+      width: "155px",
       flexShrink: 0,
-      filter: "drop-shadow(0 16px 40px rgba(0,0,0,0.18))",
-      animation: "floatPhone 4s ease-in-out infinite",
+      filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.15))",
+      // Removed animation property
     }}>
-      <svg width="150" height="295" viewBox="0 0 160 310" xmlns="http://www.w3.org/2000/svg">
-        {/* Phone shell */}
-        <rect x="2" y="2" width="156" height="306" rx="22" fill="#1a1a1a" stroke="#333" strokeWidth="2" />
-        <rect x="5" y="5" width="150" height="300" rx="20" fill="#f8f9fa" />
-        {/* Notch */}
-        <rect x="52" y="7" width="56" height="10" rx="5" fill="#1a1a1a" />
-        {/* Status bar */}
-        <text x="12" y="24" fill="#555" fontSize="6" fontFamily="sans-serif">9:41</text>
-        <rect x="120" y="19" width="18" height="7" rx="3" fill="none" stroke="#555" strokeWidth="1" />
-        <rect x="121" y="20" width="13" height="5" rx="2" fill="#22c55e" />
+      <svg width="155" height="315" viewBox="0 0 160 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Phone Bezel */}
+        <rect x="2" y="2" width="156" height="316" rx="26" fill="#111" stroke="#333" strokeWidth="1" />
+        <rect x="5" y="5" width="150" height="310" rx="23" fill="#000" />
+        <rect x="8" y="8" width="144" height="304" rx="20" fill="#F9FAFB" />
 
-        {/* App header - white */}
-        <rect x="5" y="30" width="150" height="34" fill="#ffffff" />
-        <line x1="5" y1="64" x2="155" y2="64" stroke="#e5e7eb" strokeWidth="1" />
-        <circle cx="22" cy="47" r="10" fill="#f5c400" />
-        <text x="22" y="51" textAnchor="middle" fill="#0a1628" fontSize="9" fontWeight="bold" fontFamily="sans-serif">L</text>
-        <text x="40" y="51" fill="#111827" fontSize="10" fontWeight="bold" fontFamily="sans-serif">Limbu.AI</text>
-        <rect x="106" y="40" width="36" height="14" rx="7" fill="#fef3c7" stroke="#f5c400" strokeWidth="1" />
-        <text x="124" y="50" textAnchor="middle" fill="#92400e" fontSize="7" fontWeight="bold" fontFamily="sans-serif">₹ 433</text>
+        {/* Dynamic Island */}
+        <rect x="54" y="14" width="52" height="12" rx="6" fill="#000" />
 
-        {/* Create Content */}
-        <text x="14" y="80" fill="#f5c400" fontSize="8" fontFamily="sans-serif">✦</text>
-        <text x="25" y="80" fill="#111827" fontSize="9" fontWeight="bold" fontFamily="sans-serif">Create Content</text>
+        {/* Status Bar */}
+        <text x="24" y="23" fill="#000" fontSize="5.5" fontWeight="bold" fontFamily="sans-serif">9:41</text>
+        <g transform="translate(120, 17)">
+           <rect width="14" height="6.5" rx="2" stroke="#000" strokeWidth="0.8" />
+           <rect x="1.5" y="1.5" width="9" height="3.5" rx="1" fill="#22c55e" />
+        </g>
 
-        {/* Textarea */}
-        <rect x="10" y="84" width="140" height="26" rx="6" fill="#ffffff" stroke="#e5e7eb" strokeWidth="1" />
-        <text x="18" y="101" fill="#9ca3af" fontSize="7" fontFamily="sans-serif">Describe your post idea...</text>
+        {/* App Header */}
+        <rect x="8" y="32" width="144" height="34" fill="#ffffff" />
+        <line x1="8" y1="66" x2="152" y2="66" stroke="#f1f1f1" strokeWidth="0.8" />
+        <circle cx="26" cy="49" r="10" fill="#f5c400" />
+        <text x="26" y="52.5" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="900" fontFamily="sans-serif">L</text>
+        <text x="40" y="52" fill="#111827" fontSize="9" fontWeight="800" fontFamily="sans-serif">Limbu.AI</text>
+        <rect x="108" y="42" width="34" height="14" rx="7" fill="#fef3c7" stroke="#fcd34d" strokeWidth="0.5" />
+        <text x="125" y="51.5" textAnchor="middle" fill="#92400e" fontSize="6.5" fontWeight="bold" fontFamily="sans-serif">₹ 433</text>
 
-        {/* Business Name + Keywords */}
-        <text x="10" y="120" fill="#6b7280" fontSize="6" fontFamily="sans-serif">Business Name</text>
-        <text x="84" y="120" fill="#6b7280" fontSize="6" fontFamily="sans-serif">Keywords</text>
-        <rect x="10" y="123" width="68" height="16" rx="4" fill="#fff" stroke="#e5e7eb" strokeWidth="1" />
-        <text x="16" y="134" fill="#111827" fontSize="5.5" fontFamily="sans-serif">DoctorFresh Water</text>
-        <rect x="82" y="123" width="68" height="16" rx="4" fill="#fff" stroke="#e5e7eb" strokeWidth="1" />
-        <text x="88" y="134" fill="#9ca3af" fontSize="6" fontFamily="sans-serif">Enter keywords</text>
+        {/* Section: Create Content */}
+        <g transform="translate(14, 78)">
+          <Icons.Sparkles />
+          <text x="14" y="8" fill="#111827" fontSize="8" fontWeight="700" fontFamily="sans-serif">Create Content</text>
+        </g>
 
-        {/* Your Assets */}
-        <text x="14" y="152" fill="#f5c400" fontSize="7" fontFamily="sans-serif">◧</text>
-        <text x="25" y="152" fill="#111827" fontSize="8" fontWeight="bold" fontFamily="sans-serif">Your Assets</text>
+        {/* Input */}
+        <rect x="14" y="90" width="132" height="24" rx="5" fill="#ffffff" stroke="#e5e7eb" strokeWidth="0.8" />
+        <text x="20" y="104" fill="#9ca3af" fontSize="6.5" fontFamily="sans-serif">Describe your post idea...</text>
 
-        {/* Row 1 */}
-        {["Character", "Product", "Uniform"].map((label, i) => (
-          <g key={label}>
-            <rect x={10 + i * 50} y={156} width="44" height="38" rx="5" fill="#fff" stroke="#e5e7eb" strokeWidth="1" />
-            <text x={32 + i * 50} y={168} textAnchor="middle" fill="#9ca3af" fontSize="6" fontFamily="sans-serif">{label}</text>
-            <rect x={23 + i * 50} y={171} width="18" height="12" rx="3" fill="#f3f4f6" />
-            <text x={32 + i * 50} y={180} textAnchor="middle" fill="#6b7280" fontSize="5" fontFamily="sans-serif">↑</text>
-            <text x={32 + i * 50} y={189} textAnchor="middle" fill="#3b82f6" fontSize="5" fontFamily="sans-serif">Upload</text>
-          </g>
-        ))}
-        {/* Row 2 */}
-        {["Background", "Logo"].map((label, i) => (
-          <g key={label}>
-            <rect x={10 + i * 50} y={197} width="44" height="38" rx="5" fill="#fff" stroke="#e5e7eb" strokeWidth="1" />
-            <text x={32 + i * 50} y={209} textAnchor="middle" fill="#9ca3af" fontSize="6" fontFamily="sans-serif">{label}</text>
-            <rect x={23 + i * 50} y={212} width="18" height="12" rx="3" fill="#f3f4f6" />
-            <text x={32 + i * 50} y={221} textAnchor="middle" fill="#6b7280" fontSize="5" fontFamily="sans-serif">↑</text>
-            <text x={32 + i * 50} y={230} textAnchor="middle" fill="#3b82f6" fontSize="5" fontFamily="sans-serif">Upload</text>
-          </g>
-        ))}
+        {/* Labels & Inputs */}
+        <text x="14" y="126" fill="#6b7280" fontSize="5.5" fontWeight="600">Business Name</text>
+        <rect x="14" y="130" width="62" height="14" rx="4" fill="#fff" stroke="#e5e7eb" strokeWidth="0.8" />
+        <text x="18" y="139" fill="#111827" fontSize="5.5">DoctorFresh Water</text>
 
-        {/* Size + Palette */}
-        <text x="10" y="248" fill="#6b7280" fontSize="6" fontFamily="sans-serif">Size</text>
-        <text x="84" y="248" fill="#6b7280" fontSize="6" fontFamily="sans-serif">Palette</text>
-        <rect x="10" y="251" width="68" height="14" rx="4" fill="#fff" stroke="#e5e7eb" strokeWidth="1" />
-        <text x="18" y="261" fill="#111827" fontSize="6" fontFamily="sans-serif">1:1  ⌄</text>
-        <rect x="82" y="251" width="68" height="14" rx="4" fill="#fff" stroke="#e5e7eb" strokeWidth="1" />
-        <text x="90" y="261" fill="#111827" fontSize="6" fontFamily="sans-serif">None  ⌄</text>
+        <text x="82" y="126" fill="#6b7280" fontSize="5.5" fontWeight="600">Keywords</text>
+        <rect x="82" y="130" width="64" height="14" rx="4" fill="#fff" stroke="#e5e7eb" strokeWidth="0.8" />
+        <text x="86" y="139" fill="#9ca3af" fontSize="5.5">Enter keywords</text>
 
-        {/* Generate Post button */}
-        <rect x="10" y="269" width="140" height="18" rx="9" fill="#f5c400" />
-        <text x="80" y="281" textAnchor="middle" fill="#1a1a1a" fontSize="7.5" fontWeight="bold" fontFamily="sans-serif">✦  Generate Post</text>
+        {/* Assets Section */}
+        <g transform="translate(14, 155)">
+           <Icons.Grid />
+           <text x="12" y="7" fill="#111827" fontSize="7.5" fontWeight="700">Your Assets</text>
+        </g>
 
-        {/* Home bar */}
-        <rect x="58" y="302" width="44" height="3" rx="1.5" fill="#d1d5db" />
+        <g transform="translate(14, 168)">
+          {["Character", "Product", "Uniform"].map((label, i) => (
+            <g key={label} transform={`translate(${i * 46}, 0)`}>
+              <rect width="40" height="38" rx="5" fill="#fff" stroke="#f3f4f6" strokeWidth="1" />
+              <text x="20" y="9" textAnchor="middle" fill="#9ca3af" fontSize="5.5">{label}</text>
+              <g transform="translate(15, 12)">
+                <Icons.Upload />
+              </g>
+              <text x="20" y="32" textAnchor="middle" fill="#4f46e5" fontSize="5" fontWeight="bold">Upload</text>
+            </g>
+          ))}
+        </g>
+
+        {/* Footer Selectors */}
+        <text x="14" y="270" fill="#6b7280" fontSize="5.5" fontWeight="600">Size</text>
+        <rect x="14" y="274" width="62" height="14" rx="4" fill="#f3f4f6" />
+        <text x="18" y="283" fill="#111827" fontSize="6" fontWeight="600">1:1 Square</text>
+
+        <text x="82" y="270" fill="#6b7280" fontSize="5.5" fontWeight="600">Palette</text>
+        <rect x="82" y="274" width="64" height="14" rx="4" fill="#f3f4f6" />
+        <text x="86" y="283" fill="#111827" fontSize="6" fontWeight="600">Default</text>
+
+        {/* Button */}
+        <rect x="14" y="294" width="132" height="18" rx="9" fill="linear-gradient(90deg, #f5c400, #d97706)" />
+        <rect x="14" y="294" width="132" height="18" rx="9" fill="#f5c400" />
+        <text x="80" y="306" textAnchor="middle" fill="#1a1a1a" fontSize="7.5" fontWeight="800" fontFamily="sans-serif">GENERATE POST</text>
       </svg>
     </div>
   );
@@ -94,207 +116,124 @@ export default function AppDownloadSection() {
   return (
     <>
       <style>{`
-        @keyframes floatPhone {
-          0%,100% { transform: translateY(0px) rotate(-2deg); }
-          50% { transform: translateY(-10px) rotate(-2deg); }
-        }
-        @keyframes shimmer {
-          0% { background-position: -400px 0; }
-          100% { background-position: 400px 0; }
-        }
-        .app-badge { transition: opacity .2s, transform .2s; text-decoration: none; display: block; }
-        .app-badge:hover { opacity: .85; transform: translateY(-2px); }
-        .app-cta { transition: transform .2s, box-shadow .2s !important; }
-        .app-cta:hover { transform: scale(1.03) !important; box-shadow: 0 8px 32px rgba(234,179,8,.45) !important; }
+        .app-badge-img { transition: transform .2s ease; height: 40px; display: block; }
+        .app-badge-img:hover { transform: scale(1.05); }
+        .app-cta-btn { transition: all 0.3s ease; }
+        .app-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(217,119,6,0.3) !important; }
+        
         @media(max-width:640px){
-          .app-inner { flex-direction:column !important; align-items:center !important; text-align:center !important; padding:20px 16px 0 !important; }
-          .app-badges { justify-content:center !important; }
-          .app-stats { flex-wrap:wrap; gap:8px !important; }
-          .phone-left { display:none !important; }
+          .app-inner-box { flex-direction:column !important; align-items:center !important; text-align:center !important; padding:30px 20px !important; }
+          .app-badge-row { justify-content:center !important; }
+          .phone-wrapper { display: none; }
         }
       `}</style>
 
       <section style={{
         width: "100%",
         background: "#ffffff",
-        borderTop: "1px solid #e5e7eb",
-        borderBottom: "1px solid #e5e7eb",
+        borderTop: "1px solid #f0f0f0",
+        borderBottom: "1px solid #f0f0f0",
         overflow: "hidden",
-        fontFamily: "'Segoe UI', system-ui, sans-serif",
+        fontFamily: "'Inter', sans-serif",
       }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 16px", width: "100%" }}>
+        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "10px 8px" }}>
           <div
             onClick={() => window.open("https://play.google.com/store/apps/details?id=com.limbu.ai.limbu", "_blank")}
             style={{ display: "block", textDecoration: "none", cursor: "pointer" }}
           >
-            {/* MAIN BANNER - light gradient */}
-            <div style={{
+            <div className="app-inner-box" style={{
               position: "relative",
-              background: "linear-gradient(135deg, #fffbeb 0%, #fef9ee 30%, #f0f9ff 70%, #eff6ff 100%)",
-              borderRadius: "12px",
-              margin: "12px 0 0",
+              background: "linear-gradient(160deg, #ffffff 0%, #fffbeb 60%, #f0f9ff 100%)",
+              borderRadius: "24px",
+              border: "1px solid #fef3c7",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "50px 70px",
               overflow: "hidden",
             }}>
-              {/* Subtle decorative circles */}
-              <div style={{ position: "absolute", top: "-60px", right: "20%", width: "200px", height: "200px", borderRadius: "50%", background: "rgba(245,196,0,0.08)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", bottom: "-40px", left: "15%", width: "160px", height: "160px", borderRadius: "50%", background: "rgba(59,130,246,0.06)", pointerEvents: "none" }} />
-
-              {/* INNER ROW */}
-              <div className="app-inner" style={{
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-                gap: "16px",
-                padding: "24px 36px 0",
-                position: "relative",
-                zIndex: 1,
-              }}>
-
-                {/* Left phone */}
-                {/* <div className="phone-left">
-                  <AppScreenPhone />
-                </div> */}
-
-                {/* Center text */}
-                <div style={{ flex: 1, minWidth: 0, padding: "16px 0 28px", alignSelf: "center" }}>
-
-                  {/* Badge */}
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: "6px",
-                    background: "#fef3c7", border: "1px solid #fcd34d",
-                    borderRadius: "20px", padding: "4px 12px",
-                    fontSize: "11px", fontWeight: "600", color: "#92400e",
-                    marginBottom: "10px",
-                  }}>
-                    ✦ AI-Powered Post Creation
-                  </div>
-
-                  {/* Heading */}
-                  <div style={{
-                    color: "#111827",
-                    fontSize: "clamp(18px, 2.4vw, 30px)",
-                    fontWeight: "800",
-                    lineHeight: 1.15,
-                    marginBottom: "10px",
-                    letterSpacing: "-0.5px",
-                  }}>
-                    Download the{" "}
-                    <span style={{
-                      color: "#d97706",
-                      background: "linear-gradient(90deg,#d97706,#f59e0b)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    }}>
-                      Limbu.AI
-                    </span>{" "}App<br />
-                    for Instant Post Creation
-                  </div>
-
-                  <p style={{
-                    color: "#6b7280",
-                    fontSize: "clamp(12px, 1.1vw, 15px)",
-                    margin: "0 0 18px",
-                    lineHeight: 1.65,
-                  }}>
-                    Available now on iOS &amp; Android. Start creating<br />
-                    AI-powered posts in just seconds!
-                  </p>
-
-                  {/* CTA Button */}
-                  <div className="app-cta" style={{
-                    display: "inline-block",
-                    background: "linear-gradient(90deg, #F1B600)",
-                    color: "#ffffff",
-                    fontWeight: "800",
-                    fontSize: "clamp(12px, 1.3vw, 16px)",
-                    letterSpacing: "0.4px",
-                    padding: "13px 28px",
-                    borderRadius: "10px",
-                    marginBottom: "18px",
-                    boxShadow: "0 4px 20px #F1B600",
-                    cursor: "pointer",
-                    textTransform: "uppercase",
-                  }}>
-                    🎁 JOIN NOW AND GET 500 COINS.
-                  </div>
-
-                  {/* Store badges */}
-                  <div className="app-badges" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    <a
-                      href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
-                      target="_blank" rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className="app-badge"
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#111827", border: "1px solid #374151", borderRadius: "8px", padding: "7px 14px", minWidth: "130px" }}>
-                        <svg width="20" height="22" viewBox="0 0 20 22" xmlns="http://www.w3.org/2000/svg">
-                          <defs>
-                            <linearGradient id="gpL1"><stop offset="0%" stopColor="#00bcd4" /><stop offset="100%" stopColor="#00e676" /></linearGradient>
-                            <linearGradient id="gpL2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ff5252" /><stop offset="100%" stopColor="#ff9800" /></linearGradient>
-                          </defs>
-                          <path d="M1 1L1 21L11 11Z" fill="url(#gpL1)" />
-                          <path d="M11 11L1 21L17 14Z" fill="url(#gpL2)" />
-                          <path d="M1 1L17 8L11 11Z" fill="#69f0ae" />
-                          <path d="M11 11L17 8L17 14Z" fill="#ffcc02" />
-                        </svg>
-                        <div>
-                          <div style={{ color: "#9ca3af", fontSize: "8px", lineHeight: 1 }}>GET IT ON</div>
-                          <div style={{ color: "#fff", fontSize: "13px", fontWeight: "600", lineHeight: 1.3 }}>Google Play</div>
-                        </div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="https://apps.apple.com/in/app/limbu-ai/id6757781138"
-                      target="_blank" rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className="app-badge"
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#111827", border: "1px solid #374151", borderRadius: "8px", padding: "7px 14px", minWidth: "130px" }}>
-                        <svg width="16" height="20" viewBox="0 0 16 20" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M13.5 10.5c0-2.6 1.7-3.9 1.8-4C13.8 4.1 11.8 3.8 11 3.8c-1.5-.2-2.9.9-3.7.9s-2-.9-3.2-.9C2.6 3.9.9 5 0 6.8c-1.8 3.1-.4 7.8 1.3 10.3.8 1.2 1.9 2.6 3.2 2.5 1.3-.1 1.8-.8 3.3-.8s2 .8 3.3.8 2.2-1.2 3.1-2.4c1-1.5 1.4-2.9 1.4-3C15.4 14.1 13.5 13.3 13.5 10.5z" fill="#fff" />
-                          <path d="M10.5 1.8C11.2.9 11.7 0 11.5 0 10.5.4 9.3 1.3 8.6 2.2c-.7.8-1.3 1.8-1.1 2.7C8.6 5 9.8 2.7 10.5 1.8z" fill="#fff" />
-                        </svg>
-                        <div>
-                          <div style={{ color: "#9ca3af", fontSize: "8px", lineHeight: 1 }}>Download on the</div>
-                          <div style={{ color: "#fff", fontSize: "13px", fontWeight: "600", lineHeight: 1.3 }}>App Store</div>
-                        </div>
-                      </div>
-                    </a>
-                  </div>
+              {/* Content */}
+              <div style={{ flex: 1, zIndex: 1 }}>
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: "6px",
+                  background: "#fef3c7", borderRadius: "100px", padding: "5px 12px",
+                  fontSize: "11px", fontWeight: "700", color: "#92400e", marginBottom: "16px"
+                }}>
+                  ✦ AI-Powered Post Creation
                 </div>
 
-                {/* Right phone */}
-                <div className="phone-right">
-                  <AppScreenPhone />
+                <h2 style={{
+                  color: "#111827",
+                  fontSize: "clamp(22px, 3vw, 36px)",
+                  fontWeight: "900",
+                  lineHeight: 1.2,
+                  marginBottom: "12px",
+                  letterSpacing: "-1px",
+                }}>
+                  Download the <span style={{ color: "#d97706" }}>Limbu.AI</span> App<br />
+                  for Instant Post Creation
+                </h2>
+
+                <p style={{
+                  color: "#4b5563",
+                  fontSize: "15px",
+                  margin: "0 0 24px",
+                  lineHeight: 1.5,
+                }}>
+                  Available on iOS & Android. Create professional<br />
+                  AI posts for your business in seconds.
+                </p>
+
+                <div className="app-cta-btn" style={{
+                  display: "inline-block",
+                  background: "#F5C400",
+                  color: "#000",
+                  fontWeight: "800",
+                  fontSize: "14px",
+                  padding: "14px 28px",
+                  borderRadius: "12px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 15px rgba(245,196,0,0.2)",
+                }}>
+                  🎁 JOIN NOW AND GET 500 COINS
+                </div>
+
+                {/* Badges */}
+                <div className="app-badge-row" style={{ display: "flex", gap: "10px" }}>
+                  <a href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu" target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>
+                    <img className="app-badge-img" src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Google Play" />
+                  </a>
+                  <a href="https://apps.apple.com/in/app/limbu-ai/id6757781138" target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>
+                    <img className="app-badge-img" src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" />
+                  </a>
                 </div>
               </div>
 
-              {/* STATS BAR */}
-              <div style={{
-                borderTop: "1px solid #e5e7eb",
-                background: "rgba(255,255,255,0.7)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "28px",
-                padding: "10px 24px",
-                fontSize: "clamp(10px,.9vw,13px)",
-                color: "#6b7280",
-                flexWrap: "wrap",
-              }}>
-                <span><span style={{ color: "#d97706" }}>4.3 ★</span> from <strong style={{ color: "#111827" }}>3,000+</strong> Reviews</span>
-                <span style={{ color: "#d1d5db" }}>|</span>
-                <span><strong style={{ color: "#d97706" }}>10,000+</strong> Active Users</span>
-                <span style={{ color: "#d1d5db" }}>|</span>
-                <span>✅ Feature Posts</span>
-                <span style={{ color: "#d1d5db" }}>|</span>
-                <span>⚡ Generate Posts in Seconds</span>
+              {/* Static Phone */}
+              <div className="phone-wrapper">
+                <AppScreenPhone />
               </div>
             </div>
 
-            {/* bottom spacing */}
-            <div style={{ height: "12px" }} />
+            {/* Stats */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "24px",
+              padding: "16px 0",
+              fontSize: "13px",
+              color: "#6b7280",
+              flexWrap: "wrap",
+              fontWeight: "500"
+            }}>
+              <span><span style={{ color: "#d97706" }}>4.3 ★</span> from 3,000+ Reviews</span>
+              <span>|</span>
+              <span><strong style={{ color: "#111827" }}>10,000+</strong> Active Users</span>
+              <span>|</span>
+              <span>✅ Featured Posts</span>
+              <span>|</span>
+              <span>⚡ Instant Generation</span>
+            </div>
           </div>
         </div>
       </section>

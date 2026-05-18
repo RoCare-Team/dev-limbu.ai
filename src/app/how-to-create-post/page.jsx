@@ -96,7 +96,7 @@ export default function HowToCreatePost() {
 
       {/* ── WhatsApp Helper ── */}
       <a
-        href="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20need%20help%20using%20the%20Post%20Studio."
+        href="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20need%20help%20using%20the%20Post%20Studio."
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-8 right-8 z-50 flex items-center gap-2 p-3 pr-5 bg-[#25D366] text-white rounded-full shadow-lg hover:scale-105 transition-all"

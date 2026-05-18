@@ -153,7 +153,7 @@ const PostCard = React.memo(
     const [activeDesc, setActiveDesc] = useState("gmb");
     const [cardMediaTab, setCardMediaTab] = useState("image");
 
-    const { isPostedGmb, isPostedFb, isPostedIg } = useMemo(
+    const { isPostedGmb, isPostedFb, isPostedIg, isPostedYoutube } = useMemo(
       () => ({
         isPostedGmb:
           post.locations?.some((l) => l.isPosted) ||
@@ -165,6 +165,7 @@ const PostCard = React.memo(
         isPostedIg:
           isPlatformPosted(post.whenPosted, "instagram") ||
           post.igPages?.some((p) => p.isPosted),
+        isPostedYoutube: isPlatformPosted(post.whenPosted, "youtube"),
       }),
       [
         post.locations,
@@ -360,7 +361,7 @@ const PostCard = React.memo(
           icon: "/social-icon/youtube-short.png",
           color: "border-rose-100",
           accent: "bg-rose-50 text-rose-700",
-          posted: isPlatformPosted(post.whenPosted, "youtube"),
+          posted: isPostedYoutube,
         },
       ];
 
@@ -376,6 +377,7 @@ const PostCard = React.memo(
       isPostedFb,
       isPostedGmb,
       isPostedIg,
+      isPostedYoutube,
       post.fbPages,
       post.igPages,
       post.locations,
@@ -563,7 +565,8 @@ const PostCard = React.memo(
         onClick={() => handleMediaChoice("youtube")}
         className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.12em] flex items-center justify-center gap-1.5 hover:from-red-600 hover:to-red-700 focus:ring-2 focus:ring-red-300 transition-all shadow-lg shadow-red-500/20"
       >
-        <Youtube size={13} /> Post to YouTube
+        <Youtube size={13} />{" "}
+        {isPostedYoutube ? "Repost to YouTube" : "Post to YouTube"}
       </button>
     ) : null;
 
@@ -1035,6 +1038,7 @@ const PostCard = React.memo(
                         : "Post to LinkedIn"}
                     </button>
                   </div>
+                  {youtubePostButton}
                   <button
                     onClick={() => onUpdateStatus(post)}
                     className="w-full py-3.5 bg-white border-2 border-[#EAB308]/20 text-black/80 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#EAB308]/10 hover:border-[#EAB308] transition-all shadow-sm"

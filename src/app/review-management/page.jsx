@@ -13,13 +13,14 @@ import {
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { toast, Toaster } from "react-hot-toast";
-import SupportModal from "@/components/SupportModal";
+// import SupportModal from "@/components/SupportModal";
 import ReviewCard from "@/components/review-management/ReviewCard";
 import { useReviews } from "@/hooks/useReviews";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 const TOAST_POSITION = "top-center";
 const REVIEWS_PER_PAGE = 5;
+const MAX_VISIBLE_PAGE_BUTTONS = 10;
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -45,13 +46,24 @@ export default function DashboardPage() {
   }, []);
 
   // Memoized derived state for Pagination
-  const { totalPages, currentReviews } = useMemo(() => {
+  const { totalPages, currentReviews, visiblePageNumbers } = useMemo(() => {
     const validReviews = Array.isArray(reviews) ? reviews : [];
     const total = Math.ceil(validReviews.length / REVIEWS_PER_PAGE);
     const start = (currentPage - 1) * REVIEWS_PER_PAGE;
+    const visibleCount = Math.min(total, MAX_VISIBLE_PAGE_BUTTONS);
+    const halfWindow = Math.floor(visibleCount / 2);
+    let firstVisiblePage = Math.max(currentPage - halfWindow, 1);
+    const lastPossibleFirstPage = Math.max(total - visibleCount + 1, 1);
+
+    firstVisiblePage = Math.min(firstVisiblePage, lastPossibleFirstPage);
+
     return {
       totalPages: total,
-      currentReviews: validReviews.slice(start, start + REVIEWS_PER_PAGE)
+      currentReviews: validReviews.slice(start, start + REVIEWS_PER_PAGE),
+      visiblePageNumbers: Array.from(
+        { length: visibleCount },
+        (_, idx) => firstVisiblePage + idx
+      )
     };
   }, [reviews, currentPage]);
 
@@ -169,11 +181,13 @@ export default function DashboardPage() {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-12 pb-10">
+              <div className="flex justify-center items-center gap-2 mt-12 pb-10 max-w-full overflow-hidden">
                 <button onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1} className="btn-ghost p-2.5 rounded-xl disabled:opacity-20"><ChevronLeft className="w-4 h-4" /></button>
-                {Array.from({ length: totalPages }).map((_, idx) => (
-                  <button key={idx} onClick={() => setCurrentPage(idx + 1)} className={`w-9 h-9 rounded-xl text-[9px] font-black transition-all border ${currentPage === idx + 1 ? "bg-black text-lemon-glow border-black shadow-lg" : "bg-white text-slate-400 border-black/5 hover:border-black/20"}`}>{idx + 1}</button>
-                ))}
+                <div className="flex items-center gap-2 overflow-hidden">
+                  {visiblePageNumbers.map((pageNumber) => (
+                    <button key={pageNumber} onClick={() => setCurrentPage(pageNumber)} className={`w-9 h-9 shrink-0 rounded-xl text-[9px] font-black transition-all border ${currentPage === pageNumber ? "bg-black text-lemon-glow border-black shadow-lg" : "bg-white text-slate-400 border-black/5 hover:border-black/20"}`}>{pageNumber}</button>
+                  ))}
+                </div>
                 <button onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="btn-ghost p-2.5 rounded-xl disabled:opacity-20"><ChevronRight className="w-4 h-4" /></button>
               </div>
             )}

@@ -1,198 +1,193 @@
-  "use client";
-  import { useState, useEffect } from "react";
+"use client";
+import { useState, useEffect } from "react";
 
-  import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 
-  const servicePlans = [
-    {
-      title: "GMB Assistance & Update Plan",
-      price: 2500,
-      features: [
-        "Google Business Profile Functionality check",
-        "Website URL update",
-        "Mobile number update",
-        "Basic profile verification check",
-        "Minor corrections",
-        "1 month support",
-      ],
-    },
-    {
-      title: "GMB Creation & Management Plan",
-      price: 3000,
-      features: [
-        "Profile creation from scratch",
-        "Address setup & verification",
-        "Category selection",
-        "Product listing",
-        "Service listing",
-        "1 month support",
-      ],
-    },
-  ];
+const servicePlans = [
+  {
+    title: "GMB Assistance & Update Plan",
+    price: 2500,
+    features: [
+      "Google Business Profile Functionality check",
+      "Website URL update",
+      "Mobile number update",
+      "Basic profile verification check",
+      "Minor corrections",
+      "1 month support",
+    ],
+  },
+  {
+    title: "GMB Creation & Management Plan",
+    price: 3000,
+    features: [
+      "Profile creation from scratch",
+      "Address setup & verification",
+      "Category selection",
+      "Product listing",
+      "Service listing",
+      "1 month support",
+    ],
+  },
+];
 
-  export default function AdminServicepaneModal({ service, onClose }) {
-    const [selectedService, setSelectedService] = useState("");
-    const [servicePlan, setServicePlan] = useState(null);
-    const [serviceAmount, setServiceAmount] = useState("");
-    const [serviceDate, setServiceDate] = useState("");
-    const [serviceNote, setServiceNote] = useState("");
-    const [updatingService, setUpdatingService] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState(null);
-    const [expiryDate, setExpiryDate] = useState("");
-    const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-    const [preview, setPreview] = useState(null);
-    
+export default function AdminServicepaneModal({ service, onClose }) {
+  const [selectedService, setSelectedService] = useState("");
+  const [servicePlan, setServicePlan] = useState(null);
+  const [serviceAmount, setServiceAmount] = useState("");
+  const [serviceDate, setServiceDate] = useState("");
+  const [serviceNote, setServiceNote] = useState("");
+  const [updatingService, setUpdatingService] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [expiryDate, setExpiryDate] = useState("");
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [preview, setPreview] = useState(null);
 
-    // ✅ Auto fill amount when plan selected
-    useEffect(() => {
-      if (servicePlan) {
-        setServiceAmount(servicePlan.price);
-      }
-    }, [servicePlan]);
-
-    useEffect(() => {
-      if (serviceDate) {
-        const date = new Date(serviceDate);
-
-        // ✅ 1 month add
-        date.setMonth(date.getMonth() + 1);
-
-        const formattedDate = date.toISOString().split("T")[0];
-        setExpiryDate(formattedDate);
-      }
-    }, [serviceDate]);
-
-    // ✅ Submit function (inside component)
-    const handleServiceSubmit = async () => {
-      try {
-        setUpdatingService(true);
-
-        const res = await fetch("/api/service/add", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: service?.userId,
-            service: selectedService,
-            planName: servicePlan?.title,
-            amount: serviceAmount,
-            date: serviceDate,
-            note: serviceNote,
-          }),
-        });
-
-        const data = await res.json();
-
-        
-
-        if (res.ok) {
-          alert("Service added successfully");
-          onClose(); // ✅ close modal
-        }
-      } catch (err) {
-        console.log(err);
-      } finally {
-        setUpdatingService(false);
-      }
-    };
-
- const handleConfirmService = async () => {
-  console.log("🔥 STEP 1:", selectedPlan);
-
-  if (!selectedPlan) {
-    alert("Please select a plan");
-    return;
-  }
-
-  // ✅ screenshotUrl ko sabse pehle declare karo
-  let screenshotUrl = "";
-
-  try {
-    // ✅ Agar screenshot selected hai to pehle S3 par upload karo
-    if (paymentScreenshot) {
-      const formData = new FormData();
-      formData.append("file", paymentScreenshot);
-
-      const uploadResult = await uploadToS3Action(formData);
-
-      console.log("📸 Upload Result:", uploadResult);
-
-      if (uploadResult.success) {
-        screenshotUrl = uploadResult.url;
-      } else {
-        alert(uploadResult.error || "Screenshot upload failed");
-        return;
-      }
+  // ✅ Auto fill amount when plan selected
+  useEffect(() => {
+    if (servicePlan) {
+      setServiceAmount(servicePlan.price);
     }
+  }, [servicePlan]);
 
-    // ✅ Optional payload (ab screenshotUrl defined hai)
-    const payload = {
-      userId: service?.userId || service?._id,
-      type: "service",
-      paidService: selectedPlan.title,
-      amount: selectedPlan.price,
-      isServiceBooked: true,
-      planDuration: "monthly",
-      packageStartDate: serviceDate,
-      packageExpiryDate: expiryDate,
-      paymentScreenshot: screenshotUrl,
-      screenshot: screenshotUrl,
-      notes: serviceNote,
-      remarks: serviceNote,
-    };
+  useEffect(() => {
+    if (serviceDate) {
+      const date = new Date(serviceDate);
 
-    console.log("🔥 FINAL PAYLOAD:", payload);
+      // ✅ 1 month add
+      date.setMonth(date.getMonth() + 1);
 
-    // ✅ Revenue API call
-    const res = await fetch("/api/franchise-revenue", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: "service",
-        leadId: service?.userId || service?._id,
-        userId: service?.userId || service?._id,
-        leadName:
-          service?.name ||
-          service?.fullName ||
-          service?.leadName ||
-          "Customer",
+      const formattedDate = date.toISOString().split("T")[0];
+      setExpiryDate(formattedDate);
+    }
+  }, [serviceDate]);
 
-        email: localStorage.getItem("email"),
+  // ✅ Submit function (inside component)
+  const handleServiceSubmit = async () => {
+    try {
+      setUpdatingService(true);
 
-        paidService: selectedPlan.title,
-        plan: selectedPlan.title,
-        amount: selectedPlan.price,
-        planDuration: "monthly",
+      const res = await fetch("/api/service/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: service?.userId,
+          service: selectedService,
+          planName: servicePlan?.title,
+          amount: serviceAmount,
+          date: serviceDate,
+          note: serviceNote,
+        }),
+      });
 
-        packageStartDate: serviceDate,
-        packageExpiryDate: expiryDate,
+      const data = await res.json();
 
-        // ✅ S3 URL
-        paymentScreenshot: screenshotUrl,
-        screenshot: screenshotUrl,
+      if (res.ok) {
+        alert("Service added successfully");
+        onClose(); // ✅ close modal
+      }
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setUpdatingService(false);
+    }
+  };
 
-        notes: serviceNote,
-        remarks: serviceNote,
-        isServiceBooked: true,
-        planApprovalStatus: "pending",
-      }),
-    });
+  const handleConfirmService = async () => {
+    console.log("🔥 STEP 1:", selectedPlan);
 
-    const data = await res.json();
-    console.log("🔥 RESPONSE:", data);
-
-    if (!res.ok || !data.success) {
-      alert(data.message || "Error booking service");
+    if (!selectedPlan) {
+      alert("Please select a plan");
       return;
     }
 
-    // ✅ WhatsApp template
-    const whatsappRes = await fetch(
-      "/api/admin/service-booking-template",
-      {
+    // ✅ screenshotUrl ko sabse pehle declare karo
+    let screenshotUrl = "";
+
+    try {
+      // ✅ Agar screenshot selected hai to pehle S3 par upload karo
+      if (paymentScreenshot) {
+        const formData = new FormData();
+        formData.append("file", paymentScreenshot);
+
+        const uploadResult = await uploadToS3Action(formData);
+
+        console.log("📸 Upload Result:", uploadResult);
+
+        if (uploadResult.success) {
+          screenshotUrl = uploadResult.url;
+        } else {
+          alert(uploadResult.error || "Screenshot upload failed");
+          return;
+        }
+      }
+
+      // ✅ Optional payload (ab screenshotUrl defined hai)
+      const payload = {
+        userId: service?.userId || service?._id,
+        type: "service",
+        paidService: selectedPlan.title,
+        amount: selectedPlan.price,
+        isServiceBooked: true,
+        planDuration: "monthly",
+        packageStartDate: serviceDate,
+        packageExpiryDate: expiryDate,
+        paymentScreenshot: screenshotUrl,
+        screenshot: screenshotUrl,
+        notes: serviceNote,
+        remarks: serviceNote,
+      };
+
+      console.log("🔥 FINAL PAYLOAD:", payload);
+
+      // ✅ Revenue API call
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "service",
+          leadId: service?.userId || service?._id,
+          userId: service?.userId || service?._id,
+          leadName:
+            service?.name ||
+            service?.fullName ||
+            service?.leadName ||
+            "Customer",
+
+          email: localStorage.getItem("email"),
+
+          paidService: selectedPlan.title,
+          plan: selectedPlan.title,
+          amount: selectedPlan.price,
+          planDuration: "monthly",
+
+          packageStartDate: serviceDate,
+          packageExpiryDate: expiryDate,
+
+          // ✅ S3 URL
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+
+          notes: serviceNote,
+          remarks: serviceNote,
+          isServiceBooked: true,
+          planApprovalStatus: "pending",
+        }),
+      });
+
+      const data = await res.json();
+      console.log("🔥 RESPONSE:", data);
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Error booking service");
+        return;
+      }
+
+      // ✅ WhatsApp template
+      const whatsappRes = await fetch("/api/admin/service-booking-template", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -203,49 +198,42 @@
             service?.phone ||
             service?.mobileNumber ||
             service?.mobile,
-          firstName:
-            service?.name ||
-            service?.fullName ||
-            "Customer",
+          firstName: service?.name || service?.fullName || "Customer",
         }),
+      });
+
+      const whatsappData = await whatsappRes.json();
+      console.log("📲 WhatsApp Response:", whatsappData);
+
+      if (whatsappData.success) {
+        alert("Service booked successfully and WhatsApp message sent ✅");
+      } else {
+        alert("Service booked successfully, but WhatsApp message failed ❌");
       }
-    );
 
-    const whatsappData = await whatsappRes.json();
-    console.log("📲 WhatsApp Response:", whatsappData);
-
-    if (whatsappData.success) {
-      alert("Service booked successfully and WhatsApp message sent ✅");
-    } else {
-      alert("Service booked successfully, but WhatsApp message failed ❌");
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert("Error booking service");
     }
+  };
+  const handleScreenshotChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPaymentScreenshot(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
 
-    onClose();
-  } catch (err) {
-    console.error(err);
-    alert("Error booking service");
-  }
-};
-    const handleScreenshotChange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        setPaymentScreenshot(file);
-        setPreview(URL.createObjectURL(file));
-      }
-    };
+  // ❌ agar service nahi hai to modal hi nahi dikhega
+  if (!service) return null;
 
-    // ❌ agar service nahi hai to modal hi nahi dikhega
-    if (!service) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 py-10">
-            <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[85vh]">
-
-              {/* scrollable content */}
-              <div className="overflow-y-auto max-h-[85vh]">
-                
-                      
-                      {/* HEADER */}
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 py-10">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[85vh]">
+        {/* scrollable content */}
+        <div className="overflow-y-auto max-h-[85vh]">
+          {/* HEADER */}
           <div className="flex items-center justify-between px-6 py-5 border-b">
             <h3 className="text-2xl  text-gray-800">Service Plan</h3>
             <button
@@ -381,7 +369,9 @@
 
             {/* NOTES */}
             <div>
-              <label className="text-sm font-semibold text-gray-700">Notes</label>
+              <label className="text-sm font-semibold text-gray-700">
+                Notes
+              </label>
               <textarea
                 value={serviceNote}
                 onChange={(e) => setServiceNote(e.target.value)}
@@ -412,12 +402,8 @@
               Confirm Booking
             </button>
           </div>
-
-
-              </div>
-
-            
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}

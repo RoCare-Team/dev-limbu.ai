@@ -57,7 +57,7 @@ export default function HowToPostOnGMB() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[500px] z-0 opacity-10" style={{ background: "radial-gradient(circle, rgba(250, 204, 21, 0.4) 0%, transparent 70%)" }} />
 
       {/* ── WhatsApp Helper ── */}
-      <a href="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20learn%20how%20to%20improve%20my%20GMB%20ranking." target="_blank" rel="noopener noreferrer" className="fixed bottom-8 right-8 z-50 flex items-center gap-2 p-3 pr-5 bg-[#25D366] text-white rounded-full shadow-lg hover:scale-105 transition-all">
+      <a href="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20want%20to%20learn%20how%20to%20improve%20my%20GMB%20ranking." target="_blank" rel="noopener noreferrer" className="fixed bottom-8 right-8 z-50 flex items-center gap-2 p-3 pr-5 bg-[#25D366] text-white rounded-full shadow-lg hover:scale-105 transition-all">
         <MessageCircle size={24} />
         <span className="text-[12px] font-bold uppercase tracking-wider hidden sm:block">Talk to us</span>
       </a>

@@ -154,7 +154,16 @@ export async function GET(req) {
     const customerAddress =
       user.address || user.fullAddress || user.location || user.city || "-";
 
-    const customerGST = user.gstin || user.gstNumber || user.customerGST || "-";
+    const customerGST =
+  user.gstNumber ||   // ✅ modal se save kiya gaya GST number
+  user.gstin ||
+  user.customerGST ||
+  user.gst ||
+  user.GSTIN ||
+  user.companyGST ||
+  user.businessGST ||
+  user.userGST ||
+  "-";
 
     const packageStartDate = user.userPackageStartDate
       ? new Date(user.userPackageStartDate).toLocaleDateString("en-IN")

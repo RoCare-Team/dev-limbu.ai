@@ -12,6 +12,8 @@ const FranchiseRevenueSchema = new mongoose.Schema(
     paymentScreenshot: { type: String, required: true }, // Cloudinary URL
     
     utrNumber: { type: String, default: "" },
+    gstNumber: { type: String },
+
     // Who onboarded this franchise
     onboardedBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -223,6 +223,7 @@ revenueData = revenueData.map((item) => ({
   plan,
   type,
   utrNumber,
+  gstNumber,
   packageStartDate,
   packageExpiryDate,
 } = body;
@@ -273,6 +274,7 @@ screenshot: paymentScreenshot || "",
   packageExpiryDate: packageExpiryDate ? new Date(packageExpiryDate) : null,
 
   utrNumber: utrNumber || "",
+  gstNumber: gstNumber || "",
 
   ...(type === "user_onboard" ? { planApprovalStatus: "pending" } : {}),
   type: type || "franchise_lead",
@@ -362,7 +364,8 @@ screenshot: paymentScreenshot || "",
       planRemarks,
       packageStartDate,
       packageExpiryDate,
-      type, // 🔥 ADD THIS
+      type,
+       gstNumber, // 🔥 ADD THIS
     } = body;
 
     if (!id) {
@@ -427,6 +430,8 @@ if (type === "service") {
         ...(amount && { amount }),
         ...(notes && { notes }),
         ...(planRemarks && { planRemarks }),
+
+        ...(gstNumber !== undefined && { gstNumber }), 
 
         ...(packageStartDate && {
           packageStartDate: new Date(packageStartDate),

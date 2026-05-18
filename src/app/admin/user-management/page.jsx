@@ -139,6 +139,8 @@ export default function UserManagement() {
   const [planAmount, setPlanAmount] = useState("");
   const [planExpiryDate, setPlanExpiryDate] = useState("");
 
+  const [gstNumber, setGstNumber] = useState("");
+
   useEffect(() => {
     if (planStartDate) {
       const date = new Date(planStartDate);
@@ -1908,7 +1910,9 @@ export default function UserManagement() {
       : new Date().toISOString().split("T")[0];
     setPlanStartDate(start);
     setUtrNumber("");
-    setPlanAmount(""); // Reset amount
+        setGstNumber(""); // Reset amount
+
+    setPlanAmount("");
     setPlanScreenshot(null); // Reset screenshot
   };
 
@@ -1958,7 +1962,8 @@ export default function UserManagement() {
             phone: selectedUser.phone || "",
 
             email: localStorage.getItem("email"),
-            plan: selectedPlan, // ✅ comma जरूरी
+            plan: selectedPlan,
+             // ✅ comma जरूरी
 
             packageStartDate: planStartDate, // ✅
             packageExpiryDate: planExpiryDate, // ✅
@@ -1966,6 +1971,7 @@ export default function UserManagement() {
             notes: `Plan upgrade to ${selectedPlan}`,
             planRemarks: planRemarks,
             utrNumber: utrNumber,
+            gstNumber: gstNumber,
             type: selectedPlan.toLowerCase().includes("seo")
               ? "selectedPlan"
               : "user_onboard",
@@ -1996,6 +2002,7 @@ export default function UserManagement() {
           packageExpiryDate: planExpiryDate,
           ...(screenshotUrl && { paymentScreenshot: screenshotUrl }),
           ...(utrNumber && { utrNumber: utrNumber }),
+          ...(gstNumber && { gstNumber: gstNumber }),
         }),
       });
       const userUpdateData = await userUpdateRes.json();

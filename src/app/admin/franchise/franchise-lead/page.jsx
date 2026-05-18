@@ -1760,7 +1760,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Export
               </button> */}
 
-              {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+              {(role === "superFranchiseAdmin" || role === "superAdmin" || role==="franchiseAdmin") && (
                 <button
                   onClick={() => setShowAddLeadModal(true)}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm"

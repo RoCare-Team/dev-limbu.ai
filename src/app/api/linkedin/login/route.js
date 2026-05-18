@@ -76,7 +76,7 @@ export async function GET(req) {
      */
     const scope =
       connectionType === "page"
-        ? "openid profile email w_organization_social r_organization_social"
+        ? "openid profile email w_organization_social" // removed r_organization_social
         : "openid profile email w_member_social";
 
     /**

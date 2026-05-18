@@ -11,9 +11,11 @@ export const LIMBU_WHATSAPP_DIRECT_CHAT = `https://api.whatsapp.com/send?phone=$
 
 /** Prefer this when opening from the browser: mobile → `wa.me`, desktop → web WhatsApp send (avoids landing on generic home). */
 export function getLimbuWhatsAppChatUrl() {
-  if (typeof navigator === "undefined") return `https://wa.me/${LIMBU_WHATSAPP_PHONE_E164}`;
+  if (typeof navigator === "undefined")
+    return `https://wa.me/${LIMBU_WHATSAPP_PHONE_E164}`;
   const ua = navigator.userAgent || "";
-  const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobile =
+    /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   if (isMobile) return `https://wa.me/${LIMBU_WHATSAPP_PHONE_E164}`;
   return `https://web.whatsapp.com/send?phone=${LIMBU_WHATSAPP_PHONE_E164}`;
 }
@@ -25,7 +27,9 @@ function trimOrigin(s) {
 }
 
 function originForRedirect(override) {
-  const o = trimOrigin(override || process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL);
+  const o = trimOrigin(
+    override || process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL,
+  );
   if (o) return o;
   return "https://limbu.ai";
 }
@@ -36,7 +40,8 @@ export function normalizeChatbotWaReturnUrl(raw) {
   if (!s) return LIMBU_CHATBOT_WA_RETURN;
   try {
     const u = new URL(s);
-    if (u.protocol !== "https:" && u.protocol !== "http:") return LIMBU_CHATBOT_WA_RETURN;
+    if (u.protocol !== "https:" && u.protocol !== "http:")
+      return LIMBU_CHATBOT_WA_RETURN;
     const host = u.hostname.replace(/^www\./i, "").toLowerCase();
     if (host === "wa.me" || host === "api.whatsapp.com") return u.toString();
   } catch {
@@ -70,9 +75,11 @@ export function buildYoutubeLinkedinStatePayload({
   platform,
   userIdParamPresent,
   waReturnRaw,
+  connectionType, // ✅ add karo
 }) {
   const payload = { userId };
   if (mobile) payload.mobile = true;
+  if (connectionType) payload.connectionType = connectionType; // ✅ add karo
 
   const shouldTagChatbot =
     !!phoneRaw && (source === "chatbot" || !userIdParamPresent);
@@ -106,13 +113,24 @@ export function parseYoutubeLinkedinOAuthState(stateParam) {
   }
   const o = parseOptionalJsonObject(stateParam);
   if (o && typeof o === "object") {
-    const waRaw = typeof o.wa === "string" ? o.wa : typeof o.wa_return === "string" ? o.wa_return : "";
+    const waRaw =
+      typeof o.wa === "string"
+        ? o.wa
+        : typeof o.wa_return === "string"
+          ? o.wa_return
+          : "";
     return {
-      userId: typeof o.userId === "string" && o.userId.trim() ? o.userId.trim() : null,
+      userId:
+        typeof o.userId === "string" && o.userId.trim()
+          ? o.userId.trim()
+          : null,
       mobile: o.mobile === true,
-      phone: normalizeMetaPhoneDigits(typeof o.phone === "string" ? o.phone : ""),
+      phone: normalizeMetaPhoneDigits(
+        typeof o.phone === "string" ? o.phone : "",
+      ),
       source: o.source === "chatbot" ? "chatbot" : "",
-      platform: o.platform === "youtube" || o.platform === "linkedin" ? o.platform : "",
+      platform:
+        o.platform === "youtube" || o.platform === "linkedin" ? o.platform : "",
       waReturn: normalizeChatbotWaReturnUrl(waRaw),
     };
   }

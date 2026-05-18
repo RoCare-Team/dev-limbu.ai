@@ -63,7 +63,7 @@ export default function VideoExamplesSection({ videoExamples = [] }) {
             style={{
               fontFamily: "var(--font-heading)",
               color: "var(--foreground)",
-              fontSize: "clamp(1.8rem, 4.5vw, 3.5rem)",
+              fontSize: "clamp(1.8rem, 4.5vw, 3rem)",
             }}
           >
             Limbu AI{" "}

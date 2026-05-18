@@ -8,8 +8,7 @@ const AISENSY_URL =
 
 // Working API key
 const API_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE0LCJlbWFpbCI6InJvYmhpbmtoYW5AZ21haWwuY29tIiwicm9sZSI6Im1hbmFnZXIiLCJ3b3Jrc3BhY2VJZCI6MSwiaWF0IjoxNzc4MzA3MjgyLCJleHAiOjE3Nzg5MTIwODJ9.Vd5_GYgOPwZjMKxgelN-fUMWgar2srFogqur4eKFgP0";
-
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE0LCJlbWFpbCI6InJvYmhpbmtoYW5AZ21haWwuY29tIiwicm9sZSI6Im1hbmFnZXIiLCJ3b3Jrc3BhY2VJZCI6MSwiaWF0IjoxNzc5MDg1Mjk1LCJleHAiOjE3Nzk2OTAwOTV9.LSM5lyvlc3QcSECYS0q6PZ92_DfZWK14sS1KAMuD51Q";
 // Normalize Indian number
 function normalizeNumber(num) {
   if (!num) return null;

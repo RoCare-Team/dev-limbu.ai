@@ -471,7 +471,7 @@ export default function FranchisePage() {
 
           <h1
             className="uppercase leading-[1.15] tracking-normal text-black font-black"
-            style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", fontFamily: "var(--font-heading)" }}
+            style={{ fontSize: "clamp(2.5rem, 6vw, 3.5rem)", fontFamily: "var(--font-heading)" }}
           >
             Build Your Own <br />
             <span className="text-lemon-hover">AI Business Empire</span>

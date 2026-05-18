@@ -51,7 +51,7 @@ export default function FeaturesSection({ features }) {
               style={{
                 fontFamily: "var(--font-heading)",
                 color: "var(--foreground)",
-                fontSize: "clamp(2rem, 5vw, 4rem)",
+                fontSize: "clamp(2rem, 5vw, 3rem)",
               }}
             >
               Built to

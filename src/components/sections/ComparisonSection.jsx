@@ -62,7 +62,7 @@ export default function ComparisonSection() {
             style={{
               fontFamily: "var(--font-heading)",
               color: "var(--foreground)",
-              fontSize: "clamp(1.5rem, 4vw, 3.5rem)"
+              fontSize: "clamp(1.5rem, 4vw, 3rem)"
             }}
           >
             Stop Doing <span style={{ color: "var(--lemon-hover)" }}>Business The Old Way</span>

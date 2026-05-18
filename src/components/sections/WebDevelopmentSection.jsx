@@ -54,7 +54,7 @@ export default function WebDevelopmentSection({ webPlans, handlePlanClick }) {
             style={{
               fontFamily: "var(--font-heading)",
               color: "var(--foreground)",
-              fontSize: "clamp(2rem, 5vw, 4rem)",
+              fontSize: "clamp(2rem, 5vw, 3rem)",
             }}
           >
             Premium <span style={{ color: "var(--lemon-hover)" }}>Web Experience</span>

@@ -351,7 +351,7 @@ export default function PricingPage() {
           className="font-black uppercase tracking-tight mb-6"
           style={{
             fontFamily: "var(--font-heading)",
-            fontSize: "clamp(2rem, 6vw, 4.5rem)",
+            fontSize: "clamp(1rem, 4vw, 3.5rem)",
             lineHeight: "0.95"
           }}
         >

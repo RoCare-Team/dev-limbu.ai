@@ -4906,6 +4906,21 @@ export default function UserManagement() {
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
                   />
                 </div>
+
+                {/* GST Number Field */}
+<div className="mt-4">
+  <label className="block text-xs font-medium text-gray-700 mb-1">
+    GST Number
+  </label>
+
+  <input
+    type="text"
+    value={gstNumber}
+    onChange={(e) => setGstNumber(e.target.value)}
+    placeholder="Enter GST Number"
+    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+  />
+</div>
               </div>
 
               <div className="flex gap-3">

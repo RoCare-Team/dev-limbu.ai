@@ -337,7 +337,7 @@ export default function BuildWebsitePage() {
       const aiData = await aiRes.json();
 
       if (!aiRes.ok) {
-        throw new Error(aiData?.error || "AI generation failed");
+        throw new Error(aiData?.error || "AI generation failed"); 
       }
 
       setAiContent(aiData.content);
@@ -412,7 +412,7 @@ export default function BuildWebsitePage() {
           body: JSON.stringify({
             slug: slugToUse,
             business: businessData,
-            aiContent: aiData.content,
+            aiContent: aiData.content, 
             mediaImages: images,
             userId,
             locationId: selectedLocation?.locationId,
@@ -950,7 +950,7 @@ export default function BuildWebsitePage() {
                       >
                         <MessageCircle className="w-5 h-5" />
                         WhatsApp Us
-                      </a>
+                      </a> 
                     </div>
                   </div>
                 )}
@@ -977,11 +977,6 @@ export default function BuildWebsitePage() {
 </div>
           </div>
         </section>
-
-
-
-
-        
 
         {/* ABOUT SECTION */}
         <section className="py-32 px-6 bg-white overflow-hidden">
@@ -1776,7 +1771,7 @@ export default function BuildWebsitePage() {
         <p className="text-gray-400 leading-relaxed max-w-2xl">
           Delivering professional services with quality, trust, and
           customer satisfaction. Contact us today for expert support and
-          personalized solutions.
+          personalized solutions.                   
         </p>
       </div>
 
@@ -1814,8 +1809,8 @@ export default function BuildWebsitePage() {
             <span className="text-sm leading-relaxed break-words">
               {business.storefrontAddress?.addressLines?.[0] ||
                 business.address}
-              {business.locality && `, ${business.locality}`}
-            </span>
+              {business.locality && `, ${business.locality}`} 
+           </span>
           </div>
         </div>
       </div>
@@ -1828,7 +1823,7 @@ export default function BuildWebsitePage() {
     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
       <p className="text-gray-400 text-sm text-center md:text-left">
         © {new Date().getFullYear()}{" "}
-        <span className="text-white font-semibold">
+        <span className="text-white font-semibold">  
           {business.title}
         </span>
         . All rights reserved.
@@ -1843,7 +1838,7 @@ export default function BuildWebsitePage() {
         <div className="h-4 w-px bg-gray-700"></div>
 
         <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-blue-400" />
+          <Globe className="w-4 h-4 text-blue-40  0" />
           <span>Professional Website</span>
         </div>
       </div>
@@ -1970,3 +1965,6 @@ export default function BuildWebsitePage() {
     </div>
   );
 }
+
+
+  

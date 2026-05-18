@@ -30,7 +30,7 @@ export default function ServicesSection({
             <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-yellow-700">Pricing Plans</span>
           </div>
 
-          <h2 className="font-bold uppercase leading-[0.95] tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)", color: "var(--foreground)", fontSize: "clamp(2rem, 5vw, 4rem)" }}>
+          <h2 className="font-bold uppercase leading-[0.95] tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)", color: "var(--foreground)", fontSize: "clamp(2rem, 5vw, 3rem)" }}>
             Our <span style={{ color: "var(--lemon-hover)" }}>Service Plans</span>
           </h2>
           

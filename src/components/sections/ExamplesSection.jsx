@@ -60,7 +60,7 @@ export default function ExamplesSection({ postImages = [], setSelectedImage }) {
             style={{
               fontFamily: "var(--font-heading)",
               color: "var(--foreground)",
-              fontSize: "clamp(1.75rem, 4.5vw, 3.5rem)",
+              fontSize: "clamp(1.75rem, 4.5vw, 2.5rem)",
             }}
           >
             Limbu AI-Generated{" "}

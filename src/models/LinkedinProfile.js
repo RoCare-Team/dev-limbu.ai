@@ -10,13 +10,17 @@ const LinkedinProfileSchema = new mongoose.Schema(
     pageAccessToken: { type: String, required: true },
     pageTokenExpiresAt: { type: Date },
     platform: { type: String, default: "linkedin" },
-    type: { type: String, enum: ["profile", "organization"], default: "profile" },
+    type: {
+      type: String,
+      enum: ["profile", "organization"],
+      default: "profile",
+    },
     /** Chatbot / WhatsApp flow user phone (digits), same idea as FacebookPage.phone */
     phone: { type: String, default: "" },
     /** "manual" (dashboard OAuth) vs "chatbot" (connect-business / WhatsApp flow) */
     connectionSource: { type: String, default: "manual" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.models.LinkedinProfile ||

@@ -4099,7 +4099,7 @@ export default function UserManagement() {
                           ${
                             isDone
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
-                              : "border-rose-200 bg-rose-50 text-rose-600 opacity-60" // RED if pending
+                              : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
                           }
                         `}
                                                       >
@@ -4191,31 +4191,108 @@ export default function UserManagement() {
                                       <td className="px-6 py-5">
                                         <div className="space-y-1">
                                           <div className="flex items-center gap-2">
-                                            <div className="flex min-w-0 items-center gap-2 text-sm text-gray-600">
-                                              <User2Icon
-                                                size={14}
-                                                className="shrink-0 text-gray-400"
-                                              />
-                                              <span className="truncate font-semibold">
-                                                {user.fullName ||
-                                                  user.name ||
-                                                  user.userId ||
-                                                  "User"}
-                                              </span>
-                                            </div>
+                                            {user.fullName && (
+                                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                <User2Icon
+                                                  size={14}
+                                                  className="text-gray-400"
+                                                />
+                                                {user.fullName}
+                                              </div>
+                                            )}
+                                            {paidUsersStatus[user.userId] && ( // A URL exists for this user
+                                              <>
+                                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
+                                                  Paid
+                                                </span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setFullViewImage(
+                                                      paidUsersStatus[
+                                                        user.userId
+                                                      ],
+                                                    );
+                                                  }}
+                                                  className="p-1 hover:bg-gray-200 rounded-full"
+                                                  title="View Payment Screenshot"
+                                                >
+                                                  <Eye
+                                                    size={14}
+                                                    className="text-gray-500"
+                                                  />
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
+
+                                          <div
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <select
+                                              value={user.leadStatus || ""}
+                                              onChange={(e) =>
+                                                handleLeadStatusChange(
+                                                  user.userId,
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
+                                                user.leadStatus === "Hot"
+                                                  ? "bg-red-50 text-red-700 border-red-200"
+                                                  : user.leadStatus === "Warm"
+                                                    ? "bg-orange-50 text-orange-700 border-orange-200"
+                                                    : user.leadStatus === "Cold"
+                                                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                      : "bg-gray-50 text-gray-600 border-gray-200"
+                                              }`}
+                                            >
+                                              <option value="">Untagged</option>
+                                              <option value="Hot">Hot</option>
+                                              <option value="Warm">Warm</option>
+                                              <option value="Cold">Cold</option>
+                                            </select>
+                                          </div>
+                                          <div
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <select
+                                              value={
+                                                USER_SOURCE_OPTIONS.some(
+                                                  (o) =>
+                                                    o.value ===
+                                                    (user.source || ""),
+                                                )
+                                                  ? user.source || "signup"
+                                                  : "signup"
+                                              }
+                                              onChange={(e) =>
+                                                handleUserSourceChange(
+                                                  user.userId,
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
+                                              title="Lead source (website, chatbot, manual upload, …)"
+                                            >
+                                              {USER_SOURCE_OPTIONS.map((o) => (
+                                                <option
+                                                  key={o.value}
+                                                  value={o.value}
+                                                >
+                                                  {o.label}
+                                                </option>
+                                              ))}
+                                            </select>
                                           </div>
                                           <div className="flex flex-wrap gap-1 mt-1">
-                                            <span
-                                              className={userAcquisitionTagClassName(
-                                                user.source,
-                                              )}
-                                            >
+                                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
                                               {userAcquisitionLabel(
                                                 user.source,
                                               )}
                                             </span>
                                             {user.paidPackage && (
-                                              <span className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full">
+                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
                                                 {user.paidPackage}
                                               </span>
                                             )}
@@ -4253,11 +4330,83 @@ export default function UserManagement() {
                                         className="px-6 py-5 whitespace-nowrap"
                                         onClick={(e) => e.stopPropagation()}
                                       >
-                                        <div
-                                          className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(getAgentName(user.assignedAgentId))}`}
-                                        >
-                                          {getAgentName(user.assignedAgentId)}
-                                        </div>
+                                        {role === "superAdmin" ||
+                                        role === "admin" ||
+                                        role === "superfranchiseAdmin" ? (
+                                          <div
+                                            className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
+                                              getAgentName(
+                                                user.assignedAgentId,
+                                              ),
+                                            )}`}
+                                          >
+                                            <select
+                                              className="
+                             appearance-none bg-transparent 
+                             px-4 py-1.5 pr-8 
+                             text-xs font-bold 
+                             focus:outline-none 
+                             cursor-pointer
+                                            "
+                                              value={
+                                                // ✅ Handle populated object, string ID, null, and undefined
+                                                user.assignedAgentId?._id ||
+                                                (typeof user.assignedAgentId ===
+                                                  "string" &&
+                                                  user.assignedAgentId) ||
+                                                ""
+                                              }
+                                              onChange={(e) =>
+                                                handleAssignChange(
+                                                  user.userId,
+                                                  e.target.value,
+                                                )
+                                              }
+                                            >
+                                              <option value="">
+                                                -- Unassigned --
+                                              </option>
+
+                                              {agents.map((agent) => (
+                                                <option
+                                                  key={agent._id}
+                                                  value={agent._id}
+                                                >
+                                                  {agent.fullName}
+                                                </option>
+                                              ))}
+                                            </select>
+
+                                            {!user.assignedAgentId && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleRoundRobinAssign(
+                                                    user.userId,
+                                                  );
+                                                }}
+                                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                                title="Auto Assign (Round Robin)"
+                                              >
+                                                <RefreshCw size={12} />
+                                              </button>
+                                            )}
+
+                                            <span className="pointer-events-none absolute right-2 flex items-center">
+                                              <ChevronDown className="h-3 w-3" />
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span
+                                            className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
+                                              getAgentName(
+                                                user.assignedAgentId,
+                                              ),
+                                            )}`}
+                                          >
+                                            {getAgentName(user.assignedAgentId)}
+                                          </span>
+                                        )}
                                       </td>
 
                                       {/* REMARKS */}
@@ -4370,21 +4519,35 @@ export default function UserManagement() {
 
                                       {/* POSTS DATA */}
                                       <td className="px-6 py-5">
-                                        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                          <div className="text-center">
-                                            <div className="text-[9px] text-gray-500">
-                                              T
-                                            </div>
-                                            <div className="font-bold text-indigo-600">
-                                              {postData.total}
-                                            </div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-[9px] text-gray-500">
-                                              P
-                                            </div>
-                                            <div className="font-bold text-green-600">
-                                              {postData.posted}
+                                        <div className="flex items-center gap-2">
+                                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
+                                            <div className="flex items-center gap-3">
+                                              <div className="text-center">
+                                                <p className="text-xs text-gray-600">
+                                                  Total
+                                                </p>
+                                                <p className="text-lg font-bold text-indigo-600">
+                                                  {postData.total}
+                                                </p>
+                                              </div>
+                                              <div className="w-px h-8 bg-gray-300"></div>
+                                              <div className="text-center">
+                                                <p className="text-xs text-green-600">
+                                                  Posted
+                                                </p>
+                                                <p className="text-lg font-bold text-green-600">
+                                                  {postData.posted}
+                                                </p>
+                                              </div>
+                                              <div className="w-px h-8 bg-gray-300"></div>
+                                              <div className="text-center">
+                                                <p className="text-xs text-red-600">
+                                                  Rejected
+                                                </p>
+                                                <p className="text-lg font-bold text-red-600">
+                                                  {postData.rejected}
+                                                </p>
+                                              </div>
                                             </div>
                                           </div>
                                         </div>

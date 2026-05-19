@@ -1,3 +1,4 @@
+"use client"
 
 import Link from "next/link";
 import Image from "next/image";
@@ -17,11 +18,6 @@ const clientLogos = [
   { name: "ssd logo", src: "/images/clients/srinus-2.png" },
   
 ];
-
-
-
-
-
 
 
 

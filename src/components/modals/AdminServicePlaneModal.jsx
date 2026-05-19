@@ -42,6 +42,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [preview, setPreview] = useState(null);
 
+  const [gstNumber, setGstNumber] = useState("");
+
   // ✅ Auto fill amount when plan selected
   useEffect(() => {
     if (servicePlan) {
@@ -137,6 +139,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
         screenshot: screenshotUrl,
         notes: serviceNote,
         remarks: serviceNote,
+        gstNumber: gstNumber,
       };
 
       console.log("🔥 FINAL PAYLOAD:", payload);
@@ -173,6 +176,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
           notes: serviceNote,
           remarks: serviceNote,
+          gstNumber: gstNumber,
           isServiceBooked: true,
           planApprovalStatus: "pending",
         }),
@@ -379,6 +383,20 @@ export default function AdminServicepaneModal({ service, onClose }) {
                 placeholder="Write issue..."
               />
             </div>
+
+                {/* gst number  */}
+            <div>
+  <label className="text-sm font-semibold text-gray-700">
+    GST Number
+  </label>
+  <input
+    type="text"
+    value={gstNumber}
+    onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+    placeholder="Enter GST Number"
+    className="w-full mt-2 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
+  />
+</div>
           </div>
 
           {/* FOOTER */}

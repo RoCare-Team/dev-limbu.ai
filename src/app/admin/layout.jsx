@@ -213,6 +213,11 @@ useEffect(() => {
         href: "/admin/connected-node",
         icon: <Link2 size={16} />,
       },
+       {
+        name: "Custom generator",
+        href: "/admin/customGenereate",
+        icon: <Link2 size={16} />,
+      },
     ],
   },
 

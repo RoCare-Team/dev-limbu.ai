@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-
 import RevenueHeader from "./components/RevenueHeader";
 import RevenueStats from "./components/RevenueStats";
 import RevenueFilters from "./components/RevenueFilters";
@@ -35,7 +34,6 @@ import DeleteModal from "./components/DeleteModal";
 import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditPackageModal from "./components/EditPackageModal";
 import EditServiceModal from "./components/EditServiceModal";
-
 
 export default function RevenueUsersPage() {
   // "package" | "service"
@@ -50,6 +48,8 @@ export default function RevenueUsersPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   const [expiryFilter, setExpiryFilter] = useState("");
+
+  const [invoiceUrls, setInvoiceUrls] = useState({});
 
   //service
 
@@ -78,38 +78,33 @@ export default function RevenueUsersPage() {
 
   const displayData = activeView === "package" ? revenueUsersList : users;
 
-
   // service
   const serviceUsersCount = users?.filter((u) => u.paidService).length || 0;
   const serviceUsers = users.filter((u) => u.paidService || u.isServiceBooked);
 
   // check box select
   // ===============================
-// Separate Selection for Package and Service
-// ===============================
-const [selectedPackageRows, setSelectedPackageRows] = useState([]);
-const [selectedServiceRows, setSelectedServiceRows] = useState([]);
+  // Separate Selection for Package and Service
+  // ===============================
+  const [selectedPackageRows, setSelectedPackageRows] = useState([]);
+  const [selectedServiceRows, setSelectedServiceRows] = useState([]);
 
-// Current active selection
-const selectedRows =
-  activeView === "package"
-    ? selectedPackageRows
-    : selectedServiceRows;
+  // Current active selection
+  const selectedRows =
+    activeView === "package" ? selectedPackageRows : selectedServiceRows;
 
-// Current active setter
-const setSelectedRows =
-  activeView === "package"
-    ? setSelectedPackageRows
-    : setSelectedServiceRows;
+  // Current active setter
+  const setSelectedRows =
+    activeView === "package" ? setSelectedPackageRows : setSelectedServiceRows;
 
-// Clear selection when switching tabs
-useEffect(() => {
-  if (activeView === "package") {
-    setSelectedServiceRows([]);
-  } else {
-    setSelectedPackageRows([]);
-  }
-}, [activeView]);
+  // Clear selection when switching tabs
+  useEffect(() => {
+    if (activeView === "package") {
+      setSelectedServiceRows([]);
+    } else {
+      setSelectedPackageRows([]);
+    }
+  }, [activeView]);
 
   const handleSelectAll = (checked) => {
     if (checked) {
@@ -134,121 +129,73 @@ useEffect(() => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const packageRows = revenueUsersList.filter(
-  (item) =>
-    item.type === "user_onboard" &&
-    item.status === "active"
-);
+    (item) => item.type === "user_onboard" && item.status === "active",
+  );
 
   const serviceRows = revenueUsersList.filter(
-  (item) =>
-    item.type === "service" &&
-    item.status === "active"
-);
+    (item) => item.type === "service" && item.status === "active",
+  );
 
+  const today = new Date().toDateString();
 
+  const todayUsers =
+    activeView === "package"
+      ? packageRows.filter((item) => {
+          if (!item.createdAt) return false;
 
+          return new Date(item.createdAt).toDateString() === today;
+        })
+      : serviceRows.filter((item) => {
+          if (!item.createdAt) return false;
 
-const today = new Date().toDateString();
-
-const todayUsers =
-  activeView === "package"
-    ? packageRows.filter((item) => {
-        if (!item.createdAt) return false;
-
-        return (
-          new Date(item.createdAt).toDateString() ===
-          today
-        );
-      })
-    : serviceRows.filter((item) => {
-        if (!item.createdAt) return false;
-
-        return (
-          new Date(item.createdAt).toDateString() ===
-          today
-        );
-      });
+          return new Date(item.createdAt).toDateString() === today;
+        });
 
   // ==============================
-// TOTAL USERS
-// ==============================
-const totalUsers =
-  activeView === "package"
-    ? revenueUsersList.filter((item) => {
-        // ✅ Sirf package records count karo
-        return (
-          item.type === "user_onboard" &&
-          item.status === "active"
-        );
-      }).length
-    : serviceRows.length;
-
+  // TOTAL USERS
+  // ==============================
+  const totalUsers =
+    activeView === "package"
+      ? revenueUsersList.filter((item) => {
+          // ✅ Sirf package records count karo
+          return item.type === "user_onboard" && item.status === "active";
+        }).length
+      : serviceRows.length;
 
   // total revenue// ==============================
-// TOTAL REVENUE
-// ==============================
-const totalRevenue =
-  activeView === "package"
-    ? revenueUsersList
-        .filter((item) => {
-          // ✅ Sirf package records
-          return (
-            item.type === "user_onboard" &&
-            item.status === "active"
-          );
-        })
-        .reduce(
-          (sum, item) =>
-            sum + (Number(item.amount) || 0),
-          0
-        )
-    : serviceRows.reduce(
-        (sum, item) =>
-          sum + (Number(item.amount) || 0),
-        0
-      );
+  // TOTAL REVENUE
+  // ==============================
+  const totalRevenue =
+    activeView === "package"
+      ? revenueUsersList
+          .filter((item) => {
+            // ✅ Sirf package records
+            return item.type === "user_onboard" && item.status === "active";
+          })
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+      : serviceRows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   // 🔥 TODAY REVENUE
 
+  const todayRevenue =
+    activeView === "package"
+      ? revenueUsersList
+          .filter((item) => {
+            // ✅ Sirf package records
+            if (item.type !== "user_onboard") return false;
+            if (item.status !== "active") return false;
+            if (!item.createdAt) return false;
 
+            return new Date(item.createdAt).toDateString() === today;
+          })
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+      : serviceRows
+          .filter((item) => {
+            if (!item.createdAt) return false;
 
-const todayRevenue =
-  activeView === "package"
-    ? revenueUsersList
-        .filter((item) => {
-          // ✅ Sirf package records
-          if (item.type !== "user_onboard") return false;
-          if (item.status !== "active") return false;
-          if (!item.createdAt) return false;
-
-          return (
-            new Date(item.createdAt).toDateString() ===
-            today
-          );
-        })
-        .reduce(
-          (sum, item) =>
-            sum + (Number(item.amount) || 0),
-          0
-        )
-    : serviceRows
-        .filter((item) => {
-          if (!item.createdAt) return false;
-
-          return (
-            new Date(item.createdAt).toDateString() ===
-            today
-          );
-        })
-        .reduce(
-          (sum, item) =>
-            sum + (Number(item.amount) || 0),
-          0
-        );
-
-    
-
-
+            return new Date(item.createdAt).toDateString() === today;
+          })
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   // service package
 
@@ -395,55 +342,55 @@ const todayRevenue =
   };
 
   // ====service  approve and not approve ====
- const handleServiceApproval = async (revenue, decision) => {
-  const revenueId = revenue?._id;
-  if (!revenueId) return;
+  const handleServiceApproval = async (revenue, decision) => {
+    const revenueId = revenue?._id;
+    if (!revenueId) return;
 
-  setApprovalBusyId(String(revenueId));
+    setApprovalBusyId(String(revenueId));
 
-  try {
-    const res = await fetch("/api/franchise-revenue/onboard-approval", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: localStorage.getItem("email"),
-        revenueId: String(revenueId), // ✅ franchise-revenue document ID
-        decision,
-      }),
-    });
+    try {
+      const res = await fetch("/api/franchise-revenue/onboard-approval", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: localStorage.getItem("email"),
+          revenueId: String(revenueId), // ✅ franchise-revenue document ID
+          decision,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.success) {
-      // Local table update
-      setRevenueUsersList((prev) =>
-        prev.map((item) =>
-          String(item._id) === String(revenueId)
-            ? {
-                ...item,
-                planApprovalStatus:
-                  decision === "approved" ? "approved" : "rejected",
-              }
-            : item
-        )
-      );
+      if (data.success) {
+        // Local table update
+        setRevenueUsersList((prev) =>
+          prev.map((item) =>
+            String(item._id) === String(revenueId)
+              ? {
+                  ...item,
+                  planApprovalStatus:
+                    decision === "approved" ? "approved" : "rejected",
+                }
+              : item,
+          ),
+        );
 
-      // Fresh fetch
-      await fetchRevenueUsers();
-    } else {
-      alert(data.message || "Approval failed");
+        // Fresh fetch
+        await fetchRevenueUsers();
+      } else {
+        alert(data.message || "Approval failed");
+      }
+    } catch (err) {
+      console.error("SERVICE APPROVAL ERROR:", err);
+      alert("Something went wrong");
+    } finally {
+      setApprovalBusyId(null);
     }
-  } catch (err) {
-    console.error("SERVICE APPROVAL ERROR:", err);
-    alert("Something went wrong");
-  } finally {
-    setApprovalBusyId(null);
-  }
-};
+  };
 
-  const handleDownloadInvoice = async (user) => {
+ const handleDownloadInvoice = async (user) => {
   try {
     const res = await fetch(`/api/admin/invoice-tax?id=${user._id}`);
 
@@ -455,17 +402,47 @@ const todayRevenue =
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
 
+    // ✅ Save URL after successful download
+    setInvoiceUrls((prev) => ({
+      ...prev,
+      [user._id]: url,
+    }));
+
+    // ✅ Download PDF
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Invoice-${user.leadName || "user"}.pdf`;
+    a.download = `Invoice-${user.leadName || user.name || "user"}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-
-    window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error(error);
     alert("Invoice download failed");
+  }
+};
+
+const handleSendInvoiceWhatsApp = async (user) => {
+  try {
+    const res = await fetch("/api/admin/send-invoice-whatsapp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user._id,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert("Invoice sent successfully on WhatsApp");
+    } else {
+      alert(data.message || "Failed to send invoice");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("WhatsApp send failed");
   }
 };
 
@@ -596,144 +573,141 @@ const todayRevenue =
     }
   };
 
-//  delte user tabe 
+  //  delte user tabe
 
-const confirmDelete = async () => {
-  try {
-    let url = "";
+  const confirmDelete = async () => {
+    try {
+      let url = "";
 
-    if (deleteType === "service") {
-      url = `/api/franchise-revenue?id=${selectedId}&type=service`;
-    } else {
-      url = `/api/franchise-revenue?id=${selectedId}`;
+      if (deleteType === "service") {
+        url = `/api/franchise-revenue?id=${selectedId}&type=service`;
+      } else {
+        url = `/api/franchise-revenue?id=${selectedId}`;
+      }
+
+      const res = await fetch(url, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Delete failed");
+        return;
+      }
+
+      // ✅ Row remove from table immediately
+      setRevenueUsersList((prev) =>
+        prev.filter((item) => String(item._id) !== String(selectedId)),
+      );
+
+      // Close modal
+      setDeleteModal(false);
+      setSelectedId(null);
+      setDeleteType("");
+
+      alert(
+        deleteType === "service"
+          ? "Service deleted successfully"
+          : "Package deleted successfully",
+      );
+
+      // ✅ ONLY package delete ke liye fresh fetch karo
+      if (deleteType !== "service") {
+        await fetchRevenueUsers();
+      }
+    } catch (err) {
+      console.error("DELETE ERROR:", err);
+      alert("Something went wrong");
     }
-
-    const res = await fetch(url, {
-      method: "DELETE",
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      alert(data.message || "Delete failed");
-      return;
-    }
-
-    // ✅ Row remove from table immediately
-    setRevenueUsersList((prev) =>
-      prev.filter(
-        (item) => String(item._id) !== String(selectedId)
-      )
-    );
-
-    // Close modal
-    setDeleteModal(false);
-    setSelectedId(null);
-    setDeleteType("");
-
-    alert(
-      deleteType === "service"
-        ? "Service deleted successfully"
-        : "Package deleted successfully"
-    );
-
-    // ✅ ONLY package delete ke liye fresh fetch karo
-    if (deleteType !== "service") {
-      await fetchRevenueUsers();
-    }
-  } catch (err) {
-    console.error("DELETE ERROR:", err);
-    alert("Something went wrong");
-  }
-};
+  };
 
   const updateService = async () => {
-  try {
-    if (!selectedService?._id) {
-      alert("Service record ID not found");
-      return;
+    try {
+      if (!selectedService?._id) {
+        alert("Service record ID not found");
+        return;
+      }
+
+      const payload = {
+        id: selectedService._id,
+        _id: selectedService._id,
+        type: "service",
+        amount: Number(editAmount) || 0,
+        notes: editNotes,
+        remarks: editNotes,
+      };
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Service update failed");
+        return;
+      }
+
+      // ✅ Table ko turant local state me update karo
+      setRevenueUsersList((prev) =>
+        prev.map((item) =>
+          String(item._id) === String(selectedService._id)
+            ? {
+                ...item,
+                amount: Number(editAmount) || 0,
+                notes: editNotes,
+                remarks: editNotes,
+              }
+            : item,
+        ),
+      );
+
+      // Modal close
+      setEditServiceModal(false);
+      setSelectedService(null);
+      setEditAmount("");
+      setEditNotes("");
+
+      alert("Service updated successfully");
+    } catch (error) {
+      console.error("UPDATE ERROR:", error);
+      alert("Something went wrong");
     }
-
-    const payload = {
-      id: selectedService._id,
-      _id: selectedService._id,
-      type: "service",
-      amount: Number(editAmount) || 0,
-      notes: editNotes,
-      remarks: editNotes,
-    };
-
-    const res = await fetch("/api/franchise-revenue", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      alert(data.message || "Service update failed");
-      return;
-    }
-
-    // ✅ Table ko turant local state me update karo
-    setRevenueUsersList((prev) =>
-      prev.map((item) =>
-        String(item._id) === String(selectedService._id)
-          ? {
-              ...item,
-              amount: Number(editAmount) || 0,
-              notes: editNotes,
-              remarks: editNotes,
-            }
-          : item
-      )
-    );
-
-    // Modal close
-    setEditServiceModal(false);
-    setSelectedService(null);
-    setEditAmount("");
-    setEditNotes("");
-
-    alert("Service updated successfully");
-  } catch (error) {
-    console.error("UPDATE ERROR:", error);
-    alert("Something went wrong");
-  }
-};
+  };
 
   return (
     <>
       <div>
-          <RevenueHeader
-  handleRefresh={handleRefresh}
-  isRefreshing={isRefreshing}
-  activeView={activeView}
-  setActiveView={setActiveView}
-/>
+        <RevenueHeader
+          handleRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          activeView={activeView}
+          setActiveView={setActiveView}
+        />
 
         {/* ===== STATS ===== */}
-        
+
         <RevenueStats
-  activeView={activeView}
-  totalUsers={totalUsers}
-  todayUsers={todayUsers}
-  totalRevenue={totalRevenue}
-  todayRevenue={todayRevenue}
-  revenueUsersList={revenueUsersList}
-  users={users}
-/>
+          activeView={activeView}
+          totalUsers={totalUsers}
+          todayUsers={todayUsers}
+          totalRevenue={totalRevenue}
+          todayRevenue={todayRevenue}
+          revenueUsersList={revenueUsersList}
+          users={users}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-
           {/* SERACH TOOL BAAR  */}
 
           <RevenueFilters
-          activeView={activeView}
+            activeView={activeView}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             expiryFilter={expiryFilter}
@@ -745,14 +719,13 @@ const confirmDelete = async () => {
           />
 
           <RevenueTableWrapper
-  loadingRevenueUsers={loadingRevenueUsers}
-  revenueUsersList={revenueUsersList}
-  selectedRows={selectedRows}
->
+            loadingRevenueUsers={loadingRevenueUsers}
+            revenueUsersList={revenueUsersList}
+            selectedRows={selectedRows}
+          >
             <>
               {/* Table */}
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm ">
-               
                 <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
@@ -833,6 +806,9 @@ const confirmDelete = async () => {
                               expiry Date
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-semibold">
+                              Invoice
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold">
                               screenshot
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-semibold">
@@ -848,350 +824,402 @@ const confirmDelete = async () => {
                     <tbody>
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
-  filteredData
-    .filter((r) => r.type === "user_onboard")
-    .map((r, i) => {
-                          return (
-                            <tr
-                              key={i}
-                              className="border-t hover:bg-gray-50 transition"
-                            >
-                              <td className="px-4 py-4">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.includes(r._id)}
-                                  onChange={() => handleSelectRow(r._id)}
-                                  className="w-4 h-4 accent-indigo-600"
-                                />
-                              </td>
+                        filteredData
+                          .filter((r) => r.type === "user_onboard")
+                          .map((r, i) => {
+                            return (
+                              <tr
+                                key={i}
+                                className="border-t hover:bg-gray-50 transition"
+                              >
+                                <td className="px-4 py-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRows.includes(r._id)}
+                                    onChange={() => handleSelectRow(r._id)}
+                                    className="w-4 h-4 accent-indigo-600"
+                                  />
+                                </td>
 
-                              <td className="px-6 py-4">
-                                <div className="font-semibold text-gray-900">
-                                  {r.leadName}
-                                </div>
+                                <td className="px-6 py-4">
+                                  <div className="font-semibold text-gray-900">
+                                    {r.leadName}
+                                  </div>
 
-                                <div className="text-xs text-gray-500">
-                                  ID: {r.leadId}
-                                </div>
+                                  <div className="text-xs text-gray-500">
+                                    ID: {r.leadId}
+                                  </div>
 
-                                <div className="text-xs text-gray-500">
-                                  UTR: {r.utrNumber || "N/A"}
-                                </div>
-                              </td>
+                                  <div className="text-xs text-gray-500">
+                                    UTR: {r.utrNumber || "N/A"}
+                                  </div>
+                                </td>
 
-                              <td className="px-6 py-4">
-                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs">
-                                  {r.plan}
-                                </span>
-                              </td>
+                                <td className="px-6 py-4">
+                                  <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs">
+                                    {r.plan}
+                                  </span>
+                                </td>
 
-                              <td className="px-6 py-4 font-semibold text-green-600">
-                                ₹{r.amount}
-                              </td>
-
-     
-
-                              <td className="px-6 py-4 text-sm text-gray-600">
-                                {r.userPackageStartDate ? (
-                                  new Date(
-                                    r.userPackageStartDate,
-                                  ).toLocaleDateString("en-IN")
-                                ) : (
-                                  <span className="text-red-500">No Date</span>
-                                )}
-                              </td>
-
-                              <td className="px-6 py-4 text-sm text-gray-600">
-                                {formatDateIST(r.userPackageExpiryDate)}
-                              </td>
+                                <td className="px-6 py-4 font-semibold text-green-600">
+                                  ₹{r.amount}
+                                </td>
 
                                 <td className="px-6 py-4 text-sm text-gray-600">
-  <button
-    onClick={() => handleDownloadInvoice(r)}
-    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-  >
-    Invoice Download
-  </button>
-</td>
-
-                              {/* 🔥 EXPIRY */}
-
-                              <td className="px-6 py-4">
-                                <button
-                                  onClick={() =>
-                                    setFullViewImage(r.paymentScreenshot)
-                                  }
-                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
-                               bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
-                                >
-                                  View Proof
-                                </button>
-                              </td>
-
-                              <td className="px-6 py-4 text-sm">
-                                {r.notes || "-"}
-                              </td>
-
-                              <td className="px-6 py-4 text-sm">
-                                {r.planRemarks || "-"}
-                              </td>
-
-                              {role === "superAdmin" && (
-                                <td className="px-6 py-4 align-top text-sm">
-                                  {r?.type === "user_onboard" ? (
-                                    (() => {
-                                      const st = r.planApprovalStatus;
-
-                                      if (st === "approved") {
-                                        return (
-                                          <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                            Approved
-                                          </span>
-                                        );
-                                      }
-
-                                      if (st === "rejected") {
-                                        return (
-                                          <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                            Not approved
-                                          </span>
-                                        );
-                                      }
-
-                                      const busy =
-                                        approvalBusyId === String(r._id);
-
-                                      return (
-                                        <div className="flex flex-col gap-2">
-                                          <button
-                                            disabled={busy}
-                                            onClick={() =>
-                                              handleOnboardApproval(
-                                                r,
-                                                "approved",
-                                              )
-                                            }
-                                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white"
-                                          >
-                                            {busy ? "…" : "Approved"}
-                                          </button>
-
-                                          <button
-                                            disabled={busy}
-                                            onClick={() =>
-                                              handleOnboardApproval(
-                                                r,
-                                                "rejected",
-                                              )
-                                            }
-                                            className="rounded-lg border px-3 py-1 text-xs h-[28px] whitespace-nowrap flex items-center justify-center"
-                                          >
-                                            Not approved
-                                          </button>
-                                        </div>
-                                      );
-                                    })()
+                                  {r.userPackageStartDate ? (
+                                    new Date(
+                                      r.userPackageStartDate,
+                                    ).toLocaleDateString("en-IN")
                                   ) : (
-                                    <span className="text-gray-400">—</span>
+                                    <span className="text-red-500">
+                                      No Date
+                                    </span>
                                   )}
                                 </td>
-                              )}
 
-                              <td className="px-6 py-4 align-middle">
-                                <div className="flex justify-center items-center gap-2">
-                                  <button
-                                    onClick={() => handleEdit(r)}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                                  >
-                                    Edit
-                                  </button>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                  {formatDateIST(r.userPackageExpiryDate)}
+                                </td>
 
+                                  <td className="px-6 py-4">
+  <div className="flex gap-2">
+    {/* PDF Download */}
+    <button
+      onClick={() => handleDownloadInvoice(r)}
+      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+    >
+      PDF Download
+    </button>
+
+    {/* View PDF */}
+    {invoiceUrls[r._id] && (
+      <button
+        onClick={() => window.open(invoiceUrls[r._id], "_blank")}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+      >
+        View PDF
+      </button>
+    )}
+
+    {/* Send WhatsApp - ONLY after download */}
+    {invoiceUrls[r._id] && (
+      <button
+        onClick={() => handleSendInvoiceWhatsApp(r)}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+      >
+        Send WhatsApp
+      </button>
+    )}
+  </div>
+</td> 
+
+                                {/* 🔥 EXPIRY */}
+
+                                <td className="px-6 py-4">
                                   <button
-                                    onClick={() => {
-                                      setSelectedId(r._id);
-                                      setDeleteType("package");
-                                      setDeleteModal(true);
-                                    }}
-                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                                    onClick={() =>
+                                      setFullViewImage(r.paymentScreenshot)
+                                    }
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
+                               bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
                                   >
-                                    Delete
+                                    View Proof
                                   </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                                </td>
+
+                                <td className="px-6 py-4 text-sm">
+                                  {r.notes || "-"}
+                                </td>
+
+                                <td className="px-6 py-4 text-sm">
+                                  {r.planRemarks || "-"}
+                                </td>
+
+                                {role === "superAdmin" && (
+                                  <td className="px-6 py-4 align-top text-sm">
+                                    {r?.type === "user_onboard" ? (
+                                      (() => {
+                                        const st = r.planApprovalStatus;
+
+                                        if (st === "approved") {
+                                          return (
+                                            <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                              Approved
+                                            </span>
+                                          );
+                                        }
+
+                                        if (st === "rejected") {
+                                          return (
+                                            <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                              Not approved
+                                            </span>
+                                          );
+                                        }
+
+                                        const busy =
+                                          approvalBusyId === String(r._id);
+
+                                        return (
+                                          <div className="flex flex-col gap-2">
+                                            <button
+                                              disabled={busy}
+                                              onClick={() =>
+                                                handleOnboardApproval(
+                                                  r,
+                                                  "approved",
+                                                )
+                                              }
+                                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white"
+                                            >
+                                              {busy ? "…" : "Approved"}
+                                            </button>
+
+                                            <button
+                                              disabled={busy}
+                                              onClick={() =>
+                                                handleOnboardApproval(
+                                                  r,
+                                                  "rejected",
+                                                )
+                                              }
+                                              className="rounded-lg border px-3 py-1 text-xs h-[28px] whitespace-nowrap flex items-center justify-center"
+                                            >
+                                              Not approved
+                                            </button>
+                                          </div>
+                                        );
+                                      })()
+                                    ) : (
+                                      <span className="text-gray-400">—</span>
+                                    )}
+                                  </td>
+                                )}
+
+                                <td className="px-6 py-4 align-middle">
+                                  <div className="flex justify-center items-center gap-2">
+                                    <button
+                                      onClick={() => handleEdit(r)}
+                                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      Edit
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        setSelectedId(r._id);
+                                        setDeleteType("package");
+                                        setDeleteModal(true);
+                                      }}
+                                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
 
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-  serviceRows.map((u, i) => (
+                        serviceRows.map((u, i) => (
+                          <tr
+                            key={i}
+                            className="border-t hover:bg-gray-50 transition"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="font-semibold text-gray-900">
+                                {u.name ||
+                                  u.fullName ||
+                                  u.leadName ||
+                                  "No Name"}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {u.email}
+                              </div>
+                            </td>
 
-                            <tr
-                              key={i}
-                              className="border-t hover:bg-gray-50 transition"
-                            >
-                              <td className="px-6 py-4">
-                                <div className="font-semibold text-gray-900">
-                                  {u.name ||
-                                    u.fullName ||
-                                    u.leadName ||
-                                    "No Name"}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {u.email}
-                                </div>
-                              </td>
+                            <td className="px-6 py-4">
+                              <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                                {u.paidService || u.plan || "No Service"}
+                              </span>
+                            </td>
 
-                              <td className="px-6 py-4">
-  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-    {u.paidService || u.plan || "No Service"}
-  </span>
+                            <td className="px-6 py-4">
+                              {u.planDuration || "monthly"}
+                            </td>
+
+                            <td className="px-6 py-4">{u.amount}</td>
+
+                            {/* START DATE */}
+                            {/* START DATE */}
+                            <td className="px-6 py-4">
+                              {(() => {
+                                // 🔥 Actual field found from console:
+                                // userPackageStartDate = "2026-05-07T00:00:00.000Z"
+
+                                const rawDate =
+                                  u.packageStartDate ||
+                                  u.userPackageStartDate ||
+                                  u.startDate ||
+                                  u.date ||
+                                  u.createdAt;
+
+                                if (!rawDate) return "No Date";
+
+                                // ✅ Convert to Date object
+                                const d = new Date(rawDate);
+
+                                if (isNaN(d.getTime())) return "No Date";
+
+                                // ✅ Use local date parts (NOT split("-"))
+                                // This avoids NaN/5/2026 issue
+                                const day = d.getDate();
+                                const month = d.getMonth() + 1;
+                                const year = d.getFullYear();
+
+                                return `${day}/${month}/${year}`;
+                              })()}
+                            </td>
+
+                            <td className="px-6 py-4">
+                              {u.packageExpiryDate
+                                ? new Date(
+                                    u.packageExpiryDate,
+                                  ).toLocaleDateString("en-IN")
+                                : "No Date"}
+                            </td>
+
+                            <td className="px-6 py-4">
+  <div className="flex gap-2">
+    {/* PDF Download */}
+    <button
+      onClick={() => handleDownloadInvoice(r)}
+      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+    >
+      PDF Download
+    </button>
+
+    {/* View PDF */}
+    {invoiceUrls[r._id] && (
+      <button
+        onClick={() => window.open(invoiceUrls[r._id], "_blank")}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+      >
+        View PDF
+      </button>
+    )}
+
+    {/* Send WhatsApp - ONLY after download */}
+    {invoiceUrls[r._id] && (
+      <button
+        onClick={() => handleSendInvoiceWhatsApp(r)}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+      >
+        Send WhatsApp
+      </button>
+    )}
+  </div>
 </td>
 
-                              <td className="px-6 py-4">
-  {u.planDuration || "monthly"}
-</td>
+                            {/* service  */}
 
-                          <td className="px-6 py-4">
-  {u.amount}
-</td>
-                              
-{/* START DATE */}
-{/* START DATE */}
-<td className="px-6 py-4">
-  {(() => {
-    // 🔥 Actual field found from console:
-    // userPackageStartDate = "2026-05-07T00:00:00.000Z"
-
-    const rawDate =
-      u.packageStartDate ||
-      u.userPackageStartDate ||
-      u.startDate ||
-      u.date ||
-      u.createdAt;
-
-    if (!rawDate) return "No Date";
-
-    // ✅ Convert to Date object
-    const d = new Date(rawDate);
-
-    if (isNaN(d.getTime())) return "No Date";
-
-    // ✅ Use local date parts (NOT split("-"))
-    // This avoids NaN/5/2026 issue
-    const day = d.getDate();
-    const month = d.getMonth() + 1;
-    const year = d.getFullYear();
-
-    return `${day}/${month}/${year}`;
-  })()}
-</td>
-
-                              <td className="px-6 py-4">
-  {u.packageExpiryDate
-    ? new Date(u.packageExpiryDate).toLocaleDateString("en-IN")
-    : "No Date"}
-</td>
-
-                              {/* service  */}
-
-                              <td className="px-6 py-4">
-                                <button
-                                  onClick={() =>
-                                    setFullViewImage(u.paymentScreenshot)
-                                  }
-                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() =>
+                                  setFullViewImage(u.paymentScreenshot)
+                                }
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
                                  bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
-                                >
-                                  View Proof
-                                </button>
-                              </td>
+                              >
+                                View Proof
+                              </button>
+                            </td>
 
-                              <td className="px-6 py-4">
-                                {u.notes || u.remarks || u.Remarks || "-"}
-                              </td>
+                            <td className="px-6 py-4">
+                              {u.notes || u.remarks || u.Remarks || "-"}
+                            </td>
 
-                              <td className="px-6 py-4 align-top text-sm">
-                                {(() => {
-                                  const st = u.planApprovalStatus || "pending";
+                            <td className="px-6 py-4 align-top text-sm">
+                              {(() => {
+                                const st = u.planApprovalStatus || "pending";
 
-                                  if (st === "approved") {
-                                    return (
-                                      <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                        Approved
-                                      </span>
-                                    );
-                                  }
-
-                                  if (st === "rejected") {
-                                    return (
-                                      <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                        Not approved
-                                      </span>
-                                    );
-                                  }
-
-                                  const busy = approvalBusyId === String(u._id);
-
+                                if (st === "approved") {
                                   return (
-                                    <div className="flex flex-wrap gap-2">
-                                      <button
-                                        disabled={busy}
-                                        onClick={() =>
-                                          handleServiceApproval(u, "approved")
-                                        }
-                                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
-                                      >
-                                        {busy ? "…" : "Approved"}
-                                      </button>
-
-                                      <button
-                                        disabled={busy}
-                                        onClick={() =>
-                                          handleServiceApproval(u, "rejected")
-                                        }
-                                        className="rounded-lg border px-3 py-1.5 text-xs"
-                                      >
-                                        Not approved
-                                      </button>
-                                    </div>
+                                    <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                      Approved
+                                    </span>
                                   );
-                                })()}
-                              </td>
+                                }
 
-                              <td className="px-6 py-4 align-middle">
-                                <div className="flex justify-center items-center gap-2">
-                                  <button
-                                    onClick={() => {
-                                       
-                                      setSelectedService(u);
-                                      setEditAmount(u.amount || "");
-                                      setEditNotes(
-                                        u.notes ?? u.remarks ?? u.Remarks ?? "",
-                                      );
-                                      setEditServiceModal(true);
-                                    }}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                                  >
-                                    Edit
-                                  </button>
+                                if (st === "rejected") {
+                                  return (
+                                    <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                      Not approved
+                                    </span>
+                                  );
+                                }
 
-                                  <button
-                                    onClick={() => {
-                                      
-                                      setSelectedId(u._id); // 👈 temporarily
-                                      setDeleteModal(true);
-                                      setDeleteType("service");
-                                    }}
-                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                                const busy = approvalBusyId === String(u._id);
+
+                                return (
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      disabled={busy}
+                                      onClick={() =>
+                                        handleServiceApproval(u, "approved")
+                                      }
+                                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
+                                    >
+                                      {busy ? "…" : "Approved"}
+                                    </button>
+
+                                    <button
+                                      disabled={busy}
+                                      onClick={() =>
+                                        handleServiceApproval(u, "rejected")
+                                      }
+                                      className="rounded-lg border px-3 py-1.5 text-xs"
+                                    >
+                                      Not approved
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </td>
+
+                            <td className="px-6 py-4 align-middle">
+                              <div className="flex justify-center items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedService(u);
+                                    setEditAmount(u.amount || "");
+                                    setEditNotes(
+                                      u.notes ?? u.remarks ?? u.Remarks ?? "",
+                                    );
+                                    setEditServiceModal(true);
+                                  }}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                                >
+                                  Edit
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    setSelectedId(u._id); // 👈 temporarily
+                                    setDeleteModal(true);
+                                    setDeleteType("service");
+                                  }}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
@@ -1199,54 +1227,52 @@ const confirmDelete = async () => {
 
               {/* Footer Totals */}
               <RevenueFooter
-  activeView={activeView}
-  revenueUsersList={revenueUsersList}
-  users={users}
-/>
+                activeView={activeView}
+                revenueUsersList={revenueUsersList}
+                users={users}
+              />
             </>
-          
           </RevenueTableWrapper>
-
         </div>
 
         {/* // package edit moada */}
         <EditPackageModal
-  editModal={editModal}
-  setEditModal={setEditModal}
-  editPlan={editPlan}
-  setEditPlan={setEditPlan}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editRemarks={editRemarks}
-  setEditRemarks={setEditRemarks}
-  handleUpdatePackage={handleUpdatePackage}
-/>
+          editModal={editModal}
+          setEditModal={setEditModal}
+          editPlan={editPlan}
+          setEditPlan={setEditPlan}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editRemarks={editRemarks}
+          setEditRemarks={setEditRemarks}
+          handleUpdatePackage={handleUpdatePackage}
+        />
         {/* // service modal */}
-        
+
         <EditServiceModal
-  editServiceModal={editServiceModal}
-  setEditServiceModal={setEditServiceModal}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editNotes={editNotes}
-  setEditNotes={setEditNotes}
-  updateService={updateService}
-/>
+          editServiceModal={editServiceModal}
+          setEditServiceModal={setEditServiceModal}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editNotes={editNotes}
+          setEditNotes={setEditNotes}
+          updateService={updateService}
+        />
 
-          {/* // Delete modal */}
+        {/* // Delete modal */}
 
-          <DeleteModal
-  deleteModal={deleteModal}
-  setDeleteModal={setDeleteModal}
-  confirmDelete={confirmDelete}
-/>
+        <DeleteModal
+          deleteModal={deleteModal}
+          setDeleteModal={setDeleteModal}
+          confirmDelete={confirmDelete}
+        />
 
         {/* // image Previe modal */}
 
         <ImagePreviewModal
-  fullViewImage={fullViewImage}
-  setFullViewImage={setFullViewImage}
-/>
+          fullViewImage={fullViewImage}
+          setFullViewImage={setFullViewImage}
+        />
       </div>
     </>
   );

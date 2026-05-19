@@ -9,8 +9,8 @@ const AISENSY_URL =
   "https://whatsapp.limbu.ai/api/campaigns/send";
 
 // Working API Key
-const API_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE0LCJlbWFpbCI6InJvYmhpbmtoYW5AZ21haWwuY29tIiwicm9sZSI6Im1hbmFnZXIiLCJ3b3Jrc3BhY2VJZCI6MSwiaWF0IjoxNzc4MzA3MjgyLCJleHAiOjE3Nzg5MTIwODJ9.Vd5_GYgOPwZjMKxgelN-fUMWgar2srFogqur4eKFgP0";
+const API_KEY = process.env.LIMBU_API_KEY;
+  
 
 // Normalize Indian mobile number
 function normalizeNumber(num) {

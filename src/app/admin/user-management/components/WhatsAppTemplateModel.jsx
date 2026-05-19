@@ -12,6 +12,7 @@ import {
   Search,
   BarChart2,
   Zap,
+  MessageSquare,
 } from "lucide-react";
 
 const TEMPLATE_GROUPS = [
@@ -74,6 +75,16 @@ const TEMPLATE_GROUPS = [
     bg: "bg-rose-50",
     iconBg: "bg-rose-100",
     iconColor: "text-rose-600",
+  },
+  {
+    id: "bulk_whatsapp",
+    title: "Bulk WhatsApp",
+    subtitle: "Send bulk scheduled WhatsApp messages",
+    icon: MessageSquare,
+    border: "border-green-200",
+    bg: "bg-green-50",
+    iconBg: "bg-green-100",
+    iconColor: "text-green-600",
   },
 ];
 
@@ -167,6 +178,21 @@ const REVIEW_REPLY_TEMPLATES = [
   },
 ];
 
+const BULK_WHATSAPP_TEMPLATES = [
+  {
+    id: "bulk_custom_whatsapp",
+    title: "Bulk WhatsApp Campaign",
+    subtitle: "Send WhatsApp message to selected leads",
+    preview: [
+      "Hi {{1}},",
+      "We are reaching out regarding your business growth opportunities.",
+      "Limbu AI helps businesses improve Google visibility, reviews, and customer engagement.",
+      "Chat now with Limbu AI to explore powerful business growth tools.",
+    ],
+    buttons: ["Chat Now", "Need Support"],
+  },
+];
+
 const getTemplatesForGroup = (groupId) => {
   if (groupId === "magic_qr") return MAGIC_QR_TEMPLATES;
   if (groupId === "gmb_health") return GMB_HEALTH_TEMPLATES;
@@ -174,6 +200,8 @@ const getTemplatesForGroup = (groupId) => {
   if (groupId === "keyword_plan") return KEYWORD_PLAN_TEMPLATES;
   if (groupId === "gmb_insights") return GMB_INSIGHTS_TEMPLATES;
   if (groupId === "review_reply") return REVIEW_REPLY_TEMPLATES;
+  if (groupId === "bulk_whatsapp") return BULK_WHATSAPP_TEMPLATES;
+
   return [];
 };
 
@@ -183,6 +211,10 @@ export default function WhatsappModal({
   selectedCount = 0,
   onSendTemplate,
   sendingTemplateId = "",
+  bulkWaSendDate,
+  setBulkWaSendDate,
+  onBulkSend,
+  bulkWaSending,
 }) {
   const [selectedGroup, setSelectedGroup] = useState(null);
 
@@ -263,7 +295,9 @@ export default function WhatsappModal({
         ) : (
           <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-5 max-h-[75vh] overflow-y-auto">
             {templates.map((template) => {
-              const isSending = sendingTemplateId === template.id;
+              const isSending =
+                sendingTemplateId === template.id ||
+                (selectedGroup === "bulk_whatsapp" && bulkWaSending);
               return (
                 <div
                   key={template.id}
@@ -300,10 +334,30 @@ export default function WhatsappModal({
                   </div>
 
                   <div className="p-4 bg-white">
+                    {selectedGroup === "bulk_whatsapp" && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Schedule Date & Time
+                        </label>
+
+                        <input
+                          type="datetime-local"
+                          value={bulkWaSendDate}
+                          onChange={(e) => setBulkWaSendDate(e.target.value)}
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        />
+                      </div>
+                    )}
                     <button
                       type="button"
                       disabled={template.disabled || !!sendingTemplateId}
-                      onClick={() => onSendTemplate?.(template)}
+                      onClick={() => {
+                        if (selectedGroup === "bulk_whatsapp") {
+                          onBulkSend?.();
+                        } else {
+                          onSendTemplate?.(template);
+                        }
+                      }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isSending ? (

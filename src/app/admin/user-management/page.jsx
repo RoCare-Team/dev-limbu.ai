@@ -1910,7 +1910,7 @@ export default function UserManagement() {
       : new Date().toISOString().split("T")[0];
     setPlanStartDate(start);
     setUtrNumber("");
-        setGstNumber(""); // Reset amount
+    setGstNumber(""); // Reset amount
 
     setPlanAmount("");
     setPlanScreenshot(null); // Reset screenshot
@@ -1963,7 +1963,7 @@ export default function UserManagement() {
 
             email: localStorage.getItem("email"),
             plan: selectedPlan,
-             // ✅ comma जरूरी
+            // ✅ comma जरूरी
 
             packageStartDate: planStartDate, // ✅
             packageExpiryDate: planExpiryDate, // ✅
@@ -2229,6 +2229,7 @@ export default function UserManagement() {
         if (json.success) {
           setBulkWaSelectedUserIds([]);
           setBulkWaShowPanel(false);
+          setIsOpen(false);
         }
       }
     } catch (error) {
@@ -3742,15 +3743,6 @@ export default function UserManagement() {
                       <div className="flex-1 flex flex-wrap gap-3">
                         <button
                           type="button"
-                          onClick={() => setBulkWaShowPanel(true)}
-                          className="flex items-center justify-center gap-2 bg-white text-green-600 px-4 py-3 rounded-lg font-medium hover:bg-green-50 transition shadow-md min-w-[160px]"
-                        >
-                          <MessageSquare size={20} />
-                          WhatsApp
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => setIsOpen(true)}
                           className="group bg-white px-6 py-3 rounded-2xl
                           flex items-center gap-2 text-green-600 font-semibold
@@ -3815,61 +3807,14 @@ export default function UserManagement() {
                   isOpen={isOpen}
                   setIsOpen={setIsOpen}
                   selectedCount={bulkWaSelectedUserIds.length}
+                  bulkWaSendDate={bulkWaSendDate}
+                  setBulkWaSendDate={setBulkWaSendDate}
+                  onBulkSend={sendBulkUserManagementWhatsApp}
+                  bulkWaSending={bulkWaSending}
                   onSendTemplate={sendTemplateWhatsApp}
                   sendingTemplateId={templateWaSendingId}
                 />
 
-                {bulkWaShowPanel && bulkWaSelectedUserIds.length > 0 && (
-                  <div className="bg-white px-4 py-6 md:px-8 border-b border-indigo-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <MessageSquare className="text-green-600" size={22} />
-                        Send WHATSAPP to {bulkWaSelectedUserIds.length} leads
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setBulkWaShowPanel(false)}
-                        className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100"
-                        aria-label="Close"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Schedule Date & Time
-                        </label>
-                        <input
-                          type="datetime-local"
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                          value={bulkWaSendDate}
-                          onChange={(e) => setBulkWaSendDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <button
-                          type="button"
-                          onClick={sendBulkUserManagementWhatsApp}
-                          disabled={bulkWaSending}
-                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                          {bulkWaSending ? (
-                            <>
-                              <RefreshCw size={18} className="animate-spin" />
-                              Sending...
-                            </>
-                          ) : (
-                            <>
-                              <Send size={18} />
-                              Send WHATSAPP
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 {bulkWaResult && (
                   <div
                     className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
@@ -5078,19 +5023,19 @@ export default function UserManagement() {
                 </div>
 
                 {/* GST Number Field */}
-<div className="mt-4">
-  <label className="block text-xs font-medium text-gray-700 mb-1">
-    GST Number
-  </label>
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    GST Number
+                  </label>
 
-  <input
-    type="text"
-    value={gstNumber}
-    onChange={(e) => setGstNumber(e.target.value)}
-    placeholder="Enter GST Number"
-    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-  />
-</div>
+                  <input
+                    type="text"
+                    value={gstNumber}
+                    onChange={(e) => setGstNumber(e.target.value)}
+                    placeholder="Enter GST Number"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3">

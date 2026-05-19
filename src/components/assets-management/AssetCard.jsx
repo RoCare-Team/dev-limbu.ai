@@ -13,6 +13,17 @@ export default function AssetCard({
   commitUrlInput, 
   removeAsset 
 }) {
+
+  console.log("Asset Card console: ",{fieldKey, 
+  label, 
+  icon, 
+  assetValue, 
+  previewUrl, 
+  urlInputValue,
+  handleImageUpload, 
+  handleUrlInputChange, 
+  commitUrlInput, 
+  removeAsset })
   return (
     <div className="group relative border-2 border-black/10 rounded-[2rem] p-8 hover:border-lemon-hover hover:bg-white transition-all bg-slate-50/50 shadow-sm">
       <div className="flex items-center justify-between mb-6">

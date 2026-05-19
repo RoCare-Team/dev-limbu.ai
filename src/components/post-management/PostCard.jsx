@@ -558,7 +558,7 @@ const PostCard = React.memo(
     };
 
     const canPostToYoutube =
-      hasGeneratedVideoOutput && post.status !== "rejected";
+      hasGeneratedVideoOutput && post.status !== "rejected" && post.status !== "pending";
 
     const youtubePostButton = canPostToYoutube ? (
       <button

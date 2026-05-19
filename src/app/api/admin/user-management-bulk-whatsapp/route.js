@@ -8,7 +8,7 @@ const normalizeNumber = (num) => {
   if (!num) return null;
   let n = num.toString().replace(/\D/g, "");
   if (n.startsWith("0")) n = n.slice(1);
-  if (n.length === 10) n = "9h1" + n;
+  if (n.length === 10) n = "91" + n;
   return n.length === 12 ? n : null;
 };
 
@@ -18,6 +18,41 @@ const CAMPAIGN_CONFIG = {
     mediaUrl:
       "https://limbuai.s3.ap-south-1.amazonaws.com/2WhatsApp+Image+2026-02-04+at+12.14.20+PM.jpeg",
   },
+};
+
+const getSessionDateTime = () => {
+  const now = new Date();
+
+  // Find next working day
+  const nextDate = new Date(now);
+
+  // If today is Sunday move to Monday
+  if (nextDate.getDay() === 0) {
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+
+  const day = nextDate.getDay();
+
+  // Friday => 5:30 PM
+  // Monday-Saturday => 4:00 PM
+  let hours = 16;
+  let minutes = 0;
+
+  if (day === 5) {
+    hours = 17;
+    minutes = 30;
+  }
+
+  nextDate.setHours(hours, minutes, 0, 0);
+
+  return nextDate.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 export async function POST(req) {
@@ -32,7 +67,6 @@ export async function POST(req) {
         { status: 400 },
       );
     }
-    
 
     const admin = await Admin.findOne({
       email: adminEmail.trim(),
@@ -74,12 +108,12 @@ export async function POST(req) {
       }
 
       const payload = {
-        apiKey: process.env.AISENSY_API_KEY,
+        apiKey:process.env.LIMBU_AI_WHATSAPP_KEY,
         campaignName,
         destination,
         userName: "LimbuAI",
         templateParams: [
-          "11 May 2026, 4:00 PM",
+          getSessionDateTime(),
           "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w",
           "864 3594 1427",
           "800770",
@@ -89,7 +123,6 @@ export async function POST(req) {
           url: CAMPAIGN_CONFIG[campaignName].mediaUrl,
           filename: "session_image",
         },
-       
       };
 
       try {
@@ -101,7 +134,7 @@ export async function POST(req) {
 
         const json = await response.json();
 
-        if (json?.success === "true") {
+        if (json?.success) {
           sent++;
           results.push({
             number: destination,

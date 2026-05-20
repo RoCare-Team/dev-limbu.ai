@@ -132,15 +132,24 @@ export function leadTagPillClassName(tag) {
   const t = String(tag || "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, "-")
+    .replace(/\s+/g, "-");
+
   if (t === "metaleads") {
-    return "bg-indigo-50 text-indigo-900 border-indigo-300/70"
+    return "bg-indigo-50 text-indigo-900 border-indigo-300/70";
   }
+
   if (t === "website" || t === "web") {
-    return "bg-cyan-50 text-cyan-900 border-cyan-300/70"
+    return "bg-cyan-50 text-cyan-900 border-cyan-300/70";
   }
+
   if (t === "priority" || t === "hot") {
-    return "bg-orange-50 text-orange-900 border-orange-300/70"
+    return "bg-orange-50 text-orange-900 border-orange-300/70";
   }
-  return "bg-stone-50 text-stone-800 border-stone-300/60"
+
+  // 👇 YE NAYA BLOCK ADD KARNA HAI
+  if (t === "expolead") {
+    return "bg-purple-100 text-purple-700 border-purple-300";
+  }
+
+  return "bg-stone-50 text-stone-800 border-stone-300/60";
 }

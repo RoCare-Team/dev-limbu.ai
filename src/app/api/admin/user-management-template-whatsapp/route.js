@@ -73,9 +73,7 @@ export async function POST(req) {
   const config = CAMPAIGN_CONFIG[templateId];
 
 if (templateId === "google_business_profile_management") {
-  console.log("========== GOOGLE BUSINESS TEMPLATE DEBUG ==========");
-  console.log("📌 templateId:", templateId);
-  console.log("🧩 Config:", config);
+ 
   console.log("👥 Total Users:", users?.length || 0);
 }
 

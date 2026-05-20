@@ -125,6 +125,7 @@ const userSchema = new mongoose.Schema(
         "manual-upload",
         "Meta Leads",
         "Meta",
+        "expolead"
       ],
       default: "signup",
     },

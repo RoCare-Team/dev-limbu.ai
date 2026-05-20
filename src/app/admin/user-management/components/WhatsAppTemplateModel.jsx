@@ -16,6 +16,17 @@ import {
 } from "lucide-react";
 
 const TEMPLATE_GROUPS = [
+
+   {
+  id: "google_business",
+  title: "Google Business",
+  subtitle: "Send Google Business Profile templates",
+  icon: Globe,
+  border: "border-cyan-200",
+  bg: "bg-cyan-50",
+  iconBg: "bg-cyan-100",
+  iconColor: "text-cyan-600",
+},
   {
     id: "magic_qr",
     title: "Magic QR",
@@ -85,6 +96,21 @@ const TEMPLATE_GROUPS = [
     bg: "bg-green-50",
     iconBg: "bg-green-100",
     iconColor: "text-green-600",
+  },
+ 
+];
+
+const GOOGLE_BUSINESS_TEMPLATES = [
+  {
+    id: "google_business_profile_management",
+    title: "Google Business Profile Management",
+    subtitle: "Send Google Business Profile management service request",
+    preview: [
+      "Hi {{1}},",
+      "This is regarding your Google Business Profile management service request.",
+      'Please click the "Chat Now" button to continue the conversation with our team.',
+    ],
+    buttons: ["Chat Now", "Need Support"],
   },
 ];
 
@@ -193,7 +219,11 @@ const BULK_WHATSAPP_TEMPLATES = [
   },
 ];
 
+
+
 const getTemplatesForGroup = (groupId) => {
+  if (groupId === "google_business")
+    return GOOGLE_BUSINESS_TEMPLATES;
   if (groupId === "magic_qr") return MAGIC_QR_TEMPLATES;
   if (groupId === "gmb_health") return GMB_HEALTH_TEMPLATES;
   if (groupId === "free_website") return FREE_WEBSITE_TEMPLATES;
@@ -201,6 +231,7 @@ const getTemplatesForGroup = (groupId) => {
   if (groupId === "gmb_insights") return GMB_INSIGHTS_TEMPLATES;
   if (groupId === "review_reply") return REVIEW_REPLY_TEMPLATES;
   if (groupId === "bulk_whatsapp") return BULK_WHATSAPP_TEMPLATES;
+   
 
   return [];
 };

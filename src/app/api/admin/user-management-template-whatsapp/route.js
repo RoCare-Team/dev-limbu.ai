@@ -13,6 +13,12 @@ const normalizeNumber = (num) => {
 };
 
 const CAMPAIGN_CONFIG = {
+
+  google_business_profile_management: {
+  campaignName: "gmb_profile_new",
+  source: "user-management google-business",
+},
+
   magic_qr_code: {
     campaignName: "magic qr code",
     source: "user-management magic-qr",
@@ -64,56 +70,80 @@ export async function POST(req) {
       );
     }
 
-    const config = CAMPAIGN_CONFIG[templateId];
-    if (!config) {
-      return NextResponse.json(
-        { success: false, message: "Invalid WhatsApp template" },
-        { status: 400 },
-      );
-    }
+  const config = CAMPAIGN_CONFIG[templateId];
 
-    if (!Array.isArray(users) || users.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "Users array is required" },
-        { status: 400 },
-      );
-    }
+if (templateId === "google_business_profile_management") {
+  console.log("========== GOOGLE BUSINESS TEMPLATE DEBUG ==========");
+  console.log("📌 templateId:", templateId);
+  console.log("🧩 Config:", config);
+  console.log("👥 Total Users:", users?.length || 0);
+}
 
-    let sent = 0;
-    const results = [];
-    const HARDCODED_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE0LCJlbWFpbCI6InJvYmhpbmtoYW5AZ21haWwuY29tIiwicm9sZSI6Im1hbmFnZXIiLCJ3b3Jrc3BhY2VJZCI6MSwiaWF0IjoxNzc4MzA3MjgyLCJleHAiOjE3Nzg5MTIwODJ9.Vd5_GYgOPwZjMKxgelN-fUMWgar2srFogqur4eKFgP0";
+if (!config) {
+  return NextResponse.json(
+    { success: false, message: "Invalid WhatsApp template" },
+    { status: 400 }
+  );
+}
 
-    for (const user of users) {
-      const destination = normalizeNumber(
-        user.customer_no_with_prefix || user.phone || user.mobileNumber,
-      );
-      const firstName = user.name || user.fullName || "User";
+if (!Array.isArray(users) || users.length === 0) {
+  return NextResponse.json(
+    { success: false, message: "Users array is required" },
+    { status: 400 }
+  );
+}
 
-      if (!destination) {
-        results.push({
-          userId: user.userId || null,
-          number: user.customer_no_with_prefix || user.phone || user.mobileNumber,
-          status: "Invalid number",
-        });
-        continue;
-      }
+let sent = 0;
+const results = [];
+const HARDCODED_API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
 
-      const payload = {
-        apiKey: HARDCODED_API_KEY,
-        campaignName: config.campaignName,
-        destination: destination,
-        userName: "YOUR_BRAND_NAME",
-        templateParams: ["$FirstName"],
-        source: "api",
-        media: {},
-        buttons: [],
-        carouselCards: [],
-        location: {},
-        attributes: {},
-        paramsFallbackValue: {
-          FirstName: firstName,
-        },
-      };
+for (const user of users) {
+  const destination = normalizeNumber(
+    user.customer_no_with_prefix || user.phone || user.mobileNumber
+  );
+
+  const firstName = user.name || user.fullName || "User";
+
+  if (!destination) {
+    results.push({
+      userId: user.userId || null,
+      number:
+        user.customer_no_with_prefix ||
+        user.phone ||
+        user.mobileNumber,
+      status: "Invalid number",
+    });
+    continue;
+  }
+
+  const payload = {
+    apiKey: HARDCODED_API_KEY,
+    campaignName: config.campaignName,
+    destination,
+    userName: "Limbu AI",
+    templateParams: ["$FirstName"],
+    source: "api",
+    media: {},
+    buttons: [],
+    carouselCards: [],
+    location: {},
+    attributes: {},
+    paramsFallbackValue: {
+      FirstName: firstName,
+    },
+  };
+
+  if (templateId === "google_business_profile_management") {
+    console.log("📤 GOOGLE BUSINESS PAYLOAD:");
+    console.log(JSON.stringify(payload, null, 2));
+  }
+
+  try {
+    // fetch code here
+  } catch (error) {
+    // error handling here
+  }
+
 
       try {
         const response = await fetch(AISENSY_URL, {
@@ -123,6 +153,14 @@ export async function POST(req) {
         });
 
         const json = await response.json();
+
+       if (templateId === "google_business_profile_management") {
+  console.log("📥 GOOGLE BUSINESS RESPONSE STATUS:", response.status);
+  console.log("📥 GOOGLE BUSINESS RESPONSE:");
+  console.log(JSON.stringify(json, null, 2));
+  console.log("===============================================");
+}
+
         const ok = response.ok && (json?.success === true || json?.success === "true");
 
         if (ok) {

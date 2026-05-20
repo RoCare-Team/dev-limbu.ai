@@ -1,0 +1,1608 @@
+"use client";
+
+import BookDemoModal from "@/components/modals/BookDemoModal";
+import FooterSection from "@/components/sections/FooterSection";
+import Navbar from "@/components/sections/HeaderSection";
+import ScrollToTop from "@/components/ui/ScrollToTop";
+import {
+  ArrowRight,
+  CheckCircle,
+  Star,
+  PhoneCall,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Award,
+  Shield,
+  Zap,
+  BarChart,
+  Target,
+  Rocket,
+  Clock,
+  X,
+  Mail as MailIcon,
+} from "lucide-react";
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import Image from "next/image";
+
+// ✅ Moved OUTSIDE component so it's never undefined
+const PROFIT_CALCULATIONS = {
+  starter: { investment: 50000 },
+  standard: { investment: 100000 },
+  premium: { investment: 500000 },
+};
+
+const SITE_URL = "https://limbu.ai";
+
+export async function generateMetadata({ params }) {
+  const slug = params?.slug || "";
+
+  const citySlug = slug.replace("franchise-opportunities-", "");
+
+  const cityName = citySlug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  const title = cityName
+    ? `${cityName} AI GMB Marketing Automation Tool | Limbu.ai`
+    : "AI GMB Marketing Automation Tool | Limbu.ai";
+
+  const description = cityName
+    ? `Automate Google Business, Facebook, and Instagram with Limbu.ai in ${cityName}. Manage reviews, posts, messages, customer engagement & insights from one AI-powered dashboard.`
+    : "Automate Google Business, Facebook, and Instagram with Limbu.ai.";
+
+  const canonicalUrl = `${SITE_URL}/bussiness/${slug}`;
+
+  return {
+    title,
+    description,
+
+    alternates: {
+      canonical: canonicalUrl,
+    },
+
+    robots: {
+      index: true,
+      follow: true,
+    },
+
+    authors: [
+      {
+        name: "Limbu.ai",
+        url: "https://www.limbu.ai/",
+      },
+    ],
+
+    publisher: "Limbu.ai",
+
+    keywords: [
+      "Google My Business automation",
+      "GMB management tool",
+      "AI GMB posts",
+      "Google Business Profile optimization",
+      "review management software",
+      "local SEO tools",
+      "auto-reply reviews",
+      "GMB insights dashboard",
+      "business growth automation",
+      "limbu.ai",
+    ],
+  };
+}
+
+// ✅ Fixed: checks if script already loaded before injecting again
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const existing = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+    );
+    if (existing) {
+      existing.onload = () => resolve(true);
+      existing.onerror = () => resolve(false);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
+// ✅ Helper: extract and format city name from URL param
+// e.g. "franchise-opportunities-new-delhi" → "New Delhi"
+function parseCityName(rawParam) {
+  if (!rawParam) return null;
+  const prefix = "franchise-opportunities-";
+  const slug = rawParam.startsWith(prefix)
+    ? rawParam.slice(prefix.length)
+    : rawParam;
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+const partners = Array.from({ length: 10 }, (_, i) => ({
+  id: i + 1,
+  label: `Partner ${i + 1}`,
+}));
+
+const features = [
+  { icon: "⚡", title: "Flexible & Scalable", sub: "Start small, grow big" },
+  { icon: "∞", title: "Unlimited Users", sub: "No per-seat charges" },
+  { icon: "🤝", title: "Up to 10 Partners", sub: "Grow your network" },
+  { icon: "🏪", title: "Full Franchise Rights", sub: "Own your territory" },
+];
+
+// All coordinates in a 500x500 viewBox — fully scalable
+const VB = 500;
+const CX = 250,
+  CY = 250;
+const ORBIT_R = 185;
+const INNER_R = 105;
+const SLOT_R = 34;
+
+function OrbitDiagram() {
+  const slots = partners.map((p, i) => {
+    const angle = (2 * Math.PI * i) / partners.length - Math.PI / 2;
+    return {
+      ...p,
+      x: CX + ORBIT_R * Math.cos(angle),
+      y: CY + ORBIT_R * Math.sin(angle),
+      lx1: CX + (ORBIT_R - SLOT_R - 4) * Math.cos(angle),
+      ly1: CY + (ORBIT_R - SLOT_R - 4) * Math.sin(angle),
+      lx2: CX + (INNER_R + 4) * Math.cos(angle),
+      ly2: CY + (INNER_R + 4) * Math.sin(angle),
+    };
+  });
+
+  return (
+    <div style={{ width: "100%", maxWidth: 440, margin: "0 auto" }}>
+      <svg
+        viewBox={`0 0 ${VB} ${VB}`}
+        style={{ width: "100%", height: "auto", display: "block" }}
+      >
+        {/* Dashed connector lines */}
+        {slots.map((s) => (
+          <line
+            key={`line-${s.id}`}
+            x1={s.lx1}
+            y1={s.ly1}
+            x2={s.lx2}
+            y2={s.ly2}
+            stroke="#FCD34D"
+            strokeWidth="1.8"
+            strokeDasharray="6 4"
+          />
+        ))}
+
+        {/* Center glow ring */}
+        <circle cx={CX} cy={CY} r={INNER_R + 14} fill="#FEF9EC" />
+
+        {/* Center circle border */}
+        <circle
+          cx={CX}
+          cy={CY}
+          r={INNER_R}
+          fill="#FFFBEB"
+          stroke="#FBBF24"
+          strokeWidth="4"
+        />
+
+        {/* Center text */}
+        <text
+          x={CX}
+          y={CY - 30}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#92400E"
+          fontFamily="sans-serif"
+          letterSpacing="1.5"
+        >
+          FRANCHISE LICENCE
+        </text>
+        <text
+          x={CX}
+          y={CY + 2}
+          textAnchor="middle"
+          fontSize="22"
+          fontWeight="700"
+          fill="#111827"
+          fontFamily="sans-serif"
+        >
+          ₹5,00,000
+        </text>
+        <text
+          x={CX}
+          y={CY + 24}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#B45309"
+          fontFamily="sans-serif"
+        >
+          Add up to 10 partners
+        </text>
+        <text
+          x={CX}
+          y={CY + 40}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#B45309"
+          fontFamily="sans-serif"
+        >
+          &amp; unlimited users
+        </text>
+
+        {/* Partner slots */}
+        {slots.map((s) => (
+          <g key={`slot-${s.id}`}>
+            <circle
+              cx={s.x}
+              cy={s.y}
+              r={SLOT_R}
+              fill="#FEF3C7"
+              stroke="#FDE68A"
+              strokeWidth="2"
+            />
+            <circle
+              cx={s.x}
+              cy={s.y - 7}
+              r="5.5"
+              fill="none"
+              stroke="#D97706"
+              strokeWidth="1.6"
+            />
+            <path
+              d={`M${s.x - 8} ${s.y + 10} q8-9 16 0`}
+              fill="none"
+              stroke="#D97706"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+            <text
+              x={s.x}
+              y={s.y + 28}
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="600"
+              fill="#78350F"
+              fontFamily="sans-serif"
+            >
+              {s.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+export default function FranchisePage() {
+  // ✅ Read city name from URL param
+  const params = useParams();
+
+  // folder is [slug]
+  const rawParam = params?.slug ?? "";
+  const cityName = parseCityName(rawParam);
+
+  const [selectedPlan, setSelectedPlan] = useState("premium");
+  const [showForm, setShowForm] = useState(false);
+  const [formStep, setFormStep] = useState(1);
+  const [createdFranchiseId, setCreatedFranchiseId] = useState(null);
+  const [serviceForm, setServiceForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    city: cityName ?? "", // ✅ pre-fill city field if available
+    gstNumber: "",
+  });
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ Derive amounts from selectedPlan directly — always in sync
+  const investmentAmount = PROFIT_CALCULATIONS[selectedPlan]?.investment ?? 0;
+  const gstAmount = Math.round(investmentAmount * 0.18);
+  const totalAmount = investmentAmount + gstAmount;
+
+  const handleOpenForm = async (plan = null) => {
+    const resolvedPlan = plan || selectedPlan;
+    setSelectedPlan(resolvedPlan);
+    setShowForm(true);
+    setFormStep(1);
+    setFormSubmitted(false);
+
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      try {
+        const res = await fetch(`/api/auth/signup?userId=${userId}`);
+        const data = await res.json();
+        if (data && !data.error) {
+          setServiceForm((prev) => ({
+            ...prev,
+            name: data.fullName || "",
+            phone: data.phone || "",
+            email: data.email || "",
+            gstNumber: data.GstNumber || "",
+            // keep city pre-filled from param if API doesn't return one
+            city: data.city || cityName || prev.city,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+      }
+    }
+  };
+
+  const handleProceedToPayment = async (e) => {
+    e.preventDefault();
+
+    if (
+      !serviceForm.name ||
+      !serviceForm.phone ||
+      !serviceForm.email ||
+      !serviceForm.city
+    ) {
+      alert("Please fill all required fields");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/franchise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...serviceForm,
+          plan: selectedPlan,
+          investment: investmentAmount,
+          status: "pending",
+          leadType: "Website",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setCreatedFranchiseId(data.data._id);
+        setFormStep(2);
+      } else {
+        alert(data.message || "Something went wrong saving your details.");
+      }
+    } catch (error) {
+      console.error("Error saving lead:", error);
+      alert("Failed to submit details. Please check your connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleServicePayment = async () => {
+    setIsLoading(true);
+
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert(
+          "Razorpay SDK failed to load. Please check your internet connection.",
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const orderRes = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: selectedPlan,
+          amount: totalAmount,
+          receipt: `franchise_${Date.now()}`,
+          notes: {
+            plan_name: selectedPlan,
+            user_email: serviceForm.email,
+          },
+        }),
+      });
+
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok || orderData.error || !orderData.order) {
+        alert(
+          "Error creating payment order: " +
+            (orderData.error || "Server Error"),
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const RAZORPAY_KEY = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!RAZORPAY_KEY) {
+        alert("Payment configuration missing. Please contact support.");
+        setIsLoading(false);
+        return;
+      }
+
+      const options = {
+        key: RAZORPAY_KEY,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "Limbu.ai Franchise",
+        description: `${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan Franchise Fee`,
+        order_id: orderData.order.id,
+        handler: async function (response) {
+          try {
+            const submitRes = await fetch("/api/franchise", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: createdFranchiseId,
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                amount: totalAmount,
+                status: "paid",
+              }),
+            });
+
+            if (submitRes.ok) {
+              setFormSubmitted(true);
+              setTimeout(() => {
+                setShowForm(false);
+                setFormSubmitted(false);
+                setFormStep(1);
+                setServiceForm({
+                  name: "",
+                  phone: "",
+                  email: "",
+                  city: cityName ?? "",
+                  gstNumber: "",
+                });
+              }, 3000);
+            } else {
+              const data = await submitRes.json();
+              alert(
+                data.message || "Payment recorded but failed to update status.",
+              );
+            }
+          } catch (error) {
+            console.error("Error submitting form:", error);
+            alert("Payment received but failed to update application status.");
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsLoading(false);
+          },
+        },
+        prefill: {
+          name: serviceForm.name,
+          email: serviceForm.email,
+          contact: serviceForm.phone,
+        },
+        theme: {
+          color: "#eab308",
+        },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+
+      paymentObject.on("payment.failed", function (response) {
+        console.error("Payment failed:", response.error);
+        alert(
+          "Payment failed: " + (response.error?.description || "Unknown error"),
+        );
+        setIsLoading(false);
+      });
+
+      paymentObject.open();
+    } catch (error) {
+      console.error("Payment Error:", error);
+      alert("Failed to initiate payment: " + error.message);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="relative w-full overflow-hidden m-0 p-0"
+      style={{ backgroundColor: "var(--background)" }}
+    >
+      <Navbar />
+
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+
+      {/* =================== APPLICATION FORM MODAL =================== */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+          <div className="relative w-full max-w-lg bg-white border border-black/5 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn">
+            <div
+              className="pointer-events-none absolute inset-0 z-0 opacity-[0.02]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+                backgroundSize: "20px 20px",
+              }}
+            />
+
+            <button
+              onClick={() => setShowForm(false)}
+              className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2.5 bg-white border border-black/5 rounded-xl text-slate-500 hover:text-black hover:bg-slate-50 transition-all z-20 shadow-sm"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            <div className="overflow-y-auto custom-scroll relative z-10 flex-1">
+              {!formSubmitted ? (
+                <div>
+                  <div className="p-6 sm:p-8 text-center border-b border-black/5 bg-slate-50/50 pt-10 sm:pt-8 relative">
+                    {formStep === 2 && (
+                      <button
+                        onClick={() => setFormStep(1)}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-200 rounded-full transition-all"
+                      >
+                        <X className="w-4 h-4 rotate-45 sm:w-5 sm:h-5 text-slate-500" />
+                      </button>
+                    )}
+                    <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-sm border border-lemon-glow/20 bg-lemon-glow/10">
+                      <span className="w-2 h-2 rounded-full animate-pulse bg-lemon-hover" />
+                      <span className="text-[10px] font-black uppercase text-lemon-hover tracking-widest">
+                        {formStep === 1
+                          ? "Step 1: Your Details"
+                          : "Step 2: Payment Summary"}
+                      </span>
+                    </div>
+                    <h2
+                      className="text-xl sm:text-2xl font-black text-black uppercase tracking-normal leading-tight mb-2"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {/* ✅ City name in modal heading */}
+                      {cityName
+                        ? `${cityName} Partner Application`
+                        : "Partner Application"}
+                    </h2>
+                    <p className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+                      Initialize your AI business deployment today
+                    </p>
+                  </div>
+
+                  {formStep === 1 ? (
+                    <form
+                      onSubmit={handleProceedToPayment}
+                      className="p-6 sm:p-8 space-y-5"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                          <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                            Your Name
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={serviceForm.name}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                name: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
+                            placeholder="Enter your full name"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                            Phone Number
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={serviceForm.phone}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                phone: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
+                            placeholder="Enter 10-digit mobile number"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={serviceForm.email}
+                          onChange={(e) =>
+                            setServiceForm({
+                              ...serviceForm,
+                              email: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
+                          placeholder="Enter your email address"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                          <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                            Your City
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={serviceForm.city}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                city: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
+                            placeholder="Which city are you from?"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                            GST Number (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={serviceForm.gstNumber}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                gstNumber: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
+                            placeholder="Enter GST number if you have one"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="btn-lemon w-full py-4 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-lg hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      >
+                        {isLoading ? "Saving Details..." : "Proceed to Next ↗"}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="p-6 sm:p-8 space-y-5">
+                      <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shadow-inner">
+                        <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          <span>Franchise Fee:</span>
+                          <span className="text-black">
+                            ₹{investmentAmount.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          <span>GST (18%):</span>
+                          <span className="text-black">
+                            ₹{gstAmount.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
+                          <span className="text-xs sm:text-sm font-black text-black uppercase tracking-widest">
+                            Total Amount:
+                          </span>
+                          <span className="text-lg sm:text-xl font-black text-lemon-hover tracking-tight">
+                            ₹{totalAmount.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleServicePayment}
+                        disabled={isLoading}
+                        className="btn-lemon w-full py-4 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-lg hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      >
+                        {isLoading ? "Processing..." : "Pay Now ↗"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-12 sm:p-16 text-center flex flex-col justify-center min-h-[400px]">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-50 border border-green-200 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-bounce shadow-sm">
+                    <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
+                  </div>
+                  <h3
+                    className="text-xl sm:text-2xl font-black text-black uppercase tracking-tight mb-3"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    Application Received
+                  </h3>
+                  <p className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+                    Our deployment team will reach out within 24 hours.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================== HERO SECTION =================== */}
+      <section className="relative w-full overflow-hidden py-14 sm:py-24 px-6">
+        {/* Background Glow */}
+        <div
+          className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] z-0 opacity-10"
+          style={{
+            background:
+              "radial-gradient(ellipse at top right, var(--lemon-glow) 0%, transparent 65%)",
+          }}
+        />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="grid lg:grid-cols-2 gap-14 items-center">
+            {/* ================= LEFT CONTENT ================= */}
+            <div className="text-center lg:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border border-lemon-glow/20 bg-lemon-glow/10 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-lemon-hover animate-pulse" />
+
+                <span className="text-[10px] font-black tracking-widest uppercase text-lemon-hover">
+                  {cityName
+                    ? `${cityName} Franchise Portal Active`
+                    : "Franchise Portal Active"}
+                </span>
+              </div>
+
+              {/* Heading */}
+              <h1
+                className="uppercase leading-[1.15] tracking-tight text-black font-black"
+                style={{
+                  fontSize: "clamp(1.7rem, 3.8vw, 3.1rem)",
+                  fontFamily: "var(--font-heading)",
+                }}
+              >
+                Build Your Own <br />
+                {cityName ? (
+                  <>
+                    <span className="text-lemon-hover">{cityName}</span>{" "}
+                    <span className="text-black">AI Business Empire</span>
+                  </>
+                ) : (
+                  <span className="text-black">AI Business Empire</span>
+                )}
+              </h1>
+
+              {/* Subheading */}
+              <p className="mt-4 text-sm md:text-lg text-slate-500 max-w-xl leading-relaxed font-bold uppercase tracking-widest opacity-90">
+                {cityName
+                  ? `India's #1 AI-Powered Google My Business Infrastructure in ${cityName}.`
+                  : "India's #1 AI-Powered Google My Business Infrastructure."}
+              </p>
+
+              {/* Stats */}
+              <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
+                {[
+                  { val: "₹2.5L+", label: "Monthly Target" },
+                  { val: "100%", label: "Recurring Model" },
+                  { val: "Zero", label: "Technical Overhead" },
+                ].map((stat, i) => (
+                  <div
+                    key={i}
+                    className="px-5 py-3 rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all"
+                  >
+                    <div
+                      className="text-2xl font-black text-black tracking-tighter mb-1"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {stat.val}
+                    </div>
+
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <div className="flex flex-wrap justify-center lg:justify-start gap-4 mt-10">
+                <button
+                  onClick={() => handleOpenForm("premium")}
+                  className="btn-lemon px-10 py-4.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl"
+                >
+                  {cityName ? `Apply Now For ${cityName}` : "Apply Now"}
+
+                  <ArrowRight size={16} className="ml-2 inline" />
+                </button>
+              </div>
+            </div>
+
+            {/* ================= RIGHT IMAGE ================= */}
+            <div className="relative flex justify-center lg:justify-end">
+              {/* Glow */}
+              <div className="absolute inset-0 bg-lemon-glow/20 blur-3xl rounded-full scale-90" />
+
+              {/* Image Card */}
+              <div className="relative rounded-[32px] overflow-hidden border border-slate-200 shadow-2xl bg-white p-3 max-w-[600px]">
+                <Image
+                  src="/images/frenchiese-image.png"
+                  alt="AI Business Franchise"
+                  width={700}
+                  height={700}
+                  className="w-full h-full object-cover rounded-[24px]"
+                  priority
+                />
+
+                {/* Floating Card */}
+                <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-2xl px-5 py-4">
+                  <div className="text-2xl font-black text-black leading-none">
+                    250+
+                  </div>
+
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black mt-1">
+                    Businesses Scaled
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== TRUST SIGNALS =================== */}
+      <section className="py-8 sm:py-10 border-y border-slate-200 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
+        {/* Background Glow */}
+        <div className="absolute inset-0 opacity-40 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[200px] bg-lemon-glow/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          {/* Optional Heading */}
+          <div className="text-center mb-8">
+            <h2
+              className="uppercase font-black tracking-tight text-black"
+              style={{
+                fontSize: "clamp(1.1rem, 2vw, 1.7rem)",
+                fontFamily: "var(--font-heading)",
+              }}
+            >
+              Trusted Across{" "}
+              {cityName ? (
+                <span className="text-lemon-hover">{cityName}</span>
+              ) : (
+                "India"
+              )}
+            </h2>
+
+            <p className="mt-2 text-[11px] sm:text-xs uppercase tracking-[0.25em] text-slate-400 font-bold">
+              Fast Growing AI Business Franchise Network
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[
+              { value: "1000+", label: "Happy Partners" },
+              { value: "50+", label: "Cities Covered" },
+              { value: "98%", label: "Success Rate" },
+              { value: "4.9/5", label: "User Rating" },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="group rounded-3xl border border-slate-200 bg-white/90 backdrop-blur-sm px-5 py-6 text-center shadow-sm hover:shadow-lg transition-all duration-300"
+              >
+                <div
+                  className="text-2xl sm:text-3xl font-black text-black tracking-tight mb-1"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {item.value}
+                </div>
+
+                <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-400 font-black group-hover:text-lemon-hover transition-colors">
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* =================== ARCHITECTURE =================== */}
+      <section className="relative py-16 sm:py-20 px-6 overflow-hidden bg-white">
+        {/* Background Glow */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-lemon-glow/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* ================= HEADER ================= */}
+          <div className="text-center mb-14">
+            <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
+              Why Choose Us
+            </p>
+
+            <h2
+              className="font-black uppercase tracking-tight leading-[1.1] text-black"
+              style={{
+                fontSize: "clamp(1.8rem, 3vw, 2.6rem)",
+                fontFamily: "var(--font-heading)",
+              }}
+            >
+              The Limbu AI{" "}
+              {cityName ? (
+                <span className="text-lemon-hover">{cityName}</span>
+              ) : null}{" "}
+              Advantage
+            </h2>
+
+            <p className="mt-4 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
+              Powerful AI infrastructure designed for scalable local business
+              growth
+            </p>
+          </div>
+
+          {/* ================= CARDS ================= */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Zap,
+                title: "Fully Automated",
+                desc: "Our AI handles posting, reviews, optimization, and reporting automatically.",
+              },
+              {
+                icon: Users,
+                title: "Easy Management",
+                desc: cityName
+                  ? `Manage all your ${cityName} business clients from one dashboard.`
+                  : "Manage all your business clients from one dashboard.",
+              },
+              {
+                icon: Star,
+                title: "Review Automation",
+                desc: "Automatically monitor and reply to customer reviews with AI.",
+              },
+              {
+                icon: BarChart,
+                title: "Smart Reports",
+                desc: "Track rankings, calls, traffic, and lead growth with simple analytics.",
+              },
+              {
+                icon: Target,
+                title: "More Leads",
+                desc: cityName
+                  ? `Convert ${cityName} search traffic into paying customers.`
+                  : "Convert online traffic into paying customers.",
+              },
+              {
+                icon: Shield,
+                title: "Enterprise Security",
+                desc: "Protected with encrypted systems, cloud backups, and 24/7 monitoring.",
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm hover:shadow-2xl hover:-translate-y-1 hover:border-lemon-hover/40 transition-all duration-500"
+              >
+                {/* Hover Glow */}
+                <div className="absolute -top-16 -right-16 w-40 h-40 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+
+                {/* Icon */}
+                <div className="relative z-10 w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-6 group-hover:bg-black transition-all duration-300">
+                  <item.icon className="w-6 h-6 text-black group-hover:text-lemon-glow transition-colors duration-300" />
+                </div>
+
+                {/* Content */}
+                <div className="relative z-10">
+                  <h3
+                    className="text-lg font-black uppercase tracking-tight text-black mb-3"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    {item.title}
+                  </h3>
+
+                  <p className="text-sm text-slate-500 font-bold leading-relaxed">
+                    {cityName &&
+                    (item.title === "Easy Management" ||
+                      item.title === "More Leads") ? (
+                      <>
+                        {item.title === "Easy Management" ? (
+                          <>
+                            Manage all your{" "}
+                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            business clients from one dashboard.
+                          </>
+                        ) : (
+                          <>
+                            Convert{" "}
+                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            search traffic into paying customers.
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      item.desc
+                    )}
+                  </p>
+                </div>
+
+                {/* Bottom Border Animation */}
+                <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* =================== WHY JOIN =================== */}
+      <section className="relative py-16 sm:py-20 px-6 overflow-hidden bg-gradient-to-b from-slate-50 to-white">
+        {/* Background Glow */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-lemon-glow/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* ================= HEADER ================= */}
+          <div className="text-center mb-14">
+            <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
+              Franchise Benefits
+            </p>
+
+            <h2
+              className="font-black uppercase tracking-tight leading-[1.1] text-black"
+              style={{
+                fontSize: "clamp(1.8rem, 3vw, 2.6rem)",
+                fontFamily: "var(--font-heading)",
+              }}
+            >
+              {cityName ? (
+                <>
+                  <span className="text-lemon-hover">{cityName}</span> Franchise
+                  Benefits
+                </>
+              ) : (
+                "Franchise Benefits"
+              )}
+            </h2>
+
+            <p className="mt-4 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
+              Build a scalable AI-powered business with recurring revenue and
+              exclusive market opportunities
+            </p>
+          </div>
+
+          {/* ================= BENEFITS GRID ================= */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: Rocket,
+                title: "Growing Market",
+                desc: cityName
+                  ? `Every local business in ${cityName} needs online visibility today.`
+                  : "Every local business needs online visibility today.",
+              },
+              {
+                icon: DollarSign,
+                title: "Recurring Income",
+                desc: "Generate predictable monthly revenue from active clients.",
+              },
+              {
+                icon: Shield,
+                title: "Proven System",
+                desc: "Operate with a tested business model and complete training support.",
+              },
+              {
+                icon: Users,
+                title: "Massive Demand",
+                desc: cityName
+                  ? `Thousands of businesses in ${cityName} need these services.`
+                  : "Thousands of businesses need these services.",
+              },
+              {
+                icon: Zap,
+                title: "AI Automation",
+                desc: "Our AI platform handles most of the operational workload for you.",
+              },
+              {
+                icon: Award,
+                title: "Exclusive Territory",
+                desc: cityName
+                  ? `Get exclusive operating rights in ${cityName}.`
+                  : "Get exclusive operating rights in your territory.",
+              },
+              {
+                icon: TrendingUp,
+                title: "High Margins",
+                desc: "Keep strong profit margins with scalable recurring services.",
+              },
+              {
+                icon: Clock,
+                title: "Remote Friendly",
+                desc: "Run and manage your business from anywhere with internet access.",
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm hover:shadow-2xl hover:-translate-y-1 hover:border-lemon-hover/40 transition-all duration-500"
+              >
+                {/* Hover Glow */}
+                <div className="absolute -top-16 -right-16 w-40 h-40 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+
+                {/* Icon */}
+                <div className="relative z-10 w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-6 group-hover:bg-black transition-all duration-300">
+                  <item.icon className="w-6 h-6 text-black group-hover:text-lemon-glow transition-colors duration-300" />
+                </div>
+
+                {/* Content */}
+                <div className="relative z-10">
+                  <h3
+                    className="text-base sm:text-lg font-black uppercase tracking-tight text-black mb-3"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    {item.title}
+                  </h3>
+
+                  <p className="text-sm text-slate-500 font-bold leading-relaxed">
+                    {cityName &&
+                    (item.title === "Growing Market" ||
+                      item.title === "Massive Demand" ||
+                      item.title === "Exclusive Territory") ? (
+                      <>
+                        {item.title === "Growing Market" && (
+                          <>
+                            Every local business in{" "}
+                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            needs online visibility today.
+                          </>
+                        )}
+
+                        {item.title === "Massive Demand" && (
+                          <>
+                            Thousands of businesses in{" "}
+                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            need these services.
+                          </>
+                        )}
+
+                        {item.title === "Exclusive Territory" && (
+                          <>
+                            Get exclusive operating rights in{" "}
+                            <span className="text-lemon-hover">{cityName}</span>
+                            .
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      item.desc
+                    )}
+                  </p>
+                </div>
+
+                {/* Bottom Border Animation */}
+                <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* =================== INVESTMENT =================== */}
+      <section className="relative py-8 px-6">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-10">
+            <h2
+              className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              {/* ✅ City in plan section */}
+              Choose Your <span className="text-lemon-hover">Plan</span>
+            </h2>
+          </div>
+          <div className="flex flex-wrap justify-center gap-10">
+            <div className="relative w-full md:max-w-lg p-10 sm:p-12 rounded-[3rem] bg-white border-2 border-lemon-hover/40 shadow-2xl scale-105 transition-all hover:border-lemon-hover/60 hover:shadow-[0_20px_50px_-12px_rgba(234,179,8,0.25)]">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-lemon-hover text-white px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
+                Most Popular
+              </div>
+              <div className="text-center mb-10 pb-10 border-b border-slate-100 mt-4">
+                <h3
+                  className="text-2xl font-black text-black uppercase tracking-tight mb-4"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {/* ✅ City in plan card heading */}
+                  {cityName ? `${cityName} ` : ""}Premium Franchise
+                </h3>
+                <div
+                  className="text-5xl font-black text-black tracking-tighter mb-2"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  ₹5,00,000
+                </div>
+                <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  + 18% GST • One-Time Fee
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-10">
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Your Share
+                  </p>
+                  <p className="text-sm font-black text-black">50% Revenue</p>
+                </div>
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Earning Potential
+                  </p>
+                  <p className="text-sm font-black text-black">₹1-3L / Month</p>
+                </div>
+              </div>
+              <ul className="space-y-5 mb-10 px-2">
+                {[
+                  cityName
+                    ? `Exclusive rights in ${cityName}`
+                    : "Exclusive rights in your city",
+                  "Full personal training",
+                  "Ready-made marketing materials",
+                  "Dedicated support manager",
+                  "Run under your own brand",
+                  "Option to add sub-partners",
+                ].map((feature, j) => (
+                  <li key={j} className="flex items-center gap-4">
+                    <CheckCircle className="w-5 h-5 text-lemon-hover shrink-0" />
+                    <span className="text-sm font-bold text-slate-600 uppercase tracking-tight">
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleOpenForm("premium")}
+                className="btn-lemon w-full py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all"
+              >
+                Choose This Plan ↗
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== ORBIT DIAGRAM SECTION =================== */}
+      <section className="relative py-16 sm:py-20 px-6 overflow-hidden bg-gradient-to-b from-white to-slate-50">
+        {/* Background Glow */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] bg-lemon-glow/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Main Container */}
+          <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white shadow-sm p-6 sm:p-10 lg:p-14">
+            {/* Top Badge */}
+            <div className="flex justify-center mb-5">
+              <span className="bg-lemon-glow/15 text-lemon-hover text-[10px] sm:text-xs font-black px-5 py-2 rounded-full uppercase tracking-[0.28em] border border-lemon-glow/20">
+                Franchise Licence
+              </span>
+            </div>
+
+            {/* Heading */}
+            <div className="text-center mb-10">
+              <h2
+                className="font-black tracking-tight leading-[1.1] text-black"
+                style={{
+                  fontSize: "clamp(2rem, 4vw, 3.2rem)",
+                  fontFamily: "var(--font-heading)",
+                }}
+              >
+                {cityName ? (
+                  <>
+                    <span className="text-lemon-hover">{cityName}</span> Smarter
+                    Businesses,
+                  </>
+                ) : (
+                  "Smarter Businesses,"
+                )}
+
+                <br />
+
+                <span className="text-black">Stronger Futures.</span>
+              </h2>
+
+              <p className="mt-5 text-sm sm:text-base text-slate-500 font-bold leading-relaxed max-w-2xl mx-auto">
+                Flexible and scalable AI-powered infrastructure designed for
+                long-term franchise growth and operational simplicity.
+                {cityName ? (
+                  <>
+                    {" "}
+                    Built specifically for{" "}
+                    <span className="text-lemon-hover">{cityName}</span>{" "}
+                    businesses.
+                  </>
+                ) : null}
+              </p>
+            </div>
+
+            {/* Orbit Diagram */}
+            <div className="mb-8">
+              <OrbitDiagram />
+            </div>
+
+            {/* Small Text */}
+            <div className="text-center text-[10px] sm:text-xs uppercase tracking-[0.28em] text-slate-400 font-black mb-10">
+              Partner Slots Included (10 Active Accounts)
+            </div>
+
+            {/* Features */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+              {features.map((f, i) => (
+                <div
+                  key={i}
+                  className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50/60 p-6 text-center hover:bg-white hover:shadow-xl hover:border-lemon-hover/40 transition-all duration-500"
+                >
+                  {/* Hover Glow */}
+                  <div className="absolute -top-14 -right-14 w-32 h-32 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+
+                  {/* Icon */}
+                  <div className="relative z-10 text-3xl mb-4">{f.icon}</div>
+
+                  {/* Title */}
+                  <h3
+                    className="relative z-10 text-sm sm:text-base font-black text-black mb-2 tracking-tight"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    {f.title}
+                  </h3>
+
+                  {/* Subtitle */}
+                  <p className="relative z-10 text-xs text-slate-500 font-bold leading-relaxed">
+                    {f.sub}
+                  </p>
+
+                  {/* Bottom Line */}
+                  <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== FAQ =================== */}
+      <section className="relative py-16 sm:py-20 px-6 overflow-hidden bg-gradient-to-b from-slate-50 to-white">
+        {/* Background Glow */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-lemon-glow/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="max-w-5xl mx-auto relative z-10">
+          {/* ================= HEADER ================= */}
+          <div className="text-center mb-14">
+            <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
+              Support & Help
+            </p>
+
+            <h2
+              className="font-black uppercase tracking-tight leading-[1.1] text-black"
+              style={{
+                fontSize: "clamp(1.8rem, 3vw, 2.6rem)",
+                fontFamily: "var(--font-heading)",
+              }}
+            >
+              Frequently Asked{" "}
+              <span className="text-lemon-hover">Questions</span>
+            </h2>
+
+            <p className="mt-4 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
+              Everything you need to know before starting your AI franchise
+              business
+            </p>
+          </div>
+
+          {/* ================= FAQ LIST ================= */}
+          <div className="space-y-5">
+            {[
+              {
+                q: "Do I Need To Be Good With Computers?",
+                a: "Not at all. Our AI system handles the technical work while you focus on managing and growing local business relationships.",
+              },
+              {
+                q: "How Much Time Do I Need To Give?",
+                a: "Most franchise partners spend around 3-4 flexible hours daily depending on their business goals and growth plans.",
+              },
+              {
+                q: "When Will I Recover My Investment?",
+                a: cityName
+                  ? `Most ${cityName} franchise partners recover their investment within 4 to 6 months when following our proven system.`
+                  : "Most franchise partners recover their investment within 4 to 6 months when following our proven system.",
+              },
+              {
+                q: "Are There Any Hidden Charges?",
+                a: "No hidden fees. After the one-time franchise investment, you continue earning recurring monthly revenue.",
+              },
+            ].map((faq, i) => (
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 sm:p-8 shadow-sm hover:shadow-2xl hover:border-lemon-hover/40 transition-all duration-500"
+              >
+                {/* Hover Glow */}
+                <div className="absolute -top-16 -right-16 w-40 h-40 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+
+                {/* Question */}
+                <div className="relative z-10 flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-lemon-glow/15 border border-lemon-glow/20 flex items-center justify-center shrink-0">
+                    <span className="text-lemon-hover font-black text-sm">
+                      Q
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3
+                      className="text-base sm:text-lg font-black uppercase tracking-tight text-black leading-snug"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {faq.q}
+                    </h3>
+
+                    <p className="mt-4 text-sm sm:text-base text-slate-500 font-bold leading-relaxed">
+                      {cityName &&
+                      faq.q === "When Will I Recover My Investment?" ? (
+                        <>
+                          Most{" "}
+                          <span className="text-lemon-hover">{cityName}</span>{" "}
+                          franchise partners recover their investment within 4
+                          to 6 months when following our proven system.
+                        </>
+                      ) : (
+                        faq.a
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bottom Border */}
+                <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* =================== FINAL CTA =================== */}
+      <section className="relative py-16 sm:py-20 px-6 overflow-hidden bg-gradient-to-b from-white to-slate-50">
+        {/* Background Glow */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] bg-lemon-glow/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* ================= MAIN CARD ================= */}
+          <div className="relative overflow-hidden rounded-[2.8rem] border border-slate-200 bg-white shadow-sm hover:shadow-2xl transition-all duration-500">
+            {/* Glow */}
+            <div className="absolute -top-24 -right-24 w-72 h-72 bg-lemon-glow/10 rounded-full blur-3xl" />
+
+            <div className="relative z-10 p-8 sm:p-12 lg:p-16 text-center">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 mb-8 px-5 py-2 rounded-full bg-black text-lemon-glow text-[10px] sm:text-xs font-black uppercase tracking-[0.28em] shadow-lg">
+                <span className="w-2 h-2 rounded-full bg-lemon-hover animate-pulse" />
+                Limited Spots Available{" "}
+                {cityName ? (
+                  <>
+                    In <span className="text-white">{cityName}</span>
+                  </>
+                ) : null}
+              </div>
+
+              {/* Heading */}
+              <h2
+                className="font-black uppercase tracking-tight leading-[1.1] text-black"
+                style={{
+                  fontSize: "clamp(1.7rem, 3.2vw, 2.8rem)",
+                  fontFamily: "var(--font-heading)",
+                }}
+              >
+                {cityName ? (
+                  <>
+                    Start Your{" "}
+                    <span className="text-lemon-hover">{cityName}</span>
+                  </>
+                ) : (
+                  "Start Your Business"
+                )}
+
+                <br />
+
+                <span className="text-black">Business With Us Today</span>
+              </h2>
+
+              {/* Sub Text */}
+              <p className="mt-6 text-sm sm:text-base text-slate-500 font-bold leading-relaxed max-w-2xl mx-auto">
+                {cityName ? (
+                  <>
+                    Secure your{" "}
+                    <span className="text-lemon-hover">{cityName}</span>{" "}
+                    franchise territory before someone else takes it.
+                  </>
+                ) : (
+                  "Secure your franchise territory before someone else takes it."
+                )}
+              </p>
+
+              {/* CTA */}
+              <div className="flex flex-wrap justify-center gap-5 mt-10">
+                <button
+                  onClick={() => handleOpenForm("premium")}
+                  className="group rounded-2xl bg-black hover:bg-lemon-hover text-white hover:text-black px-10 py-5 text-xs font-black uppercase tracking-[0.25em] transition-all duration-300 shadow-2xl hover:scale-[1.02]"
+                >
+                  {cityName ? (
+                    <>
+                      Apply In <span>{cityName}</span>
+                    </>
+                  ) : (
+                    "Apply Now"
+                  )}
+
+                  <ArrowRight
+                    size={16}
+                    className="ml-2 inline transition-transform duration-300 group-hover:translate-x-1"
+                  />
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="mt-14 pt-10 border-t border-slate-200">
+                <div className="grid sm:grid-cols-2 gap-5">
+                  {[
+                    {
+                      value: "tel:+919289344726",
+                      icon: PhoneCall,
+                      label: "+91 9289344726",
+                    },
+                    {
+                      value: "mailto:info@limbu.ai",
+                      icon: MailIcon,
+                      label: "info@limbu.ai",
+                    },
+                  ].map((contact, i) => (
+                    <a
+                      key={i}
+                      href={contact.value}
+                      className="group flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-5 hover:bg-white hover:border-lemon-hover/40 hover:shadow-lg transition-all duration-300"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center group-hover:bg-black transition-all duration-300">
+                        <contact.icon
+                          size={16}
+                          className="text-black group-hover:text-lemon-glow transition-colors duration-300"
+                        />
+                      </div>
+
+                      <span className="text-xs sm:text-sm font-black text-black tracking-tight">
+                        {contact.label}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <FooterSection />
+      <ScrollToTop />
+      <BookDemoModal />
+    </div>
+  );
+}

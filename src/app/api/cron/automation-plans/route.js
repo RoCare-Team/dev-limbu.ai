@@ -10,9 +10,11 @@
  * - Respects user's plan: limit, frequency, schedule dates.
  *
  * Query params:
- *   ?force=1     — bypass "already posted today" guard
- *   ?dryRun=1    — generate image + text, save as "pending", skip actual GMB post
- *   ?phase=prefetch — deprecated; returns JSON pointing to GET /api/cron/auto-post (image+copy 24h ahead).
+ *   ?force=true | force=1     — bypass posting-day duplicate guard, clock window, and start-day gate (testing)
+ *   ?dryRun=true | dryRun=1    — generate image + text, save as "pending", skip live network posts
+ *   ?manualTrigger=true        — skip publish clock window only (posting day + duplicate rules still apply unless force)
+ *   ?testNow=true              — evaluate postingHour:postingMinute as "now" in plan TZ for window checks only (no DB write)
+ *   ?testPostingHour=&testPostingMinute= — explicit clock override for window checks only
  *
  * Prefetch (image prompt, Cloudinary/aiAssets URL, post text) lives in /api/cron/auto-post.
  * This route’s publish phase posts to GMB, Facebook, Instagram using plan.prefetchPost when
@@ -39,6 +41,7 @@ import {
   matchesPostingWindow,
   matchesAbsoluteWindow,
   zonedYmdString,
+  getHourMinuteInTimeZone,
 } from '@/utils/postingScheduleWindow';
 import {
   isPostingDayTodayZoned,
@@ -50,6 +53,10 @@ import {
   generateImage,
   generatePostText,
 } from '@/lib/automationPlanContentGeneration';
+import {
+  parseAutomationCronParams,
+  effectivePlanForPostingClock,
+} from '@/lib/automationCronQueryParams';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -133,19 +140,19 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     });
-    console.log('[CRON] 📮 post-to-gmb HTTP status:', res.status);
+      console.log('[CRON] 📮 post-to-gmb HTTP status:', res.status);
 
-    const text = await res.text();
-    console.log('[CRON] 📮 post-to-gmb raw response:', text.slice(0, 600));
+      const text = await res.text();
+      console.log('[CRON] 📮 post-to-gmb FULL raw response:', text.slice(0, 12000));
 
-    let data;
+      let data;
     try   { data = text ? JSON.parse(text) : {}; }
     catch { data = { raw: text }; }
 
-    return { ok: res.ok && data?.ok !== false, httpStatus: res.status, data };
+    return { ok: res.ok && data?.ok !== false, httpStatus: res.status, data, rawBody: text };
   } catch (err) {
     console.error('[CRON] ❌ postToGmb EXCEPTION:', err.message);
-    return { ok: false, httpStatus: 500, data: err.message };
+    return { ok: false, httpStatus: 500, data: err.message, rawBody: '' };
   }
 }
 
@@ -204,15 +211,19 @@ async function postToInstagramAccounts({ userId, igPages, caption, imageUrl }) {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request) {
+  const cronParams = parseAutomationCronParams(request.url);
+  const forceRun = cronParams.force;
+  const dryRun = cronParams.dryRun;
+
   console.log('\n[CRON] ═══════════════════════════════════════════════════════');
   console.log('[CRON] automation-plans cron START —', new Date().toISOString());
   console.log('[CRON] BASE_URL:', BASE_URL);
+  console.log(
+    `[CRON] Parsed query — force=${forceRun} dryRun=${dryRun} manualTrigger=${cronParams.manualTrigger} testNow=${cronParams.testNow} (from URL searchParams)`
+  );
 
-  const { searchParams } = new URL(request.url);
-  const forceRun = searchParams.get('force')  === '1';
-  const dryRun   = searchParams.get('dryRun') === '1';
-  let phase      = searchParams.get('phase')  || 'publish';
-  console.log(`[CRON] Params — force=${forceRun}  dryRun=${dryRun}  phase=${phase}`);
+  let phase = new URL(request.url).searchParams.get('phase') || 'publish';
+  console.log(`[CRON] phase=${phase}`);
 
   if (phase === 'dailyAutomation' || phase === 'tick') {
     const origin = new URL(request.url);
@@ -222,6 +233,10 @@ export async function GET(request) {
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       phase,
+      force: cronParams.force,
+      dryRun: cronParams.dryRun,
+      manualTrigger: cronParams.manualTrigger,
+      testNow: cronParams.testNow,
       publish: publishJson,
       note: 'Prefetch (image + copy) runs at GET /api/cron/auto-post — schedule it prefetchOffsetMinutes before publish (default 1440 = 24h).',
     });
@@ -232,6 +247,9 @@ export async function GET(request) {
       timestamp: new Date().toISOString(),
       phase: 'prefetch',
       deprecated: true,
+      force: cronParams.force,
+      manualTrigger: cronParams.manualTrigger,
+      testNow: cronParams.testNow,
       message:
         'Image and caption prefetch moved to GET /api/cron/auto-post. This route only publishes to GMB / Facebook / Instagram.',
       hint: 'Schedule /api/cron/auto-post so it hits the prefetch window (posting time minus prefetchOffsetMinutes, default 24h). Use phase=publish or phase=tick here for posting.',
@@ -242,19 +260,19 @@ export async function GET(request) {
   console.log('[CRON] ✓ DB connected');
 
   const logs = [];
-  const log  = (msg, extra) => {
+  const log = (msg, extra) => {
     const line = extra !== undefined ? `${msg} | ${JSON.stringify(extra)}` : msg;
     logs.push(line);
     console.log('[CRON]', line);
   };
 
-  log(`Starting — phase=${phase} force=${forceRun} dryRun=${dryRun} — ${new Date().toISOString()}`);
-
   let skipPublishClockWindow = false;
+  /** True when phase=manual or explicit ?manualTrigger=true */
+  let manualTriggerEffective = cronParams.manualTrigger;
   let activePlans;
 
   if (phase === 'manual') {
-    const manualUserId = searchParams.get('userId')?.trim();
+    const manualUserId = new URL(request.url).searchParams.get('userId')?.trim();
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret) {
       const auth = request.headers.get('authorization');
@@ -285,8 +303,9 @@ export async function GET(request) {
     }
     activePlans = [one];
     skipPublishClockWindow = true;
+    manualTriggerEffective = true;
     phase = 'publish';
-    log(`Manual trigger for userId=${manualUserId} — schedule/frequency/start/end enforced; clock window skipped`);
+    log(`Manual trigger phase=manual userId=${manualUserId} manualTrigger=true — schedule/frequency/start/end enforced; publish clock window skipped`);
   } else {
     activePlans = await AutomationPlan.find({
       active:              true,
@@ -295,8 +314,14 @@ export async function GET(request) {
     }).lean();
   }
 
-  log(`Found ${activePlans.length} active plan(s)`);
-  console.log('[CRON] Plan IDs:', activePlans.map(p => p._id.toString()));
+  skipPublishClockWindow = skipPublishClockWindow || cronParams.manualTrigger;
+
+  const runNow = new Date();
+  const istHm = getHourMinuteInTimeZone(runNow, 'Asia/Kolkata');
+  log(
+    `Run context — UTC=${runNow.toISOString()} IST=${zonedYmdString(runNow, 'Asia/Kolkata')} ${String(istHm.hour).padStart(2, '0')}:${String(istHm.minute).padStart(2, '0')} | activePlans=${activePlans.length} phase=${phase} force=${forceRun} dryRun=${dryRun} manualTrigger=${manualTriggerEffective} testNow=${cronParams.testNow}`
+  );
+  console.log('[CRON] Plan IDs:', activePlans.map((p) => p._id.toString()));
 
   const results = { processed: 0, successful: 0, skipped: 0, failed: 0, errors: [] };
 
@@ -379,6 +404,12 @@ export async function GET(request) {
     const runNow = new Date();
     const tz = plan.postingTimezone || 'Asia/Kolkata';
 
+    if (forceRun) {
+      log(
+        `force=true — bypassing guards: start-date / scheduled-day / duplicate-today / publish-clock`
+      );
+    }
+
     if (endDate && zonedYmdString(runNow, tz) > zonedYmdString(endDate, tz)) {
       let pkgExp = null;
       if (userRef) {
@@ -416,20 +447,37 @@ export async function GET(request) {
         lastPostDate &&
         zonedYmdString(lastPostDate, tz) === zonedYmdString(runNow, tz)
       ) {
-        log(`Skip — already posted today. lastPostDate=${lastPostDate}  (add ?force=1 to override)`);
+        log(`Skip — already posted today (duplicate guard). lastPostDate=${lastPostDate} — pass force=true to bypass`);
         results.skipped++; continue;
       }
 
       if (!skipPublishClockWindow) {
-        const ph = plan.postingHour;
+        const effectivePlan = effectivePlanForPostingClock(plan, cronParams, runNow);
+        if (effectivePlan._clockOverrideReason) {
+          log(`test clock override active — ${effectivePlan._clockOverrideReason}`);
+        }
+        const ph = effectivePlan.postingHour;
         const hasHour = ph != null && ph !== '' && !Number.isNaN(Number(ph));
+        const planHm = getHourMinuteInTimeZone(runNow, tz);
+        log(
+          `Posting window — TZ=${tz} localNow=${zonedYmdString(runNow, tz)} ${planHm.hour}:${String(planHm.minute).padStart(2, '0')} | stored_clock=${plan.postingHour}:${String(plan.postingMinute ?? 0).padStart(2, '0')} | effective_clock=${effectivePlan.postingHour}:${String(effectivePlan.postingMinute ?? 0).padStart(2, '0')} | toleranceMin=${CRON_TIME_TOLERANCE_MIN}`
+        );
+
         if (hasHour) {
-          const publishMs = getPublishUtcMsForDateRef(plan, runNow);
-          if (publishMs == null || !matchesAbsoluteWindow(runNow, publishMs, CRON_TIME_TOLERANCE_MIN)) {
-            log(`Skip — outside publish clock window (${plan.postingHour}:${String(plan.postingMinute ?? 0).padStart(2, '0')} ${tz}, tol=${CRON_TIME_TOLERANCE_MIN}m)`);
+          const publishMs = getPublishUtcMsForDateRef(effectivePlan, runNow);
+          const inWin =
+            publishMs != null &&
+            matchesAbsoluteWindow(runNow, publishMs, CRON_TIME_TOLERANCE_MIN);
+          log(
+            `Absolute window eval — publishUtcMs=${publishMs} inWindow=${inWin}`
+          );
+          if (publishMs == null || !inWin) {
+            log(
+              `Skip — outside publish clock window (effective ${effectivePlan.postingHour}:${String(effectivePlan.postingMinute ?? 0).padStart(2, '0')} ${tz})`
+            );
             results.skipped++; continue;
           }
-        } else if (!matchesPostingWindow(plan, runNow)) {
+        } else if (!matchesPostingWindow(effectivePlan, runNow)) {
           log(`Skip — outside posting time window (legacy)`);
           results.skipped++; continue;
         }
@@ -530,7 +578,12 @@ export async function GET(request) {
       usedPrefetch = true;
       imageUrl = prefetchPost.imageUrl;
       postText = prefetchPost.postText;
-      log('Using prefetched image + copy for today’s publish (GMB / FB / IG)');
+      log('Publish flow — using AutomationPlan.prefetchPost', {
+        keyword: prefetchPost.keyword,
+        publishOnYmd: prefetchPost.publishOn ? zonedYmdString(prefetchPost.publishOn, tz) : null,
+        imageUrlPreview: String(prefetchPost.imageUrl || '').slice(0, 160),
+        postTextPreview: String(prefetchPost.postText || '').slice(0, 200),
+      });
     } else {
       if (
         prefetchPost?.publishOn &&
@@ -545,6 +598,39 @@ export async function GET(request) {
       log(`Image URL: ${imageUrl || '⚠ NULL — n8n returned no image URL'}`);
       postText = await generatePostText({ businessName, keyword, cityName });
       log(`Post text: "${postText}"`);
+    }
+
+    const imgTrim = String(imageUrl || '').trim();
+    const txtTrim = String(postText || '').trim();
+    if (!imgTrim || !txtTrim) {
+      log(
+        `FAIL — empty publish bundle (safety gate). imageChars=${imgTrim.length} captionChars=${txtTrim.length} usedPrefetch=${usedPrefetch}`
+      );
+      results.errors.push({
+        planId: planId.toString(),
+        userId,
+        error: 'Empty image URL or caption — abort before PostStatus create',
+      });
+      results.failed++;
+      continue;
+    }
+    imageUrl = imgTrim;
+    postText = txtTrim;
+
+    if (wantGmb) {
+      const tok = String(accessToken || '').trim();
+      if (tok.length < 30) {
+        log(
+          `FAIL — GMB accessToken invalid or missing before publish (trimmedLen=${tok.length}). Refresh failed or tokens not stored on AutomationPlan.`
+        );
+        results.errors.push({
+          planId: planId.toString(),
+          userId,
+          error: 'Invalid Google access token — cannot publish',
+        });
+        results.failed++;
+        continue;
+      }
     }
 
     // ── 8. Save to DB as "pending" ────────────────────────────────────────────
@@ -624,8 +710,12 @@ export async function GET(request) {
 
       gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
 
-      console.log('[CRON] 📮 gmbResult attempt-1:', JSON.stringify(gmbResult));
-      log(`GMB attempt 1 — ok=${gmbResult.ok}  httpStatus=${gmbResult.httpStatus}  data=${JSON.stringify(gmbResult.data).slice(0, 300)}`);
+      log(`GMB attempt 1`, {
+        ok: gmbResult.ok,
+        httpStatus: gmbResult.httpStatus,
+        parsedResponse: gmbResult.data,
+        rawBodyPreview: String(gmbResult.rawBody || '').slice(0, 12000),
+      });
 
       if (!gmbResult.ok && [401, 403].includes(gmbResult.httpStatus) && storedRefreshToken) {
         log(`⚠ Token expired (HTTP ${gmbResult.httpStatus}) — refreshing using refreshToken and retrying…`);
@@ -635,8 +725,12 @@ export async function GET(request) {
 
           gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
 
-          console.log('[CRON] 📮 gmbResult retry:', JSON.stringify(gmbResult));
-          log(`GMB retry — ok=${gmbResult.ok}  httpStatus=${gmbResult.httpStatus}  data=${JSON.stringify(gmbResult.data).slice(0, 300)}`);
+          log(`GMB retry`, {
+            ok: gmbResult.ok,
+            httpStatus: gmbResult.httpStatus,
+            parsedResponse: gmbResult.data,
+            rawBodyPreview: String(gmbResult.rawBody || '').slice(0, 12000),
+          });
         } catch (refreshErr) {
           log(`✗ Token refresh for retry failed: ${refreshErr.message}`);
         }
@@ -806,9 +900,13 @@ export async function GET(request) {
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
-    baseUrl:   BASE_URL,
+    baseUrl: BASE_URL,
+    force: forceRun,
+    dryRun,
+    manualTrigger: manualTriggerEffective,
+    testNow: cronParams.testNow,
+    phaseAtCompletion: phase,
     ...results,
     logs,
-    manualTrigger: skipPublishClockWindow,
   });
 }

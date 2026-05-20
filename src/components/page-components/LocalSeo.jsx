@@ -13,12 +13,36 @@ import {
   Lightbulb,
   ArrowRight,
   ChevronDown,
+  Navigation,
 } from "lucide-react";
 import Navbar from "../sections/HeaderSection";
 import FooterSection from "../sections/FooterSection";
 import VideoModal from "../modals/VideoModal";
 import Link from "next/link";
 import Image from "next/image";
+
+const POPULAR_LOCAL_SEO_CITIES = [
+  "Noida",
+  "Delhi",
+  "Gurugram",
+  "Ghaziabad",
+  "Faridabad",
+  "Mumbai",
+  "Bengaluru",
+  "Pune",
+  "Hyderabad",
+  "Chennai",
+  "Jaipur",
+  "Lucknow",
+];
+
+function createLocalSeoCitySlug(city) {
+  return `local-seo-${city
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")}`;
+}
 
 export default function LocalSEOPage({ city, slug }) {
   const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);
@@ -27,7 +51,7 @@ export default function LocalSEOPage({ city, slug }) {
         .split("-")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ")
-    : "Your City";
+    : "India";
 
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-yellow-100">
@@ -670,6 +694,84 @@ export default function LocalSEOPage({ city, slug }) {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 bg-white text-slate-900">
+          <div className="container mx-auto px-6">
+            <div className="grid lg:grid-cols-[0.6fr_1.4fr] gap-12 items-start">
+              {/* LEFT SIDE: STICKY HEADER */}
+              <div className="lg:sticky lg:top-32">
+                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-yellow-700 mb-5">
+                  <Navigation size={12} className="text-yellow-600" />
+                  Service Areas
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight mb-5 text-slate-900">
+                  Local SEO by{" "}
+                  <span className="relative inline-block">
+                    City Focus
+                    <span className="absolute bottom-1 left-0 w-full h-3 bg-yellow-300/40 -z-10" />
+                  </span>
+                </h2>
+                <p className="text-base text-slate-500 leading-relaxed max-w-sm">
+                  Select a city to view customized ranking strategies and
+                  localized keyword data.
+                </p>
+              </div>
+
+              {/* RIGHT SIDE: SMALL CITY GRID */}
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                {POPULAR_LOCAL_SEO_CITIES.map((localCity) => {
+                  const citySlug = createLocalSeoCitySlug(localCity);
+                  const isActiveCity =
+                    cityName.toLowerCase() === localCity.toLowerCase();
+
+                  return (
+                    <Link
+                      key={localCity}
+                      href={`/services/${citySlug}`}
+                      aria-current={isActiveCity ? "page" : undefined}
+                      className={`group relative flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
+                        isActiveCity
+                          ? "border-yellow-400 bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-100 scale-[1.02]"
+                          : "border-slate-100 bg-slate-50/50 hover:border-yellow-400 hover:bg-white hover:shadow-md"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isActiveCity
+                              ? "bg-slate-950/10"
+                              : "bg-white border border-slate-100 group-hover:bg-yellow-50"
+                          }`}
+                        >
+                          <MapPin
+                            size={14}
+                            className={
+                              isActiveCity
+                                ? "text-slate-900"
+                                : "text-yellow-500"
+                            }
+                          />
+                        </div>
+                        <h3 className="text-sm font-bold tracking-tight">
+                          {localCity}
+                        </h3>
+                      </div>
+
+                      <ArrowRight
+                        size={14}
+                        className={`transition-all duration-300 ${
+                          isActiveCity
+                            ? "opacity-100 translate-x-0"
+                            : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 text-yellow-600"
+                        }`}
+                      />
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>

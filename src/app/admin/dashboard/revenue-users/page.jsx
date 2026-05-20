@@ -1092,30 +1092,30 @@ const handleSendInvoiceWhatsApp = async (user) => {
                                 : "No Date"}
                             </td>
 
-                            <td className="px-6 py-4">
+  <td className="px-6 py-4">
   <div className="flex gap-2">
     {/* PDF Download */}
     <button
-      onClick={() => handleDownloadInvoice(r)}
+      onClick={() => handleDownloadInvoice(u)}
       className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
     >
       PDF Download
     </button>
 
     {/* View PDF */}
-    {invoiceUrls[r._id] && (
+    {invoiceUrls[u._id] && (
       <button
-        onClick={() => window.open(invoiceUrls[r._id], "_blank")}
+        onClick={() => window.open(invoiceUrls[u._id], "_blank")}
         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
       >
         View PDF
       </button>
     )}
 
-    {/* Send WhatsApp - ONLY after download */}
-    {invoiceUrls[r._id] && (
+    {/* Send WhatsApp */}
+    {invoiceUrls[u._id] && (
       <button
-        onClick={() => handleSendInvoiceWhatsApp(r)}
+        onClick={() => handleSendInvoiceWhatsApp(u)}
         className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
       >
         Send WhatsApp

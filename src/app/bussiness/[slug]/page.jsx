@@ -1,27 +1,51 @@
 import FranchisePage from "./FranchisePage";
 
 const SITE_URL = "https://limbu.ai";
+const POPULAR_FRANCHISE_CITIES = [
+  "Noida",
+  "Delhi",
+  "Gurugram",
+  "Ghaziabad",
+  "Faridabad",
+  "Mumbai",
+  "Bengaluru",
+  "Pune",
+  "Hyderabad",
+  "Chennai",
+  "Jaipur",
+  "Lucknow",
+];
+
+function createFranchiseCitySlug(city) {
+  return `franchise-opportunities-${city
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")}`;
+}
+
+function getCityNameFromSlug(slug = "") {
+  const citySlug = slug.replace("franchise-opportunities-", "");
+
+  return citySlug
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export function generateStaticParams() {
+  return POPULAR_FRANCHISE_CITIES.map((city) => ({
+    slug: createFranchiseCitySlug(city),
+  }));
+}
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
 
   const slug = resolvedParams?.slug || "";
 
-  // Example:
-  // franchise-opportunities-gurugram
-
-  const citySlug = slug.replace(
-    "franchise-opportunities-",
-    ""
-  );
-
-  const cityName = citySlug
-    .split("-")
-    .map(
-      (word) =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-    )
-    .join(" ");
+  const cityName = getCityNameFromSlug(slug);
 
   // ================= TITLE =================
 

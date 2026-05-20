@@ -18,7 +18,7 @@ import {
   X,
   Mail as MailIcon,
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Navbar from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 import ScrollToTop from "@/components/ui/ScrollToTop";
@@ -39,7 +39,7 @@ const loadRazorpayScript = () => {
       return;
     }
     const existing = document.querySelector(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
     );
     if (existing) {
       existing.onload = () => resolve(true);
@@ -54,9 +54,197 @@ const loadRazorpayScript = () => {
   });
 };
 
+const partners = Array.from({ length: 10 }, (_, i) => ({
+  id: i + 1,
+  label: `Partner ${i + 1}`,
+}));
+
+const features = [
+  { icon: "⚡", title: "Flexible & Scalable", sub: "Start small, grow big" },
+  { icon: "∞", title: "Unlimited Users", sub: "No per-seat charges" },
+  { icon: "🤝", title: "Up to 10 Partners", sub: "Grow your network" },
+  { icon: "🏪", title: "Full Franchise Rights", sub: "Own your territory" },
+];
+
+const PartnerSlot = ({ label }) => (
+  <div className="bg-yellow-50 border border-yellow-300 rounded-xl py-3 px-1 flex flex-col items-center gap-1.5 hover:-translate-y-0.5 hover:shadow-md hover:shadow-yellow-200 transition-all duration-150 cursor-pointer">
+    <div className="w-9 h-9 rounded-full bg-yellow-100 border border-yellow-400 flex items-center justify-center text-base">
+      👤
+    </div>
+    <span className="text-[10px] text-yellow-900 font-semibold text-center leading-tight">
+      {label}
+    </span>
+  </div>
+);
+
+const FeatureCard = ({ icon, title, sub }) => (
+  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3.5 flex items-start gap-2.5">
+    <span className="text-xl leading-none mt-0.5">{icon}</span>
+    <div>
+      <div className="text-[13px] font-semibold text-gray-900 mb-0.5">
+        {title}
+      </div>
+      <div className="text-[11px] text-gray-500">{sub}</div>
+    </div>
+  </div>
+);
+
+// All coordinates in a 500x500 viewBox — fully scalable
+const VB = 500;
+const CX = 250,
+  CY = 250;
+const ORBIT_R = 185;
+const INNER_R = 105;
+const SLOT_R = 34;
+
+function OrbitDiagram() {
+  const slots = partners.map((p, i) => {
+    const angle = (2 * Math.PI * i) / partners.length - Math.PI / 2;
+    return {
+      ...p,
+      x: CX + ORBIT_R * Math.cos(angle),
+      y: CY + ORBIT_R * Math.sin(angle),
+      lx1: CX + (ORBIT_R - SLOT_R - 4) * Math.cos(angle),
+      ly1: CY + (ORBIT_R - SLOT_R - 4) * Math.sin(angle),
+      lx2: CX + (INNER_R + 4) * Math.cos(angle),
+      ly2: CY + (INNER_R + 4) * Math.sin(angle),
+    };
+  });
+
+  return (
+    <div style={{ width: "100%", maxWidth: 440, margin: "0 auto" }}>
+      <svg
+        viewBox={`0 0 ${VB} ${VB}`}
+        style={{ width: "100%", height: "auto", display: "block" }}
+      >
+        {/* Dashed connector lines */}
+        {slots.map((s) => (
+          <line
+            key={`line-${s.id}`}
+            x1={s.lx1}
+            y1={s.ly1}
+            x2={s.lx2}
+            y2={s.ly2}
+            stroke="#FCD34D"
+            strokeWidth="1.8"
+            strokeDasharray="6 4"
+          />
+        ))}
+
+        {/* Center glow ring */}
+        <circle cx={CX} cy={CY} r={INNER_R + 14} fill="#FEF9EC" />
+
+        {/* Center circle border */}
+        <circle
+          cx={CX}
+          cy={CY}
+          r={INNER_R}
+          fill="#FFFBEB"
+          stroke="#FBBF24"
+          strokeWidth="4"
+        />
+
+        {/* Center text */}
+        <text
+          x={CX}
+          y={CY - 30}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#92400E"
+          fontFamily="sans-serif"
+          letterSpacing="1.5"
+          textDecoration="none"
+        >
+          FRANCHISE LICENCE
+        </text>
+        <text
+          x={CX}
+          y={CY + 2}
+          textAnchor="middle"
+          fontSize="22"
+          fontWeight="700"
+          fill="#111827"
+          fontFamily="sans-serif"
+        >
+          ₹5,00,000
+        </text>
+        <text
+          x={CX}
+          y={CY + 24}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#B45309"
+          fontFamily="sans-serif"
+        >
+          Add up to 10 partners
+        </text>
+        <text
+          x={CX}
+          y={CY + 40}
+          textAnchor="middle"
+          fontSize="11"
+          fill="#B45309"
+          fontFamily="sans-serif"
+        >
+          & unlimited users
+        </text>
+
+        {/* Partner slots */}
+        {slots.map((s) => (
+          <g key={`slot-${s.id}`}>
+            {/* Outer Circle */}
+            <circle
+              cx={s.x}
+              cy={s.y}
+              r={SLOT_R}
+              fill="#FEF3C7"
+              stroke="#FDE68A"
+              strokeWidth="2"
+            />
+
+            {/* Head */}
+            <circle
+              cx={s.x}
+              cy={s.y - 7}
+              r="5.5"
+              fill="none"
+              stroke="#D97706"
+              strokeWidth="1.6"
+            />
+
+            {/* Body */}
+            <path
+              d={`M${s.x - 8} ${s.y + 10} q8-9 16 0`}
+              fill="none"
+              stroke="#D97706"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+
+            {/* Label */}
+            <text
+              x={s.x}
+              y={s.y + 28}
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="600"
+              fill="#78350F"
+              fontFamily="sans-serif"
+            >
+              {s.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export default function FranchisePage() {
   const [selectedPlan, setSelectedPlan] = useState("premium");
   const [showForm, setShowForm] = useState(false);
+  const [hoverCta, setHoverCta] = useState(false);
+
   const [formStep, setFormStep] = useState(1);
   const [createdFranchiseId, setCreatedFranchiseId] = useState(null);
   const [serviceForm, setServiceForm] = useState({
@@ -104,7 +292,12 @@ export default function FranchisePage() {
   const handleProceedToPayment = async (e) => {
     e.preventDefault();
 
-    if (!serviceForm.name || !serviceForm.phone || !serviceForm.email || !serviceForm.city) {
+    if (
+      !serviceForm.name ||
+      !serviceForm.phone ||
+      !serviceForm.email ||
+      !serviceForm.city
+    ) {
       alert("Please fill all required fields");
       return;
     }
@@ -147,7 +340,9 @@ export default function FranchisePage() {
     try {
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
-        alert("Razorpay SDK failed to load. Please check your internet connection.");
+        alert(
+          "Razorpay SDK failed to load. Please check your internet connection.",
+        );
         setIsLoading(false);
         return;
       }
@@ -169,7 +364,10 @@ export default function FranchisePage() {
       const orderData = await orderRes.json();
 
       if (!orderRes.ok || orderData.error || !orderData.order) {
-        alert("Error creating payment order: " + (orderData.error || "Server Error"));
+        alert(
+          "Error creating payment order: " +
+            (orderData.error || "Server Error"),
+        );
         setIsLoading(false);
         return;
       }
@@ -209,11 +407,19 @@ export default function FranchisePage() {
                 setShowForm(false);
                 setFormSubmitted(false);
                 setFormStep(1);
-                setServiceForm({ name: "", phone: "", email: "", city: "", gstNumber: "" });
+                setServiceForm({
+                  name: "",
+                  phone: "",
+                  email: "",
+                  city: "",
+                  gstNumber: "",
+                });
               }, 3000);
             } else {
               const data = await submitRes.json();
-              alert(data.message || "Payment recorded but failed to update status.");
+              alert(
+                data.message || "Payment recorded but failed to update status.",
+              );
             }
           } catch (error) {
             console.error("Error submitting form:", error);
@@ -239,7 +445,9 @@ export default function FranchisePage() {
 
       paymentObject.on("payment.failed", function (response) {
         console.error("Payment failed:", response.error);
-        alert("Payment failed: " + (response.error?.description || "Unknown error"));
+        alert(
+          "Payment failed: " + (response.error?.description || "Unknown error"),
+        );
         setIsLoading(false);
       });
 
@@ -304,7 +512,9 @@ export default function FranchisePage() {
                     <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-sm border border-lemon-glow/20 bg-lemon-glow/10">
                       <span className="w-2 h-2 rounded-full animate-pulse bg-lemon-hover" />
                       <span className="text-[10px] font-black uppercase text-lemon-hover tracking-widest">
-                        {formStep === 1 ? "Step 1: Your Details" : "Step 2: Payment Summary"}
+                        {formStep === 1
+                          ? "Step 1: Your Details"
+                          : "Step 2: Payment Summary"}
                       </span>
                     </div>
                     <h2
@@ -320,7 +530,10 @@ export default function FranchisePage() {
 
                   {/* conditionally render form based on formStep */}
                   {formStep === 1 ? (
-                    <form onSubmit={handleProceedToPayment} className="p-6 sm:p-8 space-y-5">
+                    <form
+                      onSubmit={handleProceedToPayment}
+                      className="p-6 sm:p-8 space-y-5"
+                    >
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
                           <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
@@ -330,7 +543,12 @@ export default function FranchisePage() {
                             type="text"
                             required
                             value={serviceForm.name}
-                            onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                name: e.target.value,
+                              })
+                            }
                             className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
                             placeholder="Enter your full name"
                           />
@@ -343,7 +561,12 @@ export default function FranchisePage() {
                             type="tel"
                             required
                             value={serviceForm.phone}
-                            onChange={(e) => setServiceForm({ ...serviceForm, phone: e.target.value })}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                phone: e.target.value,
+                              })
+                            }
                             className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
                             placeholder="Enter 10-digit mobile number"
                           />
@@ -358,7 +581,12 @@ export default function FranchisePage() {
                           type="email"
                           required
                           value={serviceForm.email}
-                          onChange={(e) => setServiceForm({ ...serviceForm, email: e.target.value })}
+                          onChange={(e) =>
+                            setServiceForm({
+                              ...serviceForm,
+                              email: e.target.value,
+                            })
+                          }
                           className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
                           placeholder="Enter your email address"
                         />
@@ -373,7 +601,12 @@ export default function FranchisePage() {
                             type="text"
                             required
                             value={serviceForm.city}
-                            onChange={(e) => setServiceForm({ ...serviceForm, city: e.target.value })}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                city: e.target.value,
+                              })
+                            }
                             className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
                             placeholder="Which city are you from?"
                           />
@@ -385,7 +618,12 @@ export default function FranchisePage() {
                           <input
                             type="text"
                             value={serviceForm.gstNumber}
-                            onChange={(e) => setServiceForm({ ...serviceForm, gstNumber: e.target.value })}
+                            onChange={(e) =>
+                              setServiceForm({
+                                ...serviceForm,
+                                gstNumber: e.target.value,
+                              })
+                            }
                             className="w-full px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-lemon-glow transition-all"
                             placeholder="Enter GST number if you have one"
                           />
@@ -406,11 +644,15 @@ export default function FranchisePage() {
                       <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shadow-inner">
                         <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
                           <span>Franchise Fee:</span>
-                          <span className="text-black">₹{investmentAmount.toLocaleString()}</span>
+                          <span className="text-black">
+                            ₹{investmentAmount.toLocaleString()}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
                           <span>GST (18%):</span>
-                          <span className="text-black">₹{gstAmount.toLocaleString()}</span>
+                          <span className="text-black">
+                            ₹{gstAmount.toLocaleString()}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
                           <span className="text-xs sm:text-sm font-black text-black uppercase tracking-widest">
@@ -458,7 +700,8 @@ export default function FranchisePage() {
         <div
           className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] z-0 opacity-10"
           style={{
-            background: "radial-gradient(ellipse at top right, var(--lemon-glow) 0%, transparent 65%)",
+            background:
+              "radial-gradient(ellipse at top right, var(--lemon-glow) 0%, transparent 65%)",
           }}
         />
         <div className="max-w-7xl mx-auto text-center space-y-8 relative z-10">
@@ -471,7 +714,10 @@ export default function FranchisePage() {
 
           <h1
             className="uppercase leading-[1.15] tracking-normal text-black font-black"
-            style={{ fontSize: "clamp(2.5rem, 6vw, 3.5rem)", fontFamily: "var(--font-heading)" }}
+            style={{
+              fontSize: "clamp(2.5rem, 6vw, 3.5rem)",
+              fontFamily: "var(--font-heading)",
+            }}
           >
             Build Your Own <br />
             <span className="text-lemon-hover">AI Business Empire</span>
@@ -487,11 +733,19 @@ export default function FranchisePage() {
               { val: "100%", label: "Recurring Model" },
               { val: "Zero", label: "Technical Overhead" },
             ].map((stat, i) => (
-              <div key={i} className="px-10 py-6 rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all">
-                <div className="text-3xl sm:text-4xl font-black text-black tracking-tighter mb-2" style={{ fontFamily: "var(--font-heading)" }}>
+              <div
+                key={i}
+                className="px-10 py-6 rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all"
+              >
+                <div
+                  className="text-3xl sm:text-4xl font-black text-black tracking-tighter mb-2"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   {stat.val}
                 </div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">{stat.label}</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                  {stat.label}
+                </div>
               </div>
             ))}
           </div>
@@ -518,7 +772,10 @@ export default function FranchisePage() {
               { value: "4.9/5", label: "User Rating" },
             ].map((item, i) => (
               <div key={i} className="text-center group">
-                <div className="text-3xl sm:text-4xl font-black text-black tracking-tighter mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+                <div
+                  className="text-3xl sm:text-4xl font-black text-black tracking-tighter mb-1"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   {item.value}
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black group-hover:text-lemon-hover transition-colors">
@@ -534,8 +791,13 @@ export default function FranchisePage() {
       <section className="relative py-12 px-6">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-10">
-            <p className="text-lemon-hover text-xs font-black uppercase tracking-widest mb-4">Why Choose Us</p>
-            <h2 className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+            <p className="text-lemon-hover text-xs font-black uppercase tracking-widest mb-4">
+              Why Choose Us
+            </p>
+            <h2
+              className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               The Limbu AI <span className="text-lemon-hover">Advantage</span>
             </h2>
           </div>
@@ -548,11 +810,16 @@ export default function FranchisePage() {
                   <Zap className="text-lemon-glow w-10 h-10" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)" }}>
+                  <h3
+                    className="text-2xl font-black text-black uppercase tracking-tight mb-4"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
                     Fully Automated
                   </h3>
                   <p className="text-slate-500 text-base font-bold leading-relaxed max-w-md">
-                    Our AI does the heavy lifting. It automatically posts updates, manages reviews, and creates reports so you don't have to.
+                    Our AI does the heavy lifting. It automatically posts
+                    updates, manages reviews, and creates reports so you don't
+                    have to.
                   </p>
                 </div>
               </div>
@@ -562,7 +829,10 @@ export default function FranchisePage() {
               <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-6 shadow-sm group-hover:bg-black group-hover:text-lemon-glow transition-all">
                 <Users className="w-7 h-7" />
               </div>
-              <h3 className="text-lg font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "var(--font-heading)" }}>
+              <h3
+                className="text-lg font-black text-black uppercase tracking-tight mb-3"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
                 Easy Management
               </h3>
               <p className="text-slate-500 text-sm font-bold leading-relaxed">
@@ -571,18 +841,38 @@ export default function FranchisePage() {
             </div>
 
             {[
-              { icon: Star, title: "Manage Reviews", desc: "Automatically track and reply to customer feedback." },
-              { icon: BarChart, title: "Clear Reports", desc: "See exact results and growth with easy-to-read charts." },
-              { icon: Target, title: "Get More Leads", desc: "Turn online searches into real paying customers." },
+              {
+                icon: Star,
+                title: "Manage Reviews",
+                desc: "Automatically track and reply to customer feedback.",
+              },
+              {
+                icon: BarChart,
+                title: "Clear Reports",
+                desc: "See exact results and growth with easy-to-read charts.",
+              },
+              {
+                icon: Target,
+                title: "Get More Leads",
+                desc: "Turn online searches into real paying customers.",
+              },
             ].map((item, i) => (
-              <div key={i} className="group p-8 rounded-[2rem] border border-slate-200 bg-white hover:border-lemon-hover/50 hover:shadow-xl transition-all shadow-sm">
+              <div
+                key={i}
+                className="group p-8 rounded-[2rem] border border-slate-200 bg-white hover:border-lemon-hover/50 hover:shadow-xl transition-all shadow-sm"
+              >
                 <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-6 shadow-sm">
                   <item.icon className="text-black w-7 h-7" />
                 </div>
-                <h3 className="text-lg font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "var(--font-heading)" }}>
+                <h3
+                  className="text-lg font-black text-black uppercase tracking-tight mb-3"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   {item.title}
                 </h3>
-                <p className="text-slate-500 text-sm font-bold leading-relaxed">{item.desc}</p>
+                <p className="text-slate-500 text-sm font-bold leading-relaxed">
+                  {item.desc}
+                </p>
               </div>
             ))}
 
@@ -592,11 +882,15 @@ export default function FranchisePage() {
                   <Shield className="text-black w-10 h-10" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)" }}>
+                  <h3
+                    className="text-2xl font-black text-black uppercase tracking-tight mb-4"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
                     Safe & Secure
                   </h3>
                   <p className="text-slate-500 text-base font-bold leading-relaxed max-w-3xl">
-                    Your business and your clients' data are completely protected with top-level security monitoring 24/7.
+                    Your business and your clients' data are completely
+                    protected with top-level security monitoring 24/7.
                   </p>
                 </div>
               </div>
@@ -609,29 +903,72 @@ export default function FranchisePage() {
       <section className="relative py-12 px-6 bg-slate-50/50">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+            <h2
+              className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               Franchise <span className="text-lemon-hover">Benefits</span>
             </h2>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: Rocket, title: "Growing Market", desc: "Every local business needs to be found online today." },
-              { icon: DollarSign, title: "Steady Income", desc: "Earn money every month from your active clients." },
-              { icon: Shield, title: "Proven System", desc: "A completely safe business model with full training." },
-              { icon: Users, title: "Big Opportunity", desc: "Thousands of businesses need this exact service." },
-              { icon: Zap, title: "Powered by AI", desc: "Our smart system does 90% of the hard work for you." },
-              { icon: Award, title: "Your Territory", desc: "You get exclusive rights to operate in your area." },
-              { icon: TrendingUp, title: "High Profits", desc: "Keep a large percentage of the revenue you make." },
-              { icon: Clock, title: "Work Anywhere", desc: "Run your business from home or anywhere you like." },
+              {
+                icon: Rocket,
+                title: "Growing Market",
+                desc: "Every local business needs to be found online today.",
+              },
+              {
+                icon: DollarSign,
+                title: "Steady Income",
+                desc: "Earn money every month from your active clients.",
+              },
+              {
+                icon: Shield,
+                title: "Proven System",
+                desc: "A completely safe business model with full training.",
+              },
+              {
+                icon: Users,
+                title: "Big Opportunity",
+                desc: "Thousands of businesses need this exact service.",
+              },
+              {
+                icon: Zap,
+                title: "Powered by AI",
+                desc: "Our smart system does 90% of the hard work for you.",
+              },
+              {
+                icon: Award,
+                title: "Your Territory",
+                desc: "You get exclusive rights to operate in your area.",
+              },
+              {
+                icon: TrendingUp,
+                title: "High Profits",
+                desc: "Keep a large percentage of the revenue you make.",
+              },
+              {
+                icon: Clock,
+                title: "Work Anywhere",
+                desc: "Run your business from home or anywhere you like.",
+              },
             ].map((item, i) => (
-              <div key={i} className="group p-8 rounded-3xl bg-white border border-slate-200 hover:border-lemon-hover/50 hover:shadow-xl transition-all duration-300 shadow-sm">
+              <div
+                key={i}
+                className="group p-8 rounded-3xl bg-white border border-slate-200 hover:border-lemon-hover/50 hover:shadow-xl transition-all duration-300 shadow-sm"
+              >
                 <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-6 group-hover:bg-black group-hover:text-lemon-glow transition-all border border-slate-200">
                   <item.icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-base font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "var(--font-heading)" }}>
+                <h3
+                  className="text-base font-black text-black uppercase tracking-tight mb-3"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   {item.title}
                 </h3>
-                <p className="text-slate-500 text-xs font-bold leading-relaxed uppercase tracking-wider">{item.desc}</p>
+                <p className="text-slate-500 text-xs font-bold leading-relaxed uppercase tracking-wider">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -642,7 +979,10 @@ export default function FranchisePage() {
       <section className="relative py-12 px-6">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+            <h2
+              className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               Choose Your <span className="text-lemon-hover">Plan</span>
             </h2>
           </div>
@@ -652,21 +992,33 @@ export default function FranchisePage() {
                 Most Popular
               </div>
               <div className="text-center mb-10 pb-10 border-b border-slate-100 mt-4">
-                <h3 className="text-2xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)" }}>
+                <h3
+                  className="text-2xl font-black text-black uppercase tracking-tight mb-4"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   Premium Franchise
                 </h3>
-                <div className="text-5xl font-black text-black tracking-tighter mb-2" style={{ fontFamily: "var(--font-heading)" }}>
+                <div
+                  className="text-5xl font-black text-black tracking-tighter mb-2"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   ₹5,00,000
                 </div>
-                <div className="text-xs font-black text-slate-400 uppercase tracking-widest">+ 18% GST • One-Time Fee</div>
+                <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  + 18% GST • One-Time Fee
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-10">
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Your Share</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Your Share
+                  </p>
                   <p className="text-sm font-black text-black">50% Revenue</p>
                 </div>
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Earning Potential</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Earning Potential
+                  </p>
                   <p className="text-sm font-black text-black">₹1-3L / Month</p>
                 </div>
               </div>
@@ -681,7 +1033,9 @@ export default function FranchisePage() {
                 ].map((feature, j) => (
                   <li key={j} className="flex items-center gap-4">
                     <CheckCircle className="w-5 h-5 text-lemon-hover shrink-0" />
-                    <span className="text-sm font-bold text-slate-600 uppercase tracking-tight">{feature}</span>
+                    <span className="text-sm font-bold text-slate-600 uppercase tracking-tight">
+                      {feature}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -696,27 +1050,95 @@ export default function FranchisePage() {
         </div>
       </section>
 
+      <section className="bg-white py-14 px-4 sm:px-6 w-full">
+        <div className="w-full max-w-7xl mx-auto">
+          <div className="bg-white rounded-3xl border border-yellow-200 shadow-[0_2px_24px_rgba(245,158,11,0.08)] p-6 sm:p-10 font-sans w-full">
+            {/* Badge */}
+            <div className="flex justify-center mb-4">
+              <span className="bg-yellow-100 text-yellow-900 text-[11px] font-semibold px-4 py-1.5 rounded-full uppercase tracking-wide">
+                📜 Franchise Licence
+              </span>
+            </div>
+
+            {/* Heading */}
+            <h1 className="text-[28px] sm:text-[42px] font-bold text-gray-900 text-center leading-tight mb-3">
+              Smarter businesses,{" "}
+              <span className="text-yellow-400">stronger futures.</span>
+            </h1>
+
+            {/* Subheading */}
+            <p className="text-[14px] sm:text-[16px] text-gray-500 text-center max-w-2xl mx-auto mb-6 leading-relaxed">
+              Flexible &amp; scalable — start small, grow big. Tailored for your
+              business needs.
+            </p>
+
+            {/* Fully SVG Orbit diagram */}
+            <OrbitDiagram />
+
+            {/* Partner slot label */}
+            <div className="text-center text-[11px] text-gray-400 uppercase tracking-wider mb-8 mt-2">
+              Partner slots (10 included)
+            </div>
+
+            {/* Feature Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {features.map((f, i) => (
+                <div
+                  key={i}
+                  className="bg-yellow-50 border border-yellow-100 rounded-2xl p-5 text-center"
+                >
+                  <div className="text-3xl mb-3">{f.icon}</div>
+                  <h3 className="text-[15px] font-semibold text-gray-900 mb-1">
+                    {f.title}
+                  </h3>
+                  <p className="text-[12px] text-gray-500">{f.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
       {/* =================== FAQ =================== */}
       <section className="relative py-12 px-6 bg-slate-50/50">
         <div className="max-w-4xl mx-auto relative z-10">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
-              Frequently Asked <span className="text-lemon-hover">Questions</span>
+            <h2
+              className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              Frequently Asked{" "}
+              <span className="text-lemon-hover">Questions</span>
             </h2>
           </div>
           <div className="space-y-6">
             {[
-              { q: "Do I need to be good with computers?", a: "Not at all. Our AI system does the hard technical work. You just focus on talking to local businesses." },
-              { q: "How much time do I need to give?", a: "Most partners spend about 3-4 hours a day. It's very flexible and fits around your schedule." },
-              { q: "When will I make my money back?", a: "If you follow our system, most partners make their investment back in 4 to 6 months." },
-              { q: "Are there any hidden fees?", a: "No. You pay the franchise fee once, and after that, you keep a large share of the monthly profits." },
+              {
+                q: "Do I need to be good with computers?",
+                a: "Not at all. Our AI system does the hard technical work. You just focus on talking to local businesses.",
+              },
+              {
+                q: "How much time do I need to give?",
+                a: "Most partners spend about 3-4 hours a day. It's very flexible and fits around your schedule.",
+              },
+              {
+                q: "When will I make my money back?",
+                a: "If you follow our system, most partners make their investment back in 4 to 6 months.",
+              },
+              {
+                q: "Are there any hidden fees?",
+                a: "No. You pay the franchise fee once, and after that, you keep a large share of the monthly profits.",
+              },
             ].map((faq, i) => (
-              <div key={i} className="group p-8 rounded-3xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all shadow-sm">
+              <div
+                key={i}
+                className="group p-8 rounded-3xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all shadow-sm"
+              >
                 <h3 className="text-base sm:text-lg font-black text-black flex items-start gap-4 uppercase tracking-tight">
                   <span className="text-lemon-hover mt-0.5">Q.</span> {faq.q}
                 </h3>
                 <p className="text-sm text-slate-500 font-bold mt-4 pl-8 sm:pl-10 leading-relaxed italic opacity-90">
-                  <span className="text-lemon-hover not-italic">A.</span> {faq.a}
+                  <span className="text-lemon-hover not-italic">A.</span>{" "}
+                  {faq.a}
                 </p>
               </div>
             ))}
@@ -733,7 +1155,10 @@ export default function FranchisePage() {
               <div className="inline-block mb-10 px-6 py-2.5 rounded-full text-[10px] font-black bg-black text-lemon-glow shadow-md uppercase tracking-widest">
                 ⚡ Limited Spots Available
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-black mb-8 leading-tight uppercase tracking-normal" style={{ fontFamily: "var(--font-heading)" }}>
+              <h2
+                className="text-4xl md:text-5xl font-black text-black mb-8 leading-tight uppercase tracking-normal"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
                 Start Your Business <br />
                 <span className="text-lemon-hover">With Us Today</span>
               </h2>
@@ -750,12 +1175,26 @@ export default function FranchisePage() {
               </div>
               <div className="grid md:grid-cols-2 gap-6 pt-12 border-t border-slate-200">
                 {[
-                  { value: "tel:+919289344726", icon: PhoneCall, label: "+91 9289344726" },
-                  { value: "mailto:info@limbu.ai", icon: MailIcon, label: "info@limbu.ai" },
+                  {
+                    value: "tel:+919289344726",
+                    icon: PhoneCall,
+                    label: "+91 9289344726",
+                  },
+                  {
+                    value: "mailto:info@limbu.ai",
+                    icon: MailIcon,
+                    label: "info@limbu.ai",
+                  },
                 ].map((contact, i) => (
-                  <a key={i} href={contact.value} className="flex items-center justify-center gap-3 p-5 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200">
+                  <a
+                    key={i}
+                    href={contact.value}
+                    className="flex items-center justify-center gap-3 p-5 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200"
+                  >
                     <contact.icon size={18} className="text-lemon-hover" />
-                    <span className="text-xs font-black text-black uppercase tracking-tighter">{contact.label}</span>
+                    <span className="text-xs font-black text-black uppercase tracking-tighter">
+                      {contact.label}
+                    </span>
                   </a>
                 ))}
               </div>

@@ -57,22 +57,20 @@ export default function AddExpoLeadUserModal({
     setSaving(true);
 
     try {
-      const payload = {
-        fullName: form.fullName.trim(),
-        phone: form.phone.replace(/\D/g, ""),
-        email: form.email.trim(),
-        companyName: form.companyName.trim(),
-        remarks: form.remarks.trim(),
+     const payload = {
+  fullName: form.fullName.trim(),
+  phone: form.phone.replace(/\D/g, ""),
+  email: form.email.trim(),
+  companyName: form.companyName.trim(),
+  remarks: form.remarks.trim(),
 
-          // Contact Person (Aman, Vikas, etc.)
   accountManagerName: form.contactPerson?.trim() || "",
 
-        // Auto values
-        source: "expolead",
-        leadTags: ["expolead"],
-        leadStage: "Active",
-        leadStatus: "Hot",
-      };
+  source: "expolead",
+  leadTags: ["expolead"],
+  leadStage: "Active",
+  leadStatus: "Hot",
+};
 
 const res = await fetch("/api/users", {
   method: "POST",
@@ -108,15 +106,18 @@ body: JSON.stringify({
   leadStatus: "Hot",
 
   // Remarks history
-  remarksHistory: form.remarks.trim()
-    ? [
-        {
-          remark: form.remarks.trim(),
-          createdAt: new Date(),
-          addedBy: localStorage.getItem("adminName") || "Admin",
-        },
-      ]
-    : [],
+ remarksHistory: form.remarks.trim()
+  ? [
+      {
+        text: form.remarks.trim(),
+
+        // 👇 REMARK DATE
+        createdAt: new Date("2026-05-20T10:00:00"),
+
+        addedBy: localStorage.getItem("adminName") || "Admin",
+      },
+    ]
+  : [],
 })
 });
 

@@ -3673,7 +3673,7 @@ export default function UserManagement() {
 
                       <button
   onClick={() => setShowAddExpoLeadModal(true)}
-  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700"
+  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-700"
 >
   + Add Expo Lead
 </button>

@@ -72,12 +72,10 @@ export async function POST(req) {
 
     const config = CAMPAIGN_CONFIG[templateId];
 
-    if (!config) {
-      return NextResponse.json(
-        { success: false, message: "Invalid WhatsApp template" },
-        { status: 400 },
-      );
-    }
+if (templateId === "google_business_profile_management") {
+ 
+  console.log("👥 Total Users:", users?.length || 0);
+}
 
     if (!Array.isArray(users) || users.length === 0) {
       return NextResponse.json(

@@ -63,6 +63,7 @@ export default function AuthGuard({ children }) {
       "/realestate-marketing-software",
       "/connect-google-business",
       "/connect-business",
+      "/bussiness",
     ];
 
     const allowedAdminRoles = [
@@ -74,16 +75,26 @@ export default function AuthGuard({ children }) {
       "agent",
       "subadmin",
     ];
+
     const isPublicRoute = publicRoutes.includes(pathname);
+
+    // 👇 ADD THIS HERE
     const isAdminRoute = pathname.startsWith("/admin");
     const isReviewRoute = pathname.startsWith("/reviews");
     const isFranchiseRoute = pathname.startsWith("/franchise-panel");
     const isCityRoute = pathname.startsWith("/city");
     const isServicesRoute = pathname.startsWith("/services");
+    const isBusinessSlugRoute = pathname.startsWith("/bussiness/");
 
     setTimeout(() => {
-      // Reviews, Franchise Panel, and City routes are public or handled separately
-      if (isReviewRoute || isFranchiseRoute || isCityRoute || isServicesRoute) {
+      // 👇 UPDATE THIS CONDITION
+      if (
+        isReviewRoute ||
+        isFranchiseRoute ||
+        isCityRoute ||
+        isServicesRoute ||
+        isBusinessSlugRoute
+      ) {
         setIsChecking(false);
         return;
       }

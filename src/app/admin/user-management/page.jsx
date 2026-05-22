@@ -67,6 +67,8 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 
 import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneModal";
 
+import AddExpoLeadUserModal from "./components/AddExpoLeadUserModal";
+
 import WhatsappModal from "./components/WhatsAppTemplateModel";
 import ChatHistoryModal from "./components/ChatHistoryModal";
 import ChatbotDailyChatCards from "./components/ChatbotDailyChatCards";
@@ -95,6 +97,7 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [addingUser, setAddingUser] = useState(false);
+  const [showAddExpoLeadModal, setShowAddExpoLeadModal] = useState(false);
   const [newUser, setNewUser] = useState({
     userId: "",
     email: "",
@@ -104,6 +107,7 @@ export default function UserManagement() {
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
 
+ 
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [fullViewImage, setFullViewImage] = useState(null);
   const [pagination, setPagination] = useState(null);
@@ -3728,6 +3732,15 @@ export default function UserManagement() {
                   flexWrap="wrap"
                   useFlexGap
                 >
+
+
+                      <button
+  onClick={() => setShowAddExpoLeadModal(true)}
+  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-700"
+>
+  + Add Expo Lead
+</button>
+
                   <Button
                     variant="contained"
                     onClick={() => setAddingUser(true)}
@@ -6386,7 +6399,15 @@ export default function UserManagement() {
           </div>
         </div>
       )}
+
+       <AddExpoLeadUserModal
+  open={showAddExpoLeadModal}
+  onClose={() => setShowAddExpoLeadModal(false)}
+  onSuccess={fetchUsers}
+/>
     </>
+
+   
   );
 }
 

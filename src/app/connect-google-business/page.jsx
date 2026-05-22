@@ -238,6 +238,7 @@ function ConnectGoogleBusinessInner() {
             };
           });
           localStorage.setItem("locationDetails", JSON.stringify(locationDetails));
+          localStorage.setItem("chatbotPhone", phone);
         } catch {
           // non-fatal
         }

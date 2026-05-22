@@ -45,6 +45,7 @@ import {
 import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
 import { generateUniversalSlug } from "@/utils/slugify";
 import { upsertPublishSite } from "@/lib/saveSiteUpsert";
+import { resolveSiteUserId } from "@/lib/resolveSiteUserId";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -120,9 +121,14 @@ async function handleWebsite({ location, email, locationId, accessToken }) {
     );
   }
 
-  const userId = (email || "").trim().toLowerCase();
+  const userId = resolveSiteUserId({
+    phone: rawPhone,
+    email: (email || "").trim(),
+  });
   if (!userId) {
-    throw new Error("No account email linked to this business session. Please connect Google Business again.");
+    throw new Error(
+      "No account email or phone linked to this business session. Please connect Google Business again."
+    );
   }
 
   const primaryCategory =
@@ -231,6 +237,8 @@ Return ONLY valid JSON.`;
     aiContent,
     mediaImages,
     userId,
+    phone: rawPhone,
+    email: (email || "").trim(),
     locationId: shortId,
     type: "chatbot",
   });

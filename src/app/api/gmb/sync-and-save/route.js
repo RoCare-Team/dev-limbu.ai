@@ -24,6 +24,7 @@ import {
 } from "@/lib/gmbSessionStore";
 import { postJsonWithRetry } from "@/lib/limbuGmbConnectChatbot";
 import { upsertChatbotGmbUserDashboardRow } from "@/lib/gmbDashboardUsersSync";
+import { saveUserBusinessListings } from "@/lib/adminBusinessStore";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,15 @@ export async function POST(request) {
         { error: e?.message || "Failed to save session" },
         { status: 500 }
       );
+    }
+
+    // ── Mirror dashboard GMB sync → adminbusinesses (same as POST /api/admin/saveBussiness) ──
+    try {
+      if (session.user.email) {
+        await saveUserBusinessListings(session.user.email, allListings);
+      }
+    } catch (adminErr) {
+      console.error("[sync-and-save] adminbusinesses mirror error:", adminErr);
     }
 
     // ── Mirror manual Google sign-in: `gmb_dashboard.users` + `source: "chatbot"` ──

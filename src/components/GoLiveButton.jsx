@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { generateSlug } from "../../utils/generateSlug";
+import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
 import { X, CheckCircle, ExternalLink, Copy, Check } from "lucide-react";
 
 export default function GoLiveButton({
@@ -11,6 +12,7 @@ export default function GoLiveButton({
   mediaImages,
   onSuccess,
   customSlug,
+  phone: phoneProp,
 }) {
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
@@ -63,8 +65,20 @@ export default function GoLiveButton({
       return;
     }
 
-    if (!userId) {
-      setError("User ID missing. Please log in again.");
+    const ownerPhone =
+      phoneProp ||
+      business?.primaryPhone ||
+      business?.phoneNumbers?.primaryPhone ||
+      (typeof window !== "undefined" ? localStorage.getItem("chatbotPhone") : null);
+
+    const effectiveUserId = resolveSiteUserId({
+      userId,
+      phone: ownerPhone,
+      email: session?.user?.email,
+    });
+
+    if (!effectiveUserId) {
+      setError("User ID or phone missing. Connect Google Business or log in again.");
       return;
     }
 
@@ -87,7 +101,10 @@ export default function GoLiveButton({
           business,
           aiContent,
           mediaImages,
-          userId,
+          userId: effectiveUserId,
+          phone: ownerPhone || undefined,
+          email: session?.user?.email || undefined,
+          type: isChatbotSiteOwnerId(effectiveUserId) ? "chatbot" : undefined,
         }),
       });
 

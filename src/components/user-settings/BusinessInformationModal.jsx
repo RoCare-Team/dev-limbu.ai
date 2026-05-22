@@ -10,6 +10,7 @@ import {
   parseAiServiceAreaSuggestionText,
 } from "@/lib/gmbServiceAreaSuggestions";
 import { clonePeriods } from "@/lib/gmbRegularHours";
+import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
 import OpeningHoursEditor from "@/components/user-settings/OpeningHoursEditor";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -1862,9 +1863,18 @@ export default function BusinessInformationPanel({
       toast.error("Business name and primary category are required to generate website.");
       return;
     }
-    const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    if (!userId) {
-      toast.error("User ID not found. Log in again to save the generated site to your account.");
+    const storedUserId =
+      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+    const chatbotPhone =
+      typeof window !== "undefined" ? localStorage.getItem("chatbotPhone") : null;
+    const siteOwnerId = resolveSiteUserId({
+      userId: storedUserId,
+      phone: chatbotPhone || fields.phone || userData?.phone,
+    });
+    if (!siteOwnerId) {
+      toast.error(
+        "User ID or phone not found. Connect Google Business or log in to save the site."
+      );
       return;
     }
     setWebsiteBuilderPending(true);
@@ -1890,14 +1900,20 @@ export default function BusinessInformationPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slug,
-          userId,
+          userId: siteOwnerId,
+          phone: chatbotPhone || fields.phone || userData?.phone || undefined,
           locationId: activeEditorLocationId || undefined,
+          type: isChatbotSiteOwnerId(siteOwnerId) ? "chatbot" : undefined,
           business: {
             title,
             locality,
             primaryCategory,
             additionalCategories: categoryHint.slice(1),
             address: primaryLoc.address || "",
+            primaryPhone: (fields.phone || "").trim() || undefined,
+            phoneNumbers: (fields.phone || "").trim()
+              ? { primaryPhone: (fields.phone || "").trim() }
+              : undefined,
           },
           aiContent: aiData.content,
           mediaImages: [],
@@ -1937,6 +1953,8 @@ export default function BusinessInformationPanel({
     activeEditorLocationId,
     gmbSyncMode,
     onSyncToGmb,
+    fields.phone,
+    userData?.phone,
   ]);
 
   const handleFieldSave = useCallback(

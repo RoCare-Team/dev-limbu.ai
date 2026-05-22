@@ -17,14 +17,7 @@ const SettingSchema = new mongoose.Schema({
 const Setting =
   mongoose.models.settings || mongoose.model("settings", SettingSchema)
 
-export function normalizeCheckoutPhone(phone) {
-  if (!phone) return ""
-  let d = String(phone).replace(/\D/g, "")
-  if (d.length >= 12 && d.startsWith("91")) d = d.slice(-10)
-  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1)
-  else if (d.length > 10) d = d.slice(-10)
-  return d.length === 10 ? d : ""
-}
+c
 
 function parseAmountNumber(val) {
   if (typeof val === "number" && Number.isFinite(val)) return val

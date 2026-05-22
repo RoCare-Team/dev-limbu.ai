@@ -4251,31 +4251,22 @@ export default function UserManagement() {
                                           </div>
                                         </div>
                                       </td>
-
-                                      {/* CHAT BUTTON & PROGRESS COUNT */}
+                                           {/* CONTACT INFO */}
                                       <td className="px-6 py-5">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            fetchChatHistoryForUser(user);
-                                          }}
-                                          disabled={!botUserId}
-                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
-                                            hasAnyProgress
-                                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                              : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                          }`}
-                                        >
-                                          <MessageCircle size={14} />
-                                          <span>Chat</span>
-                                          {hasAnyProgress && (
-                                            <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
-                                              {completedSteps.length}
-                                            </div>
-                                          )}
-                                        </button>
+                                        <div className="text-xs space-y-1">
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <Mail size={12} />{" "}
+                                            {user.email || "N/A"}
+                                          </div>
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <Phone size={12} />{" "}
+                                            {user.phone ||
+                                              user.mobileNumber ||
+                                              "N/A"}
+                                          </div>
+                                        </div>
                                       </td>
+
 
                                       {/* AGENT ASSIGNMENT */}
                                       <td
@@ -4409,22 +4400,33 @@ export default function UserManagement() {
                                           </option>
                                         </select>
                                       </td>
-
-                                      {/* CONTACT INFO */}
+                                      
+                                      {/* CHAT BUTTON & PROGRESS COUNT */}
                                       <td className="px-6 py-5">
-                                        <div className="text-xs space-y-1">
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <Mail size={12} />{" "}
-                                            {user.email || "N/A"}
-                                          </div>
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <Phone size={12} />{" "}
-                                            {user.phone ||
-                                              user.mobileNumber ||
-                                              "N/A"}
-                                          </div>
-                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            fetchChatHistoryForUser(user);
+                                          }}
+                                          disabled={!botUserId}
+                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
+                                            hasAnyProgress
+                                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                              : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                          }`}
+                                        >
+                                          <MessageCircle size={14} />
+                                          <span>Chat</span>
+                                          {hasAnyProgress && (
+                                            <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
+                                              {completedSteps.length}
+                                            </div>
+                                          )}
+                                        </button>
                                       </td>
+
+                                 
 
                                       <td className="px-6 py-4">
                                         <button

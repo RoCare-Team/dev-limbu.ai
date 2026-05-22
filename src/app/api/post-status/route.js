@@ -367,9 +367,9 @@ export async function POST(req) {
       gmbDescription,
       fbDescription,
       igDescription,
-      liDescription,   // 👈 ADDED
-      piDescription,   // 👈 ADDED
-      ytDescription,
+        liDescription,   // 👈 ADDED
+        piDescription,   // 👈 ADDED
+        ytDescription,
       whenPosted,
       mediaType,
       videoOutput,

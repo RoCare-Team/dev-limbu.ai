@@ -2,19 +2,19 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Franchise from "@/models/Franchise";
 
-export async function POST(req) {
-  try {
-    await dbConnect();
-    const body = await req.json();
+  export async function POST(req) {
+    try {
+      await dbConnect();
+      const body = await req.json();
 
-    const { name, email, phone, city, investment } = body;
+      const { name, email, phone, city, investment } = body;
 
-    if (!name || !email || !phone || !city || !investment) {
-      return NextResponse.json(
-        { success: false, message: "Please fill all required fields" },
-        { status: 400 }
-      );
-    }
+      if (!name || !email || !phone || !city || !investment) {
+        return NextResponse.json(
+          { success: false, message: "Please fill all required fields" },
+          { status: 400 }
+        );
+      }
 
     const franchise = await Franchise.create(body);
 

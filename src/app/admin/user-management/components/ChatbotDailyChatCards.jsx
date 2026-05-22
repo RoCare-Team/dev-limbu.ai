@@ -69,7 +69,7 @@ export default function ChatbotDailyChatCards({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 max-w-xl sm:max-w-xl">
+      <div className="grid grid-cols-2 gap-2 max-w-md">
         {cards.map(
           ({
             key,
@@ -89,17 +89,17 @@ export default function ChatbotDailyChatCards({
                 type="button"
                 onClick={() => onSelectDay(key)}
                 disabled={loading}
-                className={`group rounded-lg border-2 px-2.5 py-2 text-left transition-all active:scale-[0.99] disabled:opacity-60 w-full ${
+                className={`group rounded-md border px-2 py-1.5 text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-60 w-full ${
                   active ? activeClass : idleClass
                 }`}
               >
                 <div className="flex items-start justify-between gap-1">
                   <div
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
                       active ? iconBgActive : iconBgIdle
                     }`}
                   >
-                    <MessageCircle size={14} />
+                    <MessageCircle size={12} />
                   </div>
 
                   <ChevronRight
@@ -111,7 +111,7 @@ export default function ChatbotDailyChatCards({
                 </div>
 
                 <p
-                  className={`mt-1 text-[9px] font-bold uppercase tracking-wide ${
+                  className={`mt-1 text-[8px] font-bold uppercase tracking-wide ${
                     active ? "text-white/90" : "text-gray-500"
                   }`}
                 >
@@ -119,14 +119,14 @@ export default function ChatbotDailyChatCards({
                 </p>
 
                 <p
-                  className={`text-xl font-black tabular-nums leading-none mt-0.5 ${
+                  className={`text-lg font-black tabular-nums leading-none mt-0.5 ${
                     active ? "text-white" : "text-gray-900"
                   }`}
                 >
                   {loading ? "…" : count}
 
                   <span
-                    className={`text-[11px] font-bold ml-1 ${
+                    className={`text-[10px] font-bold ml-1 ${
                       active ? "text-white/80" : "text-gray-500"
                     }`}
                   >
@@ -135,7 +135,7 @@ export default function ChatbotDailyChatCards({
                 </p>
 
                 <p
-                  className={`text-[9px] mt-0.5 font-medium line-clamp-1 ${
+                  className={`text-[8px] mt-0.5 font-medium line-clamp-1 ${
                     active ? "text-white/85" : "text-gray-600"
                   }`}
                 >
@@ -143,19 +143,17 @@ export default function ChatbotDailyChatCards({
                 </p>
 
                 <p
-                  className={`text-[9px] font-semibold mt-0.5 flex items-center gap-0.5 ${
+                  className={`text-[8px] font-semibold mt-0.5 flex items-center gap-0.5 ${
                     active ? "text-white" : "text-indigo-600"
                   }`}
                 >
-                  {active
-                    ? "Showing in the table"
-                    : "Click — view in table"}
+                  {active ? "Showing in the table" : "Click — view in table"}
 
-                  <ChevronRight size={10} />
+                  <ChevronRight size={9} />
                 </p>
               </button>
             );
-          }
+          },
         )}
       </div>
     </div>

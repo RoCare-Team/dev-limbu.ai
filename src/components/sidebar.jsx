@@ -137,12 +137,81 @@ export default function Sidebar({ children }) {
           })}
         </nav>
 
+
+
         {/* User Strip */}
         <div className="p-4 shrink-0 border-t border-slate-50 bg-slate-50/30">
-          <div className={`flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm ${!isOpen ? 'justify-center' : ''}`}>
+
+          {isOpen && (
+  <div className="mb-3 px-1">
+
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2">
+
+      {/* PACKAGE */}
+      {userData?.paidPackage && (
+        <div className="flex items-center justify-between mb-2">
+          
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+              Package
+            </p>
+
+            <p className="text-[11px] font-black text-slate-900">
+              {userData.paidPackage}
+            </p>
+          </div>
+
+          <span className="px-2 py-1 rounded-lg bg-blue-500 text-white text-[8px] font-black uppercase">
+            PLAN
+          </span>
+        </div>
+      )}
+
+      {/* SERVICE */}
+      {userData?.paidService && (
+        <div className="flex items-center justify-between">
+          
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+              Service
+            </p>
+
+            <p className="text-[10px] font-black text-slate-900 leading-tight">
+              {userData.paidService}
+            </p>
+          </div>
+
+          <span className="px-2 py-1 rounded-lg bg-green-500 text-white text-[8px] font-black uppercase">
+            SERVICE
+          </span>
+        </div>
+      )}
+
+      {/* FREE USER */}
+      {!userData?.paidPackage && !userData?.paidService && (
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-black text-slate-500">
+            Free Plan
+          </p>
+
+          <span className="px-2 py-1 rounded-lg bg-slate-400 text-white text-[8px] font-black uppercase">
+            FREE
+          </span>
+        </div>
+      )}
+
+    </div>
+  </div>
+)}
+            <div className={`relative flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm ${!isOpen ? 'justify-center' : ''}`}>
             <UserAvatar name={userData.name} size="sm" />
             {isOpen && (
+
+              
+
               <div className="flex-1 min-w-0">
+
+
                 <p className="text-[11px] font-bold text-slate-900 truncate">{userData.name}</p>
                 <p className="text-[10px] font-medium text-slate-400 truncate">{userData.email}</p>
               </div>

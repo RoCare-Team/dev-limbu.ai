@@ -192,6 +192,16 @@ export default function LoginPage() {
         localStorage.setItem("email", data.user.email);
         localStorage.setItem("userEmail", data.user.email);
         localStorage.setItem("mobileNumber", data.user.phone);
+
+        localStorage.removeItem("paidPackage")
+localStorage.removeItem("paidService")
+
+console.log("LOGIN USER DATA =>", data.user);
+console.log("PAID PACKAGE =>", data.user.paidPackage);
+console.log("PAID SERVICE =>", data.user.paidService);
+
+localStorage.setItem("paidPackage", data.user.paidPackage || "")
+localStorage.setItem("paidService", data.user.paidService || "")
         msg("Login successful! Redirecting…", "success");
         setTimeout(() => router.push("/dashboard"), 800);
       } else msg(data.error || "Invalid OTP", "error");

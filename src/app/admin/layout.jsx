@@ -218,6 +218,11 @@ useEffect(() => {
         href: "/admin/customGenereate",
         icon: <Link2 size={16} />,
       },
+      {
+        name: "Data Form Section",
+        href: "/admin/dataFormSection",
+        icon: <Link2 size={16} />,
+      },
     ],
   },
 

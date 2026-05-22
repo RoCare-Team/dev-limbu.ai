@@ -47,6 +47,27 @@ export function useSidebar() {
     }
   }, []);
 
+  const fetchUserPlan = useCallback(async (uid) => {
+  try {
+    const res = await fetch(`/api/users/userbalance?userId=${uid}`);
+
+    if (res.ok) {
+      const data = await res.json();
+
+      console.log("LIVE USER DATA =>", data.user);
+
+      setUserData((prev) => ({
+        ...prev,
+
+        paidPackage: data?.user?.paidPackage || "",
+        paidService: data?.user?.paidService || "",
+      }));
+    }
+  } catch (err) {
+    console.error("Plan fetch error", err);
+  }
+}, []);
+
   // Load User Data on mount / navigation
   useEffect(() => {
     const uid = getLocalStorage("userId");
@@ -60,9 +81,20 @@ export function useSidebar() {
       if (loc?.[0]?.title) locName = loc[0].title;
     } catch (e) { }
 
-    setUserData({ userId: uid, name: name || "User", email: email || "", location: locName });
+    const sidebarUserData = {
+  userId: uid,
+  name: name || "User",
+  email: email || "",
+  location: locName,
+
+};
+
+console.log("SIDEBAR USER DATA =>", sidebarUserData);
+
+setUserData(sidebarUserData);
 
     if (uid) fetchWallet(uid);
+    if (uid) fetchUserPlan(uid);
   }, [fetchWallet, pathname]);
 
   // ✅ Listen for wallet events fired from anywhere in the app

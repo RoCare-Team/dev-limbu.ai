@@ -1,16 +1,15 @@
 import { google } from "googleapis";
 
 function getSheetsClient() {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY;
-  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL || "";
+  const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY || "";
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID || "";
 
   if (!clientEmail || !privateKeyRaw || !spreadsheetId) {
     throw new Error(
       "Google Sheets not configured (GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEET_ID)"
     );
   }
-  
 
   const auth = new google.auth.GoogleAuth({
     credentials: {

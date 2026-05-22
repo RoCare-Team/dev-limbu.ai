@@ -15,9 +15,9 @@ const normalizeNumber = (num) => {
 const CAMPAIGN_CONFIG = {
 
   google_business_profile_management: {
-  campaignName: "gmb_profile_new",
-  source: "user-management google-business",
-},
+    campaignName: "new_gmb_01",
+    source: "user-management google-business",
+  },
 
   magic_qr_code: {
     campaignName: "magic qr code",
@@ -70,80 +70,68 @@ export async function POST(req) {
       );
     }
 
-  const config = CAMPAIGN_CONFIG[templateId];
+    const config = CAMPAIGN_CONFIG[templateId];
 
-if (templateId === "google_business_profile_management") {
-  console.log("========== GOOGLE BUSINESS TEMPLATE DEBUG ==========");
-  console.log("📌 templateId:", templateId);
-  console.log("🧩 Config:", config);
-  console.log("👥 Total Users:", users?.length || 0);
-}
+    if (!config) {
+      return NextResponse.json(
+        { success: false, message: "Invalid WhatsApp template" },
+        { status: 400 },
+      );
+    }
 
-if (!config) {
-  return NextResponse.json(
-    { success: false, message: "Invalid WhatsApp template" },
-    { status: 400 }
-  );
-}
+    if (!Array.isArray(users) || users.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Users array is required" },
+        { status: 400 },
+      );
+    }
 
-if (!Array.isArray(users) || users.length === 0) {
-  return NextResponse.json(
-    { success: false, message: "Users array is required" },
-    { status: 400 }
-  );
-}
+    const apiKey = process.env.LIMBU_AI_WHATSAPP_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { success: false, message: "WhatsApp API key not configured" },
+        { status: 500 },
+      );
+    }
 
-let sent = 0;
-const results = [];
-const HARDCODED_API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
+    let sent = 0;
+    const results = [];
 
-for (const user of users) {
-  const destination = normalizeNumber(
-    user.customer_no_with_prefix || user.phone || user.mobileNumber
-  );
+    for (const user of users) {
+      const destination = normalizeNumber(
+        user.customer_no_with_prefix || user.phone || user.mobileNumber,
+      );
 
-  const firstName = user.name || user.fullName || "User";
+      const firstName = user.name || user.fullName || "User";
 
-  if (!destination) {
-    results.push({
-      userId: user.userId || null,
-      number:
-        user.customer_no_with_prefix ||
-        user.phone ||
-        user.mobileNumber,
-      status: "Invalid number",
-    });
-    continue;
-  }
+      if (!destination) {
+        results.push({
+          userId: user.userId || null,
+          number:
+            user.customer_no_with_prefix ||
+            user.phone ||
+            user.mobileNumber,
+          status: "Invalid number",
+        });
+        continue;
+      }
 
-  const payload = {
-    apiKey: HARDCODED_API_KEY,
-    campaignName: config.campaignName,
-    destination,
-    userName: "Limbu AI",
-    templateParams: ["$FirstName"],
-    source: "api",
-    media: {},
-    buttons: [],
-    carouselCards: [],
-    location: {},
-    attributes: {},
-    paramsFallbackValue: {
-      FirstName: firstName,
-    },
-  };
-
-  if (templateId === "google_business_profile_management") {
-    console.log("📤 GOOGLE BUSINESS PAYLOAD:");
-    console.log(JSON.stringify(payload, null, 2));
-  }
-
-  try {
-    // fetch code here
-  } catch (error) {
-    // error handling here
-  }
-
+      const payload = {
+        apiKey,
+        campaignName: config.campaignName,
+        destination,
+        userName: "Limbu AI",
+        templateParams: ["$FirstName"],
+        source: "api",
+        media: {},
+        buttons: [],
+        carouselCards: [],
+        location: {},
+        attributes: {},
+        paramsFallbackValue: {
+          FirstName: firstName,
+        },
+      };
 
       try {
         const response = await fetch(AISENSY_URL, {
@@ -154,14 +142,9 @@ for (const user of users) {
 
         const json = await response.json();
 
-       if (templateId === "google_business_profile_management") {
-  console.log("📥 GOOGLE BUSINESS RESPONSE STATUS:", response.status);
-  console.log("📥 GOOGLE BUSINESS RESPONSE:");
-  console.log(JSON.stringify(json, null, 2));
-  console.log("===============================================");
-}
-
-        const ok = response.ok && (json?.success === true || json?.success === "true");
+        const ok =
+          response.ok &&
+          (json?.success === true || json?.success === "true");
 
         if (ok) {
           sent++;

@@ -9,6 +9,7 @@ import {
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
+import { listUsersForChatbotChatDay } from "@/lib/limbuBotUserSync";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
@@ -420,6 +421,7 @@ export async function GET(req) {
     const leadStage = searchParams.get("leadStage");
     const conversationStage = searchParams.get("conversationStage");
     const remarkCount = searchParams.get("remarkCount");
+    const chatbotChatDay = searchParams.get("chatbotChatDay");
 
     if (!email) {
       return NextResponse.json(
@@ -791,7 +793,44 @@ export async function GET(req) {
       }
     }
 
-    query = await addConversationStageFilter(query, conversationStage);
+    const isChatbotDayFilter =
+      chatbotChatDay === "today" || chatbotChatDay === "yesterday";
+    if (!isChatbotDayFilter) {
+      query = await addConversationStageFilter(query, conversationStage);
+    }
+
+    if (isChatbotDayFilter) {
+      try {
+        const chatbotList = await listUsersForChatbotChatDay({
+          day: chatbotChatDay,
+          mongoQuery: query,
+          search: search || "",
+          page,
+          limit,
+        });
+        return NextResponse.json({
+          success: true,
+          users: chatbotList.users,
+          totalUsers: chatbotList.totalUsers,
+          currentPage: chatbotList.currentPage,
+          totalPages: chatbotList.totalPages,
+          limit: chatbotList.limit,
+          chatbotChatDay,
+          chatbotDayLabel: chatbotList.chatbotDayLabel,
+          chatbotDayCount: chatbotList.chatbotDayCount,
+        });
+      } catch (chatbotErr) {
+        console.error("chatbotChatDay filter:", chatbotErr);
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              chatbotErr.message || "Failed to load chatbot chat users",
+          },
+          { status: 502 },
+        );
+      }
+    }
 
     const totalUsers = await User.countDocuments(query);
     const skip = (page - 1) * limit;

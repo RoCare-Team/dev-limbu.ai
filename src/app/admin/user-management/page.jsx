@@ -69,6 +69,7 @@ import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneM
 
 import WhatsappModal from "./components/WhatsAppTemplateModel";
 import ChatHistoryModal from "./components/ChatHistoryModal";
+import ChatbotDailyChatCards from "./components/ChatbotDailyChatCards";
 
 // import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
 
@@ -158,6 +159,14 @@ export default function UserManagement() {
   });
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
   const [chatModalFilter, setChatModalFilter] = useState("all");
+  const [chatbotDayStats, setChatbotDayStats] = useState({
+    loading: true,
+    timeZone: "Asia/Kolkata",
+    today: { count: 0, users: [], label: "" },
+    yesterday: { count: 0, users: [], label: "" },
+  });
+  /** null | "today" | "yesterday" — filters main leads table */
+  const [chatbotChatDayFilter, setChatbotChatDayFilter] = useState(null);
   const [issues, setIssues] = useState([]);
   const [showIssuesModal, setShowIssuesModal] = useState(false);
   const [role, setRole] = useState("");
@@ -1363,6 +1372,10 @@ export default function UserManagement() {
         params.append("remarkCount", remarkCountFilter);
       }
 
+      if (chatbotChatDayFilter) {
+        params.append("chatbotChatDay", chatbotChatDayFilter);
+      }
+
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
 
@@ -1403,6 +1416,7 @@ export default function UserManagement() {
     leadStageFilter,
     conversationStageFilter,
     remarkCountFilter,
+    chatbotChatDayFilter,
   ]);
 
   useEffect(() => {
@@ -1427,6 +1441,7 @@ export default function UserManagement() {
     fetchIssues();
     fetchTodayUsersCount();
     fetchRevenue();
+    fetchChatbotDayStats();
   }, []);
 
   /* ---------------- UPLOAD TO S3 ---------------- */
@@ -1571,6 +1586,33 @@ export default function UserManagement() {
       }
     } catch (error) {
       console.error("Error fetching chat stats:", error);
+    }
+  };
+
+  const fetchChatbotDayStats = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return;
+    setChatbotDayStats((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch(
+        `/api/admin/chatbot-chat-stats?email=${encodeURIComponent(adminEmail)}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setChatbotDayStats({
+          loading: false,
+          timeZone: data.timeZone,
+          today: data.today,
+          yesterday: data.yesterday,
+        });
+      } else {
+        setChatbotDayStats((prev) => ({ ...prev, loading: false }));
+        console.error("chatbot-chat-stats:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching chatbot day stats:", error);
+      setChatbotDayStats((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -2896,6 +2938,12 @@ export default function UserManagement() {
     setLeadStageFilter("All");
     setConversationStageFilter("All");
     setRemarkCountFilter("All");
+    setChatbotChatDayFilter(null);
+  };
+
+  const handleSelectChatbotDay = (day) => {
+    setChatbotChatDayFilter((prev) => (prev === day ? null : day));
+    setCurrentPage(1);
   };
 
   const handlePageChange = (newPage) => {
@@ -3281,6 +3329,19 @@ export default function UserManagement() {
               </div>
             )}
 
+          {(role === "superAdmin" ||
+            role === "admin" ||
+            role === "superfranchiseAdmin" ||
+            role === "agent") && (
+            <ChatbotDailyChatCards
+              stats={chatbotDayStats}
+              loading={chatbotDayStats.loading}
+              activeDay={chatbotChatDayFilter}
+              onRefresh={fetchChatbotDayStats}
+              onSelectDay={handleSelectChatbotDay}
+            />
+          )}
+
           <Paper
             elevation={0}
             sx={{
@@ -3655,7 +3716,9 @@ export default function UserManagement() {
                     color="text.secondary"
                     sx={{ display: "block", mt: 0.25 }}
                   >
-                    Manage records and sync from Meta
+                    {chatbotChatDayFilter
+                      ? `Chatbot chats · ${chatbotChatDayFilter === "today" ? "Today" : "Yesterday"}`
+                      : "Manage records and sync from Meta"}
                   </Typography>
                 </Box>
                 <Stack
@@ -3724,6 +3787,30 @@ export default function UserManagement() {
                 </Stack>
               </Box>
             )}
+            {chatbotChatDayFilter && (
+              <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1">
+                <p className="text-[11px] font-semibold text-emerald-900">
+                  Filter:{" "}
+                  <span className="font-black">
+                    {chatbotChatDayFilter === "today" ? "Today" : "Yesterday"}
+                  </span>
+                  {pagination?.totalUsers != null && (
+                    <span className="text-emerald-700 font-bold">
+                      {" "}
+                      · {pagination.totalUsers} leads
+                    </span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setChatbotChatDayFilter(null)}
+                  className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
             {role === "superAdmin" && (
               <>
                 {bulkWaSelectedUserIds.length > 0 && (

@@ -10,6 +10,7 @@ function getSheetsClient() {
       "Google Sheets not configured (GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEET_ID)"
     );
   }
+  
 
   const auth = new google.auth.GoogleAuth({
     credentials: {

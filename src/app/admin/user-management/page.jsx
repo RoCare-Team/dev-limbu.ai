@@ -106,7 +106,6 @@ export default function UserManagement() {
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
 
- 
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [fullViewImage, setFullViewImage] = useState(null);
   const [pagination, setPagination] = useState(null);
@@ -2459,37 +2458,49 @@ export default function UserManagement() {
       setUpdatingWallet(false);
     }
   };
+
   const AdminPanelButton = async (userId) => {
-    const adminToken = localStorage.getItem("token"); // 👈 tumhara existing token
+    try {
+      const adminToken = localStorage.getItem("token");
 
-    const res = await fetch("/api/admin/login-as-user", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`, // 👈 MUST
-      },
-      body: JSON.stringify({ userId }),
-    });
+      const res = await fetch("/api/admin/login-as-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.token) {
-      const impersonatedName = data.user.fullName || data.user.name || "";
-      const impersonatedEmail = data.user.email || "";
+      if (data.token) {
+        // 👇 Create new tab first
+        const newTab = window.open("/dashboard", "_blank");
 
-      localStorage.setItem("userToken", data.token);
-      localStorage.setItem("impersonatedUser", userId);
-      localStorage.setItem("userId", data.user.userId);
-      localStorage.setItem("impersonatedEmail", impersonatedEmail);
-      localStorage.setItem("isImpersonating", "true");
+        // 👇 Wait until tab loads
+        newTab.onload = () => {
+          const impersonatedName = data.user.fullName || data.user.name || "";
 
-      // Update display keys so sidebar/profile shows the impersonated user's data
-      localStorage.setItem("userName", impersonatedName);
-      localStorage.setItem("fullName", impersonatedName);
-      localStorage.setItem("userEmail", impersonatedEmail);
-      localStorage.setItem("email", impersonatedEmail);
+          const impersonatedEmail = data.user.email || "";
 
-      window.location.href = "/dashboard";
+          // 👇 Set data ONLY in new tab localStorage
+          newTab.localStorage.setItem("userToken", data.token);
+          newTab.localStorage.setItem("impersonatedUser", userId);
+          newTab.localStorage.setItem("userId", data.user.userId);
+          newTab.localStorage.setItem("impersonatedEmail", impersonatedEmail);
+          newTab.localStorage.setItem("isImpersonating", "true");
+
+          newTab.localStorage.setItem("userName", impersonatedName);
+          newTab.localStorage.setItem("fullName", impersonatedName);
+          newTab.localStorage.setItem("userEmail", impersonatedEmail);
+
+          // 👇 Reload dashboard with new storage
+          newTab.location.href = "/dashboard";
+        };
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -3669,14 +3680,12 @@ export default function UserManagement() {
                   flexWrap="wrap"
                   useFlexGap
                 >
-
-
-                      <button
-  onClick={() => setShowAddExpoLeadModal(true)}
-  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-700"
->
-  + Add Expo Lead
-</button>
+                  <button
+                    onClick={() => setShowAddExpoLeadModal(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-700"
+                  >
+                    + Add Expo Lead
+                  </button>
 
                   <Button
                     variant="contained"
@@ -6311,14 +6320,12 @@ export default function UserManagement() {
         </div>
       )}
 
-       <AddExpoLeadUserModal
-  open={showAddExpoLeadModal}
-  onClose={() => setShowAddExpoLeadModal(false)}
-  onSuccess={fetchUsers}
-/>
+      <AddExpoLeadUserModal
+        open={showAddExpoLeadModal}
+        onClose={() => setShowAddExpoLeadModal(false)}
+        onSuccess={fetchUsers}
+      />
     </>
-
-   
   );
 }
 

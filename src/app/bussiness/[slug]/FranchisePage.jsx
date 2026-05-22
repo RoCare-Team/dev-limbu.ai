@@ -97,7 +97,7 @@ function createFranchiseCitySlug(city) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")}`;
 }
-const popularCities = POPULAR_CITIES
+const popularCities = POPULAR_CITIES;
 
 const partners = Array.from({ length: 10 }, (_, i) => ({
   id: i + 1,
@@ -434,7 +434,7 @@ export default function FranchisePage() {
         return;
       }
 
-      const RAZORPAY_KEY = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const RAZORPAY_KEY = process.env.RAZORPAY_KEY_ID;
       if (!RAZORPAY_KEY) {
         alert("Payment configuration missing");
         setIsLoading(false);

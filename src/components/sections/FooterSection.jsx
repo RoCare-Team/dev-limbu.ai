@@ -3,15 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { 
-  Facebook, 
-  Instagram, 
-  Youtube, 
-  Linkedin, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  ArrowRight 
+import {
+  Facebook,
+  Instagram,
+  Youtube,
+  Linkedin,
+  Mail,
+  Phone,
+  MapPin,
+  ArrowRight,
 } from "lucide-react";
 
 export default function FooterSection() {
@@ -26,6 +26,8 @@ export default function FooterSection() {
         { label: "Magic QR", href: "/get-magic-qr" },
         { label: "Blog", href: "/blog" },
         { label: "Dashboard", href: "/dashboard" },
+        { label: "Local SEO", href: "/services/local-seo" },
+
       ],
     },
     {
@@ -40,10 +42,26 @@ export default function FooterSection() {
   ];
 
   const socialLinks = [
-    { icon: Facebook, href: "https://www.facebook.com/limbuai", color: "hover:bg-[#1877F2]" },
-    { icon: Instagram, href: "https://www.instagram.com/limbuai", color: "hover:bg-[#E4405F]" },
-    { icon: Youtube, href: "https://www.youtube.com/@limbuai", color: "hover:bg-[#FF0000]" },
-    { icon: Linkedin, href: "https://www.linkedin.com/company/limbuai/", color: "hover:bg-[#0A66C2]" },
+    {
+      icon: Facebook,
+      href: "https://www.facebook.com/limbuai",
+      color: "hover:bg-[#1877F2]",
+    },
+    {
+      icon: Instagram,
+      href: "https://www.instagram.com/limbuai",
+      color: "hover:bg-[#E4405F]",
+    },
+    {
+      icon: Youtube,
+      href: "https://www.youtube.com/@limbuai",
+      color: "hover:bg-[#FF0000]",
+    },
+    {
+      icon: Linkedin,
+      href: "https://www.linkedin.com/company/limbuai/",
+      color: "hover:bg-[#0A66C2]",
+    },
   ];
 
   return (
@@ -60,10 +78,12 @@ export default function FooterSection() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 mb-20">
-          
           {/* ── Brand Section ── */}
           <div className="lg:col-span-4 space-y-8">
-            <Link href="/" className="inline-block transition-opacity hover:opacity-80">
+            <Link
+              href="/"
+              className="inline-block transition-opacity hover:opacity-80"
+            >
               <Image
                 src="/images/bg-logo.png"
                 alt="Limbu.ai Logo"
@@ -73,24 +93,36 @@ export default function FooterSection() {
               />
             </Link>
             <p className="text-slate-600 text-base leading-relaxed max-w-sm">
-              Empowering local businesses with AI-driven Google Business Profile automation and advanced digital marketing strategies to dominate local search.
+              Empowering local businesses with AI-driven Google Business Profile
+              automation and advanced digital marketing strategies to dominate
+              local search.
             </p>
-            
+
             <div className="flex flex-wrap gap-4 items-center">
-              <a href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu" target="_blank" rel="noopener noreferrer">
-                <Image 
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" 
-                  alt="Play Store" 
-                  width={140} height={42} 
-                  className="h-10 w-auto hover:scale-105 transition-transform shadow-sm rounded-md" 
+              <a
+                href="https://play.google.com/store/apps/details?id=com.limbu.ai.limbu"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Image
+                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                  alt="Play Store"
+                  width={140}
+                  height={42}
+                  className="h-10 w-auto hover:scale-105 transition-transform shadow-sm rounded-md"
                 />
               </a>
-              <a href="https://apps.apple.com/in/app/limbu-ai/id6757781138" target="_blank" rel="noopener noreferrer">
-                <Image 
-                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" 
-                  alt="App Store" 
-                  width={125} height={42} 
-                  className="h-10 w-auto hover:scale-105 transition-transform shadow-sm rounded-md" 
+              <a
+                href="https://apps.apple.com/in/app/limbu-ai/id6757781138"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Image
+                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                  alt="App Store"
+                  width={125}
+                  height={42}
+                  className="h-10 w-auto hover:scale-105 transition-transform shadow-sm rounded-md"
                 />
               </a>
             </div>
@@ -126,18 +158,28 @@ export default function FooterSection() {
               Connect With Us
             </h3>
             <div className="space-y-6 mb-10">
-              <a href="mailto:info@limbu.ai" className="flex items-center gap-4 group">
+              <a
+                href="mailto:info@limbu.ai"
+                className="flex items-center gap-4 group"
+              >
                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm group-hover:border-[#EAB308]/50 transition-colors">
                   <Mail className="w-5 h-5 text-slate-400 group-hover:text-[#EAB308] transition-colors" />
                 </div>
-                <span className="text-slate-600 font-medium group-hover:text-slate-900 transition-colors">info@limbu.ai</span>
+                <span className="text-slate-600 font-medium group-hover:text-slate-900 transition-colors">
+                  info@limbu.ai
+                </span>
               </a>
 
-              <a href="tel:+919289344726" className="flex items-center gap-4 group">
+              <a
+                href="tel:+919289344726"
+                className="flex items-center gap-4 group"
+              >
                 <div className="w-10 h-10 rounded-xl bg-[#EAB308]/10 flex items-center justify-center shadow-sm">
                   <Phone className="w-5 h-5 text-[#EAB308]" />
                 </div>
-                <span className="text-slate-900 font-bold text-lg">+91 92893 44726</span>
+                <span className="text-slate-900 font-bold text-lg">
+                  +91 92893 44726
+                </span>
               </a>
 
               <div className="flex items-start gap-4 group">
@@ -145,7 +187,8 @@ export default function FooterSection() {
                   <MapPin className="w-5 h-5 text-slate-400" />
                 </div>
                 <p className="text-slate-600 text-sm leading-relaxed pt-1">
-                  8th Floor, Unit No. 831,<br />
+                  8th Floor, Unit No. 831,
+                  <br />
                   JMD Megapolis, Sohna Road, Gurugram
                 </p>
               </div>
@@ -177,11 +220,26 @@ export default function FooterSection() {
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             © {currentYear} Limbu.ai. Built for Local Growth.
           </p>
-          
+
           <div className="flex items-center gap-8 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">
-            <Link href="/privacy-policy" className="hover:text-[#EAB308] transition-colors">Privacy</Link>
-            <Link href="/terms-and-conditions" className="hover:text-[#EAB308] transition-colors">Terms</Link>
-            <Link href="/sitemap" className="hover:text-[#EAB308] transition-colors">Sitemap</Link>
+            <Link
+              href="/privacy-policy"
+              className="hover:text-[#EAB308] transition-colors"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms-and-conditions"
+              className="hover:text-[#EAB308] transition-colors"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/sitemap"
+              className="hover:text-[#EAB308] transition-colors"
+            >
+              Sitemap
+            </Link>
           </div>
         </div>
       </div>

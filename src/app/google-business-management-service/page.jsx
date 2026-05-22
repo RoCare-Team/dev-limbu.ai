@@ -13,8 +13,6 @@ import {
   AlertCircle,
   MapPin,
   CheckCircle2,
-  ChevronRight,
-  TrendingUp,
   Settings,
   RefreshCcw,
   PlusCircle,
@@ -26,8 +24,11 @@ import {
   BarChart3,
   PhoneCall,
   Smartphone,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { POPULAR_CITIES } from "@/utils/popularCity";
 
 export default function GMBManagementServicePage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -130,7 +131,7 @@ export default function GMBManagementServicePage() {
                     Talk on WhatsApp
                   </button>
                   <Link
-                    href="/signup"
+                    href="/login"
                     className="bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 px-7 py-3.5 rounded-xl font-black text-sm text-center transition-all"
                   >
                     Start Now
@@ -145,10 +146,13 @@ export default function GMBManagementServicePage() {
               {/* Right side Illustration */}
               <div className="relative hidden lg:block lg:pl-10">
                 <div className="relative z-10 p-2 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
-                  <img
-                    src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1200&auto=format&fit=crop"
-                    alt="Customer Support"
-                    className="rounded-[1.8rem] shadow-xl"
+                  <Image
+                    src="/images/google-bussiness.png"
+                    alt="Google Business Ranking Service"
+                    width={1200}
+                    height={800}
+                    className="rounded-[1.8rem] shadow-xl w-full h-auto object-cover"
+                    priority
                   />
                 </div>
                 {/* Floating Stat */}
@@ -170,71 +174,109 @@ export default function GMBManagementServicePage() {
           </div>
         </section>
 
-        {/* ── Pain Points Section ── */}
-        <section className="py-10 bg-white">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="bg-slate-50 p-8 lg:p-12 rounded-[2.5rem] border border-slate-100 relative shadow-sm">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-2xl bg-slate-900 text-lemon-hover flex items-center justify-center shadow-xl">
-                  <AlertCircle size={32} />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-black mb-6 text-center lg:text-left mt-4">
-                  Are You Losing Customers Online?
-                </h2>
-                <ul className="space-y-4 mb-8">
-                  {[
-                    "Does your shop's address or timings keep changing on Google?",
-                    "Did your business drop in search results overnight?",
-                    "Are you getting fewer phone calls from local customers?",
-                    "Is a nearby competitor ranking higher with fewer reviews?",
-                    "Do you forget to reply to customer reviews?",
-                    "Did your profile get blocked and you don't know how to fix it?",
-                  ].map((text, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <CheckCircle2
-                        size={18}
-                        className="text-red-400 mt-1 shrink-0"
-                      />
-                      <span className="font-semibold text-slate-700">
-                        {text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-slate-500 font-medium text-center lg:text-left leading-relaxed">
-                  Forget these headaches. Limbu AI handles your entire Google
-                  presence for you.
-                </p>
+        {/* ── Pain Points & Solution Section ── */}
+        <section className="py-20 bg-slate-50/60">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            {/* Section Header */}
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <div className="inline-flex items-center gap-2 text-amber-600 font-bold mb-3 uppercase tracking-widest text-xs bg-amber-100/80 px-3 py-1 rounded-full">
+                <RefreshCcw size={12} className="animate-spin-slow" /> Grow Your
+                Business
               </div>
-              <div className="lg:pl-10">
-                <div className="inline-flex items-center gap-2 text-lemon-hover font-black mb-4 uppercase tracking-[0.2em] text-[10px]">
-                  <RefreshCcw size={14} /> The Limbu AI Solution
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+                Take Control of Your Google Presence
+              </h2>
+            </div>
+
+            {/* Main Grid Layout */}
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-stretch">
+              {/* Left Column: Pain Points Card */}
+              <div className="bg-white p-8 lg:p-12 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                <div>
+                  {/* Header Area */}
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                      <AlertCircle size={24} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-900">
+                      Are You Losing Customers Online?
+                    </h3>
+                  </div>
+
+                  {/* Pain Points List */}
+                  <ul className="space-y-4 mb-8">
+                    {[
+                      "Does your shop's address or timings keep changing on Google?",
+                      "Did your business drop in search results overnight?",
+                      "Are you getting fewer phone calls from local customers?",
+                      "Is a nearby competitor ranking higher with fewer reviews?",
+                      "Do you forget to reply to customer reviews?",
+                      "Did your profile get blocked and you don't know how to fix it?",
+                    ].map((text, i) => (
+                      <li key={i} className="flex items-start gap-3.5">
+                        <XCircle
+                          size={18}
+                          className="text-rose-500 mt-1 shrink-0"
+                        />
+                        <span className="font-medium text-slate-600 text-sm md:text-base leading-relaxed">
+                          {text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-6 leading-tight">
+
+                {/* Bottom CTA Text */}
+                <div className="pt-6 border-t border-slate-100">
+                  <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
+                    Forget these headaches.{" "}
+                    <span className="text-amber-600 font-bold border-b-2 border-amber-400">
+                      Limbu AI
+                    </span>{" "}
+                    handles your entire Google presence for you.
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Column: Solution Content */}
+              <div className="flex flex-col justify-center lg:pl-4">
+                <div className="inline-flex items-center gap-2 text-amber-600 font-bold mb-4 uppercase tracking-widest text-xs">
+                  The Limbu AI Solution
+                </div>
+                <h3 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
                   The Easiest Way to Manage Your Business on Google.
-                </h2>
+                </h3>
                 <p className="text-slate-600 font-medium mb-8 leading-relaxed text-base lg:text-lg">
                   We don't just "post" updates. We make sure your business shows
                   up when customers are looking to buy. Our smart system keeps
                   your profile fresh, attractive, and always growing.
                 </p>
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <Zap size={20} className="text-lemon-hover mb-3" />
-                    <h4 className="font-black text-sm mb-1 uppercase tracking-tight">
+
+                {/* Feature Cards Grid */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {/* Feature 1 */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:border-amber-200 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-4">
+                      <Zap size={20} />
+                    </div>
+                    <h4 className="font-bold text-base text-slate-900 mb-2">
                       Daily Fresh Updates
                     </h4>
-                    <p className="text-[12px] text-slate-500 font-medium">
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
                       Our AI creates beautiful daily posts so your shop always
                       looks open and active.
                     </p>
                   </div>
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <Star size={20} className="text-lemon-hover mb-3" />
-                    <h4 className="font-black text-sm mb-1 uppercase tracking-tight">
+
+                  {/* Feature 2 */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:border-amber-200 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-4">
+                      <Star size={20} />
+                    </div>
+                    <h4 className="font-bold text-base text-slate-900 mb-2">
                       Smart Review System
                     </h4>
-                    <p className="text-[12px] text-slate-500 font-medium">
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
                       Get more 5-star reviews easily with our Magic QR, and let
                       us handle angry customers privately.
                     </p>
@@ -250,10 +292,13 @@ export default function GMBManagementServicePage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="order-2 lg:order-1">
-                <img
-                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1200&auto=format&fit=crop"
+                <Image
+                  src="/images/searcher-local-seo.png"
                   alt="Accurate Business Data"
-                  className="rounded-[2rem] shadow-xl"
+                  width={1200}
+                  height={800}
+                  className="rounded-[2rem] shadow-xl w-full h-auto object-cover"
+                  priority
                 />
               </div>
               <div className="order-1 lg:order-2">
@@ -584,7 +629,6 @@ export default function GMBManagementServicePage() {
           </div>
         </section>
 
-
         {/* ── Popular Cities Section ── */}
         <section className="py-10 bg-white">
           <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -599,22 +643,28 @@ export default function GMBManagementServicePage() {
                 We help businesses rank #1 across major hubs in India. Join the
                 local leaders in your city.
               </p>
-            </div> 
-
-            <div className="flex flex-wrap justify-center gap-3">
-              {cities.map((city) => (
-                <Link
-                  key={city._id}
-                  href={`/services/${city.citySlug}`}
-                  className="px-5 py-2.5 rounded-full bg-slate-50 border border-slate-100 text-sm font-bold text-slate-700 hover:border-lemon-hover hover:text-lemon-hover transition-colors flex items-center gap-2"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-lemon-hover" />
-                  {city.cityName}
-                </Link>
-              ))}
             </div>
 
-            
+            <div className="flex flex-wrap justify-center gap-3">
+              {POPULAR_CITIES.map((city) => {
+                const citySlug = city
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-");
+
+                return (
+                  <Link
+                    key={city}
+                    href={`/services/google-bussiness-profile-management-${citySlug}`}
+                    className="px-5 py-2.5 rounded-full bg-slate-50 border border-slate-100 text-sm font-bold text-slate-700 hover:border-lemon-hover hover:text-lemon-hover transition-colors flex items-center gap-2"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-lemon-hover" />
+
+                    {city}
+                  </Link>
+                );
+              })}
+            </div>
 
             <p className="text-center mt-8 text-xs font-bold text-slate-400 uppercase tracking-widest">
               + Serving 500+ other locations nationwide
@@ -665,81 +715,80 @@ export default function GMBManagementServicePage() {
         <FooterSection />
       </div>
 
-     {isOpen && (
-  <div
-    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] animate-fadeIn"
-    onClick={() => {
-      setIsOpen(false);
-      setName("");
-      setPhone("");
-    }}
-  >
-    <div
-      className="bg-white p-6 rounded-3xl w-[90%] max-w-md shadow-2xl animate-scaleIn"
-      onClick={(e) => e.stopPropagation()} // ❗ modal ke andar click pe close na ho
-    >
-      
-      <h2 className="text-xl font-bold mb-1 text-center">
-        Enter Details
-      </h2>
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] animate-fadeIn"
+          onClick={() => {
+            setIsOpen(false);
+            setName("");
+            setPhone("");
+          }}
+        >
+          <div
+            className="bg-white p-6 rounded-3xl w-[90%] max-w-md shadow-2xl animate-scaleIn"
+            onClick={(e) => e.stopPropagation()} // ❗ modal ke andar click pe close na ho
+          >
+            <h2 className="text-xl font-bold mb-1 text-center">
+              Enter Details
+            </h2>
 
-      <p className="text-sm text-gray-500 text-center mb-5">
-        We will connect you instantly on WhatsApp
-      </p>
+            <p className="text-sm text-gray-500 text-center mb-5">
+              We will connect you instantly on WhatsApp
+            </p>
 
-      {/* Name */}
-      <input
-        type="text"
-        placeholder="Your Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="w-full mb-3 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-yellow-400 transition"
-      />
+            {/* Name */}
+            <input
+              type="text"
+              placeholder="Your Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full mb-3 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-yellow-400 transition"
+            />
 
-      {/* Phone */}
-      <input
-        type="tel"
-        placeholder="Your Number"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        className="w-full mb-4 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-yellow-400 transition"
-      />
+            {/* Phone */}
+            <input
+              type="tel"
+              placeholder="Your Number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full mb-4 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-yellow-400 transition"
+            />
 
-      {/* Button */}
-      <button
-        onClick={() => {
-          if (!name || !phone) return alert("Fill all fields");
+            {/* Button */}
+            <button
+              onClick={() => {
+                if (!name || !phone) return alert("Fill all fields");
 
-          const message = `Hello, my name is ${name}. My number is ${phone}. I want service.`;
+                const message = `Hello, my name is ${name}. My number is ${phone}. I want service.`;
 
-          const url = `https://wa.me/919289344726?text=${encodeURIComponent(message)}`;
+                const url = `https://wa.me/919289344726?text=${encodeURIComponent(message)}`;
 
-          window.open(url, "_blank");
+                window.open(url, "_blank");
 
-          // ✅ Reset + Close
-          setName("");
-          setPhone("");
-          setIsOpen(false);
-        }}
-        className="w-full bg-yellow-400 py-3 rounded-xl font-bold hover:scale-[1.03] active:scale-[0.97] transition"
-      >
-        Continue to WhatsApp →
-      </button>
+                // ✅ Reset + Close
+                setName("");
+                setPhone("");
+                setIsOpen(false);
+              }}
+              className="w-full bg-yellow-400 py-3 rounded-xl font-bold hover:scale-[1.03] active:scale-[0.97] transition"
+            >
+              Continue to WhatsApp →
+            </button>
 
-      {/* Cancel */}
-      <button
-        onClick={() => {
-          setIsOpen(false);
-          setName("");
-          setPhone("");
-        }}
-        className="mt-3 text-sm text-gray-500 w-full hover:underline"
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
+            {/* Cancel */}
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setName("");
+                setPhone("");
+              }}
+              className="mt-3 text-sm text-gray-500 w-full hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

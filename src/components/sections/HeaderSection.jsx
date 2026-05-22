@@ -22,7 +22,7 @@ export default function Navbar() {
     { name: "Pricing", href: "/pricing" },
     { name: "Features", href: "/#features" },
     { name: "Blog", href: "/blog" },
-    { name: "Franchise", href: "/franchise-opportunities" },
+    { name: "Franchise", href: "/bussiness/franchise-opportunities" },
   ];
 
   const resourceLinks = [

@@ -1,21 +1,12 @@
+import { POPULAR_CITIES } from "@/utils/popularCity";
 import FranchisePage from "./FranchisePage";
+import { notFound } from "next/navigation";
 
 const SITE_URL = "https://limbu.ai";
-const POPULAR_FRANCHISE_CITIES = [
-  "Noida",
-  "Delhi",
-  "Gurugram",
-  "Ghaziabad",
-  "Faridabad",
-  "Mumbai",
-  "Bengaluru",
-  "Pune",
-  "Hyderabad",
-  "Chennai",
-  "Jaipur",
-  "Lucknow",
-];
 
+
+
+// ✅ Create slug from city
 function createFranchiseCitySlug(city) {
   return `franchise-opportunities-${city
     .trim()
@@ -24,8 +15,18 @@ function createFranchiseCitySlug(city) {
     .replace(/^-+|-+$/g, "")}`;
 }
 
+// ✅ Extract city name from slug
 function getCityNameFromSlug(slug = "") {
+  // Allow base route
+  if (slug === "franchise-opportunities") {
+    return "";
+  }
+
   const citySlug = slug.replace("franchise-opportunities-", "");
+
+  if (!citySlug || citySlug.trim() === "") {
+    return "";
+  }
 
   return citySlug
     .split("-")
@@ -34,12 +35,35 @@ function getCityNameFromSlug(slug = "") {
     .join(" ");
 }
 
+// ✅ Generate static pages
 export function generateStaticParams() {
-  return POPULAR_FRANCHISE_CITIES.map((city) => ({
-    slug: createFranchiseCitySlug(city),
-  }));
+  return [
+    // Base route
+    {
+      slug: "franchise-opportunities",
+    },
+
+    // City routes
+    ...POPULAR_CITIES.map((city) => ({
+      slug: createFranchiseCitySlug(city),
+    })),
+  ];
 }
 
+// ✅ Validate route
+function validateRoute(slug, cityName) {
+  // Allow base route
+  if (slug === "franchise-opportunities") {
+    return true;
+  }
+
+  // Allow valid cities only
+  return POPULAR_CITIES.some(
+    (city) => city.toLowerCase() === cityName.toLowerCase()
+  );
+}
+
+// ✅ Metadata
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
 
@@ -47,20 +71,22 @@ export async function generateMetadata({ params }) {
 
   const cityName = getCityNameFromSlug(slug);
 
-  // ================= TITLE =================
+  // ❌ Invalid route
+  if (!validateRoute(slug, cityName)) {
+    notFound();
+  }
 
+  // ✅ Dynamic title
   const title = cityName
     ? `${cityName} Franchise Opportunities | Business Franchise | Limbu.ai`
-    : "AI Business Franchise Opportunities | Limbu.ai";
+    : "AI Business Franchise Opportunities | Business Franchise | Limbu.ai";
 
-  // ================= DESCRIPTION =================
-
+  // ✅ Dynamic description
   const description = cityName
     ? `Start your AI-powered franchise business in ${cityName} with Limbu.ai. Offer Google Business Profile management, local SEO, review automation, and AI marketing services to local businesses.`
     : "Start your AI-powered franchise business with Limbu.ai. Offer Google Business Profile management, local SEO, review automation, and AI marketing services to local businesses.";
 
-  // ================= CANONICAL =================
-
+  // ✅ Canonical
   const canonicalUrl = `${SITE_URL}/bussiness/${slug}`;
 
   return {
@@ -118,6 +144,18 @@ export async function generateMetadata({ params }) {
   };
 }
 
+// ✅ Page
 export default async function Page({ params }) {
+  const resolvedParams = await params;
+
+  const slug = resolvedParams?.slug || "";
+
+  const cityName = getCityNameFromSlug(slug);
+
+  // ❌ Invalid route → 404
+  if (!validateRoute(slug, cityName)) {
+    notFound();
+  }
+
   return <FranchisePage params={params} />;
 }

@@ -27,6 +27,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { POPULAR_CITIES } from "@/utils/popularCity";
 
 // ✅ Moved OUTSIDE component so it's never undefined
 const PROFIT_CALCULATIONS = {
@@ -63,13 +64,28 @@ const loadRazorpayScript = () => {
 // ✅ Helper: extract and format city name from URL param
 // e.g. "franchise-opportunities-new-delhi" → "New Delhi"
 function parseCityName(rawParam) {
-  if (!rawParam) return null;
+  if (!rawParam) return "";
+
   const prefix = "franchise-opportunities-";
+
+  // If slug is exactly "franchise-opportunities"
+  // then no city exists
+  if (rawParam === "franchise-opportunities") {
+    return "";
+  }
+
   const slug = rawParam.startsWith(prefix)
     ? rawParam.slice(prefix.length)
     : rawParam;
+
+  // Extra safety check
+  if (!slug.trim()) {
+    return "";
+  }
+
   return slug
     .split("-")
+    .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
@@ -81,21 +97,7 @@ function createFranchiseCitySlug(city) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")}`;
 }
-
-const popularCities = [
-  "Noida",
-  "Delhi",
-  "Gurugram",
-  "Ghaziabad",
-  "Faridabad",
-  "Mumbai",
-  "Bengaluru",
-  "Pune",
-  "Hyderabad",
-  "Chennai",
-  "Jaipur",
-  "Lucknow",
-];
+const popularCities = POPULAR_CITIES
 
 const partners = Array.from({ length: 10 }, (_, i) => ({
   id: i + 1,
@@ -966,21 +968,21 @@ export default function FranchisePage() {
 
               {/* Heading */}
               <h1
-                className="uppercase leading-[1.15] tracking-tight text-black font-black"
+                className="uppercase leading-[1.1] tracking-tight text-black font-black"
                 style={{
                   fontSize: "clamp(1.7rem, 3.8vw, 3.1rem)",
                   fontFamily: "var(--font-heading)",
                 }}
               >
                 Build Your Own <br />
-                {cityName ? (
-                  <>
-                    <span className="text-lemon-hover">{cityName}</span>{" "}
-                    <span className="text-black">AI Business Empire</span>
-                  </>
-                ) : (
-                  <span className="text-black">AI Business Empire</span>
-                )}
+                <span className={cityName ? "text-black" : "text-lemon-hover"}>
+                  AI Business Empire{" "}
+                  {cityName && (
+                    <>
+                      In <span className="text-lemon-hover">{cityName}</span>
+                    </>
+                  )}
+                </span>
               </h1>
 
               {/* Subheading */}
@@ -1396,87 +1398,8 @@ export default function FranchisePage() {
         </div>
       </section>
 
-      {/* =================== INVESTMENT =================== */}
-      <section className="relative py-8 px-6">
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-10">
-            <h2
-              className="text-3xl md:text-4xl font-black text-black uppercase tracking-normal leading-tight"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {/* ✅ City in plan section */}
-              Choose Your <span className="text-lemon-hover">Plan</span>
-            </h2>
-          </div>
-          <div className="flex flex-wrap justify-center gap-10">
-            <div className="relative w-full md:max-w-lg p-10 sm:p-12 rounded-[3rem] bg-white border-2 border-lemon-hover/40 shadow-2xl scale-105 transition-all hover:border-lemon-hover/60 hover:shadow-[0_20px_50px_-12px_rgba(234,179,8,0.25)]">
-              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-lemon-hover text-white px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
-                Most Popular
-              </div>
-              <div className="text-center mb-10 pb-10 border-b border-slate-100 mt-4">
-                <h3
-                  className="text-2xl font-black text-black uppercase tracking-tight mb-4"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  {/* ✅ City in plan card heading */}
-                  {cityName ? `${cityName} ` : ""}Premium Franchise
-                </h3>
-                <div
-                  className="text-5xl font-black text-black tracking-tighter mb-2"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  ₹5,00,000
-                </div>
-                <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                  + 18% GST • One-Time Fee
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mb-10">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Your Share
-                  </p>
-                  <p className="text-sm font-black text-black">50% Revenue</p>
-                </div>
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Earning Potential
-                  </p>
-                  <p className="text-sm font-black text-black">₹1-3L / Month</p>
-                </div>
-              </div>
-              <ul className="space-y-5 mb-10 px-2">
-                {[
-                  cityName
-                    ? `Exclusive rights in ${cityName}`
-                    : "Exclusive rights in your city",
-                  "Full personal training",
-                  "Ready-made marketing materials",
-                  "Dedicated support manager",
-                  "Run under your own brand",
-                  "Option to add sub-partners",
-                ].map((feature, j) => (
-                  <li key={j} className="flex items-center gap-4">
-                    <CheckCircle className="w-5 h-5 text-lemon-hover shrink-0" />
-                    <span className="text-sm font-bold text-slate-600 uppercase tracking-tight">
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => handleOpenForm("premium")}
-                className="btn-lemon w-full py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all"
-              >
-                Choose This Plan ↗
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* =================== POPULAR CITIES =================== */}
-      <section className="relative py-12 sm:py-16 px-6 bg-white overflow-hidden">
+      <section className="relative py-8 sm:py-8 px-6 bg-white overflow-hidden">
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
             <div>
@@ -1597,41 +1520,89 @@ export default function FranchisePage() {
               <OrbitDiagram />
             </div>
 
-            {/* Small Text */}
-            <div className="text-center text-[10px] sm:text-xs uppercase tracking-[0.28em] text-slate-400 font-black mb-10">
-              Partner Slots Included (10 Active Accounts)
-            </div>
+            {/* Pricing Card */}
+            <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
+              {/* Glow Effect */}
+              <div className="absolute -top-20 -right-20 w-56 h-56 bg-lemon-glow/10 blur-3xl rounded-full" />
 
-            {/* Features */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-              {features.map((f, i) => (
+              {/* Small Text */}
+              <div className="text-center text-[10px] sm:text-xs uppercase tracking-[0.28em] text-slate-400 font-black mb-8 relative z-10">
+                Partner Slots Included (10 Active Accounts)
+              </div>
+
+              {/* Price */}
+              <div className="relative z-10 text-center mb-8">
                 <div
-                  key={i}
-                  className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50/60 p-6 text-center hover:bg-white hover:shadow-xl hover:border-lemon-hover/40 transition-all duration-500"
+                  className="text-5xl font-black text-black tracking-tighter mb-2"
+                  style={{ fontFamily: "var(--font-heading)" }}
                 >
-                  {/* Hover Glow */}
-                  <div className="absolute -top-14 -right-14 w-32 h-32 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                  ₹5,00,000
+                </div>
 
-                  {/* Icon */}
-                  <div className="relative z-10 text-3xl mb-4">{f.icon}</div>
+                <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  + 18% GST • One-Time Fee
+                </div>
+              </div>
 
-                  {/* Title */}
-                  <h3
-                    className="relative z-10 text-sm sm:text-base font-black text-black mb-2 tracking-tight"
-                    style={{ fontFamily: "var(--font-heading)" }}
-                  >
-                    {f.title}
-                  </h3>
-
-                  {/* Subtitle */}
-                  <p className="relative z-10 text-xs text-slate-500 font-bold leading-relaxed">
-                    {f.sub}
+              {/* Revenue Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-10 relative z-10">
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Your Share
                   </p>
 
-                  {/* Bottom Line */}
-                  <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+                  <p className="text-sm font-black text-black">50% Revenue</p>
                 </div>
-              ))}
+
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Earning Potential
+                  </p>
+
+                  <p className="text-sm font-black text-black">₹1-3L / Month</p>
+                </div>
+              </div>
+
+              {/* Features */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 relative z-10">
+                {features.map((f, i) => (
+                  <div
+                    key={i}
+                    className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50/60 p-6 text-center hover:bg-white hover:shadow-xl hover:border-lemon-hover/40 transition-all duration-500"
+                  >
+                    {/* Hover Glow */}
+                    <div className="absolute -top-14 -right-14 w-32 h-32 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+
+                    {/* Icon */}
+                    <div className="relative z-10 text-3xl mb-4">{f.icon}</div>
+
+                    {/* Title */}
+                    <h3
+                      className="relative z-10 text-sm sm:text-base font-black text-black mb-2 tracking-tight"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {f.title}
+                    </h3>
+
+                    {/* Subtitle */}
+                    <p className="relative z-10 text-xs text-slate-500 font-bold leading-relaxed">
+                      {f.sub}
+                    </p>
+
+                    {/* Bottom Line */}
+                    <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+                  </div>
+                ))}
+
+                <div className="col-span-2 lg:col-span-4 flex justify-center mt-4">
+                  <button
+                    onClick={() => handleOpenForm("premium")}
+                    className="btn-lemon px-10 py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all"
+                  >
+                    Choose This Plan ↗
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, use } from "react";
-import axios from "axios";
 import {
   MapPin,
   TrendingUp,
@@ -12,9 +11,6 @@ import {
   ChevronDown,
   ArrowRight,
   Quote,
-  Map,
-  Users,
-  Smartphone,
   ShieldCheck,
   X,
   Phone,
@@ -1017,7 +1013,12 @@ function GuaranteeSection({ cityName }) {
 }
 
 /* ─── MAIN PAGE ───────────────────────────────────────────────── */
-export default function DynamicServiceCityPage({ city, slug,loading, pageData }) {
+export default function DynamicServiceCityPage({
+  city,
+  slug,
+  loading,
+  pageData,
+}) {
   const citySlug = slug;
 
   const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);
@@ -1172,11 +1173,18 @@ export default function DynamicServiceCityPage({ city, slug,loading, pageData })
               <div>
                 <div className="inline-flex items-center gap-2 bg-yellow-100 border border-yellow-200 rounded-full px-4 py-2 text-yellow-800 text-sm font-bold mb-6 shadow-sm">
                   <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />{" "}
-                  {cityName}'s #1 GMB Automation Tool
+                  {cityName} 's #1 GMB Automation Tool
                 </div>
                 <h1 className="text-2xl md:text-5xl font-extrabold text-slate-900 mb-6 leading-tight tracking-tight">
-                  {pageData?.heroHeading ||
-                    `Rank #1 on Google in ${cityName} - Automatically.`}
+                  {pageData?.heroHeading ? (
+                    pageData.heroHeading
+                  ) : (
+                    <>
+                      Rank #1 on Google in{" "}
+                      <span className="text-lemon-hover">{cityName}</span> -
+                      Automatically.
+                    </>
+                  )}
                 </h1>
                 <p className="text-lg md:text-2xl text-slate-600 mb-10 leading-relaxed font-medium">
                   {pageData?.heroSubheading ||

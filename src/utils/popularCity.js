@@ -1,0 +1,19 @@
+export const POPULAR_CITIES = [
+  "Noida",
+  "Delhi",
+  "Gurugram",
+  "gurgaon",
+  "Ghaziabad",
+  "Faridabad",
+  "Mumbai",
+  "Bengaluru",
+  "Pune",
+  "Hyderabad",
+  "Chennai",
+  "Jaipur",
+  "Lucknow",
+  "Bangalore",
+  "Kolkata",
+  "Chandigarh",
+  "Surat"
+];

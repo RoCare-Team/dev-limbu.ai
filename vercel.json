@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/webinar-onboarding-reminders",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/chatbot-users-sync",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -78,17 +78,37 @@ export async function GET(request) {
       user.packageExpiryDate && new Date(user.packageExpiryDate) > new Date();
 
     const planLookupIds = [...new Set([queryUserId, user.userId, user._id?.toString()].filter(Boolean))];
+    const explicitUserId = queryUserId?.trim() || '';
+    const canonicalUserId =
+      explicitUserId ||
+      String(user.userId || '').trim() ||
+      user._id?.toString() ||
+      '';
 
-    // Prefer active AutomationPlan, fallback to empty defaults
-    const activePlan = await AutomationPlan.findOne({
-      active: true,
-      $or: [
-        ...planLookupIds.map((id) => ({ userId: id })),
-        { userRef: user._id },
-      ],
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+    // One AutomationPlan per dashboard `userId` (localStorage USR_*). Do not match by userRef alone
+    // when the client sends an explicit userId — that would show another account's settings.
+    let activePlan = explicitUserId
+      ? await AutomationPlan.findOne({
+          active: true,
+          userId: explicitUserId,
+        })
+          .sort({ updatedAt: -1 })
+          .lean()
+      : await AutomationPlan.findOne({
+          active: true,
+          userId: canonicalUserId,
+        })
+          .sort({ updatedAt: -1 })
+          .lean();
+
+    if (!activePlan && !explicitUserId) {
+      activePlan = await AutomationPlan.findOne({
+        active: true,
+        userRef: user._id,
+      })
+        .sort({ updatedAt: -1 })
+        .lean();
+    }
 
     const automationSettings = activePlan || { automationEnabled: false };
 
@@ -227,8 +247,8 @@ export async function POST(request) {
     // for the AutomationPlan so the cron can save posts that the dashboard can find.
     // We do NOT update the User model's userId (that would cause a duplicate key error).
     // If no userId in body, fall back to what's already in the User document.
-    const localStorageUserId = userId || user.userId || user._id.toString();
-    console.log('[user-settings] AutomationPlan userId (from localStorage):', localStorageUserId);
+    const localStorageUserId = String(userId || user.userId || user._id.toString()).trim();
+    console.log('[user-settings] AutomationPlan userId (from body / User):', localStorageUserId);
 
     const safeFrequency    = frequency || 'daily';
     const safeKeywords     = Array.isArray(keywords) ? keywords.filter(Boolean) : [];
@@ -361,14 +381,12 @@ export async function POST(request) {
     }
 
     // ── Preserve postIndex unless keywords changed ─────────────────────────────
-    // Search by both USR-format and old Google-ID userId to find existing plan
+    // Match only this dashboard userId so a different body userId always gets its own AutomationPlan row.
     const existingPlan = await AutomationPlan.findOne({
-      $or: [
-        { userId: localStorageUserId },
-        { userId: user.userId },
-        { userRef: user._id },
-      ],
-    }).lean();
+      userId: localStorageUserId,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
     const postingHourNum =
       postingHour === null || postingHour === undefined || postingHour === ''
@@ -577,19 +595,14 @@ export async function POST(request) {
       })) : [],
     };
 
-    // Find existing plan by any known userId variant (USR-format or old Google-ID)
-    // then update it — this migrates old plans to the correct USR-format userId.
+    // Upsert strictly by AutomationPlan.userId (= body userId). Never pick another row via userRef
+    // or a different userId — that overwrote sibling accounts under the same login.
     const existingPlanDoc = await AutomationPlan.findOne({
-      $or: [
-        { userId: finalUserId },
-        { userId: user.userId },
-        { userRef: user._id },
-      ],
-    }).sort({ createdAt: -1 });
+      userId: finalUserId,
+    }).sort({ updatedAt: -1 });
 
     let plan;
     if (existingPlanDoc) {
-      // Update the found plan (migrates userId to USR-format if it was Google-ID)
       plan = await AutomationPlan.findOneAndUpdate(
         { _id: existingPlanDoc._id },
         { $set: automationPlanData },
@@ -599,10 +612,10 @@ export async function POST(request) {
       plan = await AutomationPlan.create(automationPlanData);
     }
 
-    // Clean up any stale duplicate plans for this user
+    // Remove duplicate AutomationPlan docs for this same dashboard userId only (not entire userRef)
     await AutomationPlan.deleteMany({
-      userRef: user._id,
-      _id:     { $ne: plan._id },
+      userId: finalUserId,
+      _id:    { $ne: plan._id },
     });
 
     console.log(`[user-settings] ✅ AutomationPlan upserted — _id=${plan._id} userId=${plan.userId} (USR-format)`);
@@ -622,12 +635,13 @@ export async function POST(request) {
 
     // ── Bulk-create PostStatus records (delay queue: generate → then publish +12h) ──
     const PostModel = (await import('@/models/PostStatus.js')).default;
-    const postUserIds = [...new Set([finalUserId, user.userId, user._id.toString()].filter(Boolean))];
+    // Only touch queued posts for this dashboard userId — not user.userId / ObjectId mixes (avoids wiping another profile's queue).
+    const automationQueueUserId = finalUserId;
 
     if (!automationEnabled) {
-      await PostModel.deleteMany({ userId: { $in: postUserIds }, automationQueued: true });
+      await PostModel.deleteMany({ userId: automationQueueUserId, automationQueued: true });
     } else if (automationEnabled && !useDelayPostQueue) {
-      await PostModel.deleteMany({ userId: { $in: postUserIds }, automationQueued: true });
+      await PostModel.deleteMany({ userId: automationQueueUserId, automationQueued: true });
     }
 
     if (useDelayPostQueue && projectPostQueue) {
@@ -713,7 +727,7 @@ export async function POST(request) {
       }
 
       await PostModel.deleteMany({
-        userId: { $in: postUserIds },
+        userId:           automationQueueUserId,
         automationQueued: true,
         status:           { $in: ['pending', 'scheduled'] },
       });

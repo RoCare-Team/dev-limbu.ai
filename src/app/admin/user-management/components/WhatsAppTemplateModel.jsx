@@ -102,16 +102,24 @@ const TEMPLATE_GROUPS = [
 
 const GOOGLE_BUSINESS_TEMPLATES = [
   {
-    id: "google_business_profile_management",
-    title: "Google Business Profile Management",
-    subtitle: "Send Google Business Profile management service request",
-    preview: [
-      "Hi {{1}},",
-      "This is regarding your Google Business Profile management service request.",
-      'Please click the "Chat Now" button to continue the conversation with our team.',
-    ],
-    buttons: ["Chat Now", "Need Support"],
-  },
+id: "google_business_profile_management",
+title: "Google Business Profile Management",
+subtitle: "Connect with your dedicated support manager",
+preview: [
+"Hi 👋 {{1}}",
+"Thank you for choosing our Google Business Profile management service.",
+"✨ Priya has been assigned as your dedicated support manager.",
+"Click the “Chat Now” button below to connect with Priya and start using your free features:",
+"✅ GMB Insights",
+"✅ Magic QR",
+"✅ GMB Health Check",
+"✅ Free Business Website",
+"✅ Auto Reply Setup",
+"👇 Tap below to start chatting with Priya."
+],
+buttons: ["Chat Now", "Need Support"],
+}
+
 ];
 
 const MAGIC_QR_TEMPLATES = [

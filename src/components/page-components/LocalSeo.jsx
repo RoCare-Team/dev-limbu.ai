@@ -20,21 +20,9 @@ import FooterSection from "../sections/FooterSection";
 import VideoModal from "../modals/VideoModal";
 import Link from "next/link";
 import Image from "next/image";
+import { POPULAR_CITIES } from "@/utils/popularCity";
 
-const POPULAR_LOCAL_SEO_CITIES = [
-  "Noida",
-  "Delhi",
-  "Gurugram",
-  "Ghaziabad",
-  "Faridabad",
-  "Mumbai",
-  "Bengaluru",
-  "Pune",
-  "Hyderabad",
-  "Chennai",
-  "Jaipur",
-  "Lucknow",
-];
+const POPULAR_LOCAL_SEO_CITIES = POPULAR_CITIES;
 
 function createLocalSeoCitySlug(city) {
   return `local-seo-${city
@@ -76,7 +64,9 @@ export default function LocalSEOPage({ city, slug }) {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
-                  href={"/login"}
+                  href="https://wa.me/919289344726"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-6 py-3 bg-yellow-400 text-slate-900 rounded-lg font-bold text-base hover:bg-yellow-500 transition-colors shadow-sm"
                 >
                   Get Free SEO Audit

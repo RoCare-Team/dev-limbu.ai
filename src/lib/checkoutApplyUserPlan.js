@@ -17,13 +17,13 @@ const SettingSchema = new mongoose.Schema({
 const Setting =
   mongoose.models.settings || mongoose.model("settings", SettingSchema)
 
-export function normalizeCheckoutPhone(phone) {
-  if (!phone) return ""
-  let d = String(phone).replace(/\D/g, "")
-  if (d.length >= 12 && d.startsWith("91")) d = d.slice(-10)
-  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1)
-  else if (d.length > 10) d = d.slice(-10)
-  return d.length === 10 ? d : ""
+/** Digits-only IN mobile for User.phone (91 + 10 digits). */
+function normalizeCheckoutPhone(phone) {
+  const digits = String(phone || "").replace(/\D/g, "")
+  if (!digits) return ""
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits
+  if (last10.length !== 10) return ""
+  return `91${last10}`
 }
 
 function parseAmountNumber(val) {

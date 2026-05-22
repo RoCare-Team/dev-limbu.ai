@@ -7,6 +7,14 @@ const userSchema = new mongoose.Schema(
     email: { type: String },
     phone: { type: String, unique: true }, // removed `required: true`
 
+    /** WhatsApp chatbot (LimbuBot) identity — e.g. wa_919876543210 */
+    chatbotUserId: { type: String, default: null, sparse: true },
+    whatsappUserId: { type: String, default: null },
+    limbuBotUserId: { type: String, default: null },
+    chatbotLastActive: { type: String, default: null },
+    chatbotMessageCount: { type: Number, default: null },
+    chatbotLastMessage: { type: String, default: null },
+
   //   paidSession: [
   //   {
   //     serviceName: String,

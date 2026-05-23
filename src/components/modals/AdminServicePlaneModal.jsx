@@ -97,7 +97,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
   };
 
   const handleConfirmService = async () => {
-    console.log("🔥 STEP 1:", selectedPlan);
+    
 
     if (!selectedPlan) {
       alert("Please select a plan");
@@ -115,7 +115,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
         const uploadResult = await uploadToS3Action(formData);
 
-        console.log("📸 Upload Result:", uploadResult);
+        
 
         if (uploadResult.success) {
           screenshotUrl = uploadResult.url;
@@ -142,7 +142,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
         gstNumber: gstNumber,
       };
 
-      console.log("🔥 FINAL PAYLOAD:", payload);
+      
 
       // ✅ Revenue API call
       const res = await fetch("/api/franchise-revenue", {
@@ -192,19 +192,14 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
       // ✅ WhatsApp template
       const whatsappRes = await fetch("/api/admin/service-booking-template", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          phone:
-            service?.customer_no_with_prefix ||
-            service?.phone ||
-            service?.mobileNumber ||
-            service?.mobile,
-          firstName: service?.name || service?.fullName || "Customer",
-        }),
-      });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    userId: data?.revenue?._id || data?._id,
+  }),
+});
 
       const whatsappData = await whatsappRes.json();
       console.log("📲 WhatsApp Response:", whatsappData);

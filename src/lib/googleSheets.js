@@ -1,15 +1,10 @@
+
+
 import { google } from "googleapis";
 
 function getSheetsClient() {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL || "";
   const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY || "";
-  const spreadsheetId = process.env.GOOGLE_SHEET_ID || "";
-
-  if (!clientEmail || !privateKeyRaw || !spreadsheetId) {
-    throw new Error(
-      "Google Sheets not configured (GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEET_ID)"
-    );
-  }
 
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -21,16 +16,28 @@ function getSheetsClient() {
 
   return {
     sheets: google.sheets({ version: "v4", auth }),
-    spreadsheetId,
   };
 }
 
-export async function getSheetData(sheetName) {
-  const { sheets, spreadsheetId } = getSheetsClient();
+export async function getSheetData(spreadsheetId, sheetName) {
+  const { sheets } = getSheetsClient();
+
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetName}!A:Z`,
   });
 
   return response.data.values || [];
+}
+
+export async function getAllSheetNames(spreadsheetId) {
+  const { sheets } = getSheetsClient();
+
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId,
+  });
+
+  return response.data.sheets.map(
+    (sheet) => sheet.properties.title
+  );
 }

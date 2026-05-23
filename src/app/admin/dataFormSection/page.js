@@ -32,16 +32,30 @@ export default function Page() {
   const totalPages = Math.ceil(data.slice(1).length / usersPerPage);
 
   useEffect(() => {
-    fetch("/api/admin/sheets-list")
-      .then((res) => res.json())
-      .then((result) => {
-        setSheets(result.sheets || []);
+  fetch("/api/admin/sheets-list")
+    .then((res) => res.json())
+    .then((result) => {
 
-        if (result.sheets?.length > 0) {
-          setSheet(result.sheets[0]);
+      const sortedSheets = (result.sheets || []).sort(
+        (a, b) => {
+
+          const numA =
+            parseInt(a.replace(/\D/g, "")) || 0;
+
+          const numB =
+            parseInt(b.replace(/\D/g, "")) || 0;
+
+          return numA - numB;
         }
-      });
-  }, []);
+      );
+
+      setSheets(sortedSheets);
+
+      if (sortedSheets.length > 0) {
+        setSheet(sortedSheets[0]);
+      }
+    });
+}, []);
 
   useEffect(() => {
     setLoading(true);

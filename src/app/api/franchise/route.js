@@ -19,7 +19,6 @@ export async function POST(request) {
       status,
       leadType,
     } = body;
-    const applicationTotal = Number(totalAmount);
 
     if (!name || !email || !phone || !city) {
       return NextResponse.json(
@@ -29,6 +28,10 @@ export async function POST(request) {
         },
         { status: 400 },
       );
+    }
+
+    if (totalAmount) {
+      const applicationTotal = Number(totalAmount);
     }
 
     if (!applicationTotal || isNaN(applicationTotal) || applicationTotal <= 0) {

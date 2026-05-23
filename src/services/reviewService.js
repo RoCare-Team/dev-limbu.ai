@@ -1,6 +1,30 @@
+const BASE_URL = "https://review.limbutech.in";
+
+/**
+ * Helper to get locationDetails from localStorage and extract business info.
+ */
+function getBusinessInfo() {
+  try {
+    const raw = localStorage.getItem("locationDetails");
+    if (!raw) return {};
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const location = Array.isArray(parsed) ? parsed[0] : parsed;
+    return {
+      businessName: location?.title || "",
+      businessCategory: location?.categories?.primaryCategory?.displayName || "Water Purification Company",
+    };
+  } catch {
+    return {
+      businessName: "",
+      businessCategory: "Water Purification Company",
+    };
+  }
+}
+
 export const reviewService = {
   /**
    * Fetches all paginated reviews for given location IDs.
+   * POST https://review.limbutech.in/fetch-reviews
    */
   async fetchAllReviews(accId, locationIds, accessToken) {
     const allReviews = [];
@@ -17,14 +41,11 @@ export const reviewService = {
         ...(pageToken && { pageToken }),
       };
 
-      const res = await fetch(
-        "https://n8n.srv968758.hstgr.cloud/webhook/b3f4dda4-aef1-4e87-a426-b503cee3612b",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        },
-      );
+      const res = await fetch(`${BASE_URL}/fetch-reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
 
       if (!res.ok) {
         throw new Error(`API_ERROR_${res.status}`);
@@ -53,24 +74,57 @@ export const reviewService = {
 
   /**
    * Generates and sends an AI reply to a specific review.
+   * POST https://review.limbutech.in/reply-review
+   *
+   * - Business_Name: pulled from locationDetails.title in localStorage
+   * - Business_Category: pulled from locationDetails.categories.primaryCategory.displayName
+   * - Business_Language: always "English"
    */
   async sendAIReply(accessToken, accId, locationId, reviewerName, starRatingMapVal, comment, reviewId) {
-    const res = await fetch(
-      "https://n8n.srv968758.hstgr.cloud/webhook/59634515-0550-4cb5-9031-0d82bc0a303d",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          access_token: accessToken,
-          acc_id: accId,
-          locationIds: locationId,
-          Reviewer_Name: reviewerName,
-          Star_Rating: starRatingMapVal,
-          Review_Content: comment,
-          Review_ID: reviewId,
-        }),
-      },
-    );
+    const { businessName, businessCategory } = getBusinessInfo();
+
+    const payload = {
+      acc_id: accId,
+      access_token: accessToken,
+      locationIds: locationId,
+      Review_ID: reviewId,
+      Reviewer_Name: reviewerName,
+      Star_Rating: starRatingMapVal,
+      Review_Content: comment,
+      Business_Language: "English",
+      ...(businessCategory && { Business_Category: businessCategory }),
+      ...(businessName && { Business_Name: businessName }),
+    };
+
+    const res = await fetch(`${BASE_URL}/reply-review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    return res.json();
+  },
+
+  /**
+   * Sends a manual reply to a specific review.
+   * POST https://review.limbutech.in/manual-reply
+   */
+  async sendManualReply(accessToken, accId, locationId, reviewId, replyText) {
+    const res = await fetch(`${BASE_URL}/manual-reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        acc_id: accId,
+        access_token: accessToken,
+        locationIds: locationId,
+        Review_ID: reviewId,
+        reply: replyText,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`API_ERROR_${res.status}`);
+    }
 
     return res.json();
   },
@@ -96,5 +150,5 @@ export const reviewService = {
     }
 
     return res;
-  }
+  },
 };

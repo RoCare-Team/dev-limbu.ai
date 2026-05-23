@@ -1,37 +1,3 @@
-version: 0.2
-
-# Exit 137 during `npm run build` = Linux OOM kill (not enough RAM).
-# In AWS CodeBuild → Environment → Compute, use at least:
-#   BUILD_GENERAL1_MEDIUM (7 GB) — recommended
-#   BUILD_GENERAL1_LARGE (15 GB) — if build still fails
-# SMALL (3 GB) is usually too low for this Next.js app.
-
 env:
   variables:
-    NODE_OPTIONS: "--max-old-space-size=6144 --max-semi-space-size=64"
-    NEXT_TELEMETRY_DISABLED: "1"
-    # Add MONGODB_URI and other secrets in CodeBuild project env / Parameter Store (not in git).
-
-phases:
-  install:
-    runtime-versions:
-      nodejs: 22
-    commands:
-      - node -v
-      - npm -v
-      - npm ci
-  pre_build:
-    commands:
-      - echo "Available memory before build:"
-      - free -h || true
-  build:
-    commands:
-      - npm run build
-  post_build:
-    commands:
-      - echo "Build finished successfully"
-
-cache:
-  paths:
-    - "node_modules/**/*"
-    - ".next/cache/**/*"
+    MONGODB_URI: "mongodb+srv://robin3dlogic_db_user:Robin_655600@mannubhai.tkrzttu.mongodb.net/test?retryWrites=true&w=majority&appName=mannuBhai"

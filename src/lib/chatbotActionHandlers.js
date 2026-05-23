@@ -45,7 +45,11 @@ import {
 import { generateInsightsPdf } from "@/lib/chatbotInsightsPdfGenerator";
 import { generateUniversalSlug } from "@/utils/slugify";
 import { upsertPublishSite } from "@/lib/saveSiteUpsert";
-import { resolveSiteUserId } from "@/lib/resolveSiteUserId";
+import {
+  resolveSiteUserId,
+  resolvePrimaryPhoneForSite,
+  waUserIdFromPhone,
+} from "@/lib/resolveSiteUserId";
 
 // ── ID normalisation helpers ─────────────────────────────────────────────────
 
@@ -108,13 +112,17 @@ async function refreshAndSaveAccessToken(phone, refreshToken) {
  *
  * @returns {{ url: string, slug: string, siteId: string }}
  */
-async function handleWebsite({ location, email, locationId, accessToken }) {
+async function handleWebsite({ location, email, locationId, accessToken, phone: sessionPhone }) {
   const title = location.title || "Business";
 
   // ── locality: use storefrontAddress.locality (same as build-website page) ──
   const locality = location.locality || "";
 
-  const rawPhone = (location.primaryPhone || "").trim();
+  const rawPhone = resolvePrimaryPhoneForSite({
+    primaryPhone: location.primaryPhone,
+    phone: sessionPhone,
+    userId: sessionPhone ? waUserIdFromPhone(sessionPhone) : undefined,
+  });
   if (!rawPhone) {
     throw new Error(
       "A primary phone number is missing from your Google Business Profile. A phone number is required to generate and publish a website."
@@ -122,6 +130,7 @@ async function handleWebsite({ location, email, locationId, accessToken }) {
   }
 
   const userId = resolveSiteUserId({
+    userId: sessionPhone ? waUserIdFromPhone(sessionPhone) : undefined,
     phone: rawPhone,
     email: (email || "").trim(),
   });
@@ -905,7 +914,13 @@ export async function processAction(actionDoc, sessionDoc) {
   try {
     switch (action) {
       case "website":
-        result = await handleWebsite({ location, email, locationId, accessToken });
+        result = await handleWebsite({
+          location,
+          email,
+          locationId,
+          accessToken,
+          phone,
+        });
         break;
 
       case "health_score":

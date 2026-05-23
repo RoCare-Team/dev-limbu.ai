@@ -6,7 +6,10 @@
 import dbConnect from "@/lib/dbConnect";
 import Site from "@/models/Site";
 import User from "@/models/User";
-import { resolveSiteUserId } from "@/lib/resolveSiteUserId";
+import {
+  resolveSiteUserId,
+  resolvePrimaryPhoneForSite,
+} from "@/lib/resolveSiteUserId";
 
 export function slugifyFromBusiness(business) {
   const title = business?.title || "";
@@ -36,21 +39,40 @@ export async function upsertPublishSite(body) {
     return { ok: false, error: "Business and AI content are required", status: 400 };
   }
 
-  if (!business?.phoneNumbers?.primaryPhone && !business?.primaryPhone) {
-    return {
-      ok: false,
-      error:
-        "A primary phone number is required in your Google Business Profile to publish a website.",
-      status: 400,
-    };
-  }
-
   const isChatbotPublish =
     typeof type === "string" && type.trim().toLowerCase() === "chatbot";
 
+  let businessForSave = business;
+  if (!business?.phoneNumbers?.primaryPhone && !business?.primaryPhone) {
+    if (isChatbotPublish) {
+      const fallbackPhone = resolvePrimaryPhoneForSite({
+        phone,
+        userId,
+      });
+      if (fallbackPhone) {
+        businessForSave = {
+          ...business,
+          primaryPhone: fallbackPhone,
+          phoneNumbers: { primaryPhone: fallbackPhone },
+        };
+      }
+    }
+    if (!businessForSave?.phoneNumbers?.primaryPhone && !businessForSave?.primaryPhone) {
+      return {
+        ok: false,
+        error:
+          "A primary phone number is required in your Google Business Profile to publish a website.",
+        status: 400,
+      };
+    }
+  }
+
   const effectiveUserId = resolveSiteUserId({
     userId,
-    phone: phone || business?.primaryPhone || business?.phoneNumbers?.primaryPhone,
+    phone:
+      phone ||
+      businessForSave?.primaryPhone ||
+      businessForSave?.phoneNumbers?.primaryPhone,
     email,
   });
 
@@ -62,7 +84,7 @@ export async function upsertPublishSite(body) {
     };
   }
 
-  const baseSlug = slugifyFromBusiness(business);
+  const baseSlug = slugifyFromBusiness(businessForSave);
   if (!baseSlug) {
     return {
       ok: false,
@@ -86,7 +108,7 @@ export async function upsertPublishSite(body) {
   };
 
   if (existingSite) {
-    existingSite.business = business;
+    existingSite.business = businessForSave;
     existingSite.aiContent = aiContent;
     existingSite.mediaImages = mediaImages || [];
     existingSite.isPublished = true;
@@ -133,7 +155,7 @@ export async function upsertPublishSite(body) {
 
   const createPayload = {
     slug: finalSlug,
-    business,
+    business: businessForSave,
     aiContent,
     mediaImages: mediaImages || [],
     userId: effectiveUserId,

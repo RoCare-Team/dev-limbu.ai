@@ -24,3 +24,35 @@ export function resolveSiteUserId({ userId, phone, email } = {}) {
 export function isChatbotSiteOwnerId(id) {
   return typeof id === "string" && id.startsWith("wa_");
 }
+
+/** `wa_917740847114` → 10-digit Indian mobile (e.g. `7740847114`) */
+export function phoneFromWaUserId(waUserId) {
+  if (!waUserId || typeof waUserId !== "string") return "";
+  let digits = waUserId.replace(/^wa_/i, "").replace(/\D/g, "");
+  if (digits.startsWith("91") && digits.length >= 12) digits = digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 11) digits = digits.slice(1);
+  return digits.length === 10 ? digits : "";
+}
+
+/**
+ * GBP primaryPhone when missing: use profile phone, else derive from chatbot `wa_*` userId or session phone.
+ */
+export function resolvePrimaryPhoneForSite({ primaryPhone, phone, userId } = {}) {
+  const fromGmb = String(primaryPhone || "").trim();
+  if (fromGmb) return fromGmb;
+
+  const explicitWa =
+    userId && String(userId).trim().startsWith("wa_") ? String(userId).trim() : "";
+  if (explicitWa) {
+    const fromWa = phoneFromWaUserId(explicitWa);
+    if (fromWa) return fromWa;
+  }
+
+  const waId = waUserIdFromPhone(phone);
+  if (waId) {
+    const fromSession = phoneFromWaUserId(waId);
+    if (fromSession) return fromSession;
+  }
+
+  return "";
+}

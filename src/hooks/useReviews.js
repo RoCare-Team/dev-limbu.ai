@@ -23,7 +23,7 @@ export function useReviews(session, status) {
         if (setGeneratingAI) setGeneratingAI(true);
 
         const { name, reviewId, comment, starRating, reviewer } = review;
-        const starRatingMap = { FIVE: "Five", FOUR: "Four", THREE: "Three", TWO: "Two", ONE: "One" };
+        const starRatingMap = { FIVE: 5, FOUR: 4, THREE: 3, TWO: 2, ONE: 1 };
         const [, accountId, , locationId] = name?.split("/") || [];
 
         if (!accessToken) {
@@ -35,7 +35,7 @@ export function useReviews(session, status) {
           accountId,
           locationId,
           reviewer?.displayName || "Anonymous",
-          starRatingMap[starRating] || "Five",
+          starRatingMap[starRating] || 5,
           comment || "No comment provided",
           reviewId
         );

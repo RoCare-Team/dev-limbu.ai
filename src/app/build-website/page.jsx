@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
 import GoLiveButton from "@/components/GoLiveButton";
 import {
   Edit,
@@ -58,6 +59,19 @@ export default function BuildWebsitePage() {
   });
   const { data: session } = useSession();
   const [userId, setUserId] = useState(null);
+  const [chatbotPhone, setChatbotPhone] = useState("");
+
+  const siteOwnerId = useMemo(
+    () =>
+      resolveSiteUserId({
+        userId,
+        phone: chatbotPhone,
+        email: session?.user?.email,
+      }),
+    [userId, chatbotPhone, session?.user?.email]
+  );
+
+  const sitePublishType = isChatbotSiteOwnerId(siteOwnerId) ? "chatbot" : undefined;
 
   // Predefined Color Themes
   const colorThemes = [
@@ -127,10 +141,27 @@ export default function BuildWebsitePage() {
     },
   ];
 
-  // ✅ Load Locations from localStorage
+  // ✅ Load Locations from localStorage (+ WhatsApp phone from connect flow)
   useEffect(() => {
     const stored = localStorage.getItem("locationDetails");
     const storedUserId = localStorage.getItem("userId");
+    const urlPhone =
+      typeof window !== "undefined"
+        ? (new URLSearchParams(window.location.search).get("phone") || "").replace(
+            /\D/g,
+            ""
+          )
+        : "";
+    const storedPhone = (localStorage.getItem("chatbotPhone") || "").replace(/\D/g, "");
+    const phoneDigits = urlPhone || storedPhone;
+    if (phoneDigits) {
+      setChatbotPhone(phoneDigits);
+      try {
+        localStorage.setItem("chatbotPhone", phoneDigits);
+      } catch {
+        /* ignore */
+      }
+    }
 
     if (!stored) {
       // Still set userId even if no locations found
@@ -200,8 +231,8 @@ export default function BuildWebsitePage() {
   // ✅ Save Site Data
   const handleSave = async () => {
     if (!business || !aiContent) return;
-    if (!userId) {
-      setError("User ID missing. Please log in again.");
+    if (!siteOwnerId) {
+      setError("User ID or phone missing. Connect Google Business or log in again.");
       return;
     }
     setIsSaving(true);
@@ -219,7 +250,10 @@ export default function BuildWebsitePage() {
           business,
           aiContent,
           mediaImages,
-          userId,
+          userId: siteOwnerId,
+          phone: chatbotPhone || undefined,
+          email: session?.user?.email || undefined,
+          type: sitePublishType,
           locationId: selectedLocation?.locationId,
         }),
       });
@@ -272,8 +306,8 @@ export default function BuildWebsitePage() {
   // ✅ Generate Website
   const handleGenerate = async () => {
     if (!selectedLocation) return;
-    if (!userId) {
-      setError("User ID missing. Please log in again.");
+    if (!siteOwnerId) {
+      setError("User ID or phone missing. Connect Google Business or log in again.");
       return;
     }
 
@@ -414,7 +448,10 @@ export default function BuildWebsitePage() {
             business: businessData,
             aiContent: aiData.content, 
             mediaImages: images,
-            userId,
+            userId: siteOwnerId,
+            phone: chatbotPhone || undefined,
+            email: session?.user?.email || undefined,
+            type: sitePublishType,
             locationId: selectedLocation?.locationId,
           }),
         });
@@ -1854,6 +1891,7 @@ export default function BuildWebsitePage() {
             business={business}
             aiContent={aiContent}
             mediaImages={mediaImages}
+            phone={chatbotPhone}
             customSlug={currentSlug} // ✅ Ensures the slug generated here is used
             onSuccess={(site) => {
               console.log("Website published:", site);

@@ -118,6 +118,21 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+    /** Lower peak RAM during `next build` (important for CodeBuild / small CI runners). */
+    webpackMemoryOptimizations: true,
+    /** Custom webpack config disables the build worker by default — re-enable it. */
+    webpackBuildWorker: true,
+    optimizePackageImports: [
+      "lucide-react",
+      "@mui/material",
+      "@mui/icons-material",
+      "@heroicons/react",
+      "react-icons",
+      "recharts",
+    ],
+    /** Fewer parallel static workers → less memory during "Collecting page data". */
+    staticGenerationMaxConcurrency: 2,
+    cpus: 2,
   },
   // Fix for recharts SSR issue: (0 , R.default) is not a function
   transpilePackages: ["recharts", "react-hot-toast", "jspdf", "html2canvas", "html-to-image"],

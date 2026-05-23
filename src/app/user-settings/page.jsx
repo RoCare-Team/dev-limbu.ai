@@ -1331,7 +1331,7 @@ export default function AutomationSettings({ onNavigateBack }) {
         {error && (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#991b1b", fontWeight: 500 }}>
             {error}
-          </div>
+          </div>  
         )}
 
         {/* ── Plan Card ── */}

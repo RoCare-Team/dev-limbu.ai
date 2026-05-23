@@ -6,6 +6,7 @@
 import dbConnect from "@/lib/dbConnect";
 import Site from "@/models/Site";
 import User from "@/models/User";
+import { resolveSiteUserId } from "@/lib/resolveSiteUserId";
 
 export function slugifyFromBusiness(business) {
   const title = business?.title || "";
@@ -28,7 +29,8 @@ export function slugifyFromBusiness(business) {
 export async function upsertPublishSite(body) {
   await dbConnect();
 
-  const { business, aiContent, mediaImages, userId, locationId, type } = body ?? {};
+  const { business, aiContent, mediaImages, userId, locationId, type, phone, email } =
+    body ?? {};
 
   if (!business || !aiContent) {
     return { ok: false, error: "Business and AI content are required", status: 400 };
@@ -43,8 +45,21 @@ export async function upsertPublishSite(body) {
     };
   }
 
-  if (!userId) {
-    return { ok: false, error: "User ID is required to publish a website.", status: 400 };
+  const isChatbotPublish =
+    typeof type === "string" && type.trim().toLowerCase() === "chatbot";
+
+  const effectiveUserId = resolveSiteUserId({
+    userId,
+    phone: phone || business?.primaryPhone || business?.phoneNumbers?.primaryPhone,
+    email,
+  });
+
+  if (!effectiveUserId) {
+    return {
+      ok: false,
+      error: "User ID or phone is required to publish a website.",
+      status: 400,
+    };
   }
 
   const baseSlug = slugifyFromBusiness(business);
@@ -58,10 +73,10 @@ export async function upsertPublishSite(body) {
 
   let existingSite = null;
   if (locationId) {
-    existingSite = await Site.findOne({ userId, locationId });
+    existingSite = await Site.findOne({ userId: effectiveUserId, locationId });
   }
   if (!existingSite) {
-    existingSite = await Site.findOne({ userId, slug: baseSlug });
+    existingSite = await Site.findOne({ userId: effectiveUserId, slug: baseSlug });
   }
 
   const applyTypeIfPresent = (siteDoc) => {
@@ -86,20 +101,18 @@ export async function upsertPublishSite(body) {
   }
 
   // New site: WhatsApp/chatbot publishes have no multi-site quota (manual dashboard still limited).
-  const isChatbotPublish =
-    typeof type === "string" && type.trim().toLowerCase() === "chatbot";
-
-  const user = await User.findOne({ userId }).select("paidPackage packageExpiryDate");
-
-  if (!user) {
-    return { ok: false, error: "User not found. Please log in again.", status: 404 };
-  }
-
   if (!isChatbotPublish) {
+    const user = await User.findOne({ userId: effectiveUserId }).select(
+      "paidPackage packageExpiryDate"
+    );
+
+    if (!user) {
+      return { ok: false, error: "User not found. Please log in again.", status: 404 };
+    }
     const hasPaidPackage = !!user.paidPackage;
     const maxWebsites = hasPaidPackage ? 5 : 2;
 
-    const currentSiteCount = await Site.countDocuments({ userId });
+    const currentSiteCount = await Site.countDocuments({ userId: effectiveUserId });
     if (currentSiteCount >= maxWebsites) {
       const message = hasPaidPackage
         ? "You have reached your website limit for this plan (maximum 5 sites). Please upgrade your plan to create more websites."
@@ -123,7 +136,7 @@ export async function upsertPublishSite(body) {
     business,
     aiContent,
     mediaImages: mediaImages || [],
-    userId,
+    userId: effectiveUserId,
     locationId,
     isPublished: true,
     createdAt: new Date(),

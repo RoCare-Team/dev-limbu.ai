@@ -3,21 +3,39 @@ const BASE_URL = "https://review.limbutech.in";
 /**
  * Helper to get locationDetails from localStorage and extract business info.
  */
-function getBusinessInfo() {
+function getBusinessInfo(locationId) {
   try {
     const raw = localStorage.getItem("locationDetails");
     if (!raw) return {};
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    const location = Array.isArray(parsed) ? parsed[0] : parsed;
-    return {
-      businessName: location?.title || "",
-      businessCategory: location?.categories?.primaryCategory?.displayName || "Water Purification Company",
-    };
-  } catch {
-    return {
-      businessName: "",
-      businessCategory: "Water Purification Company",
-    };
+    const locations = Array.isArray(parsed) ? parsed : [parsed];
+
+    const matched = locations.find((loc) => loc.locationId === locationId);
+
+    if (!matched) {
+      console.warn(`[getBusinessInfo] No location matched for locationId: "${locationId}". Available IDs:`, locations.map((l) => l.locationId));
+      throw new Error(`LOCATION_NOT_MATCHED: No location found for locationId "${locationId}"`);
+    }
+
+    console.log(`[getBusinessInfo] Matched location for "${locationId}":`, matched);
+
+    const businessCategory = matched?.categories?.primaryCategory?.displayName || matched?.title || null;
+    const businessName = matched?.title || null;
+
+    if (!businessCategory) {
+      console.error(`[getBusinessInfo] Neither "primaryCategory.displayName" nor "title" found for locationId: "${locationId}"`, matched);
+      throw new Error(`BUSINESS_CATEGORY_MISSING: No category or title found for locationId "${locationId}"`);
+    }
+
+    if (!businessName) {
+      console.error(`[getBusinessInfo] "title" not found for locationId: "${locationId}"`, matched);
+      throw new Error(`BUSINESS_NAME_MISSING: No title found for locationId "${locationId}"`);
+    }
+
+    return { businessName, businessCategory };
+  } catch (err) {
+    console.error("[getBusinessInfo] Error:", err.message);
+    throw err; // re-throw so sendAIReply also fails loudly
   }
 }
 

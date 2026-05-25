@@ -1,179 +1,374 @@
 // app/api/cron/autoreply/route.js
+
 import dbConnect from "@/lib/dbConnect";
 import AutoReply from "@/models/AutoReply";
 import { NextResponse } from "next/server";
 
-// Make sure this runs in Node.js (for Mongoose)
 export const runtime = "nodejs";
-// Optional: increase timeout if needed (Vercel Pro/Team)
 export const maxDuration = 60;
 
+const FETCH_REVIEWS_API = "https://review.limbutech.in/fetch-reviews";
+
+const REPLY_REVIEW_API = "https://review.limbutech.in/reply-review";
+
+/**
+ * Refresh Google Access Token
+ */
 async function getFreshAccessToken(refreshToken) {
-  console.log("🔄 Refreshing access token for cron auto-reply");
+  console.log("🔄 Refreshing access token...");
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
       refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),
+    signal: AbortSignal.timeout(30000),
   });
 
   const raw = await res.text();
+
   let data = {};
+
   try {
     data = raw ? JSON.parse(raw) : {};
   } catch {
-    console.error("❌ Token refresh: non-JSON response", raw?.slice(0, 200));
-    throw new Error("Token refresh failed: invalid response from Google");
+    console.error("❌ Invalid token refresh response:", raw);
+    throw new Error("Invalid token refresh response");
   }
 
   if (!res.ok) {
-    console.error("❌ Token refresh failed for cron auto-reply", data);
-    throw new Error(data.error_description || data.error || "Token refresh failed");
+    console.error("❌ Token refresh failed:", data);
+
+    throw new Error(
+      data.error_description || data.error || "Token refresh failed",
+    );
   }
 
-  console.log("✅ Access token refreshed for cron auto-reply");
+  console.log("✅ Access token refreshed");
+
   return data.access_token;
 }
 
+/**
+ * Fetch Reviews
+ */
+async function fetchReviews(acc_id, locationIds, accessToken) {
+  try {
+    const res = await fetch(FETCH_REVIEWS_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        acc_id,
+        locationIds,
+        access_token: accessToken,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
 
+    if (!res.ok) {
+      const errorBody = await res.text();
+
+      console.error("❌ Failed to fetch reviews:", res.status, errorBody);
+
+      throw new Error(`FETCH_REVIEWS_${res.status}`);
+    }
+
+    const raw = await res.text();
+
+    let data = {};
+
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      console.error("❌ Invalid reviews response:", raw);
+
+      throw new Error("Invalid reviews response");
+    }
+
+    return data?.reviews || [];
+  } catch (err) {
+    console.error("❌ fetchReviews error:", err);
+    throw err;
+  }
+}
+
+/**
+ * Send AI Reply
+ */
+async function sendAIReply({
+  accessToken,
+  acc_id,
+  locationId,
+  review,
+  locationInfo,
+}) {
+  try {
+    const payload = {
+      acc_id,
+      access_token: accessToken,
+
+      locationIds: locationId,
+
+      Review_ID: review.reviewId,
+
+      Reviewer_Name: review.reviewer?.displayName || "Customer",
+
+      Star_Rating: review.starRating || "FIVE",
+
+      Review_Content: review.comment || "No comment provided",
+
+      Business_Language: "English",
+
+      Business_Category:
+        locationInfo?.categories?.primaryCategory?.displayName || "Business",
+
+      Business_Name: locationInfo?.title || "Business",
+    };
+
+    const res = await fetch(REPLY_REVIEW_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const raw = await res.text();
+
+    let data = {};
+
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      console.error("❌ Invalid AI reply response:", raw);
+
+      throw new Error("Invalid AI reply response");
+    }
+
+    if (!res.ok || data?.status !== true) {
+      console.error("❌ Failed AI reply:", review.reviewId, data);
+
+      throw new Error("AI reply failed");
+    }
+
+    console.log(`✅ Successfully replied to review ${review.reviewId}`);
+
+    return true;
+  } catch (err) {
+    console.error(`❌ Error replying to review ${review.reviewId}:`, err);
+
+    return false;
+  }
+}
+
+/**
+ * Main Cron Handler
+ */
 export async function GET() {
-  console.log("[CRON] /api/cron/autoreply triggered at", new Date().toISOString());
+  console.log("\n==============================");
+
+  console.log("[CRON] Auto Reply Triggered:", new Date().toISOString());
+
+  console.log("==============================\n");
 
   try {
     await dbConnect();
 
-    // Get all users who enabled auto reply
-    const users = await AutoReply.find({ autoReply: true });
-    
+    const users = await AutoReply.find({
+      autoReply: true,
+    });
 
-    console.log("[CRON] Auto users found:", users.length);
+    console.log(`[CRON] Found ${users.length} auto-reply users`);
+
+    if (users.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "No auto-reply users found",
+      });
+    }
 
     for (const user of users) {
+      const userIdentifier = user.userId || user._id?.toString();
+
+      console.log(`\n👤 Processing user: ${userIdentifier}`);
+
       try {
-        const userIdentifier = user.userId || user._id;
+        /**
+         * Validate User Data
+         */
         if (!user.refreshToken) {
-          console.log(`[CRON] User ${userIdentifier} has no refresh token, skipping.`);
+          console.log(`⚠️ User ${userIdentifier} has no refresh token`);
           continue;
         }
 
         if (!user.locations || user.locations.length === 0) {
-          console.log(`[CRON] User ${userIdentifier} has no locations, skipping.`);
+          console.log(`⚠️ User ${userIdentifier} has no locations`);
           continue;
         }
 
-        const newAccessToken = await getFreshAccessToken(user.refreshToken);
+        /**
+         * Refresh Access Token
+         */
+        const accessToken = await getFreshAccessToken(user.refreshToken);
 
-        // Group locations by accountId to handle multiple accounts per user
-        const locationsByAccount = user.locations.reduce((acc, location) => {
-          if (location.accountId && location.locationId) {
-            if (!acc[location.accountId]) {
-              acc[location.accountId] = [];
+        /**
+         * Group Locations By Account
+         */
+        const locationsByAccount = user.locations.reduce((acc, loc) => {
+          if (loc.accountId && loc.locationId) {
+            if (!acc[loc.accountId]) {
+              acc[loc.accountId] = [];
             }
-            acc[location.accountId].push(location.locationId);
+
+            acc[loc.accountId].push(loc);
           }
+
           return acc;
         }, {});
 
-        console.log(`[CRON] User ${userIdentifier} has locations in ${Object.keys(locationsByAccount).length} account(s).`);
-
-        // Process each account for the user
-        for (const [acc_id, locationIds] of Object.entries(locationsByAccount)) {
+        /**
+         * Process Accounts
+         */
+        for (const [acc_id, locations] of Object.entries(locationsByAccount)) {
           try {
-            console.log(`[CRON] Processing account ${acc_id} with ${locationIds.length} location(s) for user ${userIdentifier}.`);
-            
-            // 1) Fetch reviews from n8n for this account
-            const res = await fetch(
-              "https://n8n.srv968758.hstgr.cloud/webhook/b3f4dda4-aef1-4e87-a426-b503cee3612b",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  acc_id,
-                  locationIds,
-                  access_token: newAccessToken,
-                }),
-              }
+            console.log(`\n🏢 Processing account ${acc_id}`);
+
+            const locationIds = locations.map((loc) => loc.locationId);
+
+            /**
+             * Fetch Reviews
+             */
+            const reviews = await fetchReviews(
+              acc_id,
+              locationIds,
+              accessToken,
             );
 
-            if (!res.ok) {
-              const errorBody = await res.text();
-              console.error(`[CRON] Failed to fetch reviews for user ${userIdentifier}, account ${acc_id}`, "status:", res.status, "body:", errorBody);
-              if (res.status === 401 || res.status === 403) {
-                await AutoReply.updateOne({ _id: user._id }, { autoReply: false, error: 'Invalid token for an account. Disabled auto-reply.' });
-                console.log(`[CRON] Disabled auto-reply for user ${userIdentifier} due to auth error on account ${acc_id}.`);
-                break; 
-              }
+            console.log(`📝 Found ${reviews.length} reviews`);
+
+            if (!reviews.length) {
               continue;
             }
 
-            const rawBody = await res.text();
-            let data = {};
-            try {
-              data = rawBody ? JSON.parse(rawBody) : {};
-            } catch (parseErr) {
-              console.error(
-                `[CRON] n8n webhook returned non-JSON for user ${userIdentifier}, account ${acc_id}:`,
-                rawBody?.slice(0, 300)
+            /**
+             * Filter Pending Reviews
+             */
+            const pendingReviews = reviews.filter((review) => {
+              return (
+                !review.reviewReply ||
+                !review.reviewReply.comment ||
+                !review.reviewReply.comment.trim()
               );
+            });
+
+            console.log(`🤖 Pending reviews: ${pendingReviews.length}`);
+
+            if (!pendingReviews.length) {
               continue;
             }
-            if (!data?.reviews || !Array.isArray(data.reviews)) {
-              console.log(`[CRON] No reviews array for user ${userIdentifier}, account ${acc_id}`);
-              continue;
-            }
 
-            // 2) Filter reviews that don't have any reply
-            const pending = data.reviews.filter((r) => !r.reviewReply?.comment?.trim());
-            console.log(`[CRON] User ${userIdentifier}, account ${acc_id} has ${pending.length} pending reviews.`);
+            /**
+             * Send Replies Parallel
+             */
+            const results = await Promise.allSettled(
+              pendingReviews.map(async (review) => {
+                try {
+                  const [, review_acc_id, , locationId] =
+                    review.name.split("/");
 
-            // 3) Auto-reply for each pending review
-            for (const r of pending) {
-              try {
-                const [_, review_acc_id, , locationId] = r.name.split("/");
+                  /**
+                   * Find Location Info
+                   */
+                  const locationInfo = locations.find(
+                    (loc) => loc.locationId === locationId,
+                  );
 
-                await fetch(
-                  "https://n8n.srv968758.hstgr.cloud/webhook/59634515-0550-4cb5-9031-0d82bc0a303d",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      access_token: newAccessToken,
-                      acc_id: review_acc_id,
-                      locationIds: locationId,
-                      Reviewer_Name: r.reviewer?.displayName || "Customer",
-                      Star_Rating: r.starRating,
-                      Review_Content: r.comment,
-                      Review_ID: r.reviewId,
-                    }),
-                  }
-                );
-                console.log(`[CRON] Sent review ${r.reviewId} for user ${userIdentifier} to auto-reply webhook.`);
-              } catch (err) {
-                console.error("[CRON] Error replying to review", r.reviewId, "user", userIdentifier, err);
-              }
-            }
-          } catch(err) {
-              console.error(`[CRON] Error processing account ${acc_id} for user ${userIdentifier}`, err);
+                  /**
+                   * Send AI Reply
+                   */
+                  return await sendAIReply({
+                    accessToken,
+                    acc_id: review_acc_id,
+                    locationId,
+                    review,
+                    locationInfo,
+                  });
+                } catch (err) {
+                  console.error("❌ Review processing error:", err);
+
+                  return false;
+                }
+              }),
+            );
+
+            /**
+             * Stats
+             */
+            const successCount = results.filter(
+              (r) => r.status === "fulfilled" && r.value === true,
+            ).length;
+
+            const failedCount = results.length - successCount;
+
+            console.log(`✅ Success Replies: ${successCount}`);
+
+            console.log(`❌ Failed Replies: ${failedCount}`);
+          } catch (accountErr) {
+            console.error(
+              `❌ Account Processing Error (${acc_id}):`,
+              accountErr,
+            );
           }
         }
-      } catch (err) {
-        const userIdentifier = user.userId || user._id;
-        console.error("[CRON] Error in user loop for user", userIdentifier, err);
-        if (err.message.includes("Token refresh failed")) {
-            await AutoReply.updateOne({ _id: user._id }, { autoReply: false, error: 'Invalid refresh token. Disabled auto-reply.' });
-            console.log(`[CRON] Disabled auto-reply for user ${userIdentifier} due to token refresh failure.`);
+      } catch (userErr) {
+        console.error(`❌ User Processing Error (${userIdentifier}):`, userErr);
+
+        /**
+         * Disable Auto Reply
+         * if refresh token invalid
+         */
+        if (userErr.message.includes("Token refresh failed")) {
+          await AutoReply.updateOne(
+            {
+              _id: user._id,
+            },
+            {
+              autoReply: false,
+              error: "Invalid refresh token",
+            },
+          );
+
+          console.log(`🚫 Disabled auto-reply for ${userIdentifier}`);
         }
       }
     }
 
-    return NextResponse.json({ success: true, message: "Cron executed" });
+    console.log("\n✅ CRON COMPLETED SUCCESSFULLY\n");
+
+    return NextResponse.json({
+      success: true,
+      message: "Auto reply cron executed successfully",
+    });
   } catch (err) {
-    console.error("[CRON] Main error:", err);
-    return NextResponse.json({ error: "Cron failed" }, { status: 500 });
+    console.error("\n❌ CRON MAIN ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Cron execution failed",
+      },
+      {
+        status: 500,
+      },
+    );
   }
 }

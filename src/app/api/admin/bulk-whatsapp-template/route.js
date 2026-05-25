@@ -33,27 +33,13 @@ export async function POST(req) {
 });
 
 
-    console.log("👥 USERS FOUND =>", users.length);
+    
 
     // ✅ LOOP USERS
     for (const user of users) {
 
-  console.log("FULL USER =>", user);
+  
 
-  console.log(
-    "WHATSAPP NUMBER =>",
-    user.whatsappNumber
-  );
-
-  console.log(
-    "MOBILE =>",
-    user.mobile
-  );
-
-  console.log(
-    "PHONE =>",
-    user.phone
-  );
 
   let mobile =
     user.mobile ||
@@ -62,7 +48,7 @@ export async function POST(req) {
 
       
 
-      console.log("📱 ORIGINAL MOBILE =>", mobile);
+      
 
       // ❌ NO NUMBER
       if (!mobile) {
@@ -132,28 +118,48 @@ export async function POST(req) {
 
       // 🔥 TEMPLATE 2
       else if (
-        templateName === "limbu_ai_plan_expired"
-      ) {
+  templateName === "limbu_ai_plan_expired"
+) {
 
-        console.log("📨 TEMPLATE => limbu_ai_plan_expired");
+  console.log(
+    "📨 TEMPLATE => limbu_ai_plan_expired"
+  );
 
-        const expiryDateText =
-          user.userPackageExpiryDate
-            ? new Date(
-                user.userPackageExpiryDate
-              ).toLocaleDateString("en-IN")
-            : "N/A";
+  const expiryDate = new Date(
+    user.packageExpiryDate
+  );
 
-        console.log(
-          "📅 EXPIRY DATE =>",
-          expiryDateText
-        );
+  const today = new Date();
 
-       templateParams = [
+  const diffTime =
+    expiryDate.getTime() - today.getTime();
+
+  const daysLeft = Math.ceil(
+    diffTime / (1000 * 60 * 60 * 24)
+  );
+
+  console.log("⏳ DAYS LEFT =>", daysLeft);
+
+  // ❌ PLAN NOT EXPIRED
+  if (daysLeft > 0) {
+
+    console.log(
+      "⛔ PLAN NOT EXPIRED YET"
+    );
+
+    continue;
+  }
+
+  // ✅ SEND EXPIRED TEMPLATE
+  templateParams = [
+
     user.fullName || "User",
-    String(daysLeft),
+
+    new Date(
+      user.packageExpiryDate
+    ).toLocaleDateString("en-IN"),
   ];
-      }
+}
 
       console.log(
         "📨 TEMPLATE PARAMS =>",
@@ -198,11 +204,7 @@ export async function POST(req) {
   },
 };
 
-      console.log(
-        "📤 FINAL PAYLOAD =>",
-        JSON.stringify(payload, null, 2)
-      );
-
+      
       // =========================
       // SEND REQUEST
       // =========================
@@ -241,15 +243,7 @@ export async function POST(req) {
         );
       }
 
-      console.log(
-        "✅ STATUS =>",
-        response.status
-      );
-
-      console.log(
-        "📨 LIMBU RESPONSE =>",
-        result
-      );
+     
 
       // ❌ FAILED
       if (!response.ok) {

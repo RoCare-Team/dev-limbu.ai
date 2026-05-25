@@ -17,8 +17,38 @@ export default function RevenueBulkActionBar({ selectedRows }) {
 
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
+  const handleSendTemplate = async (templateName) => {
+  try {
+    const res = await fetch("/api/admin/bulk-whatsapp-template", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        selectedRows,
+        templateName,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert("WhatsApp template sent successfully");
+      setShowWhatsappModal(false);
+    } else {
+      alert(data.message || "Failed");
+    }
+  } catch (error) {
+    console.log(error);
+    alert("Something went wrong");
+  }
+};
+
   return (
-    <div className="mb-6">
+
+
+    <>
+  <div className="mb-6">
       {/* NORMAL HEADER */}
       <div
         className={`transition-all duration-500 overflow-hidden ${
@@ -114,6 +144,9 @@ export default function RevenueBulkActionBar({ selectedRows }) {
   WhatsApp
 </button>
 
+
+
+
               <button
                 className="group bg-white px-6 py-3 rounded-2xl
                 flex items-center gap-2 text-blue-600 font-semibold
@@ -161,11 +194,54 @@ export default function RevenueBulkActionBar({ selectedRows }) {
       </div>
 
 
-      {/* WHATSAPP TEMPLATE MODAL */}
-          <WhatsappTemplateModal
-  showWhatsappModal={showWhatsappModal}
-  setShowWhatsappModal={setShowWhatsappModal}
-/>
+      
     </div>
+
+    {showWhatsappModal && (
+  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+    <div className="bg-white rounded-2xl p-6 w-[400px] shadow-2xl">
+
+      <h2 className="text-2xl font-bold mb-5">
+        Select WhatsApp Template
+      </h2>
+
+      <div className="space-y-3">
+
+        {/* TEMPLATE 1 */}
+        <button
+          onClick={() =>
+            handleSendTemplate("plan_expired_comdown")
+          }
+          className="w-full bg-green-600 hover:bg-green-700
+          text-white py-3 rounded-xl font-semibold"
+        >
+          Expiry Reminder Template 
+        </button>
+
+        {/* TEMPLATE 2 */}
+        <button
+          onClick={() =>
+            handleSendTemplate("limbu_ai_plan_expired")
+          }
+          className="w-full bg-red-600 hover:bg-red-700
+          text-white py-3 rounded-xl font-semibold"
+        >
+          Plan Expired Template
+        </button>
+
+      </div>
+
+      <button
+        onClick={() => setShowWhatsappModal(false)}
+        className="mt-5 w-full border py-3 rounded-xl"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+    </>
+
+    
   );
 }

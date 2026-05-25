@@ -54,8 +54,6 @@ export function useSidebar() {
     if (res.ok) {
       const data = await res.json();
 
-      console.log("LIVE USER DATA =>", data.user);
-
       setUserData((prev) => ({
         ...prev,
 
@@ -89,7 +87,7 @@ export function useSidebar() {
 
 };
 
-console.log("SIDEBAR USER DATA =>", sidebarUserData);
+
 
 setUserData(sidebarUserData);
 

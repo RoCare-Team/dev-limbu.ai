@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import Lottie from "lottie-react";
+import animationData from "../../../../src/assets/animation/Loading.json";
+
 import SelectedLeadsActionBar4 from "./component-modal/SelectedLeadsActionBar4"
 
 export default function TransactionsPage() {
@@ -48,6 +51,22 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions();
   }, []);
+
+   if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="w-40 h-40 mx-auto flex items-center justify-center">
+            <Lottie
+              animationData={animationData}
+              loop={true}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6">

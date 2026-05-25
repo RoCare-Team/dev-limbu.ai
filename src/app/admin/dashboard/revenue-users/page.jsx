@@ -76,6 +76,10 @@ export default function RevenueUsersPage() {
   const [editAmount, setEditAmount] = useState("");
   const [editNotes, setEditNotes] = useState("");
 
+  const [currentPage, setCurrentPage] = useState(1);
+
+const rowsPerPage = 20;
+
   const displayData = activeView === "package" ? revenueUsersList : users;
 
   // service
@@ -680,6 +684,19 @@ const handleSendInvoiceWhatsApp = async (user) => {
     }
   };
 
+  const paginatedPackageRows = filteredData.filter(
+  (r) => r.type === "user_onboard"
+);
+
+const currentPackageRows = paginatedPackageRows.slice(
+  (currentPage - 1) * rowsPerPage,
+  currentPage * rowsPerPage
+);
+
+const totalPages = Math.ceil(
+  paginatedPackageRows.length / rowsPerPage
+);
+
   return (
     <>
       <div>
@@ -824,9 +841,7 @@ const handleSendInvoiceWhatsApp = async (user) => {
                     <tbody>
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
-                        filteredData
-                          .filter((r) => r.type === "user_onboard")
-                          .map((r, i) => {
+                        currentPackageRows.map((r, i) => {
                             return (
                               <tr
                                 key={i}
@@ -836,7 +851,7 @@ const handleSendInvoiceWhatsApp = async (user) => {
                                   <input
                                     type="checkbox"
                                     checked={selectedRows.includes(r._id)}
-                                    onChange={() => handleSelectRow(r._id)}
+                                    onChange={() => handleSelectRow(r.leadId)}
                                     className="w-4 h-4 accent-indigo-600"
                                   />
                                 </td>
@@ -1222,9 +1237,12 @@ const handleSendInvoiceWhatsApp = async (user) => {
                         ))}
                     </tbody>
                   </table>
+
+   
                 </div>
               </div>
 
+      
               {/* Footer Totals */}
               <RevenueFooter
                 activeView={activeView}
@@ -1274,6 +1292,49 @@ const handleSendInvoiceWhatsApp = async (user) => {
           setFullViewImage={setFullViewImage}
         />
       </div>
+
+             <div className="flex justify-center items-center gap-2 ">
+
+  {/* PREV BUTTON */}
+  <button
+    disabled={currentPage === 1}
+    onClick={() => setCurrentPage((p) => p - 1)}
+    className="px-4 py-2 rounded-xl border bg-white shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+  >
+    Prev
+  </button>
+
+  {/* PAGE NUMBERS */}
+  {Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter(
+      (page) =>
+        page >= currentPage - 1 &&
+        page <= currentPage + 1
+    )
+    .map((page) => (
+      <button
+        key={page}
+        onClick={() => setCurrentPage(page)}
+        className={`w-10 h-10 rounded-xl font-semibold transition ${
+          currentPage === page
+            ? "bg-indigo-600 text-white shadow-lg scale-105"
+            : "bg-white border hover:bg-gray-100"
+        }`}
+      >
+        {page}
+      </button>
+    ))}
+
+  {/* NEXT BUTTON */}
+  <button
+    disabled={currentPage === totalPages}
+    onClick={() => setCurrentPage((p) => p + 1)}
+    className="px-4 py-2 rounded-xl border bg-white shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+  >
+    Next
+  </button>
+</div>
+
     </>
   );
 }

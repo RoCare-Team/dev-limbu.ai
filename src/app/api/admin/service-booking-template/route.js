@@ -10,7 +10,8 @@ import User from "@/models/User";
 const AISENSY_URL =
   "https://whatsapp.limbu.ai/api/campaigns/send";
 
-const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE0LCJlbWFpbCI6InJvYmhpbmtoYW5AZ21haWwuY29tIiwicm9sZSI6Im1hbmFnZXIiLCJ3b3Jrc3BhY2VJZCI6MSwiaWF0IjoxNzc5MDg1Mjk1LCJleHAiOjE3Nzk2OTAwOTV9.LSM5lyvlc3QcSECYS0q6PZ92_DfZWK14sS1KAMuD51Q"
+const API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
+
 
 // Normalize Indian number
 function normalizeNumber(num) {
@@ -113,37 +114,39 @@ export async function POST(req) {
     // =====================================================
     const origin = new URL(req.url).origin;
 
-    const invoiceUrl =
-      `${origin}/api/admin/invoice-tax?id=${userId}`;
 
     // =====================================================
-    // 6. WhatsApp Payload
-    // Template: invoice_send
-    // Param 1: customer name
-    // =====================================================
-    const payload = {
-      apiKey: API_KEY,
-      campaignName: "invoice_send",
-      destination: destination,
-      userName: "YOUR_BRAND_NAME",
+   // =====================================================
+// 5. WhatsApp Payload
+// =====================================================
 
-      // Template variable
-      templateParams: [customerName],
+const payload = {
+  apiKey: process.env.LIMBU_AI_WHATSAPP_KEY,
 
-      source: "api",
+  campaignName: "service_booking_request",
 
-      // PDF attachment
-      media: {
-        url: invoiceUrl,
-        filename: `Invoice-${customerName}.pdf`,
-      },
+  destination: destination,
 
-      buttons: [],
-      carouselCards: [],
-      location: {},
-      attributes: {},
-      paramsFallbackValue: {},
-    };
+  userName: "Limbu AI",
+
+  templateParams: [customerName],
+
+  source: "api",
+
+  media: {},
+
+  buttons: [],
+
+  carouselCards: [],
+
+  location: {},
+
+  attributes: {},
+
+  paramsFallbackValue: {
+    FirstName: customerName,
+  },
+};
 
     console.log("===== INVOICE WHATSAPP PAYLOAD =====");
     console.log(JSON.stringify(payload, null, 2));
@@ -177,32 +180,31 @@ export async function POST(req) {
 
     if (isSuccess) {
       return NextResponse.json({
-        success: true,
-        message: "Invoice sent successfully on WhatsApp",
-        submitted_message_id:
-          data.submitted_message_id || null,
-        invoiceUrl,
-        destination,
-        response: data,
-      });
+  success: true,
+  message: "WhatsApp template sent successfully",
+  submitted_message_id:
+    data.submitted_message_id || null,
+  destination,
+  response: data,
+});
     }
 
     // =====================================================
     // 9. API Failure
     // =====================================================
     return NextResponse.json(
-      {
-        success: false,
-        message:
-          data?.message ||
-          data?.error ||
-          "No messages were sent",
-        invoiceUrl,
-        destination,
-        response: data,
-      },
-      { status: 400 }
-    );
+  {
+    success: false,
+    message:
+      data?.message ||
+      data?.error ||
+      "No messages were sent",
+
+    destination,
+    response: data,
+  },
+  { status: 400 }
+);
   } catch (error) {
     console.error("SEND INVOICE WHATSAPP ERROR:", error);
 

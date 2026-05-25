@@ -35,7 +35,7 @@ export default function FooterSection() {
         // ✅ NEW ADD
         {
           label: "Google Business Service",
-          href: "/google-business-management-service",
+          href: "/services/google-bussiness-profile-management",
         },
 
         { label: "Local SEO", href: "/services/local-seo" },

@@ -9,7 +9,7 @@ const AISENSY_URL =
   "https://whatsapp.limbu.ai/api/campaigns/send";
 
 // Working API Key
-const API_KEY = process.env.LIMBU_API_KEY;
+const API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
   
 
 // Normalize Indian mobile number

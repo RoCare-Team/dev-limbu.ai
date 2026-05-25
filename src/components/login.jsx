@@ -196,9 +196,7 @@ export default function LoginPage() {
         localStorage.removeItem("paidPackage")
 localStorage.removeItem("paidService")
 
-console.log("LOGIN USER DATA =>", data.user);
-console.log("PAID PACKAGE =>", data.user.paidPackage);
-console.log("PAID SERVICE =>", data.user.paidService);
+
 
 localStorage.setItem("paidPackage", data.user.paidPackage || "")
 localStorage.setItem("paidService", data.user.paidService || "")

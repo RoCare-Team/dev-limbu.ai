@@ -32,63 +32,97 @@ export default function Page() {
   const totalPages = Math.ceil(data.slice(1).length / usersPerPage);
 
   useEffect(() => {
-  fetch("/api/admin/sheets-list")
+    fetch("/api/admin/sheets-list")
+      .then((res) => res.json())
+      .then((result) => {
+        const sortedSheets = (result.sheets || []).sort((a, b) => {
+          const numA = parseInt(a.replace(/\D/g, "")) || 0;
+
+          const numB = parseInt(b.replace(/\D/g, "")) || 0;
+
+          return numA - numB;
+        });
+
+        setSheets(sortedSheets);
+
+        if (sortedSheets.length > 0) {
+          setSheet(sortedSheets[0]);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+  setLoading(true);
+
+  fetch(`/api/admin/sheets?sheet=${sheet}`)
     .then((res) => res.json())
     .then((result) => {
 
-      const sortedSheets = (result.sheets || []).sort(
-        (a, b) => {
+      const uniqueData = [];
 
-          const numA =
-            parseInt(a.replace(/\D/g, "")) || 0;
+const seen = new Set();
 
-          const numB =
-            parseInt(b.replace(/\D/g, "")) || 0;
+(result.data || []).forEach((row, index) => {
 
-          return numA - numB;
-        }
-      );
+  // HEADER
+  if (index === 0) {
+    uniqueData.push(row);
+    return;
+  }
 
-      setSheets(sortedSheets);
+  const businessName =
+    String(row[0] || "").trim().toLowerCase();
 
-      if (sortedSheets.length > 0) {
-        setSheet(sortedSheets[0]);
-      }
+  const phone =
+    String(row[2] || "")
+      .replace(/\D/g, "")
+      .replace(/^91/, "");
+
+  // IF PHONE EMPTY → KEEP ROW
+  if (!phone) {
+    uniqueData.push(row);
+    return;
+  }
+
+  const key = `${businessName}-${phone}`;
+
+  if (!seen.has(key)) {
+
+    seen.add(key);
+
+    uniqueData.push(row);
+  }
+});
+
+setData(uniqueData);
+
+      setData(uniqueData);
+    })
+    .finally(() => {
+      setLoading(false);
     });
-}, []);
 
-  useEffect(() => {
-    setLoading(true);
+}, [sheet]);
 
-    fetch(`/api/admin/sheets?sheet=${sheet}`)
-      .then((res) => res.json())
-      .then((result) => {
-        setData(result.data || []);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [sheet]);
-
- const toggleRow = (rowIndex) => {
-  setSelectedRows((prev) =>
-    prev.includes(rowIndex)
-      ? prev.filter((i) => i !== rowIndex)
-      : [...prev, rowIndex]
-  );
-};
+  const toggleRow = (rowIndex) => {
+    setSelectedRows((prev) =>
+      prev.includes(rowIndex)
+        ? prev.filter((i) => i !== rowIndex)
+        : [...prev, rowIndex],
+    );
+  };
 
   const toggleAll = () => {
-  if (selectedRows.length === paginatedData.length) {
-    setSelectedRows([]);
-  } else {
-    setSelectedRows(paginatedData.map((_, i) => i));
-  }
-};
+    if (selectedRows.length === paginatedData.length) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(paginatedData.map((_, i) => i));
+    }
+  };
 
-const selectedUsers = paginatedData.filter((_, index) =>
-  selectedRows.includes(index)
-);
+  const selectedUsers = paginatedData.filter((_, index) =>
+    selectedRows.includes(index),
+  );
 
   if (loading) {
     return (
@@ -147,12 +181,12 @@ const selectedUsers = paginatedData.filter((_, index) =>
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-            <button
-  onClick={() => setOpenWhatsappModal(true)}
-  className="rounded-2xl bg-white px-6 py-3 font-semibold text-green-600 shadow hover:scale-105 transition"
->
-  WhatsApp
-</button>
+              <button
+                onClick={() => setOpenWhatsappModal(true)}
+                className="rounded-2xl bg-white px-6 py-3 font-semibold text-green-600 shadow hover:scale-105 transition"
+              >
+                WhatsApp
+              </button>
 
               <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-blue-600 shadow hover:scale-105 transition">
                 RCS
@@ -210,7 +244,7 @@ const selectedUsers = paginatedData.filter((_, index) =>
                       <input
                         type="checkbox"
                         checked={selectedRows.includes(rowIndex)}
-onChange={() => toggleRow(rowIndex)}
+                        onChange={() => toggleRow(rowIndex)}
                         className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
@@ -307,51 +341,48 @@ onChange={() => toggleRow(rowIndex)}
         </div>
       </div>
 
-    
-            <WhatsappModal
-  isOpen={openWhatsappModal}
-  setIsOpen={setOpenWhatsappModal}
-  selectedCount={selectedRows.length}
-  onSendTemplate={async (template) => {
+      <WhatsappModal
+        isOpen={openWhatsappModal}
+        setIsOpen={setOpenWhatsappModal}
+        selectedCount={selectedRows.length}
+        onSendTemplate={async (template) => {
+          const numbers = selectedUsers.map(
+            (row) => `91${String(row[2]).replace(/\D/g, "")}`,
+          );
 
-  const numbers = selectedUsers.map((row) =>
-    `91${String(row[2]).replace(/\D/g, "")}`
-  );
+          try {
+            const response = await fetch(
+              "/api/admin/user-management-template-whatsapp",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  adminEmail: "info@limbu.ai",
 
-  try {
+                  templateId: template.id,
 
-    const response = await fetch("/api/admin/user-management-template-whatsapp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-body: JSON.stringify({
-  adminEmail: "info@limbu.ai",
+                  users: selectedUsers.map((row) => ({
+                    name: row[0],
+                    phone: row[2],
+                  })),
+                }),
+              },
+            );
 
-  templateId: template.id,
+            const result = await response.json();
 
-  users: selectedUsers.map((row) => ({
-    name: row[0],
-    phone: row[2],
-  })),
-}),
-    });
+            console.log(result);
 
-    const result = await response.json();
+            alert("WhatsApp Template Sent");
+          } catch (error) {
+            console.log(error);
 
-    console.log(result);
-
-    alert("WhatsApp Template Sent");
-
-  } catch (error) {
-
-    console.log(error);
-
-    alert("Failed To Send Template");
-  }
-}}
-
-/>
+            alert("Failed To Send Template");
+          }
+        }}
+      />
     </>
   );
 }

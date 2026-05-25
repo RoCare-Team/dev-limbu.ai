@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 
+import Lottie from "lottie-react";
+import animationData from "../../../../src/assets/animation/Loading.json";
+
 import SelectedLeadsActionBar7 from "./component-modal/SelectedLeadsActionBar7";
 
 
@@ -84,6 +87,22 @@ const handleSelectRow = (id) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="w-40 h-40 mx-auto flex items-center justify-center">
+            <Lottie
+              animationData={animationData}
+              loop={true}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Container

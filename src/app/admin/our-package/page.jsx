@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { BOOKING_SOURCE_VALUES, bookingSourceLabel } from "@/lib/bookingSource";
 
+import Lottie from "lottie-react";
+import animationData from "../../../../src/assets/animation/Loading.json";
+
 import SelectedLeadsActionBar2 from "./component-modal/SelectedLeadsActionBar2"
 
 export default function PackageBookingList() {
@@ -80,12 +83,21 @@ const handleSelectRow = (id) => {
     fetchBookings();
   }, []);
 
-  if (loading)
+   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="w-40 h-40 mx-auto flex items-center justify-center">
+            <Lottie
+              animationData={animationData}
+              loop={true}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
       </div>
     );
+  }
 
   if (error)
     return (

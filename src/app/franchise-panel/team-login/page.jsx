@@ -32,9 +32,20 @@ export default function TeamLogin() {
       return;
     }
 
+    const franchiseCode =
+      data.user.franchiseCode || data.user.franchiseId || "";
     localStorage.setItem("franchise_team_token", data.token);
-    localStorage.setItem("franchise_team_user", JSON.stringify(data.user));
+    localStorage.setItem(
+      "franchise_team_user",
+      JSON.stringify({ ...data.user, franchiseCode }),
+    );
     localStorage.setItem("franchise_team_permissions", JSON.stringify(data.user.permissions));
+    localStorage.setItem("franchise_token", data.token);
+    localStorage.setItem(
+      "franchise_user",
+      JSON.stringify({ ...data.user, franchiseCode }),
+    );
+    localStorage.setItem("franchise_code", franchiseCode);
     router.push("/franchise-panel/dashboard");
   };
 

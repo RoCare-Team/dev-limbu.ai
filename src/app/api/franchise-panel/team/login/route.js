@@ -80,6 +80,7 @@ export async function POST(req) {
         role: teamMember.role,
         permissions: teamMember.permissions,
         franchiseId: teamMember.franchiseId,
+        franchiseCode: teamMember.franchiseId,
         franchiseName: franchise?.franchiseName || "Franchise",
       },
     });

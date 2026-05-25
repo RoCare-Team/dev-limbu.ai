@@ -86,6 +86,10 @@ export async function POST(req) {
         );
       }
 
+      const franchise = await FranchisePanel.findOne({
+        franchiseCode: teamMember.franchiseId,
+      }).lean();
+
       // Update login stats
       teamMember.lastLogin = new Date();
       teamMember.loginCount = (teamMember.loginCount || 0) + 1;
@@ -116,7 +120,8 @@ export async function POST(req) {
           role: teamMember.role,
           permissions: teamMember.permissions,
           franchiseId: teamMember.franchiseId,
-          franchiseName: "Franchise",
+          franchiseCode: teamMember.franchiseId,
+          franchiseName: franchise?.franchiseName || "Franchise",
         },
       });
     }

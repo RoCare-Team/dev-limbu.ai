@@ -95,7 +95,7 @@ export default function FranchisePackageBookingList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {data.map((item) => (
+              {!data.map((item) => (
                 <tr
                   key={item._id}
                   className="group hover:bg-blue-50 transition duration-200"

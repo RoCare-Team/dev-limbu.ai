@@ -44,7 +44,7 @@ export async function GET(req) {
       updatedAt: record.updatedAt,
     });
   } catch (err) {
-    console.error("[GET /api/reviews/auto-reply]", err);
+    console.error("[GET /api/review-app/auto-reply]", err);
     return NextResponse.json(
       { success: false, error: "Internal server error." },
       { status: 500 }

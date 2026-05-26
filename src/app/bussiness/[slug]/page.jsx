@@ -4,16 +4,7 @@ import { notFound } from "next/navigation";
 
 const SITE_URL = "https://limbu.ai";
 
-
-
-// ✅ Create slug from city
-function createFranchiseCitySlug(city) {
-  return `franchise-opportunities-${city
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")}`;
-}
+export const revalidate = 86400;
 
 // ✅ Extract city name from slug
 function getCityNameFromSlug(slug = "") {
@@ -33,21 +24,6 @@ function getCityNameFromSlug(slug = "") {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
-}
-
-// ✅ Generate static pages
-export function generateStaticParams() {
-  return [
-    // Base route
-    {
-      slug: "franchise-opportunities",
-    },
-
-    // City routes
-    ...POPULAR_CITIES.map((city) => ({
-      slug: createFranchiseCitySlug(city),
-    })),
-  ];
 }
 
 // ✅ Validate route

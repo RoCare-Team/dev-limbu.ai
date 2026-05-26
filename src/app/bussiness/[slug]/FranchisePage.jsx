@@ -27,7 +27,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { POPULAR_CITIES } from "@/utils/popularCity";
+import { mostCities, POPULAR_CITIES } from "@/utils/popularCity";
 
 // ✅ Moved OUTSIDE component so it's never undefined
 const PROFIT_CALCULATIONS = {
@@ -493,6 +493,9 @@ export default function FranchisePage() {
       const installmentNumber = isFirstPayment ? 1 : 2;
       const isLastPayment = amountToPay >= remaining;
 
+
+
+     
       // ── STEP 4: Open Razorpay ──
       const openPayment = async (amount, instNum, isLast) => {
         // ── Guard: amount valid hona chahiye ──
@@ -624,6 +627,9 @@ export default function FranchisePage() {
       setIsLoading(false);
     }
   };
+
+
+
 
   return (
     <div
@@ -1426,7 +1432,7 @@ export default function FranchisePage() {
 
           {/* Updated Grid: More compact cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {popularCities.map((city) => {
+            {mostCities.map((city) => {
               const citySlug = createFranchiseCitySlug(city);
               const isActiveCity =
                 cityName?.toLowerCase() === city.toLowerCase();

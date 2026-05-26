@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { POPULAR_CITIES } from "@/utils/popularCity";
+import { mostCities, POPULAR_CITIES } from "@/utils/popularCity";
 
 export default function GMBManagementServicePage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -646,7 +646,7 @@ export default function GMBManagementServicePage() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-3">
-              {POPULAR_CITIES.map((city) => {
+              {mostCities.map((city) => {
                 const citySlug = city
                   .trim()
                   .toLowerCase()

@@ -1,19 +1,25 @@
+
 import dbConnect from "@/lib/dbConnect";
 import CityServicePage from "@/models/CityServicePage";
 
 import DynamicServiceCityPage from "@/components/page-components/CityPage";
 import LocalSEOPage from "@/components/page-components/LocalSeo";
+import GbpNationalServicePage from "@/components/page-components/GbpNationalServicePage";
+import ServiceStructuredData from "@/components/seo/ServiceStructuredData";
 
 import { notFound } from "next/navigation";
 import { POPULAR_CITIES } from "@/utils/popularCity";
 
 const GBP_PREFIX = "google-bussiness-profile-management-";
+const GBP_BASE_SLUG = "google-bussiness-profile-management";
 const OLD_GBP_PREFIX = "google-bussiness-service-";
 
 const LOCAL_SEO_BASE_SLUG = "local-seo";
 const LOCAL_SEO_PREFIX = "local-seo-";
 
-const SITE_URL = "https://limbu.ai";
+const SITE_URL = "https://www.limbu.ai";
+
+export const revalidate = 86400;
 
 const POPULAR_LOCAL_SEO_CITIES = POPULAR_CITIES;
 
@@ -43,48 +49,6 @@ const isValidCity = (city = "") => {
   );
 };
 
-const createLocalSeoCitySlug = (city) => {
-  return `${LOCAL_SEO_PREFIX}${city
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")}`;
-};
-
-// =========================
-// STATIC PARAMS
-// =========================
-
-export function generateStaticParams() {
-  return [
-    // Base Local SEO page
-    {
-      slug: LOCAL_SEO_BASE_SLUG,
-    },
-
-    // Local SEO city pages
-    ...POPULAR_LOCAL_SEO_CITIES.map((city) => ({
-      slug: createLocalSeoCitySlug(city),
-    })),
-
-    // GBP pages
-    ...POPULAR_LOCAL_SEO_CITIES.map((city) => ({
-      slug: `${GBP_PREFIX}${city
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")}`,
-    })),
-
-    // Old GBP pages
-    ...POPULAR_LOCAL_SEO_CITIES.map((city) => ({
-      slug: `${OLD_GBP_PREFIX}${city
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")}`,
-    })),
-  ];
-}
-
 // =========================
 // METADATA
 // =========================
@@ -93,6 +57,42 @@ export async function generateMetadata({ params }) {
   const resolvedParams = await params;
 
   const slug = resolvedParams?.slug || "";
+
+  // =========================
+  // GBP NATIONAL PAGE
+  // =========================
+
+  if (slug === GBP_BASE_SLUG) {
+    const canonicalUrl = `${SITE_URL}/services/${slug}`;
+
+    return {
+      metadataBase: new URL(SITE_URL),
+      title:
+        "Google Business Profile Management Services | Google Maps SEO | Limbu.ai",
+      description:
+        "Manage and grow your Google Business Profile with AI-powered posts, reviews, local SEO, and Google Maps ranking support across India from Limbu.ai.",
+      alternates: {
+        canonical: canonicalUrl,
+      },
+      openGraph: {
+        title:
+          "Google Business Profile Management Services | Google Maps SEO | Limbu.ai",
+        description:
+          "Manage and grow your Google Business Profile with AI-powered posts, reviews, local SEO, and Google Maps ranking support across India from Limbu.ai.",
+        url: canonicalUrl,
+        siteName: "Limbu.ai",
+        type: "website",
+        locale: "en_IN",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title:
+          "Google Business Profile Management Services | Google Maps SEO | Limbu.ai",
+        description:
+          "Manage and grow your Google Business Profile with AI-powered posts, reviews, local SEO, and Google Maps ranking support across India from Limbu.ai.",
+      },
+    };
+  }
 
   // =========================
   // LOCAL SEO
@@ -327,33 +327,56 @@ export default async function DynamicServicePage({
   }
 
   // =========================
-  // GOOGLE BUSINESS PROFILE
+  // GBP NATIONAL PAGE
   // =========================
 
-  if (
-    slug.startsWith(GBP_PREFIX) ||
-    slug.startsWith(OLD_GBP_PREFIX)
-  ) {
-    const prefix = slug.startsWith(GBP_PREFIX)
-      ? GBP_PREFIX
-      : OLD_GBP_PREFIX;
+  if (slug === GBP_BASE_SLUG) {
+    const pageUrl = `${SITE_URL}/services/${slug}`;
+
+    return (
+      <>
+        <ServiceStructuredData
+          name="Google Business Profile Management Services"
+          description="AI-powered Google Business Profile management, local SEO, review automation, and Google Maps ranking support across India."
+          url={pageUrl}
+          areaServed="India"
+        />
+        <GbpNationalServicePage />
+      </>
+    );
+  }
+
+  // =========================
+  // GOOGLE BUSINESS PROFILE (CITY)
+  // =========================
+
+  if (slug.startsWith(GBP_PREFIX) || slug.startsWith(OLD_GBP_PREFIX)) {
+    const prefix = slug.startsWith(GBP_PREFIX) ? GBP_PREFIX : OLD_GBP_PREFIX;
 
     const city = extractCity(slug, prefix);
 
-    // ❌ Invalid city
     if (!isValidCity(city)) {
       return notFound();
     }
 
+    const cityName = formatCityName(city);
     const response = await getPageData(city);
+    const pageUrl = `${SITE_URL}/services/${slug}`;
 
     return (
-      <DynamicServiceCityPage
-        city={city}
-        slug={slug}
-        pageData={response.data}
-        loading={!response.success}
-      />
+      <>
+        <ServiceStructuredData
+          name={`Google Business Profile Management in ${cityName}`}
+          description={`Boost your ${cityName} business visibility with AI-powered Google Business Profile management, SEO optimization, reviews, and local ranking support from Limbu.ai.`}
+          url={pageUrl}
+          areaServed={cityName}
+        />
+        <DynamicServiceCityPage
+          city={city}
+          slug={slug}
+          pageData={response.data}
+        />
+      </>
     );
   }
 
@@ -362,7 +385,19 @@ export default async function DynamicServicePage({
   // =========================
 
   if (slug === LOCAL_SEO_BASE_SLUG) {
-    return <LocalSEOPage city="" slug={slug} />;
+    const pageUrl = `${SITE_URL}/services/${slug}`;
+
+    return (
+      <>
+        <ServiceStructuredData
+          name="Local SEO Services"
+          description="Grow your local business with Local SEO, Google Business Profile optimization, review automation, and AI-powered Google Maps ranking support from Limbu.ai."
+          url={pageUrl}
+          areaServed="India"
+        />
+        <LocalSEOPage city="" slug={slug} />
+      </>
+    );
   }
 
   // =========================
@@ -370,21 +405,25 @@ export default async function DynamicServicePage({
   // =========================
 
   if (slug.startsWith(LOCAL_SEO_PREFIX)) {
-    const city = extractCity(
-      slug,
-      LOCAL_SEO_PREFIX
-    );
+    const city = extractCity(slug, LOCAL_SEO_PREFIX);
 
-    // ❌ Invalid city
     if (!isValidCity(city)) {
       return notFound();
     }
 
+    const cityName = formatCityName(city);
+    const pageUrl = `${SITE_URL}/services/${slug}`;
+
     return (
-      <LocalSEOPage
-        city={city}
-        slug={slug}
-      />
+      <>
+        <ServiceStructuredData
+          name={`Local SEO Services in ${cityName}`}
+          description={`Grow your ${cityName} business with Local SEO, Google Business Profile optimization, review automation, and AI-powered Google Maps ranking support from Limbu.ai.`}
+          url={pageUrl}
+          areaServed={cityName}
+        />
+        <LocalSEOPage city={city} slug={slug} />
+      </>
     );
   }
 

@@ -2367,3 +2367,17 @@ export const POPULAR_CITIES =
 "Chandankiyari",
 "Chandausi",
 ]
+
+export const mostCities = [
+        "Mumbai",
+        "Delhi",
+        "Bangalore",
+        "Hyderabad",
+        "Ahmedabad",
+        "Chennai",
+        "Kolkata",
+        "Pune",
+        "Jaipur",
+        "Lucknow"
+
+      ]

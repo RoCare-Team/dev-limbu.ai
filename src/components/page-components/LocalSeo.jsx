@@ -1,6 +1,3 @@
-"use client";
-
-import { useAuthStore } from "@/stores/useAuthStore";
 import {
   CheckCircle,
   BarChart3,
@@ -18,9 +15,10 @@ import {
 import Navbar from "../sections/HeaderSection";
 import FooterSection from "../sections/FooterSection";
 import VideoModal from "../modals/VideoModal";
+import WatchDemoButton from "../ui/WatchDemoButton";
 import Link from "next/link";
 import Image from "next/image";
-import { POPULAR_CITIES } from "@/utils/popularCity";
+import { mostCities, POPULAR_CITIES } from "@/utils/popularCity";
 
 const POPULAR_LOCAL_SEO_CITIES = POPULAR_CITIES;
 
@@ -33,7 +31,6 @@ function createLocalSeoCitySlug(city) {
 }
 
 export default function LocalSEOPage({ city, slug }) {
-  const setSelectedVideo = useAuthStore((state) => state.setSelectedVideo);
   const cityName = city
     ? city
         .split("-")
@@ -71,19 +68,12 @@ export default function LocalSEOPage({ city, slug }) {
                 >
                   Get Free SEO Audit
                 </Link>
-                <button
-                  className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all group"
-                  onClick={() =>
-                    setSelectedVideo(
-                      "https://youtu.be/eQUd6u36w3g?si=_AJ3OymZQD6HnXRl",
-                    )
-                  }
-                >
+                <WatchDemoButton className="inline-flex justify-center items-center px-6 py-3.5 rounded-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all group">
                   Watch Demo
                   <span className="ml-2 inline-block transition-transform duration-200 group-hover:translate-x-1">
                     →
                   </span>
-                </button>
+                </WatchDemoButton>
               </div>
             </div>
             <div className="relative">
@@ -712,7 +702,7 @@ export default function LocalSEOPage({ city, slug }) {
 
               {/* RIGHT SIDE: SMALL CITY GRID */}
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                {POPULAR_LOCAL_SEO_CITIES.map((localCity) => {
+                {mostCities.map((localCity) => {
                   const citySlug = createLocalSeoCitySlug(localCity);
                   const isActiveCity =
                     cityName.toLowerCase() === localCity.toLowerCase();

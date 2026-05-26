@@ -8,7 +8,7 @@ import { getLocalStorage } from "@/utils/storage";
 function getActiveUserId() {
   const isImpersonating = getLocalStorage("isImpersonating") === "true";
   return isImpersonating
-    ? getLocalStorage("impersonatedUser") 
+    ? getLocalStorage("impersonatedUser")
     : getLocalStorage("userId");
 }
 
@@ -48,16 +48,26 @@ export function useInstagram(router, searchParams) {
 
   const handleDisconnectInstagram = useCallback(async (igId) => {
     const activeId = getActiveUserId();
-    if (!activeId) return;
 
-    // Optimistic UI Update
-    const previousPages = [...instagramPages];
-    setInstagramPages((prev) => prev.filter((p) => p.igId !== igId));
+    if (!activeId || !igId) return;
+
+    let previousPages = [];
+
+    // Optimistic UI update
+    setInstagramPages((prev) => {
+      previousPages = prev;
+
+      return prev.filter((p) => p.igId !== igId);
+    });
 
     try {
-      const res = await fetch(`/api/instagram/disconnect?userId=${activeId}&igId=${igId}`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `/api/instagram/disconnect?userId=${activeId}&igId=${igId}`,
+        {
+          method: "POST",
+        },
+      );
+
       const data = await res.json();
 
       if (data.success) {
@@ -67,10 +77,13 @@ export function useInstagram(router, searchParams) {
       }
     } catch (error) {
       console.error("Error disconnecting Instagram account:", error);
+
       toast.error("Failed to disconnect. Reverting...");
-      setInstagramPages(previousPages); // Rollback on error
+
+      // rollback
+      setInstagramPages(previousPages);
     }
-  }, [instagramPages]);
+  }, []);
 
   return {
     instagramPages,

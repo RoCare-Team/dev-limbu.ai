@@ -1,60 +1,37 @@
-"use client";
+import ImageGallery from "../ImageGallery";
 
-import Image from "next/image";
 
-export default function ExamplesSection({ postImages = [], setSelectedImage }) {
+const postImages = [
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481384-0-45547213-4951-4c5a-ab9d-39f30bbf1040-tmpx28dvfi__qxwt1c.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963484708-1-10bf8ae3-2297-4c4a-b74d-3286b6387343-LED_BOARD_MAKER_NEAR_ME_IN_VAISHALI_NAGAR_pethuq.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963484276-2-a91af316-4477-4485-b1e4-511e10177794-output_yd9alt.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963484589-3-b07e8d75-96dc-4bea-8eab-b594dcd6532a-Post_banana_Main_Ek_ka_ladiss_ka_makeup_Karta_Hai_HD_picture_send_karo_vp6d6s.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482280-4-34e89006-9fd6-4bba-aa4e-752496387bc6-Nutritionvalue_21_on_google_m2etix.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482076-5-3b3066e5-ddbf-4ba1-92a2-bd7e18fc926c-output_n1ahcx.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963482057-6-4c702ac6-e19b-4e26-ae3d-33915bb67bbe-output_ryar6j.jpg",
+  "https://limbuai.s3.ap-south-1.amazonaws.com/cloudinary-migration/1777963481136-7-5fb74cbe-4e95-4527-8720-b08089490a8e-tmp9x2d_a52_hvhpw8.jpg",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/ac_service_faeb35b3.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/men_s_salon_service_8e1ac38d.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/classic_lens_aa803764.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/water_purifier_service_in_summer_1828b7c5.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/ac_service_5e8cfd05.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/home_care_services_7ec35ed4.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/ro_service_957b2151.png",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/Commercial_water_purifier_installation_3bd8819b.jpg",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/fast_fan_services_445170da.jpg",
+  "https://s3.ap-south-1.amazonaws.com/limbuai/ad-images/ai/water_purifier_service_in_summer_0ef4c872.png",
+];
+
+export default function ExamplesSection() {
   return (
     <section
       id="examples"
-      className="relative w-full overflow-hidden py-12  border-t border-black/5"
+      className="relative w-full overflow-hidden py-12 border-t border-black/5"
       style={{ backgroundColor: "var(--background)" }}
     >
-      {/* ── Background grid texture ── */}
-      <div
-        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(15, 23, 42, 0.5) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(15, 23, 42, 0.5) 1px, transparent 1px)
-          `,
-          backgroundSize: "60px 60px",
-        }}
-      />
-
-      {/* ── Ambient glow — top center ── */}
-      <div
-        className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] z-0 opacity-10"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, rgba(250, 204, 21, 0.4) 0%, transparent 70%)",
-        }}
-      />
-
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
-        {/* ── Section Header ── */}
+        {/* HEADER */}
         <div className="text-center mb-12 sm:mb-16">
-          {/* Label chip */}
-          <div
-            className="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full"
-            style={{
-              background: "rgba(250, 204, 21, 0.1)",
-              border: "1px solid rgba(250, 204, 21, 0.2)",
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ backgroundColor: "var(--lemon-hover)" }}
-            />
-            <span
-              className="text-[11px] font-bold tracking-[0.2em] uppercase"
-              style={{ color: "var(--lemon-hover)" }}
-            >
-              Limbu AI-Powered Output
-            </span>
-          </div>
-
-          {/* Headline */}
           <h2
             className="font-bold uppercase leading-[0.95] tracking-tight mb-4"
             style={{
@@ -63,98 +40,13 @@ export default function ExamplesSection({ postImages = [], setSelectedImage }) {
               fontSize: "clamp(1.75rem, 4.5vw, 2.5rem)",
             }}
           >
-            Limbu AI-Generated{" "}
-            <span
-              style={{
-                color: "var(--lemon-hover)",
-              }}
-            >
-              Post Examples
-            </span>
+            Limbu AI Generated{" "}
+            <span style={{ color: "var(--lemon-hover)" }}>Post Examples</span>
           </h2>
-
-          {/* Divider line */}
-          <div className="flex items-center justify-center gap-3 mb-5">
-            <div
-              className="h-px w-16 sm:w-24"
-              style={{ background: "rgba(15, 23, 42, 0.1)" }}
-            />
-            <div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: "var(--lemon-hover)" }}
-            />
-            <div
-              className="h-px w-16 sm:w-24"
-              style={{ background: "rgba(15, 23, 42, 0.1)" }}
-            />
-          </div>
-
-          <p
-            className="text-sm sm:text-base md:text-lg leading-relaxed max-w-xl mx-auto font-semibold"
-            style={{ color: "rgba(15, 23, 42, 0.6)" }}
-          >
-            Explore advanced AI solutions tailored to accelerate growth for
-            businesses like yours.
-          </p>
         </div>
 
-        {/* ── Image Slider ── */}
-        <div className="relative">
-          {/* Scrolling track */}
-          <div className="overflow-hidden rounded-2xl">
-            <div className="flex gap-4 animate-scroll">
-              {[...postImages, ...postImages].map((image, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedImage(image)}
-                  className="shrink-0 w-56 h-64 sm:w-64 sm:h-72 cursor-pointer group relative overflow-hidden rounded-xl bg-slate-50 shadow-sm"
-                  style={{
-                    border: "1px solid rgba(15, 23, 42, 0.05)",
-                  }}
-                >
-                  {/* Image */}
-                  <Image
-                    src={image}
-                    width={256}
-                    height={288}
-                    alt={`Post example ${idx + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-
-                  {/* Hover overlay */}
-                  <div
-                    className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{
-                      background:
-                        "linear-gradient(to top, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.1) 60%, transparent 100%)",
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[10px] font-bold tracking-[0.15em] uppercase"
-                        style={{ color: "#ffffff" }}
-                      >
-                        View Post
-                      </span>
-                      <span style={{ color: "#ffffff", fontSize: "12px" }}>
-                        ↗
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Corner accent */}
-                  <div
-                    className="absolute top-0 right-0 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{
-                      borderTop: "2px solid var(--lemon-hover)",
-                      borderRight: "2px solid var(--lemon-hover)",
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* CLIENT GALLERY */}
+        <ImageGallery images={postImages} />
       </div>
     </section>
   );

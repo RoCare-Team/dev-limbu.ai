@@ -1,161 +1,383 @@
 "use client";
 
-import { Bot, ChevronRight, MessageCircle, RefreshCw } from "lucide-react";
+import {
+  Box,
+  Button,
+  Card,
+  CardActionArea,
+  Stack,
+  Typography,
+  CircularProgress,
+  Chip,
+} from "@mui/material";
+
+import {
+  SmartToy,
+  Refresh,
+  ChevronRight,
+  ChatBubbleOutline,
+} from "@mui/icons-material";
 
 export default function ChatbotDailyChatCards({
   stats,
   loading,
   activeDay,
+  activeKey,
   onRefresh,
   onSelectDay,
+  onSelectCard,
+  title = "WhatsApp Chatbot Leads",
+  subtitle = "Only chat-started users appear below",
+  cards,
 }) {
-  const cards = [
-    {
-      key: "today",
-      title: "Today",
-      hint: "Talked to the chatbot today",
-      count: stats?.today?.count ?? 0,
-      sub: stats?.today?.label || "Today",
-      activeClass:
-        "bg-emerald-500 text-white border-emerald-600 ring-2 ring-emerald-300 shadow-md",
-      idleClass:
-        "bg-emerald-50 text-gray-800 border-emerald-200 hover:border-emerald-400 hover:shadow-md hover:bg-emerald-100/80 cursor-pointer",
-      iconBgActive: "bg-white/20 text-white",
-      iconBgIdle: "bg-emerald-100 text-emerald-700",
-    },
-    {
-      key: "yesterday",
-      title: "Yesterday",
-      hint: "Talked to the chatbot yesterday",
-      count: stats?.yesterday?.count ?? 0,
-      sub: stats?.yesterday?.label || "Yesterday",
-      activeClass:
-        "bg-violet-600 text-white border-violet-700 ring-2 ring-violet-300 shadow-md",
-      idleClass:
-        "bg-violet-50 text-gray-800 border-violet-200 hover:border-violet-400 hover:shadow-md hover:bg-violet-100/80 cursor-pointer",
-      iconBgActive: "bg-white/20 text-white",
-      iconBgIdle: "bg-violet-100 text-violet-700",
-    },
-  ];
+  const effectiveActiveKey = activeDay ?? activeKey;
+  const handleSelect = (key) => {
+    if (typeof onSelectDay === "function") return onSelectDay(key);
+    if (typeof onSelectCard === "function") return onSelectCard(key);
+  };
+
+  const rawCards =
+    cards ?? [
+      {
+        key: "today",
+        title: "Today",
+        hint: "Today chatbot users",
+        count: stats?.today?.count ?? 0,
+        color: "#10b981",
+        bg: "#ecfdf5",
+      },
+      {
+        key: "yesterday",
+        title: "Yesterday",
+        hint: "Yesterday chatbot users",
+        count: stats?.yesterday?.count ?? 0,
+        color: "#7c3aed",
+        bg: "#f5f3ff",
+      },
+      {
+        key: "new",
+        title: "New",
+        hint: "New stage leads",
+        count: stats?.new?.count ?? 0,
+        color: "#3b82f6",
+        bg: "#eff6ff",
+      },
+      {
+        key: "contacted",
+        title: "Contacted",
+        hint: "Contacted stage leads",
+        count: stats?.contacted?.count ?? 0,
+        color: "#f59e0b",
+        bg: "#fffbeb",
+      },
+      {
+        key: "interested",
+        title: "Interested",
+        hint: "Interested stage leads",
+        count: stats?.interested?.count ?? 0,
+        color: "#8b5cf6",
+        bg: "#f5f3ff",
+      },
+      {
+        key: "demo",
+        title: "Demo Scheduled",
+        hint: "Demo scheduled leads",
+        count: stats?.demo?.count ?? 0,
+        color: "#06b6d4",
+        bg: "#ecfeff",
+      },
+      {
+        key: "proposal",
+        title: "Proposal Sent",
+        hint: "Proposal sent leads",
+        count: stats?.proposal?.count ?? 0,
+        color: "#ec4899",
+        bg: "#fdf2f8",
+      },
+      {
+        key: "won",
+        title: "Won",
+        hint: "Deals won",
+        count: stats?.won?.count ?? 0,
+        color: "#10b981",
+        bg: "#ecfdf5",
+        metricLabel: "deals",
+      },
+      {
+        key: "lost",
+        title: "Lost",
+        hint: "Deals lost",
+        count: stats?.lost?.count ?? 0,
+        color: "#ef4444",
+        bg: "#fef2f2",
+        metricLabel: "deals",
+      },
+      {
+        key: "followup",
+        title: "Follow-up",
+        hint: "Follow-up pending leads",
+        count: stats?.followup?.count ?? 0,
+        color: "#f97316",
+        bg: "#fff7ed",
+      },
+    ];
+
+  // Sirf count > 0 wale cards dikhao
+  const cardsData = rawCards.filter((card) => card.count > 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-3 py-2 mb-2">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-100 to-indigo-100 flex items-center justify-center shrink-0">
-            <Bot className="text-indigo-600" size={16} />
-          </div>
+    <Card
+      elevation={0}
+      sx={{
+        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        p: 1.5,
+        mb: 1.5,
+        background: "#fff",
+      }}
+    >
+      {/* Header */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={1}
+        mb={1.5}
+      >
+        <Stack direction="row" spacing={1.2} alignItems="center">
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #d1fae5 0%, #e0e7ff 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <SmartToy sx={{ fontSize: 18, color: "#4f46e5" }} />
+          </Box>
 
-          <div className="min-w-0">
-            <h3 className="text-xs font-bold text-gray-800 sm:text-sm">
-              WhatsApp Chatbot Leads
-            </h3>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: "13px",
+                fontWeight: 700,
+                lineHeight: 1.2,
+                color: "#111827",
+                fontFamily: "var(--font-inter)",
+                "& *": {
+                  fontFamily: "var(--font-inter)",
+                },
+              }}
+            >
+              {title}
+            </Typography>
 
-            <p className="text-[10px] text-gray-500 sm:text-[11px] leading-tight">
-              Click card — Only the leads who have started a chat will be
-              displayed in the table below.
-            </p>
-          </div>
-        </div>
+            <Typography
+              sx={{
+                fontSize: "10px",
+                color: "#6b7280",
+                mt: 0.2,
+                lineHeight: 1.3,
+                fontFamily: "var(--font-inter)",
+                "& *": {
+                  fontFamily: "var(--font-inter)",
+                },
+              }}
+            >
+              {subtitle}
+            </Typography>
+          </Box>
+        </Stack>
 
-        <button
-          type="button"
+        <Button
           onClick={onRefresh}
           disabled={loading}
-          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 shrink-0"
+          size="small"
+          variant="outlined"
+          startIcon={
+            loading ? (
+              <CircularProgress size={12} />
+            ) : (
+              <Refresh sx={{ fontSize: 14 }} />
+            )
+          }
+          sx={{
+            minWidth: "auto",
+            px: 1.2,
+            py: 0.4,
+            borderRadius: "8px",
+            textTransform: "none",
+            fontSize: "10px",
+            fontWeight: 700,
+            borderColor: "#e5e7eb",
+            color: "#374151",
+          }}
         >
-          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
-      </div>
+          Refresh
+        </Button>
+      </Stack>
 
-      <div className="grid grid-cols-2 gap-2 max-w-md">
-        {cards.map(
-          ({
-            key,
-            title,
-            hint,
-            count,
-            activeClass,
-            idleClass,
-            iconBgActive,
-            iconBgIdle,
-          }) => {
-            const active = activeDay === key;
+      {/* Cards */}
+      {cardsData.length === 0 ? (
+        <Typography
+          sx={{
+            textAlign: "center",
+            fontSize: "12px",
+            color: "#9ca3af",
+            py: 2,
+          }}
+        >
+          No active leads right now.
+        </Typography>
+      ) : (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: 1,
+          }}
+        >
+          {cardsData.map((card) => {
+            const active = effectiveActiveKey === card.key;
 
             return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onSelectDay(key)}
-                disabled={loading}
-                className={`group rounded-md border px-2 py-1.5 text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-60 w-full ${
-                  active ? activeClass : idleClass
-                }`}
+              <Card
+                key={card.key}
+                elevation={0}
+                sx={{
+                  borderRadius: "12px",
+                  border: active
+                    ? `1.5px solid ${card.color}`
+                    : "1px solid #e5e7eb",
+                  background: active ? card.color : "#fff",
+                  transition: "0.2s",
+                  overflow: "hidden",
+                  fontFamily: "var(--font-inter)",
+                  "& *": {
+                    fontFamily: "var(--font-inter)",
+                  },
+                }}
               >
-                <div className="flex items-start justify-between gap-1">
-                  <div
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
-                      active ? iconBgActive : iconBgIdle
-                    }`}
+                <CardActionArea
+                  disabled={loading}
+                  onClick={() => handleSelect(card.key)}
+                  sx={{
+                    p: 1.2,
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
                   >
-                    <MessageCircle size={12} />
-                  </div>
+                    <Box
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: "8px",
+                        background: active
+                          ? "rgba(255,255,255,0.18)"
+                          : card.bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <ChatBubbleOutline
+                        sx={{
+                          fontSize: 15,
+                          color: active ? "#fff" : card.color,
+                        }}
+                      />
+                    </Box>
 
-                  <ChevronRight
-                    size={14}
-                    className={`shrink-0 opacity-60 transition group-hover:translate-x-0.5 ${
-                      active ? "text-white" : "text-gray-400"
-                    }`}
+                    <ChevronRight
+                      sx={{
+                        fontSize: 16,
+                        color: active ? "#fff" : "#9ca3af",
+                      }}
+                    />
+                  </Stack>
+
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      fontSize: "9px",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      color: active ? "rgba(255,255,255,0.85)" : "#6b7280",
+                    }}
+                  >
+                    {card.prefix
+                      ? `${card.prefix} • ${card.title}`
+                      : card.title}
+                  </Typography>
+
+                  <Stack
+                    direction="row"
+                    alignItems="flex-end"
+                    spacing={0.5}
+                    mt={0.4}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "24px",
+                        fontWeight: 900,
+                        lineHeight: 1,
+                        color: active ? "#fff" : "#111827",
+                      }}
+                    >
+                      {loading ? "..." : card.count}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        mb: 0.2,
+                        color: active ? "rgba(255,255,255,0.8)" : "#6b7280",
+                      }}
+                    >
+                      {card.metricLabel || "leads"}
+                    </Typography>
+                  </Stack>
+
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      fontSize: "9px",
+                      color: active ? "rgba(255,255,255,0.8)" : "#6b7280",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {card.hint}
+                  </Typography>
+
+                  <Chip
+                    label={active ? "Showing in table" : "Click to view"}
+                    size="small"
+                    sx={{
+                      mt: 1,
+                      height: 20,
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      background: active
+                        ? "rgba(255,255,255,0.18)"
+                        : card.bg,
+                      color: active ? "#fff" : card.color,
+                      borderRadius: "6px",
+                    }}
                   />
-                </div>
-
-                <p
-                  className={`mt-1 text-[8px] font-bold uppercase tracking-wide ${
-                    active ? "text-white/90" : "text-gray-500"
-                  }`}
-                >
-                  Chatbot · {title}
-                </p>
-
-                <p
-                  className={`text-lg font-black tabular-nums leading-none mt-0.5 ${
-                    active ? "text-white" : "text-gray-900"
-                  }`}
-                >
-                  {loading ? "…" : count}
-
-                  <span
-                    className={`text-[10px] font-bold ml-1 ${
-                      active ? "text-white/80" : "text-gray-500"
-                    }`}
-                  >
-                    leads
-                  </span>
-                </p>
-
-                <p
-                  className={`text-[8px] mt-0.5 font-medium line-clamp-1 ${
-                    active ? "text-white/85" : "text-gray-600"
-                  }`}
-                >
-                  {hint}
-                </p>
-
-                <p
-                  className={`text-[8px] font-semibold mt-0.5 flex items-center gap-0.5 ${
-                    active ? "text-white" : "text-indigo-600"
-                  }`}
-                >
-                  {active ? "Showing in the table" : "Click — view in table"}
-
-                  <ChevronRight size={9} />
-                </p>
-              </button>
+                </CardActionArea>
+              </Card>
             );
-          },
-        )}
-      </div>
-    </div>
+          })}
+        </Box>
+      )}
+    </Card>
   );
 }

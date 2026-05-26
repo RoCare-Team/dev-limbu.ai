@@ -14,7 +14,31 @@ import { listUsersForChatbotChatDay } from "@/lib/limbuBotUserSync";
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
 const LIMBUBOT_HISTORY_BASE =
-  process.env.LIMBUBOT_HISTORY_BASE || "https://limbubot.limbutech.in/history";
+  process.env.LIMBUBOT_HISTORY_BASE ||
+  "https://whatsapp.limbu.ai/api/external/contact";
+const WHATSAPP_EXTERNAL_API_KEY =
+  process.env.WHATSAPP_EXTERNAL_API_KEY ||
+  process.env.LIMBUBOT_ADMIN_API_KEY ||
+  process.env.LIMBUBOT_ADMIN_TOKEN ||
+  "ws_2870c7f6bc8510381dc45e74df26a870d69f0512b17abade";
+
+function normalizePhoneE164(value) {
+  let digits = String(value || "").replace(/^wa_/i, "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 10) digits = `91${digits}`;
+  return digits;
+}
+
+function mapWhatsAppMessageToHistory(message = {}) {
+  return {
+    role:
+      String(message.direction || "").toLowerCase() === "inbound"
+        ? "user"
+        : "assistant",
+    content: String(message.content || ""),
+    time: message.sent_at || message.created_at || "",
+  };
+}
 
 function getLimbuBotHistoryUserId(user = {}) {
   const explicit =
@@ -51,53 +75,66 @@ function getConversationStageFromHistory(history = [], user = {}) {
   const assistantMessages = history.filter(
     (item) => String(item?.role || "").toLowerCase() === "assistant",
   );
-  const hasUserMessage = history.some(
+  const inboundUserMessageCount = history.filter(
     (item) =>
       String(item?.role || "").toLowerCase() === "user" &&
       String(item?.content || "").trim() !== "",
-  );
+  ).length;
   const hasText = (...keywords) =>
     assistantMessages.some((item) => {
       const content = String(item?.content || "").toLowerCase();
       return keywords.some((keyword) => content.includes(keyword.toLowerCase()));
     });
 
-  if (hasUserMessage) steps.push("Initial Conversation");
-  if (
+  const hasConnectedStage =
     hasGmbConnected(user) ||
     hasText(
       "Congrats! Apka Account connect ho gaya!",
       "Badhaai ho! Account connect ho gaya!",
       "Account connect ho gaya",
-    )
-  ) {
+    );
+  const downstreamSteps = [];
+
+  if (hasText("Full Health report")) downstreamSteps.push("GMB Health");
+  if (hasText("Magic QR ready hai!")) downstreamSteps.push("Magic QR");
+  if (hasText("Full Report (PDF)")) downstreamSteps.push("GMB Insight");
+  if (hasText("Website URL")) downstreamSteps.push("Build Website");
+
+  if (inboundUserMessageCount >= 2) steps.push("Initial Conversation");
+  if (hasConnectedStage || downstreamSteps.length > 0) {
     steps.push("GMB Connected");
   }
-  if (hasText("Full Health report")) steps.push("GMB Health");
-  if (hasText("Magic QR ready hai!")) steps.push("Magic QR");
-  if (hasText("Full Report (PDF)")) steps.push("GMB Insight");
-  if (hasText("Website URL")) steps.push("Build Website");
+  steps.push(...downstreamSteps);
 
   return { steps };
 }
 
 async function fetchLimbuBotHistory(userId) {
   if (!userId || userId === "wa_") return [];
+  const phone = normalizePhoneE164(userId);
+  if (!phone) return [];
 
   try {
-    const upstream = await fetch(
-      `${LIMBUBOT_HISTORY_BASE}/${encodeURIComponent(userId)}`,
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
+    const url = new URL(LIMBUBOT_HISTORY_BASE);
+    url.searchParams.set("phone", phone);
+
+    const upstream = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-API-Key": WHATSAPP_EXTERNAL_API_KEY,
       },
-    );
+      cache: "no-store",
+    });
 
     if (!upstream.ok) return [];
 
     const data = await upstream.json().catch(() => ({}));
-    return Array.isArray(data?.history) ? data.history : [];
+    if (Array.isArray(data?.history)) return data.history;
+    if (Array.isArray(data?.messages)) {
+      return data.messages.map(mapWhatsAppMessageToHistory);
+    }
+    return [];
   } catch (error) {
     console.error("Conversation stage history fetch failed:", error);
     return [];
@@ -105,7 +142,8 @@ async function fetchLimbuBotHistory(userId) {
 }
 
 async function getConversationStageUserIds(baseQuery, conversationStage) {
-  if (!conversationStage || conversationStage === "All") return null;
+  const normalizedStage = String(conversationStage || "").trim().toLowerCase();
+  if (!normalizedStage || normalizedStage === "all") return null;
 
   const candidates = await User.find(baseQuery)
     .select(
@@ -120,23 +158,30 @@ async function getConversationStageUserIds(baseQuery, conversationStage) {
     const chunk = candidates.slice(i, i + chunkSize);
     const matches = await Promise.all(
       chunk.map(async (user) => {
-        if (conversationStage === "GMB Connected" && hasGmbConnected(user)) {
-          return true;
-        }
-
         const historyUserId = getLimbuBotHistoryUserId(user);
-        if (!historyUserId || historyUserId === "wa_") {
-          return conversationStage === "No Activity" && !hasGmbConnected(user);
-        }
-
-        const history = await fetchLimbuBotHistory(historyUserId);
+        const history = historyUserId && historyUserId !== "wa_"
+          ? await fetchLimbuBotHistory(historyUserId)
+          : [];
         const steps = getConversationStageFromHistory(history, user).steps || [];
+        const hasHistory = Array.isArray(history) && history.length > 0;
+        const connected = hasGmbConnected(user);
+        const hasStage = steps.some(
+          (step) => String(step || "").toLowerCase() === normalizedStage,
+        );
 
-        if (conversationStage === "No Activity") {
-          return steps.length === 0;
+        if (normalizedStage === "gmb connected") {
+          return connected || hasStage;
         }
 
-        return steps.includes(conversationStage);
+        if (normalizedStage === "initial conversation") {
+          return hasHistory && hasStage;
+        }
+
+        if (normalizedStage === "no activity") {
+          return !hasHistory && !connected;
+        }
+
+        return hasStage;
       }),
     );
 
@@ -416,7 +461,7 @@ export async function GET(req) {
     const endDateParam = searchParams.get("endDate");
     const leadStatus = searchParams.get("leadStatus");
     const leadStage = searchParams.get("leadStage");
-    const conversationStage = searchParams.get("conversationStage");
+    const conversationStage = (searchParams.get("conversationStage") || "").trim();
     const remarkCount = searchParams.get("remarkCount");
     const chatbotChatDay = searchParams.get("chatbotChatDay");
 

@@ -5,7 +5,7 @@ import Franchise from "@/models/Franchise";
 export async function POST(request) {
   try {
     await dbConnect();
-
+    const applicationTotal = Number(totalAmount);
     const body = await request.json();
     const {
       name,
@@ -28,10 +28,6 @@ export async function POST(request) {
         },
         { status: 400 },
       );
-    }
-
-    if (totalAmount) {
-      const applicationTotal = Number(totalAmount);
     }
 
     if (!applicationTotal || isNaN(applicationTotal) || applicationTotal <= 0) {

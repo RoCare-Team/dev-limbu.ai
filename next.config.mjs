@@ -110,6 +110,14 @@ const nextConfig = {
         hostname: "*.s3.*.amazonaws.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "plus.unsplash.com",
+      },
     ],
   },
 

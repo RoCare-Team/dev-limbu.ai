@@ -35,6 +35,18 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+
+      // Cloudinary HTTP
+      {
+        protocol: "http",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "limbuai.s3.amazonaws.com",
         pathname: "/**",
       },
@@ -102,12 +114,7 @@ const nextConfig = {
   },
 
   // Keep heavy native packages outside webpack bundle
-  serverExternalPackages: [
-    "pdfkit",
-    "canvas",
-    "sharp",
-    "fontkit",
-  ],
+  serverExternalPackages: ["pdfkit", "canvas", "sharp", "fontkit"],
 
   experimental: {
     serverActions: {

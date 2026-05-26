@@ -10,7 +10,7 @@ function getActiveUserId() {
   const isImpersonating = getLocalStorage("isImpersonating") === "true";
   return isImpersonating
     ? getLocalStorage("impersonatedUser") // ID of the user being impersonated
-    : getLocalStorage("userId");          // Own user ID
+    : getLocalStorage("userId"); // Own user ID
 }
 
 export function useFacebook(router, searchParams) {
@@ -49,16 +49,26 @@ export function useFacebook(router, searchParams) {
 
   const handleDisconnectFacebook = useCallback(async (pageId) => {
     const activeId = getActiveUserId();
-    if (!activeId) return;
 
-    // Optimistic UI Update
-    const previousPages = [...facebookPages];
-    setFacebookPages((prev) => prev.filter((p) => p.pageId !== pageId));
+    if (!activeId || !pageId) return;
+
+    let previousPages = [];
+
+    // Optimistic UI update
+    setFacebookPages((prev) => {
+      previousPages = prev;
+
+      return prev.filter((p) => p.pageId !== pageId);
+    });
 
     try {
-      const res = await fetch(`/api/facebook/disconnect?userId=${activeId}&pageId=${pageId}`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `/api/facebook/disconnect?userId=${activeId}&pageId=${pageId}`,
+        {
+          method: "POST",
+        },
+      );
+
       const data = await res.json();
 
       if (data.success) {
@@ -68,10 +78,13 @@ export function useFacebook(router, searchParams) {
       }
     } catch (error) {
       console.error("Error disconnecting Facebook page:", error);
+
       toast.error("Failed to disconnect. Reverting...");
-      setFacebookPages(previousPages); // Rollback on error
+
+      // rollback
+      setFacebookPages(previousPages);
     }
-  }, [facebookPages]);
+  }, []);
 
   return {
     facebookPages,

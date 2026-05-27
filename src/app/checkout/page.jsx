@@ -10,15 +10,18 @@ import {
   mergePricingLanding,
 } from "@/lib/pricingLandingDefaults"
 import {
+  applyDiscountToModalPlan,
   buildModalPlanForCheckout,
   findPlanByKey,
   normalizeBillingCycle,
+  parseCheckoutDiscountPercent,
 } from "@/lib/planCheckout"
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const planKey       = searchParams.get("planKey")
   const cycleParam    = searchParams.get("cycle")
+  const discountPercent = parseCheckoutDiscountPercent(searchParams)
   const chatSessionId = searchParams.get("session_id")?.trim() || ""
   // Phone-based chatbot flow: ?phone=919876543210
   const phoneFromUrl  = (searchParams.get("phone") || "").replace(/\D/g, "")
@@ -53,11 +56,13 @@ function CheckoutContent() {
     setLoading(true)
     setError(null)
 
-    fetch("/api/home-data?type=pricingLanding")
+    fetch("/api/home-data?type=pricingLanding&checkout=1")
       .then((r) => (r.ok ? r.json() : null))
       .then((doc) => {
         if (cancelled) return
-        const merged = expandPricingLandingForApi(mergePricingLanding(doc))
+        const merged = expandPricingLandingForApi(mergePricingLanding(doc), {
+          applyChatbotPriceDiscount: false,
+        })
         const found = findPlanByKey(merged, planKey)
         if (!found) {
           setError("Invalid or unknown plan. Check planKey.")
@@ -65,7 +70,10 @@ function CheckoutContent() {
           return
         }
         const cycle = normalizeBillingCycle(cycleParam)
-        const modalPlan = buildModalPlanForCheckout(found, cycle)
+        const modalPlan = applyDiscountToModalPlan(
+          buildModalPlanForCheckout(found, cycle),
+          discountPercent,
+        )
         setSelectedPlan(modalPlan)
         setBookingSuccess(false)
         setShowServiceModal(true)
@@ -81,7 +89,7 @@ function CheckoutContent() {
     return () => {
       cancelled = true
     }
-  }, [planKey, cycleParam])
+  }, [planKey, cycleParam, discountPercent])
 
   const handleServicePayment = useCallback(
     async (e) => {
@@ -136,7 +144,7 @@ function CheckoutContent() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   ...serviceForm,
-                  bookingSource: "website",
+                  bookingSource: phoneFromUrl ? "chatbot" : "website",
                   planTitle: selectedPlan.title,
                   planType: selectedPlan.planType,
                   planDuration: selectedPlan.planDuration ?? "",

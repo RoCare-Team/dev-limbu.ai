@@ -3,7 +3,12 @@ import {
   getCheckoutTestPlanForSubscriptionApi,
 } from "./checkoutTestPlan"
 import { getPublicSiteUrl } from "./siteUrl"
-import { buildCheckoutUrl, normalizeBillingCycle } from "./planCheckout"
+import {
+  appendChatbotDiscountToCheckoutUrl,
+  applyChatbotDiscountToPlan,
+  buildCheckoutUrl,
+  normalizeBillingCycle,
+} from "./planCheckout"
 
 /**
  * Default title → planKey for subscription catalog (matches pricingLanding / checkout).
@@ -134,7 +139,12 @@ export function expandSubscriptionPlansForApi(data) {
             paymentLink = toAbsoluteUrl(relative)
           }
 
-          const out = { ...plan, paymentLink }
+          const link = appendChatbotDiscountToCheckoutUrl(paymentLink)
+          const out = applyChatbotDiscountToPlan({
+            ...plan,
+            paymentLink: link,
+            planLink: link,
+          })
           if (inferredKey && !plan.planKey) {
             out.planKey = inferredKey
           }

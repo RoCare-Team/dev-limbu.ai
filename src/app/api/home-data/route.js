@@ -51,12 +51,15 @@ export async function GET(req) {
 
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type");
+  const forCheckout = searchParams.get("checkout") === "1";
 
   if (type) {
     if (type === "pricingLanding") {
       const doc = await HomeData.findOne({ type: "pricingLanding" }).lean();
       const merged = mergePricingLanding(doc);
-      const data = expandPricingLandingForApi(merged);
+      const data = expandPricingLandingForApi(merged, {
+        applyChatbotPriceDiscount: !forCheckout,
+      });
       if (!doc) {
         return NextResponse.json({ type: "pricingLanding", data });
       }

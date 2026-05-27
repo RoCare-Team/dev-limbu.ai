@@ -3,6 +3,10 @@ import {
   CHECKOUT_TEST_PLAN_KEY,
 } from "./checkoutTestPlan"
 import { getPublicSiteUrl } from "./siteUrl"
+import {
+  appendChatbotDiscountToCheckoutUrl,
+  applyChatbotDiscountToPlan,
+} from "./planCheckout"
 
 /**
  * Merges CMS plan rows onto defaults by `planKey` so partial DB data never drops catalog items.
@@ -395,8 +399,12 @@ function toAbsolutePurchaseLink(plan) {
 
 /**
  * Ensures each plan has absolute `purchaseLink` + `purchselink` + `paymentLink` (same value) for API/chatbot.
+ * @param {{ applyChatbotPriceDiscount?: boolean }} [options]
+ *   - `applyChatbotPriceDiscount` (default true): 10% off plan price only; GST recalculated at 18%.
+ *     Set false for /checkout page load (discount applied once from URL `discount` param).
  */
-export function expandPricingLandingForApi(merged) {
+export function expandPricingLandingForApi(merged, options = {}) {
+  const applyChatbotPriceDiscount = options.applyChatbotPriceDiscount !== false
   if (!merged || typeof merged !== "object") return merged
   const mergedWithTest = appendCheckoutTestPlanToLanding(merged)
   const out = {
@@ -407,12 +415,18 @@ export function expandPricingLandingForApi(merged) {
     if (!Array.isArray(mergedWithTest[key])) continue
     out[key] = mergedWithTest[key].map((plan) => {
       if (!plan || typeof plan !== "object") return plan
-      const abs = toAbsolutePurchaseLink(plan)
+      const priced = applyChatbotPriceDiscount
+        ? applyChatbotDiscountToPlan(plan)
+        : plan
+      const abs = applyChatbotPriceDiscount
+        ? appendChatbotDiscountToCheckoutUrl(toAbsolutePurchaseLink(priced))
+        : toAbsolutePurchaseLink(priced)
       const withLinks = {
-        ...plan,
+        ...priced,
         purchaseLink: abs,
         purchselink: abs,
         paymentLink: abs,
+        planLink: abs,
       }
       if (withLinks.planKey === CHECKOUT_TEST_PLAN_KEY) {
         return { ...withLinks, listOnHomepage: false }

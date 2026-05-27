@@ -128,6 +128,15 @@ export async function GET(req) {
         );
 
         if (igRes.data.instagram_business_account) {
+          const chatbotFields =
+            parsed.source === "chatbot" && parsed.phone
+              ? {
+                  phone: parsed.phone,
+                  type: "instagram",
+                  connectionSource: "chatbot",
+                }
+              : {};
+
           igAccounts.push({
             userId,
             igId: igRes.data.instagram_business_account.id,
@@ -137,6 +146,7 @@ export async function GET(req) {
             userAccessToken: userToken,
             ...(tokenExpiryDate ? { userTokenExpiresAt: tokenExpiryDate } : {}),
             platform: "instagram",
+            ...chatbotFields,
           });
         }
       } catch (err) {
@@ -160,24 +170,15 @@ export async function GET(req) {
        5️⃣ SAVE ACCOUNTS
     -------------------------------------------------- */
 
-    if (parsed.source === "chatbot" && parsed.phone) {
-      await InstagramPage.deleteMany({
-        userId,
-        phone: parsed.phone,
-        connectionSource: "chatbot",
-      });
-    } else {
-      await InstagramPage.deleteMany({
-        userId,
-        $or: [
-          { connectionSource: { $exists: false } },
-          { connectionSource: "manual" },
-          { connectionSource: "" },
-        ],
-      });
-    }
-
-    await InstagramPage.insertMany(igAccounts);
+    await Promise.all(
+      igAccounts.map((account) =>
+        InstagramPage.findOneAndUpdate(
+          { userId, igId: account.igId },
+          account,
+          { upsert: true, new: true }
+        )
+      )
+    );
 
     /* --------------------------------------------------
        CHATBOT TAGGING

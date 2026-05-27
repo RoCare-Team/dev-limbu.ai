@@ -18,7 +18,14 @@ export async function GET(req) {
   // ✅ Mobile flag
   const mobile = searchParams.get("mobile") === "true";
 
-  if (!userId && phoneRaw) {
+  if (mobile && !userId) {
+    return NextResponse.json(
+      { error: "userId is required for mobile login" },
+      { status: 400 }
+    );
+  }
+
+  if (!mobile && !userId && phoneRaw) {
     const resolved = await resolveDashboardUserIdByPhone(phoneRaw);
     if (!resolved) {
       return NextResponse.json(
@@ -55,7 +62,7 @@ export async function GET(req) {
   -------------------------------------------------- */
 
   const shouldUseChatbotState =
-    !!phoneRaw && (source === "chatbot" || !userIdParam);
+    !mobile && !!phoneRaw && (source === "chatbot" || !userIdParam);
 
   if (shouldUseChatbotState) {
     const digits = normalizeMetaPhoneDigits(phoneRaw);

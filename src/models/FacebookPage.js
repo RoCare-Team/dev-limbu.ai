@@ -23,8 +23,5 @@ FacebookPageSchema.index(
 );
 
 // ✅ Cache delete karo taaki naya index register ho
-if (mongoose.models.FacebookPage) {
-  delete mongoose.models.FacebookPage;
-}
-
-export default mongoose.model("FacebookPage", FacebookPageSchema);
+export default mongoose.models.FacebookPage ||
+  mongoose.model("FacebookPage", FacebookPageSchema);

@@ -24,8 +24,5 @@ InstagramPageSchema.index(
 );
 
 // ✅ Cache clear — naya index register hoga
-if (mongoose.models.InstagramPage) {
-  delete mongoose.models.InstagramPage;
-}
-
-export default mongoose.model("InstagramPage", InstagramPageSchema);
+export default mongoose.models.InstagramPage ||
+  mongoose.model("InstagramPage", InstagramPageSchema);

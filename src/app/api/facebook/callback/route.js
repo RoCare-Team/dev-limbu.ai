@@ -1,13 +1,6 @@
-// HTTP request bhejne ki library.
 import axios from "axios";
-
-// Redirect ya JSON response bhejne ke liye.
 import { NextResponse } from "next/server";
-
-// MongoDB connect karta hai.
 import dbConnect from "@/lib/dbConnect";
-
-// Mongoose model
 import FacebookPage from "@/models/FacebookPage";
 
 import {
@@ -18,50 +11,31 @@ import {
 
 import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
-// Facebook OAuth callback
 export async function GET(req) {
   const baseUrl = resolveOAuthRedirectOrigin(req);
-
   const reqUrl = new URL(req.url);
 
-  // Parse OAuth state
-  const parsed = parseMetaOAuthState(
-    reqUrl.searchParams.get("state")
-  );
-
-  // Facebook authorization code
+  const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
   const code = reqUrl.searchParams.get("code");
-
-  // Parsed userId
   const userId = parsed.userId;
-
-  // Mobile app request?
-  const isMobile = parsed.mobile === true;
+  const isMobile = parsed.mobile === true; // ✅ ab sahi kaam karega
 
   /* --------------------------------------------------
      VALIDATION
   -------------------------------------------------- */
 
   if (!code || !userId) {
-
-    // Mobile deep link error
     if (isMobile) {
       return NextResponse.redirect(
         `limbuai://facebook-error?error=missing_params`
       );
     }
-
-    // Web dashboard error
     return NextResponse.redirect(
       facebookErrorRedirect(parsed, "missing_params", baseUrl)
     );
   }
 
   try {
-    /* --------------------------------------------------
-       DB CONNECT
-    -------------------------------------------------- */
-
     await dbConnect();
 
     /* --------------------------------------------------
@@ -73,11 +47,8 @@ export async function GET(req) {
       {
         params: {
           client_id: process.env.META_APP_ID,
-
           client_secret: process.env.META_APP_SECRET,
-
           redirect_uri: `${baseUrl}/api/facebook/callback`,
-
           code,
         },
       }
@@ -90,10 +61,7 @@ export async function GET(req) {
     -------------------------------------------------- */
 
     let userAccessToken = shortToken;
-
-    let tokenExpiryDate = new Date(
-      Date.now() + 2 * 60 * 60 * 1000
-    );
+    let tokenExpiryDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
     try {
       const longTokenRes = await axios.get(
@@ -101,24 +69,17 @@ export async function GET(req) {
         {
           params: {
             grant_type: "fb_exchange_token",
-
             client_id: process.env.META_APP_ID,
-
             client_secret: process.env.META_APP_SECRET,
-
             fb_exchange_token: shortToken,
           },
         }
       );
 
       userAccessToken = longTokenRes.data.access_token;
-
       const expiresIn = longTokenRes.data.expires_in;
-
       if (expiresIn) {
-        tokenExpiryDate = new Date(
-          Date.now() + expiresIn * 1000
-        );
+        tokenExpiryDate = new Date(Date.now() + expiresIn * 1000);
       }
     } catch (longErr) {
       console.warn(
@@ -128,15 +89,13 @@ export async function GET(req) {
     }
 
     /* --------------------------------------------------
-       3️⃣ FETCH FACEBOOK PAGES
+       3️⃣ FETCH PAGES
     -------------------------------------------------- */
 
     const pagesRes = await axios.get(
       "https://graph.facebook.com/v24.0/me/accounts",
       {
-        params: {
-          access_token: userAccessToken,
-        },
+        params: { access_token: userAccessToken },
       }
     );
 
@@ -147,15 +106,11 @@ export async function GET(req) {
     -------------------------------------------------- */
 
     if (!pages || pages.length === 0) {
-
-      // Mobile app error deep link
       if (isMobile) {
         return NextResponse.redirect(
           `limbuai://facebook-error?error=no_pages`
         );
       }
-
-      // Web dashboard error
       return NextResponse.redirect(
         facebookErrorRedirect(parsed, "no_pages", baseUrl)
       );
@@ -166,39 +121,19 @@ export async function GET(req) {
     -------------------------------------------------- */
 
     for (const page of pages) {
-
       await FacebookPage.findOneAndUpdate(
+        { userId, pageId: page.id },
         {
           userId,
           pageId: page.id,
-        },
-        {
-          userId,
-
-          pageId: page.id,
-
           pageName: page.name,
-
-          // Page access token
           pageAccessToken: page.access_token,
-
-          // Page token expiry
-          pageTokenExpiresAt: new Date(
-            Date.now() + 60 * 24 * 60 * 60 * 1000
-          ),
-
-          // User long-lived token
+          pageTokenExpiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
           userAccessToken,
-
-          // User token expiry
           userTokenExpiresAt: tokenExpiryDate,
-
           platform: "facebook",
         },
-        {
-          upsert: true,
-          new: true,
-        }
+        { upsert: true, new: true }
       );
     }
 
@@ -208,13 +143,10 @@ export async function GET(req) {
 
     if (parsed.phone && parsed.source === "chatbot") {
       try {
-
         await FacebookPage.updateMany(
           {
             userId,
-            pageId: {
-              $in: pages.map((p) => p.id),
-            },
+            pageId: { $in: pages.map((p) => p.id) },
           },
           {
             $set: {
@@ -224,12 +156,8 @@ export async function GET(req) {
             },
           }
         );
-
       } catch (tagErr) {
-        console.error(
-          "FB chatbot tagging warning:",
-          tagErr?.message || tagErr
-        );
+        console.error("FB chatbot tagging warning:", tagErr?.message || tagErr);
       }
     }
 
@@ -237,40 +165,26 @@ export async function GET(req) {
        SUCCESS REDIRECT
     -------------------------------------------------- */
 
-    // Mobile app success
+    // ✅ userId bhi bhej rahe hain mobile ko
     if (isMobile) {
       return NextResponse.redirect(
-        `limbuai://facebook-success?status=connected`
+        `limbuai://facebook-success?status=connected&userId=${encodeURIComponent(userId)}`
       );
     }
 
-    // Web dashboard success
-    return NextResponse.redirect(
-      facebookSuccessRedirect(parsed, baseUrl)
-    );
+    return NextResponse.redirect(facebookSuccessRedirect(parsed, baseUrl));
 
   } catch (err) {
-
     console.error(
       "FB CALLBACK ERROR:",
-      err.response?.data ||
-      err.response ||
-      err.message
+      err.response?.data || err.response || err.message
     );
-
-    /* --------------------------------------------------
-       MOBILE ERROR
-    -------------------------------------------------- */
 
     if (isMobile) {
       return NextResponse.redirect(
         `limbuai://facebook-error?error=oauth_failed`
       );
     }
-
-    /* --------------------------------------------------
-       WEB ERROR
-    -------------------------------------------------- */
 
     return NextResponse.redirect(
       facebookErrorRedirect(parsed, "oauth_failed", baseUrl)

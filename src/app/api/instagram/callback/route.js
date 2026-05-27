@@ -9,16 +9,26 @@ import {
 } from "@/lib/metaOAuthState";
 import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
-// `state`: plain userId (dashboard) or `m.…` (phone/chatbot); DB key = parsed.userId.
-// `baseUrl`: same resolver as instagram/login (`BASE_URL` first, warna forwarded / request).
 export async function GET(req) {
   const baseUrl = resolveOAuthRedirectOrigin(req);
   const reqUrl = new URL(req.url);
+
   const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
   const code = reqUrl.searchParams.get("code");
   const userId = parsed.userId;
+  const isMobile = parsed.mobile === true; // ✅ mobile flag
+
+  /* --------------------------------------------------
+     VALIDATION
+  -------------------------------------------------- */
 
   if (!code || !userId) {
+    // ✅ Mobile error deep link
+    if (isMobile) {
+      return NextResponse.redirect(
+        `limbuai://instagram-error?error=missing_params`
+      );
+    }
     return NextResponse.redirect(
       instagramErrorRedirect(parsed, "missing_params", baseUrl)
     );
@@ -27,14 +37,17 @@ export async function GET(req) {
   try {
     await dbConnect();
 
-    // 1️⃣ Exchange Code → Short-Lived Token
+    /* --------------------------------------------------
+       1️⃣ SHORT-LIVED TOKEN
+    -------------------------------------------------- */
+
     const tokenRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
         params: {
           client_id: process.env.META_APP_ID,
           client_secret: process.env.META_APP_SECRET,
-          redirect_uri: `${baseUrl}/api/instagram/callback`, // login time wala hi redirect_uri (Meta strict match).
+          redirect_uri: `${baseUrl}/api/instagram/callback`,
           code,
         },
       }
@@ -42,9 +55,13 @@ export async function GET(req) {
 
     const shortToken = tokenRes.data.access_token;
 
-    // 2️⃣ Short → Long-Lived Token (continue with short if exchange fails)
+    /* --------------------------------------------------
+       2️⃣ LONG-LIVED TOKEN
+    -------------------------------------------------- */
+
     let userToken = shortToken;
     let tokenExpiryDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
     try {
       const longRes = await axios.get(
         "https://graph.facebook.com/v24.0/oauth/access_token",
@@ -69,7 +86,10 @@ export async function GET(req) {
       );
     }
 
-    // 3️⃣ Get Facebook Pages
+    /* --------------------------------------------------
+       3️⃣ FETCH FACEBOOK PAGES
+    -------------------------------------------------- */
+
     const pagesRes = await axios.get(
       "https://graph.facebook.com/v24.0/me/accounts",
       {
@@ -78,12 +98,21 @@ export async function GET(req) {
     );
 
     if (!pagesRes.data.data.length) {
+      // ✅ Mobile error
+      if (isMobile) {
+        return NextResponse.redirect(
+          `limbuai://instagram-error?error=no_pages`
+        );
+      }
       return NextResponse.redirect(
         instagramErrorRedirect(parsed, "no_pages", baseUrl)
       );
     }
 
-    // 4️⃣ Get ALL Instagram Accounts
+    /* --------------------------------------------------
+       4️⃣ FETCH INSTAGRAM ACCOUNTS
+    -------------------------------------------------- */
+
     let igAccounts = [];
 
     for (const page of pagesRes.data.data) {
@@ -116,12 +145,21 @@ export async function GET(req) {
     }
 
     if (!igAccounts.length) {
+      // ✅ Mobile error
+      if (isMobile) {
+        return NextResponse.redirect(
+          `limbuai://instagram-error?error=no_instagram`
+        );
+      }
       return NextResponse.redirect(
         instagramErrorRedirect(parsed, "no_instagram", baseUrl)
       );
     }
 
-    // 5️⃣ Save All Accounts
+    /* --------------------------------------------------
+       5️⃣ SAVE ACCOUNTS
+    -------------------------------------------------- */
+
     if (parsed.source === "chatbot" && parsed.phone) {
       await InstagramPage.deleteMany({
         userId,
@@ -138,9 +176,13 @@ export async function GET(req) {
         ],
       });
     }
+
     await InstagramPage.insertMany(igAccounts);
 
-    // Keep chatbot tagging as best-effort so manual-equivalent OAuth never fails.
+    /* --------------------------------------------------
+       CHATBOT TAGGING
+    -------------------------------------------------- */
+
     if (parsed.phone && parsed.source === "chatbot") {
       try {
         await InstagramPage.updateMany(
@@ -158,11 +200,30 @@ export async function GET(req) {
       }
     }
 
+    /* --------------------------------------------------
+       SUCCESS REDIRECT
+    -------------------------------------------------- */
+
+    // ✅ Mobile success deep link — userId bhi bhejo
+    if (isMobile) {
+      return NextResponse.redirect(
+        `limbuai://instagram-success?status=connected&userId=${encodeURIComponent(userId)}`
+      );
+    }
+
     return NextResponse.redirect(
       instagramSuccessRedirect(parsed, igAccounts.length, baseUrl)
     );
+
   } catch (err) {
     console.error("IG CALLBACK ERROR:", err.response?.data || err.message);
+
+    // ✅ Mobile error
+    if (isMobile) {
+      return NextResponse.redirect(
+        `limbuai://instagram-error?error=oauth_failed`
+      );
+    }
 
     return NextResponse.redirect(
       instagramErrorRedirect(parsed, "oauth_failed", baseUrl)

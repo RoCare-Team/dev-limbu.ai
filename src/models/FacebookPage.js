@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 const FacebookPageSchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },   // 🔥 Important
+    userId: { type: String, required: true },
     phone: { type: String, default: "" },
     type: { type: String, default: "facebook" },
-    pageId: String,
+    pageId: { type: String, required: true },
     pageName: String,
     pageAccessToken: String,
     pageTokenExpiresAt: Date,
@@ -14,8 +14,17 @@ const FacebookPageSchema = new mongoose.Schema(
     platform: { type: String, default: "facebook" },
     connectionSource: { type: String, default: "manual" },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
-export default mongoose.models.FacebookPage ||
-  mongoose.model("FacebookPage", FacebookPageSchema);
+FacebookPageSchema.index(
+  { userId: 1, pageId: 1 },
+  { unique: true }
+);
+
+// ✅ Cache delete karo taaki naya index register ho
+if (mongoose.models.FacebookPage) {
+  delete mongoose.models.FacebookPage;
+}
+
+export default mongoose.model("FacebookPage", FacebookPageSchema);

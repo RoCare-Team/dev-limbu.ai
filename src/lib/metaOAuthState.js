@@ -1,83 +1,91 @@
 import { normalizeMetaPhoneDigits } from "@/lib/normalizeMetaPhoneDigits";
 
-/**
- * Two OAuth `state` shapes — both must keep working:
- *
- * 1) **Dashboard (manual)** — `/api/facebook|instagram/login?userId=USR…` only.
- *    `state` is the raw `userId` string (no `m.` prefix). Callback saves to DB with
- *    that userId and redirects to `/dashboard?fb=connected` / `?ig=connected` (unchanged).
- *
- * 2) **Chatbot / connect-business** — login URL includes `?phone=…`.
- *    `state` is `m.<base64url JSON>` so callback can redirect back to `/connect-business`
- *    after success or error, while still using the same decoded `userId` for Mongo writes.
- */
-
 function getBaseUrl(override) {
-  const o = (override || process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "")
+  const o = (
+    override ||
+    process.env.BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    ""
+  )
     .toString()
     .trim()
     .replace(/\/$/, "");
   if (o) return o;
-  return "https://limbu.ai";
+  return "https://www.limbu.ai"; // ✅ www fix
 }
 
-/**
- * @param {{ userId: string, phone: string, platform: 'fb' | 'ig', source?: 'chatbot' | 'manual' }} payload
- */
 export function encodeMetaOAuthState(payload) {
   const phone = normalizeMetaPhoneDigits(payload.phone);
   const source =
     payload.source === "chatbot" || payload.source === "manual"
       ? payload.source
       : undefined;
+
   const json = JSON.stringify({
     u: payload.userId,
     p: phone,
     t: payload.platform,
     ...(source ? { s: source } : {}),
+    ...(payload.mobile ? { mob: 1 } : {}), // ✅ mobile flag encode
   });
+
   const b64 = Buffer.from(json, "utf8").toString("base64url");
   return `m.${b64}`;
 }
 
-/**
- * @param {string | null | undefined} state
- * @returns {{ userId: string | null, phone: string, platform: 'fb'|'ig'|'', source: 'chatbot'|'manual'|'', isMetaReturn: boolean }}
- */
 export function parseMetaOAuthState(state) {
   const raw = state && String(state).trim();
+
   if (!raw) {
     return {
       userId: null,
       phone: "",
       platform: "",
       source: "",
+      mobile: false, // ✅
       isMetaReturn: false,
     };
   }
+
   if (!raw.startsWith("m.")) {
     return {
       userId: raw,
       phone: "",
       platform: "",
       source: "manual",
+      mobile: false, // ✅
       isMetaReturn: false,
     };
   }
+
   try {
     const json = Buffer.from(raw.slice(2), "base64url").toString("utf8");
     const o = JSON.parse(json);
-    const uid = typeof o.u === "string" && o.u.trim() ? o.u.trim() : null;
-    const phone = normalizeMetaPhoneDigits(typeof o.p === "string" ? o.p : "");
+
+    const uid =
+      typeof o.u === "string" && o.u.trim() ? o.u.trim() : null;
+
+    const phone = normalizeMetaPhoneDigits(
+      typeof o.p === "string" ? o.p : ""
+    );
+
     const t = o.t === "ig" ? "ig" : o.t === "fb" ? "fb" : "";
+
     const source =
-      o.s === "chatbot" ? "chatbot" : o.s === "manual" ? "manual" : "";
+      o.s === "chatbot"
+        ? "chatbot"
+        : o.s === "manual"
+        ? "manual"
+        : "";
+
+    const mobile = o.mob === 1; // ✅ mobile parse
+
     return {
       userId: uid,
       phone,
       platform: t,
       source,
-      // Keep old behavior for already-issued links where `s` was not present.
+      mobile, // ✅ return
       isMetaReturn: !!(
         uid &&
         phone &&
@@ -91,6 +99,7 @@ export function parseMetaOAuthState(state) {
       phone: "",
       platform: "",
       source: "",
+      mobile: false, // ✅
       isMetaReturn: false,
     };
   }

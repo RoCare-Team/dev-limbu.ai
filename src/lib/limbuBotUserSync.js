@@ -163,7 +163,9 @@ async function assignNextAgentId() {
     .sort({ createdAt: 1, _id: 1 })
     .lean();
   if (!activeAgents.length) {
-    console.warn("[RoundRobin] ⚠️ Koi active agent nahi mila DB mein (role:agent, isActive:true)");
+    console.warn(
+      "[RoundRobin] ⚠️ Koi active agent nahi mila DB mein (role:agent, isActive:true)",
+    );
     return null;
   }
 
@@ -199,6 +201,186 @@ export async function getNextChatbotEmailIndex() {
 function formatChatbotEmail(index) {
   const n = String(index).padStart(2, "0");
   return `${CHATBOT_EMAIL_PREFIX}${n}${CHATBOT_EMAIL_DOMAIN}`;
+}
+
+function buildChatbotUserPayload(bot, { email, assignedAgentId } = {}) {
+  const waId = String(bot.user_id || "").trim();
+  const phone = bot.phone || waIdToPhone(waId);
+
+  return {
+    userId: `USR${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    fullName:
+      bot.name ||
+      bot.contact?.name ||
+      `WhatsApp User ${phone ? phone.slice(-4) : ""}`,
+    email,
+    phone,
+    chatbotUserId: waId,
+    whatsappUserId: waId,
+    limbuBotUserId: waId,
+    wallet: 500,
+    freeUsedCount: 2,
+    igPrice: 0,
+    fbPrice: 0,
+    gmbPrice: 20,
+    imgGeneratePrice: 80,
+    assignedAgentId,
+    source: "chatbot",
+    leadStage: "Active",
+    subscription: {
+      status: "inactive",
+      plan: "Free",
+      startDate: null,
+      endDate: null,
+    },
+    chatbotLastActive: bot.last_active || bot.contact?.updated_at || null,
+    chatbotMessageCount: Number(bot.message_count) || 0,
+    chatbotLastMessage: bot.last_message
+      ? String(bot.last_message).slice(0, 500)
+      : null,
+  };
+}
+
+async function getNextAvailableChatbotEmailState() {
+  const takenEmailRows = await User.find({
+    email: { $regex: /^chatbot\d+@gmail\.com$/i },
+  })
+    .select("email")
+    .lean();
+
+  const takenEmails = new Set(
+    takenEmailRows.map((row) => String(row.email || "").toLowerCase()),
+  );
+
+  let emailCounter = 1;
+  for (const email of takenEmails) {
+    const match = email.match(/^chatbot(\d+)@gmail\.com$/i);
+    if (match) emailCounter = Math.max(emailCounter, parseInt(match[1], 10) + 1);
+  }
+
+  return { takenEmails, emailCounter };
+}
+
+function takeNextChatbotEmail(state) {
+  let email = formatChatbotEmail(state.emailCounter);
+  while (state.takenEmails.has(email.toLowerCase())) {
+    state.emailCounter++;
+    email = formatChatbotEmail(state.emailCounter);
+  }
+  state.takenEmails.add(email.toLowerCase());
+  state.emailCounter++;
+  return email;
+}
+
+export async function ensureChatbotRowsSaved(botRows = []) {
+  await dbConnect();
+
+  const normalizedRows = (botRows || [])
+    .map((row) => ({
+      ...row,
+      user_id: String(row?.user_id || "").trim(),
+      phone: row?.phone || waIdToPhone(String(row?.user_id || "").trim()),
+    }))
+    .filter((row) => row.user_id && row.phone);
+
+  if (!normalizedRows.length) {
+    return { inserted: 0, linked: 0, assigned: 0, skipped: 0, errors: [] };
+  }
+
+  const phones = [...new Set(normalizedRows.map((row) => row.phone))];
+  const waIds = [...new Set(normalizedRows.map((row) => row.user_id))];
+  const existingUsers = await User.find({
+    $or: [
+      { phone: { $in: phones } },
+      { chatbotUserId: { $in: waIds } },
+      { whatsappUserId: { $in: waIds } },
+      { limbuBotUserId: { $in: waIds } },
+    ],
+  })
+    .select("_id phone chatbotUserId whatsappUserId limbuBotUserId assignedAgentId")
+    .lean();
+
+  const existingByPhone = new Map();
+  const existingByWaId = new Map();
+  for (const user of existingUsers) {
+    if (user.phone) existingByPhone.set(String(user.phone), user);
+    for (const key of ["chatbotUserId", "whatsappUserId", "limbuBotUserId"]) {
+      if (user[key]) existingByWaId.set(String(user[key]), user);
+    }
+  }
+
+  const emailState = await getNextAvailableChatbotEmailState();
+  let inserted = 0;
+  let linked = 0;
+  let assigned = 0;
+  let skipped = 0;
+  const errors = [];
+
+  for (const bot of normalizedRows) {
+    const messageCount = Number(bot.message_count) || 0;
+    if (messageCount < 1) {
+      skipped++;
+      continue;
+    }
+
+    const existing =
+      existingByWaId.get(bot.user_id) || existingByPhone.get(bot.phone);
+
+    try {
+      if (existing) {
+        const setData = {
+          chatbotUserId: bot.user_id,
+          whatsappUserId: bot.user_id,
+          limbuBotUserId: bot.user_id,
+          chatbotLastActive: bot.last_active || bot.contact?.updated_at || null,
+          chatbotMessageCount: messageCount,
+          chatbotLastMessage: bot.last_message
+            ? String(bot.last_message).slice(0, 500)
+            : null,
+        };
+
+        if (!existing.assignedAgentId) {
+          const assignedAgentId = await assignNextAgentId();
+          if (assignedAgentId) {
+            setData.assignedAgentId = assignedAgentId;
+            assigned++;
+          }
+        }
+
+        await User.updateOne({ _id: existing._id }, { $set: setData });
+        linked++;
+        continue;
+      }
+
+      const assignedAgentId = await assignNextAgentId();
+      const email = takeNextChatbotEmail(emailState);
+      const created = await User.create(
+        buildChatbotUserPayload(bot, { email, assignedAgentId }),
+      );
+
+      existingByPhone.set(String(created.phone), created);
+      if (bot.user_id) existingByWaId.set(bot.user_id, created);
+      inserted++;
+
+      void runWelcomeBonusForUserId(created.userId).catch((err) =>
+        console.error("[chatbot-ensure] welcomeBonus error:", err),
+      );
+    } catch (err) {
+      if (err.code === 11000) {
+        linked++;
+      } else {
+        errors.push({
+          waId: bot.user_id,
+          phone: bot.phone,
+          message: err.message,
+        });
+      }
+    }
+  }
+
+  if (inserted || linked || assigned) invalidateLimbuBotCache();
+
+  return { inserted, linked, assigned, skipped, errors };
 }
 
 export function getLastActiveCalendarDate(lastActive) {
@@ -293,7 +475,8 @@ export function mapBotUserRow(bot = {}) {
       : "",
     last_inbound_at: bot.last_inbound_at || "",
     last_inbound_message: bot.last_inbound_message || "",
-    inbound_message_count_for_day: Number(bot.inbound_message_count_for_day) || 0,
+    inbound_message_count_for_day:
+      Number(bot.inbound_message_count_for_day) || 0,
     inbound_messages_for_day: Array.isArray(bot.inbound_messages_for_day)
       ? bot.inbound_messages_for_day
       : [],
@@ -314,9 +497,15 @@ export async function getChatbotChatsByDay() {
   const { users: botUsers } = await fetchLimbuBotAdminUsers();
 
   console.log(`\n[getChatbotChatsByDay] ═══════════════════════════════`);
-  console.log(`[getChatbotChatsByDay] 📦 Total WhatsApp contacts fetched: ${botUsers.length}`);
-  console.log(`[getChatbotChatsByDay] 📅 Today date (IST): ${todayBounds.calendarDate}`);
-  console.log(`[getChatbotChatsByDay] 📅 Yesterday date (IST): ${yesterdayBounds.calendarDate}`);
+  console.log(
+    `[getChatbotChatsByDay] 📦 Total WhatsApp contacts fetched: ${botUsers.length}`,
+  );
+  console.log(
+    `[getChatbotChatsByDay] 📅 Today date (IST): ${todayBounds.calendarDate}`,
+  );
+  console.log(
+    `[getChatbotChatsByDay] 📅 Yesterday date (IST): ${yesterdayBounds.calendarDate}`,
+  );
 
   const todayRows = filterBotUsersByInboundCalendarDay(
     botUsers,
@@ -329,7 +518,9 @@ export async function getChatbotChatsByDay() {
   ).map(mapBotUserRow);
 
   // ── TODAY LOG ──
-  console.log(`\n[TODAY LEADS] ✅ Count: ${todayRows.length} | Date: ${todayBounds.calendarDate}`);
+  console.log(
+    `\n[TODAY LEADS] ✅ Count: ${todayRows.length} | Date: ${todayBounds.calendarDate}`,
+  );
   if (todayRows.length > 0) {
     console.table(
       todayRows.map((u) => ({
@@ -348,7 +539,9 @@ export async function getChatbotChatsByDay() {
   }
 
   // ── YESTERDAY LOG ──
-  console.log(`\n[YESTERDAY LEADS] ✅ Count: ${yesterdayRows.length} | Date: ${yesterdayBounds.calendarDate}`);
+  console.log(
+    `\n[YESTERDAY LEADS] ✅ Count: ${yesterdayRows.length} | Date: ${yesterdayBounds.calendarDate}`,
+  );
   if (yesterdayRows.length > 0) {
     console.table(
       yesterdayRows.map((u) => ({
@@ -425,6 +618,7 @@ function virtualUserFromBotRow(row) {
 
 async function mapBotStageRowsToTableUsers(botRows = []) {
   await dbConnect();
+  await ensureChatbotRowsSaved(botRows);
 
   const phones = [...new Set(botRows.map((r) => r.phone).filter(Boolean))];
   const waIds = [...new Set(botRows.map((r) => r.user_id).filter(Boolean))];
@@ -448,7 +642,9 @@ async function mapBotStageRowsToTableUsers(botRows = []) {
           .lean()
       : [];
 
-  console.log(`[mapBotStageRowsToTableUsers] 📋 botRows: ${botRows.length} | DB mein registered: ${registered.length}`);
+  console.log(
+    `[mapBotStageRowsToTableUsers] 📋 botRows: ${botRows.length} | DB mein registered: ${registered.length}`,
+  );
 
   const registeredByPhone = new Map();
   const registeredByWaId = new Map();
@@ -537,8 +733,11 @@ export async function listUsersForChatbotChatDay({
   const dayStats = await getChatbotChatsByDay();
   const bucket = day === "yesterday" ? dayStats.yesterday : dayStats.today;
   const botRows = bucket.users || [];
+  await ensureChatbotRowsSaved(botRows);
 
-  console.log(`\n[listUsersForChatbotChatDay] 📅 Day: ${day} | Bucket date: ${bucket.calendarDate} | botRows: ${botRows.length}`);
+  console.log(
+    `\n[listUsersForChatbotChatDay] 📅 Day: ${day} | Bucket date: ${bucket.calendarDate} | botRows: ${botRows.length}`,
+  );
 
   const phones = [...new Set(botRows.map((r) => r.phone).filter(Boolean))];
   const waIds = [...new Set(botRows.map((r) => r.user_id).filter(Boolean))];
@@ -552,7 +751,6 @@ export async function listUsersForChatbotChatDay({
           { limbuBotUserId: { $in: waIds } },
         ]
       : []),
-    { chatbotLastActive: { $regex: `^${bucket.calendarDate}` } },
   ];
 
   let userQuery =
@@ -583,7 +781,9 @@ export async function listUsersForChatbotChatDay({
     .populate("accountManager", "fullName email role mobileNumber")
     .lean();
 
-  console.log(`[listUsersForChatbotChatDay] 🗃️ DB se registered users mile: ${registered.length}`);
+  console.log(
+    `[listUsersForChatbotChatDay] 🗃️ DB se registered users mile: ${registered.length}`,
+  );
 
   const orderMap = new Map(botRows.map((r, i) => [r.user_id, i]));
   const matched = new Set();
@@ -606,7 +806,9 @@ export async function listUsersForChatbotChatDay({
     })
     .map(virtualUserFromBotRow);
 
-  console.log(`[listUsersForChatbotChatDay] 👻 Virtual (chatbot-only) users: ${virtual.length}`);
+  console.log(
+    `[listUsersForChatbotChatDay] 👻 Virtual (chatbot-only) users: ${virtual.length}`,
+  );
 
   const botByPhone = new Map(botRows.map((r) => [String(r.phone || ""), r]));
   const botByWaId = new Map(botRows.map((r) => [String(r.user_id || ""), r]));
@@ -647,7 +849,9 @@ export async function listUsersForChatbotChatDay({
     return ia - ib;
   });
 
-  console.log(`[listUsersForChatbotChatDay] ✅ Total merged users (page ${page}): ${merged.length}`);
+  console.log(
+    `[listUsersForChatbotChatDay] ✅ Total merged users (page ${page}): ${merged.length}`,
+  );
 
   const totalUsers = merged.length;
   const skip = (page - 1) * limit;
@@ -667,11 +871,15 @@ export async function listUsersForChatbotChatDay({
 export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const now = Date.now();
   if (!bypassCache && _limbuBotCache && now - _limbuBotCacheAt < CACHE_TTL_MS) {
-    console.log(`[fetchLimbuBotAdminUsers] ⚡ Cache se return (${_limbuBotCache.users.length} users)`);
+    console.log(
+      `[fetchLimbuBotAdminUsers] ⚡ Cache se return (${_limbuBotCache.users.length} users)`,
+    );
     return _limbuBotCache;
   }
 
-  console.log(`[fetchLimbuBotAdminUsers] 🌐 WhatsApp API se fresh data fetch ho raha hai...`);
+  console.log(
+    `[fetchLimbuBotAdminUsers] 🌐 WhatsApp API se fresh data fetch ho raha hai...`,
+  );
 
   const fetchPage = async (page, limit = 50) => {
     const url = new URL(LIMBUBOT_ADMIN_USERS_URL);
@@ -705,7 +913,9 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const pageLimit = Number(pagination.limit) || 50;
   const totalPages = Math.max(1, Number(pagination.total_pages) || 1);
 
-  console.log(`[fetchLimbuBotAdminUsers] 📄 Total pages: ${totalPages} | Page limit: ${pageLimit} | Total contacts: ${pagination.total || "?"}`);
+  console.log(
+    `[fetchLimbuBotAdminUsers] 📄 Total pages: ${totalPages} | Page limit: ${pageLimit} | Total contacts: ${pagination.total || "?"}`,
+  );
 
   for (let page = 2; page <= totalPages; page += 1) {
     const pageData = await fetchPage(page, pageLimit);
@@ -715,14 +925,18 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
         ? pageData.users
         : [];
     contacts.push(...pageContacts);
-    console.log(`[fetchLimbuBotAdminUsers] 📄 Page ${page}/${totalPages} fetched — ${pageContacts.length} contacts`);
+    console.log(
+      `[fetchLimbuBotAdminUsers] 📄 Page ${page}/${totalPages} fetched — ${pageContacts.length} contacts`,
+    );
   }
 
   const users = contacts
     .map(mapWhatsAppContactRow)
     .filter((row) => row.user_id);
 
-  console.log(`[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`);
+  console.log(
+    `[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`,
+  );
 
   const result = {
     total: Number(pagination.total) || users.length,
@@ -746,7 +960,9 @@ export async function syncChatbotUsersToApp(options = {}) {
   const { minMessageCount = 1, maxToInsert = 500 } = options;
 
   console.log(`\n[syncChatbotUsersToApp] ═══════════════════════════════`);
-  console.log(`[syncChatbotUsersToApp] 🚀 Sync shuru | minMessages=${minMessageCount} | maxInsert=${maxToInsert}`);
+  console.log(
+    `[syncChatbotUsersToApp] 🚀 Sync shuru | minMessages=${minMessageCount} | maxInsert=${maxToInsert}`,
+  );
 
   await dbConnect();
 
@@ -754,7 +970,9 @@ export async function syncChatbotUsersToApp(options = {}) {
     bypassCache: true,
   });
 
-  console.log(`[syncChatbotUsersToApp] 📦 WhatsApp se total users: ${botUsers.length}`);
+  console.log(
+    `[syncChatbotUsersToApp] 📦 WhatsApp se total users: ${botUsers.length}`,
+  );
 
   const takenEmailRows = await User.find({
     email: { $regex: /^chatbot\d+@gmail\.com$/i },
@@ -774,7 +992,9 @@ export async function syncChatbotUsersToApp(options = {}) {
     emailCounter = max + 1;
   }
 
-  console.log(`[syncChatbotUsersToApp] 📧 Existing chatbot emails: ${takenEmails.size} | Next email index: ${emailCounter}`);
+  console.log(
+    `[syncChatbotUsersToApp] 📧 Existing chatbot emails: ${takenEmails.size} | Next email index: ${emailCounter}`,
+  );
 
   let inserted = 0;
   let skipped = 0;
@@ -784,7 +1004,9 @@ export async function syncChatbotUsersToApp(options = {}) {
 
   for (const bot of botUsers) {
     if (inserted >= maxToInsert) {
-      console.log(`[syncChatbotUsersToApp] 🛑 maxToInsert (${maxToInsert}) limit hit — baaki users skip`);
+      console.log(
+        `[syncChatbotUsersToApp] 🛑 maxToInsert (${maxToInsert}) limit hit — baaki users skip`,
+      );
       break;
     }
 
@@ -796,14 +1018,18 @@ export async function syncChatbotUsersToApp(options = {}) {
       const cc = getNonIndianCountryCode(waId);
       if (cc) {
         nonIndian.push({ waId, countryCode: cc });
-        console.log(`[syncChatbotUsersToApp] 🌍 Non-Indian number skip: ${waId} (country code: ${cc})`);
+        console.log(
+          `[syncChatbotUsersToApp] 🌍 Non-Indian number skip: ${waId} (country code: ${cc})`,
+        );
       }
       skipped++;
       continue;
     }
 
     if (messageCount < minMessageCount) {
-      console.log(`[syncChatbotUsersToApp] ⏭️ Skip (kam messages): ${phone} | messages=${messageCount}`);
+      console.log(
+        `[syncChatbotUsersToApp] ⏭️ Skip (kam messages): ${phone} | messages=${messageCount}`,
+      );
       skipped++;
       continue;
     }
@@ -839,7 +1065,9 @@ export async function syncChatbotUsersToApp(options = {}) {
             },
           },
         );
-        console.log(`[syncChatbotUsersToApp] 🔗 Linked (already exists): ${phone} | waId=${waId}`);
+        console.log(
+          `[syncChatbotUsersToApp] 🔗 Linked (already exists): ${phone} | waId=${waId}`,
+        );
         linked++;
         continue;
       }
@@ -882,7 +1110,9 @@ export async function syncChatbotUsersToApp(options = {}) {
           : null,
       });
 
-      console.log(`[syncChatbotUsersToApp] ✅ NEW user inserted: ${phone} | name=${created.fullName} | email=${email} | agent=${assignedAgentId}`);
+      console.log(
+        `[syncChatbotUsersToApp] ✅ NEW user inserted: ${phone} | name=${created.fullName} | email=${email} | agent=${assignedAgentId}`,
+      );
       inserted++;
 
       void runWelcomeBonusForUserId(created.userId).catch((err) =>
@@ -890,10 +1120,15 @@ export async function syncChatbotUsersToApp(options = {}) {
       );
     } catch (err) {
       if (err.code === 11000) {
-        console.log(`[syncChatbotUsersToApp] ⚡ Race condition (11000) — linked: ${phone}`);
+        console.log(
+          `[syncChatbotUsersToApp] ⚡ Race condition (11000) — linked: ${phone}`,
+        );
         linked++;
       } else {
-        console.error(`[syncChatbotUsersToApp] ❌ Error for ${phone}:`, err.message);
+        console.error(
+          `[syncChatbotUsersToApp] ❌ Error for ${phone}:`,
+          err.message,
+        );
         errors.push({ waId, phone, message: err.message });
       }
     }
@@ -902,7 +1137,9 @@ export async function syncChatbotUsersToApp(options = {}) {
   invalidateLimbuBotCache();
 
   console.log(`\n[syncChatbotUsersToApp] ══ SYNC COMPLETE ══`);
-  console.log(`[syncChatbotUsersToApp] 📊 fetched=${botUsers.length} | inserted=${inserted} | linked=${linked} | skipped=${skipped} | nonIndian=${nonIndian.length} | errors=${errors.length}`);
+  console.log(
+    `[syncChatbotUsersToApp] 📊 fetched=${botUsers.length} | inserted=${inserted} | linked=${linked} | skipped=${skipped} | nonIndian=${nonIndian.length} | errors=${errors.length}`,
+  );
   console.log(`[syncChatbotUsersToApp] ═══════════════════════════════\n`);
 
   return {
@@ -1007,8 +1244,12 @@ export function detectConversationStages(history = []) {
 export async function getLimbuBotConversationStages() {
   const { total, users: botUsers } = await fetchLimbuBotAdminUsers();
 
-  console.log(`\n[getLimbuBotConversationStages] ═══════════════════════════════`);
-  console.log(`[getLimbuBotConversationStages] 📦 Total users for stage classification: ${botUsers.length}`);
+  console.log(
+    `\n[getLimbuBotConversationStages] ═══════════════════════════════`,
+  );
+  console.log(
+    `[getLimbuBotConversationStages] 📦 Total users for stage classification: ${botUsers.length}`,
+  );
 
   const stageCounts = Object.fromEntries(
     CONVERSATION_STAGE_KEYS.map((s) => [s, 0]),
@@ -1075,13 +1316,18 @@ export async function getLimbuBotConversationStages() {
       console.log(`[STAGE: ${stage}] ⚠️ Koi user nahi`);
     }
   }
-  console.log(`[getLimbuBotConversationStages] ═══════════════════════════════\n`);
+  console.log(
+    `[getLimbuBotConversationStages] ═══════════════════════════════\n`,
+  );
+
+  const dedupedAllUsers = dedupeBotStageRows(allUsers);
+  await ensureChatbotRowsSaved(dedupedAllUsers);
 
   return {
     total: Number(total) || botUsers.length,
     stageCounts,
     stageUsers,
-    allUsers: dedupeBotStageRows(allUsers),
+    allUsers: dedupedAllUsers,
     stageOrder: CONVERSATION_STAGE_KEYS,
     fetchedAt: new Date().toISOString(),
   };
@@ -1098,7 +1344,9 @@ export async function getLimbuBotStageWithUsers({
   const base = { success: true, total, stageCounts, stageOrder, fetchedAt };
 
   if (!stage) {
-    console.log(`[getLimbuBotStageWithUsers] ℹ️ Stage nahi diya — sirf counts return`);
+    console.log(
+      `[getLimbuBotStageWithUsers] ℹ️ Stage nahi diya — sirf counts return`,
+    );
     return base;
   }
 
@@ -1108,7 +1356,9 @@ export async function getLimbuBotStageWithUsers({
   const skip = (page - 1) * limit;
   const pageRows = allForStage.slice(skip, skip + limit);
 
-  console.log(`[getLimbuBotStageWithUsers] 📋 Stage="${stage}" | Total=${totalUsers} | Page=${page} | Showing=${pageRows.length}`);
+  console.log(
+    `[getLimbuBotStageWithUsers] 📋 Stage="${stage}" | Total=${totalUsers} | Page=${page} | Showing=${pageRows.length}`,
+  );
 
   return {
     ...base,

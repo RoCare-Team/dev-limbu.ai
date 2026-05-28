@@ -220,6 +220,7 @@ export default function UserManagement() {
   const [conversationStageCardsLoading, setConversationStageCardsLoading] = useState(false);
   const [selectedConversationStage, setSelectedConversationStage] = useState("All");
   const [conversationStageTableActive, setConversationStageTableActive] = useState(false);
+  const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] = useState(false);
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
@@ -1607,10 +1608,25 @@ export default function UserManagement() {
     }
   };
 
-  const fetchChatbotDayStats = async () => {
+  const syncWhatsAppUsersToDatabase = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return null;
+
+    const res = await fetch(
+      `/api/cron/chatbot-users-sync?email=${encodeURIComponent(adminEmail)}&limit=100`,
+      { cache: "no-store" },
+    );
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to sync WhatsApp users");
+    }
+    return data.stats;
+  };
+
+  const fetchChatbotDayStats = async ({ showLoader = true } = {}) => {
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) return;
-    setChatbotDayStats((prev) => ({ ...prev, loading: true }));
+    if (showLoader) setChatbotDayStats((prev) => ({ ...prev, loading: true }));
     try {
       const res = await fetch(
         `/api/admin/chatbot-chat-stats?email=${encodeURIComponent(adminEmail)}`,
@@ -1637,8 +1653,13 @@ export default function UserManagement() {
   const fetchConversationStageCards = async () => {
     setConversationStageCardsLoading(true);
     try {
-      const { contacts, total } = await fetchWhatsAppStageContacts();
-      const data = buildConversationStageDataFromContacts(contacts, total);
+      const res = await fetch("/api/conversation-stages", {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to load conversation stages");
+      }
 
       setConversationStageCounts(data.stageCounts || {});
       setConversationStageOrder(data.stageOrder || Object.keys(data.stageCounts || {}));
@@ -1647,7 +1668,6 @@ export default function UserManagement() {
       if (conversationStageTableActive) {
         await fetchConversationStageUsers(selectedConversationStage || "All", {
           silent: true,
-          stageData: data,
         });
       }
     } catch (error) {
@@ -1666,32 +1686,61 @@ export default function UserManagement() {
 
     if (!options.silent) setConversationStageCardsLoading(true);
     try {
-      let data = options.stageData;
-      if (!data) {
-        const { contacts, total } = await fetchWhatsAppStageContacts();
-        data = buildConversationStageDataFromContacts(contacts, total);
-      }
-      const allForStage =
-        stage === "All" ? data.allUsers || [] : data.stageUsers?.[stage] || [];
       const limit = 70;
-      const skip = (currentPage - 1) * limit;
-      const pageUsers = allForStage.slice(skip, skip + limit);
+      const params = new URLSearchParams({
+        stage,
+        page: String(currentPage),
+        limit: String(limit),
+      });
+      const res = await fetch(`/api/conversation-stages?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to load stage users");
+      }
 
       setConversationStageCounts(data.stageCounts || {});
       setConversationStageOrder(data.stageOrder || Object.keys(data.stageCounts || {}));
-      setConversationStageTotal(data.total || allForStage.length || 0);
-      setConversationStageUsers(pageUsers);
+      setConversationStageTotal(data.total || data.totalUsers || 0);
+      setConversationStageUsers(data.users || []);
       setPagination({
-        totalUsers: allForStage.length,
-        currentPage,
-        totalPages: Math.max(1, Math.ceil(allForStage.length / limit)),
-        limit,
+        totalUsers: data.totalUsers || 0,
+        currentPage: data.currentPage || currentPage,
+        totalPages: data.totalPages || 1,
+        limit: data.limit || limit,
       });
     } catch (error) {
       setConversationStageUsers([]);
       console.error("Error fetching conversation stage users:", error);
     } finally {
       if (!options.silent) setConversationStageCardsLoading(false);
+    }
+  };
+
+  const handleRefreshWhatsAppData = async () => {
+    setIsRefreshingWhatsAppData(true);
+    setChatbotDayStats((prev) => ({ ...prev, loading: true }));
+    setConversationStageCardsLoading(true);
+    try {
+      const syncStats = await syncWhatsAppUsersToDatabase();
+      await Promise.all([
+        fetchChatbotDayStats({ showLoader: false }),
+        fetchConversationStageCards(),
+        fetchUsers(true),
+        fetchAgentStats(),
+      ]);
+      showToast(
+        `WhatsApp data refreshed. ${syncStats?.inserted || 0} new, ${syncStats?.assigned || 0} assigned.`,
+        "success",
+      );
+    } catch (error) {
+      console.error("Error refreshing WhatsApp data:", error);
+      showToast(error.message || "Failed to refresh WhatsApp data", "error");
+    } finally {
+      setIsRefreshingWhatsAppData(false);
+      setChatbotDayStats((prev) => ({ ...prev, loading: false }));
+      setConversationStageCardsLoading(false);
     }
   };
 
@@ -3395,11 +3444,11 @@ export default function UserManagement() {
               <ChatbotDailyChatCards
                 title="Conversation Stages"
                 subtitle="Click any stage to filter users and load stage data"
-                loading={conversationStageCardsLoading}
+                loading={conversationStageCardsLoading || isRefreshingWhatsAppData}
                 activeKey={
                   conversationStageTableActive ? selectedConversationStage : ""
                 }
-                onRefresh={fetchConversationStageCards}
+                onRefresh={handleRefreshWhatsAppData}
                 onSelectCard={handleConversationStageCardClick}
                 cards={
                   [
@@ -3538,9 +3587,9 @@ export default function UserManagement() {
             role === "agent") && (
             <ChatbotDailyChatCards
               stats={chatbotDayStats}
-              loading={chatbotDayStats.loading}
+              loading={chatbotDayStats.loading || isRefreshingWhatsAppData}
               activeDay={chatbotChatDayFilter}
-              onRefresh={fetchChatbotDayStats}
+              onRefresh={handleRefreshWhatsAppData}
               onSelectDay={handleSelectChatbotDay}
             />
           )}

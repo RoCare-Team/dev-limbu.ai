@@ -222,16 +222,22 @@ export default function ChatbotDailyChatCards({
 
       {/* Cards */}
       {cardsData.length === 0 ? (
-        <Typography
-          sx={{
-            textAlign: "center",
-            fontSize: "12px",
-            color: "#9ca3af",
-            py: 2,
-          }}
-        >
-          No active leads right now.
-        </Typography>
+        loading ? (
+          <Stack alignItems="center" justifyContent="center" py={2.5}>
+            <CircularProgress size={20} />
+          </Stack>
+        ) : (
+          <Typography
+            sx={{
+              textAlign: "center",
+              fontSize: "12px",
+              color: "#9ca3af",
+              py: 2,
+            }}
+          >
+            No active leads right now.
+          </Typography>
+        )
       ) : (
         <Box
           sx={{

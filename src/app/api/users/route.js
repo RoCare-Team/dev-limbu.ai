@@ -12,7 +12,14 @@ import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 import { listUsersForChatbotChatDay } from "@/lib/limbuBotUserSync";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
-const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
+const META_LEAD_SOURCES = [
+  "bulk-upload",
+  "manual-upload",
+  "csv-import",
+  "excel-import",
+  "Meta Leads",
+  "Meta",
+];
 const LIMBUBOT_HISTORY_BASE =
   process.env.LIMBUBOT_HISTORY_BASE ||
   "https://whatsapp.limbu.ai/api/external/contact";
@@ -461,6 +468,7 @@ export async function GET(req) {
     const endDateParam = searchParams.get("endDate");
     const leadStatus = searchParams.get("leadStatus");
     const leadStage = searchParams.get("leadStage");
+    const source = searchParams.get("source");
     const conversationStage = (searchParams.get("conversationStage") || "").trim();
     const remarkCount = searchParams.get("remarkCount");
     const chatbotChatDay = searchParams.get("chatbotChatDay");
@@ -568,6 +576,10 @@ export async function GET(req) {
         } else {
           matchStage.leadStage = leadStage;
         }
+      }
+
+      if (source && source !== "All") {
+        matchStage.source = source;
       }
 
       const remarkCountMatch = getRemarkCountMatch(remarkCount);
@@ -745,6 +757,8 @@ export async function GET(req) {
         source: { $in: META_LEAD_SOURCES },
       });
 
+      console.log("Todays Meta Leads Count Debug:", { todayMetaLeads, todayMatch });
+
       const todaySignups = await User.countDocuments({
         ...todayMatch,
         source: "signup",
@@ -812,6 +826,10 @@ export async function GET(req) {
       } else {
         query.leadStage = leadStage;
       }
+    }
+
+    if (source && source !== "All") {
+      query.source = source;
     }
 
     const remarkCountMatch = getRemarkCountMatch(remarkCount);

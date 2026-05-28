@@ -255,7 +255,8 @@ async function getNextAvailableChatbotEmailState() {
   let emailCounter = 1;
   for (const email of takenEmails) {
     const match = email.match(/^chatbot(\d+)@gmail\.com$/i);
-    if (match) emailCounter = Math.max(emailCounter, parseInt(match[1], 10) + 1);
+    if (match)
+      emailCounter = Math.max(emailCounter, parseInt(match[1], 10) + 1);
   }
 
   return { takenEmails, emailCounter };
@@ -297,7 +298,9 @@ export async function ensureChatbotRowsSaved(botRows = []) {
       { limbuBotUserId: { $in: waIds } },
     ],
   })
-    .select("_id phone chatbotUserId whatsappUserId limbuBotUserId assignedAgentId")
+    .select(
+      "_id phone chatbotUserId whatsappUserId limbuBotUserId assignedAgentId",
+    )
     .lean();
 
   const existingByPhone = new Map();
@@ -319,6 +322,21 @@ export async function ensureChatbotRowsSaved(botRows = []) {
   for (const bot of normalizedRows) {
     const messageCount = Number(bot.message_count) || 0;
     if (messageCount < 1) {
+      skipped++;
+      continue;
+    }
+
+    const history = Array.isArray(bot.history) ? bot.history : [];
+    const inboundCount = history.filter(
+      (m) =>
+        String(m?.role || "").toLowerCase() === "user" &&
+        String(m?.content || "").trim() !== "",
+    ).length;
+
+    if (inboundCount < 1) {
+      console.log(
+        `[ensureChatbotRowsSaved] ⏭️ Skip (no inbound message): ${bot.phone || bot.user_id}`,
+      );
       skipped++;
       continue;
     }

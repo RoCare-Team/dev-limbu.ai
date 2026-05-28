@@ -34,6 +34,10 @@ export const fetchPerformanceInsights = async (params = {}) => {
     if (params.locationId) queryParams.append("locationId", params.locationId);
     if (params.reportMonth) queryParams.append("reportMonth", params.reportMonth);
     if (params.reportYear) queryParams.append("reportYear", params.reportYear);
+    if (params.city) queryParams.append("city", params.city);
+    if (params.locality) queryParams.append("locality", params.locality);
+    if (params.startDate) queryParams.append("startDate", params.startDate);
+    if (params.endDate) queryParams.append("endDate", params.endDate);
 
     const response = await fetch(
       `/api/performance-insights?${queryParams.toString()}`,

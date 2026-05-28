@@ -41,13 +41,22 @@ export async function POST(request) {
       );
     }
 
-    // Check if insight with same locationId and report period already exists
-    const existingInsight = await PerformanceInsights.findOne({
+    const existingQuery = {
       locationId,
       reportMonth,
       reportYear,
       userId: session.user.id || session.user.email,
-    });
+    };
+
+    if (city) existingQuery.city = city;
+    if (locality) existingQuery.locality = locality;
+    if (dateRange?.startDate && dateRange?.endDate) {
+      existingQuery["dateRange.startDate"] = new Date(dateRange.startDate);
+      existingQuery["dateRange.endDate"] = new Date(dateRange.endDate);
+    }
+
+    // Check if insight with same location, report period, and exact range already exists
+    const existingInsight = await PerformanceInsights.findOne(existingQuery);
 
     let savedInsight;
     let isUpdated = false;
@@ -129,6 +138,10 @@ export async function GET(request) {
     const locationId = searchParams.get("locationId");
     const reportMonth = searchParams.get("reportMonth");
     const reportYear = searchParams.get("reportYear");
+    const city = searchParams.get("city");
+    const locality = searchParams.get("locality");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     let query = { userId: session.user.id || session.user.email };
 
@@ -142,6 +155,19 @@ export async function GET(request) {
 
     if (reportYear) {
       query.reportYear = parseInt(reportYear);
+    }
+
+    if (city) {
+      query.city = city;
+    }
+
+    if (locality) {
+      query.locality = locality;
+    }
+
+    if (startDate && endDate) {
+      query["dateRange.startDate"] = new Date(startDate);
+      query["dateRange.endDate"] = new Date(endDate);
     }
 
     console.log("GET Query:", query);

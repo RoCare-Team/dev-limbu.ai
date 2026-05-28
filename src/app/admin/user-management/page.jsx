@@ -284,6 +284,7 @@ export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState("All");
+  const [leadSourceFilter, setLeadSourceFilter] = useState("All");
   const [remarkCountFilter, setRemarkCountFilter] = useState("All");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -1047,6 +1048,11 @@ export default function UserManagement() {
       );
 
       const data = await res.json();
+      console.log("[Meta Leads Fetch]", {
+        success: data.success,
+        stats: data.stats,
+        error: data.error,
+      });
 
       if (data.success) {
         if (!silent) {
@@ -1288,8 +1294,19 @@ export default function UserManagement() {
       (u) => u.subscription?.plan === "Premium",
     ).length;
     const active = connectedBusinessUsers.length;
-    const isMetaLeadSource = (src) =>
-      src === "bulk-upload" || src === "Meta Leads" || src === "Meta";
+    const isMetaLeadSource = (src, leadTags = []) =>
+      [
+        "bulk-upload",
+        "manual-upload",
+        "csv-import",
+        "excel-import",
+        "Meta Leads",
+        "Meta",
+      ].includes(String(src || "").trim()) ||
+      (Array.isArray(leadTags) &&
+        leadTags.some(
+          (tag) => String(tag || "").trim().toLowerCase() === "metaleads",
+        ));
     const isTodayLocalBrowser = (createdAt) =>
       new Date(createdAt).toDateString() === new Date().toDateString();
     const useApiTodayBreakdown =
@@ -1301,7 +1318,9 @@ export default function UserManagement() {
     const todayMetaLeads = useApiTodayBreakdown
       ? todayUsersMetaLeads
       : users.filter(
-          (u) => isMetaLeadSource(u.source) && isTodayLocalBrowser(u.createdAt),
+          (u) =>
+            isMetaLeadSource(u.source, u.leadTags) &&
+            isTodayLocalBrowser(u.createdAt),
         ).length;
     const todaySignups = useApiTodayBreakdown
       ? todayUsersSignups
@@ -1359,6 +1378,8 @@ export default function UserManagement() {
         params.append("leadStatus", leadStatusFilter);
       if (leadStageFilter !== "All")
         params.append("leadStage", leadStageFilter);
+      if (leadSourceFilter !== "All")
+        params.append("source", leadSourceFilter);
       if (conversationStageFilter !== "All")
         params.append("conversationStage", conversationStageFilter);
       if (remarkCountFilter !== "All")
@@ -1414,6 +1435,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    leadSourceFilter,
     conversationStageFilter,
     remarkCountFilter,
   ]);
@@ -1431,6 +1453,7 @@ export default function UserManagement() {
     const nextLeadStatusFilter =
       overrides.leadStatusFilter ?? leadStatusFilter;
     const nextLeadStageFilter = overrides.leadStageFilter ?? leadStageFilter;
+    const nextLeadSourceFilter = overrides.leadSourceFilter ?? leadSourceFilter;
     const nextConversationStageFilter =
       overrides.conversationStageFilter ?? conversationStageFilter;
     const nextRemarkCountFilter =
@@ -1475,6 +1498,10 @@ export default function UserManagement() {
 
       if (nextLeadStageFilter !== "All") {
         params.append("leadStage", nextLeadStageFilter);
+      }
+
+      if (nextLeadSourceFilter !== "All") {
+        params.append("source", nextLeadSourceFilter);
       }
 
       if (
@@ -1532,6 +1559,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    leadSourceFilter,
     conversationStageFilter,
     remarkCountFilter,
     chatbotChatDayFilter,
@@ -3201,6 +3229,7 @@ export default function UserManagement() {
     setAssigneeFilter("All");
     setLeadStatusFilter("All");
     setLeadStageFilter("All");
+    setLeadSourceFilter("All");
     setConversationStageFilter("All");
     setSelectedConversationStage("All");
     setConversationStageTableActive(false);
@@ -3910,6 +3939,29 @@ export default function UserManagement() {
                 <FormControl size="small" fullWidth>
                   <Select
                     displayEmpty
+                    value={leadSourceFilter}
+                    onChange={(e) => setLeadSourceFilter(e.target.value)}
+                    renderValue={(selected) => {
+                      if (selected === "All") return "Source: All";
+                      const option = USER_SOURCE_OPTIONS.find(
+                        (item) => item.value === selected,
+                      );
+                      return `Source: ${option?.label || selected}`;
+                    }}
+                    inputProps={{ "aria-label": "Lead Source" }}
+                  >
+                    <MenuItem value="All">All Sources</MenuItem>
+                    {USER_SOURCE_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" fullWidth>
+                  <Select
+                    displayEmpty
                     value={remarkCountFilter}
                     onChange={(e) => setRemarkCountFilter(e.target.value)}
                     renderValue={(selected) => {
@@ -3979,6 +4031,7 @@ export default function UserManagement() {
                   assigneeFilter !== "All" ||
                   leadStatusFilter !== "All" ||
                   leadStageFilter !== "All" ||
+                  leadSourceFilter !== "All" ||
                   conversationStageFilter !== "All" ||
                   remarkCountFilter !== "All") && (
                   <Button

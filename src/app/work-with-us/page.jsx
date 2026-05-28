@@ -10,6 +10,7 @@ import {
 
 import Navbar from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
+import Image from "next/image";
 
 export default function WorkWithUsPage() {
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -299,16 +300,13 @@ export default function WorkWithUsPage() {
 
               <div className="md:w-1/2 w-full relative">
                 <div className="absolute inset-0 bg-[var(--lemon-hover)] rounded-3xl transform rotate-3 opacity-10 transition-transform hover:rotate-6 duration-500"></div>
-                <div className="relative bg-white rounded-3xl h-[350px] border border-slate-100 flex items-center justify-center overflow-hidden shadow-xl">
-                   <div className="text-center p-8">
-                      <div className="w-24 h-24 rounded-full bg-slate-50 mx-auto mb-4 flex items-center justify-center border border-slate-100">
-                        <Users className="w-10 h-10 text-slate-300" />
-                      </div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                        Team Collaboration Studio
-                      </p>
-                   </div>
-                </div>
+                <Image 
+                  src="/images/work-with-us.png"
+                  alt="Perks"
+                  width={500}
+                  height={350}
+                  className="w-full h-full object-cover rounded-3xl"
+                />
               </div>
             </div>
           </div>
@@ -403,7 +401,7 @@ export default function WorkWithUsPage() {
               
               <div className="relative z-10">
                 <h2 
-                  className="text-2xl md:text-4xl font-bold uppercase tracking-tight mb-5"
+                  className="text-2xl md:text-4xl font-bold uppercase tracking-tight mb-5 text-white"
                   style={{ fontFamily: "var(--font-heading)" }}
                 >
                   Not looking for a job?

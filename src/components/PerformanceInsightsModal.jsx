@@ -1,11 +1,23 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { X, Download, Calendar, AlertCircle, RefreshCw, BarChart3, Loader2 } from "lucide-react";
+import {
+  X,
+  Download,
+  Calendar,
+  AlertCircle,
+  RefreshCw,
+  BarChart3,
+  Loader2,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import PerformanceInsightsReport from "./PerformanceInsightsReport";
 import { generatePerformanceInsightsPDF } from "@/lib/performancePdfGenerator";
-import { savePerformanceInsights, calculateMetricsInRange } from "@/lib/performanceInsightsUtils";
+import {
+  savePerformanceInsights,
+  calculateMetricsInRange,
+  getReportPeriod,
+} from "@/lib/performanceInsightsUtils";
 
 const PerformanceInsightsModal = ({
   isOpen,
@@ -35,6 +47,64 @@ const PerformanceInsightsModal = ({
   const [localStartDate, setLocalStartDate] = useState(new Date());
   const [localEndDate, setLocalEndDate] = useState(new Date());
   const [reportMode, setReportMode] = useState("1month"); // "1month" or "6months"
+  // यह line add करें existing states के साथ
+  const [isManualMode, setIsManualMode] = useState(false);
+
+  const getActiveRange = useCallback(
+    (start = dateRange?.startDate || localStartDate, end = dateRange?.endDate || localEndDate) => {
+      const startDate = start instanceof Date ? start : new Date(start);
+      const endDate = end instanceof Date ? end : new Date(end);
+      return { startDate, endDate };
+    },
+    [dateRange?.startDate, dateRange?.endDate, localStartDate, localEndDate],
+  );
+
+  const buildReportKey = useCallback(
+    (start = dateRange?.startDate || localStartDate, end = dateRange?.endDate || localEndDate) => {
+      const { startDate, endDate } = getActiveRange(start, end);
+      const reportPeriod = getReportPeriod(startDate, endDate);
+      return {
+        reportMonth: reportPeriod.month,
+        reportYear: reportPeriod.year,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      };
+    },
+    [dateRange?.startDate, dateRange?.endDate, getActiveRange, localStartDate, localEndDate],
+  );
+
+  const fetchSavedInsight = useCallback(
+    async (start, end) => {
+      const reportKey = buildReportKey(start, end);
+      const queryParams = new URLSearchParams({
+        locationId: locationId || "",
+        reportMonth: reportKey.reportMonth,
+        reportYear: String(reportKey.reportYear),
+        city: city || "",
+        locality: locality || "",
+        startDate: reportKey.startDate,
+        endDate: reportKey.endDate,
+        _t: String(Date.now()),
+      });
+
+      const fetchResponse = await fetch(`/api/performance-insights?${queryParams.toString()}`, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      });
+
+      if (!fetchResponse.ok) {
+        throw new Error(`Fetch failed: ${fetchResponse.status}`);
+      }
+
+      const fetchedData = await fetchResponse.json();
+      return fetchedData.success && fetchedData.data && fetchedData.data.length > 0
+        ? fetchedData.data[0]
+        : null;
+    },
+    [buildReportKey, city, locality, locationId],
+  );
 
   // Helper to safely format date for input[type="date"]
   const formatDateForInput = (date) => {
@@ -76,13 +146,24 @@ const PerformanceInsightsModal = ({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setHasAutoSavedThisSession(false);
+    }
+  }, [isOpen, locationId, city, locality, dateRange?.startDate, dateRange?.endDate]);
+
   // Update display data when fresh insights data comes from parent
   useEffect(() => {
     if (insightsData && isOpen) {
+      // ← !isManualMode add किया
       console.log("Fresh data received from parent, updating display...");
 
-      const rs = dateRange?.startDate ? new Date(dateRange.startDate) : localStartDate;
-      const re = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
+      const rs = dateRange?.startDate
+        ? new Date(dateRange.startDate)
+        : localStartDate;
+      const re = dateRange?.endDate
+        ? new Date(dateRange.endDate)
+        : localEndDate;
       const metrics = calculateMetricsInRange(insightsData, rs, re);
 
       setDisplayData((prev) => ({
@@ -100,7 +181,17 @@ const PerformanceInsightsModal = ({
 
       setLastUpdated(new Date());
     }
-  }, [insightsData, isOpen, dateRange?.startDate, dateRange?.endDate, searchKeywords, businessName, locationName, localStartDate, localEndDate]);
+  }, [
+    insightsData,
+    isOpen,
+    dateRange?.startDate,
+    dateRange?.endDate,
+    searchKeywords,
+    businessName,
+    locationName,
+    localStartDate,
+    localEndDate,
+  ]);
 
   // Auto-save insights to DB when component mounts with data, then fetch from DB
   useEffect(() => {
@@ -109,39 +200,22 @@ const PerformanceInsightsModal = ({
     const autoSaveAndFetchInsights = async () => {
       try {
         setIsSaving(true);
-        const reportDate = new Date(localEndDate);
-        const month = reportDate.toLocaleString("en-US", { month: "long" });
-        const year = reportDate.getFullYear();
+        const { startDate: rs, endDate: re } = getActiveRange();
+        const reportKey = buildReportKey(rs, re);
 
         // Step 0: Check if record already exists in database
-        const queryParams = new URLSearchParams({
-          locationId: locationId,
-          reportMonth: month,
-          reportYear: String(year),
-        });
-
-        const checkUrl = `/api/performance-insights?${queryParams.toString()}`;
-
-        const checkResponse = await fetch(checkUrl, {
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-          },
-        });
-
-        const checkData = await checkResponse.json();
-        const existingRecord = checkData.success && checkData.data && checkData.data.length > 0 ? checkData.data[0] : null;
+        const existingRecord = await fetchSavedInsight(rs, re);
 
         if (existingRecord) {
           // Record exists in database - use it, don't overwrite with old parent data
-          console.log("✓ Record exists in database - using existing data (not overwriting)");
+          console.log(
+            "✓ Record exists in database - using existing data (not overwriting)",
+          );
           setDisplayData(existingRecord);
           toast.success("✓ Loaded from database!", { id: "auto-save" });
         } else {
           // Record doesn't exist - save new one from parent data
           console.log("✓ No existing record - creating new one");
-          const rs = dateRange?.startDate ? new Date(dateRange.startDate) : localStartDate;
-          const re = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
           const metrics = calculateMetricsInRange(insightsData, rs, re);
 
           const insightsPayload = {
@@ -157,8 +231,8 @@ const PerformanceInsightsModal = ({
               startDate: rs.toISOString(),
               endDate: re.toISOString(),
             },
-            reportMonth: month,
-            reportYear: year,
+            reportMonth: reportKey.reportMonth,
+            reportYear: reportKey.reportYear,
             metrics,
           };
 
@@ -168,22 +242,8 @@ const PerformanceInsightsModal = ({
           toast.success("✓ Insights saved to database!", { id: "auto-save" });
 
           // Fetch the just-saved record
-          const fetchUrl = `/api/performance-insights?${queryParams.toString()}`;
-          const fetchResponse = await fetch(fetchUrl, {
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache, no-store, must-revalidate",
-            },
-          });
-
-          if (!fetchResponse.ok) {
-            throw new Error(`Fetch failed: ${fetchResponse.status}`);
-          }
-
-          const fetchedData = await fetchResponse.json();
-
-          if (fetchedData.success && fetchedData.data && fetchedData.data.length > 0) {
-            const latestRecord = fetchedData.data[0];
+          const latestRecord = await fetchSavedInsight(rs, re);
+          if (latestRecord) {
             setDisplayData(latestRecord);
           } else {
             console.warn("No data returned from fetch");
@@ -196,13 +256,32 @@ const PerformanceInsightsModal = ({
         setIsSaving(false);
       } catch (error) {
         console.error("Error in autoSaveAndFetchInsights:", error);
-        toast.error(error.message || "Failed to load/save insights", { id: "auto-save" });
+        toast.error(error.message || "Failed to load/save insights", {
+          id: "auto-save",
+        });
         setIsSaving(false);
       }
     };
 
     autoSaveAndFetchInsights();
-  }, [isOpen, insightsData, loading, locationId, businessName, locationName, businessProfileId, searchKeywords, hasAutoSavedThisSession, dateRange?.startDate, dateRange?.endDate]);
+  }, [
+    isOpen,
+    insightsData,
+    loading,
+    locationId,
+    businessName,
+    locationName,
+    businessProfileId,
+    city,
+    locality,
+    searchKeywords,
+    hasAutoSavedThisSession,
+    dateRange?.startDate,
+    dateRange?.endDate,
+    buildReportKey,
+    fetchSavedInsight,
+    getActiveRange,
+  ]);
 
   const handleDownloadPDF = async () => {
     try {
@@ -240,18 +319,35 @@ const PerformanceInsightsModal = ({
     }
   };
 
-  const handleApplyDateRange = () => {
-    if (onDateChange) {
-      // Ensure dates are proper Date objects
-      const startDate = localStartDate instanceof Date ? localStartDate : new Date(localStartDate);
-      const endDate = localEndDate instanceof Date ? localEndDate : new Date(localEndDate);
+  const handleApplyDateRange = async () => {
+    const startDate =
+      localStartDate instanceof Date
+        ? localStartDate
+        : new Date(localStartDate);
+    const endDate =
+      localEndDate instanceof Date ? localEndDate : new Date(localEndDate);
 
+    if (onDateChange) {
       onDateChange({
         startDate: startDate,
         endDate: endDate,
       });
     }
+    setReportMode("custom"); // ← यह line add करें
+    setIsManualMode(true);
     setShowDatePicker(false);
+    setHasAutoSavedThisSession(false);
+
+    try {
+      const latestRecord = await fetchSavedInsight(startDate, endDate);
+      if (latestRecord) {
+        setDisplayData(latestRecord);
+        setLastUpdated(new Date());
+        toast.success("✓ Loaded custom range data!", { id: "custom-range" });
+      }
+    } catch (error) {
+      console.error("Error loading custom range data:", error);
+    }
   };
 
   const handleResetDateRange = () => {
@@ -272,6 +368,8 @@ const PerformanceInsightsModal = ({
     setLocalEndDate(today);
     setReportMode("1month");
     setShowDatePicker(false);
+    setIsManualMode(true);
+    setHasAutoSavedThisSession(false);
 
     // Notify parent to fetch fresh data - ensure dates are Date objects
     if (onDateChange) {
@@ -282,14 +380,16 @@ const PerformanceInsightsModal = ({
     }
 
     try {
-      const reportDate = new Date();
-      const month = reportDate.toLocaleString("en-US", { month: "long" });
-      const year = reportDate.getFullYear();
+      const reportKey = buildReportKey(startDate, today);
 
       const queryParams = new URLSearchParams({
         locationId: locationId,
-        reportMonth: month,
-        reportYear: String(year),
+        reportMonth: reportKey.reportMonth,
+        reportYear: String(reportKey.reportYear),
+        city: city || "",
+        locality: locality || "",
+        startDate: reportKey.startDate,
+        endDate: reportKey.endDate,
         _t: Date.now(),
       });
 
@@ -304,7 +404,11 @@ const PerformanceInsightsModal = ({
 
       if (fetchResponse.ok) {
         const fetchedData = await fetchResponse.json();
-        if (fetchedData.success && fetchedData.data && fetchedData.data.length > 0) {
+        if (
+          fetchedData.success &&
+          fetchedData.data &&
+          fetchedData.data.length > 0
+        ) {
           const latestRecord = fetchedData.data[0];
           setDisplayData(latestRecord);
           setLastUpdated(new Date());
@@ -330,7 +434,9 @@ const PerformanceInsightsModal = ({
     setLocalStartDate(sixMonthsAgo);
     setLocalEndDate(today);
     setReportMode("6months");
+    setIsManualMode(true);
     setShowDatePicker(false);
+    setHasAutoSavedThisSession(false);
 
     // Notify parent to fetch fresh data for 6-month period
     if (onDateChange) {
@@ -342,14 +448,16 @@ const PerformanceInsightsModal = ({
 
     // Also try to fetch from API if we have the needed params
     try {
-      const reportDate = new Date(today);
-      const month = reportDate.toLocaleString("en-US", { month: "long" });
-      const year = reportDate.getFullYear();
+      const reportKey = buildReportKey(sixMonthsAgo, today);
 
       const queryParams = new URLSearchParams({
         locationId: locationId,
-        reportMonth: month,
-        reportYear: String(year),
+        reportMonth: reportKey.reportMonth,
+        reportYear: String(reportKey.reportYear),
+        city: city || "",
+        locality: locality || "",
+        startDate: reportKey.startDate,
+        endDate: reportKey.endDate,
         _t: Date.now(),
       });
 
@@ -364,7 +472,11 @@ const PerformanceInsightsModal = ({
 
       if (fetchResponse.ok) {
         const fetchedData = await fetchResponse.json();
-        if (fetchedData.success && fetchedData.data && fetchedData.data.length > 0) {
+        if (
+          fetchedData.success &&
+          fetchedData.data &&
+          fetchedData.data.length > 0
+        ) {
           const latestRecord = fetchedData.data[0];
           setDisplayData(latestRecord);
           setLastUpdated(new Date());
@@ -379,14 +491,17 @@ const PerformanceInsightsModal = ({
 
   const handleRefreshData = useCallback(async () => {
     try {
-      const reportDate = new Date(localEndDate);
-      const month = reportDate.toLocaleString("en-US", { month: "long" });
-      const year = reportDate.getFullYear();
+      const { startDate, endDate } = getActiveRange();
+      const reportKey = buildReportKey(startDate, endDate);
 
       const queryParams = new URLSearchParams({
         locationId: locationId,
-        reportMonth: month,
-        reportYear: String(year),
+        reportMonth: reportKey.reportMonth,
+        reportYear: String(reportKey.reportYear),
+        city: city || "",
+        locality: locality || "",
+        startDate: reportKey.startDate,
+        endDate: reportKey.endDate,
         _t: Date.now(), // Cache busting - always get fresh data from server
       });
 
@@ -406,7 +521,11 @@ const PerformanceInsightsModal = ({
 
       const fetchedData = await fetchResponse.json();
 
-      if (fetchedData.success && fetchedData.data && fetchedData.data.length > 0) {
+      if (
+        fetchedData.success &&
+        fetchedData.data &&
+        fetchedData.data.length > 0
+      ) {
         const latestRecord = fetchedData.data[0];
         setDisplayData(latestRecord);
         setLastUpdated(new Date());
@@ -414,7 +533,7 @@ const PerformanceInsightsModal = ({
     } catch (error) {
       console.error("Error refreshing data:", error);
     }
-  }, [locationId, localEndDate]);
+  }, [buildReportKey, city, getActiveRange, locality, locationId]);
 
   // Auto-refresh data every 10 seconds if modal is open and auto-refresh is enabled
   useEffect(() => {
@@ -439,8 +558,19 @@ const PerformanceInsightsModal = ({
     };
   }, [isOpen, autoRefreshEnabled, handleRefreshData]);
 
-  const currentStartDate = dateRange?.startDate ? new Date(dateRange.startDate) : localStartDate;
-  const currentEndDate = dateRange?.endDate ? new Date(dateRange.endDate) : localEndDate;
+  const currentStartDate = dateRange?.startDate
+    ? new Date(dateRange.startDate)
+    : localStartDate;
+  const currentEndDate = dateRange?.endDate
+    ? new Date(dateRange.endDate)
+    : localEndDate;
+
+  useEffect(() => {
+    if (!isOpen) {
+      setHasAutoSavedThisSession(false);
+      setIsManualMode(false); // ← add करें
+    }
+  }, [isOpen]);
 
   return !isOpen ? null : (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
@@ -452,10 +582,15 @@ const PerformanceInsightsModal = ({
               <BarChart3 className="text-black w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl text-white font-black uppercase tracking-tight leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+              <h2
+                className="text-xl sm:text-2xl text-white font-black uppercase tracking-tight leading-none mb-1"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
                 {businessName}
               </h2>
-              <p className="text-yellow-400 text-xs font-bold uppercase tracking-widest opacity-80">{locationName}</p>
+              <p className="text-yellow-400 text-xs font-bold uppercase tracking-widest opacity-80">
+                {locationName}
+              </p>
             </div>
           </div>
           <button
@@ -530,7 +665,9 @@ const PerformanceInsightsModal = ({
         {/* Date Range Picker */}
         {showDatePicker && (
           <div className="px-8 py-6 border-b border-black/5 bg-yellow-400/5 animate-slideDown">
-            <h3 className="text-xs font-black text-black uppercase tracking-[0.2em] mb-4">Select Custom Date Range</h3>
+            <h3 className="text-xs font-black text-black uppercase tracking-[0.2em] mb-4">
+              Select Custom Date Range
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
@@ -579,7 +716,11 @@ const PerformanceInsightsModal = ({
           {loading || isSaving ? (
             <div className="h-full flex items-center justify-center min-h-100">
               <div className="text-center bg-white p-12 rounded-4xl shadow-xl border border-black/5 flex flex-col items-center">
-                <Loader2 size={50} className="text-yellow-500 animate-spin mb-6" strokeWidth={3} />
+                <Loader2
+                  size={50}
+                  className="text-yellow-500 animate-spin mb-6"
+                  strokeWidth={3}
+                />
                 <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">
                   {isSaving ? "Saving Report..." : "Generating Insights..."}
                 </p>
@@ -588,8 +729,13 @@ const PerformanceInsightsModal = ({
           ) : !displayData ? (
             <div className="h-full flex items-center justify-center min-h-100">
               <div className="text-center bg-white p-12 rounded-4xl border border-black/5 max-w-md shadow-lg">
-                <AlertCircle className="mx-auto mb-6 text-yellow-500" size={48} />
-                <h3 className="text-black font-black uppercase tracking-tight mb-2">No Data Found</h3>
+                <AlertCircle
+                  className="mx-auto mb-6 text-yellow-500"
+                  size={48}
+                />
+                <h3 className="text-black font-black uppercase tracking-tight mb-2">
+                  No Data Found
+                </h3>
                 <p className="text-slate-400 font-bold text-sm">
                   Please select a valid date range and try again.
                 </p>

@@ -95,7 +95,16 @@ const PerformanceInsightsSchema = new mongoose.Schema(
   }
 );
 
-PerformanceInsightsSchema.index({ locationId: 1, userId: 1, reportMonth: 1, reportYear: 1 });
+PerformanceInsightsSchema.index({
+  locationId: 1,
+  userId: 1,
+  reportMonth: 1,
+  reportYear: 1,
+  city: 1,
+  locality: 1,
+  "dateRange.startDate": 1,
+  "dateRange.endDate": 1,
+});
 
 export default mongoose.models.PerformanceInsights ||
   mongoose.model("PerformanceInsights", PerformanceInsightsSchema);

@@ -312,6 +312,7 @@ export default function UserManagement() {
 
   const tableRef = useRef(null);
   const bottomRef = useRef(null);
+  const fetchingConversationStageKeysRef = useRef(new Set());
 
   useEffect(() => {
     const table = tableRef.current;
@@ -836,6 +837,56 @@ export default function UserManagement() {
     }
   }, [preConversationFilteredUsers]);
 
+  useEffect(() => {
+    const usersNeedingStage = preConversationFilteredUsers
+      .filter((user) => {
+        const key = getConversationStageKey(user);
+        return (
+          key &&
+          !conversationStages[key] &&
+          !Array.isArray(user.chatbotHistory) &&
+          !Array.isArray(user.conversationStages) &&
+          getLimbuBotHistoryUserId(user)
+        );
+      })
+      .slice(0, 10);
+
+    if (!usersNeedingStage.length) return;
+
+    usersNeedingStage.forEach((user) => {
+      const key = getConversationStageKey(user);
+      if (fetchingConversationStageKeysRef.current.has(key)) return;
+      fetchingConversationStageKeysRef.current.add(key);
+
+      setConversationStages((prev) => ({
+        ...prev,
+        [key]: {
+          loading: true,
+          historyCount: 0,
+          stage: { label: "Checking...", steps: [] },
+        },
+      }));
+
+      fetchWhatsAppHistoryForUser(user)
+        .then(({ history }) => {
+          updateConversationStageCache(user, history);
+        })
+        .catch(() => {
+          setConversationStages((prev) => ({
+            ...prev,
+            [key]: {
+              loading: false,
+              historyCount: 0,
+              stage: { label: "No Activity", steps: [] },
+            },
+          }));
+        })
+        .finally(() => {
+          fetchingConversationStageKeysRef.current.delete(key);
+        });
+    });
+  }, [preConversationFilteredUsers, conversationStages]);
+
   const stageOptions = [
     "Initial Conversation",
     "GMB Connected",
@@ -875,7 +926,6 @@ export default function UserManagement() {
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
-    const stageKey = getConversationStageKey(user);
     if (Array.isArray(user.chatbotHistory)) {
       setChatHistoryModal({
         open: true,
@@ -885,16 +935,7 @@ export default function UserManagement() {
         loading: false,
         error: "",
       });
-      if (stageKey) {
-        setConversationStages((prev) => ({
-          ...prev,
-          [stageKey]: {
-            loading: false,
-            historyCount: user.chatbotHistory.length,
-            stage: getConversationStageFromHistory(user.chatbotHistory, user),
-          },
-        }));
-      }
+      updateConversationStageCache(user, user.chatbotHistory);
       return;
     }
 
@@ -908,9 +949,68 @@ export default function UserManagement() {
       user,
       userId: historyUserId,
       history: [],
-      loading: false,
-      error: "No attached WhatsApp messages found for this contact.",
+      loading: true,
+      error: "",
     });
+
+    try {
+      const { historyUserId: resolvedUserId, history } =
+        await fetchWhatsAppHistoryForUser(user);
+
+      updateConversationStageCache(user, history);
+      setChatHistoryModal({
+        open: true,
+        user,
+        userId: resolvedUserId,
+        history,
+        loading: false,
+        error: "",
+      });
+    } catch (error) {
+      setChatHistoryModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: error.message || "Failed to load WhatsApp chat history.",
+      }));
+      showToast(error.message || "Failed to load WhatsApp chat history", "error");
+    }
+  };
+
+  const updateConversationStageCache = (user, history = []) => {
+    const stageKey = getConversationStageKey(user);
+    if (!stageKey) return;
+
+    setConversationStages((prev) => ({
+      ...prev,
+      [stageKey]: {
+        loading: false,
+        historyCount: history.length,
+        stage: getConversationStageFromHistory(history, user),
+      },
+    }));
+  };
+
+  const fetchWhatsAppHistoryForUser = async (user) => {
+    const historyUserId = getLimbuBotHistoryUserId(user);
+    if (!historyUserId || historyUserId === "wa_") {
+      throw new Error("No WhatsApp number found for this user");
+    }
+
+    const response = await fetch(
+      `/api/limbubot/history?user_id=${encodeURIComponent(historyUserId)}`,
+      { cache: "no-store" },
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || "Failed to load WhatsApp chat history");
+    }
+
+    return {
+      historyUserId: data.user_id || historyUserId,
+      history: Array.isArray(data.history) ? data.history : [],
+      contact: data.contact || null,
+    };
   };
 
   const closeChatHistoryModal = () => {

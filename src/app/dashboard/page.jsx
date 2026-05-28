@@ -5,12 +5,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import {
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  LogOut,
-} from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { fetchAllPostsAction } from "../actions/postActions";
@@ -117,38 +112,23 @@ export default function DashboardPage() {
     activeListings,
     summary,
     fetchInitialData,
-    handleManualRefresh
+    handleManualRefresh,
   } = useGMB(session, status, setUiState);
 
-  const {
-    facebookPages,
-    setFacebookPages,
-    handleDisconnectFacebook
-  } = useFacebook(router, searchParams);
+  const { facebookPages, setFacebookPages, handleDisconnectFacebook } =
+    useFacebook(router, searchParams);
 
-  const {
-    instagramPages,
-    setInstagramPages,
-    handleDisconnectInstagram
-  } = useInstagram(router, searchParams);
+  const { instagramPages, setInstagramPages, handleDisconnectInstagram } =
+    useInstagram(router, searchParams);
 
-  const {
-    linkedinPages,
-    setLinkedinPages,
-    handleDisconnectLinkedin
-  } = useLinkedin(router, searchParams);
+  const { linkedinPages, setLinkedinPages, handleDisconnectLinkedin } =
+    useLinkedin(router, searchParams);
 
-  const {
-    pinterestProfiles,
-    setPinterestProfiles,
-    handleDisconnectPinterest
-  } = usePinterest(router, searchParams);
+  const { pinterestProfiles, setPinterestProfiles, handleDisconnectPinterest } =
+    usePinterest(router, searchParams);
 
-  const {
-    youtubeChannels,
-    setYoutubeChannels,
-    handleDisconnectYouTube
-  } = useYouTube(router, searchParams);
+  const { youtubeChannels, setYoutubeChannels, handleDisconnectYouTube } =
+    useYouTube(router, searchParams);
 
   // --- Consolidated Performance Insights State ---
   const [performanceState, setPerformanceState] = useState({
@@ -168,42 +148,65 @@ export default function DashboardPage() {
   });
 
   // When admin is impersonating, use the stored user name/email instead of NextAuth session
-  const isImpersonating = typeof window !== "undefined" && localStorage.getItem("isImpersonating") === "true";
+  const isImpersonating =
+    typeof window !== "undefined" &&
+    localStorage.getItem("isImpersonating") === "true";
   const displayName = isImpersonating
-    ? (localStorage.getItem("userName") || localStorage.getItem("fullName") || session?.user?.name || "User")
-    : (session?.user?.name || "User");
+    ? localStorage.getItem("userName") ||
+      localStorage.getItem("fullName") ||
+      session?.user?.name ||
+      "User"
+    : session?.user?.name || "User";
 
   const userPlan = session?.user?.plan || "";
   const maxAccounts = userPlan === "" ? 1 : 0;
 
   // Flexible Logout Handler (Revoke Meta Permissions)
-  const handleMetaLogout = async (type = "both") => {
+  const handleMetaLogout = useCallback(async (type = "both") => {
     const isFb = type === "facebook" || type === "both";
     const isIg = type === "instagram" || type === "both";
 
-    const userId = getLocalStorage("userId");
-    if (!userId) return toast.error("Login first");
+    const activeId = getLocalStorage("userId"); // ya getLocalStorage("userId")
+    if (!activeId) return toast.error("Login first");
 
     try {
-      const res = await fetch("/api/meta-logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, facebook: isFb, instagram: isIg }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (isFb) setFacebookPages([]);
-        if (isIg) setInstagramPages([]);
-
-        const platformName = type === "both" ? "Facebook & Instagram" : (type === "facebook" ? "Facebook" : "Instagram");
-        toast.success(`Successfully disconnected ${platformName}`);
-      } else {
-        toast.error("Logout failed: " + (data.error || "Unknown error"));
+      // Facebook disconnect
+      if (isFb) {
+        const res = await fetch(`/api/facebook/disconnect?userId=${activeId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}), // empty = sab delete
+        });
+        const data = await res.json();
+        if (data.success) setFacebookPages([]);
       }
+
+      // Instagram disconnect
+      if (isIg) {
+        const res = await fetch(
+          `/api/instagram/disconnect?userId=${activeId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}), // empty = sab delete
+          },
+        );
+        const data = await res.json();
+        if (data.success) setInstagramPages([]);
+      }
+
+      const platformName =
+        type === "both"
+          ? "Facebook & Instagram"
+          : type === "facebook"
+            ? "Facebook"
+            : "Instagram";
+
+      toast.success(`Successfully disconnected ${platformName}`);
     } catch (err) {
-      toast.error("Logout failed");
+      toast.error("Disconnect failed");
     }
-  };
+  }, []);
 
   useEffect(() => {
     let timerId = null;
@@ -212,7 +215,11 @@ export default function DashboardPage() {
         const userId = getLocalStorage("userId");
         if (!userId) return; // Wait until userId is available
         const allPostsData = await fetchAllPostsAction(userId);
-        if (allPostsData.success && (allPostsData.pagination?.totalItems === 0 || allPostsData.data.length === 0)) {
+        if (
+          allPostsData.success &&
+          (allPostsData.pagination?.totalItems === 0 ||
+            allPostsData.data.length === 0)
+        ) {
           timerId = setTimeout(() => {
             setUiState((prev) => ({ ...prev, showFirstPostModal: true }));
           }, 3000);
@@ -222,7 +229,9 @@ export default function DashboardPage() {
       }
     };
     fetchPosts();
-    return () => { if (timerId) clearTimeout(timerId); };
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
   }, []);
 
   // Show connect modal for unauthenticated users after a delay
@@ -241,88 +250,121 @@ export default function DashboardPage() {
     else toast(message);
   };
 
-  const handleListingData = useCallback((listing) => {
-    router.push("/post-management");
-  }, [router]);
+  const handleListingData = useCallback(
+    (listing) => {
+      router.push("/post-management");
+    },
+    [router],
+  );
 
   // Handle View Performance Insights
-  const handleViewPerformanceInsights = useCallback(async (
-    listing,
-    customStartDate = null,
-    customEndDate = null,
-  ) => {
-    const locationId = listing?.name?.split("/")[1];
+  const handleViewPerformanceInsights = useCallback(
+    async (listing, customStartDate = null, customEndDate = null) => {
+      const locationId = listing?.name?.split("/")[1];
 
-    // Determine dates using parameters or current state
-    const startDate = customStartDate || performanceState.dateRange.startDate;
-    const endDate = customEndDate || performanceState.dateRange.endDate;
-    const reportStart = startDate instanceof Date ? startDate : new Date(startDate);
-    const reportEnd = endDate instanceof Date ? endDate : new Date(endDate);
-    const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(reportStart, reportEnd);
+      // Determine dates using parameters or current state
+      const startDate = customStartDate || performanceState.dateRange.startDate;
+      const endDate = customEndDate || performanceState.dateRange.endDate;
+      const reportStart =
+        startDate instanceof Date ? startDate : new Date(startDate);
+      const reportEnd = endDate instanceof Date ? endDate : new Date(endDate);
+      const { fetchStart, reportEnd: insightSeriesEnd } =
+        getPerformanceInsightsWindows(reportStart, reportEnd);
 
-    setPerformanceState((prev) => ({
-      ...prev,
-      isOpen: true,
-      loading: true,
-      data: null,
-      searchKeywords: null,
-      location: {
-        name: listing.title || "Unknown Listing",
-        id: locationId,
-        businessProfileId: listing.name,
-        city: listing.storefrontAddress?.locality || "",
-        locality: listing.storefrontAddress?.administrativeArea || "",
-      },
-    }));
-
-    try {
-      const insights = await fetchLocationInsights(session.accessToken, locationId, fetchStart, insightSeriesEnd);
-
-      const currentDate = new Date();
-      const startMonth = { year: currentDate.getFullYear(), month: currentDate.getMonth() - 3 };
-      if (startMonth.month <= 0) { startMonth.month += 12; startMonth.year -= 1; }
-      const endMonth = { year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 };
-
-      const keywords = await fetchSearchKeywords(session.accessToken, locationId, startMonth, endMonth);
-      const keywordsArray = keywords?.searchKeywordsCounts || keywords || null;
-
-      setPerformanceState((prevData) => ({
-        ...prevData,
-        data: insights,
-        searchKeywords: keywordsArray,
-        loading: false,
+      setPerformanceState((prev) => ({
+        ...prev,
+        isOpen: true,
+        loading: true,
+        data: null,
+        searchKeywords: null,
+        location: {
+          name: listing.title || "Unknown Listing",
+          id: locationId,
+          businessProfileId: listing.name,
+          city: listing.storefrontAddress?.locality || "",
+          locality: listing.storefrontAddress?.administrativeArea || "",
+        },
       }));
-    } catch (error) {
-      console.error("Error fetching performance insights:", error);
-      toast.error("Failed to load performance insights.");
-      setPerformanceState((prevData) => ({ ...prevData, loading: false }));
-    }
-  }, [session?.accessToken, performanceState.dateRange]);
 
+      try {
+        const insights = await fetchLocationInsights(
+          session.accessToken,
+          locationId,
+          fetchStart,
+          insightSeriesEnd,
+        );
 
+        const currentDate = new Date();
+        const startMonth = {
+          year: currentDate.getFullYear(),
+          month: currentDate.getMonth() - 3,
+        };
+        if (startMonth.month <= 0) {
+          startMonth.month += 12;
+          startMonth.year -= 1;
+        }
+        const endMonth = {
+          year: currentDate.getFullYear(),
+          month: currentDate.getMonth() + 1,
+        };
 
-  const handleLocationSelect = useCallback((listing) => {
-    setUiState((prev) => ({ ...prev, showLocationSelectorModal: false }));
-    handleViewPerformanceInsights(listing);
-  }, [handleViewPerformanceInsights]);
+        const keywords = await fetchSearchKeywords(
+          session.accessToken,
+          locationId,
+          startMonth,
+          endMonth,
+        );
+        const keywordsArray =
+          keywords?.searchKeywordsCounts || keywords || null;
 
-  const handlePerformanceInsightsDateChange = useCallback((dateRange) => {
-    setPerformanceState((prev) => ({ ...prev, dateRange }));
-    setPerformanceState((currentState) => {
-      if (currentState.location) {
-        const listing = { name: currentState.location.businessProfileId, title: currentState.location.name };
-        handleViewPerformanceInsights(listing, dateRange.startDate, dateRange.endDate);
+        setPerformanceState((prevData) => ({
+          ...prevData,
+          data: insights,
+          searchKeywords: keywordsArray,
+          loading: false,
+        }));
+      } catch (error) {
+        console.error("Error fetching performance insights:", error);
+        toast.error("Failed to load performance insights.");
+        setPerformanceState((prevData) => ({ ...prevData, loading: false }));
       }
-      return currentState;
-    });
-  }, [handleViewPerformanceInsights]);
+    },
+    [session?.accessToken, performanceState.dateRange],
+  );
+
+  const handleLocationSelect = useCallback(
+    (listing) => {
+      setUiState((prev) => ({ ...prev, showLocationSelectorModal: false }));
+      handleViewPerformanceInsights(listing);
+    },
+    [handleViewPerformanceInsights],
+  );
+
+  const handlePerformanceInsightsDateChange = useCallback(
+    (dateRange) => {
+      setPerformanceState((prev) => ({ ...prev, dateRange }));
+      setPerformanceState((currentState) => {
+        if (currentState.location) {
+          const listing = {
+            name: currentState.location.businessProfileId,
+            title: currentState.location.name,
+          };
+          handleViewPerformanceInsights(
+            listing,
+            dateRange.startDate,
+            dateRange.endDate,
+          );
+        }
+        return currentState;
+      });
+    },
+    [handleViewPerformanceInsights],
+  );
 
   // Store location details in localStorage
   useEffect(() => {
     if (activeListings.length > 0) {
-
       const locationDetails = activeListings?.map((item) => {
-
         const locationId = item?.name?.split("/")[1];
 
         return {
@@ -345,11 +387,17 @@ export default function DashboardPage() {
         };
       });
       setLocalStorage("locationDetails", JSON.stringify(locationDetails));
-      setLocalStorage("reviewUrl", activeListings[0].metadata?.newReviewUri || "");
+      setLocalStorage(
+        "reviewUrl",
+        activeListings[0].metadata?.newReviewUri || "",
+      );
     }
   }, [activeListings]);
   const handleAddProject = useCallback(async () => {
-    if (!session) { await signIn("google", { redirect: false }); return; }
+    if (!session) {
+      await signIn("google", { redirect: false });
+      return;
+    }
     if (accounts.length >= maxAccounts) {
       toast.error(`⚠️ ${userPlan} plan allows only ${maxAccounts} profiles.`);
       return;
@@ -360,45 +408,92 @@ export default function DashboardPage() {
   const getVerificationBadge = useCallback((listing) => {
     const isVerified = listing.hasVoiceOfMerchant === true;
     return (
-      <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${isVerified ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
-        {isVerified ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-        <span className="hidden sm:inline">{isVerified ? "Verified" : "Unverified"}</span>
+      <span
+        className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${isVerified ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}
+      >
+        {isVerified ? (
+          <CheckCircle className="w-3.5 h-3.5" />
+        ) : (
+          <XCircle className="w-3.5 h-3.5" />
+        )}
+        <span className="hidden sm:inline">
+          {isVerified ? "Verified" : "Unverified"}
+        </span>
         <span className="sm:hidden">{isVerified ? "✓" : "✗"}</span>
       </span>
     );
   }, []);
 
-  const getFilteredListings = useCallback((listings) => {
-    if (filterStatus === "verified") return listings.filter((l) => l.hasVoiceOfMerchant === true);
-    if (filterStatus === "unverified") return listings.filter((l) => l.hasVoiceOfMerchant !== true);
-    return listings;
-  }, [filterStatus]);
+  const getFilteredListings = useCallback(
+    (listings) => {
+      if (filterStatus === "verified")
+        return listings.filter((l) => l.hasVoiceOfMerchant === true);
+      if (filterStatus === "unverified")
+        return listings.filter((l) => l.hasVoiceOfMerchant !== true);
+      return listings;
+    },
+    [filterStatus],
+  );
 
   if (status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center">
           <CircularProgress size={60} thickness={4} sx={{ color: "#eab308" }} />
-          <p className="text-slate-400 font-bold uppercase tracking-widest mt-8 text-sm">Initializing Dashboard...</p>
+          <p className="text-slate-400 font-bold uppercase tracking-widest mt-8 text-sm">
+            Initializing Dashboard...
+          </p>
         </div>
       </div>
     );
   }
 
   const tabData = [
-    { id: "gmb", label: "GMB Profile", icon: "/social-icon/gmb-icon.png", count: accounts.length > 0 ? summary.total : 0 },
-    { id: "facebook", label: "Facebook", icon: "/social-icon/facebook-icon.png", count: facebookPages.length },
-    { id: "instagram", label: "Instagram", icon: "/social-icon/instagram-icon.png", count: instagramPages.length },
-    { id: "linkedin", label: "LinkedIn", icon: "/social-icon/linkedin.png", count: linkedinPages?.length || 0 },
-    { id: "youtube", label: "YouTube", icon: "/social-icon/youtube-icon.svg", count: youtubeChannels?.length || 0 },
-    { id: "pinterest", label: "Pinterest", icon: "/social-icon/pinterest-icon.png", count: pinterestProfiles?.length || 0 },
+    {
+      id: "gmb",
+      label: "GMB Profile",
+      icon: "/social-icon/gmb-icon.png",
+      count: accounts.length > 0 ? summary.total : 0,
+    },
+    {
+      id: "facebook",
+      label: "Facebook",
+      icon: "/social-icon/facebook-icon.png",
+      count: facebookPages.length,
+    },
+    {
+      id: "instagram",
+      label: "Instagram",
+      icon: "/social-icon/instagram-icon.png",
+      count: instagramPages.length,
+    },
+    {
+      id: "linkedin",
+      label: "LinkedIn",
+      icon: "/social-icon/linkedin.png",
+      count: linkedinPages?.length || 0,
+    },
+    {
+      id: "youtube",
+      label: "YouTube",
+      icon: "/social-icon/youtube-icon.svg",
+      count: youtubeChannels?.length || 0,
+    },
+    {
+      id: "pinterest",
+      label: "Pinterest",
+      icon: "/social-icon/pinterest-icon.png",
+      count: pinterestProfiles?.length || 0,
+    },
   ];
 
   return (
     <div className="min-h-screen flex flex-col">
       <PerformanceInsightsModal
         isOpen={performanceState.isOpen}
-        onClose={() => setPerformanceState((prev) => ({ ...prev, isOpen: false }))}
+        onClose={() =>
+          setPerformanceState((prev) => ({ ...prev, isOpen: false }))
+        }
         insightsData={performanceState.data}
         businessName={performanceState.location?.name || ""}
         locationName={performanceState.location?.name || ""}
@@ -419,14 +514,23 @@ export default function DashboardPage() {
 
       <ConnectModal
         isOpen={uiState.isConnectModalOpen}
-        onClose={() => setUiState((prev) => ({ ...prev, isConnectModalOpen: false }))}
+        onClose={() =>
+          setUiState((prev) => ({ ...prev, isConnectModalOpen: false }))
+        }
       />
 
       {uiState.showLocationSelectorModal && (
         <LocationSelectionModal
           isOpen={uiState.showLocationSelectorModal}
-          onClose={() => setUiState((prev) => ({ ...prev, showLocationSelectorModal: false }))}
-          locations={accounts.length > 0 ? accounts.flatMap((acc) => acc.listings) : []}
+          onClose={() =>
+            setUiState((prev) => ({
+              ...prev,
+              showLocationSelectorModal: false,
+            }))
+          }
+          locations={
+            accounts.length > 0 ? accounts.flatMap((acc) => acc.listings) : []
+          }
           onSelect={handleLocationSelect}
         />
       )}
@@ -435,7 +539,9 @@ export default function DashboardPage() {
 
       {uiState.showFirstPostModal && (
         <FirstPostModal
-          onClose={() => setUiState((prev) => ({ ...prev, showFirstPostModal: false }))}
+          onClose={() =>
+            setUiState((prev) => ({ ...prev, showFirstPostModal: false }))
+          }
           onCreate={() => router.push("/post-management")}
         />
       )}
@@ -447,17 +553,29 @@ export default function DashboardPage() {
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-yellow-500" />
-                <span className="text-[10px] font-bold tracking-widest uppercase text-yellow-700">Live Dashboard</span>
+                <span className="text-[10px] font-bold tracking-widest uppercase text-yellow-700">
+                  Live Dashboard
+                </span>
               </div>
               <h1 className="text-xl sm:text-xl font-bold text-slate-800 uppercase tracking-tight">
-                Welcome, <span className="text-yellow-500">{displayName.split(" ")[0]}</span> 👋
+                Welcome,{" "}
+                <span className="text-yellow-500">
+                  {displayName.split(" ")[0]}
+                </span>{" "}
+                👋
               </h1>
             </div>
             <div className="hidden lg:flex items-center gap-3">
               {accounts.length > 0 && (
                 <>
-                  <button onClick={handleManualRefresh} disabled={loading} className="btn-ghost btn-sm gap-2 border border-slate-300 shadow-sm hover:border-slate-400">
-                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={loading}
+                    className="btn-ghost btn-sm gap-2 border border-slate-300 shadow-sm hover:border-slate-400"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                    />
                     <span>Refresh Data</span>
                   </button>
                 </>
@@ -473,18 +591,26 @@ export default function DashboardPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border-2 whitespace-nowrap font-bold text-xs uppercase tracking-wider transition-all duration-300 shrink-0 ${activeTab === tab.id
-              ? "bg-yellow-50 border-yellow-300 text-slate-800 shadow-md ring-2 ring-yellow-400/20"
-              : "bg-white border-slate-200 text-slate-500 hover:border-yellow-300 hover:bg-slate-50 hover:text-slate-700"
-              }`}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border-2 whitespace-nowrap font-bold text-xs uppercase tracking-wider transition-all duration-300 shrink-0 ${
+              activeTab === tab.id
+                ? "bg-yellow-50 border-yellow-300 text-slate-800 shadow-md ring-2 ring-yellow-400/20"
+                : "bg-white border-slate-200 text-slate-500 hover:border-yellow-300 hover:bg-slate-50 hover:text-slate-700"
+            }`}
           >
-            <img src={tab.icon} alt={tab.label} className="w-5 h-5 object-contain" />
+            <img
+              src={tab.icon}
+              alt={tab.label}
+              className="w-5 h-5 object-contain"
+            />
             {tab.label}
             {tab.count > 0 && (
-              <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] shadow-sm ${activeTab === tab.id
-                ? 'bg-yellow-400 text-black'
-                : 'bg-slate-100 text-slate-500 border border-slate-200'
-                }`}>
+              <span
+                className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] shadow-sm ${
+                  activeTab === tab.id
+                    ? "bg-yellow-400 text-black"
+                    : "bg-slate-100 text-slate-500 border border-slate-200"
+                }`}
+              >
                 {tab.count}
               </span>
             )}
@@ -554,10 +680,32 @@ export default function DashboardPage() {
         <WhatsAppButton />
       </main>
       <style jsx>{`
-        @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .animate-slide-in-left { animation: slideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .animate-slide-in-right { animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInLeft {
+          from {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in-left {
+          animation: slideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in-right {
+          animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
       `}</style>
     </div>
   );

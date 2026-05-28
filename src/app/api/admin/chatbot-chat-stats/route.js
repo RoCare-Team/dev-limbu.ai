@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
 import User from "@/models/User";
-import { getChatbotChatsByDay } from "@/lib/limbuBotUserSync";
+import {
+  ensureChatbotRowsSaved,
+  getChatbotChatsByDay,
+} from "@/lib/limbuBotUserSync";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +36,11 @@ export async function GET(req) {
     }
 
     const dayStats = await getChatbotChatsByDay();
+    await ensureChatbotRowsSaved([
+      ...dayStats.today.users,
+      ...dayStats.yesterday.users,
+    ]);
+
     const phones = [
       ...new Set(
         [...dayStats.today.users, ...dayStats.yesterday.users]

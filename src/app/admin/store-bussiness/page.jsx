@@ -148,7 +148,12 @@ export default function AdminDashboard() {
       filtered = filtered.filter(
         (user) =>
           user.userEmail?.toLowerCase().includes(lowerSearch) ||
-          user.userName?.toLowerCase().includes(lowerSearch),
+          user.userName?.toLowerCase().includes(lowerSearch) ||
+          user.listings?.some(
+            (listing) =>
+              listing.title?.toLowerCase().includes(lowerSearch) ||
+              listing.locationName?.toLowerCase().includes(lowerSearch),
+          ),
       );
     }
 
@@ -996,7 +1001,7 @@ export default function AdminDashboard() {
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Search by name or email..."
+                placeholder="Search by name, email or business..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 InputProps={{

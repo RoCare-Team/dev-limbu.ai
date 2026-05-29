@@ -8,10 +8,14 @@ import {
   MapPin,
   User,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Zap,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import StarRating from "./StarRating";
+
+const normalizeGmbAccountId = (accountId) =>
+  String(accountId || "").replace(/^accounts\//, "");
 
 const ReviewCard = memo(({
   review,
@@ -20,27 +24,39 @@ const ReviewCard = memo(({
   isReplying,
   setReplyingTo,
   session,
-  toastPosition
+  toastPosition,
+  locationAutoReply,        // { [accountId]: boolean }
+  onToggleAutoReply,        // (accountId) => void
 }) => {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [localReply, setLocalReply] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
 
-  // Memoize location details to prevent reading from localStorage on every render
+  // Extract locationId and accountId from review.name
+  const { locationId, accountId } = useMemo(() => {
+    const parts = review.name?.split("/") || [];
+    return {
+      accountId: parts[1] || null,
+      locationId: parts[3] || null,
+    };
+  }, [review.name]);
+
+  // Get location info from localStorage
   const locationInfo = useMemo(() => {
     try {
-      const locationDetailsStr = localStorage.getItem("locationDetails");
-      if (!locationDetailsStr) return null;
-
-      const locationDetails = JSON.parse(locationDetailsStr);
-      const [, , , locationId] = review.name?.split("/") || [];
-
+      const raw = localStorage.getItem("locationDetails");
+      if (!raw || !locationId) return null;
+      const locationDetails = JSON.parse(raw);
       return locationDetails.find((loc) => loc.locationId === locationId) || null;
     } catch (err) {
       console.error("Error getting location details:", err);
       return null;
     }
-  }, [review.name]);
+  }, [locationId]);
+
+  // Per-location autoReply state
+  const normalizedAccountId = normalizeGmbAccountId(accountId);
+  const isAutoReplyOn = normalizedAccountId ? (locationAutoReply?.[normalizedAccountId] ?? false) : false;
 
   const handleManualReply = async () => {
     if (!localReply.trim()) {
@@ -60,12 +76,8 @@ const ReviewCard = memo(({
         ONE: "One",
       };
 
-      const [, accountId, , locationId] = name?.split("/") || [];
       const token = session?.accessToken;
-
-      if (!token) {
-        throw new Error("Session expired. Please log in again.");
-      }
+      if (!token) throw new Error("Session expired. Please log in again.");
 
       const res = await fetch(
         "https://n8n.srv968758.hstgr.cloud/webhook/45f3a8db-b8d2-46ec-b692-4ec5fe90acc7",
@@ -82,16 +94,13 @@ const ReviewCard = memo(({
             Review_ID: reviewId,
             reply_review: localReply,
           }),
-        },
+        }
       );
 
       const data = await res.json();
 
       if (res.ok && data.status === true) {
-        toast.success("Reply posted successfully!", {
-          duration: 3000,
-          position: toastPosition,
-        });
+        toast.success("Reply posted successfully!", { duration: 3000, position: toastPosition });
         await fetchReviews();
         setShowReplyInput(false);
         setLocalReply("");
@@ -110,16 +119,8 @@ const ReviewCard = memo(({
   };
 
   const onAIReplyClick = async () => {
-    const success = await handleAIReply(
-      review,
-      setLocalReply,
-      setShowReplyInput,
-      setGeneratingAI
-    );
-
-    if (success) {
-      await fetchReviews();
-    }
+    const success = await handleAIReply(review, setLocalReply, setShowReplyInput, setGeneratingAI);
+    if (success) await fetchReviews();
   };
 
   const reviewDate = new Date(review.createTime).toLocaleDateString("en-US", {
@@ -130,19 +131,37 @@ const ReviewCard = memo(({
 
   return (
     <div className="group bg-white rounded-[1.5rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:border-lemon-hover/30 transition-all duration-300 overflow-hidden">
-      {/* ── Top Business Badge ── */}
+
+      {/* ── Top Business Badge with per-GMB-account Auto Reply toggle ── */}
       {locationInfo && (
         <div className="bg-slate-50/80 px-5 py-2 border-b border-slate-100 flex items-center justify-between">
+          {/* Left: business name + locality */}
           <div className="flex items-center gap-2">
-            <Building2 className="w-3 h-3 text-slate-400" />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate max-w-[200px]">
+            <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate max-w-[160px]">
               {locationInfo.title}
             </span>
+            <div className="flex items-center gap-1 text-[10px] font-medium text-slate-400">
+              <MapPin className="w-2.5 h-2.5 shrink-0" />
+              <span>{locationInfo.locality}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1 text-[9px] font-medium text-slate-400">
-            <MapPin className="w-2.5 h-2.5" />
-            {locationInfo.locality}
-          </div>
+
+          {/* Right: per-GMB-account Auto Reply toggle */}
+          {accountId && locationId && onToggleAutoReply && (
+            <button
+              onClick={() => onToggleAutoReply(normalizedAccountId)}
+              title={isAutoReplyOn ? "Auto Reply ON for this GMB account - click to disable" : "Auto Reply OFF for this GMB account - click to enable"}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border ${
+                isAutoReplyOn
+                  ? "bg-lemon-glow text-black border-yellow-300 shadow-sm"
+                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <Zap className={`w-3 h-3 ${isAutoReplyOn ? "fill-black" : ""}`} />
+              {isAutoReplyOn ? "Auto ON" : "Auto OFF"}
+            </button>
+          )}
         </div>
       )}
 
@@ -162,7 +181,11 @@ const ReviewCard = memo(({
               </div>
             )}
             <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full border border-slate-100 shadow-xs">
-               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Maps_icon.svg" className="w-3 h-3" alt="G" />
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Maps_icon.svg"
+                className="w-3 h-3"
+                alt="G"
+              />
             </div>
           </div>
 
@@ -194,7 +217,9 @@ const ReviewCard = memo(({
                 {review.comment ? (
                   `"${review.comment}"`
                 ) : (
-                  <span className="text-slate-400 italic">The customer gave a rating but didn't leave a comment.</span>
+                  <span className="text-slate-400 italic">
+                    The customer gave a rating but didn't leave a comment.
+                  </span>
                 )}
               </p>
             </div>
@@ -206,7 +231,9 @@ const ReviewCard = memo(({
                   <div className="p-1 bg-lemon-glow rounded-md">
                     <Sparkles className="w-3 h-3 text-black" />
                   </div>
-                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Business Response</span>
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                    Business Response
+                  </span>
                 </div>
                 <p className="text-slate-600 text-[13px] leading-relaxed italic">
                   "{review.reviewReply.comment}"
@@ -227,7 +254,7 @@ const ReviewCard = memo(({
                   )}
                   {generatingAI ? "Writing..." : "Write AI Reply"}
                 </button>
-                
+
                 <button
                   onClick={() => setShowReplyInput(!showReplyInput)}
                   className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl text-[11px] font-bold hover:bg-slate-50 transition-colors"

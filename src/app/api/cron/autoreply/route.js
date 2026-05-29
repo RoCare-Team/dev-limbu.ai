@@ -48,7 +48,9 @@ async function getFreshAccessToken(refreshToken) {
 
   if (!res.ok) {
     console.error("❌ Token refresh failed:", data);
-    throw new Error(data.error_description || data.error || "Token refresh failed");
+    throw new Error(
+      data.error_description || data.error || "Token refresh failed",
+    );
   }
 
   console.log("✅ Access token refreshed successfully");
@@ -74,7 +76,10 @@ async function fetchAllReviews(acc_id, locationIds, accessToken) {
       ...(pageToken && { pageToken }),
     };
 
-    console.log(`📄 [fetchAllReviews] Page ${pageCount} request payload:`, JSON.stringify(requestBody, null, 2));
+    console.log(
+      `📄 [fetchAllReviews] Page ${pageCount} request payload:`,
+      JSON.stringify(requestBody, null, 2),
+    );
 
     const res = await fetch(FETCH_REVIEWS_API, {
       method: "POST",
@@ -85,7 +90,11 @@ async function fetchAllReviews(acc_id, locationIds, accessToken) {
 
     if (!res.ok) {
       const errorBody = await res.text();
-      console.error(`❌ [fetchAllReviews] Page ${pageCount} failed:`, res.status, errorBody);
+      console.error(
+        `❌ [fetchAllReviews] Page ${pageCount} failed:`,
+        res.status,
+        errorBody,
+      );
       throw new Error(`FETCH_REVIEWS_${res.status}`);
     }
 
@@ -95,11 +104,16 @@ async function fetchAllReviews(acc_id, locationIds, accessToken) {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch {
-      console.error(`❌ [fetchAllReviews] Invalid response on page ${pageCount}:`, raw);
+      console.error(
+        `❌ [fetchAllReviews] Invalid response on page ${pageCount}:`,
+        raw,
+      );
       throw new Error("Invalid reviews response");
     }
 
-    console.log(`📄 [fetchAllReviews] Page ${pageCount} response — reviews: ${data?.reviews?.length || 0}, nextPageToken: ${data?.nextPageToken || "none"}`);
+    console.log(
+      `📄 [fetchAllReviews] Page ${pageCount} — reviews: ${data?.reviews?.length || 0}, nextPageToken: ${data?.nextPageToken || "none"}`,
+    );
 
     if (data.reviews && Array.isArray(data.reviews)) {
       allReviews.push(...data.reviews);
@@ -109,12 +123,16 @@ async function fetchAllReviews(acc_id, locationIds, accessToken) {
     }
 
     if (pageCount >= maxPages) {
-      console.warn(`⚠️ [fetchAllReviews] Reached maxPages limit (${maxPages}), stopping pagination`);
+      console.warn(
+        `⚠️ [fetchAllReviews] Reached maxPages limit (${maxPages}), stopping pagination`,
+      );
       break;
     }
   } while (pageToken);
 
-  console.log(`✅ [fetchAllReviews] Total reviews fetched: ${allReviews.length}`);
+  console.log(
+    `✅ [fetchAllReviews] Total reviews fetched: ${allReviews.length}`,
+  );
   return allReviews;
 }
 
@@ -123,37 +141,71 @@ async function fetchAllReviews(acc_id, locationIds, accessToken) {
  */
 function getBusinessInfo(locationInfo, locationId) {
   if (!locationInfo) {
-    console.error(`❌ [getBusinessInfo] locationInfo is undefined for locationId: "${locationId}"`);
-    throw new Error(`LOCATION_NOT_MATCHED: No location found for locationId "${locationId}"`);
+    console.error(
+      `❌ [getBusinessInfo] locationInfo is undefined for locationId: "${locationId}"`,
+    );
+    throw new Error(
+      `LOCATION_NOT_MATCHED: No location found for locationId "${locationId}"`,
+    );
   }
 
   const businessName = locationInfo?.title || null;
   const businessCategory =
-    locationInfo?.categories?.primaryCategory?.displayName || locationInfo?.title || null;
+    locationInfo?.categories?.primaryCategory?.displayName ||
+    locationInfo?.title ||
+    null;
 
   if (!businessCategory) {
-    console.error(`❌ [getBusinessInfo] Neither "primaryCategory.displayName" nor "title" found for locationId: "${locationId}"`, locationInfo);
-    throw new Error(`BUSINESS_CATEGORY_MISSING: No category or title found for locationId "${locationId}"`);
+    console.error(
+      `❌ [getBusinessInfo] No category or title found for locationId: "${locationId}"`,
+      locationInfo,
+    );
+    throw new Error(
+      `BUSINESS_CATEGORY_MISSING: No category or title found for locationId "${locationId}"`,
+    );
   }
 
   if (!businessName) {
-    console.error(`❌ [getBusinessInfo] "title" not found for locationId: "${locationId}"`, locationInfo);
-    throw new Error(`BUSINESS_NAME_MISSING: No title found for locationId "${locationId}"`);
+    console.error(
+      `❌ [getBusinessInfo] "title" not found for locationId: "${locationId}"`,
+      locationInfo,
+    );
+    throw new Error(
+      `BUSINESS_NAME_MISSING: No title found for locationId "${locationId}"`,
+    );
   }
 
-  console.log(`✅ [getBusinessInfo] Resolved — name: "${businessName}", category: "${businessCategory}"`);
+  console.log(
+    `✅ [getBusinessInfo] Resolved — name: "${businessName}", category: "${businessCategory}"`,
+  );
   return { businessName, businessCategory };
 }
 
 /**
  * Send AI Reply
  */
-async function sendAIReply({ accessToken, acc_id, locationId, review, locationInfo }) {
+async function sendAIReply({
+  accessToken,
+  acc_id,
+  locationId,
+  review,
+  locationInfo,
+}) {
   try {
-    // ✅ Throws if location info is missing or incomplete
-    const { businessName, businessCategory } = getBusinessInfo(locationInfo, locationId);
+    // ✅ Validate locationId before anything else
+    if (!locationId) {
+      console.warn(
+        `⚠️ [sendAIReply] locationId is undefined for review "${review.reviewId}" — skipping`,
+      );
+      return false;
+    }
 
-    // ✅ Numeric star rating (consistent with client-side)
+    // ✅ Throws if location info is missing or incomplete
+    const { businessName, businessCategory } = getBusinessInfo(
+      locationInfo,
+      locationId,
+    );
+
     const starRating = STAR_RATING_MAP[review.starRating] || 5;
 
     const payload = {
@@ -169,7 +221,10 @@ async function sendAIReply({ accessToken, acc_id, locationId, review, locationIn
       Business_Name: businessName,
     };
 
-    console.log(`🤖 [sendAIReply] Payload for review "${review.reviewId}":`, JSON.stringify(payload, null, 2));
+    console.log(
+      `🤖 [sendAIReply] Payload for review "${review.reviewId}":`,
+      JSON.stringify(payload, null, 2),
+    );
 
     const res = await fetch(REPLY_REVIEW_API, {
       method: "POST",
@@ -188,17 +243,42 @@ async function sendAIReply({ accessToken, acc_id, locationId, review, locationIn
       throw new Error("Invalid AI reply response");
     }
 
-    console.log(`📩 [sendAIReply] Response for review "${review.reviewId}":`, data);
+    console.log(
+      `📩 [sendAIReply] Response for review "${review.reviewId}":`,
+      data,
+    );
+
+    // ✅ Handle unclaimed location gracefully — not a hard failure
+    const isUnclaimed =
+      data?.detail?.includes("unclaimed") ||
+      data?.error?.message?.includes("unclaimed") ||
+      (typeof data?.detail === "string" &&
+        data.detail.includes("FAILED_PRECONDITION"));
+
+    if (isUnclaimed) {
+      console.warn(
+        `⚠️ [sendAIReply] Location is unclaimed on Google — cannot reply to review "${review.reviewId}". Skipping.`,
+      );
+      return false;
+    }
 
     if (!res.ok || data?.status !== true) {
-      console.error(`❌ [sendAIReply] Failed for review "${review.reviewId}":`, data);
+      console.error(
+        `❌ [sendAIReply] Failed for review "${review.reviewId}":`,
+        data,
+      );
       throw new Error("AI reply failed");
     }
 
-    console.log(`✅ [sendAIReply] Successfully replied to review "${review.reviewId}"`);
+    console.log(
+      `✅ [sendAIReply] Successfully replied to review "${review.reviewId}"`,
+    );
     return true;
   } catch (err) {
-    console.error(`❌ [sendAIReply] Error for review "${review.reviewId}":`, err.message);
+    console.error(
+      `❌ [sendAIReply] Error for review "${review.reviewId}":`,
+      err.message,
+    );
     return false;
   }
 }
@@ -214,11 +294,20 @@ export async function GET() {
   try {
     await dbConnect();
 
-    const users = await AutoReply.find({ autoReply: true });
+    const users = await AutoReply.find({
+      $or: [
+        { autoReply: true },
+        { "accounts.autoReply": true },
+        { "locations.autoReply": true },
+      ],
+    });
     console.log(`[CRON] Found ${users.length} auto-reply user(s)`);
 
     if (users.length === 0) {
-      return NextResponse.json({ success: true, message: "No auto-reply users found" });
+      return NextResponse.json({
+        success: true,
+        message: "No auto-reply users found",
+      });
     }
 
     for (const user of users) {
@@ -227,12 +316,14 @@ export async function GET() {
 
       try {
         if (!user.refreshToken) {
-          console.warn(`⚠️ User ${userIdentifier} has no refresh token — skipping`);
+          console.warn(
+            `⚠️ User ${userIdentifier} has no refresh token — skipping`,
+          );
           continue;
         }
 
-        if (!user.locations || user.locations.length === 0) {
-          console.warn(`⚠️ User ${userIdentifier} has no locations — skipping`);
+        if (!getEnabledAccounts(user).length) {
+          console.warn(`User ${userIdentifier} has no enabled GMB accounts - skipping`);
           continue;
         }
 
@@ -240,25 +331,32 @@ export async function GET() {
         const accessToken = await getFreshAccessToken(user.refreshToken);
 
         // Group Locations By Account
-        const locationsByAccount = user.locations.reduce((acc, loc) => {
-          if (loc.accountId && loc.locationId) {
-            if (!acc[loc.accountId]) acc[loc.accountId] = [];
-            acc[loc.accountId].push(loc);
+        const locationsByAccount = getEnabledAccounts(user).reduce((acc, account) => {
+          if (account.accountId && Array.isArray(account.locations)) {
+            acc[account.accountId] = account.locations.filter((loc) => loc.locationId);
           }
           return acc;
         }, {});
 
-        console.log(`🏢 Accounts to process: ${Object.keys(locationsByAccount).length}`);
+        console.log(
+          `🏢 Accounts to process: ${Object.keys(locationsByAccount).length}`,
+        );
 
         for (const [acc_id, locations] of Object.entries(locationsByAccount)) {
           try {
             console.log(`\n🏢 Processing account: ${acc_id}`);
-            console.log(`📍 Locations in account:`, locations.map((l) => l.locationId));
+            console.log(
+              `📍 Locations in account:`,
+              locations.map((l) => l.locationId),
+            );
 
             const locationIds = locations.map((loc) => loc.locationId);
 
-            // ✅ Paginated fetch — not just first page
-            const reviews = await fetchAllReviews(acc_id, locationIds, accessToken);
+            const reviews = await fetchAllReviews(
+              acc_id,
+              locationIds,
+              accessToken,
+            );
             console.log(`📝 Total reviews fetched: ${reviews.length}`);
 
             if (!reviews.length) {
@@ -271,13 +369,17 @@ export async function GET() {
               (review) =>
                 !review.reviewReply ||
                 !review.reviewReply.comment ||
-                !review.reviewReply.comment.trim()
+                !review.reviewReply.comment.trim(),
             );
 
-            console.log(`🕐 Pending (unreplied) reviews: ${pendingReviews.length}`);
+            console.log(
+              `🕐 Pending (unreplied) reviews: ${pendingReviews.length}`,
+            );
 
             if (!pendingReviews.length) {
-              console.log(`ℹ️ All reviews already replied for account ${acc_id}`);
+              console.log(
+                `ℹ️ All reviews already replied for account ${acc_id}`,
+              );
               continue;
             }
 
@@ -285,13 +387,28 @@ export async function GET() {
             const results = await Promise.allSettled(
               pendingReviews.map(async (review) => {
                 try {
-                  const [, review_acc_id, , locationId] = review.name.split("/");
+                  // ✅ Safe extraction of locationId from review.name
+                  const nameParts = review.name?.split("/") || [];
+                  const locationId = nameParts[3] || null;
+                  const review_acc_id = nameParts[1] || acc_id;
+
+                  // ✅ Guard: skip if locationId could not be extracted
+                  if (!locationId) {
+                    console.warn(
+                      `⚠️ [CRON] Could not extract locationId from review.name: "${review.name}" for review "${review.reviewId}" — skipping`,
+                    );
+                    return false;
+                  }
 
                   // ✅ Match exact location — warn if not found
-                  const locationInfo = locations.find((loc) => loc.locationId === locationId);
+                  const locationInfo = locations.find(
+                    (loc) => loc.locationId === locationId,
+                  );
 
                   if (!locationInfo) {
-                    console.warn(`⚠️ [CRON] No locationInfo found for locationId "${locationId}" in review "${review.reviewId}" — skipping`);
+                    console.warn(
+                      `⚠️ [CRON] No locationInfo found for locationId "${locationId}" in review "${review.reviewId}" — skipping`,
+                    );
                     return false;
                   }
 
@@ -303,24 +420,41 @@ export async function GET() {
                     locationInfo,
                   });
                 } catch (err) {
-                  console.error(`❌ Review processing error for "${review.reviewId}":`, err.message);
+                  console.error(
+                    `❌ Review processing error for "${review.reviewId}":`,
+                    err.message,
+                  );
                   return false;
                 }
-              })
+              }),
             );
 
-            const successCount = results.filter((r) => r.status === "fulfilled" && r.value === true).length;
-            const failedCount = results.length - successCount;
+            const successCount = results.filter(
+              (r) => r.status === "fulfilled" && r.value === true,
+            ).length;
+            const skippedCount = results.filter(
+              (r) => r.status === "fulfilled" && r.value === false,
+            ).length;
+            const failedCount = results.filter(
+              (r) => r.status === "rejected",
+            ).length;
 
             console.log(`\n📊 Account ${acc_id} Results:`);
             console.log(`   ✅ Success: ${successCount}`);
+            console.log(`   ⚠️ Skipped: ${skippedCount}`);
             console.log(`   ❌ Failed:  ${failedCount}`);
           } catch (accountErr) {
-            console.error(`❌ Account Processing Error (${acc_id}):`, accountErr.message);
+            console.error(
+              `❌ Account Processing Error (${acc_id}):`,
+              accountErr.message,
+            );
           }
         }
       } catch (userErr) {
-        console.error(`❌ User Processing Error (${userIdentifier}):`, userErr.message);
+        console.error(
+          `❌ User Processing Error (${userIdentifier}):`,
+          userErr.message,
+        );
 
         // Disable auto-reply if refresh token is invalid
         if (
@@ -329,20 +463,57 @@ export async function GET() {
         ) {
           await AutoReply.updateOne(
             { _id: user._id },
-            { autoReply: false, error: "Invalid refresh token" }
+            { autoReply: false, error: "Invalid refresh token" },
           );
-          console.warn(`🚫 Disabled auto-reply for user ${userIdentifier} due to invalid token`);
+          console.warn(
+            `🚫 Disabled auto-reply for user ${userIdentifier} due to invalid token`,
+          );
         }
       }
     }
 
     console.log("\n✅ CRON COMPLETED SUCCESSFULLY\n");
-    return NextResponse.json({ success: true, message: "Auto reply cron executed successfully" });
+    return NextResponse.json({
+      success: true,
+      message: "Auto reply cron executed successfully",
+    });
   } catch (err) {
     console.error("\n❌ CRON MAIN ERROR:", err);
     return NextResponse.json(
       { success: false, error: "Cron execution failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
+}
+
+function getEnabledAccounts(user) {
+  if (Array.isArray(user.accounts) && user.accounts.length > 0) {
+    return user.accounts.filter((account) => account.autoReply === true);
+  }
+
+  return buildAccountsFromLegacyLocations(user.locations || [], user.autoReply === true);
+}
+
+function buildAccountsFromLegacyLocations(locations, defaultAutoReply = false) {
+  const accountsById = new Map();
+
+  locations.forEach((loc) => {
+    if (!loc?.accountId || (!defaultAutoReply && loc.autoReply !== true)) return;
+    if (!accountsById.has(loc.accountId)) {
+      accountsById.set(loc.accountId, {
+        accountId: loc.accountId,
+        autoReply: true,
+        locations: [],
+      });
+    }
+
+    accountsById.get(loc.accountId).locations.push({
+      accountId: loc.accountId,
+      locationId: loc.locationId,
+      title: loc.title,
+      categories: loc.categories,
+    });
+  });
+
+  return Array.from(accountsById.values());
 }

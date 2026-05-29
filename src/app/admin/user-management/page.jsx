@@ -217,10 +217,14 @@ export default function UserManagement() {
   const [conversationStageOrder, setConversationStageOrder] = useState([]);
   const [conversationStageTotal, setConversationStageTotal] = useState(0);
   const [conversationStageUsers, setConversationStageUsers] = useState([]);
-  const [conversationStageCardsLoading, setConversationStageCardsLoading] = useState(false);
-  const [selectedConversationStage, setSelectedConversationStage] = useState("All");
-  const [conversationStageTableActive, setConversationStageTableActive] = useState(false);
-  const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] = useState(false);
+  const [conversationStageCardsLoading, setConversationStageCardsLoading] =
+    useState(false);
+  const [selectedConversationStage, setSelectedConversationStage] =
+    useState("All");
+  const [conversationStageTableActive, setConversationStageTableActive] =
+    useState(false);
+  const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] =
+    useState(false);
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
@@ -376,9 +380,9 @@ export default function UserManagement() {
       });
 
     const hasConnectedStage = hasText(
-        "Congrats! Apka Account connect ho gaya!",
-        "Badhaai ho! Account connect ho gaya!",
-        "Account connect ho gaya",
+      "Congrats! Apka Account connect ho gaya!",
+      "Badhaai ho! Account connect ho gaya!",
+      "Account connect ho gaya",
     );
     const downstreamSteps = [];
 
@@ -535,8 +539,12 @@ export default function UserManagement() {
       "GMB Insight",
       "Build Website",
     ];
-    const stageCounts = Object.fromEntries(stageOrder.map((stage) => [stage, 0]));
-    const stageUsers = Object.fromEntries(stageOrder.map((stage) => [stage, []]));
+    const stageCounts = Object.fromEntries(
+      stageOrder.map((stage) => [stage, 0]),
+    );
+    const stageUsers = Object.fromEntries(
+      stageOrder.map((stage) => [stage, []]),
+    );
     const allUsers = contacts.map(mapWhatsAppContactToUser);
 
     allUsers.forEach((user) => {
@@ -973,7 +981,10 @@ export default function UserManagement() {
         loading: false,
         error: error.message || "Failed to load WhatsApp chat history.",
       }));
-      showToast(error.message || "Failed to load WhatsApp chat history", "error");
+      showToast(
+        error.message || "Failed to load WhatsApp chat history",
+        "error",
+      );
     }
   };
 
@@ -1300,12 +1311,16 @@ export default function UserManagement() {
         "manual-upload",
         "csv-import",
         "excel-import",
+        "Meta Lead",
         "Meta Leads",
         "Meta",
       ].includes(String(src || "").trim()) ||
       (Array.isArray(leadTags) &&
         leadTags.some(
-          (tag) => String(tag || "").trim().toLowerCase() === "metaleads",
+          (tag) =>
+            String(tag || "")
+              .trim()
+              .toLowerCase() === "metaleads",
         ));
     const isTodayLocalBrowser = (createdAt) =>
       new Date(createdAt).toDateString() === new Date().toDateString();
@@ -1378,8 +1393,7 @@ export default function UserManagement() {
         params.append("leadStatus", leadStatusFilter);
       if (leadStageFilter !== "All")
         params.append("leadStage", leadStageFilter);
-      if (leadSourceFilter !== "All")
-        params.append("source", leadSourceFilter);
+      if (leadSourceFilter !== "All") params.append("source", leadSourceFilter);
       if (conversationStageFilter !== "All")
         params.append("conversationStage", conversationStageFilter);
       if (remarkCountFilter !== "All")
@@ -1450,8 +1464,7 @@ export default function UserManagement() {
     const nextFilterDate = overrides.filterDate ?? filterDate;
     const nextCustomStartDate = overrides.customStartDate ?? customStartDate;
     const nextCustomEndDate = overrides.customEndDate ?? customEndDate;
-    const nextLeadStatusFilter =
-      overrides.leadStatusFilter ?? leadStatusFilter;
+    const nextLeadStatusFilter = overrides.leadStatusFilter ?? leadStatusFilter;
     const nextLeadStageFilter = overrides.leadStageFilter ?? leadStageFilter;
     const nextLeadSourceFilter = overrides.leadSourceFilter ?? leadSourceFilter;
     const nextConversationStageFilter =
@@ -1480,7 +1493,8 @@ export default function UserManagement() {
       if (nextFilterDate !== "All") {
         if (nextFilterDate === "Custom Range") {
           params.append("dateFilter", "Custom Range");
-          if (nextCustomStartDate) params.append("startDate", nextCustomStartDate);
+          if (nextCustomStartDate)
+            params.append("startDate", nextCustomStartDate);
           if (nextCustomEndDate) params.append("endDate", nextCustomEndDate);
         } else {
           const ranges = getCalculatedDateRange(nextFilterDate);
@@ -1504,10 +1518,7 @@ export default function UserManagement() {
         params.append("source", nextLeadSourceFilter);
       }
 
-      if (
-        !nextChatbotChatDayFilter &&
-        nextConversationStageFilter !== "All"
-      ) {
+      if (!nextChatbotChatDayFilter && nextConversationStageFilter !== "All") {
         params.append("conversationStage", nextConversationStageFilter);
       }
 
@@ -1790,7 +1801,9 @@ export default function UserManagement() {
       }
 
       setConversationStageCounts(data.stageCounts || {});
-      setConversationStageOrder(data.stageOrder || Object.keys(data.stageCounts || {}));
+      setConversationStageOrder(
+        data.stageOrder || Object.keys(data.stageCounts || {}),
+      );
       setConversationStageTotal(data.total || 0);
 
       if (conversationStageTableActive) {
@@ -1829,7 +1842,9 @@ export default function UserManagement() {
       }
 
       setConversationStageCounts(data.stageCounts || {});
-      setConversationStageOrder(data.stageOrder || Object.keys(data.stageCounts || {}));
+      setConversationStageOrder(
+        data.stageOrder || Object.keys(data.stageCounts || {}),
+      );
       setConversationStageTotal(data.total || data.totalUsers || 0);
       setConversationStageUsers(data.users || []);
       setPagination({
@@ -3573,67 +3588,65 @@ export default function UserManagement() {
               <ChatbotDailyChatCards
                 title="Conversation Stages"
                 subtitle="Click any stage to filter users and load stage data"
-                loading={conversationStageCardsLoading || isRefreshingWhatsAppData}
+                loading={
+                  conversationStageCardsLoading || isRefreshingWhatsAppData
+                }
                 activeKey={
                   conversationStageTableActive ? selectedConversationStage : ""
                 }
                 onRefresh={handleRefreshWhatsAppData}
                 onSelectCard={handleConversationStageCardClick}
-                cards={
-                  [
-                    {
-                      key: "All",
-                      title: "All",
-                      prefix: "Stage",
-                      metricLabel: "users",
-                      hint: "Show users for all stages",
-                      count: conversationStageTotal,
-                      color: "#374151",
-                      bg: "#f3f4f6",
-                    },
-                    ...(
-                      (conversationStageOrder.length
-                        ? conversationStageOrder
-                        : Object.keys(conversationStageCounts))
-                      .map((stage) => ({
-                        key: stage,
-                        title: stage,
-                        prefix: "Stage",
-                        metricLabel: "users",
-                        hint: `${conversationStageCounts[stage] ?? 0} users`,
-                        count: conversationStageCounts[stage] ?? 0,
-                        color:
-                          stage === "No Activity"
-                            ? "#6b7280"
-                            : stage === "Initial Conversation"
-                            ? "#2563eb"
-                            : stage === "GMB Connected"
+                cards={[
+                  {
+                    key: "All",
+                    title: "All",
+                    prefix: "Stage",
+                    metricLabel: "users",
+                    hint: "Show users for all stages",
+                    count: conversationStageTotal,
+                    color: "#374151",
+                    bg: "#f3f4f6",
+                  },
+                  ...(conversationStageOrder.length
+                    ? conversationStageOrder
+                    : Object.keys(conversationStageCounts)
+                  ).map((stage) => ({
+                    key: stage,
+                    title: stage,
+                    prefix: "Stage",
+                    metricLabel: "users",
+                    hint: `${conversationStageCounts[stage] ?? 0} users`,
+                    count: conversationStageCounts[stage] ?? 0,
+                    color:
+                      stage === "No Activity"
+                        ? "#6b7280"
+                        : stage === "Initial Conversation"
+                          ? "#2563eb"
+                          : stage === "GMB Connected"
                             ? "#059669"
                             : stage === "GMB Health"
-                            ? "#8b5cf6"
-                            : stage === "Magic QR"
-                            ? "#d946ef"
-                            : stage === "GMB Insight"
-                            ? "#0ea5e9"
-                            : "#f59e0b",
-                        bg:
-                          stage === "No Activity"
-                            ? "#f3f4f6"
-                            : stage === "Initial Conversation"
-                            ? "#dbeafe"
-                            : stage === "GMB Connected"
+                              ? "#8b5cf6"
+                              : stage === "Magic QR"
+                                ? "#d946ef"
+                                : stage === "GMB Insight"
+                                  ? "#0ea5e9"
+                                  : "#f59e0b",
+                    bg:
+                      stage === "No Activity"
+                        ? "#f3f4f6"
+                        : stage === "Initial Conversation"
+                          ? "#dbeafe"
+                          : stage === "GMB Connected"
                             ? "#d1fae5"
                             : stage === "GMB Health"
-                            ? "#ede9fe"
-                            : stage === "Magic QR"
-                            ? "#f5d0fe"
-                            : stage === "GMB Insight"
-                            ? "#d0f2fe"
-                            : "#fef3c7",
-                      }))
-                    ),
-                  ]
-                }
+                              ? "#ede9fe"
+                              : stage === "Magic QR"
+                                ? "#f5d0fe"
+                                : stage === "GMB Insight"
+                                  ? "#d0f2fe"
+                                  : "#fef3c7",
+                  })),
+                ]}
               />
             </Box>
           )}
@@ -4229,7 +4242,9 @@ export default function UserManagement() {
               <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-fuchsia-200/80 bg-fuchsia-50/60 px-2.5 py-1">
                 <p className="text-[11px] font-semibold text-fuchsia-900">
                   Stage filter:{" "}
-                  <span className="font-black">{selectedConversationStage}</span>
+                  <span className="font-black">
+                    {selectedConversationStage}
+                  </span>
                   {pagination?.totalUsers != null && (
                     <span className="text-fuchsia-700 font-bold">
                       {" "}
@@ -4778,7 +4793,7 @@ export default function UserManagement() {
                                           </div>
                                         </div>
                                       </td>
-                                           {/* CONTACT INFO */}
+                                      {/* CONTACT INFO */}
                                       <td className="px-6 py-5">
                                         <div className="text-xs space-y-1">
                                           <div className="flex items-center gap-2 text-gray-600">
@@ -4793,7 +4808,6 @@ export default function UserManagement() {
                                           </div>
                                         </div>
                                       </td>
-
 
                                       {/* AGENT ASSIGNMENT */}
                                       <td
@@ -4927,7 +4941,7 @@ export default function UserManagement() {
                                           </option>
                                         </select>
                                       </td>
-                                      
+
                                       {/* CHAT BUTTON & PROGRESS COUNT */}
                                       <td className="px-6 py-5">
                                         <button
@@ -4952,8 +4966,6 @@ export default function UserManagement() {
                                           )}
                                         </button>
                                       </td>
-
-                                 
 
                                       <td className="px-6 py-4">
                                         <button

@@ -44,7 +44,7 @@ export async function GET(req) {
     const isTimeout =
       error.name === "TimeoutError" || error.name === "AbortError";
 
-    console.error("[conversation-stages] error:", error);
+    // console.error("[conversation-stages] error:", error);
 
     return NextResponse.json(
       {

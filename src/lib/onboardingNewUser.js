@@ -94,7 +94,7 @@ async function sendBrevoOnboardingEmail({ toEmail, name, sessionLabel }) {
 }
 
 /**
- * Fire after User is created with source `signup` or `bulk-upload`.
+ * Fire after User is created with source `signup` or a Meta lead source.
  * Idempotent: skips if onboarding web session already stored.
  */
 export async function runNewUserOnboarding(userId) {
@@ -104,7 +104,11 @@ export async function runNewUserOnboarding(userId) {
   if (!user) return { ok: false, reason: "user_not_found" };
 
   const source = user.source || "signup";
-  if (source !== "signup" && source !== "bulk-upload") {
+  if (
+    source !== "signup" &&
+    source !== "Meta Lead" &&
+    source !== "bulk-upload"
+  ) {
     return { ok: false, reason: "source_skipped" };
   }
 

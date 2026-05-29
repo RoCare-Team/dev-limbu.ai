@@ -5,44 +5,56 @@ const BASE_URL = "https://review.limbutech.in";
  */
 function getBusinessInfo(locationId) {
   try {
+    if (!locationId) {
+      throw new Error(`LOCATION_ID_MISSING: locationId is undefined or null`);
+    }
+
     const raw = localStorage.getItem("locationDetails");
-    if (!raw) return {};
+    if (!raw) throw new Error("LOCATION_NOT_FOUND: locationDetails not in localStorage");
+
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
     const locations = Array.isArray(parsed) ? parsed : [parsed];
 
     const matched = locations.find((loc) => loc.locationId === locationId);
 
     if (!matched) {
-      console.warn(`[getBusinessInfo] No location matched for locationId: "${locationId}". Available IDs:`, locations.map((l) => l.locationId));
+      console.warn(
+        `[getBusinessInfo] No location matched for locationId: "${locationId}". Available IDs:`,
+        locations.map((l) => l.locationId)
+      );
       throw new Error(`LOCATION_NOT_MATCHED: No location found for locationId "${locationId}"`);
     }
 
-    console.log(`[getBusinessInfo] Matched location for "${locationId}":`, matched);
-
-    const businessCategory = matched?.categories?.primaryCategory?.displayName || matched?.title || null;
+    const businessCategory =
+      matched?.categories?.primaryCategory?.displayName || matched?.title || null;
     const businessName = matched?.title || null;
 
     if (!businessCategory) {
-      console.error(`[getBusinessInfo] Neither "primaryCategory.displayName" nor "title" found for locationId: "${locationId}"`, matched);
-      throw new Error(`BUSINESS_CATEGORY_MISSING: No category or title found for locationId "${locationId}"`);
+      throw new Error(
+        `BUSINESS_CATEGORY_MISSING: No category or title found for locationId "${locationId}"`
+      );
     }
 
     if (!businessName) {
-      console.error(`[getBusinessInfo] "title" not found for locationId: "${locationId}"`, matched);
-      throw new Error(`BUSINESS_NAME_MISSING: No title found for locationId "${locationId}"`);
+      throw new Error(
+        `BUSINESS_NAME_MISSING: No title found for locationId "${locationId}"`
+      );
     }
+
+    console.log(
+      `[getBusinessInfo] ✅ Matched — name: "${businessName}", category: "${businessCategory}"`
+    );
 
     return { businessName, businessCategory };
   } catch (err) {
     console.error("[getBusinessInfo] Error:", err.message);
-    throw err; // re-throw so sendAIReply also fails loudly
+    throw err;
   }
 }
 
 export const reviewService = {
   /**
    * Fetches all paginated reviews for given location IDs.
-   * POST https://review.limbutech.in/fetch-reviews
    */
   async fetchAllReviews(accId, locationIds, accessToken) {
     const allReviews = [];
@@ -65,9 +77,7 @@ export const reviewService = {
         body: JSON.stringify(requestBody),
       });
 
-      if (!res.ok) {
-        throw new Error(`API_ERROR_${res.status}`);
-      }
+      if (!res.ok) throw new Error(`API_ERROR_${res.status}`);
 
       let data;
       const responseText = await res.text();
@@ -92,14 +102,9 @@ export const reviewService = {
 
   /**
    * Generates and sends an AI reply to a specific review.
-   * POST https://review.limbutech.in/reply-review
-   *
-   * - Business_Name: pulled from locationDetails.title in localStorage
-   * - Business_Category: pulled from locationDetails.categories.primaryCategory.displayName
-   * - Business_Language: always "English"
    */
   async sendAIReply(accessToken, accId, locationId, reviewerName, starRatingMapVal, comment, reviewId) {
-    const { businessName, businessCategory } = getBusinessInfo();
+    const { businessName, businessCategory } = getBusinessInfo(locationId);
 
     const payload = {
       acc_id: accId,
@@ -120,12 +125,13 @@ export const reviewService = {
       body: JSON.stringify(payload),
     });
 
+    if (!res.ok) throw new Error(`API_ERROR_${res.status}`);
+
     return res.json();
   },
 
   /**
    * Sends a manual reply to a specific review.
-   * POST https://review.limbutech.in/manual-reply
    */
   async sendManualReply(accessToken, accId, locationId, reviewId, replyText) {
     const res = await fetch(`${BASE_URL}/manual-reply`, {
@@ -140,25 +146,24 @@ export const reviewService = {
       }),
     });
 
-    if (!res.ok) {
-      throw new Error(`API_ERROR_${res.status}`);
-    }
+    if (!res.ok) throw new Error(`API_ERROR_${res.status}`);
 
     return res.json();
   },
 
   /**
-   * Toggles the auto-reply configuration.
+   * Toggle autoReply for one connected GMB account.
    */
-  async toggleAutoReply(userId, refreshToken, locations, isAuto) {
+  async toggleAutoReply(userId, refreshToken, accountId, locations, autoReply) {
     const res = await fetch("/api/saveAutoReply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId,
         refreshToken,
+        accountId,
         locations,
-        autoReply: isAuto,
+        autoReply,
       }),
     });
 
@@ -167,6 +172,19 @@ export const reviewService = {
       throw new Error(data.error || "Failed to save settings");
     }
 
-    return res;
+    return res.json();
+  },
+
+  /**
+   * Fetch autoReply status for all connected GMB accounts of a user.
+   */
+  async getAutoReplySettings(userId, accountId = null) {
+    const params = new URLSearchParams({ userId });
+    if (accountId) params.append("accountId", accountId);
+
+    const res = await fetch(`/api/saveAutoReply?${params.toString()}`);
+    if (!res.ok) return { locations: [] };
+
+    return res.json();
   },
 };

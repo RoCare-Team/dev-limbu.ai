@@ -2,56 +2,113 @@ import dbConnect from "@/lib/dbConnect";
 import AutoReply from "@/models/AutoReply";
 import { NextResponse } from "next/server";
 
+const normalizeGmbAccountId = (accountId) =>
+  String(accountId || "").replace(/^accounts\//, "");
+
+/**
+ * POST /api/saveAutoReply
+ * Toggle autoReply for a connected GMB account and all its locations.
+ *
+ * Body: { userId, refreshToken, accountId, locations: [{ accountId, locationId }], autoReply: Boolean }
+ */
 export async function POST(req) {
   await dbConnect();
   const body = await req.json();
 
-  const { userId, refreshToken, locations, autoReply } = body;
+  const { userId, refreshToken, accountId: rawAccountId, locations = [], autoReply } = body;
+  const accountId = normalizeGmbAccountId(rawAccountId);
 
-  // Prevent creating/updating records with a null userId, which would cause all users to share the same record.
   if (!userId) {
     return NextResponse.json(
-      { success: false, error: "User is not properly authenticated. Cannot save settings." },
+      { success: false, error: "User is not properly authenticated." },
       { status: 400 }
     );
   }
 
-  // Validate locations to ensure we can identify the business
-  if (!locations || !Array.isArray(locations) || locations.length === 0) {
-    return NextResponse.json(
-      { success: false, error: "No location data provided." },
-      { status: 400 }
-    );
-  }
-
-  // Identify the business by the accountId of the first location.
-  // This allows creating separate entries for different businesses (accounts) for the same user.
-  const accountId = locations[0]?.accountId;
   if (!accountId) {
-    return NextResponse.json({ success: false, error: "Invalid location data: missing accountId." }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "accountId is required." },
+      { status: 400 }
+    );
   }
 
-  // Construct update object to avoid overwriting refreshToken with null if not provided
-  const updateData = { locations, autoReply, updatedAt: new Date() };
-  if (refreshToken) {
-    updateData.refreshToken = refreshToken;
+  if (typeof autoReply !== "boolean") {
+    return NextResponse.json(
+      { success: false, error: "autoReply must be a boolean." },
+      { status: 400 }
+    );
   }
 
-  await AutoReply.findOneAndUpdate(
-    { userId, "locations.accountId": accountId },
-    { $set: updateData },
-    { upsert: true, new: true }
-  );
+  try {
+    const accountLocations = Array.isArray(locations)
+      ? locations
+          .filter((loc) => loc?.locationId)
+          .map((loc) => ({
+            ...loc,
+            accountId: normalizeGmbAccountId(loc.accountId || accountId),
+            locationId: loc.locationId,
+          }))
+      : [];
 
-  return NextResponse.json({ success: true });
+    // Check if user record exists
+    let record = await AutoReply.findOne({ userId });
+
+    if (!record) {
+      // Create new record with this location
+      record = await AutoReply.create({
+        userId,
+        refreshToken,
+        accounts: [{ accountId, autoReply, locations: accountLocations }],
+        locations: accountLocations,
+        autoReply,
+        updatedAt: new Date(),
+      });
+    } else {
+      // Update refreshToken if provided
+      if (refreshToken) record.refreshToken = refreshToken;
+
+      if (!Array.isArray(record.accounts)) record.accounts = [];
+
+      const accountIndex = record.accounts.findIndex(
+        (acc) => normalizeGmbAccountId(acc.accountId) === accountId
+      );
+      if (accountIndex > -1) {
+        record.accounts[accountIndex].autoReply = autoReply;
+        record.accounts[accountIndex].locations = accountLocations;
+      } else {
+        record.accounts.push({ accountId, autoReply, locations: accountLocations });
+      }
+
+      const otherLocations = (record.locations || []).filter(
+        (loc) => normalizeGmbAccountId(loc.accountId) !== accountId
+      );
+      record.locations = [...otherLocations, ...accountLocations];
+      record.autoReply = record.accounts.some((acc) => acc.autoReply === true);
+      record.updatedAt = new Date();
+      await record.save();
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("POST AutoReply Error:", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
+
+/**
+ * GET /api/saveAutoReply?userId=xxx&accountId=yyy
+ * Returns autoReply status for all connected GMB accounts of a user.
+ */
 export async function GET(req) {
   try {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    const accountId = searchParams.get("accountId"); // optional but recommended
+    const accountId = normalizeGmbAccountId(searchParams.get("accountId"));
 
     if (!userId) {
       return NextResponse.json(
@@ -60,29 +117,36 @@ export async function GET(req) {
       );
     }
 
-    let query = { userId };
+    const record = await AutoReply.findOne({ userId }).lean();
 
-    // If accountId is provided, fetch specific business
-    if (accountId) {
-      query["locations.accountId"] = accountId;
-    }
-
-    const autoReplyData = await AutoReply.findOne(query).lean();
-
-    if (!autoReplyData) {
+    if (!record) {
       return NextResponse.json({
         success: true,
-        autoReply: false,
         locations: [],
         message: "No auto-reply settings found",
       });
     }
 
+    const accounts = Array.isArray(record.accounts) && record.accounts.length > 0
+      ? record.accounts
+      : buildAccountsFromLegacyLocations(record.locations || [], record.autoReply === true);
+
+    const filteredAccounts = accountId
+      ? accounts.filter((acc) => normalizeGmbAccountId(acc.accountId) === accountId)
+      : accounts;
+
+    const locations = filteredAccounts.flatMap((acc) =>
+      (acc.locations || []).map((loc) => ({
+        ...loc,
+        autoReply: acc.autoReply,
+      }))
+    );
+
     return NextResponse.json({
       success: true,
-      autoReply: autoReplyData.autoReply,
-      locations: autoReplyData.locations,
-      updatedAt: autoReplyData.updatedAt,
+      accounts: filteredAccounts,
+      locations,
+      updatedAt: record.updatedAt,
     });
   } catch (error) {
     console.error("GET AutoReply Error:", error);
@@ -91,4 +155,30 @@ export async function GET(req) {
       { status: 500 }
     );
   }
+}
+
+function buildAccountsFromLegacyLocations(locations, defaultAutoReply = false) {
+  const accountsById = new Map();
+
+  locations.forEach((loc) => {
+    const accountId = normalizeGmbAccountId(loc?.accountId);
+    if (!accountId) return;
+    if (!accountsById.has(accountId)) {
+      accountsById.set(accountId, {
+        accountId,
+        autoReply: defaultAutoReply,
+        locations: [],
+      });
+    }
+
+    const account = accountsById.get(accountId);
+    account.autoReply = account.autoReply || loc.autoReply === true;
+    account.locations.push({
+      ...loc,
+      accountId,
+      locationId: loc.locationId,
+    });
+  });
+
+  return Array.from(accountsById.values());
 }

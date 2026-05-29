@@ -176,9 +176,9 @@ async function assignNextAgentId() {
   const index = rrValue % activeAgents.length;
   const agent = activeAgents[index];
 
-  console.log(
-    `[RoundRobin] ✅ Agent assign: ${agent.fullName || agent.email} | index=${index} | total agents=${activeAgents.length}`,
-  );
+  // console.log(
+  //   `[RoundRobin] ✅ Agent assign: ${agent.fullName || agent.email} | index=${index} | total agents=${activeAgents.length}`,
+  // );
 
   return agent._id;
 }
@@ -334,9 +334,9 @@ export async function ensureChatbotRowsSaved(botRows = []) {
     ).length;
 
     if (inboundCount < 1) {
-      console.log(
-        `[ensureChatbotRowsSaved] ⏭️ Skip (no inbound message): ${bot.phone || bot.user_id}`,
-      );
+      // console.log(
+      //   `[ensureChatbotRowsSaved] ⏭️ Skip (no inbound message): ${bot.phone || bot.user_id}`,
+      // );
       skipped++;
       continue;
     }
@@ -514,16 +514,16 @@ export async function getChatbotChatsByDay() {
 
   const { users: botUsers } = await fetchLimbuBotAdminUsers();
 
-  console.log(`\n[getChatbotChatsByDay] ═══════════════════════════════`);
-  console.log(
-    `[getChatbotChatsByDay] 📦 Total WhatsApp contacts fetched: ${botUsers.length}`,
-  );
-  console.log(
-    `[getChatbotChatsByDay] 📅 Today date (IST): ${todayBounds.calendarDate}`,
-  );
-  console.log(
-    `[getChatbotChatsByDay] 📅 Yesterday date (IST): ${yesterdayBounds.calendarDate}`,
-  );
+  // console.log(`\n[getChatbotChatsByDay] ═══════════════════════════════`);
+  // console.log(
+  //   `[getChatbotChatsByDay] 📦 Total WhatsApp contacts fetched: ${botUsers.length}`,
+  // );
+  // console.log(
+  //   `[getChatbotChatsByDay] 📅 Today date (IST): ${todayBounds.calendarDate}`,
+  // );
+  // console.log(
+  //   `[getChatbotChatsByDay] 📅 Yesterday date (IST): ${yesterdayBounds.calendarDate}`,
+  // );
 
   const todayRows = filterBotUsersByInboundCalendarDay(
     botUsers,
@@ -536,9 +536,9 @@ export async function getChatbotChatsByDay() {
   ).map(mapBotUserRow);
 
   // ── TODAY LOG ──
-  console.log(
-    `\n[TODAY LEADS] ✅ Count: ${todayRows.length} | Date: ${todayBounds.calendarDate}`,
-  );
+  // console.log(
+  //   `\n[TODAY LEADS] ✅ Count: ${todayRows.length} | Date: ${todayBounds.calendarDate}`,
+  // );
   if (todayRows.length > 0) {
     console.table(
       todayRows.map((u) => ({
@@ -557,9 +557,9 @@ export async function getChatbotChatsByDay() {
   }
 
   // ── YESTERDAY LOG ──
-  console.log(
-    `\n[YESTERDAY LEADS] ✅ Count: ${yesterdayRows.length} | Date: ${yesterdayBounds.calendarDate}`,
-  );
+  // console.log(
+  //   `\n[YESTERDAY LEADS] ✅ Count: ${yesterdayRows.length} | Date: ${yesterdayBounds.calendarDate}`,
+  // );
   if (yesterdayRows.length > 0) {
     console.table(
       yesterdayRows.map((u) => ({
@@ -577,7 +577,7 @@ export async function getChatbotChatsByDay() {
     console.log("[YESTERDAY LEADS] ⚠️ Koi user nahi mila kal ke liye");
   }
 
-  console.log(`[getChatbotChatsByDay] ═══════════════════════════════\n`);
+  // console.log(`[getChatbotChatsByDay] ═══════════════════════════════\n`);
 
   return {
     timeZone: todayBounds.timeZone,
@@ -660,9 +660,9 @@ async function mapBotStageRowsToTableUsers(botRows = []) {
           .lean()
       : [];
 
-  console.log(
-    `[mapBotStageRowsToTableUsers] 📋 botRows: ${botRows.length} | DB mein registered: ${registered.length}`,
-  );
+  // console.log(
+  //   `[mapBotStageRowsToTableUsers] 📋 botRows: ${botRows.length} | DB mein registered: ${registered.length}`,
+  // );
 
   const registeredByPhone = new Map();
   const registeredByWaId = new Map();
@@ -753,9 +753,9 @@ export async function listUsersForChatbotChatDay({
   const botRows = bucket.users || [];
   await ensureChatbotRowsSaved(botRows);
 
-  console.log(
-    `\n[listUsersForChatbotChatDay] 📅 Day: ${day} | Bucket date: ${bucket.calendarDate} | botRows: ${botRows.length}`,
-  );
+  // console.log(
+  //   `\n[listUsersForChatbotChatDay] 📅 Day: ${day} | Bucket date: ${bucket.calendarDate} | botRows: ${botRows.length}`,
+  // );
 
   const phones = [...new Set(botRows.map((r) => r.phone).filter(Boolean))];
   const waIds = [...new Set(botRows.map((r) => r.user_id).filter(Boolean))];
@@ -799,9 +799,9 @@ export async function listUsersForChatbotChatDay({
     .populate("accountManager", "fullName email role mobileNumber")
     .lean();
 
-  console.log(
-    `[listUsersForChatbotChatDay] 🗃️ DB se registered users mile: ${registered.length}`,
-  );
+  // console.log(
+  //   `[listUsersForChatbotChatDay] 🗃️ DB se registered users mile: ${registered.length}`,
+  // );
 
   const orderMap = new Map(botRows.map((r, i) => [r.user_id, i]));
   const matched = new Set();
@@ -824,9 +824,9 @@ export async function listUsersForChatbotChatDay({
     })
     .map(virtualUserFromBotRow);
 
-  console.log(
-    `[listUsersForChatbotChatDay] 👻 Virtual (chatbot-only) users: ${virtual.length}`,
-  );
+  // console.log(
+  //   `[listUsersForChatbotChatDay] 👻 Virtual (chatbot-only) users: ${virtual.length}`,
+  // );
 
   const botByPhone = new Map(botRows.map((r) => [String(r.phone || ""), r]));
   const botByWaId = new Map(botRows.map((r) => [String(r.user_id || ""), r]));
@@ -867,9 +867,9 @@ export async function listUsersForChatbotChatDay({
     return ia - ib;
   });
 
-  console.log(
-    `[listUsersForChatbotChatDay] ✅ Total merged users (page ${page}): ${merged.length}`,
-  );
+  // console.log(
+  //   `[listUsersForChatbotChatDay] ✅ Total merged users (page ${page}): ${merged.length}`,
+  // );
 
   const totalUsers = merged.length;
   const skip = (page - 1) * limit;
@@ -889,15 +889,15 @@ export async function listUsersForChatbotChatDay({
 export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const now = Date.now();
   if (!bypassCache && _limbuBotCache && now - _limbuBotCacheAt < CACHE_TTL_MS) {
-    console.log(
-      `[fetchLimbuBotAdminUsers] ⚡ Cache se return (${_limbuBotCache.users.length} users)`,
-    );
+    // console.log(
+    //   `[fetchLimbuBotAdminUsers] ⚡ Cache se return (${_limbuBotCache.users.length} users)`,
+    // );
     return _limbuBotCache;
   }
 
-  console.log(
-    `[fetchLimbuBotAdminUsers] 🌐 WhatsApp API se fresh data fetch ho raha hai...`,
-  );
+  // console.log(
+  //   `[fetchLimbuBotAdminUsers] 🌐 WhatsApp API se fresh data fetch ho raha hai...`,
+  // );
 
   const fetchPage = async (page, limit = 50) => {
     const url = new URL(LIMBUBOT_ADMIN_USERS_URL);
@@ -931,9 +931,9 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const pageLimit = Number(pagination.limit) || 50;
   const totalPages = Math.max(1, Number(pagination.total_pages) || 1);
 
-  console.log(
-    `[fetchLimbuBotAdminUsers] 📄 Total pages: ${totalPages} | Page limit: ${pageLimit} | Total contacts: ${pagination.total || "?"}`,
-  );
+  // console.log(
+  //   `[fetchLimbuBotAdminUsers] 📄 Total pages: ${totalPages} | Page limit: ${pageLimit} | Total contacts: ${pagination.total || "?"}`,
+  // );
 
   for (let page = 2; page <= totalPages; page += 1) {
     const pageData = await fetchPage(page, pageLimit);
@@ -943,18 +943,18 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
         ? pageData.users
         : [];
     contacts.push(...pageContacts);
-    console.log(
-      `[fetchLimbuBotAdminUsers] 📄 Page ${page}/${totalPages} fetched — ${pageContacts.length} contacts`,
-    );
+    // console.log(
+    //   `[fetchLimbuBotAdminUsers] 📄 Page ${page}/${totalPages} fetched — ${pageContacts.length} contacts`,
+    // );
   }
 
   const users = contacts
     .map(mapWhatsAppContactRow)
     .filter((row) => row.user_id);
 
-  console.log(
-    `[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`,
-  );
+  // console.log(
+  //   `[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`,
+  // );
 
   const result = {
     total: Number(pagination.total) || users.length,
@@ -969,7 +969,7 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
 }
 
 export function invalidateLimbuBotCache() {
-  console.log("[invalidateLimbuBotCache] 🗑️ Cache clear kiya gaya");
+  // console.log("[invalidateLimbuBotCache] 🗑️ Cache clear kiya gaya");
   _limbuBotCache = null;
   _limbuBotCacheAt = 0;
 }
@@ -977,10 +977,10 @@ export function invalidateLimbuBotCache() {
 export async function syncChatbotUsersToApp(options = {}) {
   const { minMessageCount = 1, maxToInsert = 500 } = options;
 
-  console.log(`\n[syncChatbotUsersToApp] ═══════════════════════════════`);
-  console.log(
-    `[syncChatbotUsersToApp] 🚀 Sync shuru | minMessages=${minMessageCount} | maxInsert=${maxToInsert}`,
-  );
+  // console.log(`\n[syncChatbotUsersToApp] ═══════════════════════════════`);
+  // console.log(
+  //   `[syncChatbotUsersToApp] 🚀 Sync shuru | minMessages=${minMessageCount} | maxInsert=${maxToInsert}`,
+ // );
 
   await dbConnect();
 
@@ -988,9 +988,9 @@ export async function syncChatbotUsersToApp(options = {}) {
     bypassCache: true,
   });
 
-  console.log(
-    `[syncChatbotUsersToApp] 📦 WhatsApp se total users: ${botUsers.length}`,
-  );
+  // console.log(
+  //   `[syncChatbotUsersToApp] 📦 WhatsApp se total users: ${botUsers.length}`,
+  // );
 
   const takenEmailRows = await User.find({
     email: { $regex: /^chatbot\d+@gmail\.com$/i },
@@ -1010,9 +1010,9 @@ export async function syncChatbotUsersToApp(options = {}) {
     emailCounter = max + 1;
   }
 
-  console.log(
-    `[syncChatbotUsersToApp] 📧 Existing chatbot emails: ${takenEmails.size} | Next email index: ${emailCounter}`,
-  );
+  // console.log(
+  //   `[syncChatbotUsersToApp] 📧 Existing chatbot emails: ${takenEmails.size} | Next email index: ${emailCounter}`,
+  // );
 
   let inserted = 0;
   let skipped = 0;
@@ -1022,9 +1022,9 @@ export async function syncChatbotUsersToApp(options = {}) {
 
   for (const bot of botUsers) {
     if (inserted >= maxToInsert) {
-      console.log(
-        `[syncChatbotUsersToApp] 🛑 maxToInsert (${maxToInsert}) limit hit — baaki users skip`,
-      );
+      // console.log(
+      //   `[syncChatbotUsersToApp] 🛑 maxToInsert (${maxToInsert}) limit hit — baaki users skip`,
+      // );
       break;
     }
 
@@ -1036,18 +1036,18 @@ export async function syncChatbotUsersToApp(options = {}) {
       const cc = getNonIndianCountryCode(waId);
       if (cc) {
         nonIndian.push({ waId, countryCode: cc });
-        console.log(
-          `[syncChatbotUsersToApp] 🌍 Non-Indian number skip: ${waId} (country code: ${cc})`,
-        );
+        // console.log(
+        //   `[syncChatbotUsersToApp] 🌍 Non-Indian number skip: ${waId} (country code: ${cc})`,
+        // );
       }
       skipped++;
       continue;
     }
 
     if (messageCount < minMessageCount) {
-      console.log(
-        `[syncChatbotUsersToApp] ⏭️ Skip (kam messages): ${phone} | messages=${messageCount}`,
-      );
+      // console.log(
+      //   `[syncChatbotUsersToApp] ⏭️ Skip (kam messages): ${phone} | messages=${messageCount}`,
+      // );
       skipped++;
       continue;
     }
@@ -1083,9 +1083,9 @@ export async function syncChatbotUsersToApp(options = {}) {
             },
           },
         );
-        console.log(
-          `[syncChatbotUsersToApp] 🔗 Linked (already exists): ${phone} | waId=${waId}`,
-        );
+        // console.log(
+        //   `[syncChatbotUsersToApp] 🔗 Linked (already exists): ${phone} | waId=${waId}`,
+        // );
         linked++;
         continue;
       }
@@ -1128,9 +1128,9 @@ export async function syncChatbotUsersToApp(options = {}) {
           : null,
       });
 
-      console.log(
-        `[syncChatbotUsersToApp] ✅ NEW user inserted: ${phone} | name=${created.fullName} | email=${email} | agent=${assignedAgentId}`,
-      );
+        // console.log(
+        //   `[syncChatbotUsersToApp] ✅ NEW user inserted: ${phone} | name=${created.fullName} | email=${email} | agent=${assignedAgentId}`,
+        // );
       inserted++;
 
       void runWelcomeBonusForUserId(created.userId).catch((err) =>
@@ -1138,9 +1138,9 @@ export async function syncChatbotUsersToApp(options = {}) {
       );
     } catch (err) {
       if (err.code === 11000) {
-        console.log(
-          `[syncChatbotUsersToApp] ⚡ Race condition (11000) — linked: ${phone}`,
-        );
+        // console.log(
+        //   `[syncChatbotUsersToApp] ⚡ Race condition (11000) — linked: ${phone}`,
+        // );
         linked++;
       } else {
         console.error(
@@ -1154,11 +1154,11 @@ export async function syncChatbotUsersToApp(options = {}) {
 
   invalidateLimbuBotCache();
 
-  console.log(`\n[syncChatbotUsersToApp] ══ SYNC COMPLETE ══`);
-  console.log(
-    `[syncChatbotUsersToApp] 📊 fetched=${botUsers.length} | inserted=${inserted} | linked=${linked} | skipped=${skipped} | nonIndian=${nonIndian.length} | errors=${errors.length}`,
-  );
-  console.log(`[syncChatbotUsersToApp] ═══════════════════════════════\n`);
+  // console.log(`\n[syncChatbotUsersToApp] ══ SYNC COMPLETE ══`);
+  // console.log(
+  //   `[syncChatbotUsersToApp] 📊 fetched=${botUsers.length} | inserted=${inserted} | linked=${linked} | skipped=${skipped} | nonIndian=${nonIndian.length} | errors=${errors.length}`,
+  // );
+  // console.log(`[syncChatbotUsersToApp] ═══════════════════════════════\n`);
 
   return {
     fetched: botUsers.length,
@@ -1262,12 +1262,12 @@ export function detectConversationStages(history = []) {
 export async function getLimbuBotConversationStages() {
   const { total, users: botUsers } = await fetchLimbuBotAdminUsers();
 
-  console.log(
-    `\n[getLimbuBotConversationStages] ═══════════════════════════════`,
-  );
-  console.log(
-    `[getLimbuBotConversationStages] 📦 Total users for stage classification: ${botUsers.length}`,
-  );
+  // console.log(
+  //   `\n[getLimbuBotConversationStages] ═══════════════════════════════`,
+  // );
+  // console.log(
+  //   `[getLimbuBotConversationStages] 📦 Total users for stage classification: ${botUsers.length}`,
+  // );
 
   const stageCounts = Object.fromEntries(
     CONVERSATION_STAGE_KEYS.map((s) => [s, 0]),
@@ -1313,11 +1313,11 @@ export async function getLimbuBotConversationStages() {
   }
 
   // ── STAGE SUMMARY LOG ──
-  console.log(`\n[STAGE SUMMARY] ── GMB & All Stages Count ──`);
+  // console.log(`\n[STAGE SUMMARY] ── GMB & All Stages Count ──`);
   for (const stage of CONVERSATION_STAGE_KEYS) {
     const count = stageCounts[stage];
     const users = stageUsers[stage];
-    console.log(`\n[STAGE: ${stage}] 👥 Count: ${count}`);
+    // console.log(`\n[STAGE: ${stage}] 👥 Count: ${count}`);
     if (count > 0) {
       console.table(
         users.map((u) => ({
@@ -1334,9 +1334,9 @@ export async function getLimbuBotConversationStages() {
       console.log(`[STAGE: ${stage}] ⚠️ Koi user nahi`);
     }
   }
-  console.log(
-    `[getLimbuBotConversationStages] ═══════════════════════════════\n`,
-  );
+  // console.log(
+  //   `[getLimbuBotConversationStages] ═══════════════════════════════\n`,
+  // );
 
   const dedupedAllUsers = dedupeBotStageRows(allUsers);
   await ensureChatbotRowsSaved(dedupedAllUsers);
@@ -1362,9 +1362,9 @@ export async function getLimbuBotStageWithUsers({
   const base = { success: true, total, stageCounts, stageOrder, fetchedAt };
 
   if (!stage) {
-    console.log(
-      `[getLimbuBotStageWithUsers] ℹ️ Stage nahi diya — sirf counts return`,
-    );
+    // console.log(
+    //   `[getLimbuBotStageWithUsers] ℹ️ Stage nahi diya — sirf counts return`,
+    // );
     return base;
   }
 
@@ -1374,9 +1374,9 @@ export async function getLimbuBotStageWithUsers({
   const skip = (page - 1) * limit;
   const pageRows = allForStage.slice(skip, skip + limit);
 
-  console.log(
-    `[getLimbuBotStageWithUsers] 📋 Stage="${stage}" | Total=${totalUsers} | Page=${page} | Showing=${pageRows.length}`,
-  );
+  // console.log(
+  //   `[getLimbuBotStageWithUsers] 📋 Stage="${stage}" | Total=${totalUsers} | Page=${page} | Showing=${pageRows.length}`,
+  // );
 
   return {
     ...base,

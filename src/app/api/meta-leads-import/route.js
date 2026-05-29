@@ -36,7 +36,6 @@ function normalizeFieldKey(n) {
     .replace(/\s+/g, "_");
 }
 
-/** Match Meta field_data `name` to standard keys (handles custom question labels). */
 function getFieldByAliases(fields = [], aliases = []) {
   const want = new Set(aliases.map(normalizeFieldKey));
   for (const f of fields) {
@@ -130,7 +129,6 @@ function parseMetaCreatedAt(createdTime) {
   return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
-/** Atomic round-robin counter. Avoids $inc + $setOnInsert on same path (MongoDB conflict on `value`). */
 async function bumpAgentRoundRobin(SettingModel, rrKey) {
   const doc = await SettingModel.findOneAndUpdate(
     { key: rrKey },
@@ -147,28 +145,25 @@ async function bumpAgentRoundRobin(SettingModel, rrKey) {
   return doc;
 }
 
-/* ================= WHATSAPP ================= */
-// async function sendWhatsApp(phone, fullName) {
-//   try {
-//     await fetch("https://limbu.ai/api/whatsapp-message", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({
-//         destination: phone,
-//         templateParams: [fullName, "https://limbu.ai"],
-//       }),
-//     });
-//   } catch (err) {
-//     console.error("WhatsApp Error:", err.message);
-//   }
-// }
+async function getNextAgentId(activeAgents = []) {
+  if (!activeAgents.length) return null;
+
+  const RR_KEY = "agentLeadRR";
+  const rrDoc = await bumpAgentRoundRobin(Setting, RR_KEY);
+  let rrValue = parseInt(rrDoc?.value, 10);
+  if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+
+  const index = rrValue % activeAgents.length;
+  const agentId = activeAgents[index]._id;
+  console.log(
+    `[MetaSync] Round-robin assigned agent index: ${index} | agentId: ${agentId}`,
+  );
+  return agentId;
+}
 
 /* ================= TATA AUTODIAL ================= */
 async function sendToTataDialer(phone, fullName) {
-  // Har din chalega
   const ids = ["827981"];
-
-  // Friday ko extra ID bhi chalegi
   if (new Date().getDay() === 5) {
     ids.push("830002");
   }
@@ -192,14 +187,23 @@ async function sendToTataDialer(phone, fullName) {
       );
 
       const data = await res.json();
-      console.log(`Tata Dialer Response (${id}):`, data);
+      console.log(`[Tata Dialer] Response (${id}):`, data);
 
     } catch (err) {
-      console.error(`Tata Dialer Error (${id}):`, err.message);
+      console.error(`[Tata Dialer] Error (${id}):`, err.message);
     }
   }
 }
 
+/* ================= DATE HELPERS ================= */
+function isToday(date) {
+  const now = new Date();
+  return (
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  );
+}
 
 /* ================= API ================= */
 export async function GET(req) {
@@ -232,8 +236,8 @@ export async function GET(req) {
       }
     }
 
-    // Fetch active agents for Round Robin
     const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 });
+    console.log(`[MetaSync] Active agents for round-robin: ${activeAgents.length}`);
 
     const formId = process.env.META_FORM_ID || searchParams.get("formId");
 
@@ -244,13 +248,19 @@ export async function GET(req) {
       );
     }
 
+    console.log(`\n========== [MetaSync] START — FormID: ${formId} — ${new Date().toISOString()} ==========`);
+
     let inserted = 0;
+    let updated = 0;
+    let assigned = 0;
     let skipped = 0;
     let totalFetched = 0;
     let pagesFetched = 0;
     let lastCursor = null;
 
-    // Follow Meta's paging.next so every page is fetched (previously only page 1 loaded; after cursor was never sent).
+    // ✅ Aaj ke inserted leads track karne ke liye
+    const todayInserted = [];
+
     let nextUrl = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${LIMIT}&access_token=${META_ACCESS_TOKEN}`;
 
     while (nextUrl) {
@@ -262,6 +272,7 @@ export async function GET(req) {
           json?.error?.message ||
           json?.error?.error_user_msg ||
           `Graph API error (${res.status})`;
+        console.error("[MetaSync] Graph API Error:", msg, json?.error);
         return NextResponse.json(
           {
             success: false,
@@ -275,6 +286,7 @@ export async function GET(req) {
       pagesFetched++;
       const leads = json.data || [];
       totalFetched += leads.length;
+      console.log(`[MetaSync] Page ${pagesFetched} — ${leads.length} leads fetched from Meta`);
 
       if (json.paging?.cursors?.after) {
         lastCursor = json.paging.cursors.after;
@@ -283,35 +295,60 @@ export async function GET(req) {
       for (const lead of leads) {
         const fields = lead.field_data || [];
 
+        // ✅ Raw fields debug log — pehli baar chalao to dekho Meta kya bhej raha hai
+        console.log(`\n[MetaSync] Lead ID: ${lead.id} | created_time: ${lead.created_time}`);
+        console.log(`[MetaSync] Raw field_data:`, JSON.stringify(fields, null, 2));
+
         const fullName = extractFullNameFromFields(fields);
         const email = extractEmailFromFields(fields);
         const phone = extractPhoneFromFields(fields);
         const city = getFieldByAliases(fields, ["city", "location", "area", "district"]);
 
-        if (!email || !phone) {
-          skipped++;
-          continue;
-        }
+        console.log(`[MetaSync] Extracted → Name: "${fullName}" | Email: "${email}" | Phone: "${phone}" | City: "${city}"`);
 
-        const exists = await User.findOne({ $or: [{ email }, { phone }] });
-        if (exists) {
+        // ❌ SKIP REASON LOG
+        if (!email || !phone) {
+          console.warn(`[MetaSync] ⚠️  SKIPPED (missing field) — Lead ID: ${lead.id} | email: "${email}" | phone: "${phone}"`);
           skipped++;
           continue;
         }
 
         const createdAt = parseMetaCreatedAt(lead.created_time);
 
-        // Round Robin Logic
-        let assignedAgentId = null;
-        if (activeAgents && activeAgents.length > 0) {
-          const RR_KEY = "agentLeadRR";
-          const rrDoc = await bumpAgentRoundRobin(Setting, RR_KEY);
+        const exists = await User.findOne({ $or: [{ email }, { phone }] });
+        if (exists) {
+          let assignedAgentId = exists.assignedAgentId || null;
+          if (!assignedAgentId && activeAgents.length > 0) {
+            assignedAgentId = await getNextAgentId(activeAgents);
+            if (assignedAgentId) assigned++;
+          }
 
-          let rrValue = parseInt(rrDoc?.value, 10);
-          if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
-
-          assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
+          await User.updateOne(
+            { _id: exists._id },
+            {
+              $set: {
+                fullName: exists.fullName || fullName,
+                email: exists.email || email,
+                phone: exists.phone || phone,
+                city: exists.city || city,
+                source: "Meta Lead",
+                metaLeadId: lead.id,
+                metaFormId: formId,
+                metaCreatedAt: createdAt,
+                metaSyncedAt: new Date(),
+                assignedAgentId: assignedAgentId || null,
+              },
+              $addToSet: { leadTags: "metaleads" },
+            },
+          );
+          console.log(`[MetaSync] UPDATED duplicate Meta lead - email: "${email}" | phone: "${phone}" | existing userId: ${exists.userId} | agentId: ${assignedAgentId || "Unassigned"}`);
+          updated++;
+          skipped++;
+          continue;
         }
+        // Round Robin Logic
+        const assignedAgentId = await getNextAgentId(activeAgents);
+        if (assignedAgentId) assigned++;
 
         const createdLead = await User.create({
           userId: `USR${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
@@ -325,8 +362,12 @@ export async function GET(req) {
             status: "inactive",
             plan: "Free",
           },
-          source: "bulk-upload",
+          source: "Meta Lead",
           leadTags: ["metaleads"],
+          metaLeadId: lead.id,
+          metaFormId: formId,
+          metaCreatedAt: createdAt,
+          metaSyncedAt: new Date(),
           whatsappSent: true,
           tataCallSent: true,
           assignedAgentId,
@@ -334,18 +375,31 @@ export async function GET(req) {
           updatedAt: createdAt,
         });
 
+        console.log(`[MetaSync] ✅ INSERTED — userId: ${createdLead.userId} | Name: "${fullName}" | Email: "${email}" | Phone: "${phone}" | Meta createdAt: ${createdAt.toISOString()}`);
+
         inserted++;
 
+        // ✅ Aaj ka lead track karo
+        if (isToday(createdAt)) {
+          todayInserted.push({
+            userId: createdLead.userId,
+            fullName,
+            email,
+            phone,
+            city,
+            assignedAgentId,
+            metaCreatedAt: createdAt.toISOString(),
+          });
+        }
+
         void runWelcomeBonusForUserId(createdLead.userId).catch((err) =>
-          console.error("runWelcomeBonusForUserId", err),
+          console.error("[MetaSync] runWelcomeBonusForUserId error:", err),
         );
 
         void runNewUserOnboarding(createdLead.userId).catch((err) =>
-          console.error("runNewUserOnboarding", err),
+          console.error("[MetaSync] runNewUserOnboarding error:", err),
         );
 
-        // 🔥 AUTOMATION
-        // await sendWhatsApp(phone, fullName);
         await sendToTataDialer(phone, fullName);
       }
 
@@ -358,9 +412,46 @@ export async function GET(req) {
       { upsert: true }
     );
 
+    // ✅ Aaj ke leads ka summary console
+    console.log(`\n========== [MetaSync] TODAY'S NEW META LEADS (${new Date().toDateString()}) ==========`);
+    if (todayInserted.length === 0) {
+      console.log("[MetaSync] Aaj koi naya meta lead save nahi hua.");
+    } else {
+      console.log(`[MetaSync] Aaj ${todayInserted.length} naye meta leads save hue:\n`);
+      todayInserted.forEach((lead, i) => {
+        console.log(
+          `  ${i + 1}. userId: ${lead.userId}\n` +
+          `     Name: ${lead.fullName}\n` +
+          `     Email: ${lead.email}\n` +
+          `     Phone: ${lead.phone}\n` +
+          `     City: ${lead.city || "N/A"}\n` +
+          `     AgentId: ${lead.assignedAgentId || "Unassigned"}\n` +
+          `     Meta createdAt: ${lead.metaCreatedAt}\n`
+        );
+      });
+    }
+    console.log(`========== [MetaSync] END - inserted: ${inserted} | updated: ${updated} | assigned: ${assigned} | skipped: ${skipped} | totalFetched: ${totalFetched} ==========\n`);
+
     const [usersSignup, usersMetaSources] = await Promise.all([
       User.countDocuments({ source: "signup" }),
-      User.countDocuments({ source: "bulk-upload" }),
+      User.countDocuments({
+        $or: [
+          {
+            source: {
+              $in: [
+                "Meta Lead",
+                "Meta Leads",
+                "Meta",
+                "bulk-upload",
+                "manual-upload",
+                "csv-import",
+                "excel-import",
+              ],
+            },
+          },
+          { leadTags: "metaleads" },
+        ],
+      }),
     ]);
 
     return NextResponse.json({
@@ -370,13 +461,18 @@ export async function GET(req) {
         pagesFetched,
         totalFetched,
         inserted,
+        updated,
+        assigned,
         skipped,
+        todayInsertedCount: todayInserted.length,
+        todayInsertedLeads: todayInserted,        // ← API response mein bhi milega
         usersInDbSignup: usersSignup,
         usersInDbBulkUpload: usersMetaSources,
       },
     });
 
   } catch (err) {
+    console.error("[MetaSync] FATAL ERROR:", err.message, err.stack);
     return NextResponse.json(
       { success: false, error: err.message },
       { status: 500 }

@@ -1,6 +1,18 @@
 "use client";
 import { useState, useRef } from "react";
-import { ArrowLeft, ArrowRight, QrCode, Share2, Download, Printer, MessageSquare, Star, Check, Copy, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  QrCode,
+  Share2,
+  Download,
+  Printer,
+  MessageSquare,
+  Star,
+  Check,
+  Copy,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast, Toaster } from "react-hot-toast";
@@ -22,7 +34,7 @@ export default function BusinessQR() {
     copyToClipboard,
     shareLink,
     downloadQR,
-    printQR
+    printQR,
   } = useMagicQR();
 
   const [showDemo, setShowDemo] = useState(false);
@@ -39,13 +51,16 @@ export default function BusinessQR() {
     return { value: loc.locationId, label };
   });
 
-  const selectedOption = locationOptions.find((opt) => opt.value === selectedLocationId) || null;
+  const selectedOption =
+    locationOptions.find((opt) => opt.value === selectedLocationId) || null;
 
   const customStyles = {
     control: (provided, state) => ({
       ...provided,
       backgroundColor: "white",
-      borderColor: state.isFocused ? "var(--lemon-glow)" : "rgba(0, 0, 0, 0.05)",
+      borderColor: state.isFocused
+        ? "var(--lemon-glow)"
+        : "rgba(0, 0, 0, 0.05)",
       boxShadow: state.isFocused ? "0 0 0 2px var(--lemon-glow)" : "none",
       borderRadius: "0.75rem",
       padding: "0.2rem",
@@ -58,7 +73,11 @@ export default function BusinessQR() {
     }),
     option: (provided, state) => ({
       ...provided,
-      backgroundColor: state.isSelected ? "var(--lemon-glow)" : state.isFocused ? "rgba(250, 204, 21, 0.1)" : "white",
+      backgroundColor: state.isSelected
+        ? "var(--lemon-glow)"
+        : state.isFocused
+          ? "rgba(250, 204, 21, 0.1)"
+          : "white",
       color: "black",
       fontSize: "0.75rem",
       fontWeight: "600",
@@ -69,7 +88,8 @@ export default function BusinessQR() {
       ...provided,
       borderRadius: "0.75rem",
       overflow: "hidden",
-      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+      boxShadow:
+        "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
       border: "1px solid rgba(0, 0, 0, 0.05)",
       zIndex: 50,
     }),
@@ -91,22 +111,27 @@ export default function BusinessQR() {
         <div
           className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
           style={{
-            backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
-            backgroundSize: "40px 40px"
+            backgroundImage:
+              "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         />
         <div className="bg-white border border-black/5 rounded-[2rem] p-10 text-center max-w-lg mx-auto shadow-2xl relative z-10 transition-all hover:shadow-lemon">
           <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-black/5">
             <QrCode className="w-8 h-8 text-slate-200" />
           </div>
-          <h2 className="text-xl font-bold text-black mb-3 uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
+          <h2
+            className="text-xl font-bold text-black mb-3 uppercase tracking-tight"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             No Business Found
           </h2>
           <p className="text-slate-500 font-medium mb-8 text-xs leading-relaxed">
-            Please connect your Google Business Profile first to create your Magic QR code.
+            Please connect your Google Business Profile first to create your
+            Magic QR code.
           </p>
           <button
-            onClick={() => window.location.href = "/dashboard"}
+            onClick={() => (window.location.href = "/dashboard")}
             className="w-full btn-lemon px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-lg"
           >
             Go to Dashboard <ArrowRight className="inline-block w-3 h-3 ml-2" />
@@ -117,26 +142,36 @@ export default function BusinessQR() {
   }
 
   return (
-    <div className="relative w-full min-h-screen overflow-x-hidden m-0 p-0" style={{ backgroundColor: "var(--background)" }}>
+    <div
+      className="relative w-full min-h-screen overflow-x-hidden m-0 p-0"
+      style={{ backgroundColor: "var(--background)" }}
+    >
       <Toaster position="top-center" />
 
       {/* Background Grid */}
       <div
         className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
         style={{
-          backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
-          backgroundSize: "40px 40px"
+          backgroundImage:
+            "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
         }}
       />
 
       {/* Ambient Glows */}
       <div
         className="pointer-events-none absolute top-0 right-0 w-[500px] h-[400px] z-0 opacity-10"
-        style={{ background: "radial-gradient(ellipse at top right, rgba(250, 204, 21, 0.3) 0%, transparent 65%)" }}
+        style={{
+          background:
+            "radial-gradient(ellipse at top right, rgba(250, 204, 21, 0.3) 0%, transparent 65%)",
+        }}
       />
       <div
         className="pointer-events-none absolute bottom-0 left-0 w-[500px] h-[400px] z-0 opacity-10"
-        style={{ background: "radial-gradient(ellipse at bottom left, rgba(250, 204, 21, 0.2) 0%, transparent 65%)" }}
+        style={{
+          background:
+            "radial-gradient(ellipse at bottom left, rgba(250, 204, 21, 0.2) 0%, transparent 65%)",
+        }}
       />
 
       {/* ── Page Header ── */}
@@ -144,20 +179,30 @@ export default function BusinessQR() {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="p-2 rounded-xl border border-black/5 hover:bg-slate-50 transition-all">
+              <Link
+                href="/dashboard"
+                className="p-2 rounded-xl border border-black/5 hover:bg-slate-50 transition-all"
+              >
                 <ArrowLeft className="w-4 h-4 text-black" />
               </Link>
               <div>
-                <h1 className="text-lg sm:text-xl font-black text-black uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+                <h1
+                  className="text-lg sm:text-xl font-black text-black uppercase tracking-tighter leading-none mb-1"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
                   Magic <span className="text-lemon-hover">QR</span>
                 </h1>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em]">Review Dashboard</p>
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                  Review Dashboard
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-lemon-glow/20 bg-lemon-glow/10">
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-lemon-hover" />
-                <span className="text-[8px] font-bold uppercase text-lemon-hover tracking-widest">Active</span>
+                <span className="text-[8px] font-bold uppercase text-lemon-hover tracking-widest">
+                  Active
+                </span>
               </div>
             </div>
           </div>
@@ -165,15 +210,19 @@ export default function BusinessQR() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-2 sm:px-6 py-10 sm:py-16">
-
         {/* Business Name + Location Switcher */}
         <div className="text-center mb-12">
-          <h2 className="text-xl sm:text-2xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "var(--font-heading)" }}>
+          <h2
+            className="text-xl sm:text-2xl font-black text-black uppercase tracking-tight mb-4"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             {business}
           </h2>
           {allLocations.length > 1 && (
             <div className="max-w-xs mx-auto mt-4">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Change Location</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                Change Location
+              </label>
               <Select
                 value={menuIsOpen ? null : selectedOption}
                 onChange={(option) => {
@@ -194,12 +243,10 @@ export default function BusinessQR() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
-
           {/* ══════════════════════════════════════
     QR PREVIEW CARD (FIXED CENTERING)
 ══════════════════════════════════════ */}
           <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-sm border border-black/5 p-6 sm:p-10 transition-all hover:shadow-2xl w-full flex flex-col items-center">
-
             {/* Card Header - Now aligned with the card below */}
             <div className="flex items-center justify-between mb-8 w-full">
               <div className="flex items-center gap-3">
@@ -207,7 +254,10 @@ export default function BusinessQR() {
                   <QrCode className="text-[#EAB308] w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-black uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
+                  <h3
+                    className="text-xs sm:text-sm font-bold text-black uppercase tracking-tight"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
                     Your QR Code
                   </h3>
                   <p className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest">
@@ -225,80 +275,302 @@ export default function BusinessQR() {
             </div>
 
             {/* QR Card Container - Forced Centering */}
+            {/* QR Card Container - Fixed 384x576px */}
             <div className="w-full flex justify-center items-center mb-8 sm:mb-10 overflow-visible">
               <div
                 ref={qrCardRef}
-                className="relative rounded-[1.5rem] sm:rounded-3xl shadow-2xl bg-white border border-slate-100 overflow-hidden w-full max-w-[260px]"
-                
+                style={{
+                  width: "384px",
+                  height: "576px",
+                  borderRadius: "32px",
+                  overflow: "hidden",
+                  backgroundColor: "white",
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  flexShrink: 0,
+                }}
               >
                 {/* Google Color Corner Backgrounds */}
-                <div className="absolute inset-0 pointer-events-none z-0">
-                  <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-yellow-400 rounded-br-[80px] opacity-90" />
-                  <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-red-500 rounded-bl-[80px] opacity-90" />
-                  <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-green-500 rounded-tr-[80px] opacity-90" />
-                  <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-blue-500 rounded-tl-[80px] opacity-90" />
+                <div style={{ position: "absolute", inset: 0 }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "50%",
+                      height: "50%",
+                      backgroundColor: "#facc15",
+                      borderRadius: "0 0 140px 0",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      right: 0,
+                      width: "50%",
+                      height: "50%",
+                      backgroundColor: "#ef4444",
+                      borderRadius: "0 0 0 140px",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      width: "50%",
+                      height: "50%",
+                      backgroundColor: "#22c55e",
+                      borderRadius: "0 140px 0 0",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: "50%",
+                      height: "50%",
+                      backgroundColor: "#dbeafe",
+                      borderRadius: "140px 0 0 0",
+                    }}
+                  />
                 </div>
 
                 {/* White Inner Card */}
-                <div className="relative z-10 bg-white m-2 sm:m-3 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center shadow-sm flex flex-col items-center">
-
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 10,
+                    backgroundColor: "white",
+                    margin: "16px",
+                    borderRadius: "24px",
+                    padding: "20px 20px 14px 20px",
+                    textAlign: "center",
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    overflow: "hidden",
+                    boxSizing: "border-box",
+                  }}
+                >
                   {/* Google Logo */}
-                  <div className="flex justify-center mb-1">
-                    <span className="text-2xl sm:text-3xl font-extrabold tracking-tighter leading-none select-none">
-                      <span className="text-blue-500">G</span>
-                      <span className="text-red-500">o</span>
-                      <span className="text-yellow-500">o</span>
-                      <span className="text-blue-500">g</span>
-                      <span className="text-green-500">l</span>
-                      <span className="text-red-500">e</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "34px",
+                        fontWeight: 900,
+                        lineHeight: 1,
+                      }}
+                    >
+                      <span style={{ color: "#3b82f6" }}>G</span>
+                      <span style={{ color: "#ef4444" }}>o</span>
+                      <span style={{ color: "#facc15" }}>o</span>
+                      <span style={{ color: "#3b82f6" }}>g</span>
+                      <span style={{ color: "#22c55e" }}>l</span>
+                      <span style={{ color: "#ef4444" }}>e</span>
                     </span>
                   </div>
 
                   {/* Stars */}
-                  <div className="flex justify-center gap-0.5 text-yellow-400 mb-2 text-base sm:text-lg">
+                  <div
+                    style={{
+                      color: "#facc15",
+                      fontSize: "18px",
+                      marginBottom: "6px",
+                      letterSpacing: "3px",
+                      lineHeight: 1,
+                    }}
+                  >
                     ★ ★ ★ ★ ★
                   </div>
 
-                  <p className="text-[10px] sm:text-xs font-semibold text-gray-600 mb-1">
-                    Scan to Rate Us on <span className="font-bold text-black">Google</span>
-                  </p>
+                  {/* Scan text */}
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#374151",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Scan to Rate Us on{" "}
+                    <span style={{ fontWeight: 800 }}>Google</span>
+                  </div>
 
-                  {/* Business Name - Center aligned & wrapping */}
-                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-4 line-clamp-2 leading-tight px-2 w-full break-words">
+                  {/* Business Name */}
+                  <div
+                    style={{
+                      fontSize: "17px",
+                      fontWeight: 800,
+                      color: "#111827",
+                      marginTop: "2px",
+                      marginBottom: "14px",
+                      lineHeight: 1.25,
+                      maxWidth: "320px",
+                      wordBreak: "break-word",
+                    }}
+                  >
                     {business}
-                  </h3>
+                  </div>
 
-                  {/* QR Code Image Container */}
+                  {/* QR Code with Google color corner borders */}
                   {qrImage && (
-                    <div className="relative mx-auto bg-white p-2 rounded-xl shadow-md border border-slate-100 w-32 sm:w-40 aspect-square flex items-center justify-center">
+                    <div
+                      style={{
+                        position: "relative",
+                        display: "inline-block",
+                        backgroundColor: "white",
+                        padding: "12px",
+                        borderRadius: "14px",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {/* Top-left — Blue */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "22px",
+                          height: "22px",
+                          borderTop: "4px solid #3b82f6",
+                          borderLeft: "4px solid #3b82f6",
+                          borderRadius: "14px 0 0 0",
+                        }}
+                      />
+                      {/* Top-right — Red */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          width: "22px",
+                          height: "22px",
+                          borderTop: "4px solid #ef4444",
+                          borderRight: "4px solid #ef4444",
+                          borderRadius: "0 14px 0 0",
+                        }}
+                      />
+                      {/* Bottom-left — Green */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          width: "22px",
+                          height: "22px",
+                          borderBottom: "4px solid #22c55e",
+                          borderLeft: "4px solid #22c55e",
+                          borderRadius: "0 0 0 14px",
+                        }}
+                      />
+                      {/* Bottom-right — Yellow */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          right: 0,
+                          width: "22px",
+                          height: "22px",
+                          borderBottom: "4px solid #facc15",
+                          borderRight: "4px solid #facc15",
+                          borderRadius: "0 0 14px 0",
+                        }}
+                      />
+
                       <img
                         src={qrImage}
                         alt="Google Review QR"
                         crossOrigin="anonymous"
-                        className="w-full h-full block object-contain"
+                        style={{
+                          width: "210px",
+                          height: "210px",
+                          borderRadius: "8px",
+                          display: "block",
+                        }}
                       />
-                      {/* Corner Accents */}
-                      <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500 rounded-tl-md" />
-                      <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-blue-500 rounded-tr-md" />
-                      <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-yellow-400 rounded-bl-md" />
-                      <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-green-500 rounded-br-md" />
                     </div>
                   )}
 
                   {/* Review URL */}
                   {reviewUrl && (
-                    <p className="text-[8px] text-gray-400 mt-4 break-all px-2 line-clamp-1 w-full">
+                    <div
+                      style={{
+                        fontSize: "9px",
+                        color: "#6b7280",
+                        marginTop: "10px",
+                        wordBreak: "break-all",
+                        maxWidth: "320px",
+                        lineHeight: 1.4,
+                      }}
+                    >
                       {reviewUrl}
-                    </p>
+                    </div>
                   )}
 
-                  {/* Footer */}
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-center gap-1.5 w-full">
-                    <p className="text-[9px] text-gray-500 font-medium">Powered by</p>
-                    <div className="w-4 h-4 relative">
-                      <Image src="/images/bg-logo.png" alt="LimbuAI" fill className="object-contain" />
+                  {/* Divider */}
+                  <div
+                    style={{
+                      margin: "8px 0",
+                      borderBottom: "1px solid #e5e7eb",
+                      width: "100%",
+                    }}
+                  />
+
+                  {/* Footer with LimbuAI logo */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        color: "#6b7280",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Powered by
+                    </span>
+                    <div
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        position: "relative",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Image
+                        src="/images/bg-logo.png"
+                        alt="LimbuAI"
+                        fill
+                        style={{ objectFit: "contain" }}
+                      />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-900 tracking-tight">LimbuAI</p>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: "#4338ca",
+                      }}
+                    >
+                      LimbuAI
+                    </span>
                   </div>
                 </div>
               </div>
@@ -326,7 +598,6 @@ export default function BusinessQR() {
           ══════════════════════════════════════ */}
           <div className="space-y-8">
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-black/5 p-6 sm:p-10">
-
               {/* Panel Header */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
@@ -334,10 +605,15 @@ export default function BusinessQR() {
                     <MessageSquare className="text-black w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-black uppercase tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
+                    <h3
+                      className="text-sm font-bold text-black uppercase tracking-tight"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
                       Review Filter
                     </h3>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Active Protection</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                      Active Protection
+                    </p>
                   </div>
                 </div>
                 <button
@@ -354,8 +630,13 @@ export default function BusinessQR() {
                 <div className="group bg-slate-50 border border-black/5 p-4 rounded-xl transition-all hover:bg-black">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-0.5">
-                      {[1, 2, 3].map(i => (
-                        <Star key={i} size={12} className="text-lemon-hover group-hover:text-lemon-glow" fill="currentColor" />
+                      {[1, 2, 3].map((i) => (
+                        <Star
+                          key={i}
+                          size={12}
+                          className="text-lemon-hover group-hover:text-lemon-glow"
+                          fill="currentColor"
+                        />
                       ))}
                     </div>
                     <span className="text-[8px] font-black bg-white/10 text-slate-400 group-hover:text-lemon-glow px-2 py-0.5 rounded-full uppercase tracking-widest">
@@ -363,7 +644,8 @@ export default function BusinessQR() {
                     </span>
                   </div>
                   <p className="text-[10px] font-medium text-slate-500 group-hover:text-slate-300 leading-relaxed">
-                    Unhappy customers can message you privately, so your public Google rating stays safe.
+                    Unhappy customers can message you privately, so your public
+                    Google rating stays safe.
                   </p>
                 </div>
 
@@ -371,8 +653,13 @@ export default function BusinessQR() {
                 <div className="group bg-lemon-glow/5 border border-lemon-glow/10 p-4 rounded-xl transition-all hover:bg-lemon-glow">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <Star key={i} size={12} className="text-lemon-hover group-hover:text-black" fill="currentColor" />
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          size={12}
+                          className="text-lemon-hover group-hover:text-black"
+                          fill="currentColor"
+                        />
                       ))}
                     </div>
                     <span className="text-[8px] font-black bg-black/5 text-lemon-hover group-hover:text-black px-2 py-0.5 rounded-full uppercase tracking-widest">
@@ -380,7 +667,8 @@ export default function BusinessQR() {
                     </span>
                   </div>
                   <p className="text-[10px] font-medium text-lemon-hover group-hover:text-black leading-relaxed">
-                    Happy customers are automatically sent to your Google page to leave a 5-star review.
+                    Happy customers are automatically sent to your Google page
+                    to leave a 5-star review.
                   </p>
                 </div>
               </div>
@@ -389,11 +677,15 @@ export default function BusinessQR() {
               <div className="pt-6 border-t border-black/5 space-y-4">
                 <div className="flex items-center gap-3">
                   <Share2 size={14} className="text-black shrink-0" />
-                  <span className="text-[9px] font-black text-black uppercase tracking-widest">Your Review Link</span>
+                  <span className="text-[9px] font-black text-black uppercase tracking-widest">
+                    Your Review Link
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-black/5">
-                  <code className="flex-1 text-[9px] font-bold text-slate-400 truncate px-2">{reviewUrl}</code>
+                  <code className="flex-1 text-[9px] font-bold text-slate-400 truncate px-2">
+                    {reviewUrl}
+                  </code>
                   <button
                     onClick={copyToClipboard}
                     title="Copy Link"
@@ -420,15 +712,17 @@ export default function BusinessQR() {
                   <Zap size={14} className="text-black fill-black" />
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Quick Tip</h4>
+                  <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">
+                    Quick Tip
+                  </h4>
                   <p className="text-[9px] font-bold text-slate-500 leading-relaxed">
-                    Show this QR code to your customers after their purchase to get more 5-star reviews!
+                    Show this QR code to your customers after their purchase to
+                    get more 5-star reviews!
                   </p>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
 

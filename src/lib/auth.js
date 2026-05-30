@@ -5,6 +5,7 @@ import axios from "axios";
 
 const GMB_DASHBOARD_DB = "gmb_dashboard";
 const USERS_COLLECTION = "users";
+const isProduction = process.env.NODE_ENV === "production";
 
 async function refreshAccessToken(token) {
   try {
@@ -35,34 +36,40 @@ async function refreshAccessToken(token) {
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true, // ✅ Added
-  useSecureCookies: process.env.NODE_ENV === "production",
+  useSecureCookies: isProduction,
 
   // ✅ State mismatch fix
   cookies: {
     sessionToken: {
-      name: `__Secure-next-auth.session-token`,
+      name: isProduction
+        ? "__Secure-next-auth.session-token"
+        : "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: isProduction,
       },
     },
     callbackUrl: {
-      name: `__Secure-next-auth.callback-url`,
+      name: isProduction
+        ? "__Secure-next-auth.callback-url"
+        : "next-auth.callback-url",
       options: {
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: isProduction,
       },
     },
     csrfToken: {
-      name: `__Host-next-auth.csrf-token`,
+      name: isProduction
+        ? "__Host-next-auth.csrf-token"
+        : "next-auth.csrf-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: isProduction,
       },
     },
     pkceCodeVerifier: {
@@ -71,7 +78,7 @@ export const authOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: isProduction,
         maxAge: 900,
       },
     },
@@ -81,7 +88,7 @@ export const authOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
+        secure: isProduction,
         maxAge: 900,
       },
     },

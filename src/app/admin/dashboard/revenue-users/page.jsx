@@ -78,7 +78,7 @@ export default function RevenueUsersPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
-const rowsPerPage = 20;
+  const rowsPerPage = 20;
 
   const displayData = activeView === "package" ? revenueUsersList : users;
 
@@ -394,61 +394,61 @@ const rowsPerPage = 20;
     }
   };
 
- const handleDownloadInvoice = async (user) => {
-  try {
-    const res = await fetch(`/api/admin/invoice-tax?id=${user._id}`);
+  const handleDownloadInvoice = async (user) => {
+    try {
+      const res = await fetch(`/api/admin/invoice-tax?id=${user._id}`);
 
-    if (!res.ok) {
-      alert("Invoice generate failed");
-      return;
+      if (!res.ok) {
+        alert("Invoice generate failed");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // ✅ Save URL after successful download
+      setInvoiceUrls((prev) => ({
+        ...prev,
+        [user._id]: url,
+      }));
+
+      // ✅ Download PDF
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Invoice-${user.leadName || user.name || "user"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (error) {
+      console.error(error);
+      alert("Invoice download failed");
     }
+  };
 
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
+  const handleSendInvoiceWhatsApp = async (user) => {
+    try {
+      const res = await fetch("/api/admin/send-invoice-whatsapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user._id,
+        }),
+      });
 
-    // ✅ Save URL after successful download
-    setInvoiceUrls((prev) => ({
-      ...prev,
-      [user._id]: url,
-    }));
+      const data = await res.json();
 
-    // ✅ Download PDF
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Invoice-${user.leadName || user.name || "user"}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } catch (error) {
-    console.error(error);
-    alert("Invoice download failed");
-  }
-};
-
-const handleSendInvoiceWhatsApp = async (user) => {
-  try {
-    const res = await fetch("/api/admin/send-invoice-whatsapp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: user._id,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      alert("Invoice sent successfully on WhatsApp");
-    } else {
-      alert(data.message || "Failed to send invoice");
+      if (data.success) {
+        alert("Invoice sent successfully on WhatsApp");
+      } else {
+        alert(data.message || "Failed to send invoice");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("WhatsApp send failed");
     }
-  } catch (error) {
-    console.error(error);
-    alert("WhatsApp send failed");
-  }
-};
+  };
 
   // filter and search ===============
   const filteredData = (
@@ -685,17 +685,15 @@ const handleSendInvoiceWhatsApp = async (user) => {
   };
 
   const paginatedPackageRows = filteredData.filter(
-  (r) => r.type === "user_onboard"
-);
+    (r) => r.type === "user_onboard",
+  );
 
-const currentPackageRows = paginatedPackageRows.slice(
-  (currentPage - 1) * rowsPerPage,
-  currentPage * rowsPerPage
-);
+  const currentPackageRows = paginatedPackageRows.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage,
+  );
 
-const totalPages = Math.ceil(
-  paginatedPackageRows.length / rowsPerPage
-);
+  const totalPages = Math.ceil(paginatedPackageRows.length / rowsPerPage);
 
   return (
     <>
@@ -842,199 +840,204 @@ const totalPages = Math.ceil(
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
                         currentPackageRows.map((r, i) => {
-                            return (
-                              <tr
-                                key={i}
-                                className="border-t hover:bg-gray-50 transition"
-                              >
-                                <td className="px-4 py-4">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedRows.includes(r._id)}
-                                    onChange={() => handleSelectRow(r.leadId)}
-                                    className="w-4 h-4 accent-indigo-600"
-                                  />
-                                </td>
+                          return (
+                            <tr
+                              key={i}
+                              className="border-t hover:bg-gray-50 transition"
+                            >
+                              <td className="px-4 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.includes(r._id)}
+                                  onChange={() => handleSelectRow(r.leadId)}
+                                  className="w-4 h-4 accent-indigo-600"
+                                />
+                              </td>
 
-                                <td className="px-6 py-4">
-                                  <div className="font-semibold text-gray-900">
-                                    {r.leadName}
-                                  </div>
+                              <td className="px-6 py-4">
+                                <div className="font-semibold text-gray-900">
+                                  {r.leadName}
+                                </div>
 
-                                  <div className="text-xs text-gray-500">
-                                    ID: {r.leadId}
-                                  </div>
+                                <div className="text-xs text-gray-500">
+                                  ID: {r.leadId}
+                                </div>
 
-                                  <div className="text-xs text-gray-500">
-                                    UTR: {r.utrNumber || "N/A"}
-                                  </div>
-                                </td>
+                                <div className="text-xs text-gray-500">
+                                  UTR: {r.utrNumber || "N/A"}
+                                </div>
+                              </td>
 
-                                <td className="px-6 py-4">
-                                  <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs">
-                                    {r.plan}
-                                  </span>
-                                </td>
+                              <td className="px-6 py-4">
+                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs">
+                                  {r.plan}
+                                </span>
+                              </td>
 
-                                <td className="px-6 py-4 font-semibold text-green-600">
-                                  ₹{r.amount}
-                                </td>
+                              <td className="px-6 py-4 font-semibold text-green-600">
+                                ₹{r.amount}
+                              </td>
 
-                                <td className="px-6 py-4 text-sm text-gray-600">
-                                  {r.userPackageStartDate ? (
-                                    new Date(
-                                      r.userPackageStartDate,
-                                    ).toLocaleDateString("en-IN")
+                              <td className="px-6 py-4 text-sm text-gray-600">
+                                {r.userPackageStartDate ? (
+                                  new Date(
+                                    r.userPackageStartDate,
+                                  ).toLocaleDateString("en-IN")
+                                ) : (
+                                  <span className="text-red-500">No Date</span>
+                                )}
+                              </td>
+
+                              <td className="px-6 py-4 text-sm text-gray-600">
+                                {formatDateIST(r.userPackageExpiryDate)}
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                  {/* PDF Download */}
+                                  <button
+                                    onClick={() => handleDownloadInvoice(r)}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    PDF Download
+                                  </button>
+
+                                  {/* View PDF */}
+                                  {invoiceUrls[r._id] && (
+                                    <button
+                                      onClick={() =>
+                                        window.open(
+                                          invoiceUrls[r._id],
+                                          "_blank",
+                                        )
+                                      }
+                                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      View PDF
+                                    </button>
+                                  )}
+
+                                  {/* Send WhatsApp - ONLY after download */}
+                                  {invoiceUrls[r._id] && (
+                                    <button
+                                      onClick={() =>
+                                        handleSendInvoiceWhatsApp(r)
+                                      }
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      Send WhatsApp
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* 🔥 EXPIRY */}
+
+                              <td className="px-6 py-4">
+                                <button
+                                  onClick={() =>
+                                    setFullViewImage(r.paymentScreenshot)
+                                  }
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
+                               bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
+                                >
+                                  View Proof
+                                </button>
+                              </td>
+
+                              <td className="px-6 py-4 text-sm">
+                                {r.notes || "-"}
+                              </td>
+
+                              <td className="px-6 py-4 text-sm">
+                                {r.planRemarks || "-"}
+                              </td>
+
+                              {role === "superAdmin" && (
+                                <td className="px-6 py-4 align-top text-sm">
+                                  {r?.type === "user_onboard" ? (
+                                    (() => {
+                                      const st = r.planApprovalStatus;
+
+                                      if (st === "approved") {
+                                        return (
+                                          <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                            Approved
+                                          </span>
+                                        );
+                                      }
+
+                                      if (st === "rejected") {
+                                        return (
+                                          <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                            Not approved
+                                          </span>
+                                        );
+                                      }
+
+                                      const busy =
+                                        approvalBusyId === String(r._id);
+
+                                      return (
+                                        <div className="flex flex-col gap-2">
+                                          <button
+                                            disabled={busy}
+                                            onClick={() =>
+                                              handleOnboardApproval(
+                                                r,
+                                                "approved",
+                                              )
+                                            }
+                                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white"
+                                          >
+                                            {busy ? "…" : "Approved"}
+                                          </button>
+
+                                          <button
+                                            disabled={busy}
+                                            onClick={() =>
+                                              handleOnboardApproval(
+                                                r,
+                                                "rejected",
+                                              )
+                                            }
+                                            className="rounded-lg border px-3 py-1 text-xs h-[28px] whitespace-nowrap flex items-center justify-center"
+                                          >
+                                            Not approved
+                                          </button>
+                                        </div>
+                                      );
+                                    })()
                                   ) : (
-                                    <span className="text-red-500">
-                                      No Date
-                                    </span>
+                                    <span className="text-gray-400">—</span>
                                   )}
                                 </td>
+                              )}
 
-                                <td className="px-6 py-4 text-sm text-gray-600">
-                                  {formatDateIST(r.userPackageExpiryDate)}
-                                </td>
-
-                                  <td className="px-6 py-4">
-  <div className="flex gap-2">
-    {/* PDF Download */}
-    <button
-      onClick={() => handleDownloadInvoice(r)}
-      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-    >
-      PDF Download
-    </button>
-
-    {/* View PDF */}
-    {invoiceUrls[r._id] && (
-      <button
-        onClick={() => window.open(invoiceUrls[r._id], "_blank")}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
-      >
-        View PDF
-      </button>
-    )}
-
-    {/* Send WhatsApp - ONLY after download */}
-    {invoiceUrls[r._id] && (
-      <button
-        onClick={() => handleSendInvoiceWhatsApp(r)}
-        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-      >
-        Send WhatsApp
-      </button>
-    )}
-  </div>
-</td> 
-
-                                {/* 🔥 EXPIRY */}
-
-                                <td className="px-6 py-4">
+                              <td className="px-6 py-4 align-middle">
+                                <div className="flex justify-center items-center gap-2">
                                   <button
-                                    onClick={() =>
-                                      setFullViewImage(r.paymentScreenshot)
-                                    }
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
-                               bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
+                                    onClick={() => handleEdit(r)}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
                                   >
-                                    View Proof
+                                    Edit
                                   </button>
-                                </td>
 
-                                <td className="px-6 py-4 text-sm">
-                                  {r.notes || "-"}
-                                </td>
-
-                                <td className="px-6 py-4 text-sm">
-                                  {r.planRemarks || "-"}
-                                </td>
-
-                                {role === "superAdmin" && (
-                                  <td className="px-6 py-4 align-top text-sm">
-                                    {r?.type === "user_onboard" ? (
-                                      (() => {
-                                        const st = r.planApprovalStatus;
-
-                                        if (st === "approved") {
-                                          return (
-                                            <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                              Approved
-                                            </span>
-                                          );
-                                        }
-
-                                        if (st === "rejected") {
-                                          return (
-                                            <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                              Not approved
-                                            </span>
-                                          );
-                                        }
-
-                                        const busy =
-                                          approvalBusyId === String(r._id);
-
-                                        return (
-                                          <div className="flex flex-col gap-2">
-                                            <button
-                                              disabled={busy}
-                                              onClick={() =>
-                                                handleOnboardApproval(
-                                                  r,
-                                                  "approved",
-                                                )
-                                              }
-                                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white"
-                                            >
-                                              {busy ? "…" : "Approved"}
-                                            </button>
-
-                                            <button
-                                              disabled={busy}
-                                              onClick={() =>
-                                                handleOnboardApproval(
-                                                  r,
-                                                  "rejected",
-                                                )
-                                              }
-                                              className="rounded-lg border px-3 py-1 text-xs h-[28px] whitespace-nowrap flex items-center justify-center"
-                                            >
-                                              Not approved
-                                            </button>
-                                          </div>
-                                        );
-                                      })()
-                                    ) : (
-                                      <span className="text-gray-400">—</span>
-                                    )}
-                                  </td>
-                                )}
-
-                                <td className="px-6 py-4 align-middle">
-                                  <div className="flex justify-center items-center gap-2">
-                                    <button
-                                      onClick={() => handleEdit(r)}
-                                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                                    >
-                                      Edit
-                                    </button>
-
-                                    <button
-                                      onClick={() => {
-                                        setSelectedId(r._id);
-                                        setDeleteType("package");
-                                        setDeleteModal(true);
-                                      }}
-                                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                                  <button
+                                    onClick={() => {
+                                      setSelectedId(r._id);
+                                      setDeleteType("package");
+                                      setDeleteModal(true);
+                                    }}
+                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
 
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
@@ -1107,37 +1110,39 @@ const totalPages = Math.ceil(
                                 : "No Date"}
                             </td>
 
-  <td className="px-6 py-4">
-  <div className="flex gap-2">
-    {/* PDF Download */}
-    <button
-      onClick={() => handleDownloadInvoice(u)}
-      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-    >
-      PDF Download
-    </button>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-2">
+                                {/* PDF Download */}
+                                <button
+                                  onClick={() => handleDownloadInvoice(u)}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                >
+                                  PDF Download
+                                </button>
 
-    {/* View PDF */}
-    {invoiceUrls[u._id] && (
-      <button
-        onClick={() => window.open(invoiceUrls[u._id], "_blank")}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
-      >
-        View PDF
-      </button>
-    )}
+                                {/* View PDF */}
+                                {invoiceUrls[u._id] && (
+                                  <button
+                                    onClick={() =>
+                                      window.open(invoiceUrls[u._id], "_blank")
+                                    }
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    View PDF
+                                  </button>
+                                )}
 
-    {/* Send WhatsApp */}
-    {invoiceUrls[u._id] && (
-      <button
-        onClick={() => handleSendInvoiceWhatsApp(u)}
-        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-      >
-        Send WhatsApp
-      </button>
-    )}
-  </div>
-</td>
+                                {/* Send WhatsApp */}
+                                {invoiceUrls[u._id] && (
+                                  <button
+                                    onClick={() => handleSendInvoiceWhatsApp(u)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Send WhatsApp
+                                  </button>
+                                )}
+                              </div>
+                            </td>
 
                             {/* service  */}
 
@@ -1237,12 +1242,9 @@ const totalPages = Math.ceil(
                         ))}
                     </tbody>
                   </table>
-
-   
                 </div>
               </div>
 
-      
               {/* Footer Totals */}
               <RevenueFooter
                 activeView={activeView}
@@ -1293,48 +1295,42 @@ const totalPages = Math.ceil(
         />
       </div>
 
-             <div className="flex justify-center items-center gap-2 ">
+      <div className="flex justify-center items-center gap-2 ">
+        {/* PREV BUTTON */}
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((p) => p - 1)}
+          className="px-4 py-2 rounded-xl border bg-white shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          Prev
+        </button>
 
-  {/* PREV BUTTON */}
-  <button
-    disabled={currentPage === 1}
-    onClick={() => setCurrentPage((p) => p - 1)}
-    className="px-4 py-2 rounded-xl border bg-white shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-  >
-    Prev
-  </button>
+        {/* PAGE NUMBERS */}
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter((page) => page >= currentPage - 1 && page <= currentPage + 1)
+          .map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`w-10 h-10 rounded-xl font-semibold transition ${
+                currentPage === page
+                  ? "bg-indigo-600 text-white shadow-lg scale-105"
+                  : "bg-white border hover:bg-gray-100"
+              }`}
+            >
+              {page}
+            </button>
+          ))}
 
-  {/* PAGE NUMBERS */}
-  {Array.from({ length: totalPages }, (_, i) => i + 1)
-    .filter(
-      (page) =>
-        page >= currentPage - 1 &&
-        page <= currentPage + 1
-    )
-    .map((page) => (
-      <button
-        key={page}
-        onClick={() => setCurrentPage(page)}
-        className={`w-10 h-10 rounded-xl font-semibold transition ${
-          currentPage === page
-            ? "bg-indigo-600 text-white shadow-lg scale-105"
-            : "bg-white border hover:bg-gray-100"
-        }`}
-      >
-        {page}
-      </button>
-    ))}
-
-  {/* NEXT BUTTON */}
-  <button
-    disabled={currentPage === totalPages}
-    onClick={() => setCurrentPage((p) => p + 1)}
-    className="px-4 py-2 rounded-xl border bg-white shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-  >
-    Next
-  </button>
-</div>
-
+        {/* NEXT BUTTON */}
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((p) => p + 1)}
+          className="px-4 py-2 rounded-xl border bg-white shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          Next
+        </button>
+      </div>
     </>
   );
 }

@@ -31,7 +31,11 @@ import { useInstagram } from "@/hooks/useInstagram";
 import { useLinkedin } from "@/hooks/useLinkedin";
 import { usePinterest } from "@/hooks/usePinterest";
 import { useYouTube } from "@/hooks/useYouTube";
-import { getLocalStorage, setLocalStorage } from "@/utils/storage";
+import {
+  getLocalStorage,
+  getSessionStorage,
+  setLocalStorage,
+} from "@/utils/storage";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 // --- API Helpers (Kept here for component specific fetch) ---
@@ -44,19 +48,64 @@ export async function fetchLocationInsights(
   try {
     const url = `https://businessprofileperformance.googleapis.com/v1/locations/${locationId}:fetchMultiDailyMetricsTimeSeries?dailyRange.startDate.year=${startDate.getFullYear()}&dailyRange.startDate.month=${startDate.getMonth() + 1}&dailyRange.startDate.day=${startDate.getDate()}&dailyRange.endDate.year=${endDate.getFullYear()}&dailyRange.endDate.month=${endDate.getMonth() + 1}&dailyRange.endDate.day=${endDate.getDate()}&dailyMetrics=BUSINESS_DIRECTION_REQUESTS&dailyMetrics=CALL_CLICKS&dailyMetrics=WEBSITE_CLICKS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_MAPS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_SEARCH`;
 
+    console.log("📡 GMB API Request ─────────────────────────");
+    console.log("📍 Location ID:", locationId);
+    console.log("📅 Date Range:", {
+      start: `${startDate.getFullYear()}-${startDate.getMonth() + 1}-${startDate.getDate()}`,
+      end: `${endDate.getFullYear()}-${endDate.getMonth() + 1}-${endDate.getDate()}`,
+    });
+    console.log("🔗 URL:", url);
+    console.log("────────────────────────────────────────────");
+
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
+    console.log("📶 Response Status:", res.status, res.statusText);
+
     if (!res.ok) {
       const errText = await res.text();
+      console.error("❌ GMB API Error Response:", errText);
       throw new Error(`Failed to fetch insights: ${errText}`);
     }
 
     const data = await res.json();
+
+    console.log("✅ GMB API Raw Response ─────────────────────");
+    console.log(JSON.stringify(data, null, 2));
+    console.log("────────────────────────────────────────────");
+
+    // Per-metric breakdown
+    const series = data?.multiDailyMetricTimeSeries;
+    if (series?.length) {
+      console.log("📊 Metrics Breakdown ────────────────────────");
+      const metricList = series[0]?.dailyMetricTimeSeries ?? series;
+      metricList.forEach((m) => {
+        const values = m?.timeSeries?.datedValues ?? [];
+        const total = values.reduce(
+          (sum, v) => sum + (parseInt(v.value) || 0),
+          0,
+        );
+        console.log(`  • ${m.dailyMetric}`);
+        console.log(
+          `    Total: ${total} | Days with data: ${values.filter((v) => v.value).length}`,
+        );
+        console.log(
+          `    Daily values:`,
+          values.map(
+            (v) =>
+              `${v.date?.year}-${v.date?.month}-${v.date?.day}: ${v.value ?? 0}`,
+          ),
+        );
+      });
+      console.log("────────────────────────────────────────────");
+    } else {
+      console.warn("⚠️ No multiDailyMetricTimeSeries found in response");
+    }
+
     return data;
   } catch (err) {
-    console.error("Fetch Insights Error:", err);
+    console.error("❌ Fetch Insights Error:", err);
     throw err;
   }
 }
@@ -113,6 +162,7 @@ export default function DashboardPage() {
     summary,
     fetchInitialData,
     handleManualRefresh,
+    handleDisconnectGMB,
   } = useGMB(session, status, setUiState);
 
   const { facebookPages, setFacebookPages, handleDisconnectFacebook } =
@@ -150,10 +200,13 @@ export default function DashboardPage() {
   // When admin is impersonating, use the stored user name/email instead of NextAuth session
   const isImpersonating =
     typeof window !== "undefined" &&
-    localStorage.getItem("isImpersonating") === "true";
+    (localStorage.getItem("isImpersonating") === "true" ||
+      sessionStorage.getItem("isImpersonating") === "true");
   const displayName = isImpersonating
-    ? localStorage.getItem("userName") ||
-      localStorage.getItem("fullName") ||
+    ? getLocalStorage("userName") ||
+      getSessionStorage("userName") ||
+      getLocalStorage("fullName") ||
+      getSessionStorage("fullName") ||
       session?.user?.name ||
       "User"
     : session?.user?.name || "User";
@@ -631,6 +684,7 @@ export default function DashboardPage() {
             getVerificationBadge={getVerificationBadge}
             handleListingData={handleListingData}
             handleViewPerformanceInsights={handleViewPerformanceInsights}
+            handleDisconnectGMB={handleDisconnectGMB}
           />
         )}
 

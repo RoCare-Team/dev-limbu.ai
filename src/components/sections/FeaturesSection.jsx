@@ -1,7 +1,38 @@
+import { Clock, MessageSquare, PenTool, Star } from "lucide-react";
 import Link from "next/link";
 
-export default function FeaturesSection({ features = [] }) {
-  if (!features.length) return null;
+export default function FeaturesSection() {
+
+   const features = [
+    {
+      icon: PenTool,
+      title: "AI Post Generation",
+      description: "Create engaging GMB posts instantly with AI assistance",
+      color: "from-neutral-500 to-neutral-600",
+      link: "/post-management"
+    },
+    {
+      icon: Clock,
+      title: "Smart Scheduling",
+      description: "Auto-schedule posts at optimal times for maximum reach",
+      color: "from-neutral-500 to-neutral-600",
+      link: "/post-management"
+    },
+    {
+      icon: MessageSquare,
+      title: "Review Management",
+      description: "Respond to reviews with AI-powered suggestions",
+      color: "from-neutral-500 to-neutral-600",
+      link: "/review-management"
+    },
+    {
+      icon: Star,
+      title: "Magic QR",
+      description: "Filter negative reviews with smart QR technology",
+      color: "from-neutral-500 to-neutral-600",
+      link: "/get-magic-qr"
+    }
+  ]
 
   return (
     <section

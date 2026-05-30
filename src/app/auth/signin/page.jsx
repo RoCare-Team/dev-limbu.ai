@@ -25,7 +25,7 @@ export default function SignInPage() {
         sessionStorage.setItem("oauth_auto_retried", "1");
         // Small delay so NextAuth's error-page cookies are flushed first
         const t = setTimeout(() => {
-          signIn("google", { callbackUrl: "/dashboard" });
+          signIn("google", { callbackUrl });
         }, 300);
         return () => clearTimeout(t);
       }
@@ -34,7 +34,7 @@ export default function SignInPage() {
       // attempt gets its one auto-retry.
       sessionStorage.removeItem("oauth_auto_retried");
     }
-  }, [error]);
+  }, [callbackUrl, error]);
 
   const handleGoogleLogin = async () => {
     if (oauthStarting) return;
@@ -42,7 +42,7 @@ export default function SignInPage() {
     // Clear the retry guard so a manual click always gets a fresh attempt
     sessionStorage.removeItem("oauth_auto_retried");
     try {
-      await signIn("google", { callbackUrl: "/dashboard" });
+      await signIn("google", { callbackUrl });
     } finally {
       setOauthStarting(false);
     }

@@ -5,7 +5,6 @@ import Franchise from "@/models/Franchise";
 export async function POST(request) {
   try {
     await dbConnect();
-
     const body = await request.json();
     const {
       name,
@@ -20,6 +19,8 @@ export async function POST(request) {
       leadType,
     } = body;
 
+    const applicationTotal = Number(totalAmount);
+
     if (!name || !email || !phone || !city) {
       return NextResponse.json(
         {
@@ -28,10 +29,6 @@ export async function POST(request) {
         },
         { status: 400 },
       );
-    }
-
-    if (totalAmount) {
-      const applicationTotal = Number(totalAmount);
     }
 
     if (!applicationTotal || isNaN(applicationTotal) || applicationTotal <= 0) {

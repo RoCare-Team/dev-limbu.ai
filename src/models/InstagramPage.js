@@ -17,5 +17,12 @@ const InstagramPageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ✅ Duplicate accounts nahi banenge
+InstagramPageSchema.index(
+  { userId: 1, igId: 1 },
+  { unique: true }
+);
+
+// ✅ Cache clear — naya index register hoga
 export default mongoose.models.InstagramPage ||
   mongoose.model("InstagramPage", InstagramPageSchema);

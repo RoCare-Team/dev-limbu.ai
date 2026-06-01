@@ -84,7 +84,55 @@ useEffect(() => {
   }
 }, [pathname]);
 
-  const navGroups = [
+const isAgent = role === "agent";
+
+
+  const navGroups = isAgent
+  ? [
+      {
+        title: "Overview",
+        groupIcon: <BarChart3 size={16} />,
+        items: [
+          {
+            name: "Dashboard",
+            href: "/admin/dashboard",
+            icon: <BarChart3 size={16} />,
+          },
+        ],
+      },
+
+      {
+        title: "Leads",
+        groupIcon: <Users size={16} />,
+        items: [
+          {
+            name: "Leads",
+            icon: <Users size={18} />,
+            href: "/admin/user-management",
+          },
+           {
+        name: "Contact Leads",
+        href: "/admin/contact-form",
+        icon: <Users size={16} />,
+      },
+      {
+        name: "Demo Leads",
+        href: "/admin/demoBook",
+        icon: <Users size={16} />,
+      },
+      {
+        name: "Tata Dialer Leads",
+        href: "/admin/tata-dialer-lead",
+        icon: <Users size={16} />,
+      },
+        ],
+      },
+
+    
+    ]
+  : [
+  
+
   {
     title: "Overview",
     groupIcon: <BarChart3 size={16} />,

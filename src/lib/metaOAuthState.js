@@ -1,96 +1,136 @@
 import { normalizeMetaPhoneDigits } from "@/lib/normalizeMetaPhoneDigits";
 
-/**
- * Two OAuth `state` shapes — both must keep working:
- *
- * 1) **Dashboard (manual)** — `/api/facebook|instagram/login?userId=USR…` only.
- *    `state` is the raw `userId` string (no `m.` prefix). Callback saves to DB with
- *    that userId and redirects to `/dashboard?fb=connected` / `?ig=connected` (unchanged).
- *
- * 2) **Chatbot / connect-business** — login URL includes `?phone=…`.
- *    `state` is `m.<base64url JSON>` so callback can redirect back to `/connect-business`
- *    after success or error, while still using the same decoded `userId` for Mongo writes.
- */
-
 function getBaseUrl(override) {
-  const o = (override || process.env.BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "")
+  const o = (
+    override ||
+    process.env.BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    ""
+  )
     .toString()
     .trim()
     .replace(/\/$/, "");
   if (o) return o;
-  return "https://limbu.ai";
+  return "https://www.limbu.ai";
 }
 
-/**
- * @param {{ userId: string, phone: string, platform: 'fb' | 'ig', source?: 'chatbot' | 'manual' }} payload
- */
 export function encodeMetaOAuthState(payload) {
   const phone = normalizeMetaPhoneDigits(payload.phone);
   const source =
     payload.source === "chatbot" || payload.source === "manual"
       ? payload.source
       : undefined;
-  const json = JSON.stringify({
+
+  // ✅ FIX: mob: true (boolean) — pehle mob: 1 (number) tha jo parse mein mismatch deta tha
+  const stateObj = {
     u: payload.userId,
     p: phone,
     t: payload.platform,
     ...(source ? { s: source } : {}),
+    ...(payload.mobile ? { mob: true } : {}),
+  };
+
+  console.log("🔐 [encodeMetaOAuthState] Input payload:", {
+    userId: payload.userId,
+    mobile: payload.mobile,
+    platform: payload.platform,
+    source: payload.source,
+    phone: phone || "(none)",
   });
+  console.log("🔐 [encodeMetaOAuthState] State object being encoded:", JSON.stringify(stateObj));
+
+  const json = JSON.stringify(stateObj);
   const b64 = Buffer.from(json, "utf8").toString("base64url");
-  return `m.${b64}`;
+  const encoded = `m.${b64}`;
+
+  console.log("🔐 [encodeMetaOAuthState] Final encoded state (first 60 chars):", encoded.substring(0, 60));
+
+  return encoded;
 }
 
-/**
- * @param {string | null | undefined} state
- * @returns {{ userId: string | null, phone: string, platform: 'fb'|'ig'|'', source: 'chatbot'|'manual'|'', isMetaReturn: boolean }}
- */
 export function parseMetaOAuthState(state) {
   const raw = state && String(state).trim();
+
+  console.log("🔍 [parseMetaOAuthState] Raw state received:", raw ? raw.substring(0, 60) + "..." : "(empty)");
+
   if (!raw) {
+    console.warn("⚠️ [parseMetaOAuthState] Empty state — returning defaults");
     return {
       userId: null,
       phone: "",
       platform: "",
       source: "",
+      mobile: false,
       isMetaReturn: false,
     };
   }
+
   if (!raw.startsWith("m.")) {
+    console.warn("⚠️ [parseMetaOAuthState] State does not start with 'm.' — treating as plain userId:", raw);
     return {
       userId: raw,
       phone: "",
       platform: "",
       source: "manual",
+      mobile: false,
       isMetaReturn: false,
     };
   }
+
   try {
     const json = Buffer.from(raw.slice(2), "base64url").toString("utf8");
     const o = JSON.parse(json);
-    const uid = typeof o.u === "string" && o.u.trim() ? o.u.trim() : null;
-    const phone = normalizeMetaPhoneDigits(typeof o.p === "string" ? o.p : "");
+
+    console.log("🔍 [parseMetaOAuthState] Decoded JSON:", JSON.stringify(o));
+    console.log("🔍 [parseMetaOAuthState] mob field — value:", o.mob, "| type:", typeof o.mob);
+
+    const uid =
+      typeof o.u === "string" && o.u.trim() ? o.u.trim() : null;
+
+    const phone = normalizeMetaPhoneDigits(
+      typeof o.p === "string" ? o.p : ""
+    );
+
     const t = o.t === "ig" ? "ig" : o.t === "fb" ? "fb" : "";
+
     const source =
-      o.s === "chatbot" ? "chatbot" : o.s === "manual" ? "manual" : "";
-    return {
+      o.s === "chatbot"
+        ? "chatbot"
+        : o.s === "manual"
+        ? "manual"
+        : "";
+
+    // ✅ FIX: mob === true (boolean) aur mob === 1 (number legacy) dono handle
+    const mobile = o.mob === true || o.mob === 1;
+
+    const isMetaReturn = !!(
+      uid &&
+      phone &&
+      (t === "fb" || t === "ig") &&
+      (source === "chatbot" || source === "")
+    );
+
+    const result = { userId: uid, phone, platform: t, source, mobile, isMetaReturn };
+
+    console.log("✅ [parseMetaOAuthState] Parsed result:", {
       userId: uid,
-      phone,
+      mobile,
       platform: t,
       source,
-      // Keep old behavior for already-issued links where `s` was not present.
-      isMetaReturn: !!(
-        uid &&
-        phone &&
-        (t === "fb" || t === "ig") &&
-        (source === "chatbot" || source === "")
-      ),
-    };
-  } catch {
+      isMetaReturn,
+      phone: phone || "(none)",
+    });
+
+    return result;
+  } catch (err) {
+    console.error("💥 [parseMetaOAuthState] Failed to decode state:", err.message);
+    console.error("💥 [parseMetaOAuthState] Raw state was:", raw);
     return {
       userId: null,
       phone: "",
       platform: "",
       source: "",
+      mobile: false,
       isMetaReturn: false,
     };
   }
@@ -98,32 +138,36 @@ export function parseMetaOAuthState(state) {
 
 export function facebookSuccessRedirect(parsed, originOverride) {
   const base = getBaseUrl(originOverride);
-  if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&done=facebook`;
-  }
-  return `${base}/dashboard?fb=connected`;
+  const url = parsed.isMetaReturn && parsed.phone
+    ? `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&done=facebook`
+    : `${base}/dashboard?fb=connected`;
+  console.log("🎯 [facebookSuccessRedirect] Redirecting to:", url);
+  return url;
 }
 
 export function facebookErrorRedirect(parsed, errorKey, originOverride) {
   const base = getBaseUrl(originOverride);
-  if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&fb_error=${encodeURIComponent(errorKey)}`;
-  }
-  return `${base}/dashboard?fb=${encodeURIComponent(errorKey)}`;
+  const url = parsed.isMetaReturn && parsed.phone
+    ? `${base}/connect-business?type=meta&platform=facebook&phone=${encodeURIComponent(parsed.phone)}&fb_error=${encodeURIComponent(errorKey)}`
+    : `${base}/dashboard?fb=${encodeURIComponent(errorKey)}`;
+  console.log("❌ [facebookErrorRedirect] Redirecting to:", url, "| error:", errorKey);
+  return url;
 }
 
 export function instagramSuccessRedirect(parsed, igCount = 1, originOverride) {
   const base = getBaseUrl(originOverride);
-  if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&done=instagram`;
-  }
-  return `${base}/dashboard?ig=connected&count=${igCount}`;
+  const url = parsed.isMetaReturn && parsed.phone
+    ? `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&done=instagram`
+    : `${base}/dashboard?ig=connected&count=${igCount}`;
+  console.log("🎯 [instagramSuccessRedirect] Redirecting to:", url);
+  return url;
 }
 
 export function instagramErrorRedirect(parsed, errorKey, originOverride) {
   const base = getBaseUrl(originOverride);
-  if (parsed.isMetaReturn && parsed.phone) {
-    return `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&ig_error=${encodeURIComponent(errorKey)}`;
-  }
-  return `${base}/dashboard?ig=${encodeURIComponent(errorKey)}`;
+  const url = parsed.isMetaReturn && parsed.phone
+    ? `${base}/connect-business?type=meta&platform=instagram&phone=${encodeURIComponent(parsed.phone)}&ig_error=${encodeURIComponent(errorKey)}`
+    : `${base}/dashboard?ig=${encodeURIComponent(errorKey)}`;
+  console.log("❌ [instagramErrorRedirect] Redirecting to:", url, "| error:", errorKey);
+  return url;
 }

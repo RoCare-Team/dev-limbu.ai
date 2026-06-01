@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
-import Link from "next/link";
 import { useRef } from "react";
 import { Fragment } from "react";
 
@@ -89,6 +88,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+
+const WHATSAPP_STAGE_CONTACTS_URL =
+  "https://whatsapp.limbu.ai/api/external/contacts?after=2026-05-07";
+const WHATSAPP_STAGE_API_KEY =
+  "ws_2870c7f6bc8510381dc45e74df26a870d69f0512b17abade";
+const WHATSAPP_STAGE_PAGE_LIMIT = 50;
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -208,6 +213,18 @@ export default function UserManagement() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [conversationStageFilter, setConversationStageFilter] = useState("All");
+  const [conversationStageCounts, setConversationStageCounts] = useState({});
+  const [conversationStageOrder, setConversationStageOrder] = useState([]);
+  const [conversationStageTotal, setConversationStageTotal] = useState(0);
+  const [conversationStageUsers, setConversationStageUsers] = useState([]);
+  const [conversationStageCardsLoading, setConversationStageCardsLoading] =
+    useState(false);
+  const [selectedConversationStage, setSelectedConversationStage] =
+    useState("All");
+  const [conversationStageTableActive, setConversationStageTableActive] =
+    useState(false);
+  const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] =
+    useState(false);
   const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
   const [showAgentCallModal, setShowAgentCallModal] = useState(false);
@@ -271,6 +288,7 @@ export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState("All");
+  const [leadSourceFilter, setLeadSourceFilter] = useState("All");
   const [remarkCountFilter, setRemarkCountFilter] = useState("All");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -299,6 +317,7 @@ export default function UserManagement() {
 
   const tableRef = useRef(null);
   const bottomRef = useRef(null);
+  const fetchingConversationStageKeysRef = useRef(new Set());
 
   useEffect(() => {
     const table = tableRef.current;
@@ -346,11 +365,11 @@ export default function UserManagement() {
     const assistantMessages = history.filter(
       (item) => String(item?.role || "").toLowerCase() === "assistant",
     );
-    const hasUserMessage = history.some(
+    const inboundUserMessageCount = history.filter(
       (item) =>
         String(item?.role || "").toLowerCase() === "user" &&
         String(item?.content || "").trim() !== "",
-    );
+    ).length;
 
     const hasText = (...keywords) =>
       assistantMessages.some((item) => {
@@ -360,30 +379,23 @@ export default function UserManagement() {
         );
       });
 
-    // 1. Initial Conversation
-    if (hasUserMessage) steps.push("Initial Conversation");
+    const hasConnectedStage = hasText(
+      "Congrats! Apka Account connect ho gaya!",
+      "Badhaai ho! Account connect ho gaya!",
+      "Account connect ho gaya",
+    );
+    const downstreamSteps = [];
 
-    // 2. GMB Connected
-    if (
-      hasText(
-        "Congrats! Apka Account connect ho gaya!",
-        "Badhaai ho! Account connect ho gaya!",
-        "Account connect ho gaya",
-      )
-    )
+    if (hasText("Full Health report")) downstreamSteps.push("GMB Health");
+    if (hasText("Magic QR ready hai!")) downstreamSteps.push("Magic QR");
+    if (hasText("Full Report (PDF)")) downstreamSteps.push("GMB Insight");
+    if (hasText("Website URL")) downstreamSteps.push("Build Website");
+
+    if (inboundUserMessageCount >= 2) steps.push("Initial Conversation");
+    if (hasConnectedStage || downstreamSteps.length > 0) {
       steps.push("GMB Connected");
-
-    // 3. GMB Health
-    if (hasText("Full Health report")) steps.push("GMB Health");
-
-    // 4. Magic QR
-    if (hasText("Magic QR ready hai!")) steps.push("Magic QR");
-
-    // 5. GMB Insights
-    if (hasText("Full Report (PDF)")) steps.push("GMB Insight");
-
-    // 6. Build Website
-    if (hasText("Website URL")) steps.push("Build Website");
+    }
+    steps.push(...downstreamSteps);
 
     // Agar koi activity nahi hai
     if (steps.length === 0 && history.length === 0) {
@@ -399,6 +411,163 @@ export default function UserManagement() {
   const getConversationStageKey = (user = {}) =>
     String(user.userId || getLimbuBotHistoryUserId(user) || user._id || "");
 
+  const mapWhatsAppMessagesToHistory = (messages = []) =>
+    (Array.isArray(messages) ? messages : []).map((message) => ({
+      id: message.id,
+      role:
+        String(message.direction || "").toLowerCase() === "inbound"
+          ? "user"
+          : "assistant",
+      type: message.type || "text",
+      content: String(message.content || ""),
+      status: message.status || "",
+      time: message.sent_at || message.created_at || "",
+      created_at: message.created_at || "",
+    }));
+
+  const normalizeWhatsAppPhone = (value) => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length === 10) digits = `91${digits}`;
+    return digits;
+  };
+
+  const phoneToLocalMobile = (value) => {
+    const digits = normalizeWhatsAppPhone(value);
+    return digits.startsWith("91") && digits.length >= 12
+      ? digits.slice(2)
+      : digits;
+  };
+
+  const getLatestWhatsAppMessage = (messages = []) =>
+    (Array.isArray(messages) ? [...messages] : []).sort((a, b) =>
+      String(b?.sent_at || b?.created_at || "").localeCompare(
+        String(a?.sent_at || a?.created_at || ""),
+      ),
+    )[0] || null;
+
+  const mapWhatsAppContactToUser = (contact = {}) => {
+    const phoneE164 = normalizeWhatsAppPhone(contact.phone);
+    const phone = phoneToLocalMobile(phoneE164);
+    const messages = Array.isArray(contact.messages) ? contact.messages : [];
+    const history = mapWhatsAppMessagesToHistory(messages);
+    const stage = getConversationStageFromHistory(history, {});
+    const latestMessage = getLatestWhatsAppMessage(messages);
+
+    return {
+      userId: `CHATBOT-wa_${phoneE164 || contact.id || ""}`,
+      _id: `whatsapp-${contact.id || phoneE164}`,
+      fullName: contact.name || `WhatsApp User ${phone ? phone.slice(-4) : ""}`,
+      phone,
+      email: contact.email || "",
+      chatbotUserId: phoneE164 ? `wa_${phoneE164}` : "",
+      chatbotLastActive:
+        latestMessage?.sent_at ||
+        latestMessage?.created_at ||
+        contact.updated_at ||
+        contact.created_at ||
+        "",
+      chatbotMessageCount:
+        Number(contact.total_messages || contact.message_count) ||
+        messages.length,
+      chatbotLastMessage: latestMessage?.content || "",
+      source: "chatbot",
+      leadStage: "Active",
+      leadStatus: "",
+      wallet: 0,
+      freeUsedCount: 0,
+      remarksHistory: [],
+      assignedAgentId: null,
+      subscription: { status: "inactive", plan: "Free" },
+      createdAt: contact.created_at || new Date().toISOString(),
+      isChatbotOnly: true,
+      whatsappContactId: contact.id || null,
+      whatsappChatStatus: contact.chat_status || "",
+      chatbotHistory: history,
+      conversationStages:
+        stage.steps.length > 0 ? stage.steps : ["No Activity"],
+    };
+  };
+
+  const fetchWhatsAppStageContacts = async () => {
+    const fetchPage = async (page) => {
+      const url = new URL(WHATSAPP_STAGE_CONTACTS_URL);
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("limit", String(WHATSAPP_STAGE_PAGE_LIMIT));
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          Accept: "application/json",
+          "X-API-Key": WHATSAPP_STAGE_API_KEY,
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error(`WhatsApp contacts API failed: ${res.status}`);
+      }
+
+      return res.json();
+    };
+
+    const firstData = await fetchPage(1);
+    const contacts = Array.isArray(firstData?.contacts)
+      ? [...firstData.contacts]
+      : [];
+    const pagination = firstData?.pagination || {};
+    const totalPages = Math.max(1, Number(pagination.total_pages) || 1);
+
+    for (let page = 2; page <= totalPages; page += 1) {
+      const pageData = await fetchPage(page);
+      if (Array.isArray(pageData?.contacts)) {
+        contacts.push(...pageData.contacts);
+      }
+    }
+
+    return {
+      contacts,
+      total: Number(pagination.total) || contacts.length,
+    };
+  };
+
+  const buildConversationStageDataFromContacts = (contacts = [], total = 0) => {
+    const stageOrder = [
+      "No Activity",
+      "Initial Conversation",
+      "GMB Connected",
+      "GMB Health",
+      "Magic QR",
+      "GMB Insight",
+      "Build Website",
+    ];
+    const stageCounts = Object.fromEntries(
+      stageOrder.map((stage) => [stage, 0]),
+    );
+    const stageUsers = Object.fromEntries(
+      stageOrder.map((stage) => [stage, []]),
+    );
+    const allUsers = contacts.map(mapWhatsAppContactToUser);
+
+    allUsers.forEach((user) => {
+      const stages = Array.isArray(user.conversationStages)
+        ? user.conversationStages
+        : ["No Activity"];
+
+      stages.forEach((stage) => {
+        if (!stageCounts.hasOwnProperty(stage)) return;
+        stageCounts[stage] += 1;
+        stageUsers[stage].push(user);
+      });
+    });
+
+    return {
+      total: total || allUsers.length,
+      stageOrder,
+      stageCounts,
+      stageUsers,
+      allUsers,
+    };
+  };
+
   const hasGmbConnected = (user = {}) =>
     Boolean(
       user.isBusinessConnected ||
@@ -411,86 +580,43 @@ export default function UserManagement() {
 
   const fetchConversationStagesOnLoad = async () => {
     try {
-      const usersToFetch = preConversationFilteredUsers.filter((user) =>
-        getLimbuBotHistoryUserId(user),
+      const usersWithAttachedMessages = preConversationFilteredUsers.filter(
+        (user) =>
+          Array.isArray(user.chatbotHistory) ||
+          Array.isArray(user.conversationStages),
       );
 
-      if (!usersToFetch.length) return;
-
-      const loadingState = {};
-
-      usersToFetch.forEach((user) => {
-        const key = getConversationStageKey(user);
-
-        if (key) {
-          loadingState[key] = {
-            loading: true,
-          };
-        }
-      });
-
-      setConversationStages((prev) => ({
-        ...prev,
-        ...loadingState,
-      }));
-
-      const responses = await Promise.allSettled(
-        usersToFetch.map(async (user) => {
-          try {
-            const historyUserId = getLimbuBotHistoryUserId(user);
-
-            const res = await fetch(
-              `/api/limbubot/history?user_id=${encodeURIComponent(
-                historyUserId,
-              )}`,
-              {
-                cache: "no-store",
-              },
-            );
-
-            if (!res.ok) {
-              throw new Error("Failed to load history");
-            }
-
-            const data = await res.json();
-
-            const history = Array.isArray(data.history) ? data.history : [];
-
-            const stage = getConversationStageFromHistory(history, user);
-
-            return {
-              key: getConversationStageKey(user),
-              stage,
-            };
-          } catch (err) {
-            console.log(err);
-
-            return {
-              key: getConversationStageKey(user),
-              stage: {
-                label: "No Conversation",
-                className: "bg-slate-50 text-slate-500 border-slate-200",
-              },
-            };
-          }
-        }),
-      );
+      if (!usersWithAttachedMessages.length) return;
 
       const updatedStages = {};
 
-      responses.forEach((result) => {
-        if (result.status === "fulfilled") {
-          updatedStages[result.value.key] = {
-            loading: false,
-            stage: result.value.stage,
-          };
-        }
+      usersWithAttachedMessages.forEach((user) => {
+        const key = getConversationStageKey(user);
+        if (!key) return;
+
+        const history = Array.isArray(user.chatbotHistory)
+          ? user.chatbotHistory
+          : [];
+        const steps = Array.isArray(user.conversationStages)
+          ? user.conversationStages.filter((stage) => stage !== "No Activity")
+          : getConversationStageFromHistory(history, user).steps || [];
+
+        updatedStages[key] = {
+          loading: false,
+          historyCount: history.length,
+          stage: {
+            label: steps.length ? steps.join(" âž” ") : "No Activity",
+            steps,
+          },
+        };
       });
 
-      setConversationStages((prev) => ({
-        ...prev,
-        ...updatedStages,
-      }));
+      if (Object.keys(updatedStages).length) {
+        setConversationStages((prev) => ({
+          ...prev,
+          ...updatedStages,
+        }));
+      }
     } catch (error) {
       console.log(error);
     }
@@ -500,12 +626,22 @@ export default function UserManagement() {
     const cached = key ? conversationStages[key] : null;
 
     // Pehle steps nikalte hain history se
-    let steps = cached?.stage?.steps || [];
+    let steps =
+      cached?.stage?.steps ||
+      (Array.isArray(user.conversationStages)
+        ? user.conversationStages.filter((stage) => stage !== "No Activity")
+        : []);
 
-    // Agar GMB connected hai toh manual step add karte hain
+    // Agar GMB connected hai toh manual step ko correct order mein add karte hain
     if (hasGmbConnected(user)) {
       if (!steps.includes("GMB Connected")) {
-        steps = [...steps, "GMB Connected"];
+        const initialIndex = steps.indexOf("Initial Conversation");
+        const insertAt = initialIndex >= 0 ? initialIndex + 1 : 0;
+        steps = [
+          ...steps.slice(0, insertAt),
+          "GMB Connected",
+          ...steps.slice(insertAt),
+        ];
       }
     }
 
@@ -619,8 +755,15 @@ export default function UserManagement() {
   ]);
 
   const filteredUsers = useMemo(() => {
+    if (conversationStageTableActive) {
+      return conversationStageUsers;
+    }
     return preConversationFilteredUsers;
-  }, [preConversationFilteredUsers]);
+  }, [
+    preConversationFilteredUsers,
+    conversationStageTableActive,
+    conversationStageUsers,
+  ]);
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
     if (role !== "superAdmin") return [];
@@ -697,47 +840,61 @@ export default function UserManagement() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // const getConversationStageDisplay = (user = {}) => {
-  //   if (hasGmbConnected(user)) {
-  //     return {
-  //       label: "GMB Connected",
-  //       className: "bg-green-50 text-green-700 border-green-200",
-  //     };
-  //   }
-
-  //   const key = getConversationStageKey(user);
-
-  //   const cached = key ? conversationStages[key] : null;
-
-  //   if (cached?.loading) {
-  //     return {
-  //       label: "Checking...",
-  //       className: "bg-amber-50 text-amber-700 border-amber-200",
-  //     };
-  //   }
-
-  //   if (cached?.stage) {
-  //     return cached.stage;
-  //   }
-
-  //   if (!getLimbuBotHistoryUserId(user)) {
-  //     return {
-  //       label: "No WhatsApp",
-  //       className: "bg-slate-50 text-slate-500 border-slate-200",
-  //     };
-  //   }
-
-  //   return {
-  //     label: "Not Loaded",
-  //     className: "bg-gray-50 text-gray-600 border-gray-200",
-  //   };
-  // };
-
   useEffect(() => {
     if (preConversationFilteredUsers?.length) {
       fetchConversationStagesOnLoad();
     }
   }, [preConversationFilteredUsers]);
+
+  useEffect(() => {
+    const usersNeedingStage = preConversationFilteredUsers
+      .filter((user) => {
+        const key = getConversationStageKey(user);
+        return (
+          key &&
+          !conversationStages[key] &&
+          !Array.isArray(user.chatbotHistory) &&
+          !Array.isArray(user.conversationStages) &&
+          getLimbuBotHistoryUserId(user)
+        );
+      })
+      .slice(0, 10);
+
+    if (!usersNeedingStage.length) return;
+
+    usersNeedingStage.forEach((user) => {
+      const key = getConversationStageKey(user);
+      if (fetchingConversationStageKeysRef.current.has(key)) return;
+      fetchingConversationStageKeysRef.current.add(key);
+
+      setConversationStages((prev) => ({
+        ...prev,
+        [key]: {
+          loading: true,
+          historyCount: 0,
+          stage: { label: "Checking...", steps: [] },
+        },
+      }));
+
+      fetchWhatsAppHistoryForUser(user)
+        .then(({ history }) => {
+          updateConversationStageCache(user, history);
+        })
+        .catch(() => {
+          setConversationStages((prev) => ({
+            ...prev,
+            [key]: {
+              loading: false,
+              historyCount: 0,
+              stage: { label: "No Activity", steps: [] },
+            },
+          }));
+        })
+        .finally(() => {
+          fetchingConversationStageKeysRef.current.delete(key);
+        });
+    });
+  }, [preConversationFilteredUsers, conversationStages]);
 
   const stageOptions = [
     "Initial Conversation",
@@ -778,7 +935,19 @@ export default function UserManagement() {
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
-    const stageKey = getConversationStageKey(user);
+    if (Array.isArray(user.chatbotHistory)) {
+      setChatHistoryModal({
+        open: true,
+        user,
+        userId: historyUserId,
+        history: user.chatbotHistory,
+        loading: false,
+        error: "",
+      });
+      updateConversationStageCache(user, user.chatbotHistory);
+      return;
+    }
+
     if (!historyUserId || historyUserId === "wa_") {
       showToast("No WhatsApp number found for this user", "error");
       return;
@@ -794,53 +963,66 @@ export default function UserManagement() {
     });
 
     try {
-      const res = await fetch(
-        `/api/limbubot/history?user_id=${encodeURIComponent(historyUserId)}`,
-        { cache: "no-store" },
-      );
-      const data = await res.json().catch(() => ({}));
+      const { historyUserId: resolvedUserId, history } =
+        await fetchWhatsAppHistoryForUser(user);
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to load chat history");
-      }
-
-      setChatHistoryModal((prev) => ({
-        ...prev,
-        history: Array.isArray(data.history) ? data.history : [],
+      updateConversationStageCache(user, history);
+      setChatHistoryModal({
+        open: true,
+        user,
+        userId: resolvedUserId,
+        history,
         loading: false,
         error: "",
-      }));
-      if (stageKey) {
-        const history = Array.isArray(data.history) ? data.history : [];
-        setConversationStages((prev) => ({
-          ...prev,
-          [stageKey]: {
-            loading: false,
-            historyCount: history.length,
-            stage: getConversationStageFromHistory(history, user),
-          },
-        }));
-      }
+      });
     } catch (error) {
       setChatHistoryModal((prev) => ({
         ...prev,
         loading: false,
-        error: error.message || "Failed to load chat history",
+        error: error.message || "Failed to load WhatsApp chat history.",
       }));
-      if (stageKey) {
-        setConversationStages((prev) => ({
-          ...prev,
-          [stageKey]: {
-            loading: false,
-            error: error.message || "Failed to load chat history",
-            stage: {
-              label: "History Error",
-              className: "bg-red-50 text-red-700 border-red-200",
-            },
-          },
-        }));
-      }
+      showToast(
+        error.message || "Failed to load WhatsApp chat history",
+        "error",
+      );
     }
+  };
+
+  const updateConversationStageCache = (user, history = []) => {
+    const stageKey = getConversationStageKey(user);
+    if (!stageKey) return;
+
+    setConversationStages((prev) => ({
+      ...prev,
+      [stageKey]: {
+        loading: false,
+        historyCount: history.length,
+        stage: getConversationStageFromHistory(history, user),
+      },
+    }));
+  };
+
+  const fetchWhatsAppHistoryForUser = async (user) => {
+    const historyUserId = getLimbuBotHistoryUserId(user);
+    if (!historyUserId || historyUserId === "wa_") {
+      throw new Error("No WhatsApp number found for this user");
+    }
+
+    const response = await fetch(
+      `/api/limbubot/history?user_id=${encodeURIComponent(historyUserId)}`,
+      { cache: "no-store" },
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || "Failed to load WhatsApp chat history");
+    }
+
+    return {
+      historyUserId: data.user_id || historyUserId,
+      history: Array.isArray(data.history) ? data.history : [],
+      contact: data.contact || null,
+    };
   };
 
   const closeChatHistoryModal = () => {
@@ -853,82 +1035,6 @@ export default function UserManagement() {
       error: "",
     });
   };
-
-  useEffect(() => {
-    const usersToCheck = preConversationFilteredUsers
-      .filter((user) => !hasGmbConnected(user))
-      .map((user) => ({
-        user,
-        key: getConversationStageKey(user),
-        historyUserId: getLimbuBotHistoryUserId(user),
-      }))
-      .filter(
-        ({ key, historyUserId }) =>
-          key &&
-          historyUserId &&
-          historyUserId !== "wa_" &&
-          !conversationStages[key],
-      )
-      .slice(0, 25);
-
-    if (usersToCheck.length === 0) return;
-
-    let cancelled = false;
-
-    setConversationStages((prev) => {
-      const next = { ...prev };
-      usersToCheck.forEach(({ key }) => {
-        next[key] = {
-          loading: true,
-          stage: {
-            label: "Checking...",
-            className: "bg-amber-50 text-amber-700 border-amber-200",
-          },
-        };
-      });
-      return next;
-    });
-
-    usersToCheck.forEach(async ({ user, key, historyUserId }) => {
-      try {
-        const res = await fetch(
-          `/api/limbubot/history?user_id=${encodeURIComponent(historyUserId)}`,
-          { cache: "no-store" },
-        );
-        const data = await res.json().catch(() => ({}));
-        const history =
-          res.ok && data.success && Array.isArray(data.history)
-            ? data.history
-            : [];
-        if (cancelled) return;
-        setConversationStages((prev) => ({
-          ...prev,
-          [key]: {
-            loading: false,
-            historyCount: history.length,
-            stage: getConversationStageFromHistory(history, user),
-          },
-        }));
-      } catch (error) {
-        if (cancelled) return;
-        setConversationStages((prev) => ({
-          ...prev,
-          [key]: {
-            loading: false,
-            error: error.message,
-            stage: {
-              label: "History Error",
-              className: "bg-red-50 text-red-700 border-red-200",
-            },
-          },
-        }));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [preConversationFilteredUsers, conversationStages]);
 
   const handleSearch = () => {
     if (currentPage !== 1) {
@@ -953,6 +1059,11 @@ export default function UserManagement() {
       );
 
       const data = await res.json();
+      console.log("[Meta Leads Fetch]", {
+        success: data.success,
+        stats: data.stats,
+        error: data.error,
+      });
 
       if (data.success) {
         if (!silent) {
@@ -1194,8 +1305,23 @@ export default function UserManagement() {
       (u) => u.subscription?.plan === "Premium",
     ).length;
     const active = connectedBusinessUsers.length;
-    const isMetaLeadSource = (src) =>
-      src === "bulk-upload" || src === "Meta Leads" || src === "Meta";
+    const isMetaLeadSource = (src, leadTags = []) =>
+      [
+        "bulk-upload",
+        "manual-upload",
+        "csv-import",
+        "excel-import",
+        "Meta Lead",
+        "Meta Leads",
+        "Meta",
+      ].includes(String(src || "").trim()) ||
+      (Array.isArray(leadTags) &&
+        leadTags.some(
+          (tag) =>
+            String(tag || "")
+              .trim()
+              .toLowerCase() === "metaleads",
+        ));
     const isTodayLocalBrowser = (createdAt) =>
       new Date(createdAt).toDateString() === new Date().toDateString();
     const useApiTodayBreakdown =
@@ -1207,7 +1333,9 @@ export default function UserManagement() {
     const todayMetaLeads = useApiTodayBreakdown
       ? todayUsersMetaLeads
       : users.filter(
-          (u) => isMetaLeadSource(u.source) && isTodayLocalBrowser(u.createdAt),
+          (u) =>
+            isMetaLeadSource(u.source, u.leadTags) &&
+            isTodayLocalBrowser(u.createdAt),
         ).length;
     const todaySignups = useApiTodayBreakdown
       ? todayUsersSignups
@@ -1265,6 +1393,7 @@ export default function UserManagement() {
         params.append("leadStatus", leadStatusFilter);
       if (leadStageFilter !== "All")
         params.append("leadStage", leadStageFilter);
+      if (leadSourceFilter !== "All") params.append("source", leadSourceFilter);
       if (conversationStageFilter !== "All")
         params.append("conversationStage", conversationStageFilter);
       if (remarkCountFilter !== "All")
@@ -1320,63 +1449,85 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    leadSourceFilter,
     conversationStageFilter,
     remarkCountFilter,
   ]);
 
-  const fetchUsers = async (silent = false) => {
+  const fetchUsers = async (silent = false, overrides = {}) => {
     if (!silent) setLoading(true);
     const adminEmail = localStorage.getItem("email");
+    const nextPage = overrides.currentPage ?? currentPage;
+    const nextSearchQuery = overrides.searchQuery ?? searchQuery;
+    const nextAssigneeFilter = overrides.assigneeFilter ?? assigneeFilter;
+    const nextFilterStatus = overrides.filterStatus ?? filterStatus;
+    const nextFilterDate = overrides.filterDate ?? filterDate;
+    const nextCustomStartDate = overrides.customStartDate ?? customStartDate;
+    const nextCustomEndDate = overrides.customEndDate ?? customEndDate;
+    const nextLeadStatusFilter = overrides.leadStatusFilter ?? leadStatusFilter;
+    const nextLeadStageFilter = overrides.leadStageFilter ?? leadStageFilter;
+    const nextLeadSourceFilter = overrides.leadSourceFilter ?? leadSourceFilter;
+    const nextConversationStageFilter =
+      overrides.conversationStageFilter ?? conversationStageFilter;
+    const nextRemarkCountFilter =
+      overrides.remarkCountFilter ?? remarkCountFilter;
+    const nextChatbotChatDayFilter =
+      overrides.chatbotChatDayFilter ?? chatbotChatDayFilter;
 
     try {
       const params = new URLSearchParams({
         email: adminEmail, // 🔑 REQUIRED
-        page: currentPage,
-        search: searchQuery.trim(),
+        page: nextPage,
+        search: nextSearchQuery.trim(),
         limit: 70,
       });
 
-      if (assigneeFilter !== "All") {
-        params.append("assignedAgentId", assigneeFilter);
+      if (nextAssigneeFilter !== "All") {
+        params.append("assignedAgentId", nextAssigneeFilter);
       }
 
-      if (filterStatus !== "All") {
-        params.append("status", filterStatus);
+      if (nextFilterStatus !== "All") {
+        params.append("status", nextFilterStatus);
       }
 
-      if (filterDate !== "All") {
-        if (filterDate === "Custom Range") {
+      if (nextFilterDate !== "All") {
+        if (nextFilterDate === "Custom Range") {
           params.append("dateFilter", "Custom Range");
-          if (customStartDate) params.append("startDate", customStartDate);
-          if (customEndDate) params.append("endDate", customEndDate);
+          if (nextCustomStartDate)
+            params.append("startDate", nextCustomStartDate);
+          if (nextCustomEndDate) params.append("endDate", nextCustomEndDate);
         } else {
-          const ranges = getCalculatedDateRange(filterDate);
+          const ranges = getCalculatedDateRange(nextFilterDate);
           if (ranges) {
-            params.append("dateFilter", filterDate);
+            params.append("dateFilter", nextFilterDate);
             params.append("startDate", ranges.startDate);
             params.append("endDate", ranges.endDate);
           }
         }
       }
 
-      if (leadStatusFilter !== "All") {
-        params.append("leadStatus", leadStatusFilter);
+      if (nextLeadStatusFilter !== "All") {
+        params.append("leadStatus", nextLeadStatusFilter);
       }
 
-      if (leadStageFilter !== "All") {
-        params.append("leadStage", leadStageFilter);
+      if (nextLeadStageFilter !== "All") {
+        params.append("leadStage", nextLeadStageFilter);
       }
 
-      if (conversationStageFilter !== "All") {
-        params.append("conversationStage", conversationStageFilter);
+      if (nextLeadSourceFilter !== "All") {
+        params.append("source", nextLeadSourceFilter);
       }
 
-      if (remarkCountFilter !== "All") {
-        params.append("remarkCount", remarkCountFilter);
+      if (!nextChatbotChatDayFilter && nextConversationStageFilter !== "All") {
+        params.append("conversationStage", nextConversationStageFilter);
       }
 
-      if (chatbotChatDayFilter) {
-        params.append("chatbotChatDay", chatbotChatDayFilter);
+      if (nextRemarkCountFilter !== "All") {
+        params.append("remarkCount", nextRemarkCountFilter);
+      }
+
+      if (nextChatbotChatDayFilter) {
+        params.append("chatbotChatDay", nextChatbotChatDayFilter);
       }
 
       const res = await fetch(`/api/users?${params.toString()}`);
@@ -1387,7 +1538,7 @@ export default function UserManagement() {
 
         setPagination({
           totalUsers: data.totalUsers,
-          currentPage: data.currentPage || currentPage,
+          currentPage: data.currentPage || nextPage,
           totalPages: data.totalPages || Math.ceil(data.totalUsers / 70),
           limit: 70,
         });
@@ -1405,10 +1556,12 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
+    if (conversationStageTableActive) return;
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate))
       return;
     fetchUsers();
   }, [
+    conversationStageTableActive,
     currentPage,
     filterStatus,
     filterDate,
@@ -1417,6 +1570,7 @@ export default function UserManagement() {
     customEndDate,
     leadStatusFilter,
     leadStageFilter,
+    leadSourceFilter,
     conversationStageFilter,
     remarkCountFilter,
     chatbotChatDayFilter,
@@ -1445,6 +1599,7 @@ export default function UserManagement() {
     fetchTodayUsersCount();
     fetchRevenue();
     fetchChatbotDayStats();
+    fetchConversationStageCards();
   }, []);
 
   /* ---------------- UPLOAD TO S3 ---------------- */
@@ -1592,10 +1747,25 @@ export default function UserManagement() {
     }
   };
 
-  const fetchChatbotDayStats = async () => {
+  const syncWhatsAppUsersToDatabase = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return null;
+
+    const res = await fetch(
+      `/api/cron/chatbot-users-sync?email=${encodeURIComponent(adminEmail)}&limit=100`,
+      { cache: "no-store" },
+    );
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to sync WhatsApp users");
+    }
+    return data.stats;
+  };
+
+  const fetchChatbotDayStats = async ({ showLoader = true } = {}) => {
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) return;
-    setChatbotDayStats((prev) => ({ ...prev, loading: true }));
+    if (showLoader) setChatbotDayStats((prev) => ({ ...prev, loading: true }));
     try {
       const res = await fetch(
         `/api/admin/chatbot-chat-stats?email=${encodeURIComponent(adminEmail)}`,
@@ -1618,6 +1788,129 @@ export default function UserManagement() {
       setChatbotDayStats((prev) => ({ ...prev, loading: false }));
     }
   };
+
+  const fetchConversationStageCards = async () => {
+    setConversationStageCardsLoading(true);
+    try {
+      const res = await fetch("/api/conversation-stages", {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to load conversation stages");
+      }
+
+      setConversationStageCounts(data.stageCounts || {});
+      setConversationStageOrder(
+        data.stageOrder || Object.keys(data.stageCounts || {}),
+      );
+      setConversationStageTotal(data.total || 0);
+
+      if (conversationStageTableActive) {
+        await fetchConversationStageUsers(selectedConversationStage || "All", {
+          silent: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching conversation stage cards:", error);
+    } finally {
+      setConversationStageCardsLoading(false);
+    }
+  };
+
+  const fetchConversationStageUsers = async (stage, options = {}) => {
+    if (!stage) {
+      setConversationStageUsers([]);
+      setConversationStageTableActive(false);
+      return;
+    }
+
+    if (!options.silent) setConversationStageCardsLoading(true);
+    try {
+      const limit = 70;
+      const params = new URLSearchParams({
+        stage,
+        page: String(currentPage),
+        limit: String(limit),
+      });
+      const res = await fetch(`/api/conversation-stages?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to load stage users");
+      }
+
+      setConversationStageCounts(data.stageCounts || {});
+      setConversationStageOrder(
+        data.stageOrder || Object.keys(data.stageCounts || {}),
+      );
+      setConversationStageTotal(data.total || data.totalUsers || 0);
+      setConversationStageUsers(data.users || []);
+      setPagination({
+        totalUsers: data.totalUsers || 0,
+        currentPage: data.currentPage || currentPage,
+        totalPages: data.totalPages || 1,
+        limit: data.limit || limit,
+      });
+    } catch (error) {
+      setConversationStageUsers([]);
+      console.error("Error fetching conversation stage users:", error);
+    } finally {
+      if (!options.silent) setConversationStageCardsLoading(false);
+    }
+  };
+
+  const handleRefreshWhatsAppData = async () => {
+    setIsRefreshingWhatsAppData(true);
+    setChatbotDayStats((prev) => ({ ...prev, loading: true }));
+    setConversationStageCardsLoading(true);
+    try {
+      const syncStats = await syncWhatsAppUsersToDatabase();
+      await Promise.all([
+        fetchChatbotDayStats({ showLoader: false }),
+        fetchConversationStageCards(),
+        fetchUsers(true),
+        fetchAgentStats(),
+      ]);
+      showToast(
+        `WhatsApp data refreshed. ${syncStats?.inserted || 0} new, ${syncStats?.assigned || 0} assigned.`,
+        "success",
+      );
+    } catch (error) {
+      console.error("Error refreshing WhatsApp data:", error);
+      showToast(error.message || "Failed to refresh WhatsApp data", "error");
+    } finally {
+      setIsRefreshingWhatsAppData(false);
+      setChatbotDayStats((prev) => ({ ...prev, loading: false }));
+      setConversationStageCardsLoading(false);
+    }
+  };
+
+  const handleConversationStageCardClick = async (stage) => {
+    setCurrentPage(1);
+    setChatbotChatDayFilter(null);
+    setConversationStageTableActive(true);
+    setConversationStageUsers([]);
+    setSelectedConversationStage(stage);
+  };
+
+  const handleConversationStageFilterChange = (stage) => {
+    setCurrentPage(1);
+    setChatbotChatDayFilter(null);
+    setConversationStageTableActive(false);
+    setConversationStageUsers([]);
+    setSelectedConversationStage("All");
+    setConversationStageFilter(stage);
+  };
+
+  useEffect(() => {
+    if (!conversationStageTableActive) {
+      setConversationStageUsers([]);
+      return;
+    }
+    fetchConversationStageUsers(selectedConversationStage || "All");
+  }, [conversationStageTableActive, selectedConversationStage, currentPage]);
 
   const fetchIssues = async () => {
     try {
@@ -2951,14 +3244,29 @@ export default function UserManagement() {
     setAssigneeFilter("All");
     setLeadStatusFilter("All");
     setLeadStageFilter("All");
+    setLeadSourceFilter("All");
     setConversationStageFilter("All");
+    setSelectedConversationStage("All");
+    setConversationStageTableActive(false);
+    setConversationStageUsers([]);
     setRemarkCountFilter("All");
     setChatbotChatDayFilter(null);
   };
 
   const handleSelectChatbotDay = (day) => {
-    setChatbotChatDayFilter((prev) => (prev === day ? null : day));
+    const nextDay = chatbotChatDayFilter === day ? null : day;
+
+    setConversationStageTableActive(false);
+    setConversationStageUsers([]);
+    setSelectedConversationStage("All");
+    setConversationStageFilter("All");
+    setChatbotChatDayFilter(nextDay);
     setCurrentPage(1);
+    fetchUsers(false, {
+      chatbotChatDayFilter: nextDay,
+      conversationStageFilter: "All",
+      currentPage: 1,
+    });
   };
 
   const handlePageChange = (newPage) => {
@@ -3272,6 +3580,77 @@ export default function UserManagement() {
             </div>
           )}
 
+          {(role === "superAdmin" ||
+            role === "admin" ||
+            role === "superfranchiseAdmin" ||
+            role === "agent") && (
+            <Box sx={{ mb: 1 }}>
+              <ChatbotDailyChatCards
+                title="Conversation Stages"
+                subtitle="Click any stage to filter users and load stage data"
+                loading={
+                  conversationStageCardsLoading || isRefreshingWhatsAppData
+                }
+                activeKey={
+                  conversationStageTableActive ? selectedConversationStage : ""
+                }
+                onRefresh={handleRefreshWhatsAppData}
+                onSelectCard={handleConversationStageCardClick}
+                cards={[
+                  {
+                    key: "All",
+                    title: "All",
+                    prefix: "Stage",
+                    metricLabel: "users",
+                    hint: "Show users for all stages",
+                    count: conversationStageTotal,
+                    color: "#374151",
+                    bg: "#f3f4f6",
+                  },
+                  ...(conversationStageOrder.length
+                    ? conversationStageOrder
+                    : Object.keys(conversationStageCounts)
+                  ).map((stage) => ({
+                    key: stage,
+                    title: stage,
+                    prefix: "Stage",
+                    metricLabel: "users",
+                    hint: `${conversationStageCounts[stage] ?? 0} users`,
+                    count: conversationStageCounts[stage] ?? 0,
+                    color:
+                      stage === "No Activity"
+                        ? "#6b7280"
+                        : stage === "Initial Conversation"
+                          ? "#2563eb"
+                          : stage === "GMB Connected"
+                            ? "#059669"
+                            : stage === "GMB Health"
+                              ? "#8b5cf6"
+                              : stage === "Magic QR"
+                                ? "#d946ef"
+                                : stage === "GMB Insight"
+                                  ? "#0ea5e9"
+                                  : "#f59e0b",
+                    bg:
+                      stage === "No Activity"
+                        ? "#f3f4f6"
+                        : stage === "Initial Conversation"
+                          ? "#dbeafe"
+                          : stage === "GMB Connected"
+                            ? "#d1fae5"
+                            : stage === "GMB Health"
+                              ? "#ede9fe"
+                              : stage === "Magic QR"
+                                ? "#f5d0fe"
+                                : stage === "GMB Insight"
+                                  ? "#d0f2fe"
+                                  : "#fef3c7",
+                  })),
+                ]}
+              />
+            </Box>
+          )}
+
           {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
 
           {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
@@ -3350,9 +3729,9 @@ export default function UserManagement() {
             role === "agent") && (
             <ChatbotDailyChatCards
               stats={chatbotDayStats}
-              loading={chatbotDayStats.loading}
+              loading={chatbotDayStats.loading || isRefreshingWhatsAppData}
               activeDay={chatbotChatDayFilter}
-              onRefresh={fetchChatbotDayStats}
+              onRefresh={handleRefreshWhatsAppData}
               onSelectDay={handleSelectChatbotDay}
             />
           )}
@@ -3573,6 +3952,29 @@ export default function UserManagement() {
                 <FormControl size="small" fullWidth>
                   <Select
                     displayEmpty
+                    value={leadSourceFilter}
+                    onChange={(e) => setLeadSourceFilter(e.target.value)}
+                    renderValue={(selected) => {
+                      if (selected === "All") return "Source: All";
+                      const option = USER_SOURCE_OPTIONS.find(
+                        (item) => item.value === selected,
+                      );
+                      return `Source: ${option?.label || selected}`;
+                    }}
+                    inputProps={{ "aria-label": "Lead Source" }}
+                  >
+                    <MenuItem value="All">All Sources</MenuItem>
+                    {USER_SOURCE_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" fullWidth>
+                  <Select
+                    displayEmpty
                     value={remarkCountFilter}
                     onChange={(e) => setRemarkCountFilter(e.target.value)}
                     renderValue={(selected) => {
@@ -3595,7 +3997,9 @@ export default function UserManagement() {
                 <FormControl size="small" sx={{ minWidth: 150 }}>
                   <Select
                     value={conversationStageFilter}
-                    onChange={(e) => setConversationStageFilter(e.target.value)}
+                    onChange={(e) =>
+                      handleConversationStageFilterChange(e.target.value)
+                    }
                     displayEmpty
                   >
                     <MenuItem value="All">All Stages</MenuItem>
@@ -3640,6 +4044,8 @@ export default function UserManagement() {
                   assigneeFilter !== "All" ||
                   leadStatusFilter !== "All" ||
                   leadStageFilter !== "All" ||
+                  leadSourceFilter !== "All" ||
+                  conversationStageFilter !== "All" ||
                   remarkCountFilter !== "All") && (
                   <Button
                     onClick={clearFilters}
@@ -3832,6 +4238,33 @@ export default function UserManagement() {
                 </button>
               </div>
             )}
+            {conversationStageTableActive && (
+              <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-fuchsia-200/80 bg-fuchsia-50/60 px-2.5 py-1">
+                <p className="text-[11px] font-semibold text-fuchsia-900">
+                  Stage filter:{" "}
+                  <span className="font-black">
+                    {selectedConversationStage}
+                  </span>
+                  {pagination?.totalUsers != null && (
+                    <span className="text-fuchsia-700 font-bold">
+                      {" "}
+                      · {pagination.totalUsers} WhatsApp leads
+                    </span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConversationStageTableActive(false);
+                    setConversationStageUsers([]);
+                    setSelectedConversationStage("All");
+                  }}
+                  className="text-[10px] font-bold text-fuchsia-800 hover:text-fuchsia-950 underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
 
             {role === "superAdmin" && (
               <>
@@ -3854,10 +4287,10 @@ export default function UserManagement() {
                           type="button"
                           onClick={() => setIsOpen(true)}
                           className="group bg-white px-6 py-3 rounded-2xl
-                          flex items-center gap-2 text-green-600 font-semibold
-                          shadow-md hover:shadow-xl hover:-translate-y-1
-                          hover:scale-105 active:scale-95
-                          transition-all duration-300"
+                            flex items-center gap-2 text-green-600 font-semibold
+                            shadow-md hover:shadow-xl hover:-translate-y-1
+                            hover:scale-105 active:scale-95
+                            transition-all duration-300"
                         >
                           <MessageCircle
                             size={20}
@@ -3868,10 +4301,10 @@ export default function UserManagement() {
 
                         <button
                           className="group bg-white px-6 py-3 rounded-2xl
-                                      flex items-center gap-2 text-blue-600 font-semibold
-                                      shadow-md hover:shadow-xl hover:-translate-y-1
-                                      hover:scale-105 active:scale-95
-                                      transition-all duration-300"
+                                        flex items-center gap-2 text-blue-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
                         >
                           <Send
                             size={20}
@@ -3882,10 +4315,10 @@ export default function UserManagement() {
 
                         <button
                           className="group bg-white px-6 py-3 rounded-2xl
-                                      flex items-center gap-2 text-purple-600 font-semibold
-                                      shadow-md hover:shadow-xl hover:-translate-y-1
-                                      hover:scale-105 active:scale-95
-                                      transition-all duration-300"
+                                        flex items-center gap-2 text-purple-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
                         >
                           <Mail
                             size={20}
@@ -3896,10 +4329,10 @@ export default function UserManagement() {
 
                         <button
                           className="group bg-white px-6 py-3 rounded-2xl
-                                      flex items-center gap-2 text-orange-600 font-semibold
-                                      shadow-md hover:shadow-xl hover:-translate-y-1
-                                      hover:scale-105 active:scale-95
-                                      transition-all duration-300"
+                                        flex items-center gap-2 text-orange-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
                         >
                           <Smartphone
                             size={20}
@@ -3995,8 +4428,8 @@ export default function UserManagement() {
                         Conversation
                       </th>
                       {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                    Plan
-                  </th> */}
+                      Plan
+                    </th> */}
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         Assign To
                       </th>
@@ -4156,13 +4589,13 @@ export default function UserManagement() {
                                                     <Fragment key={step.id}>
                                                       <div
                                                         className={`
-                          inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
-                          ${
-                            isDone
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
-                              : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
-                          }
-                        `}
+                            inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
+                            ${
+                              isDone
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
+                                : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
+                            }
+                          `}
                                                       >
                                                         {step.icon}
                                                         <span>{step.id}</span>
@@ -4360,7 +4793,7 @@ export default function UserManagement() {
                                           </div>
                                         </div>
                                       </td>
-                                           {/* CONTACT INFO */}
+                                      {/* CONTACT INFO */}
                                       <td className="px-6 py-5">
                                         <div className="text-xs space-y-1">
                                           <div className="flex items-center gap-2 text-gray-600">
@@ -4375,7 +4808,6 @@ export default function UserManagement() {
                                           </div>
                                         </div>
                                       </td>
-
 
                                       {/* AGENT ASSIGNMENT */}
                                       <td
@@ -4394,12 +4826,12 @@ export default function UserManagement() {
                                           >
                                             <select
                                               className="
-                             appearance-none bg-transparent 
-                             px-4 py-1.5 pr-8 
-                             text-xs font-bold 
-                             focus:outline-none 
-                             cursor-pointer
-                                            "
+                              appearance-none bg-transparent 
+                              px-4 py-1.5 pr-8 
+                              text-xs font-bold 
+                              focus:outline-none 
+                              cursor-pointer
+                                              "
                                               value={
                                                 // ✅ Handle populated object, string ID, null, and undefined
                                                 user.assignedAgentId?._id ||
@@ -4509,7 +4941,7 @@ export default function UserManagement() {
                                           </option>
                                         </select>
                                       </td>
-                                      
+
                                       {/* CHAT BUTTON & PROGRESS COUNT */}
                                       <td className="px-6 py-5">
                                         <button
@@ -4534,8 +4966,6 @@ export default function UserManagement() {
                                           )}
                                         </button>
                                       </td>
-
-                                 
 
                                       <td className="px-6 py-4">
                                         <button
@@ -5344,11 +5774,11 @@ export default function UserManagement() {
                         <div
                           key={idx}
                           className={`p-3 rounded-xl border transition-all shadow-sm
-                    ${
-                      isLatest
-                        ? "bg-green-50 border-green-300"
-                        : "bg-white border-gray-200"
-                    }`}
+                      ${
+                        isLatest
+                          ? "bg-green-50 border-green-300"
+                          : "bg-white border-gray-200"
+                      }`}
                         >
                           {/* Top Row */}
                           <div className="flex items-center justify-between mb-1">
@@ -5447,9 +5877,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, fullName: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   />
                 </div>
 
@@ -5466,9 +5896,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, email: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   />
                 </div>
 
@@ -5485,9 +5915,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, phone: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   />
                 </div>
 
@@ -5502,9 +5932,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, plan: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   >
                     <option value="Free">Free</option>
                     <option value="Basic">Basic</option>
@@ -5519,8 +5949,8 @@ export default function UserManagement() {
                 <button
                   onClick={() => setAddingUser(false)}
                   className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
-                     text-gray-700 dark:text-gray-200 rounded-xl 
-                     hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
+                      text-gray-700 dark:text-gray-200 rounded-xl 
+                      hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
                 >
                   Cancel
                 </button>
@@ -5528,8 +5958,8 @@ export default function UserManagement() {
                 <button
                   onClick={handleAddUser}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
-                     text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
-                     transition-all font-medium"
+                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
+                      transition-all font-medium"
                 >
                   Add User
                 </button>

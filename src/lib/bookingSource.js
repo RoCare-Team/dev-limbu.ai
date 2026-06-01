@@ -37,12 +37,13 @@ export function userAcquisitionLabel(source) {
     s === "manual-upload" ||
     s === "bulk-upload" ||
     s === "csv-import" ||
-    s === "excel-import"
+    s === "excel-import" ||
+    s === "Meta Lead"
   ) {
-    return "Meta leads"
+    return "Meta lead"
   }
   if (s === "signup") return "Signup"
-  if (s === "Meta Leads" || s === "Meta") return "Meta leads"
+  if (s === "Meta Leads" || s === "Meta") return "Meta lead"
   return s.replace(/-/g, " ")
 }
 
@@ -50,12 +51,12 @@ export const USER_SOURCE_OPTIONS = [
   { value: "signup", label: "Signup" },
   { value: "website", label: "Website" },
   { value: "chatbot", label: "Chatbot" },
-  { value: "manual-upload", label: "Meta Leads" },
-  { value: "bulk-upload", label: "Bulk / sheet import" },
+  { value: "Meta Lead", label: "Meta Lead" },
+  { value: "manual-upload", label: "Manual Meta import" },
+  { value: "bulk-upload", label: "Bulk Meta import" },
   { value: "csv-import", label: "CSV import" },
   { value: "excel-import", label: "Excel import" },
   { value: "checkout", label: "Checkout (legacy)" },
-  { value: "Meta Leads", label: "Meta leads" },
   { value: "Meta", label: "Meta (legacy)" },
 ]
 
@@ -63,6 +64,9 @@ export const ALLOWED_USER_SOURCE_VALUES = USER_SOURCE_OPTIONS.map((o) => o.value
 
 /** Bulk / sheet / manual Meta-style imports — tag as metaleads */
 export const META_SHEET_LEAD_SOURCES = [
+  "Meta Lead",
+  "Meta Leads",
+  "Meta",
   "bulk-upload",
   "csv-import",
   "excel-import",
@@ -95,6 +99,7 @@ export function userAcquisitionTagClassName(source) {
     s === "bulk-upload" ||
     s === "csv-import" ||
     s === "excel-import" ||
+    s === "Meta Lead" ||
     s === "Meta Leads" ||
     s === "Meta"
   ) {

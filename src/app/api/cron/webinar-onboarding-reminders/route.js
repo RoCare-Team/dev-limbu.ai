@@ -23,7 +23,7 @@ export async function GET(req) {
     const now = new Date();
 
     const users = await User.find({
-      source: { $in: ["signup", "bulk-upload"] },
+      source: { $in: ["signup", "Meta Lead", "bulk-upload"] },
       onboardingWebinarSessionAt: { $exists: true, $ne: null },
       onboardingWebinarReminderAt: { $lte: now },
       onboardingWebinarReminderSent: { $ne: true },

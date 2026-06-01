@@ -131,6 +131,7 @@ const userSchema = new mongoose.Schema(
         "website",
         "chatbot",
         "manual-upload",
+        "Meta Lead",
         "Meta Leads",
         "Meta",
         "expolead"
@@ -140,6 +141,10 @@ const userSchema = new mongoose.Schema(
 
     /** e.g. `metaleads` for bulk / sheet / manual Meta imports */
     leadTags: { type: [String], default: [] },
+    metaLeadId: { type: String, default: null, sparse: true },
+    metaFormId: { type: String, default: null },
+    metaCreatedAt: { type: Date, default: null },
+    metaSyncedAt: { type: Date, default: null },
 
     /** One-time welcome_bonus WhatsApp (AISensy) after registration */
     welcomeBonusWhatsAppSent: { type: Boolean, default: false },

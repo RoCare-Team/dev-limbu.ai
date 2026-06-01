@@ -12,9 +12,78 @@ import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 import { listUsersForChatbotChatDay } from "@/lib/limbuBotUserSync";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
-const META_LEAD_SOURCES = ["bulk-upload", "Meta Leads", "Meta"];
+const META_LEAD_SOURCES = [
+  "Meta Lead",
+  "bulk-upload",
+  "manual-upload",
+  "csv-import",
+  "excel-import",
+  "Meta Leads",
+  "Meta",
+];
+
+function isMetaLeadSourceFilter(source) {
+  const normalized = String(source || "")
+    .trim()
+    .toLowerCase();
+  return [
+    "meta",
+    "meta leads",
+    "meta lead",
+    "metaleads",
+    "meta-leads",
+    "bulk-upload",
+    "manual-upload",
+    "csv-import",
+    "excel-import",
+  ].includes(normalized);
+}
+
+function getSourceMatch(source) {
+  if (!source || source === "All") return null;
+
+  if (isMetaLeadSourceFilter(source)) {
+    return {
+      $or: [{ source: { $in: META_LEAD_SOURCES } }, { leadTags: "metaleads" }],
+    };
+  }
+
+  return { source };
+}
+
+function addMatchCondition(query, condition) {
+  if (!condition || Object.keys(condition).length === 0) return query;
+  if (Object.keys(query).length === 0) return condition;
+  return { $and: [query, condition] };
+}
 const LIMBUBOT_HISTORY_BASE =
-  process.env.LIMBUBOT_HISTORY_BASE || "https://limbubot.limbutech.in/history";
+  process.env.LIMBUBOT_HISTORY_BASE ||
+  "https://whatsapp.limbu.ai/api/external/contact";
+const WHATSAPP_EXTERNAL_API_KEY =
+  process.env.WHATSAPP_EXTERNAL_API_KEY ||
+  process.env.LIMBUBOT_ADMIN_API_KEY ||
+  process.env.LIMBUBOT_ADMIN_TOKEN ||
+  "ws_2870c7f6bc8510381dc45e74df26a870d69f0512b17abade";
+
+function normalizePhoneE164(value) {
+  let digits = String(value || "")
+    .replace(/^wa_/i, "")
+    .replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 10) digits = `91${digits}`;
+  return digits;
+}
+
+function mapWhatsAppMessageToHistory(message = {}) {
+  return {
+    role:
+      String(message.direction || "").toLowerCase() === "inbound"
+        ? "user"
+        : "assistant",
+    content: String(message.content || ""),
+    time: message.sent_at || message.created_at || "",
+  };
+}
 
 function getLimbuBotHistoryUserId(user = {}) {
   const explicit =
@@ -39,10 +108,10 @@ function getLimbuBotHistoryUserId(user = {}) {
 function hasGmbConnected(user = {}) {
   return Boolean(
     user.isBusinessConnected ||
-      user.connectedBusinessEmail ||
-      user.gmbProjectId ||
-      user.selectedBusiness?.name ||
-      (Array.isArray(user.businessListings) && user.businessListings.length > 0),
+    user.connectedBusinessEmail ||
+    user.gmbProjectId ||
+    user.selectedBusiness?.name ||
+    (Array.isArray(user.businessListings) && user.businessListings.length > 0),
   );
 }
 
@@ -51,53 +120,68 @@ function getConversationStageFromHistory(history = [], user = {}) {
   const assistantMessages = history.filter(
     (item) => String(item?.role || "").toLowerCase() === "assistant",
   );
-  const hasUserMessage = history.some(
+  const inboundUserMessageCount = history.filter(
     (item) =>
       String(item?.role || "").toLowerCase() === "user" &&
       String(item?.content || "").trim() !== "",
-  );
+  ).length;
   const hasText = (...keywords) =>
     assistantMessages.some((item) => {
       const content = String(item?.content || "").toLowerCase();
-      return keywords.some((keyword) => content.includes(keyword.toLowerCase()));
+      return keywords.some((keyword) =>
+        content.includes(keyword.toLowerCase()),
+      );
     });
 
-  if (hasUserMessage) steps.push("Initial Conversation");
-  if (
+  const hasConnectedStage =
     hasGmbConnected(user) ||
     hasText(
       "Congrats! Apka Account connect ho gaya!",
       "Badhaai ho! Account connect ho gaya!",
       "Account connect ho gaya",
-    )
-  ) {
+    );
+  const downstreamSteps = [];
+
+  if (hasText("Full Health report")) downstreamSteps.push("GMB Health");
+  if (hasText("Magic QR ready hai!")) downstreamSteps.push("Magic QR");
+  if (hasText("Full Report (PDF)")) downstreamSteps.push("GMB Insight");
+  if (hasText("Website URL")) downstreamSteps.push("Build Website");
+
+  if (inboundUserMessageCount >= 2) steps.push("Initial Conversation");
+  if (hasConnectedStage || downstreamSteps.length > 0) {
     steps.push("GMB Connected");
   }
-  if (hasText("Full Health report")) steps.push("GMB Health");
-  if (hasText("Magic QR ready hai!")) steps.push("Magic QR");
-  if (hasText("Full Report (PDF)")) steps.push("GMB Insight");
-  if (hasText("Website URL")) steps.push("Build Website");
+  steps.push(...downstreamSteps);
 
   return { steps };
 }
 
 async function fetchLimbuBotHistory(userId) {
   if (!userId || userId === "wa_") return [];
+  const phone = normalizePhoneE164(userId);
+  if (!phone) return [];
 
   try {
-    const upstream = await fetch(
-      `${LIMBUBOT_HISTORY_BASE}/${encodeURIComponent(userId)}`,
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
+    const url = new URL(LIMBUBOT_HISTORY_BASE);
+    url.searchParams.set("phone", phone);
+
+    const upstream = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-API-Key": WHATSAPP_EXTERNAL_API_KEY,
       },
-    );
+      cache: "no-store",
+    });
 
     if (!upstream.ok) return [];
 
     const data = await upstream.json().catch(() => ({}));
-    return Array.isArray(data?.history) ? data.history : [];
+    if (Array.isArray(data?.history)) return data.history;
+    if (Array.isArray(data?.messages)) {
+      return data.messages.map(mapWhatsAppMessageToHistory);
+    }
+    return [];
   } catch (error) {
     console.error("Conversation stage history fetch failed:", error);
     return [];
@@ -105,7 +189,10 @@ async function fetchLimbuBotHistory(userId) {
 }
 
 async function getConversationStageUserIds(baseQuery, conversationStage) {
-  if (!conversationStage || conversationStage === "All") return null;
+  const normalizedStage = String(conversationStage || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedStage || normalizedStage === "all") return null;
 
   const candidates = await User.find(baseQuery)
     .select(
@@ -120,23 +207,32 @@ async function getConversationStageUserIds(baseQuery, conversationStage) {
     const chunk = candidates.slice(i, i + chunkSize);
     const matches = await Promise.all(
       chunk.map(async (user) => {
-        if (conversationStage === "GMB Connected" && hasGmbConnected(user)) {
-          return true;
-        }
-
         const historyUserId = getLimbuBotHistoryUserId(user);
-        if (!historyUserId || historyUserId === "wa_") {
-          return conversationStage === "No Activity" && !hasGmbConnected(user);
+        const history =
+          historyUserId && historyUserId !== "wa_"
+            ? await fetchLimbuBotHistory(historyUserId)
+            : [];
+        const steps =
+          getConversationStageFromHistory(history, user).steps || [];
+        const hasHistory = Array.isArray(history) && history.length > 0;
+        const connected = hasGmbConnected(user);
+        const hasStage = steps.some(
+          (step) => String(step || "").toLowerCase() === normalizedStage,
+        );
+
+        if (normalizedStage === "gmb connected") {
+          return connected || hasStage;
         }
 
-        const history = await fetchLimbuBotHistory(historyUserId);
-        const steps = getConversationStageFromHistory(history, user).steps || [];
-
-        if (conversationStage === "No Activity") {
-          return steps.length === 0;
+        if (normalizedStage === "initial conversation") {
+          return hasHistory && hasStage;
         }
 
-        return steps.includes(conversationStage);
+        if (normalizedStage === "no activity") {
+          return !hasHistory && !connected;
+        }
+
+        return hasStage;
       }),
     );
 
@@ -149,7 +245,10 @@ async function getConversationStageUserIds(baseQuery, conversationStage) {
 }
 
 async function addConversationStageFilter(query, conversationStage) {
-  const matchedIds = await getConversationStageUserIds(query, conversationStage);
+  const matchedIds = await getConversationStageUserIds(
+    query,
+    conversationStage,
+  );
   if (!matchedIds) return query;
 
   const stageQuery = { userId: { $in: matchedIds } };
@@ -207,7 +306,9 @@ async function dbConnect() {
   if (global.mongoose.conn) return global.mongoose.conn;
 
   if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(mongooseConnectionUri(MONGODB_URI));
+    global.mongoose.promise = mongoose.connect(
+      mongooseConnectionUri(MONGODB_URI),
+    );
   }
 
   global.mongoose.conn = await global.mongoose.promise;
@@ -217,7 +318,7 @@ async function dbConnect() {
 /* ================= SETTING MODEL (ROUND ROBIN) ================= */
 
 const SettingSchema = new mongoose.Schema({
-  key:   { type: String, required: true, unique: true },
+  key: { type: String, required: true, unique: true },
   value: { type: Number, default: -1 },
 });
 
@@ -235,7 +336,7 @@ async function bumpAgentRoundRobin(rrKey) {
         },
       },
     ],
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   );
 }
 
@@ -251,7 +352,7 @@ export async function POST(req) {
     if (!body || Object.keys(body).length === 0) {
       return NextResponse.json(
         { success: false, error: "Missing body" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -264,7 +365,7 @@ export async function POST(req) {
     if (body.planDuration && !body.packageStartDate) {
       const startDate = new Date();
       const endDate = new Date(startDate);
-      
+
       const duration = body.planDuration.toLowerCase();
       if (duration === "monthly") {
         endDate.setMonth(endDate.getMonth() + 1);
@@ -275,7 +376,7 @@ export async function POST(req) {
       } else if (duration === "yearly") {
         endDate.setFullYear(endDate.getFullYear() + 1);
       }
-      
+
       body.packageStartDate = startDate;
       body.packageExpiryDate = endDate;
     }
@@ -303,7 +404,9 @@ export async function POST(req) {
       assignedAgent = agents[index];
       console.log(
         "[RR] activeAgents:",
-        agents.map((a) => `${a._id}:${a.fullName || a.name || a.email}`).join(" | ")
+        agents
+          .map((a) => `${a._id}:${a.fullName || a.name || a.email}`)
+          .join(" | "),
       );
       console.log("[RR] rrValue:", rrValue, "index:", index);
       if (assignedAgent) {
@@ -323,25 +426,27 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      message: assignedAgentId ? "Agent assigned via round robin successfully" : "User created (Unassigned)",
-      assignedAgent: assignedAgent ? {
-        id: assignedAgent._id,
-        name: assignedAgent.fullName || assignedAgent.name,
-      } : null,
+      message: assignedAgentId
+        ? "Agent assigned via round robin successfully"
+        : "User created (Unassigned)",
+      assignedAgent: assignedAgent
+        ? {
+            id: assignedAgent._id,
+            name: assignedAgent.fullName || assignedAgent.name,
+          }
+        : null,
       rrIndex: rrValue,
       totalAgents: agents ? agents.length : 0,
       user,
     });
-
   } catch (error) {
     console.error("ROUND ROBIN FAILED:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
 
 /* ------------------ PATCH: ASSIGN AGENT ------------------ */
 export async function PATCH(req) {
@@ -353,20 +458,20 @@ export async function PATCH(req) {
     if (!userId) {
       return NextResponse.json(
         { success: false, error: "Missing userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const updatedUser = await User.findOneAndUpdate(
       { userId },
       { $set: { assignedAgentId: assignedAgentId || null } },
-      { new: true }
+      { new: true },
     ).populate("assignedAgentId", "fullName email role mobileNumber");
 
     if (!updatedUser) {
       return NextResponse.json(
         { success: false, error: "User not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -379,7 +484,7 @@ export async function PATCH(req) {
     console.error("PATCH error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -396,9 +501,15 @@ export async function GET(req) {
     const userId = searchParams.get("userId");
 
     if (userId) {
-      const user = await User.findOne({ userId }).populate("assignedAgentId", "fullName email role mobileNumber");
+      const user = await User.findOne({ userId }).populate(
+        "assignedAgentId",
+        "fullName email role mobileNumber",
+      );
       if (!user) {
-        return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+        return NextResponse.json(
+          { success: false, error: "User not found" },
+          { status: 404 },
+        );
       }
       return NextResponse.json({ success: true, user });
     }
@@ -408,22 +519,24 @@ export async function GET(req) {
     const assignedAgentId = searchParams.get("assignedAgentId");
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 70;
-    
-    
+
     // Date filter parameters
     const dateFilter = searchParams.get("dateFilter");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
     const leadStatus = searchParams.get("leadStatus");
     const leadStage = searchParams.get("leadStage");
-    const conversationStage = searchParams.get("conversationStage");
+    const source = searchParams.get("source");
+    const conversationStage = (
+      searchParams.get("conversationStage") || ""
+    ).trim();
     const remarkCount = searchParams.get("remarkCount");
     const chatbotChatDay = searchParams.get("chatbotChatDay");
 
     if (!email) {
       return NextResponse.json(
         { success: false, error: "Admin email required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     /* 1️⃣ Find logged-in admin */
@@ -432,7 +545,7 @@ export async function GET(req) {
     if (!admin) {
       return NextResponse.json(
         { success: false, error: "Admin not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -497,11 +610,18 @@ export async function GET(req) {
         if (assignedAgentId === "Unassigned") {
           matchStage.assignedAgentId = null;
         } else {
-          matchStage.assignedAgentId = new mongoose.Types.ObjectId(assignedAgentId);
+          matchStage.assignedAgentId = new mongoose.Types.ObjectId(
+            assignedAgentId,
+          );
         }
       }
 
-      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+      if (
+        dateFilter &&
+        startDateParam &&
+        endDateParam &&
+        dateFilter !== "all"
+      ) {
         const startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(endDateParam);
@@ -525,6 +645,11 @@ export async function GET(req) {
         }
       }
 
+      const sourceMatch = getSourceMatch(source);
+      if (sourceMatch) {
+        Object.assign(matchStage, sourceMatch);
+      }
+
       const remarkCountMatch = getRemarkCountMatch(remarkCount);
       if (remarkCountMatch) {
         Object.assign(matchStage, remarkCountMatch);
@@ -537,38 +662,36 @@ export async function GET(req) {
 
       const stats = await User.aggregate([
         {
-          $match: statsMatchStage
+          $match: statsMatchStage,
         },
         {
           $group: {
             _id: {
               agent: "$assignedAgentId",
               stage: { $ifNull: ["$leadStage", "Active"] },
-              leadStatus: { $ifNull: ["$leadStatus", "Cold"] }
+              leadStatus: { $ifNull: ["$leadStatus", "Cold"] },
             },
             count: { $sum: 1 },
           },
         },
       ]);
 
-      const agentStats = { "Unassigned": 0 };
+      const agentStats = { Unassigned: 0 };
       const stageStats = {
-        "Active": 0,
+        Active: 0,
         "Follow Up": 0,
-        "Inactive": 0,
-        "Onboard": 0
+        Inactive: 0,
+        Onboard: 0,
       };
       const leadStatusStats = {
-        "Hot": 0,
-        "Warm": 0,
-        "Cold": 0
+        Hot: 0,
+        Warm: 0,
+        Cold: 0,
       };
       const detailedStats = [];
       const agentIds = [
         ...new Set(
-          stats
-            .map((item) => item?._id?.agent?.toString())
-            .filter(Boolean),
+          stats.map((item) => item?._id?.agent?.toString()).filter(Boolean),
         ),
       ];
       const agentNameMap = {};
@@ -585,9 +708,13 @@ export async function GET(req) {
       }
 
       stats.forEach((item) => {
-        const agentId = item._id.agent ? item._id.agent.toString() : "Unassigned";
+        const agentId = item._id.agent
+          ? item._id.agent.toString()
+          : "Unassigned";
         const agentName =
-          agentId === "Unassigned" ? "Unassigned" : (agentNameMap[agentId] || "Unknown");
+          agentId === "Unassigned"
+            ? "Unassigned"
+            : agentNameMap[agentId] || "Unknown";
         const stage = item._id.stage;
         const leadStatus = item._id.leadStatus || "Cold";
         const count = item.count;
@@ -599,7 +726,8 @@ export async function GET(req) {
         stageStats[stage] = (stageStats[stage] || 0) + count;
 
         // Lead Status Totals
-        leadStatusStats[leadStatus] = (leadStatusStats[leadStatus] || 0) + count;
+        leadStatusStats[leadStatus] =
+          (leadStatusStats[leadStatus] || 0) + count;
 
         // Detailed Breakdown
         detailedStats.push({ stage, agentId, agentName, leadStatus, count });
@@ -622,7 +750,12 @@ export async function GET(req) {
         ] = await Promise.all([
           User.countDocuments({}),
           User.countDocuments({ source: "signup" }),
-          User.countDocuments({ source: { $in: META_LEAD_SOURCES } }),
+          User.countDocuments({
+            $or: [
+              { source: { $in: META_LEAD_SOURCES } },
+              { leadTags: "metaleads" },
+            ],
+          }),
           User.countDocuments(todayCreated),
           User.aggregate([
             {
@@ -632,9 +765,21 @@ export async function GET(req) {
               },
             },
             { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
-            { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
+            {
+              $lookup: {
+                from: "admins",
+                localField: "_id",
+                foreignField: "_id",
+                as: "agent",
+              },
+            },
             { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
-            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+            {
+              $project: {
+                agentName: { $ifNull: ["$agent.fullName", "Unknown"] },
+                count: 1,
+              },
+            },
           ]),
         ]);
 
@@ -658,7 +803,14 @@ export async function GET(req) {
         extraStats = { todayLeads };
       }
 
-      return NextResponse.json({ success: true, stats: agentStats, stageStats, leadStatusStats, detailedStats, ...extraStats });
+      return NextResponse.json({
+        success: true,
+        stats: agentStats,
+        stageStats,
+        leadStatusStats,
+        detailedStats,
+        ...extraStats,
+      });
     }
 
     /* 🔍 Fetch Today's Users Count (calendar day in APP_TIMEZONE, default Asia/Kolkata) */
@@ -674,7 +826,12 @@ export async function GET(req) {
       let startDate = startOfDay;
       let endDate = endOfDay;
 
-      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+      if (
+        dateFilter &&
+        startDateParam &&
+        endDateParam &&
+        dateFilter !== "all"
+      ) {
         startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(endDateParam);
@@ -697,7 +854,15 @@ export async function GET(req) {
 
       const todayMetaLeads = await User.countDocuments({
         ...todayMatch,
-        source: { $in: META_LEAD_SOURCES },
+        $or: [
+          { source: { $in: META_LEAD_SOURCES } },
+          { leadTags: "metaleads" },
+        ],
+      });
+
+      console.log("Todays Meta Leads Count Debug:", {
+        todayMetaLeads,
+        todayMatch,
       });
 
       const todaySignups = await User.countDocuments({
@@ -741,13 +906,13 @@ export async function GET(req) {
     if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
       const startDate = new Date(startDateParam);
       startDate.setHours(0, 0, 0, 0);
-      
+
       const endDate = new Date(endDateParam);
       endDate.setHours(23, 59, 59, 999);
-      
+
       query.createdAt = {
         $gte: startDate,
-        $lte: endDate
+        $lte: endDate,
       };
     }
 
@@ -767,6 +932,11 @@ export async function GET(req) {
       } else {
         query.leadStage = leadStage;
       }
+    }
+
+    const sourceMatch = getSourceMatch(source);
+    if (sourceMatch) {
+      query = addMatchCondition(query, sourceMatch);
     }
 
     const remarkCountMatch = getRemarkCountMatch(remarkCount);
@@ -821,8 +991,7 @@ export async function GET(req) {
         return NextResponse.json(
           {
             success: false,
-            error:
-              chatbotErr.message || "Failed to load chatbot chat users",
+            error: chatbotErr.message || "Failed to load chatbot chat users",
           },
           { status: 502 },
         );
@@ -856,7 +1025,14 @@ export async function GET(req) {
       ] = await Promise.all([
         User.countDocuments(query), // use the filtered query
         User.countDocuments({ ...query, source: "signup" }),
-        User.countDocuments({ ...query, source: { $in: META_LEAD_SOURCES } }),
+        User.countDocuments(
+          addMatchCondition(query, {
+            $or: [
+              { source: { $in: META_LEAD_SOURCES } },
+              { leadTags: "metaleads" },
+            ],
+          }),
+        ),
         User.countDocuments(todayCreated),
         User.aggregate([
           {
@@ -866,9 +1042,21 @@ export async function GET(req) {
             },
           },
           { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
-          { $lookup: { from: "admins", localField: "_id", foreignField: "_id", as: "agent" } },
+          {
+            $lookup: {
+              from: "admins",
+              localField: "_id",
+              foreignField: "_id",
+              as: "agent",
+            },
+          },
           { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
-          { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+          {
+            $project: {
+              agentName: { $ifNull: ["$agent.fullName", "Unknown"] },
+              count: 1,
+            },
+          },
         ]),
       ]);
 
@@ -894,17 +1082,14 @@ export async function GET(req) {
       users,
       ...superAdminData,
     });
-
   } catch (error) {
     console.error("GET USERS ERROR:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
-
 
 export async function PUT(req) {
   try {
@@ -912,13 +1097,11 @@ export async function PUT(req) {
 
     const body = await req.json();
 
-     
-
     const {
       userId,
       newPlan,
       paidService,
-       amount,
+      amount,
       paidPackage,
       planDuration,
       isServiceBooked,
@@ -926,7 +1109,7 @@ export async function PUT(req) {
       leadStage,
       leadStatus,
       utrNumber,
-       screenshot,   // 🔥
+      screenshot, // 🔥
       notes,
     } = body;
 
@@ -938,21 +1121,25 @@ export async function PUT(req) {
     if (!userId) {
       return NextResponse.json(
         { success: false, error: "Missing userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check for duplicate UTR number if provided
     if (utrNumber) {
-      const existingUser = await User.findOne({ 
+      const existingUser = await User.findOne({
         utrNumber,
-        userId: { $ne: userId } // Exclude current user
+        userId: { $ne: userId }, // Exclude current user
       });
-      
+
       if (existingUser) {
         return NextResponse.json(
-          { success: false, error: "UTR Number already exists. Please enter a unique UTR number." },
-          { status: 400 }
+          {
+            success: false,
+            error:
+              "UTR Number already exists. Please enter a unique UTR number.",
+          },
+          { status: 400 },
         );
       }
     }
@@ -960,56 +1147,63 @@ export async function PUT(req) {
     let updateData = {};
 
     /* -------- REMARK UPDATE -------- */
-  if (remark) {
-  updateData.$set = { Remarks: remark };
+    if (remark) {
+      updateData.$set = { Remarks: remark };
 
-  const agentId   = body.agentId   || null;
-  const agentName = body.agentName || "Admin";
-  const agentObjId = agentId && mongoose.Types.ObjectId.isValid(agentId)
-    ? new mongoose.Types.ObjectId(agentId)
-    : null;
+      const agentId = body.agentId || null;
+      const agentName = body.agentName || "Admin";
+      const agentObjId =
+        agentId && mongoose.Types.ObjectId.isValid(agentId)
+          ? new mongoose.Types.ObjectId(agentId)
+          : null;
 
-  let resolvedFollowUp = followUpDate;
-  const needsFuCarry =
-    remark &&
-    (!resolvedFollowUp || Number.isNaN(resolvedFollowUp.getTime())) &&
-    FOLLOW_UP_REMARK_PREFIXES.some((p) => String(remark).trim().startsWith(p));
-  if (needsFuCarry) {
-    const u = await User.findOne({ userId }).select("remarksHistory").lean();
-    const prev = [...(u?.remarksHistory || [])]
-      .reverse()
-      .find((r) => r.followUpDate);
-    if (prev?.followUpDate) {
-      resolvedFollowUp = new Date(prev.followUpDate);
-    } else {
-      resolvedFollowUp = new Date(Date.now() + 60 * 60 * 1000);
+      let resolvedFollowUp = followUpDate;
+      const needsFuCarry =
+        remark &&
+        (!resolvedFollowUp || Number.isNaN(resolvedFollowUp.getTime())) &&
+        FOLLOW_UP_REMARK_PREFIXES.some((p) =>
+          String(remark).trim().startsWith(p),
+        );
+      if (needsFuCarry) {
+        const u = await User.findOne({ userId })
+          .select("remarksHistory")
+          .lean();
+        const prev = [...(u?.remarksHistory || [])]
+          .reverse()
+          .find((r) => r.followUpDate);
+        if (prev?.followUpDate) {
+          resolvedFollowUp = new Date(prev.followUpDate);
+        } else {
+          resolvedFollowUp = new Date(Date.now() + 60 * 60 * 1000);
+        }
+      }
+
+      const pushOperations = {
+        remarksHistory: {
+          text: remark,
+          createdAt: new Date(),
+          agentId: agentObjId,
+          agentName,
+          ...(resolvedFollowUp &&
+            !Number.isNaN(resolvedFollowUp.getTime()) && {
+              followUpDate: resolvedFollowUp,
+            }),
+        },
+      };
+
+      // Every remark is treated as a call interaction
+      if (agentObjId || agentName) {
+        updateData.$inc = { callCount: 1 };
+        pushOperations.callHistory = {
+          agentId: agentObjId,
+          agentName,
+          calledAt: new Date(),
+          remark,
+        };
+      }
+
+      updateData.$push = pushOperations;
     }
-  }
-
-  const pushOperations = {
-    remarksHistory: {
-      text: remark,
-      createdAt: new Date(),
-      agentId: agentObjId,
-      agentName,
-      ...(resolvedFollowUp &&
-      !Number.isNaN(resolvedFollowUp.getTime()) && { followUpDate: resolvedFollowUp }),
-    }
-  };
-
-  // Every remark is treated as a call interaction
-  if (agentObjId || agentName) {
-    updateData.$inc = { callCount: 1 };
-    pushOperations.callHistory = {
-      agentId: agentObjId,
-      agentName,
-      calledAt: new Date(),
-      remark,
-    };
-  }
-
-  updateData.$push = pushOperations;
-}
 
     /* -------- PLAN UPDATE -------- */
     if (newPlan) {
@@ -1025,8 +1219,12 @@ export async function PUT(req) {
     if (body.packageStartDate || body.packageExpiryDate) {
       updateData.$set = {
         ...updateData.$set,
-        ...(body.packageStartDate && { packageStartDate: new Date(body.packageStartDate) }),
-        ...(body.packageExpiryDate && { packageExpiryDate: new Date(body.packageExpiryDate) }),
+        ...(body.packageStartDate && {
+          packageStartDate: new Date(body.packageStartDate),
+        }),
+        ...(body.packageExpiryDate && {
+          packageExpiryDate: new Date(body.packageExpiryDate),
+        }),
       };
     }
 
@@ -1048,24 +1246,24 @@ export async function PUT(req) {
 
     /* -------- SERVICE UPDATE -------- */
     /* -------- SERVICE UPDATE -------- */
-if (isServiceBooked === true) {
-  updateData.$set = {
-    ...updateData.$set,
+    if (isServiceBooked === true) {
+      updateData.$set = {
+        ...updateData.$set,
 
-    // 🔥 service fields
-    ...(paidService && { paidService }),
-    ...(paidPackage && { paidPackage }),
-    ...(planDuration && { planDuration }),
+        // 🔥 service fields
+        ...(paidService && { paidService }),
+        ...(paidPackage && { paidPackage }),
+        ...(planDuration && { planDuration }),
 
-    // 🔥 ADD THESE (IMPORTANT)
-    ...(amount && { amount }),
-    ...(screenshot && { screenshot }),
-    ...(notes && { notes }),
+        // 🔥 ADD THESE (IMPORTANT)
+        ...(amount && { amount }),
+        ...(screenshot && { screenshot }),
+        ...(notes && { notes }),
 
-    // 🔥 mark service booked
-    isServiceBooked: true,
-  };
-}
+        // 🔥 mark service booked
+        isServiceBooked: true,
+      };
+    }
 
     /* -------- LEAD STAGE UPDATE -------- */
     if (leadStage) {
@@ -1084,7 +1282,11 @@ if (isServiceBooked === true) {
     }
 
     /* -------- ACQUISITION SOURCE (admin) -------- */
-    if (body.source !== undefined && body.source !== null && body.source !== "") {
+    if (
+      body.source !== undefined &&
+      body.source !== null &&
+      body.source !== ""
+    ) {
       const src = String(body.source).trim();
       if (ALLOWED_USER_SOURCE_VALUES.includes(src)) {
         updateData.$set = {
@@ -1097,20 +1299,18 @@ if (isServiceBooked === true) {
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { success: false, error: "Nothing to update" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const updatedUser = await User.findOneAndUpdate(
-      { userId },
-      updateData,
-      { new: true }
-    );
+    const updatedUser = await User.findOneAndUpdate({ userId }, updateData, {
+      new: true,
+    });
 
     if (!updatedUser) {
       return NextResponse.json(
         { success: false, error: "User not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -1121,18 +1321,21 @@ if (isServiceBooked === true) {
     });
   } catch (error) {
     console.error("PUT error:", error);
-    
+
     // Handle duplicate key error for UTR
     if (error.code === 11000 && error.keyPattern?.utrNumber) {
       return NextResponse.json(
-        { success: false, error: "UTR Number already exists. Please enter a unique UTR number." },
-        { status: 400 }
+        {
+          success: false,
+          error: "UTR Number already exists. Please enter a unique UTR number.",
+        },
+        { status: 400 },
       );
     }
-    
+
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -1147,7 +1350,7 @@ export async function DELETE(req) {
     if (!userId) {
       return NextResponse.json(
         { success: false, error: "Missing userId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -1156,7 +1359,7 @@ export async function DELETE(req) {
     if (!deletedUser) {
       return NextResponse.json(
         { success: false, error: "User not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -1168,7 +1371,7 @@ export async function DELETE(req) {
     console.error("DELETE error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

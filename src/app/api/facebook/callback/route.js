@@ -1,14 +1,7 @@
-
-// HTTP request bhejne ki library. || kya kaam Facebook Graph API ko call karne ke liye.|| agr hata de Facebook se token ya pages fetch nahi kar paoge.
+// api/facebook/callback/route.js
 import axios from "axios";
-
-// ye Redirect ya JSON response bhejne ke liye.
 import { NextResponse } from "next/server";
-
-// ye MongoDB connect karta hai.
 import dbConnect from "@/lib/dbConnect";
-
-// Mongoose model — jisme page info save hogi.
 import FacebookPage from "@/models/FacebookPage";
 
 import {
@@ -16,49 +9,87 @@ import {
   facebookSuccessRedirect,
   facebookErrorRedirect,
 } from "@/lib/metaOAuthState";
+
 import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
-// Facebook OAuth ke baad callback GET request aati hai. || Facebook redirect karta hai:
-// `state` is either plain userId (dashboard) or `m.…` (phone/chatbot); DB key is always parsed.userId.
 export async function GET(req) {
+  // ✅ LOG 1: Callback hit hua
+  console.log("🔔 [FB CALLBACK] ==================== CALLBACK HIT ====================");
+  console.log("🔔 [FB CALLBACK] Full URL:", req.url);
+
   const baseUrl = resolveOAuthRedirectOrigin(req);
   const reqUrl = new URL(req.url);
-  const parsed = parseMetaOAuthState(reqUrl.searchParams.get("state"));
+
+  const rawState = reqUrl.searchParams.get("state");
   const code = reqUrl.searchParams.get("code");
+  const errorParam = reqUrl.searchParams.get("error");
+  const errorDesc = reqUrl.searchParams.get("error_description");
+
+  console.log("🔔 [FB CALLBACK] baseUrl:", baseUrl);
+  console.log("🔔 [FB CALLBACK] code exists:", !!code);
+  console.log("🔔 [FB CALLBACK] rawState:", rawState);
+  console.log("🔔 [FB CALLBACK] Facebook error (if any):", errorParam, errorDesc);
+
+  // Facebook ne khud error bheja? (user ne deny kiya etc.)
+  if (errorParam) {
+    console.error("❌ [FB CALLBACK] Facebook returned error:", errorParam, errorDesc);
+  }
+
+  const parsed = parseMetaOAuthState(rawState);
   const userId = parsed.userId;
 
+  // ✅ FIX: string "true" aur boolean true dono handle
+  const isMobile = parsed.mobile === true || parsed.mobile === "true";
+
+  console.log("📦 [FB CALLBACK] Parsed state:", JSON.stringify(parsed));
+  console.log("📱 [FB CALLBACK] isMobile:", isMobile, "| type of parsed.mobile:", typeof parsed.mobile, "| value:", parsed.mobile);
+  console.log("👤 [FB CALLBACK] userId:", userId);
+
+  /* --------------------------------------------------
+     VALIDATION
+  -------------------------------------------------- */
+
   if (!code || !userId) {
-    return NextResponse.redirect(
-      facebookErrorRedirect(parsed, "missing_params", baseUrl)
-    );
+    console.error("❌ [FB CALLBACK] Validation failed — code:", !!code, "| userId:", userId);
+    if (isMobile) {
+      return NextResponse.redirect(`limbuai://facebook-error?error=missing_params`);
+    }
+    return NextResponse.redirect(facebookErrorRedirect(parsed, "missing_params", baseUrl));
   }
 
   try {
-    await dbConnect(); // ye DB connect kar raha hai.
+    await dbConnect();
+    console.log("✅ [FB CALLBACK] DB connected");
 
-    /* ---------------------------------------------
-       1️⃣ SHORT-LIVED USER TOKEN
-    --------------------------------------------- */
-    const shortTokenRes = await axios.get( // Authorization code ko short-lived access token me convert kar raha hai.
+    /* --------------------------------------------------
+       1️⃣ SHORT-LIVED TOKEN
+    -------------------------------------------------- */
+
+    console.log("🔄 [FB CALLBACK] Fetching short-lived token...");
+    const shortTokenRes = await axios.get(
       "https://graph.facebook.com/v24.0/oauth/access_token",
       {
         params: {
-          client_id: process.env.META_APP_ID, // ye client_id Facebook app ID
-          client_secret: process.env.META_APP_SECRET, // ye client_secret Facebook app secret
-          redirect_uri: `${baseUrl}/api/facebook/callback`, // ye redirect_uri Same hona chahiye jo login time pe diya
+          client_id: process.env.META_APP_ID,
+          client_secret: process.env.META_APP_SECRET,
+          redirect_uri: `${baseUrl}/api/facebook/callback`,
           code,
         },
       }
     );
 
     const shortToken = shortTokenRes.data.access_token;
+    console.log("✅ [FB CALLBACK] Short-lived token obtained");
 
-    /* ---------------------------------------------
-       2️⃣ LONG-LIVED USER TOKEN (60 days) — fall back to short if exchange fails
-    --------------------------------------------- */
+    /* --------------------------------------------------
+       2️⃣ LONG-LIVED TOKEN
+    -------------------------------------------------- */
+
     let userAccessToken = shortToken;
     let tokenExpiryDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
     try {
+      console.log("🔄 [FB CALLBACK] Exchanging for long-lived token...");
       const longTokenRes = await axios.get(
         "https://graph.facebook.com/v24.0/oauth/access_token",
         {
@@ -70,84 +101,127 @@ export async function GET(req) {
           },
         }
       );
+
       userAccessToken = longTokenRes.data.access_token;
       const expiresIn = longTokenRes.data.expires_in;
       if (expiresIn) {
         tokenExpiryDate = new Date(Date.now() + expiresIn * 1000);
       }
+      console.log("✅ [FB CALLBACK] Long-lived token obtained, expires:", tokenExpiryDate);
     } catch (longErr) {
       console.warn(
-        "FB long-lived token exchange failed, using short-lived token:",
+        "⚠️ [FB CALLBACK] Long-lived token exchange failed, using short-lived:",
         longErr.response?.data || longErr.message
       );
     }
 
-    /* ---------------------------------------------
-       3️⃣ FETCH FACEBOOK PAGES
-    --------------------------------------------- */
-    const pagesRes = await axios.get( // ye User ke saare Facebook Pages fetch kar raha hai.
+    /* --------------------------------------------------
+       3️⃣ FETCH PAGES
+    -------------------------------------------------- */
+
+    console.log("🔄 [FB CALLBACK] Fetching pages from /me/accounts...");
+    const pagesRes = await axios.get(
       "https://graph.facebook.com/v24.0/me/accounts",
-      {
-        params: { access_token: userAccessToken }, // ye Token ke bina page data nahi milega.
-      }
+      { params: { access_token: userAccessToken } }
     );
 
-    const pages = pagesRes.data.data; // ye Pages list extract kar raha hai.
+    const pages = pagesRes.data.data;
+    console.log(`📄 [FB CALLBACK] Pages fetched: ${pages?.length ?? 0}`, pages?.map((p) => ({ id: p.id, name: p.name })));
 
-    if (!pages || pages.length === 0) { // ye Agar user ke paas koi page nahi hai → error redirect.
-      return NextResponse.redirect(
-        facebookErrorRedirect(parsed, "no_pages", baseUrl)
-      );
+    /* --------------------------------------------------
+       NO PAGES
+    -------------------------------------------------- */
+
+    if (!pages || pages.length === 0) {
+      console.warn("⚠️ [FB CALLBACK] No Facebook Pages found for this account. userId:", userId);
+      if (isMobile) {
+        return NextResponse.redirect(`limbuai://facebook-error?error=no_pages`);
+      }
+      return NextResponse.redirect(facebookErrorRedirect(parsed, "no_pages", baseUrl));
     }
 
-    /* ---------------------------------------------
-       4️⃣ SAVE LONG TOKEN + PAGE TOKENS
-    --------------------------------------------- */
-    for (const page of pages) { // ye Har page ke liye loop.
-      await FacebookPage.findOneAndUpdate(
-        { userId, pageId: page.id }, // Agar page already exist karta hai → update karo || Nahi karta → create karo
-        {
-          userId,
-          pageId: page.id,
-          pageName: page.name,
-          pageAccessToken: page.access_token, // ye Page manage karne ke liye
-          pageTokenExpiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // ~60 days
-          userAccessToken,                   // ye User long-lived token
-          userTokenExpiresAt: tokenExpiryDate, // ye Expiry date
-          platform: "facebook", // ye Identify karne ke liye
-        },
-        { upsert: true, new: true } // ye upsert: true Agar record nahi mila → create karo || new: true Updated document return karo
+    /* --------------------------------------------------
+       4️⃣ SAVE PAGES
+    -------------------------------------------------- */
+
+    const chatbotFields =
+      parsed.phone && parsed.source === "chatbot"
+        ? { phone: parsed.phone, type: "facebook", connectionSource: "chatbot" }
+        : {};
+
+    console.log(`💾 [FB CALLBACK] About to save ${pages.length} page(s) — userId: ${userId} | isMobile: ${isMobile}`);
+
+    for (const page of pages) {
+      // ✅ Pehle check — exist karta hai?
+      const existingPage = await FacebookPage.findOne({ userId, pageId: page.id });
+      console.log(`🔍 [FB CALLBACK] Check existing — pageId: ${page.id} | name: "${page.name}" | exists: ${!!existingPage} | existingId: ${existingPage?._id}`);
+
+      const docToSave = {
+        userId,
+        pageId: page.id,
+        pageName: page.name,
+        pageAccessToken: page.access_token,
+        pageTokenExpiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        userAccessToken,
+        userTokenExpiresAt: tokenExpiryDate,
+        platform: "facebook",
+        ...chatbotFields,
+      };
+
+      console.log(`📝 [FB CALLBACK] Saving doc for pageId: ${page.id}`, {
+        userId: docToSave.userId,
+        pageId: docToSave.pageId,
+        pageName: docToSave.pageName,
+        platform: docToSave.platform,
+      });
+
+      const savedPage = await FacebookPage.findOneAndUpdate(
+        { userId, pageId: page.id },
+        { $set: docToSave },
+        { upsert: true, new: true }
       );
+
+      console.log(`✅ [FB CALLBACK] Page saved to DB — _id: ${savedPage._id} | pageId: ${savedPage.pageId} | pageName: ${savedPage.pageName} | userId: ${savedPage.userId}`);
     }
 
-    // Keep chatbot tagging as best-effort so manual-equivalent OAuth never fails.
+    /* --------------------------------------------------
+       CHATBOT TAGGING
+    -------------------------------------------------- */
+
     if (parsed.phone && parsed.source === "chatbot") {
       try {
         await FacebookPage.updateMany(
           { userId, pageId: { $in: pages.map((p) => p.id) } },
-          {
-            $set: {
-              phone: parsed.phone,
-              type: "facebook",
-              connectionSource: "chatbot",
-            },
-          }
+          { $set: { phone: parsed.phone, type: "facebook", connectionSource: "chatbot" } }
         );
+        console.log("✅ [FB CALLBACK] Chatbot tagging done");
       } catch (tagErr) {
-        console.error("FB chatbot tagging warning:", tagErr?.message || tagErr);
+        console.error("⚠️ [FB CALLBACK] Chatbot tagging error:", tagErr?.message || tagErr);
       }
+    }
+
+    /* --------------------------------------------------
+       SUCCESS REDIRECT
+    -------------------------------------------------- */
+
+    console.log(`🎉 [FB CALLBACK] All done! isMobile: ${isMobile} | userId: ${userId} | pages saved: ${pages.length}`);
+
+    if (isMobile) {
+      const mobileUrl = `limbuai://facebook-success?status=connected&userId=${encodeURIComponent(userId)}`;
+      console.log("📱 [FB CALLBACK] Mobile redirect to:", mobileUrl);
+      return NextResponse.redirect(mobileUrl);
     }
 
     return NextResponse.redirect(facebookSuccessRedirect(parsed, baseUrl));
 
   } catch (err) {
-    console.error(
-      "FB CALLBACK ERROR:",
-      err.response?.data || err.response || err.message
-    );
+    console.error("💥 [FB CALLBACK] UNHANDLED ERROR:", err.response?.data || err.message);
+    console.error("💥 [FB CALLBACK] Stack:", err.stack);
 
-    return NextResponse.redirect(
-      facebookErrorRedirect(parsed, "oauth_failed", baseUrl)
-    );
+    if (isMobile) {
+      return NextResponse.redirect(`limbuai://facebook-error?error=oauth_failed`);
+    }
+
+    return NextResponse.redirect(facebookErrorRedirect(parsed, "oauth_failed", baseUrl));
   }
 }

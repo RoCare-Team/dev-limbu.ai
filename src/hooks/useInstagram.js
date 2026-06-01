@@ -2,9 +2,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { getLocalStorage } from "@/utils/storage";
 
-/**
- * Helper to get the correct User ID for Meta APIs.
- */
 function getActiveUserId() {
   const isImpersonating = getLocalStorage("isImpersonating") === "true";
   return isImpersonating
@@ -25,10 +22,7 @@ export function useInstagram(router, searchParams) {
     try {
       const res = await fetch(`/api/instagram/pages?userId=${activeId}`);
       const data = await res.json();
-
-      if (data.success) {
-        setInstagramPages(data.pages || []);
-      }
+      if (data.success) setInstagramPages(data.pages || []);
     } catch (error) {
       console.error("Error fetching Instagram pages:", error);
     } finally {
@@ -36,7 +30,6 @@ export function useInstagram(router, searchParams) {
     }
   }, []);
 
-  // Sync on mount or when redirecting back from IG login
   useEffect(() => {
     fetchInstagramPages();
     if (searchParams?.get("ig") === "connected" && !toastShownRef.current) {
@@ -46,42 +39,70 @@ export function useInstagram(router, searchParams) {
     }
   }, [fetchInstagramPages, searchParams, router]);
 
+  // ✅ Single page disconnect
   const handleDisconnectInstagram = useCallback(async (igId) => {
     const activeId = getActiveUserId();
-
     if (!activeId || !igId) return;
 
     let previousPages = [];
 
-    // Optimistic UI update
     setInstagramPages((prev) => {
       previousPages = prev;
-
       return prev.filter((p) => p.igId !== igId);
     });
 
     try {
-      const res = await fetch(
-        `/api/instagram/disconnect?userId=${activeId}&igId=${igId}`,
-        {
-          method: "POST",
-        },
-      );
+      const res = await fetch(`/api/instagram/disconnect?userId=${activeId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ igId }),  // ✅ body mein igId
+      });
 
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Instagram account disconnected");
+        toast.success("Instagram profile disconnected");
       } else {
         throw new Error(data.error || "Failed to disconnect");
       }
     } catch (error) {
-      console.error("Error disconnecting Instagram account:", error);
-
+      console.error("Disconnect error:", error);
       toast.error("Failed to disconnect. Reverting...");
+      setInstagramPages(previousPages);  // rollback
+    }
+  }, []);
 
-      // rollback
-      setInstagramPages(previousPages);
+  // ✅ Sab pages ek saath disconnect
+  const handleMetaLogout = useCallback(async () => {
+    const activeId = getActiveUserId();
+    if (!activeId) return;
+
+    let previousPages = [];
+
+    // Optimistic — sab clear karo
+    setInstagramPages((prev) => {
+      previousPages = prev;
+      return [];
+    });
+
+    try {
+      const res = await fetch(`/api/instagram/disconnect?userId=${activeId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),  // ✅ empty body = sab delete
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(`All Instagram profiles disconnected`);
+      } else {
+        throw new Error(data.error || "Failed to disconnect all");
+      }
+    } catch (error) {
+      console.error("Meta logout error:", error);
+      toast.error("Failed to disconnect all. Reverting...");
+      setInstagramPages(previousPages);  // rollback
     }
   }, []);
 
@@ -91,5 +112,6 @@ export function useInstagram(router, searchParams) {
     loading,
     fetchInstagramPages,
     handleDisconnectInstagram,
+    handleMetaLogout,  // ✅ export karna mat bhoolna
   };
 }

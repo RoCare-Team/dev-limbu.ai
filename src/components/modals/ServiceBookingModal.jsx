@@ -155,7 +155,19 @@ export default function ServiceBookingModal({
                       Standard Rate
                     </span>
                     <div className="text-[11px] text-slate-500 font-bold">
-                      <span>{selectedPlan.price}</span>
+                      {selectedPlan.originalPrice ? (
+                        <>
+                          <span className="line-through text-slate-400">
+                            {selectedPlan.originalPrice}
+                          </span>
+                          <span className="mx-1.5 text-slate-300">→</span>
+                          <span className="text-black">
+                            {selectedPlan.price}
+                          </span>
+                        </>
+                      ) : (
+                        <span>{selectedPlan.price}</span>
+                      )}
                       <span className="mx-1.5 text-slate-300">+</span>
                       <span className="text-lemon-hover font-black">
                         {selectedPlan.gstAmount}
@@ -175,6 +187,13 @@ export default function ServiceBookingModal({
                     </span>
                   </div>
                 </div>
+
+                {selectedPlan.discountPercent ? (
+                  <div className="mb-3 relative z-10 rounded-xl border border-green-500/10 bg-green-50 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-green-700">
+                    {selectedPlan.discountPercent}% discount applied. You save{" "}
+                    {selectedPlan.discountAmount}.
+                  </div>
+                ) : null}
 
                 <div className="pt-3 border-t border-black/5 relative z-10">
                   <p className="text-[9px] text-slate-400 font-bold leading-relaxed italic">

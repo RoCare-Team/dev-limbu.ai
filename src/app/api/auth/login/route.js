@@ -70,7 +70,7 @@ export async function POST(req) { // ye API ka post handler he
 
         const msg = `Dear Customer, Your OTP for Limbu AI profile verification is ${generatedOtp}. Regards, Limbu AI`;
         const tmpid = "1007299270481342940";
-        const key = "kD4WSoAW";
+        const key = "iLfGS3wX";
         const from = "TLGCRO";
         const entityid = "1401519300000012435";
         const encodedMsg = encodeURIComponent(msg);

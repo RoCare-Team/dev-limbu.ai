@@ -4,6 +4,13 @@ import { normalizeMetaPhoneDigits } from "@/lib/normalizeMetaPhoneDigits";
 
 export { normalizeMetaPhoneDigits };
 
+function escapedDigitPattern(value) {
+  return String(value || "")
+    .split("")
+    .map((digit) => `${digit}\\D*`)
+    .join("");
+}
+
 /**
  * Resolve dashboard Meta userId (User.userId) from WhatsApp / chatbot phone.
  * Tries full digits and common IN variants (10-digit vs 91 prefix).
@@ -23,8 +30,16 @@ export async function resolveDashboardUserIdByPhone(phone) {
     variants.add(`+91${last10}`);
   }
 
+  const formattedPhonePatterns = [...variants]
+    .map(normalizeMetaPhoneDigits)
+    .filter(Boolean)
+    .map((v) => new RegExp(`^\\D*${escapedDigitPattern(v)}$`));
+
   const user = await User.findOne({
-    phone: { $in: [...variants] },
+    $or: [
+      { phone: { $in: [...variants] } },
+      { phone: { $in: formattedPhonePatterns } },
+    ],
   })
     .select("userId")
     .lean();

@@ -1,47 +1,78 @@
-
-// ye Next.js ka response helper.|| Redirect ya JSON response bhejne ke liye.|| Agar ye hata dein → NextResponse.redirect() error dega.
 import { NextResponse } from "next/server";
 import {
   normalizeMetaPhoneDigits,
   resolveDashboardUserIdByPhone,
 } from "@/lib/metaChatbotResolveUser";
 import { encodeMetaOAuthState } from "@/lib/metaOAuthState";
-import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
-//  Ye GET request handler hai. || Jab user browser me hit kare:
+const BASE_URL = "https://limbu.ai";
+
 export async function GET(req) {
-  const baseUrl = resolveOAuthRedirectOrigin(req);
-  const { searchParams } = new URL(req.url); // ye Request ke URL ko parse kar raha hai.
+  const { searchParams } = new URL(req.url);
+
   const userIdParam = searchParams.get("userId");
-  let userId = searchParams.get("userId"); // ye URL se userId nikaal raha hai.
+  let userId = searchParams.get("userId");
   const phoneRaw = searchParams.get("phone");
   const source = (searchParams.get("source") || "").toLowerCase();
+  const mobile = searchParams.get("mobile") === "true";
 
-  if (!userId && phoneRaw) {
+  console.log("📲 [FB LOGIN] Request received");
+  console.log("📲 [FB LOGIN] Params — userId:", userId, "| mobile:", mobile, "| source:", source, "| phone:", phoneRaw);
+  console.log("📲 [FB LOGIN] baseUrl:", BASE_URL);
+  console.log("📲 [FB LOGIN] redirect_uri will be:", `${BASE_URL}/api/facebook/callback`);
+
+  if (mobile && !userId) {
+    console.error("❌ [FB LOGIN] Mobile request but no userId provided");
+    return NextResponse.json(
+      { error: "userId is required for mobile login" },
+      { status: 400 }
+    );
+  }
+
+  if (!mobile && !userId && phoneRaw) {
+    console.log("🔍 [FB LOGIN] No userId, resolving by phone...");
     const resolved = await resolveDashboardUserIdByPhone(phoneRaw);
+
     if (!resolved) {
+      console.error("❌ [FB LOGIN] No dashboard user found for phone:", phoneRaw);
       return NextResponse.json(
         {
-          error:
-            "No dashboard user for this phone. Use the same number as Limbu OTP login, or open connect-business for steps.",
+          error: "No dashboard user for this phone. Use the same number as Limbu OTP login, or open connect-business for steps.",
         },
         { status: 404 }
       );
     }
+
     userId = resolved;
+    console.log("✅ [FB LOGIN] userId resolved from phone:", userId);
   }
 
-  if (!userId) { // ye Check kar raha hai ki userId mila ya nahi.
+  if (!userId) {
+    console.error("❌ [FB LOGIN] No userId and no phone provided");
     return NextResponse.json(
       { error: "userId or phone required" },
       { status: 400 }
-    ); // Bad request. Agar userId nahi bheja to error return karega.
+    );
   }
 
-  // Manual dashboard: `state === userId`. Chatbot + phone: wrapped `m.…` for return URL.
-  let oauthState = userId;
+  /* --------------------------------------------------
+     DEFAULT STATE
+  -------------------------------------------------- */
+
+  let oauthState = encodeMetaOAuthState({
+    userId,
+    mobile,
+    platform: "fb",
+    source: source || "dashboard",
+  });
+
+  /* --------------------------------------------------
+     CHATBOT FLOW
+  -------------------------------------------------- */
+
   const shouldUseChatbotState =
-    !!phoneRaw && (source === "chatbot" || !userIdParam);
+    !mobile && !!phoneRaw && (source === "chatbot" || !userIdParam);
+
   if (shouldUseChatbotState) {
     const digits = normalizeMetaPhoneDigits(phoneRaw);
     if (digits) {
@@ -50,20 +81,41 @@ export async function GET(req) {
         phone: digits,
         platform: "fb",
         source: "chatbot",
+        mobile,
       });
+      console.log("🤖 [FB LOGIN] Chatbot state encoded with phone:", digits);
     }
   }
 
-  const params = new URLSearchParams({ // ye Query string parameters banane ka object. || Ye automatically encode karta hai URL ko.
-    client_id: process.env.META_APP_ID, // ye Ye batata hai kaunsi app login kar rahi hai. || Agar galat ID ho → Facebook error dega.
-    // Pehle `BASE_URL` (legacy `${BASE_URL}/api/facebook/callback`), warna forwarded host / request — same origin callback route bhi yehi use karti hai.
-    redirect_uri: `${baseUrl}/api/facebook/callback`, // ye Login ke baad Facebook user ko yaha bhejega.|| Agar mismatch ho → “Redirect URI mismatch” error.
+  // ✅ FIX: base64url decode (pehle base64 tha — isliye "could not decode" aata tha)
+  const decodedStateCheck = (() => {
+    try {
+      const b64 = oauthState.startsWith("m.") ? oauthState.slice(2) : oauthState;
+      return JSON.parse(Buffer.from(b64, "base64url").toString("utf-8"));
+    } catch {
+      return "could not decode";
+    }
+  })();
+
+  console.log("🔐 [FB LOGIN] Decoded state verify:", JSON.stringify(decodedStateCheck));
+  console.log("🔐 [FB LOGIN] mob field in state:", decodedStateCheck?.mob, "| type:", typeof decodedStateCheck?.mob);
+  console.log("🔐 [FB LOGIN] mobile will parse as:", decodedStateCheck?.mob === true || decodedStateCheck?.mob === 1);
+
+  /* --------------------------------------------------
+     FACEBOOK OAUTH PARAMS
+  -------------------------------------------------- */
+
+  const params = new URLSearchParams({
+    client_id: process.env.META_APP_ID,
+    redirect_uri: `${BASE_URL}/api/facebook/callback`,
     scope: "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,business_management",
-    response_type: "code", // ye Hum Facebook se authorization code chahte hain.|| OAuth flow me pehle code milta hai, || phir us code se token milta hai.
+    response_type: "code",
     state: oauthState,
   });
 
-  return NextResponse.redirect(
-    `https://www.facebook.com/v24.0/dialog/oauth?${params.toString()}`
-  ); // ye  User ko Facebook login page par bhej raha hai. || Final URL kuch aisa banega:
+  const finalUrl = `https://www.facebook.com/v24.0/dialog/oauth?${params.toString()}`;
+
+  console.log("🚀 [FB LOGIN] Final redirect URL (first 120 chars):", finalUrl.substring(0, 120));
+
+  return NextResponse.redirect(finalUrl);
 }

@@ -19,7 +19,7 @@ export default function AddExpoLeadUserModal({
   phone: "",
   email: "",
   companyName: "",
-  contactPerson: "",
+  
   remarks: "",
 });
 
@@ -38,7 +38,7 @@ export default function AddExpoLeadUserModal({
     phone: "",
     email: "",
     companyName: "",
-    contactPerson: "", // NEW FIELD
+    
     remarks: "",
   });
 };
@@ -64,7 +64,7 @@ export default function AddExpoLeadUserModal({
   companyName: form.companyName.trim(),
   remarks: form.remarks.trim(),
 
-  accountManagerName: form.contactPerson?.trim() || "",
+ 
 
   source: "expolead",
   leadTags: ["expolead"],
@@ -88,7 +88,7 @@ body: JSON.stringify({
   companyName: form.companyName.trim(),
 
   // Contact Person (Aman, Vikas, etc.)
-  accountManagerName: form.contactPerson?.trim() || "",
+  // accountManagerName: form.contactPerson?.trim() || "",
 
   // Remarks
   remarks: form.remarks.trim(),
@@ -213,13 +213,7 @@ onSuccess?.();// yahan fetchUsers() pass karna
         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-700 focus:ring-4 focus:ring-purple-100"
       />
 
-      <input
-        name="contactPerson"
-        value={form.contactPerson || ""}
-        onChange={handleChange}
-        placeholder="Contact Person (e.g. Aman)"
-        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-700 focus:ring-4 focus:ring-purple-100"
-      />
+      
 
       <textarea
         name="remarks"

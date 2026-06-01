@@ -33,22 +33,13 @@ export async function POST(req) {
 });
 
 
-    
-
     // ✅ LOOP USERS
     for (const user of users) {
-
-  
-
 
   let mobile =
     user.mobile ||
     user.phone ||
     user.whatsappNumber;
-
-      
-
-      
 
       // ❌ NO NUMBER
       if (!mobile) {

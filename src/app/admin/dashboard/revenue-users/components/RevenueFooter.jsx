@@ -17,9 +17,7 @@ export default function RevenueFooter({
           </p>
 
           <p className="text-2xl font-bold text-emerald-800">
-            {activeView === "package"
-              ? revenueUsersList.length
-              : users.filter((u) => u.paidService).length}
+            {revenueUsersList.length}
           </p>
         </div>
 
@@ -30,17 +28,14 @@ export default function RevenueFooter({
           </p>
 
           <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-            ₹
-            {(activeView === "package"
-              ? revenueUsersList.reduce(
-                  (sum, r) => sum + (r.amount || 0),
-                  0,
-                )
-              : users
-                  .filter((u) => u.paidService)
-                  .reduce((sum, u) => sum + (u.amount || 0), 0)
-            ).toLocaleString("en-IN")}
-          </p>
+  ₹
+  {revenueUsersList
+    .reduce(
+      (sum, r) => sum + (r.amount || 0),
+      0
+    )
+    .toLocaleString("en-IN")}
+</p>
         </div>
       </div>
     </div>

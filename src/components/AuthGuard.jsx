@@ -61,6 +61,7 @@ export default function AuthGuard({ children }) {
       "/google-business-management-service",
       "/education-marketing-software",
       "/realestate-marketing-software",
+      "/auth/signin",
       "/connect-google-business",
       "/connect-business",
       "/bussiness",

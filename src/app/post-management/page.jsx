@@ -199,7 +199,7 @@ export default function PostManagementPage() {
     fetchYouTubeChannels,
   } = useYouTube(router, searchParams);
 
-  const { pinterestProfiles, publishPin } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
+  const { pinterestProfiles, publishPin, createPinterestBoard } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
 
   const [socialState, setSocialState] = useState({
     facebookPages: [],
@@ -1886,6 +1886,7 @@ export default function PostManagementPage() {
             onClose={() => updateUiState({ showPinterestModal: false })}
             post={socialState.postToPinterest}
             pinterestProfiles={pinterestProfiles}
+            onCreateBoard={createPinterestBoard}
             onPost={async (post, boardId) => {
               const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
               // ✅ FIX: piDescription pehle check karo

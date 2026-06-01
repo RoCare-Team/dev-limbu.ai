@@ -2368,8 +2368,14 @@ export default function UserManagement() {
                   selectedUser.whatsappNumber ||
                   selectedUser.contactNumber ||
                   "",
+
                 firstName:
                   selectedUser.fullName || selectedUser.name || "Customer",
+
+                planName: selectedPlan || "Package",
+                amount: planAmount || "0",
+                startDate: planStartDate || "-",
+                expiryDate: planExpiryDate || "-",
               }),
             },
           );

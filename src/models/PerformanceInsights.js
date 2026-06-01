@@ -56,6 +56,7 @@ const PerformanceInsightsSchema = new mongoose.Schema(
         type: Number,
         default: 0,
       },
+      totalImpressions: { type: Number, default: 0 },
     },
     dateRange: {
       startDate: {
@@ -92,7 +93,7 @@ const PerformanceInsightsSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 PerformanceInsightsSchema.index({

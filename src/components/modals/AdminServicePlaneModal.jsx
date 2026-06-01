@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 
+// Service Plans
 const servicePlans = [
   {
     title: "GMB Assistance & Update Plan",
@@ -30,6 +31,124 @@ const servicePlans = [
   },
 ];
 
+// SEO Plans
+
+const seoPlans = [
+  {
+    title: "Basic SEO",
+    price: 5999,
+    features: [
+      "Keyword Research",
+      "Meta Tags Optimization",
+      "Basic Technical SEO",
+      "Monthly Report",
+    ],
+  },
+  {
+    title: "Standard SEO",
+    price: 9999,
+    features: [
+      "Technical SEO Audit",
+      "Backlink Building",
+      "Competitor Analysis",
+      "Bi-Weekly Reports",
+    ],
+  },
+  {
+    title: "Advanced SEO",
+    price: 15999,
+    features: [
+      "Advanced 45-Page SEO",
+      "Complete SEO Strategy",
+      "High Quality Backlinks",
+      "Technical Optimization",
+      "Local SEO",
+      "Weekly Performance Report",
+    ],
+  },
+];
+
+// Web Development
+const webPlans = [
+  {
+    title: "Starter Website",
+    price: 9999,
+    features: [
+      "Responsive Website Design",
+      "Basic SEO Setup",
+      "Contact Form Integration",
+      "Social Media Integration",
+      "1 Month Free Support",
+    ],
+  },
+  {
+    title: "Business Website",
+    price: 25000,
+    features: [
+      "Custom UI/UX Design",
+      "Advanced SEO Optimization",
+      "Admin Panel Access",
+      "Google Analytics Integration",
+      "3 Months Free Support",
+    ],
+  },
+  {
+    title: "Enterprise Website",
+    price: 48000,
+    features: [
+      "Fully Custom Design",
+      "E-commerce Integration",
+      "Payment Gateway Setup",
+      "Advanced Security",
+      "6 Months Free Support",
+    ],
+  },
+];
+
+// Account Setup
+
+const accountPlans = [
+  {
+    title: "Google Ads Account Setup",
+    price: 2500,
+    features: [
+      "New Google Ads account creation",
+      "Billing & payment configuration",
+      "Search campaign keyword research",
+      "High-intent keyword selection",
+      "Negative keyword setup",
+      "Competitor keyword analysis",
+      "Campaign structure planning",
+      "Google Business Profile linking",
+      "Google Analytics 4 (GA4) setup",
+      "Google Tag Manager setup",
+      "Conversion tracking setup",
+      "Website conversion tracking",
+      "Event tracking configuration",
+      "Call tracking setup",
+    ],
+  },
+  {
+    title: "Meta Ads Account Setup",
+    price: 3500,
+    features: [
+      "Business Manager setup & verification",
+      "Ad account creation & configuration",
+      "Audience research & competitor analysis",
+      "Interest-based targeting research",
+      "Custom audience creation",
+      "Lookalike audience setup",
+      "Pixel setup & tracking configuration",
+      "Conversion API integration",
+      "Ad creative strategy & direction",
+      "High-converting ad copywriting",
+      "Hook-based creatives",
+      "A/B testing variations",
+      "CTA optimization setup",
+    ],
+  },
+];
+
 export default function AdminServicepaneModal({ service, onClose }) {
   const [selectedService, setSelectedService] = useState("");
   const [servicePlan, setServicePlan] = useState(null);
@@ -43,6 +162,9 @@ export default function AdminServicepaneModal({ service, onClose }) {
   const [preview, setPreview] = useState(null);
 
   const [gstNumber, setGstNumber] = useState("");
+
+  const [activeCategory, setActiveCategory] =
+  useState("service");
 
   // ✅ Auto fill amount when plan selected
   useEffect(() => {
@@ -97,12 +219,16 @@ export default function AdminServicepaneModal({ service, onClose }) {
   };
 
   const handleConfirmService = async () => {
-    
-
     if (!selectedPlan) {
       alert("Please select a plan");
       return;
     }
+
+    const planDuration =
+  activeCategory === "service" ||
+  activeCategory === "seo"
+    ? "monthly"
+    : "one-time";
 
     // ✅ screenshotUrl ko sabse pehle declare karo
     let screenshotUrl = "";
@@ -114,8 +240,6 @@ export default function AdminServicepaneModal({ service, onClose }) {
         formData.append("file", paymentScreenshot);
 
         const uploadResult = await uploadToS3Action(formData);
-
-        
 
         if (uploadResult.success) {
           screenshotUrl = uploadResult.url;
@@ -132,7 +256,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
         paidService: selectedPlan.title,
         amount: selectedPlan.price,
         isServiceBooked: true,
-        planDuration: "monthly",
+        planDuration: planDuration,
         packageStartDate: serviceDate,
         packageExpiryDate: expiryDate,
         paymentScreenshot: screenshotUrl,
@@ -142,9 +266,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
         gstNumber: gstNumber,
       };
 
-      
-
       // ✅ Revenue API call
+
       const res = await fetch("/api/franchise-revenue", {
         method: "POST",
         headers: {
@@ -165,7 +288,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
           paidService: selectedPlan.title,
           plan: selectedPlan.title,
           amount: selectedPlan.price,
-          planDuration: "monthly",
+           planDuration: planDuration,
 
           packageStartDate: serviceDate,
           packageExpiryDate: expiryDate,
@@ -192,14 +315,14 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
       // ✅ WhatsApp template
       const whatsappRes = await fetch("/api/admin/service-booking-template", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    userId: data?.revenue?._id || data?._id,
-  }),
-});
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: data?.revenue?._id || data?._id,
+        }),
+      });
 
       const whatsappData = await whatsappRes.json();
       console.log("📲 WhatsApp Response:", whatsappData);
@@ -255,12 +378,81 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
             {/* SERVICE PLANS */}
             <div>
+            <div className="flex flex-wrap gap-2 mb-4">
+  <button
+    type="button"
+    onClick={() => {
+      setActiveCategory("service");
+      setSelectedPlan(null);
+    }}
+    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+      activeCategory === "service"
+        ? "bg-indigo-600 text-white"
+        : "bg-gray-100"
+    }`}
+  >
+    Service Plans
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setActiveCategory("seo");
+      setSelectedPlan(null);
+    }}
+    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+      activeCategory === "seo"
+        ? "bg-indigo-600 text-white"
+        : "bg-gray-100"
+    }`}
+  >
+    SEO Plans
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setActiveCategory("web");
+      setSelectedPlan(null);
+    }}
+    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+      activeCategory === "web"
+        ? "bg-indigo-600 text-white"
+        : "bg-gray-100"
+    }`}
+  >
+    Web Development
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setActiveCategory("account");
+      setSelectedPlan(null);
+    }}
+    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+      activeCategory === "account"
+        ? "bg-indigo-600 text-white"
+        : "bg-gray-100"
+    }`}
+  >
+    Account Setup
+  </button>
+</div>
               <label className="text-sm font-semibold text-blue-500">
                 Select Plan
               </label>
 
               <div className="grid gap-4 mt-3">
-                {servicePlans.map((plan) => (
+                {(
+  activeCategory === "service"
+    ? servicePlans
+    : activeCategory === "seo"
+    ? seoPlans
+    : activeCategory === "web"
+    ? webPlans
+    : accountPlans
+).map((plan) => (
                   <div
                     key={plan.title}
                     onClick={() => setSelectedPlan(plan)}
@@ -291,8 +483,11 @@ export default function AdminServicepaneModal({ service, onClose }) {
                           {plan.title}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          ₹{plan.price} / month
-                        </p>
+  ₹{plan.price}
+  {(activeCategory === "service" ||
+    activeCategory === "seo") &&
+    " / month"}
+</p>
                       </div>
                     </div>
 
@@ -304,7 +499,10 @@ export default function AdminServicepaneModal({ service, onClose }) {
             </div>
 
             {/* DATE ROW */}
-            <div className="grid grid-cols-2 gap-4">
+
+                {(activeCategory === "service" ||
+  activeCategory === "seo") && (
+          <div className="grid grid-cols-2 gap-4">
               {/* Service Date */}
               <div>
                 <label className="text-sm font-semibold text-gray-700">
@@ -331,6 +529,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
                 />
               </div>
             </div>
+    )}
+          
 
             <div>
               <label className="text-sm font-semibold text-gray-700">
@@ -379,19 +579,19 @@ export default function AdminServicepaneModal({ service, onClose }) {
               />
             </div>
 
-                {/* gst number  */}
+            {/* gst number  */}
             <div>
-  <label className="text-sm font-semibold text-gray-700">
-    GST Number
-  </label>
-  <input
-    type="text"
-    value={gstNumber}
-    onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-    placeholder="Enter GST Number"
-    className="w-full mt-2 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
-  />
-</div>
+              <label className="text-sm font-semibold text-gray-700">
+                GST Number
+              </label>
+              <input
+                type="text"
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                placeholder="Enter GST Number"
+                className="w-full mt-2 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
+              />
+            </div>
           </div>
 
           {/* FOOTER */}

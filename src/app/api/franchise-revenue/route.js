@@ -210,6 +210,8 @@ revenueData = revenueData.map((item) => ({
       const body = await req.json();
       console.log("API RECEIVED:", body);
 
+     
+
      const {
   leadId,
   leadName,
@@ -282,6 +284,31 @@ screenshot: paymentScreenshot || "",
 });
 
       await newRevenue.save();
+
+await User.findOneAndUpdate(
+  { userId: leadId },
+  {
+    $set: {
+      packageStartDate: packageStartDate
+        ? new Date(packageStartDate)
+        : null,
+
+      packageExpiryDate: packageExpiryDate
+        ? new Date(packageExpiryDate)
+        : null,
+
+      paidService: plan || "",
+      amount: Number(amount) || 0,
+      isServiceBooked: true,
+    },
+  }
+);
+
+return NextResponse.json({
+  success: true,
+  message: "Revenue added successfully",
+  revenue: newRevenue,
+});
 
       return NextResponse.json({
         success: true,

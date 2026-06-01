@@ -1042,8 +1042,12 @@ const totalPages = Math.ceil(
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-                        serviceRows.map((u, i) => (
-                          <tr
+                         serviceRows.map((u, i) => {
+
+    console.log("FULL SERVICE ROW", u);
+
+                            return(
+                              <tr
                             key={i}
                             className="border-t hover:bg-gray-50 transition"
                           >
@@ -1237,7 +1241,9 @@ const totalPages = Math.ceil(
                               </div>
                             </td>
                           </tr>
-                        ))}
+                            )
+                          
+                         })}
                     </tbody>
                   </table>
 
@@ -1248,10 +1254,14 @@ const totalPages = Math.ceil(
       
               {/* Footer Totals */}
               <RevenueFooter
-                activeView={activeView}
-                revenueUsersList={revenueUsersList}
-                users={users}
-              />
+  activeView={activeView}
+  revenueUsersList={
+    activeView === "service"
+      ? serviceRows
+      : packageRows
+  }
+  users={users}
+/>
             </>
           </RevenueTableWrapper>
         </div>

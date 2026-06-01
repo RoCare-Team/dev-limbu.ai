@@ -1,6 +1,6 @@
 "use client";
 
-import { SessionProvider, useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -20,10 +20,8 @@ function AuthErrorChecker({ children }) {
 
 export default function ClientLayout({ children }) {
   return (
-    <SessionProvider>
-      <AuthErrorChecker>
-        {children}
-      </AuthErrorChecker>
-    </SessionProvider>
+    <AuthErrorChecker>
+      {children}
+    </AuthErrorChecker>
   );
 }

@@ -849,11 +849,14 @@ const totalPages = Math.ceil(
                               >
                                 <td className="px-4 py-4">
                                   <input
-                                    type="checkbox"
-                                    checked={selectedRows.includes(r._id)}
-                                    onChange={() => handleSelectRow(r.leadId)}
-                                    className="w-4 h-4 accent-indigo-600"
-                                  />
+  type="checkbox"
+
+  checked={selectedRows.includes(r.leadId)}
+
+  onChange={() => handleSelectRow(r.leadId)}
+
+  className="w-4 h-4 accent-indigo-600"
+/>
                                 </td>
 
                                 <td className="px-6 py-4">

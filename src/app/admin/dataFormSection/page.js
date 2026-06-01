@@ -124,6 +124,12 @@ setData(uniqueData);
     selectedRows.includes(index),
   );
 
+  const headers = data[0] || [];
+
+const phoneIndex = headers.findIndex((h) =>
+  String(h).toLowerCase().includes("phone")
+);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -351,6 +357,21 @@ setData(uniqueData);
           );
 
           try {
+
+            console.log(
+  selectedUsers.map((row) => ({
+    name: row[0],
+
+    phone: String(
+  row[phoneIndex] || ""
+)
+  .replace(/\D/g, "")
+  .replace(/^91/, "")
+  .replace(/^0+/, "")
+  .slice(-10),
+  }))
+);
+
             const response = await fetch(
               "/api/admin/user-management-template-whatsapp",
               {
@@ -363,24 +384,50 @@ setData(uniqueData);
 
                   templateId: template.id,
 
-                  users: selectedUsers.map((row) => ({
-                    name: row[0],
-                    phone: row[2],
-                  })),
+                  
+
+                 users: selectedUsers.map((row) => ({
+
+
+  name: row[0],
+
+  phone: String(
+  row[phoneIndex] || ""
+)
+  .replace(/\D/g, "")
+  .replace(/^91/, "")
+  .replace(/^0+/, "")
+  .slice(-10),
+})),
                 }),
               },
             );
 
-            const result = await response.json();
+            
 
-            console.log(result);
 
-            alert("WhatsApp Template Sent");
-          } catch (error) {
-            console.log(error);
 
-            alert("Failed To Send Template");
-          }
+  const result = await response.json();
+
+  console.log(result);
+
+  if (result.success) {
+
+    alert("WhatsApp Template Sent");
+
+  } else {
+
+    alert(result.message || "Failed To Send");
+
+  }
+
+} catch (error) {
+
+  console.log(error);
+
+  alert("Failed To Send Template");
+
+}
         }}
       />
     </>

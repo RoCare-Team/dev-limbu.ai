@@ -1342,6 +1342,7 @@ export default function UserManagement() {
       : users.filter(
           (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
+        
 
     setStats({
       total,

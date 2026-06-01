@@ -72,7 +72,7 @@ function CheckoutContent() {
         const cycle = normalizeBillingCycle(cycleParam)
         const modalPlan = applyDiscountToModalPlan(
           buildModalPlanForCheckout(found, cycle),
-          discountParam,
+          parseCheckoutDiscountPercent(searchParams),
         )
         setSelectedPlan(modalPlan)
         setBookingSuccess(false)
@@ -252,44 +252,6 @@ function CheckoutContent() {
       />
     </>
   )
-}
-
-function parseRupeeValue(value) {
-  if (typeof value === "number") return value
-  const parsed = parseInt(String(value ?? "").replace(/[^\d]/g, ""), 10)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function formatRupee(value) {
-  return `₹${Math.round(value).toLocaleString("en-IN")}`
-}
-
-function normalizeDiscountPercent(value) {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed <= 0) return 0
-  return Math.min(parsed, 100)
-}
-
-function applyDiscountToModalPlan(plan, discountParam) {
-  const discountPercent = normalizeDiscountPercent(discountParam)
-  if (!plan || !discountPercent) return plan
-
-  const originalPrice = parseRupeeValue(plan.price)
-  if (!originalPrice) return plan
-
-  const discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100))
-  const gst = Math.round(discountedPrice * 0.18)
-  const total = discountedPrice + gst
-
-  return {
-    ...plan,
-    originalPrice: plan.price,
-    discountPercent,
-    discountAmount: formatRupee(originalPrice - discountedPrice),
-    price: formatRupee(discountedPrice),
-    gstAmount: formatRupee(gst),
-    totalPrice: formatRupee(total),
-  }
 }
 
 export default function CheckoutPage() {

@@ -8,6 +8,8 @@ import {
   MapPin, Clock, DollarSign, Search, X, Upload
 } from "lucide-react";
 
+import { uploadToS3Action } from "../../app/actions/uploadS3Actions";
+
 import Navbar from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 import Image from "next/image";
@@ -16,6 +18,15 @@ export default function WorkWithUsPage() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [activeDepartment, setActiveDepartment] = useState("All");
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const [fullName, setFullName] = useState("");
+const [email, setEmail] = useState("");
+const [phone, setPhone] = useState("");
+const [linkedin, setLinkedin] = useState("");
+  const [resumeFile, setResumeFile] = useState(null);
+
 
   const departments = ["All", "Engineering", "Sales & Marketing", "Customer Success", "Product"];
 
@@ -454,44 +465,132 @@ export default function WorkWithUsPage() {
                 </h3>
               </div>
 
-              <form className="space-y-5" onSubmit={(e) => {
-                e.preventDefault();
-                alert("Application submitted successfully!");
-                setShowApplyModal(false);
-              }}>
+              <form className="space-y-5" 
+              onSubmit={async (e) => {
+  e.preventDefault();
+
+  let resumeUrl = "";
+
+  if (resumeFile) {
+    const formData = new FormData();
+    formData.append("file", resumeFile);
+
+    const uploadResult = await uploadToS3Action(formData);
+
+    if (!uploadResult.success) {
+      alert("Resume upload failed");
+      return;
+    }
+
+    resumeUrl = uploadResult.url;
+  }
+
+  console.log("Resume URL:", resumeUrl);
+
+  // yaha apni DB API call karo
+  const res = await fetch("/api/career/apply", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+  jobId: selectedJob.id,
+  jobTitle: selectedJob.title,
+  fullName,
+  email,
+  phone,
+  linkedin,
+  resumeUrl,
+}),
+  });
+
+  if (res.ok) {
+    alert("Application submitted successfully!");
+    setShowApplyModal(false);
+  }
+}}
+              >
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Full Name</label>
-                  <input type="text" required className="input" placeholder="Enter your full name" />
+                  <input
+  type="text"
+  required
+  className="input"
+  placeholder="Enter your full name"
+  value={fullName}
+  onChange={(e) => setFullName(e.target.value)}
+/>
                 </div>
                 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
-                  <input type="email" required className="input" placeholder="name@domain.com" />
+                  <input
+  type="email"
+  required
+  className="input"
+  placeholder="name@domain.com"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+/>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number</label>
-                  <input type="tel" required className="input" placeholder="10 digit mobile number" />
+                  <input
+  type="tel"
+  required
+  className="input"
+  placeholder="10 digit mobile number"
+  value={phone}
+  onChange={(e) => setPhone(e.target.value)}
+/>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Resume / CV</label>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 hover:border-[var(--lemon-hover)]/50 transition-colors cursor-pointer group">
-                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 group-hover:bg-white group-hover:shadow-sm transition-all">
-                      <Upload className="w-5 h-5 text-slate-400 group-hover:text-[var(--lemon-hover)]" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-600 mb-1">Click to upload or drag & drop</p>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">PDF, DOCX up to 5MB</p>
-                  </div>
-                </div>
+  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+    Resume / CV
+  </label>
+
+  <input
+    id="resume-upload"
+    type="file"
+    accept=".pdf,.doc,.docx"
+    className="hidden"
+    onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+  />
+
+  <label
+    htmlFor="resume-upload"
+    className="block border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 hover:border-[var(--lemon-hover)]/50 transition-colors cursor-pointer group"
+  >
+    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3">
+      <Upload className="w-5 h-5 text-slate-400" />
+    </div>
+
+    <p className="text-xs font-bold text-slate-600 mb-1">
+      {resumeFile ? resumeFile.name : "Click to upload or drag & drop"}
+    </p>
+
+    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+      PDF, DOCX up to 5MB
+    </p>
+  </label>
+</div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">LinkedIn Profile (Optional)</label>
-                  <input type="url" className="input" placeholder="https://linkedin.com/in/username" />
+                  <input
+  type="url"
+  className="input"
+  placeholder="https://linkedin.com/in/username"
+  value={linkedin}
+  onChange={(e) => setLinkedin(e.target.value)}
+/>
                 </div>
 
                 <button 
                   type="submit" 
+                    disabled={submitting}
                   className="w-full mt-6 py-4 rounded-2xl text-xs font-bold tracking-[0.15em] uppercase transition-all duration-300 hover:scale-[1.02] cursor-pointer"
                   style={{
                     background: "var(--lemon-hover)",

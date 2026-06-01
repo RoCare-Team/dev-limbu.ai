@@ -3,6 +3,25 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import PinterestProfile from "@/models/PinterestProfile";
 
+function getPinterestPublishErrorMessage(error) {
+  const status = error.response?.status;
+  const message =
+    error.response?.data?.message ||
+    error.response?.data?.error?.message ||
+    error.response?.data?.error ||
+    "";
+
+  if (status === 401) {
+    return "Pinterest session expired. Please reconnect your account.";
+  }
+
+  if (status === 403 || /scope|permission|unauthorized/i.test(message)) {
+    return "Pinterest pin create permission is missing. Please reconnect Pinterest and allow pin create access.";
+  }
+
+  return message || "Failed to publish pin.";
+}
+
 export async function POST(req) {
   try {
     await dbConnect();
@@ -67,18 +86,17 @@ export async function POST(req) {
 
   } catch (error) {
     console.error("Pinterest Publish Error:", error.response?.data || error.message);
-    
-    // Check if it's an auth error (token expired)
-    if (error.response?.status === 401) {
-       return NextResponse.json(
-         { success: false, error: "Pinterest session expired. Please reconnect your account." },
-         { status: 401 }
-       );
-    }
+    const message = getPinterestPublishErrorMessage(error);
+    const status =
+      error.response?.status === 401
+        ? 401
+        : error.response?.status === 403
+          ? 403
+          : 500;
 
     return NextResponse.json(
-      { success: false, error: error.response?.data?.message || "Failed to publish pin." },
-      { status: 500 }
+      { success: false, error: message },
+      { status }
     );
   }
 }

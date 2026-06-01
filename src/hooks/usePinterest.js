@@ -105,6 +105,50 @@ export function usePinterest(router, searchParams) {
     }
   }, []);
 
+  const createPinterestBoard = useCallback(async ({ profileId, name, description }) => {
+    const activeId = getActiveUserId();
+    if (!activeId) {
+      toast.error("User not found");
+      return { success: false, error: "User not found" };
+    }
+
+    try {
+      const res = await fetch("/api/pinterest/boards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: activeId,
+          profileId,
+          name,
+          description,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        const error = data.error || "Failed to create Pinterest board";
+        toast.error(error);
+        return { success: false, error };
+      }
+
+      setPinterestProfiles((prev) =>
+        prev.map((profile) =>
+          profile.pinterestUserId === profileId
+            ? { ...profile, boards: [...(profile.boards || []), data.board] }
+            : profile,
+        ),
+      );
+      toast.success("Pinterest board created");
+      return { success: true, board: data.board };
+    } catch (error) {
+      console.error("Error creating Pinterest board:", error);
+      const message = "Network error while creating Pinterest board";
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  }, []);
+
   return {
     pinterestProfiles,
     setPinterestProfiles,
@@ -112,5 +156,6 @@ export function usePinterest(router, searchParams) {
     fetchPinterestProfiles,
     handleDisconnectPinterest,
     publishPin,
+    createPinterestBoard,
   };
 }

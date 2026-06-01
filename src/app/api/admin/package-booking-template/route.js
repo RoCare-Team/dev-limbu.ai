@@ -1,16 +1,12 @@
-
-
 // Create new file:
 // src/app/api/admin/package-booking-template/route.js
 
 import { NextResponse } from "next/server";
 
-const AISENSY_URL =
-  "https://whatsapp.limbu.ai/api/campaigns/send";
+const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
 // Working API Key
 const API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
-  
 
 // Normalize Indian mobile number
 function normalizeNumber(num) {
@@ -38,10 +34,9 @@ function normalizeNumber(num) {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { phone, firstName } = body;
+    const { phone, firstName, planName, amount, startDate, expiryDate } =
+      await req.json();
 
-    // Validate phone number
     const destination = normalizeNumber(phone);
 
     if (!destination) {
@@ -50,27 +45,42 @@ export async function POST(req) {
           success: false,
           message: "Invalid phone number",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Exact WhatsApp payload
     const payload = {
       apiKey: API_KEY,
-      campaignName: "package_booking_request",
-      destination: destination,
+      campaignName: "plan_template",
+      destination,
       userName: "YOUR_BRAND_NAME",
-      templateParams: ["$FirstName"],
+
+      templateParams: [
+        "$FirstName",
+        "$PlanName",
+        "$Amount",
+        "$StartDate",
+        "$ExpiryDate",
+      ],
+
       source: "api",
       media: {},
       buttons: [],
       carouselCards: [],
       location: {},
       attributes: {},
+
       paramsFallbackValue: {
         FirstName: firstName || "Customer",
+        PlanName: planName || "Package",
+        Amount: String(amount || "0"),
+        StartDate: startDate || "-",
+        ExpiryDate: expiryDate || "-",
       },
     };
+
+    console.log("WhatsApp Payload plan template:", payload);
 
     // Send to WhatsApp API
     const response = await fetch(AISENSY_URL, {
@@ -86,18 +96,15 @@ export async function POST(req) {
     // Success check
     const isSuccess =
       response.ok &&
-      (
-        data?.success === true ||
+      (data?.success === true ||
         data?.success === "true" ||
-        !!data?.submitted_message_id
-      );
+        !!data?.submitted_message_id);
 
     if (isSuccess) {
       return NextResponse.json({
         success: true,
         message: "Template sent successfully",
-        submitted_message_id:
-          data.submitted_message_id || null,
+        submitted_message_id: data.submitted_message_id || null,
         response: data,
       });
     }
@@ -106,13 +113,10 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          data?.message ||
-          data?.error ||
-          "No messages were sent",
+        message: data?.message || data?.error || "No messages were sent",
         response: data,
       },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     console.error("Package Booking WhatsApp Error:", error);
@@ -120,10 +124,9 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error.message || "Failed to send template",
+        message: error.message || "Failed to send template",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

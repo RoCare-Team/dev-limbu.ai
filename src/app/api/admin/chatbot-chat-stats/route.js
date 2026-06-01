@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
-import User from "@/models/User";
-import {
-  ensureChatbotRowsSaved,
-  getChatbotChatsByDay,
-} from "@/lib/limbuBotUserSync";
+import { getChatbotChatsByDay } from "@/lib/limbuBotUserSync";
 
 export const dynamic = "force-dynamic";
 
@@ -36,49 +32,19 @@ export async function GET(req) {
     }
 
     const dayStats = await getChatbotChatsByDay();
-    await ensureChatbotRowsSaved([
-      ...dayStats.today.users,
-      ...dayStats.yesterday.users,
-    ]);
-
-    const phones = [
-      ...new Set(
-        [...dayStats.today.users, ...dayStats.yesterday.users]
-          .map((u) => u.phone)
-          .filter(Boolean),
-      ),
-    ];
-
-    const appUsers = phones.length
-      ? await User.find({ phone: { $in: phones } })
-          .select(
-            "userId fullName email phone chatbotUserId source assignedAgentId",
-          )
-          .lean()
-      : [];
-
-    const byPhone = new Map(appUsers.map((u) => [u.phone, u]));
-
-    const enrich = (rows) =>
-      rows.map((row) => {
-        const app = byPhone.get(row.phone) || null;
-        return {
-          ...row,
-          registered: !!app,
-          appUserId: app?.userId || null,
-          fullName: app?.fullName || null,
-          email: app?.email || null,
-          source: app?.source || null,
-        };
-      });
 
     return NextResponse.json({
       success: true,
       timeZone: dayStats.timeZone,
-      today: { ...dayStats.today, users: enrich(dayStats.today.users) },
+      today: {
+        count: dayStats.today.count,
+        calendarDate: dayStats.today.calendarDate,
+        label: dayStats.today.label,
+      },
       yesterday: {
-        ...dayStats.yesterday,
-        users: enrich(dayStats.yesterday.users),
+        count: dayStats.yesterday.count,
+        calendarDate: dayStats.yesterday.calendarDate,
+        label: dayStats.yesterday.label,
       },
     });
   } catch (err) {

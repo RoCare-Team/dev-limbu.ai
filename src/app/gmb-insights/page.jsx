@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -17,13 +16,80 @@ import {
 import { toast, Toaster } from "react-hot-toast";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
-import { getLocalStorage } from "@/utils/storage";
-import { fetchLocationInsights } from "@/utils/fetchLocationInsights";
-import { fetchSearchKeywords } from "@/utils/fetchSearchKeywords";
+import { getLocalStorage, setLocalStorage } from "@/utils/storage";
 
+function getActiveUserId() {
+  const isImpersonating = getLocalStorage("isImpersonating") === "true";
+  return isImpersonating
+    ? getLocalStorage("impersonatedUser")
+    : getLocalStorage("userId");
+}
+
+function mapListingToLocation(item) {
+  const locationId = item?.name?.split("/").pop();
+  return {
+    locationId,
+    accountId: item.accountId || "",
+    locality: item.storefrontAddress?.locality || "",
+    address: item.storefrontAddress?.addressLines?.[0] || "",
+    title: item.title || "",
+    websiteUrl: item.websiteUri || "",
+    reviewUri: item.metadata?.newReviewUri || "",
+    isVerified: item.hasVoiceOfMerchant === true || item.verified === true,
+    businessProfileId: item.name || "",
+    name: item.name,
+    websiteUri: item.websiteUri,
+    storefrontAddress: item.storefrontAddress,
+    phoneNumbers: item.phoneNumbers,
+    categories: item.categories,
+    openInfo: item.openInfo,
+    metadata: item.metadata,
+  };
+}
+
+async function fetchLocationInsights(userId, locationId, startDate, endDate) {
+  const params = new URLSearchParams({
+    userId,
+    locationId,
+    "startDate.year": String(startDate.getFullYear()),
+    "startDate.month": String(startDate.getMonth() + 1),
+    "startDate.day": String(startDate.getDate()),
+    "endDate.year": String(endDate.getFullYear()),
+    "endDate.month": String(endDate.getMonth() + 1),
+    "endDate.day": String(endDate.getDate()),
+  });
+
+  const res = await fetch(`/api/gmb/performance-insights?${params.toString()}`, {
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || "Failed to fetch insights");
+  }
+  return data;
+}
+
+async function fetchSearchKeywords(userId, locationId, startMonth, endMonth) {
+  const params = new URLSearchParams({
+    userId,
+    locationId,
+    startYear: String(startMonth.year),
+    startMonth: String(startMonth.month),
+    endYear: String(endMonth.year),
+    endMonth: String(endMonth.month),
+  });
+
+  const res = await fetch(`/api/gmb/search-keywords?${params.toString()}`, {
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || "Failed to fetch search keywords");
+  }
+  return data;
+}
 
 export default function GmbInsightsPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
 
   const [locations, setLocations] = useState([]);
@@ -42,29 +108,55 @@ export default function GmbInsightsPage() {
   });
   const [endDate, setEndDate] = useState(new Date());
 
-  // Redirect if not authenticated
   useEffect(() => {
-    if (status === "unauthenticated") {
-      signIn("google", { callbackUrl: "/gmb-insights" });
-    }
-  }, [status]);
+    const loadLocations = async () => {
+      const activeId = getActiveUserId();
+      if (!activeId) {
+        setLoading(false);
+        return;
+      }
 
-  // Load locations from localStorage
-  useEffect(() => {
-    if (status === "authenticated") {
       const locationDetails = getLocalStorage("locationDetails");
       if (locationDetails) {
         try {
           const parsedLocations = JSON.parse(locationDetails);
-          setLocations(parsedLocations);
+          if (Array.isArray(parsedLocations) && parsedLocations.length > 0) {
+            setLocations(parsedLocations);
+            setLoading(false);
+            return;
+          }
         } catch (err) {
           console.error("Error parsing location details:", err);
-          toast.error("Failed to load locations");
         }
       }
+
+      try {
+        const res = await fetch(
+          `/api/gmb/pages?userId=${encodeURIComponent(activeId)}&refresh=false`,
+          { cache: "no-store" },
+        );
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+          throw new Error(data.error || "Failed to load locations");
+        }
+
+        const nextLocations = (data.accounts || [])
+          .flatMap((account) => account.listings || [])
+          .map(mapListingToLocation)
+          .filter((location) => location.locationId);
+
+        setLocations(nextLocations);
+        setLocalStorage("locationDetails", JSON.stringify(nextLocations));
+      } catch (err) {
+        console.error("Error loading GMB locations:", err);
+        toast.error("Failed to load connected GMB locations");
+      }
+
       setLoading(false);
-    }
-  }, [status]);
+    };
+
+    loadLocations();
+  }, []);
 
   // Handle View Insights
   const handleViewInsights = async (location) => {
@@ -84,8 +176,11 @@ export default function GmbInsightsPage() {
     setSearchKeywordsData(null);
 
     try {
+      const activeId = getActiveUserId();
+      if (!activeId) throw new Error("User ID not found");
+
       const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(defaultStartDate, defaultEndDate);
-      const insights = await fetchLocationInsights(session.accessToken, location.locationId, fetchStart, insightSeriesEnd);
+      const insights = await fetchLocationInsights(activeId, location.locationId, fetchStart, insightSeriesEnd);
       setInsightsData(insights);
 
       const currentDate = new Date();
@@ -104,7 +199,7 @@ export default function GmbInsightsPage() {
         month: currentDate.getMonth() + 1
       };
 
-      const keywords = await fetchSearchKeywords(session.accessToken, location.locationId, startMonth, endMonth);
+      const keywords = await fetchSearchKeywords(activeId, location.locationId, startMonth, endMonth);
       setSearchKeywordsData(keywords);
       
       setShowInsightsModal(true);
@@ -140,12 +235,10 @@ export default function GmbInsightsPage() {
     setInsightsLoading(true);
     try {
       const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(parsedStartDate, parsedEndDate);
-      const insights = await fetchLocationInsights(
-        session.accessToken,
-        locationId,
-        fetchStart,
-        insightSeriesEnd
-      );
+      const activeId = getActiveUserId();
+      if (!activeId) throw new Error("User ID not found");
+
+      const insights = await fetchLocationInsights(activeId, locationId, fetchStart, insightSeriesEnd);
       setInsightsData(insights);
     } catch (error) {
       console.error("Error fetching insights:", error);
@@ -156,7 +249,7 @@ export default function GmbInsightsPage() {
   };
 
   // Loading state
-  if (status === "loading" || (status === "authenticated" && loading)) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center flex flex-col items-center justify-center">
@@ -167,10 +260,6 @@ export default function GmbInsightsPage() {
         </div>
       </div>
     );
-  }
-
-  if (status === "unauthenticated") {
-    return null;
   }
 
   const fullLocationName = selectedLocation?.address 

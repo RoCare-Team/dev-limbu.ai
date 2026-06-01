@@ -9,7 +9,9 @@ export async function GET(req) {
     const userIdParam = url.searchParams.get("userId");
     let userId = userIdParam;
     const phoneRaw = url.searchParams.get("phone");
-    const source = (url.searchParams.get("source") || "dashboard").toLowerCase();
+    const source = (
+      url.searchParams.get("source") || "dashboard"
+    ).toLowerCase();
     const mobile = url.searchParams.get("mobile") === "true";
 
     if (!userId && phoneRaw) {
@@ -23,8 +25,11 @@ export async function GET(req) {
       );
     }
 
-    const baseUrl = resolveOAuthRedirectOrigin(req, { preferRequestOrigin: true });
+    const baseUrl = "https://limbu.ai"
     const redirectUri = `${baseUrl}/api/gmb/callback`;
+
+    console.log("redirectUri:", redirectUri);
+    console.log("baseUrl:", baseUrl);
     const state = buildGmbOAuthState({
       userId,
       phone: phoneRaw,
@@ -36,7 +41,8 @@ export async function GET(req) {
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "openid email profile https://www.googleapis.com/auth/business.manage",
+      scope:
+        "openid email profile https://www.googleapis.com/auth/business.manage",
       access_type: "offline",
       prompt: "consent",
       state,

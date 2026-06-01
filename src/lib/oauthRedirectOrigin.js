@@ -45,7 +45,21 @@ function originFromRequestUrl(req) {
   return null;
 }
 
-export function resolveOAuthRedirectOrigin(req) {
+export function resolveOAuthRedirectOrigin(req, options = {}) {
+  const preferRequestOrigin = Boolean(options.preferRequestOrigin);
+
+  if (preferRequestOrigin) {
+    const directOrigin = originFromRequestUrl(req);
+    if (directOrigin) return directOrigin;
+
+    const headers = req?.headers;
+    const forwardedOrigin = originFromHostAndProto(
+      headers?.get("x-forwarded-host"),
+      headers?.get("x-forwarded-proto"),
+    );
+    if (forwardedOrigin) return forwardedOrigin;
+  }
+
   const configuredBase = trimOrigin(process.env.BASE_URL);
   if (configuredBase) {
     try {

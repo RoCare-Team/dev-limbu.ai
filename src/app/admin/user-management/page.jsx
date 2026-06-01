@@ -1789,10 +1789,13 @@ export default function UserManagement() {
     }
   };
 
-  const fetchConversationStageCards = async () => {
+  const fetchConversationStageCards = async ({ refresh = false } = {}) => {
     setConversationStageCardsLoading(true);
     try {
-      const res = await fetch("/api/conversation-stages", {
+      const url = refresh
+        ? "/api/conversation-stages?refresh=1"
+        : "/api/conversation-stages";
+      const res = await fetch(url, {
         cache: "no-store",
       });
       const data = await res.json();
@@ -1909,7 +1912,9 @@ export default function UserManagement() {
       setConversationStageUsers([]);
       return;
     }
-    fetchConversationStageUsers(selectedConversationStage || "All");
+    fetchConversationStageUsers(selectedConversationStage || "All", {
+      silent: true,
+    });
   }, [conversationStageTableActive, selectedConversationStage, currentPage]);
 
   const fetchIssues = async () => {

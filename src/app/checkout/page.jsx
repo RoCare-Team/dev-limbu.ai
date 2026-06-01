@@ -10,9 +10,11 @@ import {
   mergePricingLanding,
 } from "@/lib/pricingLandingDefaults"
 import {
+  applyDiscountToModalPlan,
   buildModalPlanForCheckout,
   findPlanByKey,
   normalizeBillingCycle,
+  parseCheckoutDiscountPercent,
 } from "@/lib/planCheckout"
 
 function CheckoutContent() {
@@ -54,11 +56,13 @@ function CheckoutContent() {
     setLoading(true)
     setError(null)
 
-    fetch("/api/home-data?type=pricingLanding")
+    fetch("/api/home-data?type=pricingLanding&checkout=1")
       .then((r) => (r.ok ? r.json() : null))
       .then((doc) => {
         if (cancelled) return
-        const merged = expandPricingLandingForApi(mergePricingLanding(doc))
+        const merged = expandPricingLandingForApi(mergePricingLanding(doc), {
+          applyChatbotPriceDiscount: false,
+        })
         const found = findPlanByKey(merged, planKey)
         if (!found) {
           setError("Invalid or unknown plan. Check planKey.")
@@ -68,7 +72,7 @@ function CheckoutContent() {
         const cycle = normalizeBillingCycle(cycleParam)
         const modalPlan = applyDiscountToModalPlan(
           buildModalPlanForCheckout(found, cycle),
-          discountParam,
+          parseCheckoutDiscountPercent(searchParams),
         )
         setSelectedPlan(modalPlan)
         setBookingSuccess(false)
@@ -140,7 +144,7 @@ function CheckoutContent() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   ...serviceForm,
-                  bookingSource: "website",
+                  bookingSource: phoneFromUrl ? "chatbot" : "website",
                   planTitle: selectedPlan.title,
                   planType: selectedPlan.planType,
                   planDuration: selectedPlan.planDuration ?? "",
@@ -248,44 +252,6 @@ function CheckoutContent() {
       />
     </>
   )
-}
-
-function parseRupeeValue(value) {
-  if (typeof value === "number") return value
-  const parsed = parseInt(String(value ?? "").replace(/[^\d]/g, ""), 10)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function formatRupee(value) {
-  return `₹${Math.round(value).toLocaleString("en-IN")}`
-}
-
-function normalizeDiscountPercent(value) {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed <= 0) return 0
-  return Math.min(parsed, 100)
-}
-
-function applyDiscountToModalPlan(plan, discountParam) {
-  const discountPercent = normalizeDiscountPercent(discountParam)
-  if (!plan || !discountPercent) return plan
-
-  const originalPrice = parseRupeeValue(plan.price)
-  if (!originalPrice) return plan
-
-  const discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100))
-  const gst = Math.round(discountedPrice * 0.18)
-  const total = discountedPrice + gst
-
-  return {
-    ...plan,
-    originalPrice: plan.price,
-    discountPercent,
-    discountAmount: formatRupee(originalPrice - discountedPrice),
-    price: formatRupee(discountedPrice),
-    gstAmount: formatRupee(gst),
-    totalPrice: formatRupee(total),
-  }
 }
 
 export default function CheckoutPage() {

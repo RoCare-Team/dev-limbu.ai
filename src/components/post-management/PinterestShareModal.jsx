@@ -1,4 +1,4 @@
-import { XCircle, CheckCircle, Image as ImageIconLucide, AlertCircle, Loader2 } from "lucide-react";
+import { XCircle, CheckCircle, AlertCircle, Loader2, PlusCircle } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -8,9 +8,15 @@ export default function PinterestShareModal({
   post,
   pinterestProfiles,
   onPost,
+  onCreateBoard,
 }) {
   const [selectedBoardId, setSelectedBoardId] = useState(null);
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [showCreateBoard, setShowCreateBoard] = useState(false);
+  const [newBoardName, setNewBoardName] = useState("");
+  const [newBoardDescription, setNewBoardDescription] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [publishError, setPublishError] = useState("");
 
   if (!isOpen || !post) return null;
@@ -30,6 +36,30 @@ export default function PinterestShareModal({
     setIsPublishing(false);
   };
 
+  const handleCreateBoard = async () => {
+    if (!selectedProfileId || !newBoardName.trim() || !onCreateBoard) return;
+
+    setIsCreatingBoard(true);
+    setPublishError("");
+
+    const result = await onCreateBoard({
+      profileId: selectedProfileId,
+      name: newBoardName.trim(),
+      description: newBoardDescription.trim(),
+    });
+
+    if (result?.success && result.board?.boardId) {
+      setSelectedBoardId(result.board.boardId);
+      setNewBoardName("");
+      setNewBoardDescription("");
+      setShowCreateBoard(false);
+    } else {
+      setPublishError(result?.error || "Unable to create Pinterest board.");
+    }
+
+    setIsCreatingBoard(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
@@ -42,7 +72,7 @@ export default function PinterestShareModal({
               Share to Pinterest
             </h2>
             <p className="text-xs font-medium text-slate-500 mt-1">
-              Select a board to pin your post
+              Select or create a board to pin your post
             </p>
           </div>
           <button
@@ -64,6 +94,66 @@ export default function PinterestShareModal({
             </div>
           ) : (
             <div className="space-y-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateBoard((prev) => !prev);
+                  setPublishError("");
+                  if (!selectedProfileId && pinterestProfiles[0]?.pinterestUserId) {
+                    setSelectedProfileId(pinterestProfiles[0].pinterestUserId);
+                  }
+                }}
+                disabled={isPublishing || isCreatingBoard}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#E60023]/30 bg-[#E60023]/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-[#E60023] transition-all hover:bg-[#E60023]/10 disabled:opacity-50"
+              >
+                <PlusCircle size={16} />
+                Create New Board
+              </button>
+
+              {showCreateBoard && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                  <select
+                    value={selectedProfileId || ""}
+                    onChange={(e) => setSelectedProfileId(e.target.value)}
+                    disabled={isCreatingBoard}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023]"
+                  >
+                    <option value="" disabled>
+                      Choose Pinterest account
+                    </option>
+                    {pinterestProfiles.map((profile) => (
+                      <option key={profile.pinterestUserId} value={profile.pinterestUserId}>
+                        @{profile.username || profile.pinterestUserId}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={newBoardName}
+                    onChange={(e) => setNewBoardName(e.target.value)}
+                    disabled={isCreatingBoard}
+                    placeholder="Board name"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023]"
+                  />
+                  <textarea
+                    value={newBoardDescription}
+                    onChange={(e) => setNewBoardDescription(e.target.value)}
+                    disabled={isCreatingBoard}
+                    placeholder="Description (optional)"
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-[#E60023]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateBoard}
+                    disabled={!selectedProfileId || !newBoardName.trim() || isCreatingBoard}
+                    className="w-full rounded-xl bg-slate-900 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isCreatingBoard && <Loader2 size={14} className="animate-spin" />}
+                    {isCreatingBoard ? "Creating..." : "Create Board"}
+                  </button>
+                </div>
+              )}
+
               {pinterestProfiles.map((profile) => (
                 <div key={profile.pinterestUserId} className="space-y-3">
                   <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
@@ -108,6 +198,7 @@ export default function PinterestShareModal({
                             checked={selectedBoardId === board.boardId}
                             onChange={() => {
                               setSelectedBoardId(board.boardId);
+                              setSelectedProfileId(profile.pinterestUserId);
                               setPublishError("");
                             }}
                             className="hidden"
@@ -149,7 +240,7 @@ export default function PinterestShareModal({
                 alt="Pinterest"
               />
             )}
-            {isPublishing ? "Publishing..." : "Share to Pinterest"}
+            {isPublishing ? "Publishing..." : "Create Pin on Pinterest"}
           </button>
         </div>
       </div>

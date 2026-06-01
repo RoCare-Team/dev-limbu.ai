@@ -1342,6 +1342,7 @@ export default function UserManagement() {
       : users.filter(
           (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
+        
 
     setStats({
       total,
@@ -1789,10 +1790,13 @@ export default function UserManagement() {
     }
   };
 
-  const fetchConversationStageCards = async () => {
+  const fetchConversationStageCards = async ({ refresh = false } = {}) => {
     setConversationStageCardsLoading(true);
     try {
-      const res = await fetch("/api/conversation-stages", {
+      const url = refresh
+        ? "/api/conversation-stages?refresh=1"
+        : "/api/conversation-stages";
+      const res = await fetch(url, {
         cache: "no-store",
       });
       const data = await res.json();
@@ -1909,7 +1913,9 @@ export default function UserManagement() {
       setConversationStageUsers([]);
       return;
     }
-    fetchConversationStageUsers(selectedConversationStage || "All");
+    fetchConversationStageUsers(selectedConversationStage || "All", {
+      silent: true,
+    });
   }, [conversationStageTableActive, selectedConversationStage, currentPage]);
 
   const fetchIssues = async () => {
@@ -2363,8 +2369,14 @@ export default function UserManagement() {
                   selectedUser.whatsappNumber ||
                   selectedUser.contactNumber ||
                   "",
+
                 firstName:
                   selectedUser.fullName || selectedUser.name || "Customer",
+
+                planName: selectedPlan || "Package",
+                amount: planAmount || "0",
+                startDate: planStartDate || "-",
+                expiryDate: planExpiryDate || "-",
               }),
             },
           );

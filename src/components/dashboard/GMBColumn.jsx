@@ -15,17 +15,27 @@ const GMBColumn = React.memo(({
   getVerificationBadge,
   handleListingData,
   handleViewPerformanceInsights,
+  handleDisconnectGMB,
 }) => {
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = React.useState(false);
+  const handleConfirmDisconnect = React.useCallback(async () => {
+    if (handleDisconnectGMB) {
+      const disconnected = await handleDisconnectGMB();
+      if (disconnected) setIsDisconnectModalOpen(false);
+      return;
+    }
+
+    signOut({ callbackUrl: "/login" });
+  }, [handleDisconnectGMB]);
 
   return (
     <>
       <DisconnectProfileModal 
         isOpen={isDisconnectModalOpen}
         onClose={() => setIsDisconnectModalOpen(false)}
-        onConfirm={() => signOut({ callbackUrl: "/login" })}
+        onConfirm={handleConfirmDisconnect}
         platformName="GMB"
-        customMessage="Are you sure you want to disconnect your Google Business Profile? This will sign you out of your current session."
+        customMessage="Are you sure you want to disconnect your Google Business Profile? This will remove the saved GMB profiles from this dashboard."
       />
       <div className="bg-white rounded-3xl shadow-md border-2 border-slate-200 flex flex-col overflow-hidden w-full h-[calc(100vh-220px)] min-h-[500px]">
         {/* Header */}

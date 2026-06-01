@@ -23,8 +23,11 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const stage = (searchParams.get("stage") || "").trim();
-    const page  = Math.max(1, parseInt(searchParams.get("page"))  || 1);
+    const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
     const limit = Math.max(1, parseInt(searchParams.get("limit")) || 50);
+    const refresh =
+      searchParams.get("refresh") === "1" ||
+      searchParams.get("refresh") === "true";
 
     // validate stage if provided
     if (stage && stage !== "All" && !CONVERSATION_STAGE_KEYS.includes(stage)) {
@@ -37,7 +40,12 @@ export async function GET(req) {
       );
     }
 
-    const result = await getLimbuBotStageWithUsers({ stage, page, limit });
+    const result = await getLimbuBotStageWithUsers({
+      stage,
+      page,
+      limit,
+      refresh,
+    });
 
     return NextResponse.json(result);
   } catch (error) {

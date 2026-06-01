@@ -1,5 +1,138 @@
 import { getPublicSiteUrl } from "./siteUrl"
 
+/** WhatsApp / chatbot checkout links use this discount (query `discount=10`). */
+export const CHATBOT_CHECKOUT_DISCOUNT_PERCENT = 10
+
+export const CHECKOUT_GST_RATE = 0.18
+
+export function applyPercentDiscount(amount, percent = CHATBOT_CHECKOUT_DISCOUNT_PERCENT) {
+  const n = Number(amount)
+  if (!Number.isFinite(n) || n <= 0) return amount
+  const p = Math.min(100, Math.max(0, Number(percent) || 0))
+  return Math.round(n * (1 - p / 100))
+}
+
+/** GST on plan price only (not on a pre-discounted total). */
+export function calculateGstOnPlanPrice(planPrice) {
+  const n = Number(planPrice)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.round(n * CHECKOUT_GST_RATE)
+}
+
+/** Discount plan price, then 18% GST on discounted base. */
+export function applyDiscountToPlanPriceWithGst(planPrice, discountPercent) {
+  const discountedPrice = applyPercentDiscount(planPrice, discountPercent)
+  const gst = calculateGstOnPlanPrice(discountedPrice)
+  return { planPrice: discountedPrice, gst, total: discountedPrice + gst }
+}
+
+function parseRupeeAmount(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string") return null
+  const digits = value.replace(/[^\d]/g, "")
+  if (!digits) return null
+  return parseInt(digits, 10)
+}
+
+function formatRupeeAmount(amount) {
+  return `₹${Number(amount).toLocaleString("en-IN")}`
+}
+
+/** Appends `discount=10` to checkout URLs returned to chatbot / home-data API. */
+export function appendChatbotDiscountToCheckoutUrl(url) {
+  if (!url || typeof url !== "string") return url
+  const trimmed = url.trim()
+  if (!trimmed) return url
+  if (/[?&]discount=/i.test(trimmed)) return trimmed
+
+  try {
+    const u = new URL(trimmed)
+    u.searchParams.set("discount", String(CHATBOT_CHECKOUT_DISCOUNT_PERCENT))
+    return u.toString()
+  } catch {
+    const sep = trimmed.includes("?") ? "&" : "?"
+    return `${trimmed}${sep}discount=${CHATBOT_CHECKOUT_DISCOUNT_PERCENT}`
+  }
+}
+
+function resolvePlanPriceAmount(plan) {
+  if (!plan || typeof plan !== "object") return null
+  if (typeof plan.basePrice === "number" && Number.isFinite(plan.basePrice)) {
+    return plan.basePrice
+  }
+  return parseRupeeAmount(plan.price)
+}
+
+function setPlanPriceFields(out, plan, { planPrice, gst, total }) {
+  if (typeof plan.basePrice === "number") {
+    out.basePrice = planPrice
+    if (typeof plan.gst === "number") out.gst = gst
+    if (typeof plan.totalAmount === "number") out.totalAmount = total
+    if (typeof plan.ios_price === "number") out.ios_price = total
+  }
+
+  if (plan.price != null && plan.price !== "") {
+    out.price =
+      typeof plan.price === "number" ? planPrice : formatRupeeAmount(planPrice)
+  }
+  if (plan.gstAmount != null && plan.gstAmount !== "") {
+    out.gstAmount =
+      typeof plan.gstAmount === "number" ? gst : formatRupeeAmount(gst)
+  }
+  if (plan.totalPrice != null && plan.totalPrice !== "") {
+    out.totalPrice =
+      typeof plan.totalPrice === "number" ? total : formatRupeeAmount(total)
+  }
+}
+
+/** Discounts plan price only; GST and total recalculated at 18% on discounted base. */
+export function applyChatbotDiscountToPlan(plan) {
+  if (!plan || typeof plan !== "object") return plan
+  const planPrice = resolvePlanPriceAmount(plan)
+  if (planPrice == null) return plan
+
+  const { planPrice: discounted, gst, total } = applyDiscountToPlanPriceWithGst(
+    planPrice,
+    CHATBOT_CHECKOUT_DISCOUNT_PERCENT,
+  )
+  const out = { ...plan, chatbotDiscountPercent: CHATBOT_CHECKOUT_DISCOUNT_PERCENT }
+  setPlanPriceFields(out, plan, {
+    planPrice: discounted,
+    gst,
+    total,
+  })
+  return out
+}
+
+/** Applies URL `discount` param when opening /checkout from a chatbot payment link. */
+export function applyDiscountToModalPlan(plan, discountPercent) {
+  if (!plan || !discountPercent) return plan
+  const pct = Number(discountPercent)
+  if (!Number.isFinite(pct) || pct <= 0) return plan
+
+  const planPrice = resolvePlanPriceAmount(plan)
+  if (planPrice == null) return plan
+
+  const { planPrice: discounted, gst, total } = applyDiscountToPlanPriceWithGst(
+    planPrice,
+    pct,
+  )
+  const out = { ...plan, chatbotDiscountPercent: pct }
+  setPlanPriceFields(out, plan, { planPrice: discounted, gst, total })
+  return out
+}
+
+export function parseCheckoutDiscountPercent(searchParams) {
+  const raw =
+    typeof searchParams?.get === "function"
+      ? searchParams.get("discount")
+      : searchParams?.discount
+  if (raw == null || raw === "") return 0
+  const n = parseInt(String(raw).trim(), 10)
+  if (!Number.isFinite(n) || n <= 0 || n > 100) return 0
+  return n
+}
+
 export function calculatePriceForCycle(basePrice, billingCycle) {
   if (billingCycle === "monthly") return basePrice
   if (billingCycle === "quarterly") return Math.round(basePrice * 3 * 0.9)

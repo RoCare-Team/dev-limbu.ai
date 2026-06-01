@@ -851,7 +851,7 @@ const PostCard = React.memo(
                         className="object-contain"
                         alt="Pinterest"
                       />{" "}
-                      Post to Pinterest
+                      Create Pin
                     </button>
                     <button
                       onClick={() => handleMediaChoice("linkedin")}
@@ -1020,7 +1020,7 @@ const PostCard = React.memo(
                       />
                       {isPlatformPosted(post.whenPosted, "pinterest")
                         ? "Repost to Pinterest"
-                        : "Post to Pinterest"}
+                        : "Create Pin"}
                     </button>
                     <button
                       onClick={() => handleMediaChoice("linkedin")}

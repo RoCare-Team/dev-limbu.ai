@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
+import User from "@/models/User";
 
-// ================================
-// 🔵 1) DATABASE CONNECTION
-// ================================
+// DB CONNECT
 async function dbConnect() {
   if (mongoose.connection.readyState === 1) return;
 
@@ -13,9 +12,7 @@ async function dbConnect() {
   });
 }
 
-// ================================
-// 🔵 2) SCHEMA + MODEL
-// ================================
+// SCHEMA
 const ContactSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -26,15 +23,13 @@ const ContactSchema = new mongoose.Schema(
   {
     timestamps: true,
     collection: "contactForm",
-  }
+  },
 );
 
 const Contact =
   mongoose.models.contactForm || mongoose.model("contactForm", ContactSchema);
 
-// ================================
-// 🔵 3) POST API → SAVE DATA
-// ================================
+// POST API
 export async function POST(request) {
   try {
     await dbConnect();
@@ -44,10 +39,11 @@ export async function POST(request) {
     if (!name || !email || !phone || !message) {
       return NextResponse.json(
         { success: false, message: "All fields are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
+    // SAVE CONTACT LEAD
     const saved = await Contact.create({
       name,
       email,
@@ -55,27 +51,59 @@ export async function POST(request) {
       message,
     });
 
+    // CHECK EXISTING USER
+    const existingUser = await User.findOne({
+      $or: [{ email }, { phone }],
+    });
+
+    // CREATE USER MANAGEMENT LEAD
+    if (!existingUser) {
+      await User.create({
+        userId: `CF${Date.now()}`,
+
+        fullName: name,
+        email,
+        phone,
+
+        source: "signup",
+
+        assignedAgentId: null,
+
+        leadStage: "Active",
+        leadStatus: "",
+
+        wallet: 0,
+        freeUsedCount: 0,
+
+        subscription: {
+          status: "inactive",
+          plan: "Free",
+          maxAccounts: 0,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Message saved successfully.",
       data: saved,
     });
   } catch (error) {
+    console.error("CONTACT ERROR:", error);
+
     return NextResponse.json(
       { success: false, message: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// ================================
-// 🔵 4) GET API → FETCH ALL DATA
-// ================================
+// GET API
 export async function GET() {
   try {
     await dbConnect();
 
-    const data = await Contact.find().sort({ createdAt: -1 }); // latest first
+    const data = await Contact.find().sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,
@@ -85,7 +113,31 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message },
-      { status: 500 }
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE API
+export async function DELETE(req) {
+  try {
+    await dbConnect();
+
+    const { userId } = await req.json();
+
+    await Contact.findByIdAndDelete(userId);
+
+    return NextResponse.json({
+      success: true,
+      message: "Lead deleted successfully",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: error.message,
+      },
+      { status: 500 },
     );
   }
 }

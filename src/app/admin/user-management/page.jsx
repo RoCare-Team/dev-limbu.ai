@@ -4287,10 +4287,10 @@ export default function UserManagement() {
                           type="button"
                           onClick={() => setIsOpen(true)}
                           className="group bg-white px-6 py-3 rounded-2xl
-                          flex items-center gap-2 text-green-600 font-semibold
-                          shadow-md hover:shadow-xl hover:-translate-y-1
-                          hover:scale-105 active:scale-95
-                          transition-all duration-300"
+                            flex items-center gap-2 text-green-600 font-semibold
+                            shadow-md hover:shadow-xl hover:-translate-y-1
+                            hover:scale-105 active:scale-95
+                            transition-all duration-300"
                         >
                           <MessageCircle
                             size={20}
@@ -4301,10 +4301,10 @@ export default function UserManagement() {
 
                         <button
                           className="group bg-white px-6 py-3 rounded-2xl
-                                      flex items-center gap-2 text-blue-600 font-semibold
-                                      shadow-md hover:shadow-xl hover:-translate-y-1
-                                      hover:scale-105 active:scale-95
-                                      transition-all duration-300"
+                                        flex items-center gap-2 text-blue-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
                         >
                           <Send
                             size={20}
@@ -4315,10 +4315,10 @@ export default function UserManagement() {
 
                         <button
                           className="group bg-white px-6 py-3 rounded-2xl
-                                      flex items-center gap-2 text-purple-600 font-semibold
-                                      shadow-md hover:shadow-xl hover:-translate-y-1
-                                      hover:scale-105 active:scale-95
-                                      transition-all duration-300"
+                                        flex items-center gap-2 text-purple-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
                         >
                           <Mail
                             size={20}
@@ -4329,10 +4329,10 @@ export default function UserManagement() {
 
                         <button
                           className="group bg-white px-6 py-3 rounded-2xl
-                                      flex items-center gap-2 text-orange-600 font-semibold
-                                      shadow-md hover:shadow-xl hover:-translate-y-1
-                                      hover:scale-105 active:scale-95
-                                      transition-all duration-300"
+                                        flex items-center gap-2 text-orange-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
                         >
                           <Smartphone
                             size={20}
@@ -4428,8 +4428,8 @@ export default function UserManagement() {
                         Conversation
                       </th>
                       {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                    Plan
-                  </th> */}
+                      Plan
+                    </th> */}
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         Assign To
                       </th>
@@ -4589,13 +4589,13 @@ export default function UserManagement() {
                                                     <Fragment key={step.id}>
                                                       <div
                                                         className={`
-                          inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
-                          ${
-                            isDone
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
-                              : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
-                          }
-                        `}
+                            inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
+                            ${
+                              isDone
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
+                                : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
+                            }
+                          `}
                                                       >
                                                         {step.icon}
                                                         <span>{step.id}</span>
@@ -4826,12 +4826,12 @@ export default function UserManagement() {
                                           >
                                             <select
                                               className="
-                             appearance-none bg-transparent 
-                             px-4 py-1.5 pr-8 
-                             text-xs font-bold 
-                             focus:outline-none 
-                             cursor-pointer
-                                            "
+                              appearance-none bg-transparent 
+                              px-4 py-1.5 pr-8 
+                              text-xs font-bold 
+                              focus:outline-none 
+                              cursor-pointer
+                                              "
                                               value={
                                                 // ✅ Handle populated object, string ID, null, and undefined
                                                 user.assignedAgentId?._id ||
@@ -5774,11 +5774,11 @@ export default function UserManagement() {
                         <div
                           key={idx}
                           className={`p-3 rounded-xl border transition-all shadow-sm
-                    ${
-                      isLatest
-                        ? "bg-green-50 border-green-300"
-                        : "bg-white border-gray-200"
-                    }`}
+                      ${
+                        isLatest
+                          ? "bg-green-50 border-green-300"
+                          : "bg-white border-gray-200"
+                      }`}
                         >
                           {/* Top Row */}
                           <div className="flex items-center justify-between mb-1">
@@ -5877,9 +5877,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, fullName: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   />
                 </div>
 
@@ -5896,9 +5896,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, email: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   />
                 </div>
 
@@ -5915,9 +5915,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, phone: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   />
                 </div>
 
@@ -5932,9 +5932,9 @@ export default function UserManagement() {
                       setNewUser({ ...newUser, plan: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                       rounded-xl focus:ring-2 focus:ring-indigo-500 
-                       focus:border-transparent outline-none"
+                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                        rounded-xl focus:ring-2 focus:ring-indigo-500 
+                        focus:border-transparent outline-none"
                   >
                     <option value="Free">Free</option>
                     <option value="Basic">Basic</option>
@@ -5949,8 +5949,8 @@ export default function UserManagement() {
                 <button
                   onClick={() => setAddingUser(false)}
                   className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
-                     text-gray-700 dark:text-gray-200 rounded-xl 
-                     hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
+                      text-gray-700 dark:text-gray-200 rounded-xl 
+                      hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
                 >
                   Cancel
                 </button>
@@ -5958,8 +5958,8 @@ export default function UserManagement() {
                 <button
                   onClick={handleAddUser}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
-                     text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
-                     transition-all font-medium"
+                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
+                      transition-all font-medium"
                 >
                   Add User
                 </button>

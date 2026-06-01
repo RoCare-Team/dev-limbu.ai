@@ -840,19 +840,22 @@ export default function RevenueUsersPage() {
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
                         currentPackageRows.map((r, i) => {
-                          return (
-                            <tr
-                              key={i}
-                              className="border-t hover:bg-gray-50 transition"
-                            >
-                              <td className="px-4 py-4">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.includes(r._id)}
-                                  onChange={() => handleSelectRow(r.leadId)}
-                                  className="w-4 h-4 accent-indigo-600"
-                                />
-                              </td>
+                            return (
+                              <tr
+                                key={i}
+                                className="border-t hover:bg-gray-50 transition"
+                              >
+                                <td className="px-4 py-4">
+                                  <input
+  type="checkbox"
+
+  checked={selectedRows.includes(r.leadId)}
+
+  onChange={() => handleSelectRow(r.leadId)}
+
+  className="w-4 h-4 accent-indigo-600"
+/>
+                                </td>
 
                               <td className="px-6 py-4">
                                 <div className="font-semibold text-gray-900">

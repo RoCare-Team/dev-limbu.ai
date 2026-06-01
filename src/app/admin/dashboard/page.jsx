@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-
 import {
   LineChart,
   Line,
@@ -26,11 +25,10 @@ import {
   IndianRupee,
   BriefcaseBusiness,
   UserCog,
-
 } from "lucide-react";
 
 import Lottie from "lottie-react";
-import animationData from "@/assets/animation/Loading.json"; 
+import animationData from "@/assets/animation/Loading.json";
 
 import { getTodayUsersData } from "../user-management/page";
 
@@ -53,7 +51,7 @@ export default function AdminDashboard() {
   } = useUserManagement({
     dateFilter: globalDateFilter,
     startDate: globalStartDate,
-    endDate: globalEndDate
+    endDate: globalEndDate,
   });
 
   const [dashboardStats, setDashboardStats] = useState({
@@ -61,7 +59,6 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     planCounts: { basic: 0, standard: 0, premium: 0 },
   });
-  
 
   const [todayUsersCount, setTodayUsersCount] = useState(0);
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
@@ -102,9 +99,7 @@ export default function AdminDashboard() {
   const [chatModalFilter, setChatModalFilter] = useState("all");
   const [showChatStatsModal, setShowChatStatsModal] = useState(false);
 
-const router = useRouter(); 
-
-
+  const router = useRouter();
 
   // calls
   const [byAgentOpen, setByAgentOpen] = useState(false);
@@ -123,7 +118,16 @@ const router = useRouter();
     managerPerformance: [],
   });
 
-  const fetchRevenueUsers = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
+  const [agentRevenue, setAgentRevenue] = useState({
+    today: 0,
+    total: 0,
+  });
+
+  const fetchRevenueUsers = async (
+    dFilter = globalDateFilter,
+    dStart = globalStartDate,
+    dEnd = globalEndDate,
+  ) => {
     setLoading(true);
 
     try {
@@ -133,20 +137,20 @@ const router = useRouter();
       let dateParams = "";
       if (dFilter && dFilter !== "all") {
         if (dFilter === "custom" && dStart && dEnd) {
-           dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+          dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
         } else if (dFilter !== "custom") {
-           const end = new Date();
-           const start = new Date();
-           if (dFilter === "today") {
-              start.setHours(0,0,0,0);
-           } else if (dFilter === "1week") {
-              start.setDate(start.getDate() - 7);
-           } else if (dFilter === "1month") {
-              start.setMonth(start.getMonth() - 1);
-           } else if (dFilter === "6months") {
-              start.setMonth(start.getMonth() - 6);
-           }
-           dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+          const end = new Date();
+          const start = new Date();
+          if (dFilter === "today") {
+            start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "1week") {
+            start.setDate(start.getDate() - 7);
+          } else if (dFilter === "1month") {
+            start.setMonth(start.getMonth() - 1);
+          } else if (dFilter === "6months") {
+            start.setMonth(start.getMonth() - 6);
+          }
+          dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
         }
       }
 
@@ -168,45 +172,45 @@ const router = useRouter();
     }
   };
 
-  const fetchTodayUsers = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
+  const fetchTodayUsers = async (
+    dFilter = globalDateFilter,
+    dStart = globalStartDate,
+    dEnd = globalEndDate,
+  ) => {
     try {
       let dateParams = "";
       if (dFilter && dFilter !== "all") {
         if (dFilter === "custom" && dStart && dEnd) {
-           dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+          dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
         } else if (dFilter !== "custom") {
-           const end = new Date();
-           const start = new Date();
-           if (dFilter === "today") {
-              start.setHours(0,0,0,0);
-           } else if (dFilter === "1week") {
-              start.setDate(start.getDate() - 7);
-           } else if (dFilter === "1month") {
-              start.setMonth(start.getMonth() - 1);
-           } else if (dFilter === "6months") {
-              start.setMonth(start.getMonth() - 6);
-           }
-           dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+          const end = new Date();
+          const start = new Date();
+          if (dFilter === "today") {
+            start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "1week") {
+            start.setDate(start.getDate() - 7);
+          } else if (dFilter === "1month") {
+            start.setMonth(start.getMonth() - 1);
+          } else if (dFilter === "6months") {
+            start.setMonth(start.getMonth() - 6);
+          }
+          dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
         }
       }
 
-          const email = localStorage.getItem("email"); 
+      const email = localStorage.getItem("email");
 
-         
-
-        const res = await fetch(
-      `/api/users?email=${email}&getTodayUsersCount=true${dateParams}`
-    );
+      const res = await fetch(
+        `/api/users?email=${email}&getTodayUsersCount=true${dateParams}`,
+      );
       const data = await res.json();
-      
-      
 
       if (data?.success) {
         setTodayUsersCount(data.todayUsersCount || 0);
         setTodayUsersMetaLeads(data.todayMetaLeads || 0);
         setTodayUsersSignups(data.todaySignups || 0);
       }
-    } catch(err) {
+    } catch (err) {
       console.error(err);
     }
   };
@@ -216,24 +220,24 @@ const router = useRouter();
   }, [globalDateFilter, globalStartDate, globalEndDate]);
 
   const fetchUsers = async () => {
-  try {
-    const email = localStorage.getItem("email");
+    try {
+      const email = localStorage.getItem("email");
 
-    const res = await fetch(`/api/users?email=${email}`);
-    const data = await res.json();
+      const res = await fetch(`/api/users?email=${email}`);
+      const data = await res.json();
 
-    console.log("🔥 USERS DATA:", data);
+      console.log("🔥 USERS DATA:", data);
 
-    if (data.success && Array.isArray(data.users)) {
-      setUsers(data.users);
-    } else {
+      if (data.success && Array.isArray(data.users)) {
+        setUsers(data.users);
+      } else {
+        setUsers([]);
+      }
+    } catch (err) {
+      console.error(err);
       setUsers([]);
     }
-  } catch (err) {
-    console.error(err);
-    setUsers([]);
-  }
-};
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -337,25 +341,29 @@ const router = useRouter();
     fetchAgents();
   }, []);
 
-  const fetchChatStats = async (dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
+  const fetchChatStats = async (
+    dFilter = globalDateFilter,
+    dStart = globalStartDate,
+    dEnd = globalEndDate,
+  ) => {
     try {
       let dateParams = "";
       if (dFilter && dFilter !== "all") {
         if (dFilter === "custom" && dStart && dEnd) {
-           dateParams = `?dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+          dateParams = `?dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
         } else if (dFilter !== "custom") {
-           const end = new Date();
-           const start = new Date();
-           if (dFilter === "today") {
-              start.setHours(0,0,0,0);
-           } else if (dFilter === "1week") {
-              start.setDate(start.getDate() - 7);
-           } else if (dFilter === "1month") {
-              start.setMonth(start.getMonth() - 1);
-           } else if (dFilter === "6months") {
-              start.setMonth(start.getMonth() - 6);
-           }
-           dateParams = `?dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+          const end = new Date();
+          const start = new Date();
+          if (dFilter === "today") {
+            start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "1week") {
+            start.setDate(start.getDate() - 7);
+          } else if (dFilter === "1month") {
+            start.setMonth(start.getMonth() - 1);
+          } else if (dFilter === "6months") {
+            start.setMonth(start.getMonth() - 6);
+          }
+          dateParams = `?dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
         }
       }
 
@@ -398,7 +406,12 @@ const router = useRouter();
     fetchStats(role, globalDateFilter, globalStartDate, globalEndDate);
   };
 
-  const fetchStats = async (currentRole, dFilter = globalDateFilter, dStart = globalStartDate, dEnd = globalEndDate) => {
+  const fetchStats = async (
+    currentRole,
+    dFilter = globalDateFilter,
+    dStart = globalStartDate,
+    dEnd = globalEndDate,
+  ) => {
     setLoading(true);
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) {
@@ -410,21 +423,21 @@ const router = useRouter();
       let dateParams = "";
       if (dFilter !== "all") {
         if (dFilter === "custom" && dStart && dEnd) {
-           dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
+          dateParams = `&dateFilter=custom&startDate=${dStart}&endDate=${dEnd}`;
         } else if (dFilter !== "custom") {
-           // Provide basic calculation for presets if API supports specific dates
-           const end = new Date();
-           const start = new Date();
-           if (dFilter === "today") {
-              start.setHours(0,0,0,0);
-           } else if (dFilter === "1week") {
-              start.setDate(start.getDate() - 7);
-           } else if (dFilter === "1month") {
-              start.setMonth(start.getMonth() - 1);
-           } else if (dFilter === "6months") {
-              start.setMonth(start.getMonth() - 6);
-           }
-           dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+          // Provide basic calculation for presets if API supports specific dates
+          const end = new Date();
+          const start = new Date();
+          if (dFilter === "today") {
+            start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "1week") {
+            start.setDate(start.getDate() - 7);
+          } else if (dFilter === "1month") {
+            start.setMonth(start.getMonth() - 1);
+          } else if (dFilter === "6months") {
+            start.setMonth(start.getMonth() - 6);
+          }
+          dateParams = `&dateFilter=${dFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
         }
       }
 
@@ -474,7 +487,11 @@ const router = useRouter();
       }
 
       // ── 3. Call & Follow-up stats ─────────────────────────────────────────
-      if (currentRole === "superAdmin" || currentRole === "admin") {
+      if (
+        currentRole === "superAdmin" ||
+        currentRole === "admin" ||
+        currentRole === "agent"
+      ) {
         const [callRes, followRes] = await Promise.all([
           fetch(
             `/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}${dateParams}`,
@@ -490,7 +507,9 @@ const router = useRouter();
       }
 
       const [txRes, serviceRes, packageRes, managerRes] = await Promise.all([
-        fetch(`/api/razorpay/razorpay-transaction?${dateParams.replace('&', '')}`),
+        fetch(
+          `/api/razorpay/razorpay-transaction?${dateParams.replace("&", "")}`,
+        ),
         fetch(`/api/service-booking?planType=our-service${dateParams}`),
         fetch(`/api/service-booking?planType=our-package${dateParams}`),
         fetch(
@@ -549,9 +568,11 @@ const router = useRouter();
         totalRechargeAmount,
         totalServiceBookings: (serviceJson?.data || []).length,
         totalPackageBookings: (packageJson?.data || []).length,
-        assignedClients: managerPerformance
-          .filter((m) => m.name !== "Unassigned")
-          .reduce((sum, m) => sum + m.assigned, 0),
+        assignedClients: isAgent
+          ? users.length
+          : managerPerformance
+              .filter((m) => m.name !== "Unassigned")
+              .reduce((sum, m) => sum + m.assigned, 0),
         renewalDueCount: managerPerformance.reduce(
           (sum, m) => sum + m.renewalDue,
           0,
@@ -565,18 +586,69 @@ const router = useRouter();
     }
   };
 
- if (loading) {
-     return (
-       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-         <div className="text-center">
-           <div className="w-84 h-84 mx-auto">
-             <Lottie animationData={animationData} loop={true} />
-           </div>
-           {/* <p className="text-gray-600 font-medium">Loading users.</p> */}
-         </div>
-       </div>
-     );
-   }
+  const fetchAgentRevenue = async () => {
+    try {
+      const email = localStorage.getItem("email");
+      const role = localStorage.getItem("role");
+
+      const res = await fetch(
+        `/api/franchise-revenue?email=${email}&role=${role}`,
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        const revenueList = data.revenue || [];
+
+        const today = new Date();
+
+        const todayRevenue = revenueList
+          .filter((r) => {
+            if (!r.createdAt) return false;
+
+            const d = new Date(r.createdAt);
+
+            return (
+              d.getDate() === today.getDate() &&
+              d.getMonth() === today.getMonth() &&
+              d.getFullYear() === today.getFullYear()
+            );
+          })
+          .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+        const totalRevenue = revenueList.reduce(
+          (sum, r) => sum + Number(r.amount || 0),
+          0,
+        );
+
+        setAgentRevenue({
+          today: todayRevenue,
+          total: totalRevenue,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAgent) {
+      fetchAgentRevenue();
+    }
+  }, [isAgent]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="w-84 h-84 mx-auto">
+            <Lottie animationData={animationData} loop={true} />
+          </div>
+          {/* <p className="text-gray-600 font-medium">Loading users.</p> */}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-2">
@@ -644,7 +716,9 @@ const router = useRouter();
         todayUsersCount={todayUsersCount}
         showRevenueUsersModal={showRevenueUsersModal}
         fetchRevenueUsers={fetchRevenueUsers}
-        setShowRevenueUsersModal={() => router.push("/admin/dashboard/revenue-users")}
+        setShowRevenueUsersModal={() =>
+          router.push("/admin/dashboard/revenue-users")
+        }
         loadingRevenueUsers={loading}
         revenueUsersList={revenueUsersList}
         setRevenueUsersList={setRevenueUsersList}
@@ -782,174 +856,256 @@ const router = useRouter();
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <KpiCard
-          title="Today Recharge"
-          value={`₹${dashboardKpis.todayRechargeAmount.toLocaleString()}`}
-          icon={<IndianRupee size={16} />}
-          tone="green"
-        />
-        <KpiCard
-          title="Total Recharge"
-          value={`₹${dashboardKpis.totalRechargeAmount.toLocaleString()}`}
-          icon={<IndianRupee size={16} />}
-          tone="blue"
-        />
-        <KpiCard
-          title="Total Services"
-          value={dashboardKpis.totalServiceBookings}
-          icon={<BriefcaseBusiness size={16} />}
-          tone="indigo"
-        />
-        <KpiCard
-          title="Total Packages"
-          value={dashboardKpis.totalPackageBookings}
-          icon={<BriefcaseBusiness size={16} />}
-          tone="violet"
-        />
-        <KpiCard
-          title="Assigned Clients"
-          value={dashboardKpis.assignedClients}
-          icon={<UserCog size={16} />}
-          tone="slate"
-        />
-        <KpiCard
-          title="Renewal Due"
-          value={dashboardKpis.renewalDueCount}
-          icon={<UserCog size={16} />}
-          tone="amber"
-        />
-      </div>
+      {isAgent ? (
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            title="Total Leads"
+            value={dashboardStats.totalUsers || 0}
+            icon={<UserCheck size={16} />}
+            tone="blue"
+          />
+
+          <KpiCard
+            title="Today's Leads"
+            value={todayUsersCount || 0}
+            icon={<Users size={16} />}
+            tone="green"
+          />
+
+          <KpiCard
+            title="Today Revenue"
+            value={`₹${agentRevenue.today.toLocaleString()}`}
+            icon={<IndianRupee size={16} />}
+            tone="green"
+          />
+
+          <KpiCard
+            title="Total Revenue"
+            value={`₹${agentRevenue.total.toLocaleString()}`}
+            icon={<IndianRupee size={16} />}
+            tone="blue"
+          />
+
+          <KpiCard
+            title="Calls Today"
+            value={callStats?.myCallsToday || 0}
+            icon={<Phone size={16} />}
+            tone="violet"
+          />
+
+          <KpiCard
+            title="Total Calls"
+            value={callStats?.myCallsTotal || 0}
+            icon={<Phone size={16} />}
+            tone="slate"
+          />
+
+          <KpiCard
+            title="Followups Today"
+            value={followUpStats.todayFollowUps || 0}
+            icon={<CalendarClock size={16} />}
+            tone="green"
+          />
+
+          <KpiCard
+            title="Tomorrow"
+            value={followUpStats.tomorrowFollowUps || 0}
+            icon={<CalendarClock size={16} />}
+            tone="blue"
+          />
+
+          <KpiCard
+            title="Next 7 Days"
+            value={followUpStats.next7DaysFollowUps || 0}
+            icon={<CalendarClock size={16} />}
+            tone="violet"
+          />
+
+          <KpiCard
+            title="This Month"
+            value={followUpStats.thisMonthFollowUps || 0}
+            icon={<CalendarClock size={16} />}
+            tone="amber"
+          />
+        </div>
+      ) : (
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          {/* existing admin cards */}
+        </div>
+      )}
+
+      {!isAgent && (
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <KpiCard
+            title="Today Recharge"
+            value={`₹${dashboardKpis.todayRechargeAmount.toLocaleString()}`}
+            icon={<IndianRupee size={16} />}
+            tone="green"
+          />
+          <KpiCard
+            title="Total Recharge"
+            value={`₹${dashboardKpis.totalRechargeAmount.toLocaleString()}`}
+            icon={<IndianRupee size={16} />}
+            tone="blue"
+          />
+          <KpiCard
+            title="Total Services"
+            value={dashboardKpis.totalServiceBookings}
+            icon={<BriefcaseBusiness size={16} />}
+            tone="indigo"
+          />
+          <KpiCard
+            title="Total Packages"
+            value={dashboardKpis.totalPackageBookings}
+            icon={<BriefcaseBusiness size={16} />}
+            tone="violet"
+          />
+          <KpiCard
+            title="Assigned Clients"
+            value={dashboardKpis.assignedClients}
+            icon={<UserCog size={16} />}
+            tone="slate"
+          />
+          <KpiCard
+            title="Renewal Due"
+            value={dashboardKpis.renewalDueCount}
+            icon={<UserCog size={16} />}
+            tone="amber"
+          />
+        </div>
+      )}
 
       <div className="mb-8 grid gap-6 xl:grid-cols-3">
-        <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
-          <div className="flex align-center mb-2 gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-indigo-600 text-white shadow-lg">
-              <UserCog size={16} />
-            </div>
-            <div>
-              <h3 className="mt-1 text-1xl font-semibold text-slate-900">
-                {" "}
-                Account Managers
-              </h3>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50">
-            <div className="border-b border-slate-200 bg-slate-100 px-5 py-4">
-              <div className="grid grid-cols-[1.5fr_0.7fr_0.7fr_0.7fr] gap-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                <span>Manager</span>
-                <span className="text-right">Assigned</span>
-                <span className="text-right">Renewals Due</span>
+        {!isAgent && (
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
+            <div className="flex align-center mb-2 gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-indigo-600 text-white shadow-lg">
+                <UserCog size={16} />
               </div>
-            </div>
-
-            <div className="max-h-[calc(100%-56px)] overflow-y-auto">
-              <table className="min-w-full border-collapse text-sm text-slate-700">
-                <tbody className="bg-slate-50">
-                  {dashboardKpis.managerPerformance.slice(0, 8).map((m) => {
-                    const leadCount = agentLeads.find(
-                      (a) => a.agentName === m.name,
-                    )?.count;
-                    const formatPositive = (value) =>
-                      Number(value) > 0 ? value : "";
-                    return (
-                      <tr
-                        key={m.name}
-                        className="border-b border-slate-200 bg-white hover:bg-slate-50"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="font-medium text-slate-900 truncate">
-                            {m.name}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-800">
-                          {formatPositive(m.assigned)}
-                        </td>
-                        <td className="px-5 py-4 text-right font-semibold text-rose-600">
-                          {m.renewalDue != null ? m.renewalDue : ""}
-                        </td>
-                        <td className="px-5 py-4 text-right font-semibold text-indigo-600">
-                          {leadCount != null ? leadCount : ""}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {dashboardKpis.managerPerformance.length === 0 && (
-                <div className="flex h-full items-center justify-center p-6 text-center text-slate-500">
-                  No manager performance data available.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-4 mb-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                  Follow-up Tracking
-                </p>
-                <h4 className="mt-2 text-sm font-semibold text-slate-900">
-                  By Agent
-                </h4>
+                <h3 className="mt-1 text-1xl font-semibold text-slate-900">
+                  {" "}
+                  Account Managers
+                </h3>
               </div>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
-                Total: {followUpStats.totalFollowUps}
-              </span>
             </div>
 
-            <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50">
-              <div className="max-h-[260px] overflow-y-auto">
+            <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50">
+              <div className="border-b border-slate-200 bg-slate-100 px-5 py-4">
+                <div className="grid grid-cols-[1.5fr_0.7fr_0.7fr_0.7fr] gap-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span>Manager</span>
+                  <span className="text-right">Assigned</span>
+                  <span className="text-right">Renewals Due</span>
+                </div>
+              </div>
+
+              <div className="max-h-[calc(100%-56px)] overflow-y-auto">
                 <table className="min-w-full border-collapse text-sm text-slate-700">
-                  <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Agent</th>
-                      <th className="px-4 py-3 text-right">Today</th>
-                      <th className="px-4 py-3 text-right">Tomorrow</th>
-                      <th className="px-4 py-3 text-right">Next 7 Days</th>
-                      <th className="px-4 py-3 text-right">Total</th>
-                    </tr>
-                  </thead>
                   <tbody className="bg-slate-50">
-                    {(followUpStats.byAgent || []).map((agent, idx) => (
-                      <tr
-                        key={agent._id || agent.agentName || idx}
-                        className="border-b border-slate-200 bg-white hover:bg-slate-50"
-                      >
-                        <td className="px-4 py-4">
-                          <div className="font-medium text-slate-900 truncate">
-                            {agent.agentName || "Unknown"}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-right font-semibold text-sky-700">
-                          {agent.today || 0}
-                        </td>
-                        <td className="px-4 py-4 text-right font-semibold text-rose-700">
-                          {agent.tomorrow || 0}
-                        </td>
-                        <td className="px-4 py-4 text-right font-semibold text-violet-700">
-                          {agent.next7days || 0}
-                        </td>
-                        <td className="px-4 py-4 text-right font-semibold text-emerald-700">
-                          {agent.total || 0}
-                        </td>
-                      </tr>
-                    ))}
+                    {dashboardKpis.managerPerformance.slice(0, 8).map((m) => {
+                      const leadCount = agentLeads.find(
+                        (a) => a.agentName === m.name,
+                      )?.count;
+                      const formatPositive = (value) =>
+                        Number(value) > 0 ? value : "";
+                      return (
+                        <tr
+                          key={m.name}
+                          className="border-b border-slate-200 bg-white hover:bg-slate-50"
+                        >
+                          <td className="px-5 py-4">
+                            <div className="font-medium text-slate-900 truncate">
+                              {m.name}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-right font-semibold text-slate-800">
+                            {formatPositive(m.assigned)}
+                          </td>
+                          <td className="px-5 py-4 text-right font-semibold text-rose-600">
+                            {m.renewalDue != null ? m.renewalDue : ""}
+                          </td>
+                          <td className="px-5 py-4 text-right font-semibold text-indigo-600">
+                            {leadCount != null ? leadCount : ""}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 
-                {(followUpStats.byAgent || []).length === 0 && (
-                  <div className="flex h-40 items-center justify-center p-6 text-center text-sm text-slate-500">
-                    No follow-up tracking data available.
+                {dashboardKpis.managerPerformance.length === 0 && (
+                  <div className="flex h-full items-center justify-center p-6 text-center text-slate-500">
+                    No manager performance data available.
                   </div>
                 )}
               </div>
             </div>
+
+            <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Follow-up Tracking
+                  </p>
+                  <h4 className="mt-2 text-sm font-semibold text-slate-900">
+                    By Agent
+                  </h4>
+                </div>
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                  Total: {followUpStats.totalFollowUps}
+                </span>
+              </div>
+
+              <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50">
+                <div className="max-h-[260px] overflow-y-auto">
+                  <table className="min-w-full border-collapse text-sm text-slate-700">
+                    <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Agent</th>
+                        <th className="px-4 py-3 text-right">Today</th>
+                        <th className="px-4 py-3 text-right">Tomorrow</th>
+                        <th className="px-4 py-3 text-right">Next 7 Days</th>
+                        <th className="px-4 py-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-slate-50">
+                      {(followUpStats.byAgent || []).map((agent, idx) => (
+                        <tr
+                          key={agent._id || agent.agentName || idx}
+                          className="border-b border-slate-200 bg-white hover:bg-slate-50"
+                        >
+                          <td className="px-4 py-4">
+                            <div className="font-medium text-slate-900 truncate">
+                              {agent.agentName || "Unknown"}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-right font-semibold text-sky-700">
+                            {agent.today || 0}
+                          </td>
+                          <td className="px-4 py-4 text-right font-semibold text-rose-700">
+                            {agent.tomorrow || 0}
+                          </td>
+                          <td className="px-4 py-4 text-right font-semibold text-violet-700">
+                            {agent.next7days || 0}
+                          </td>
+                          <td className="px-4 py-4 text-right font-semibold text-emerald-700">
+                            {agent.total || 0}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {(followUpStats.byAgent || []).length === 0 && (
+                    <div className="flex h-40 items-center justify-center p-6 text-center text-sm text-slate-500">
+                      No follow-up tracking data available.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
           <div className="flex gap-2 mb-6">
@@ -969,7 +1125,9 @@ const router = useRouter();
                 Calls Today
               </p>
               <p className="mt-4 text-3xl font-semibold text-slate-900">
-                {callStats?.totalCallsToday || 0}
+                {isAgent
+                  ? callStats?.myCallsToday || 0
+                  : callStats?.totalCallsToday || 0}
               </p>
             </div>
             <div className="rounded-[28px] bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 shadow-sm">
@@ -1005,7 +1163,7 @@ const router = useRouter();
               </h4>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                 Live
-              </span> 
+              </span>
             </div>
             <div className="space-y-3">
               <div className="rounded-3xl border border-amber-100 bg-amber-50 p-4">
@@ -1037,7 +1195,6 @@ const router = useRouter();
         </div>
 
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
-          
           <div className="flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-5">
             <h4 className="mb-4 text-sm font-semibold text-slate-800">
               Call Performance

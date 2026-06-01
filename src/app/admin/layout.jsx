@@ -177,6 +177,11 @@ const isAgent = role === "agent";
         icon: <Users size={16} />,
       },
       {
+        name: "jobs Leads",
+        href: "/admin/job-applications",
+        icon: <Users size={16} />,
+      },
+      {
         name: "Demo Leads",
         href: "/admin/demoBook",
         icon: <Users size={16} />,

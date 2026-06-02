@@ -1,20 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import GoogleBusinessProfile from "@/models/GoogleBusinessProfile";
-import mongoose from "mongoose";
-
-const AdminBusinessSchema = new mongoose.Schema({
-  userEmail: { type: String, required: true, unique: true },
-  listings: { type: Array, required: true },
-  timestamp: { type: Date, default: Date.now },
-});
-
-function getAdminBusinessModel() {
-  return (
-    mongoose.models.AdminBusiness ||
-    mongoose.model("AdminBusiness", AdminBusinessSchema)
-  );
-}
 
 export async function POST(req) {
   try {
@@ -30,21 +16,10 @@ export async function POST(req) {
       );
     }
 
-    const profiles = await GoogleBusinessProfile.find(
-      googleId ? { userId, googleId } : { userId },
-    ).select("email");
-    const emails = profiles.map((profile) => profile.email).filter(Boolean);
     const filter = googleId ? { userId, googleId } : { userId };
     const result = googleId
       ? await GoogleBusinessProfile.findOneAndDelete(filter)
       : await GoogleBusinessProfile.deleteMany(filter);
-
-    if (emails.length > 0) {
-      const AdminBusiness = getAdminBusinessModel();
-      await AdminBusiness.deleteMany({
-        userEmail: { $in: emails.map((email) => email.toLowerCase()) },
-      });
-    }
 
     return NextResponse.json({
       success: true,

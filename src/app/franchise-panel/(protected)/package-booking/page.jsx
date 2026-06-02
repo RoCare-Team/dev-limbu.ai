@@ -8,6 +8,8 @@ export default function FranchisePackageBookingList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  console.log("franchise panel package data:", data);
+
   const patchBookingSource = async (bookingId, bookingSource) => {
     try {
       const token =
@@ -43,7 +45,6 @@ export default function FranchisePackageBookingList() {
       try {
         const res = await fetch("/api/service-booking?planType=our-package");
         const json = await res.json();
-
         if (!json.success) throw new Error("Failed to fetch bookings");
         setData(json.data);
       } catch (err) {
@@ -70,92 +71,101 @@ export default function FranchisePackageBookingList() {
       </div>
     );
 
+  const formatAmount = (val) => {
+    const clean = String(val).replace(/[₹,\s]/g, "");
+    const num = Number(clean);
+    if (!clean || isNaN(num)) return "—";
+    return "₹" + num.toLocaleString("en-IN");
+  };
+
   return (
     <div className="p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6">Package Bookings</h2>
+      <h2 className="text-2xl font-bold mb-6">Service Bookings</h2>
 
-      <div className="hidden md:block bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-white flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">Customer Transactions</h2>
-          <span className="text-sm text-gray-500">{data.length} Records</span>
-        </div>
-
+      {/* ── Desktop Table ── */}
+      <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-md">
+        {/* Table Header Bar */}
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-gray-700">
-            <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
-              <tr className="text-xs uppercase tracking-wider">
+          <table className="min-w-full text-sm">
+            {/* Black sticky thead */}
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-[#1e293b] text-white text-xs uppercase tracking-wider">
                 <th className="px-6 py-4 text-left font-semibold">Customer</th>
-                <th className="px-6 py-4 text-left">Contact</th>
-                <th className="px-6 py-4 text-left">Plan</th>
-                <th className="px-6 py-4 text-left">Source</th>
-                <th className="px-6 py-4 text-right">Amount</th>
-                <th className="px-6 py-4 text-left">GST No.</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-right">Date</th>
+                <th className="px-6 py-4 text-left font-semibold">Contact</th>
+                <th className="px-6 py-4 text-left font-semibold">Plan</th>
+                <th className="px-6 py-4 text-right font-semibold">Amount</th>
+                <th className="px-6 py-4 text-left font-semibold">GST No.</th>
+                <th className="px-6 py-4 text-center font-semibold">Status</th>
+                <th className="px-6 py-4 text-right font-semibold">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {!data.map((item) => (
+
+            {/* White tbody */}
+            <tbody className="bg-white divide-y divide-gray-100">
+              {data.map((item) => (
                 <tr
                   key={item._id}
-                  className="group hover:bg-blue-50 transition duration-200"
+                  className="hover:bg-gray-50 transition duration-150"
                 >
+                  {/* Customer */}
                   <td className="px-6 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-semibold text-sm shadow-md ring-2 ring-blue-100">
-                        {item.name?.charAt(0)}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-gray-600 to-gray-600 text-white font-semibold text-sm shadow-sm flex-shrink-0">
+                        {item.name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">{item.name}</div>
-                        <div className="text-xs text-gray-500">{item.email}</div>
+                        <div className="font-semibold text-gray-900">
+                          {item.name}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {item.email}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-5 text-gray-700 font-medium">{item.phone}</td>
+
+                  {/* Contact */}
+                  <td className="px-6 py-5 text-gray-600 font-medium">
+                    {item.phone}
+                  </td>
+
+                  {/* Plan */}
                   <td className="px-6 py-5">
-                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+                    <span className="bg-blue-50 text-gray-900 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border border-blue-100">
                       {item.planTitle}
                     </span>
                   </td>
-                  <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={item.bookingSource || "website"}
-                      onChange={(e) => patchBookingSource(item._id, e.target.value)}
-                      className="text-xs font-semibold border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none focus:ring-2 focus:ring-blue-200"
-                    >
-                      {BOOKING_SOURCE_VALUES.map((v) => (
-                        <option key={v} value={v}>
-                          {bookingSourceLabel(v)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+
+                  {/* Amount */}
                   <td className="px-6 py-5 text-right">
                     <span className="font-bold text-gray-900 text-base">
-                      {item.totalAmount}
+                      {formatAmount(item.totalAmount)}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-gray-600">{item.gstNumber || "—"}</td>
+
+                  {/* GST */}
+                  <td className="px-6 py-5 text-gray-500 text-sm">
+                    {item.gstNumber || "-"}
+                  </td>
+
+                  {/* Status */}
                   <td className="px-6 py-5 text-center">
                     <span
-                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
                         item.status === "paid"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
+                          ? "bg-green-500 text-white"
+                          : "bg-yellow-400 text-white"
                       }`}
                     >
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          item.status === "paid" ? "bg-green-500" : "bg-yellow-500"
-                        }`}
-                      />
-                      {item.status.toUpperCase()}
+                      {item.status?.toLowerCase()}
                     </span>
                   </td>
+
+                  {/* Date */}
                   <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
                     {new Date(item.createdAt).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
+                      day: "numeric",
+                      month: "numeric",
                       year: "numeric",
                     })}
                   </td>
@@ -166,29 +176,34 @@ export default function FranchisePackageBookingList() {
         </div>
       </div>
 
+      {/* ── Mobile Cards ── */}
       <div className="grid gap-4 md:hidden">
         {data.map((item) => (
-          <div key={item._id} className="bg-white rounded-xl shadow p-4 space-y-2">
+          <div
+            key={item._id}
+            className="bg-white rounded-xl shadow p-4 space-y-2 border border-gray-100"
+          >
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg">{item.name}</h3>
+              <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  item.status === "paid"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-yellow-100 text-yellow-700"
+                className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
+                  item.status === "paid" ? "bg-green-500" : "bg-yellow-400"
                 }`}
               >
-                {item.status}
+                {item.status?.toLowerCase()}
               </span>
             </div>
             <p className="text-sm text-gray-600">📞 {item.phone}</p>
             <p className="text-sm text-gray-600">📧 {item.email}</p>
-            <p className="text-sm font-semibold">{item.planTitle}</p>
+            <p className="text-sm font-semibold text-gray-800">
+              {item.planTitle}
+            </p>
+
             <label className="text-xs text-gray-500 block">Source</label>
             <select
               value={item.bookingSource || "website"}
               onChange={(e) => patchBookingSource(item._id, e.target.value)}
-              className="w-full text-sm border rounded-lg px-2 py-1"
+              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1"
             >
               {BOOKING_SOURCE_VALUES.map((v) => (
                 <option key={v} value={v}>
@@ -196,9 +211,12 @@ export default function FranchisePackageBookingList() {
                 </option>
               ))}
             </select>
-            <div className="flex justify-between text-sm">
-              <span>{item.totalAmount}</span>
-              <span className="text-gray-500">
+
+            <div className="flex justify-between text-sm pt-1">
+              <span className="font-bold text-gray-900">
+                {formatAmount(item.totalAmount)}
+              </span>
+              <span className="text-gray-400">
                 {new Date(item.createdAt).toLocaleDateString("en-IN")}
               </span>
             </div>

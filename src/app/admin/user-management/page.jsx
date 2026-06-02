@@ -180,7 +180,8 @@ export default function UserManagement() {
   });
   const [chatbotMetricFilter, setChatbotMetricFilter] = useState(null);
   const [chatbotMetricUsers, setChatbotMetricUsers] = useState([]);
-  const [chatbotMetricTableActive, setChatbotMetricTableActive] = useState(false);
+  const [chatbotMetricTableActive, setChatbotMetricTableActive] =
+    useState(false);
   const [chatbotMetricLoading, setChatbotMetricLoading] = useState(false);
   /** null | "today" | "yesterday" — filters main leads table */
   const [chatbotChatDayFilter, setChatbotChatDayFilter] = useState(null);
@@ -1219,7 +1220,6 @@ useEffect(() => {
         console.error("Error fetching total posts:", error);
       }
     };
-    
 
     // Don't fetch if custom range is selected but dates are not set
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) {
@@ -1373,7 +1373,6 @@ useEffect(() => {
       : users.filter(
           (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
-        
 
     setStats({
       total,
@@ -1862,9 +1861,7 @@ useEffect(() => {
     }
   };
 
-  const fetchConversationStageCards = async (
-    { refresh = false } = {},
-  ) => {
+  const fetchConversationStageCards = async ({ refresh = false } = {}) => {
     setConversationStageCardsLoading(true);
     try {
       const url = refresh
@@ -2019,7 +2016,12 @@ useEffect(() => {
     fetchUsers(true);
   };
 
-  const handleChatbotMetricCardClick = ({ metricId, period, title, cardKey }) => {
+  const handleChatbotMetricCardClick = ({
+    metricId,
+    period,
+    title,
+    cardKey,
+  }) => {
     if (chatbotMetricFilter?.cardKey === cardKey) {
       clearChatbotMetricFilter();
       return;
@@ -2075,7 +2077,10 @@ useEffect(() => {
       if (!chatbotMetricTableActive) setChatbotMetricUsers([]);
       return;
     }
-    fetchChatbotMetricUsers(chatbotMetricFilter, { silent: true, page: currentPage });
+    fetchChatbotMetricUsers(chatbotMetricFilter, {
+      silent: true,
+      page: currentPage,
+    });
   }, [chatbotMetricTableActive, chatbotMetricFilter, currentPage]);
 
   const fetchIssues = async () => {
@@ -4333,7 +4338,9 @@ useEffect(() => {
               <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/80 bg-blue-50/60 px-2.5 py-1">
                 <p className="text-[11px] font-semibold text-blue-900">
                   Showing:{" "}
-                  <span className="font-black">{chatbotMetricFilter.title}</span>
+                  <span className="font-black">
+                    {chatbotMetricFilter.title}
+                  </span>
                   {pagination?.totalUsers != null && (
                     <span className="text-blue-700 font-bold">
                       {" "}
@@ -4854,7 +4861,6 @@ useEffect(() => {
                                               </>
                                             )}
                                           </div>
-
                                           <div
                                             onClick={(e) => e.stopPropagation()}
                                           >
@@ -4882,44 +4888,58 @@ useEffect(() => {
                                               <option value="Cold">Cold</option>
                                             </select>
                                           </div>
-                                          <div
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <select
-                                              value={
-                                                USER_SOURCE_OPTIONS.some(
-                                                  (o) =>
-                                                    o.value ===
-                                                    (user.source || ""),
-                                                )
-                                                  ? user.source || "signup"
-                                                  : "signup"
+                                          {!user.franchiseId && ( 
+                                            <div
+                                              onClick={(e) =>
+                                                e.stopPropagation()
                                               }
-                                              onChange={(e) =>
-                                                handleUserSourceChange(
-                                                  user.userId,
-                                                  e.target.value,
-                                                )
-                                              }
-                                              className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
-                                              title="Lead source (website, chatbot, manual upload, …)"
                                             >
-                                              {USER_SOURCE_OPTIONS.map((o) => (
-                                                <option
-                                                  key={o.value}
-                                                  value={o.value}
-                                                >
-                                                  {o.label}
-                                                </option>
-                                              ))}
-                                            </select>
-                                          </div>
+                                              <select
+                                                value={
+                                                  USER_SOURCE_OPTIONS.some(
+                                                    (o) =>
+                                                      o.value ===
+                                                      (user.source || ""),
+                                                  )
+                                                    ? user.source || "signup"
+                                                    : "signup"
+                                                }
+                                                onChange={(e) =>
+                                                  handleUserSourceChange(
+                                                    user.userId,
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
+                                                title="Lead source (website, chatbot, manual upload, …)"
+                                              >
+                                                {USER_SOURCE_OPTIONS.map(
+                                                  (o) => (
+                                                    <option
+                                                      key={o.value}
+                                                      value={o.value}
+                                                    >
+                                                      {o.label}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </div>
+                                          )}{" "}
+                                          
                                           <div className="flex flex-wrap gap-1 mt-1">
-                                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
-                                              {userAcquisitionLabel(
-                                                user.source,
-                                              )}
-                                            </span>
+                                            {user.franchiseId ? (
+                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100 rounded-full">
+                                                Franchise: {user.franchiseId}
+                                              </span>
+                                            ) : (
+                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
+                                                {userAcquisitionLabel(
+                                                  user.source,
+                                                )}
+                                              </span>
+                                            )}
+
                                             {user.paidPackage && (
                                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
                                                 {user.paidPackage}

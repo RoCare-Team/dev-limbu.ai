@@ -1,5 +1,15 @@
 "use client";
-
+import {
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  CircularProgress,
+} from "@mui/material";
 import { useEffect, useState } from "react";
 
 export default function ServiceBookingList() {
@@ -28,7 +38,7 @@ export default function ServiceBookingList() {
   if (loading)
     return (
       <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
+        <CircularProgress />
       </div>
     );
 
@@ -44,29 +54,124 @@ export default function ServiceBookingList() {
       <h2 className="text-2xl font-bold mb-6">Service Bookings</h2>
 
       {/* Desktop Table */}
-     {/* Desktop Table */}
-<div className="hidden md:block bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-  <div className="overflow-x-auto">
-    <table className="min-w-full text-sm text-gray-700">
-      <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white sticky top-0 z-10">
-        <tr>
-          <th className="px-5 py-4 text-left font-semibold">Customer</th>
-          <th className="px-5 py-4 text-left">Contact</th>
-          <th className="px-5 py-4 text-left">Plan</th>
-          <th className="px-5 py-4 text-right">Amount</th>
-          <th className="px-5 py-4 text-left">GST No.</th>
-          <th className="px-5 py-4 text-center">Status</th>
-          <th className="px-5 py-4 text-right">Date</th>
-        </tr>
-      </thead>
+      <div className="hidden md:block">
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            borderRadius: "20px",
+            border: "1px solid #e5e7eb",
+            overflow: "hidden",
+            backgroundColor: "#fff",
+          }}
+        >
+          <Table>
+            <TableHead>
+              <TableRow
+                sx={{
+                  backgroundColor: "#111827",
+                }}
+              >
+                <TableCell sx={{ color: "#fff", fontWeight: 700 }}>
+                  Customer
+                </TableCell>
 
-      <tbody>
-      <h1>Loading your data</h1>
-      </tbody>
-    </table>
-  </div>
-</div>
+                <TableCell sx={{ color: "#fff", fontWeight: 700 }}>
+                  Contact
+                </TableCell>
 
+                <TableCell sx={{ color: "#fff", fontWeight: 700 }}>
+                  Plan
+                </TableCell>
+
+                <TableCell
+                  align="right"
+                  sx={{ color: "#fff", fontWeight: 700 }}
+                >
+                  Amount
+                </TableCell>
+
+                <TableCell sx={{ color: "#fff", fontWeight: 700 }}>
+                  GST No.
+                </TableCell>
+
+                <TableCell
+                  align="center"
+                  sx={{ color: "#fff", fontWeight: 700 }}
+                >
+                  Status
+                </TableCell>
+
+                <TableCell
+                  align="right"
+                  sx={{ color: "#fff", fontWeight: 700 }}
+                >
+                  Date
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No bookings found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.map((item) => (
+                  <TableRow
+                    key={item._id}
+                    hover
+                    sx={{
+                      "&:last-child td": {
+                        borderBottom: 0,
+                      },
+                    }}
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {item.name}
+                        </p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="space-y-1">
+                        <p>{item.phone}</p>
+                        <p className="text-xs text-gray-500">{item.email}</p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="font-medium">{item.planTitle}</span>
+                    </TableCell>
+
+                    <TableCell align="right">
+                      {(item.totalAmount || 0).toLocaleString()}
+                    </TableCell>
+
+                    <TableCell>{item.gstNumber || "-"}</TableCell>
+
+                    <TableCell align="center">
+                      <Chip
+                        label={item.status}
+                        size="small"
+                        color={item.status === "paid" ? "success" : "warning"}
+                      />
+                    </TableCell>
+
+                    <TableCell align="right">
+                      {new Date(item.createdAt).toLocaleDateString("en-IN")}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </div>
 
       {/* Mobile Cards */}
       <div className="grid gap-4 md:hidden">

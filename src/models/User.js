@@ -14,6 +14,9 @@ const userSchema = new mongoose.Schema(
     chatbotLastActive: { type: String, default: null },
     chatbotMessageCount: { type: Number, default: null },
     chatbotLastMessage: { type: String, default: null },
+    /** Cached LimbuBot funnel stages (updated on WhatsApp sync) */
+    conversationStages: { type: [String], default: [] },
+    chatbotStagesSyncedAt: { type: Date, default: null },
 
   //   paidSession: [
   //   {

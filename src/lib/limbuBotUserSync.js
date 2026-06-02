@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import ChatbotStageSnapshot from "@/models/ChatbotStageSnapshot";
 import dbConnect from "@/lib/dbConnect";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
@@ -27,11 +28,16 @@ const WHATSAPP_EXTERNAL_API_KEY =
 const HISTORY_TIMEOUT_MS = 8_000;
 const STAGE_BATCH_SIZE = 25;
 const FETCH_TIMEOUT_MS = 10_000;
+const PAGE_FETCH_CONCURRENCY = 8;
+const SNAPSHOT_KEY = "default";
+const SNAPSHOT_TTL_MS = 10 * 60 * 1000;
 
 // Simple in-process TTL cache
 let _limbuBotCache = null;
 let _limbuBotCacheAt = 0;
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+let _stageSnapshotBuildPromise = null;
 
 const SettingSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
@@ -346,6 +352,10 @@ export async function ensureChatbotRowsSaved(botRows = []) {
 
     try {
       if (existing) {
+        const stages =
+          Array.isArray(bot.stages) && bot.stages.length
+            ? bot.stages
+            : [...detectConversationStages(history)];
         const setData = {
           chatbotUserId: bot.user_id,
           whatsappUserId: bot.user_id,
@@ -355,6 +365,8 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           chatbotLastMessage: bot.last_message
             ? String(bot.last_message).slice(0, 500)
             : null,
+          conversationStages: stages.length ? stages : [],
+          chatbotStagesSyncedAt: new Date(),
         };
 
         if (!existing.assignedAgentId) {
@@ -630,13 +642,15 @@ function virtualUserFromBotRow(row) {
     chatbotHistory: history,
     conversationStages: conversationStages.length
       ? conversationStages
-      : ["No Activity"],
+      : [],
   };
 }
 
-async function mapBotStageRowsToTableUsers(botRows = []) {
+async function mapBotStageRowsToTableUsers(botRows = [], options = {}) {
   await dbConnect();
-  await ensureChatbotRowsSaved(botRows);
+  if (!options.skipPersist) {
+    await ensureChatbotRowsSaved(botRows);
+  }
 
   const phones = [...new Set(botRows.map((r) => r.phone).filter(Boolean))];
   const waIds = [...new Set(botRows.map((r) => r.user_id).filter(Boolean))];
@@ -854,7 +868,7 @@ export async function listUsersForChatbotChatDay({
       chatbotMessageCount: bot.message_count || user.chatbotMessageCount || 0,
       chatbotLastMessage: bot.last_message || user.chatbotLastMessage || "",
       chatbotHistory: history,
-      conversationStages: stages.length ? stages : ["No Activity"],
+      conversationStages: stages.length ? stages : [],
       whatsappContactId: bot.contact?.id || user.whatsappContactId || null,
       whatsappChatStatus:
         bot.contact?.chat_status || user.whatsappChatStatus || "",
@@ -935,17 +949,26 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   //   `[fetchLimbuBotAdminUsers] 📄 Total pages: ${totalPages} | Page limit: ${pageLimit} | Total contacts: ${pagination.total || "?"}`,
   // );
 
-  for (let page = 2; page <= totalPages; page += 1) {
-    const pageData = await fetchPage(page, pageLimit);
-    const pageContacts = Array.isArray(pageData?.contacts)
-      ? pageData.contacts
-      : Array.isArray(pageData?.users)
-        ? pageData.users
-        : [];
-    contacts.push(...pageContacts);
-    // console.log(
-    //   `[fetchLimbuBotAdminUsers] 📄 Page ${page}/${totalPages} fetched — ${pageContacts.length} contacts`,
-    // );
+  for (let start = 2; start <= totalPages; start += PAGE_FETCH_CONCURRENCY) {
+    const pageNumbers = [];
+    for (
+      let page = start;
+      page < start + PAGE_FETCH_CONCURRENCY && page <= totalPages;
+      page += 1
+    ) {
+      pageNumbers.push(page);
+    }
+    const pageResults = await Promise.all(
+      pageNumbers.map((page) => fetchPage(page, pageLimit)),
+    );
+    for (const pageData of pageResults) {
+      const pageContacts = Array.isArray(pageData?.contacts)
+        ? pageData.contacts
+        : Array.isArray(pageData?.users)
+          ? pageData.users
+          : [];
+      contacts.push(...pageContacts);
+    }
   }
 
   const users = contacts
@@ -969,9 +992,187 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
 }
 
 export function invalidateLimbuBotCache() {
-  // console.log("[invalidateLimbuBotCache] 🗑️ Cache clear kiya gaya");
   _limbuBotCache = null;
   _limbuBotCacheAt = 0;
+  _stageSnapshotBuildPromise = null;
+}
+
+function toCompactStageRow(row = {}) {
+  const contact = row.contact || null;
+  return {
+    user_id: row.user_id,
+    phone: row.phone,
+    name: row.name || contact?.name || "",
+    email: row.email || contact?.email || "",
+    message_count: Number(row.message_count) || 0,
+    last_active: row.last_active || "",
+    last_message: row.last_message ? String(row.last_message).slice(0, 200) : "",
+    stages: Array.isArray(row.stages) ? row.stages : [],
+    contact: contact
+      ? {
+          id: contact.id,
+          name: contact.name,
+          email: contact.email,
+          chat_status: contact.chat_status,
+        }
+      : null,
+  };
+}
+
+function indexStageUsers(allUsers = []) {
+  const stageUsers = Object.fromEntries(
+    CONVERSATION_STAGE_KEYS.map((s) => [s, []]),
+  );
+  for (const user of allUsers) {
+    for (const stage of user.stages || []) {
+      if (stageUsers[stage]) stageUsers[stage].push(user);
+    }
+  }
+  return stageUsers;
+}
+
+function hydrateSnapshotDoc(doc) {
+  if (!doc) return null;
+  const allUsers = Array.isArray(doc.users) ? doc.users : [];
+  return {
+    total: Number(doc.total) || allUsers.length,
+    stageCounts: doc.stageCounts || {},
+    stageUsers: indexStageUsers(allUsers),
+    allUsers,
+    stageOrder: doc.stageOrder?.length ? doc.stageOrder : CONVERSATION_STAGE_KEYS,
+    fetchedAt: doc.fetchedAt || doc.updatedAt,
+    fromCache: true,
+  };
+}
+
+async function readConversationStagesSnapshot() {
+  await dbConnect();
+  const doc = await ChatbotStageSnapshot.findOne({ key: SNAPSHOT_KEY }).lean();
+  if (!doc?.fetchedAt) return null;
+  const age = Date.now() - new Date(doc.fetchedAt).getTime();
+  if (age > SNAPSHOT_TTL_MS) return null;
+  return hydrateSnapshotDoc(doc);
+}
+
+async function writeConversationStagesSnapshot(payload) {
+  await dbConnect();
+  const compactUsers = (payload.allUsers || []).map(toCompactStageRow);
+  await ChatbotStageSnapshot.findOneAndUpdate(
+    { key: SNAPSHOT_KEY },
+    {
+      key: SNAPSHOT_KEY,
+      total: payload.total,
+      stageCounts: payload.stageCounts,
+      stageOrder: payload.stageOrder,
+      users: compactUsers,
+      fetchedAt: new Date(payload.fetchedAt || Date.now()),
+    },
+    { upsert: true, new: true },
+  );
+  return hydrateSnapshotDoc({
+    ...payload,
+    users: compactUsers,
+    fetchedAt: payload.fetchedAt,
+  });
+}
+
+export async function buildConversationStagesFromApi({ bypassCache = false } = {}) {
+  const { total, users: botUsers } = await fetchLimbuBotAdminUsers({
+    bypassCache,
+  });
+
+  const allUsers = [];
+
+  for (let i = 0; i < botUsers.length; i += STAGE_BATCH_SIZE) {
+    const chunk = botUsers.slice(i, i + STAGE_BATCH_SIZE);
+
+    await Promise.all(
+      chunk.map(async (bot) => {
+        const waId = String(bot.user_id || "").trim();
+        const history = Array.isArray(bot.history) ? bot.history : [];
+        const matched = detectConversationStages(history);
+        const stages = [...matched];
+
+        allUsers.push(
+          toCompactStageRow({
+            user_id: waId,
+            phone: waIdToPhone(waId),
+            name: bot.name || bot.contact?.name || "",
+            email: bot.email || bot.contact?.email || "",
+            message_count: Number(bot.message_count) || 0,
+            last_active: bot.last_active || "",
+            last_message: bot.last_message
+              ? String(bot.last_message).slice(0, 200)
+              : "",
+            contact: bot.contact || null,
+            stages,
+          }),
+        );
+      }),
+    );
+  }
+
+  const dedupedAllUsers = dedupeBotStageRows(allUsers);
+  const stageCounts = Object.fromEntries(
+    CONVERSATION_STAGE_KEYS.map((s) => [s, 0]),
+  );
+  for (const user of dedupedAllUsers) {
+    for (const stage of user.stages || []) {
+      if (stageCounts[stage] !== undefined) stageCounts[stage]++;
+    }
+  }
+
+  const chatStartedCount = dedupedAllUsers.filter(
+    (user) => (user.stages || []).length > 0,
+  ).length;
+
+  return {
+    total: chatStartedCount,
+    stageCounts,
+    stageUsers: indexStageUsers(dedupedAllUsers),
+    allUsers: dedupedAllUsers,
+    stageOrder: CONVERSATION_STAGE_KEYS,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+export async function refreshConversationStagesSnapshot({
+  bypassCache = true,
+  persistUsers = false,
+} = {}) {
+  const built = await buildConversationStagesFromApi({ bypassCache });
+  if (persistUsers) {
+    await ensureChatbotRowsSaved(
+      built.allUsers.map((row) => ({
+        ...row,
+        history: [],
+      })),
+    );
+  }
+  return writeConversationStagesSnapshot(built);
+}
+
+async function loadOrBuildConversationStagesSnapshot({
+  refresh = false,
+  persistUsers = false,
+} = {}) {
+  if (!refresh) {
+    const cached = await readConversationStagesSnapshot();
+    if (cached) return cached;
+  }
+
+  if (_stageSnapshotBuildPromise) {
+    return _stageSnapshotBuildPromise;
+  }
+
+  _stageSnapshotBuildPromise = refreshConversationStagesSnapshot({
+    bypassCache: refresh,
+    persistUsers,
+  }).finally(() => {
+    _stageSnapshotBuildPromise = null;
+  });
+
+  return _stageSnapshotBuildPromise;
 }
 
 export async function syncChatbotUsersToApp(options = {}) {
@@ -1154,6 +1355,15 @@ export async function syncChatbotUsersToApp(options = {}) {
 
   invalidateLimbuBotCache();
 
+  try {
+    await refreshConversationStagesSnapshot({
+      bypassCache: true,
+      persistUsers: false,
+    });
+  } catch (err) {
+    console.error("[syncChatbotUsersToApp] stage snapshot refresh failed:", err);
+  }
+
   // console.log(`\n[syncChatbotUsersToApp] ══ SYNC COMPLETE ══`);
   // console.log(
   //   `[syncChatbotUsersToApp] 📊 fetched=${botUsers.length} | inserted=${inserted} | linked=${linked} | skipped=${skipped} | nonIndian=${nonIndian.length} | errors=${errors.length}`,
@@ -1171,13 +1381,21 @@ export async function syncChatbotUsersToApp(options = {}) {
 }
 
 export const CONVERSATION_STAGE_KEYS = [
-  "No Activity",
   "Initial Conversation",
   "GMB Connected",
   "GMB Health",
   "Magic QR",
   "GMB Insight",
   "Build Website",
+];
+
+export const CHATBOT_SUMMARY_METRIC_DEFS = [
+  { id: "chatsCreated", label: "Chats Created", stage: null },
+  { id: "gmbConnected", label: "GMB Connected", stage: "GMB Connected" },
+  { id: "gmbHealth", label: "GMB Health Generated", stage: "GMB Health" },
+  { id: "magicQr", label: "Magic QR Created", stage: "Magic QR" },
+  { id: "gmbInsights", label: "GMB Insights Generated", stage: "GMB Insight" },
+  { id: "websitesBuilt", label: "Websites Built", stage: "Build Website" },
 ];
 
 const _STAGE_KEYWORDS = {
@@ -1240,7 +1458,6 @@ export function detectConversationStages(history = []) {
     });
 
   if (!hasHistory) {
-    matched.add("No Activity");
     return matched;
   }
 
@@ -1259,129 +1476,261 @@ export function detectConversationStages(history = []) {
   return matched;
 }
 
-export async function getLimbuBotConversationStages() {
-  const { total, users: botUsers } = await fetchLimbuBotAdminUsers();
-
-  // console.log(
-  //   `\n[getLimbuBotConversationStages] ═══════════════════════════════`,
-  // );
-  // console.log(
-  //   `[getLimbuBotConversationStages] 📦 Total users for stage classification: ${botUsers.length}`,
-  // );
-
-  const stageCounts = Object.fromEntries(
-    CONVERSATION_STAGE_KEYS.map((s) => [s, 0]),
-  );
-  const stageUsers = Object.fromEntries(
-    CONVERSATION_STAGE_KEYS.map((s) => [s, []]),
-  );
-  const allUsers = [];
-
-  for (let i = 0; i < botUsers.length; i += STAGE_BATCH_SIZE) {
-    const chunk = botUsers.slice(i, i + STAGE_BATCH_SIZE);
-
-    await Promise.all(
-      chunk.map(async (bot) => {
-        const waId = String(bot.user_id || "").trim();
-        const history = Array.isArray(bot.history) ? bot.history : [];
-        const matched = detectConversationStages(history);
-
-        const enriched = {
-          user_id: waId,
-          phone: waIdToPhone(waId),
-          name: bot.name || bot.contact?.name || "",
-          email: bot.email || bot.contact?.email || "",
-          message_count: Number(bot.message_count) || 0,
-          last_active: bot.last_active || "",
-          last_message: bot.last_message
-            ? String(bot.last_message).slice(0, 200)
-            : "",
-          history,
-          contact: bot.contact || null,
-          stages: [...matched],
-        };
-
-        allUsers.push(enriched);
-
-        for (const stage of matched) {
-          if (!CONVERSATION_STAGE_KEYS.includes(stage)) continue;
-          stageCounts[stage]++;
-          stageUsers[stage].push(enriched);
-        }
-      }),
+function getStageFirstAchievedCalendarDate(history = [], stage) {
+  if (!stage || stage === "Initial Conversation") {
+    const inbound = (history || []).filter(
+      (m) =>
+        String(m?.role || "").toLowerCase() === "user" &&
+        String(m?.content || "").trim() !== "",
+    );
+    if (!inbound.length) return "";
+    const sorted = inbound.slice().sort((a, b) =>
+      String(a.time || a.created_at || "").localeCompare(
+        String(b.time || b.created_at || ""),
+      ),
+    );
+    return getLastActiveCalendarDate(
+      sorted[0]?.time || sorted[0]?.created_at || "",
     );
   }
 
-  // ── STAGE SUMMARY LOG ──
-  // console.log(`\n[STAGE SUMMARY] ── GMB & All Stages Count ──`);
-  for (const stage of CONVERSATION_STAGE_KEYS) {
-    const count = stageCounts[stage];
-    const users = stageUsers[stage];
-    // console.log(`\n[STAGE: ${stage}] 👥 Count: ${count}`);
-    if (count > 0) {
-      console.table(
-        users.map((u) => ({
-          phone: u.phone,
-          user_id: u.user_id,
-          messages: u.message_count,
-          last_active: u.last_active,
-          stages: u.stages.join(", "),
-          last_message: String(u.last_message || "").slice(0, 50),
-        })),
+  const keywords = _STAGE_KEYWORDS[stage];
+  if (!keywords?.length) return "";
+
+  const assistantMsgs = (history || [])
+    .filter((m) => String(m?.role || "").toLowerCase() === "assistant")
+    .slice()
+    .sort((a, b) =>
+      String(a.time || a.created_at || "").localeCompare(
+        String(b.time || b.created_at || ""),
+      ),
+    );
+
+  for (const message of assistantMsgs) {
+    const content = String(message?.content || "").toLowerCase();
+    if (keywords.some((k) => content.includes(k.toLowerCase()))) {
+      return getLastActiveCalendarDate(
+        message.time || message.created_at || "",
       );
-      console.dir(users, { depth: 5 });
-    } else {
-      console.log(`[STAGE: ${stage}] ⚠️ Koi user nahi`);
     }
   }
-  // console.log(
-  //   `[getLimbuBotConversationStages] ═══════════════════════════════\n`,
-  // );
+  return "";
+}
 
-  const dedupedAllUsers = dedupeBotStageRows(allUsers);
-  await ensureChatbotRowsSaved(dedupedAllUsers);
+function countTodayStageAchievements(botUsers = [], stage, calendarDate) {
+  if (!calendarDate) return 0;
+  let count = 0;
+  for (const bot of botUsers) {
+    const history = Array.isArray(bot.history) ? bot.history : [];
+    if (!stage) {
+      if (getInboundMessagesForCalendarDay(bot, calendarDate).length) count++;
+      continue;
+    }
+    if (getStageFirstAchievedCalendarDate(history, stage) === calendarDate) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/** Total + today counts for WhatsApp chatbot dashboard summary cards. */
+export async function getChatbotDashboardMetrics() {
+  const todayBounds = getAppDayBounds();
+  const calendarDate = todayBounds.calendarDate;
+
+  const [snapshot, { users: botUsers }] = await Promise.all([
+    loadOrBuildConversationStagesSnapshot({ refresh: false }),
+    fetchLimbuBotAdminUsers(),
+  ]);
+
+  const stageCounts = snapshot.stageCounts || {};
+  const chatStartedTotal = (snapshot.allUsers || []).filter(
+    (user) => (user.stages || []).length > 0,
+  ).length;
+
+  const totals = {
+    chatsCreated: chatStartedTotal,
+    gmbConnected: stageCounts["GMB Connected"] || 0,
+    gmbHealth: stageCounts["GMB Health"] || 0,
+    magicQr: stageCounts["Magic QR"] || 0,
+    gmbInsights: stageCounts["GMB Insight"] || 0,
+    websitesBuilt: stageCounts["Build Website"] || 0,
+  };
+
+  const today = {
+    chatsCreated: countTodayStageAchievements(botUsers, null, calendarDate),
+    gmbConnected: countTodayStageAchievements(
+      botUsers,
+      "GMB Connected",
+      calendarDate,
+    ),
+    gmbHealth: countTodayStageAchievements(
+      botUsers,
+      "GMB Health",
+      calendarDate,
+    ),
+    magicQr: countTodayStageAchievements(botUsers, "Magic QR", calendarDate),
+    gmbInsights: countTodayStageAchievements(
+      botUsers,
+      "GMB Insight",
+      calendarDate,
+    ),
+    websitesBuilt: countTodayStageAchievements(
+      botUsers,
+      "Build Website",
+      calendarDate,
+    ),
+  };
+
+  const yesterdayBounds = getAppDayBounds(
+    new Date(todayBounds.start.getTime() - 36 * 3600000),
+  );
+  const yesterdayChats = filterBotUsersByInboundCalendarDay(
+    botUsers,
+    yesterdayBounds.calendarDate,
+  ).length;
 
   return {
-    total: Number(total) || botUsers.length,
-    stageCounts,
-    stageUsers,
-    allUsers: dedupedAllUsers,
-    stageOrder: CONVERSATION_STAGE_KEYS,
-    fetchedAt: new Date().toISOString(),
+    timeZone: todayBounds.timeZone,
+    calendarDate,
+    todayLabel: todayBounds.displayLabel,
+    yesterdayLabel: yesterdayBounds.displayLabel,
+    yesterdayChats,
+    todayChats: today.chatsCreated,
+    totals,
+    today,
+    fetchedAt: snapshot.fetchedAt || new Date().toISOString(),
+    cached: Boolean(snapshot.fromCache),
   };
+}
+
+const CHATBOT_METRIC_STAGE_MAP = {
+  chatsCreated: null,
+  gmbConnected: "GMB Connected",
+  gmbHealth: "GMB Health",
+  magicQr: "Magic QR",
+  gmbInsights: "GMB Insight",
+  websitesBuilt: "Build Website",
+};
+
+function filterBotRowsForMetric(botUsers = [], metricId, period, calendarDate) {
+  const stage = CHATBOT_METRIC_STAGE_MAP[metricId];
+
+  if (period === "today") {
+    if (metricId === "chatsCreated") {
+      return filterBotUsersByInboundCalendarDay(botUsers, calendarDate).map(
+        mapBotUserRow,
+      );
+    }
+    return botUsers
+      .filter((bot) => {
+        const history = Array.isArray(bot.history) ? bot.history : [];
+        return (
+          getStageFirstAchievedCalendarDate(history, stage) === calendarDate
+        );
+      })
+      .map(mapBotUserRow);
+  }
+
+  return [];
+}
+
+function filterSnapshotRowsForMetric(snapshot, metricId) {
+  const stage = CHATBOT_METRIC_STAGE_MAP[metricId];
+  if (metricId === "chatsCreated") {
+    return (snapshot.allUsers || []).filter((user) => (user.stages || []).length > 0);
+  }
+  return snapshot.stageUsers?.[stage] || [];
+}
+
+/** Paginated users for a WhatsApp overview metric card (total or today). */
+export async function getChatbotMetricUsers({
+  metricId,
+  period = "total",
+  page = 1,
+  limit = 70,
+} = {}) {
+  if (!metricId || !(metricId in CHATBOT_METRIC_STAGE_MAP)) {
+    throw new Error("Invalid chatbot metric");
+  }
+  if (period !== "total" && period !== "today") {
+    throw new Error("Invalid period");
+  }
+
+  const todayBounds = getAppDayBounds();
+  const calendarDate = todayBounds.calendarDate;
+  let rows = [];
+
+  if (period === "today") {
+    const { users: botUsers } = await fetchLimbuBotAdminUsers();
+    rows = dedupeBotStageRows(filterBotRowsForMetric(botUsers, metricId, period, calendarDate));
+  } else {
+    const snapshot = await loadOrBuildConversationStagesSnapshot({
+      refresh: false,
+    });
+    rows = dedupeBotStageRows(filterSnapshotRowsForMetric(snapshot, metricId));
+  }
+
+  const totalUsers = rows.length;
+  const skip = (page - 1) * limit;
+  const pageRows = rows.slice(skip, skip + limit);
+
+  return {
+    success: true,
+    metricId,
+    period,
+    users: await mapBotStageRowsToTableUsers(pageRows),
+    totalUsers,
+    currentPage: page,
+    totalPages: Math.max(1, Math.ceil(totalUsers / limit)),
+    limit,
+  };
+}
+
+export async function getLimbuBotConversationStages(options = {}) {
+  return loadOrBuildConversationStagesSnapshot(options);
 }
 
 export async function getLimbuBotStageWithUsers({
   stage = "",
   page = 1,
   limit = 50,
+  refresh = false,
 } = {}) {
   const { total, stageCounts, stageUsers, allUsers, stageOrder, fetchedAt } =
-    await getLimbuBotConversationStages();
+    await loadOrBuildConversationStagesSnapshot({
+      refresh,
+      persistUsers: refresh,
+    });
 
-  const base = { success: true, total, stageCounts, stageOrder, fetchedAt };
+  const base = {
+    success: true,
+    total,
+    stageCounts,
+    stageOrder,
+    fetchedAt,
+    cached: !refresh,
+  };
 
   if (!stage) {
-    // console.log(
-    //   `[getLimbuBotStageWithUsers] ℹ️ Stage nahi diya — sirf counts return`,
-    // );
     return base;
   }
 
+  const chatStartedUsers = dedupeBotStageRows(allUsers).filter(
+    (user) => (user.stages || []).length > 0,
+  );
   const allForStage =
-    stage === "All" ? dedupeBotStageRows(allUsers) : stageUsers[stage] || [];
+    stage === "All" ? chatStartedUsers : stageUsers[stage] || [];
   const totalUsers = allForStage.length;
   const skip = (page - 1) * limit;
   const pageRows = allForStage.slice(skip, skip + limit);
 
-  // console.log(
-  //   `[getLimbuBotStageWithUsers] 📋 Stage="${stage}" | Total=${totalUsers} | Page=${page} | Showing=${pageRows.length}`,
-  // );
-
   return {
     ...base,
     stage,
-    users: await mapBotStageRowsToTableUsers(pageRows),
+    users: await mapBotStageRowsToTableUsers(pageRows, {
+      skipPersist: !refresh,
+    }),
     totalUsers,
     currentPage: page,
     totalPages: Math.max(1, Math.ceil(totalUsers / limit)),

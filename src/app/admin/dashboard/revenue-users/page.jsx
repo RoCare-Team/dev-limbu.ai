@@ -1045,8 +1045,12 @@ export default function RevenueUsersPage() {
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-                        serviceRows.map((u, i) => (
-                          <tr
+                         serviceRows.map((u, i) => {
+
+    console.log("FULL SERVICE ROW", u);
+
+                            return(
+                              <tr
                             key={i}
                             className="border-t hover:bg-gray-50 transition"
                           >
@@ -1242,7 +1246,9 @@ export default function RevenueUsersPage() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                            )
+                          
+                         })}
                     </tbody>
                   </table>
                 </div>
@@ -1250,10 +1256,14 @@ export default function RevenueUsersPage() {
 
               {/* Footer Totals */}
               <RevenueFooter
-                activeView={activeView}
-                revenueUsersList={revenueUsersList}
-                users={users}
-              />
+  activeView={activeView}
+  revenueUsersList={
+    activeView === "service"
+      ? serviceRows
+      : packageRows
+  }
+  users={users}
+/>
             </>
           </RevenueTableWrapper>
         </div>

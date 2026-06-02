@@ -122,8 +122,7 @@ export default function ChatbotDailyChatCards({
       },
     ];
 
-  // Sirf count > 0 wale cards dikhao
-  const cardsData = rawCards.filter((card) => card.count > 0);
+  const cardsData = rawCards;
 
   return (
     <Card

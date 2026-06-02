@@ -31,6 +31,8 @@ export default function Page() {
 
   const totalPages = Math.ceil(data.slice(1).length / usersPerPage);
 
+  const [sendingTemplateId, setSendingTemplateId] = useState("");
+
   useEffect(() => {
     fetch("/api/admin/sheets-list")
       .then((res) => res.json())
@@ -348,87 +350,39 @@ const phoneIndex = headers.findIndex((h) =>
       </div>
 
       <WhatsappModal
-        isOpen={openWhatsappModal}
-        setIsOpen={setOpenWhatsappModal}
-        selectedCount={selectedRows.length}
-        onSendTemplate={async (template) => {
-          const numbers = selectedUsers.map(
-            (row) => `91${String(row[2]).replace(/\D/g, "")}`,
-          );
+         isOpen={openWhatsappModal}
+  setIsOpen={setOpenWhatsappModal}
+  selectedCount={selectedRows.length}
+  sendingTemplateId={sendingTemplateId}
+  onSendTemplate={async (template) => {
+  try {
+    setSendingTemplateId(template.id);
 
-          try {
+    const response = await fetch(
+      "/api/admin/user-management-template-whatsapp",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }
+    );
 
-            console.log(
-  selectedUsers.map((row) => ({
-    name: row[0],
+    const result = await response.json();
 
-    phone: String(
-  row[phoneIndex] || ""
-)
-  .replace(/\D/g, "")
-  .replace(/^91/, "")
-  .replace(/^0+/, "")
-  .slice(-10),
-  }))
-);
-
-            const response = await fetch(
-              "/api/admin/user-management-template-whatsapp",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  adminEmail: "info@limbu.ai",
-
-                  templateId: template.id,
-
-                  
-
-                 users: selectedUsers.map((row) => ({
-
-
-  name: row[0],
-
-  phone: String(
-  row[phoneIndex] || ""
-)
-  .replace(/\D/g, "")
-  .replace(/^91/, "")
-  .replace(/^0+/, "")
-  .slice(-10),
-})),
-                }),
-              },
-            );
-
-            
-
-
-
-  const result = await response.json();
-
-  console.log(result);
-
-  if (result.success) {
-
-    alert("WhatsApp Template Sent");
-
-  } else {
-
-    alert(result.message || "Failed To Send");
-
+    if (result.success) {
+      alert("WhatsApp Template Sent");
+    } else {
+      alert(result.message || "Failed To Send");
+    }
+  } catch (error) {
+    console.log(error);
+    alert("Failed To Send Template");
+  } finally {
+    setSendingTemplateId("");
   }
-
-} catch (error) {
-
-  console.log(error);
-
-  alert("Failed To Send Template");
-
-}
-        }}
+}}
       />
     </>
   );

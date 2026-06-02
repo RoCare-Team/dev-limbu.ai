@@ -70,7 +70,7 @@ import AddExpoLeadUserModal from "./components/AddExpoLeadUserModal";
 
 import WhatsappModal from "./components/WhatsAppTemplateModel";
 import ChatHistoryModal from "./components/ChatHistoryModal";
-import ChatbotDailyChatCards from "./components/ChatbotDailyChatCards";
+import ChatbotSummaryMetrics from "./components/ChatbotSummaryMetrics";
 
 // import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
 
@@ -170,9 +170,18 @@ export default function UserManagement() {
   const [chatbotDayStats, setChatbotDayStats] = useState({
     loading: true,
     timeZone: "Asia/Kolkata",
-    today: { count: 0, users: [], label: "" },
-    yesterday: { count: 0, users: [], label: "" },
+    today: { count: 0, label: "" },
+    yesterday: { count: 0, label: "" },
   });
+  const [chatbotSummaryMetrics, setChatbotSummaryMetrics] = useState({
+    loading: true,
+    totals: {},
+    today: {},
+  });
+  const [chatbotMetricFilter, setChatbotMetricFilter] = useState(null);
+  const [chatbotMetricUsers, setChatbotMetricUsers] = useState([]);
+  const [chatbotMetricTableActive, setChatbotMetricTableActive] = useState(false);
+  const [chatbotMetricLoading, setChatbotMetricLoading] = useState(false);
   /** null | "today" | "yesterday" — filters main leads table */
   const [chatbotChatDayFilter, setChatbotChatDayFilter] = useState(null);
   const [issues, setIssues] = useState([]);
@@ -399,7 +408,7 @@ export default function UserManagement() {
 
     // Agar koi activity nahi hai
     if (steps.length === 0 && history.length === 0) {
-      return { label: "No Activity", steps: [] };
+      return { label: "Not started", steps: [] };
     }
 
     return {
@@ -483,8 +492,7 @@ export default function UserManagement() {
       whatsappContactId: contact.id || null,
       whatsappChatStatus: contact.chat_status || "",
       chatbotHistory: history,
-      conversationStages:
-        stage.steps.length > 0 ? stage.steps : ["No Activity"],
+      conversationStages: stage.steps.length > 0 ? stage.steps : [],
     };
   };
 
@@ -531,7 +539,6 @@ export default function UserManagement() {
 
   const buildConversationStageDataFromContacts = (contacts = [], total = 0) => {
     const stageOrder = [
-      "No Activity",
       "Initial Conversation",
       "GMB Connected",
       "GMB Health",
@@ -549,8 +556,8 @@ export default function UserManagement() {
 
     allUsers.forEach((user) => {
       const stages = Array.isArray(user.conversationStages)
-        ? user.conversationStages
-        : ["No Activity"];
+        ? user.conversationStages.filter((stage) => stage !== "No Activity")
+        : [];
 
       stages.forEach((stage) => {
         if (!stageCounts.hasOwnProperty(stage)) return;
@@ -605,7 +612,7 @@ export default function UserManagement() {
           loading: false,
           historyCount: history.length,
           stage: {
-            label: steps.length ? steps.join(" âž” ") : "No Activity",
+            label: steps.length ? steps.join(" ➔ ") : "Not started",
             steps,
           },
         };
@@ -672,7 +679,7 @@ export default function UserManagement() {
     }
 
     return {
-      label: "No Activity",
+      label: "Not started",
       steps: [],
       className: "bg-gray-50 text-gray-600 border-gray-200",
     };
@@ -755,12 +762,17 @@ export default function UserManagement() {
   ]);
 
   const filteredUsers = useMemo(() => {
+    if (chatbotMetricTableActive) {
+      return chatbotMetricUsers;
+    }
     if (conversationStageTableActive) {
       return conversationStageUsers;
     }
     return preConversationFilteredUsers;
   }, [
     preConversationFilteredUsers,
+    chatbotMetricTableActive,
+    chatbotMetricUsers,
     conversationStageTableActive,
     conversationStageUsers,
   ]);
@@ -886,7 +898,7 @@ export default function UserManagement() {
             [key]: {
               loading: false,
               historyCount: 0,
-              stage: { label: "No Activity", steps: [] },
+              stage: { label: "Not started", steps: [] },
             },
           }));
         })
@@ -903,7 +915,6 @@ export default function UserManagement() {
     "Magic QR",
     "GMB Insight",
     "Build Website",
-    "No Activity",
   ];
 
   // Logic to count leads per stage
@@ -919,16 +930,11 @@ export default function UserManagement() {
         lead.user || {},
       );
 
-      if (stageData.steps.length === 0) {
-        counts["No Activity"] += 1;
-      } else {
-        // Increment count for every step this lead has completed
-        stageData.steps.forEach((step) => {
-          if (counts.hasOwnProperty(step)) {
-            counts[step] += 1;
-          }
-        });
-      }
+      stageData.steps.forEach((step) => {
+        if (counts.hasOwnProperty(step)) {
+          counts[step] += 1;
+        }
+      });
     });
     return counts;
   };
@@ -1189,6 +1195,7 @@ export default function UserManagement() {
         console.error("Error fetching total posts:", error);
       }
     };
+    
 
     // Don't fetch if custom range is selected but dates are not set
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate)) {
@@ -1342,6 +1349,7 @@ export default function UserManagement() {
       : users.filter(
           (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
         ).length;
+        
 
     setStats({
       total,
@@ -1556,12 +1564,13 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    if (conversationStageTableActive) return;
+    if (conversationStageTableActive || chatbotMetricTableActive) return;
     if (filterDate === "Custom Range" && (!customStartDate || !customEndDate))
       return;
     fetchUsers();
   }, [
     conversationStageTableActive,
+    chatbotMetricTableActive,
     currentPage,
     filterStatus,
     filterDate,
@@ -1598,8 +1607,7 @@ export default function UserManagement() {
     fetchIssues();
     fetchTodayUsersCount();
     fetchRevenue();
-    fetchChatbotDayStats();
-    fetchConversationStageCards();
+    fetchChatbotSummaryMetrics();
   }, []);
 
   /* ---------------- UPLOAD TO S3 ---------------- */
@@ -1789,10 +1797,56 @@ export default function UserManagement() {
     }
   };
 
-  const fetchConversationStageCards = async () => {
+  const fetchChatbotSummaryMetrics = async ({ showLoader = true } = {}) => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail) return;
+    if (showLoader) {
+      setChatbotSummaryMetrics((prev) => ({ ...prev, loading: true }));
+    }
+    try {
+      const res = await fetch(
+        `/api/admin/chatbot-summary-metrics?email=${encodeURIComponent(adminEmail)}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setChatbotSummaryMetrics({
+          loading: false,
+          totals: data.totals || {},
+          today: data.today || {},
+        });
+        setChatbotDayStats((prev) => ({
+          ...prev,
+          loading: false,
+          timeZone: data.timeZone || prev.timeZone,
+          today: {
+            count: data.todayChats ?? data.today?.chatsCreated ?? 0,
+            label: data.todayLabel || prev.today?.label || "Today",
+          },
+          yesterday: {
+            count: data.yesterdayChats ?? prev.yesterday?.count ?? 0,
+            label: data.yesterdayLabel || prev.yesterday?.label || "Yesterday",
+          },
+        }));
+      } else {
+        setChatbotSummaryMetrics((prev) => ({ ...prev, loading: false }));
+        console.error("chatbot-summary-metrics:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching chatbot summary metrics:", error);
+      setChatbotSummaryMetrics((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const fetchConversationStageCards = async (
+    { refresh = false } = {},
+  ) => {
     setConversationStageCardsLoading(true);
     try {
-      const res = await fetch("/api/conversation-stages", {
+      const url = refresh
+        ? "/api/conversation-stages?refresh=1"
+        : "/api/conversation-stages";
+      const res = await fetch(url, {
         cache: "no-store",
       });
       const data = await res.json();
@@ -1815,6 +1869,48 @@ export default function UserManagement() {
       console.error("Error fetching conversation stage cards:", error);
     } finally {
       setConversationStageCardsLoading(false);
+    }
+  };
+
+  const fetchChatbotMetricUsers = async (filter, options = {}) => {
+    if (!filter?.metricId || !filter?.period) {
+      setChatbotMetricUsers([]);
+      setChatbotMetricTableActive(false);
+      return;
+    }
+
+    const page = options.page ?? currentPage;
+    if (!options.silent) setChatbotMetricLoading(true);
+    try {
+      const adminEmail = localStorage.getItem("email");
+      const limit = 70;
+      const params = new URLSearchParams({
+        email: adminEmail,
+        metricId: filter.metricId,
+        period: filter.period,
+        page: String(page),
+        limit: String(limit),
+      });
+      const res = await fetch(`/api/admin/chatbot-metric-users?${params}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to load metric users");
+      }
+
+      setChatbotMetricUsers(data.users || []);
+      setPagination({
+        totalUsers: data.totalUsers || 0,
+        currentPage: data.currentPage || currentPage,
+        totalPages: data.totalPages || 1,
+        limit: data.limit || limit,
+      });
+    } catch (error) {
+      setChatbotMetricUsers([]);
+      console.error("Error fetching chatbot metric users:", error);
+    } finally {
+      if (!options.silent) setChatbotMetricLoading(false);
     }
   };
 
@@ -1864,13 +1960,17 @@ export default function UserManagement() {
   const handleRefreshWhatsAppData = async () => {
     setIsRefreshingWhatsAppData(true);
     setChatbotDayStats((prev) => ({ ...prev, loading: true }));
-    setConversationStageCardsLoading(true);
+    setChatbotSummaryMetrics((prev) => ({ ...prev, loading: true }));
     try {
       const syncStats = await syncWhatsAppUsersToDatabase();
       await Promise.all([
-        fetchChatbotDayStats({ showLoader: false }),
-        fetchConversationStageCards(),
-        fetchUsers(true),
+        fetchChatbotSummaryMetrics({ showLoader: false }),
+        chatbotMetricTableActive && chatbotMetricFilter
+          ? fetchChatbotMetricUsers(chatbotMetricFilter, {
+              silent: true,
+              page: currentPage,
+            })
+          : Promise.resolve(),
         fetchAgentStats(),
       ]);
       showToast(
@@ -1883,13 +1983,42 @@ export default function UserManagement() {
     } finally {
       setIsRefreshingWhatsAppData(false);
       setChatbotDayStats((prev) => ({ ...prev, loading: false }));
-      setConversationStageCardsLoading(false);
+      setChatbotSummaryMetrics((prev) => ({ ...prev, loading: false }));
     }
+  };
+
+  const clearChatbotMetricFilter = () => {
+    setChatbotMetricFilter(null);
+    setChatbotMetricTableActive(false);
+    setChatbotMetricUsers([]);
+    setCurrentPage(1);
+    fetchUsers(true);
+  };
+
+  const handleChatbotMetricCardClick = ({ metricId, period, title, cardKey }) => {
+    if (chatbotMetricFilter?.cardKey === cardKey) {
+      clearChatbotMetricFilter();
+      return;
+    }
+
+    setCurrentPage(1);
+    setChatbotChatDayFilter(null);
+    setConversationStageTableActive(false);
+    setConversationStageUsers([]);
+    setSelectedConversationStage("All");
+    setConversationStageFilter("All");
+
+    setChatbotMetricUsers([]);
+    setChatbotMetricTableActive(true);
+    setChatbotMetricFilter({ metricId, period, title, cardKey });
   };
 
   const handleConversationStageCardClick = async (stage) => {
     setCurrentPage(1);
     setChatbotChatDayFilter(null);
+    setChatbotMetricFilter(null);
+    setChatbotMetricTableActive(false);
+    setChatbotMetricUsers([]);
     setConversationStageTableActive(true);
     setConversationStageUsers([]);
     setSelectedConversationStage(stage);
@@ -1898,6 +2027,9 @@ export default function UserManagement() {
   const handleConversationStageFilterChange = (stage) => {
     setCurrentPage(1);
     setChatbotChatDayFilter(null);
+    setChatbotMetricFilter(null);
+    setChatbotMetricTableActive(false);
+    setChatbotMetricUsers([]);
     setConversationStageTableActive(false);
     setConversationStageUsers([]);
     setSelectedConversationStage("All");
@@ -1909,8 +2041,18 @@ export default function UserManagement() {
       setConversationStageUsers([]);
       return;
     }
-    fetchConversationStageUsers(selectedConversationStage || "All");
+    fetchConversationStageUsers(selectedConversationStage || "All", {
+      silent: true,
+    });
   }, [conversationStageTableActive, selectedConversationStage, currentPage]);
+
+  useEffect(() => {
+    if (!chatbotMetricTableActive || !chatbotMetricFilter) {
+      if (!chatbotMetricTableActive) setChatbotMetricUsers([]);
+      return;
+    }
+    fetchChatbotMetricUsers(chatbotMetricFilter, { silent: true, page: currentPage });
+  }, [chatbotMetricTableActive, chatbotMetricFilter, currentPage]);
 
   const fetchIssues = async () => {
     try {
@@ -3257,6 +3399,7 @@ export default function UserManagement() {
     setConversationStageUsers([]);
     setRemarkCountFilter("All");
     setChatbotChatDayFilter(null);
+    clearChatbotMetricFilter();
   };
 
   const handleSelectChatbotDay = (day) => {
@@ -3266,6 +3409,9 @@ export default function UserManagement() {
     setConversationStageUsers([]);
     setSelectedConversationStage("All");
     setConversationStageFilter("All");
+    setChatbotMetricFilter(null);
+    setChatbotMetricTableActive(false);
+    setChatbotMetricUsers([]);
     setChatbotChatDayFilter(nextDay);
     setCurrentPage(1);
     fetchUsers(false, {
@@ -3591,68 +3737,17 @@ export default function UserManagement() {
             role === "superfranchiseAdmin" ||
             role === "agent") && (
             <Box sx={{ mb: 1 }}>
-              <ChatbotDailyChatCards
-                title="Conversation Stages"
-                subtitle="Click any stage to filter users and load stage data"
+              <ChatbotSummaryMetrics
+                totals={chatbotSummaryMetrics.totals}
+                today={chatbotSummaryMetrics.today}
                 loading={
-                  conversationStageCardsLoading || isRefreshingWhatsAppData
+                  chatbotSummaryMetrics.loading ||
+                  chatbotMetricLoading ||
+                  isRefreshingWhatsAppData
                 }
-                activeKey={
-                  conversationStageTableActive ? selectedConversationStage : ""
-                }
+                activeCardKey={chatbotMetricFilter?.cardKey || ""}
                 onRefresh={handleRefreshWhatsAppData}
-                onSelectCard={handleConversationStageCardClick}
-                cards={[
-                  {
-                    key: "All",
-                    title: "All",
-                    prefix: "Stage",
-                    metricLabel: "users",
-                    hint: "Show users for all stages",
-                    count: conversationStageTotal,
-                    color: "#374151",
-                    bg: "#f3f4f6",
-                  },
-                  ...(conversationStageOrder.length
-                    ? conversationStageOrder
-                    : Object.keys(conversationStageCounts)
-                  ).map((stage) => ({
-                    key: stage,
-                    title: stage,
-                    prefix: "Stage",
-                    metricLabel: "users",
-                    hint: `${conversationStageCounts[stage] ?? 0} users`,
-                    count: conversationStageCounts[stage] ?? 0,
-                    color:
-                      stage === "No Activity"
-                        ? "#6b7280"
-                        : stage === "Initial Conversation"
-                          ? "#2563eb"
-                          : stage === "GMB Connected"
-                            ? "#059669"
-                            : stage === "GMB Health"
-                              ? "#8b5cf6"
-                              : stage === "Magic QR"
-                                ? "#d946ef"
-                                : stage === "GMB Insight"
-                                  ? "#0ea5e9"
-                                  : "#f59e0b",
-                    bg:
-                      stage === "No Activity"
-                        ? "#f3f4f6"
-                        : stage === "Initial Conversation"
-                          ? "#dbeafe"
-                          : stage === "GMB Connected"
-                            ? "#d1fae5"
-                            : stage === "GMB Health"
-                              ? "#ede9fe"
-                              : stage === "Magic QR"
-                                ? "#f5d0fe"
-                                : stage === "GMB Insight"
-                                  ? "#d0f2fe"
-                                  : "#fef3c7",
-                  })),
-                ]}
+                onSelectCard={handleChatbotMetricCardClick}
               />
             </Box>
           )}
@@ -3728,19 +3823,6 @@ export default function UserManagement() {
                 </div>
               </div>
             )}
-
-          {(role === "superAdmin" ||
-            role === "admin" ||
-            role === "superfranchiseAdmin" ||
-            role === "agent") && (
-            <ChatbotDailyChatCards
-              stats={chatbotDayStats}
-              loading={chatbotDayStats.loading || isRefreshingWhatsAppData}
-              activeDay={chatbotChatDayFilter}
-              onRefresh={handleRefreshWhatsAppData}
-              onSelectDay={handleSelectChatbotDay}
-            />
-          )}
 
           <Paper
             elevation={0}
@@ -4220,6 +4302,27 @@ export default function UserManagement() {
                   </Button>
                 </Stack>
               </Box>
+            )}
+            {chatbotMetricTableActive && chatbotMetricFilter && (
+              <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/80 bg-blue-50/60 px-2.5 py-1">
+                <p className="text-[11px] font-semibold text-blue-900">
+                  Showing:{" "}
+                  <span className="font-black">{chatbotMetricFilter.title}</span>
+                  {pagination?.totalUsers != null && (
+                    <span className="text-blue-700 font-bold">
+                      {" "}
+                      · {pagination.totalUsers} leads
+                    </span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearChatbotMetricFilter}
+                  className="text-[10px] font-bold text-blue-800 hover:text-blue-950 underline"
+                >
+                  Clear
+                </button>
+              </div>
             )}
             {chatbotChatDayFilter && (
               <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1">

@@ -17,21 +17,8 @@ function getActiveUserId() {
     : getLocalStorage("userId");
 }
 
-async function storeUserListingsForAdmin(userEmail, listings) {
-  try {
-    await fetch("/api/admin/saveBussiness", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userEmail, listings }),
-    });
-  } catch (error) {
-    console.error("Error storing listings:", error);
-  }
-}
-
-export function useGMB(session, status, setUiState) {
+export function useGMB(setUiState) {
   const [accounts, setAccounts] = useState([]);
-  const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [noAccountsFound, setNoAccountsFound] = useState(false);
@@ -39,44 +26,11 @@ export function useGMB(session, status, setUiState) {
   const fetchInProgress = useRef(false);
   const connectedToastShownRef = useRef(false);
 
-  const fetchAdminListings = useCallback(async () => {
-    const isImpersonating = getLocalStorage("isImpersonating") === "true";
-    const token = isImpersonating
-      ? getLocalStorage("userToken")
-      : getLocalStorage("adminToken");
-    const email = isImpersonating
-      ? getLocalStorage("impersonatedEmail")
-      : session?.user?.email || getLocalStorage("userEmail") || getLocalStorage("email");
-
-    if (!token || !email) return;
-
-    try {
-      const res = await fetch(
-        `/api/admin/saveBussiness?userEmail=${encodeURIComponent(email)}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-
-      if (res.status === 404) {
-        setListings([]);
-        return;
-      }
-
-      if (res.ok) {
-        const data = await res.json();
-        setListings(data.listings || []);
-      }
-    } catch (error) {
-      console.error("Error fetching database listings:", error);
-    }
-  }, [session?.user?.email]);
-
   const fetchInitialData = useCallback(
     async (forceRefresh = false, isBackground = false) => {
       const activeId = getActiveUserId();
       if (!activeId) return;
 
-      const userEmail =
-        session?.user?.email || getLocalStorage("userEmail") || getLocalStorage("email");
       const cacheKey = getCacheKey(activeId);
 
       if (!forceRefresh) {
@@ -109,7 +63,6 @@ export function useGMB(session, status, setUiState) {
 
         const data = await res.json();
         const finalData = data.accounts || [];
-        const allListings = finalData.flatMap((account) => account.listings || []);
 
         setAccounts(finalData);
         setNoAccountsFound(data.noAccountsFound);
@@ -122,10 +75,6 @@ export function useGMB(session, status, setUiState) {
             timestamp: Date.now(),
           }),
         );
-
-        if (userEmail && allListings.length > 0) {
-          await storeUserListingsForAdmin(userEmail, allListings);
-        }
       } catch (error) {
         console.error("GMB Fetch Error:", error);
         if (
@@ -141,7 +90,7 @@ export function useGMB(session, status, setUiState) {
         fetchInProgress.current = false;
       }
     },
-    [session?.user?.email, setUiState],
+    [setUiState],
   );
 
   useEffect(() => {
@@ -167,19 +116,14 @@ export function useGMB(session, status, setUiState) {
       return;
     }
 
-    fetchAdminListings();
-
     if (activeId && !initialFetchDone) {
       fetchInitialData();
     }
-  }, [session?.user?.email, initialFetchDone, fetchAdminListings, fetchInitialData]);
+  }, [initialFetchDone, fetchInitialData]);
 
   const activeListings = useMemo(() => {
-    if (accounts.length > 0) {
-      return accounts.flatMap((acc) => acc.listings);
-    }
-    return listings;
-  }, [accounts, listings]);
+    return accounts.flatMap((acc) => acc.listings || []);
+  }, [accounts]);
 
   const summary = useMemo(() => {
     const total = activeListings.length;
@@ -196,19 +140,12 @@ export function useGMB(session, status, setUiState) {
   }, [activeListings]);
 
   const handleManualRefresh = useCallback(async () => {
-    const isImpersonating = getLocalStorage("isImpersonating") === "true";
-
-    if (isImpersonating) {
-      toast.success("Refreshing from database...");
-      await fetchAdminListings();
-    }
-
     const activeId = getActiveUserId();
     if (activeId) {
       removeSessionStorage(getCacheKey(activeId));
       await fetchInitialData(true);
     }
-  }, [fetchAdminListings, fetchInitialData]);
+  }, [fetchInitialData]);
 
   const handleDisconnectGMB = useCallback(async () => {
     const activeId = getActiveUserId();
@@ -223,7 +160,6 @@ export function useGMB(session, status, setUiState) {
       if (!data.success) throw new Error(data.error || "Failed to disconnect GMB");
 
       setAccounts([]);
-      setListings([]);
       removeSessionStorage(getCacheKey(activeId));
       toast.success("Google Business Profile disconnected");
       return true;
@@ -239,7 +175,7 @@ export function useGMB(session, status, setUiState) {
     loading,
     initialFetchDone,
     noAccountsFound,
-    listings,
+    listings: activeListings,
     activeListings,
     summary,
     fetchInitialData,

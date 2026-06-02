@@ -37,7 +37,7 @@ async function fetchGoogleUser(accessToken) {
 }
 
 export async function GET(req) {
-  const baseUrl = "http://localhost:3000";
+  const baseUrl = "https://limbu.ai";
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const rawState = url.searchParams.get("state");

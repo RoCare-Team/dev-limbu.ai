@@ -101,6 +101,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [referCode, setReferCode] = useState("");
+  const [agentCode, setAgentCode] = useState("");
   const [step, setStep] = useState("phone");
   const [isExisting, setIsExisting] = useState(false);
   const [message, setMessage] = useState("");
@@ -117,7 +118,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     const ref = searchParams.get("refer");
+    const agent = searchParams.get("agent");
     if (ref) setReferCode(ref);
+    if (agent) setAgentCode(agent);
   }, [searchParams]);
 
   const msg = (text, type = "info") => {
@@ -221,6 +224,7 @@ localStorage.setItem("paidService", data.user.paidService || "")
         name,
         email,
         referCode,
+        agentCode,
       );
       if (ok && data.token) {
         localStorage.setItem("token", data.token);
@@ -459,8 +463,8 @@ localStorage.setItem("paidService", data.user.paidService || "")
                       icon={Tag}
                       type="text"
                       placeholder="Enter refer code"
-                      value={referCode}
-                      onChange={(e) => setReferCode(e.target.value)}
+                      value={agentCode}
+                      onChange={(e) => setAgentCode(e.target.value)}
                     />
                   </div>
                 </div>

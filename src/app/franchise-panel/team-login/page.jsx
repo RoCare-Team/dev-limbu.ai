@@ -34,16 +34,21 @@ export default function TeamLogin() {
 
     const franchiseCode =
       data.user.franchiseCode || data.user.franchiseId || "";
+    const teamUser = {
+      ...data.user,
+      franchiseCode,
+      agentReferralCode: data.user.referralCode || "",
+    };
     localStorage.setItem("franchise_team_token", data.token);
     localStorage.setItem(
       "franchise_team_user",
-      JSON.stringify({ ...data.user, franchiseCode }),
+      JSON.stringify(teamUser),
     );
     localStorage.setItem("franchise_team_permissions", JSON.stringify(data.user.permissions));
     localStorage.setItem("franchise_token", data.token);
     localStorage.setItem(
       "franchise_user",
-      JSON.stringify({ ...data.user, franchiseCode }),
+      JSON.stringify(teamUser),
     );
     localStorage.setItem("franchise_code", franchiseCode);
     router.push("/franchise-panel/dashboard");

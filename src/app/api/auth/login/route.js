@@ -47,7 +47,7 @@ const Setting = mongoose.models.settings || mongoose.model("settings", SettingSc
 export async function POST(req) { // ye API ka post handler he 
   try {
     await dbConnect(); // har reauest pe DB connect ensure karta hai
-    const { phone, otp, name, email, referCode } = await req.json(); // ye fronted se data read karta he
+    const { phone, otp, name, email, referCode, agentCode } = await req.json(); // ye fronted se data read karta he
     if (!phone) { // agr otp nahi aya matlab user OTP request kar raha he 
       return NextResponse.json(
         { error: "Phone number required" },
@@ -164,20 +164,28 @@ export async function POST(req) { // ye API ka post handler he
       let referredByAgentName = null;
       let franchiseId = null;
       
-      // Check for franchise team referral code
-      if (referCode) {
+      const cleanReferCode = referCode?.trim().toUpperCase();
+      const cleanAgentCode = agentCode?.trim().toUpperCase();
+
+      // Check for franchise team agent referral code.
+      // referCode stays fixed as franchise code, agentCode identifies the team member.
+      if (cleanAgentCode) {
         const teamMember = await FranchiseTeam.findOne({ 
-          referralCode: referCode.toUpperCase(),
+          referralCode: cleanAgentCode,
           isActive: true 
         });
         
-        if (teamMember) {
+        if (teamMember && (!cleanReferCode || teamMember.franchiseId === cleanReferCode)) {
           referredByAgentId = teamMember._id;
           referredByAgentName = teamMember.fullName;
           franchiseId = teamMember.franchiseId;
           assignedAgentId = teamMember._id;
           console.log("User referred by team member:", teamMember.fullName);
         }
+      }
+
+      if (!franchiseId && cleanReferCode) {
+        franchiseId = cleanReferCode;
       }
       
       // If no referral code, use round-robin for admin agents
@@ -210,7 +218,7 @@ export async function POST(req) { // ye API ka post handler he
         fullName: name,
         email,
         phone,
-        referCode,
+        referCode: cleanAgentCode || cleanReferCode || referCode,
         franchiseId,
         referredByAgentId,
         referredByAgentName,

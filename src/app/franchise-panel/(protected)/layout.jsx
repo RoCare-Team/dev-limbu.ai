@@ -15,9 +15,9 @@ export default function FranchiseLayout({ children }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       <SidebarFranchisePanel />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {children}
       </main>
     </div>

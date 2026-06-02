@@ -97,15 +97,19 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Email already exists" }, { status: 400 });
     }
     
+    const normalizedRole = role || "agent";
     const hashedPassword = await bcrypt.hash(password, 10);
-    const referralCode = role === "agent" || !role ? FranchiseTeam.generateReferralCode(fullName) : null;
+    const referralCode =
+      normalizedRole === "agent"
+        ? await FranchiseTeam.generateUniqueReferralCode(fullName)
+        : null;
     
     const teamMember = await FranchiseTeam.create({
       fullName,
       email: email.toLowerCase(),
       mobile,
       password: hashedPassword,
-      role: role || "agent",
+      role: normalizedRole,
       franchiseId: decoded.franchiseCode,
       referralCode,
     });
@@ -155,6 +159,11 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, message: "Team member ID is required" }, { status: 400 });
     }
     
+    const existingMember = await FranchiseTeam.findById(id);
+    if (!existingMember) {
+      return NextResponse.json({ success: false, message: "Team member not found" }, { status: 404 });
+    }
+
     const updateData = {};
     if (fullName) updateData.fullName = fullName;
     if (mobile) updateData.mobile = mobile;
@@ -162,6 +171,12 @@ export async function PUT(req) {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (address) updateData.address = address;
     if (password) updateData.password = await bcrypt.hash(password, 10);
+    if (role === "agent" && !existingMember.referralCode) {
+      updateData.referralCode = await FranchiseTeam.generateUniqueReferralCode(fullName || existingMember.fullName);
+    }
+    if (role && role !== "agent") {
+      updateData.referralCode = null;
+    }
     
     const updatedMember = await FranchiseTeam.findByIdAndUpdate(id, updateData, { new: true }).select("-password");
     

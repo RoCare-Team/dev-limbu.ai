@@ -19,7 +19,13 @@ import RemarksModal from "../../../../components/FranchiseLeads/RemarksModal";
 
 const STAGES = ["Active", "Follow Up", "Inactive", "Onboard"];
 const STATUSES = ["", "Hot", "Warm", "Cold"];
-const SOURCES = ["manual-upload", "chatbot", "website", "Meta Lead", "expolead"];
+const SOURCES = [
+  "manual-upload",
+  "chatbot",
+  "website",
+  "Meta Lead",
+  "expolead",
+];
 
 const statusClass = {
   Hot: "bg-red-50 text-red-700 border-red-200",
@@ -156,13 +162,13 @@ export default function UserManagement() {
       }
 
       showToast("Lead added and assigned successfully");
-       setFormData({
-  fullName: "",
-  email: "",
-  phone: "",
-  leadStatus: "",
-  source: "manual-upload",
-});
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        leadStatus: "",
+        source: "manual-upload",
+      });
       setOpenModal(false);
       fetchUsers();
     } catch (error) {
@@ -284,6 +290,10 @@ export default function UserManagement() {
     return String(assigned);
   };
 
+  const getLeadDisplayCode = (user) => {
+    return user.referCode || "-";
+  };
+
   return (
     <div className="p-6">
       {toast && (
@@ -298,7 +308,10 @@ export default function UserManagement() {
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-gray-500" size={18} />
+            <Search
+              className="absolute left-3 top-2.5 text-gray-500"
+              size={18}
+            />
             <input
               type="text"
               placeholder="Search by name, email or refer code"
@@ -346,33 +359,42 @@ export default function UserManagement() {
               <th className="px-5 py-4 text-left">Stage</th>
               {/* <th className="px-5 py-4 text-left">Chat</th> */}
               <th className="px-5 py-4 text-left">Wallet</th>
-              <th className="px-5 py-4 text-left">Listing</th>
-              <th className="px-5 py-4 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="12" className="px-5 py-10 text-center text-gray-500">
+                <td
+                  colSpan="12"
+                  className="px-5 py-10 text-center text-gray-500"
+                >
                   Loading...
                 </td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="12" className="px-5 py-10 text-center text-gray-500">
+                <td
+                  colSpan="12"
+                  className="px-5 py-10 text-center text-gray-500"
+                >
                   No users found
                 </td>
               </tr>
             ) : (
               filteredUsers.map((user) => (
-                <tr key={user._id} className="border-t border-gray-200 hover:bg-gray-50">
+                <tr
+                  key={user._id}
+                  className="border-t border-gray-200 hover:bg-gray-50"
+                >
                   <td className="px-5 py-4 text-gray-700">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-5 py-4">
-                    <div className="font-semibold text-gray-950">{user.fullName}</div>
+                    <div className="font-semibold text-gray-950">
+                      {user.fullName}
+                    </div>
                     <div className="mt-1 w-fit rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-800">
-                      {user.referCode || "-"}
+                      {getLeadDisplayCode(user)}
                     </div>
                   </td>
                   <td className="px-5 py-4">
@@ -469,24 +491,6 @@ export default function UserManagement() {
                       {user.wallet || 0}
                     </span>
                   </td>
-                  <td className="px-5 py-4">
-                    <span className="text-xs italic text-gray-500">
-                      {user.isBusinessConnected ? "Connected" : "No Listing"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <button className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white">
-                        Login
-                      </button>
-                      <button className="rounded-lg bg-blue-50 p-2 text-blue-600">
-                        <Phone size={15} />
-                      </button>
-                      <button className="rounded-lg bg-red-50 p-2 text-red-600">
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               ))
             )}
@@ -512,7 +516,9 @@ export default function UserManagement() {
               <FormInput
                 label="Full Name"
                 value={formData.fullName}
-                onChange={(value) => setFormData({ ...formData, fullName: value })}
+                onChange={(value) =>
+                  setFormData({ ...formData, fullName: value })
+                }
                 placeholder="Enter full name"
               />
               <FormInput
@@ -540,7 +546,9 @@ export default function UserManagement() {
               <FormSelect
                 label="Source"
                 value={formData.source}
-                onChange={(value) => setFormData({ ...formData, source: value })}
+                onChange={(value) =>
+                  setFormData({ ...formData, source: value })
+                }
                 options={SOURCES}
               />
             </div>
@@ -577,7 +585,9 @@ export default function UserManagement() {
 function FormInput({ label, value, onChange, placeholder, type = "text" }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-gray-700">
+        {label}
+      </span>
       <input
         type={type}
         value={value}
@@ -592,7 +602,9 @@ function FormInput({ label, value, onChange, placeholder, type = "text" }) {
 function FormSelect({ label, value, onChange, options, emptyLabel }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-gray-700">
+        {label}
+      </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}

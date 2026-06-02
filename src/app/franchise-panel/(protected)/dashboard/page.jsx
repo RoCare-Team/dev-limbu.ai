@@ -74,6 +74,7 @@ export default function FranchiseDashboard() {
       const storedUserStr = localStorage.getItem("franchise_user");
       if (!storedUserStr) return;
       const storedUser = JSON.parse(storedUserStr);
+      const token = localStorage.getItem("franchise_token");
 
       const { start, end } = getDateRangeParams();
       const params = new URLSearchParams({
@@ -87,7 +88,9 @@ export default function FranchiseDashboard() {
       if (filterUserType !== "All") params.append("userType", filterUserType);
       if (filterLeadStage !== "All") params.append("leadStage", filterLeadStage);
 
-      const res = await fetch(`/api/franchise-panel/franchise-user?${params.toString()}`);
+      const res = await fetch(`/api/franchise-panel/franchise-user?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       console.log("datadata",data);
       
@@ -142,10 +145,11 @@ export default function FranchiseDashboard() {
   };
 
   const handleCopyCoupon = async () => {
-    if (user?.franchiseCode) {
-      console.log("Copying coupon code:", user.franchiseCode); // Debug log
+    const code = getDisplayReferralCode();
+    if (code) {
+      console.log("Copying referral code:", code); // Debug log
       
-      const success = await copyToClipboard(user.franchiseCode);
+      const success = await copyToClipboard(code);
       if (success) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -157,8 +161,7 @@ export default function FranchiseDashboard() {
 
   const handleCopyLink = async () => {
     if (user?.franchiseCode) {
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-      const referralLink = `${baseUrl}/login?refer=${user.franchiseCode}`;
+      const referralLink = getReferralLink();
       
       console.log("Copying referral link:", referralLink); // Debug log
       
@@ -173,10 +176,10 @@ export default function FranchiseDashboard() {
   };
 
   const handleShare = async (type) => {
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-    const referralLink = `${baseUrl}/login?refer=${user?.franchiseCode}`;
+    const referralLink = getReferralLink();
+    const code = getDisplayReferralCode();
     const text = type === 'code' 
-      ? `Join Limbu.ai using my referral code: ${user?.franchiseCode}`
+      ? `Join Limbu.ai using my referral code: ${code}`
       : `Join Limbu.ai using my referral link: ${referralLink}`;
 
     if (navigator.share) {
@@ -194,10 +197,26 @@ export default function FranchiseDashboard() {
   const getReferralLink = () => {
     if (user?.franchiseCode) {
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
-      return `${baseUrl}/login?refer=${user.franchiseCode}`;
+      const params = new URLSearchParams({ refer: user.franchiseCode });
+      const agentReferralCode = getAgentReferralCode();
+      if (isAgent() && agentReferralCode) {
+        params.set("agent", agentReferralCode);
+      }
+      return `${baseUrl}/login?${params.toString()}`;
     }
     return "https://limbu.ai/login?refer=LIMBU01";
   };
+
+  const isAgent = () => String(user?.role || "").toLowerCase() === "agent";
+
+  const getAgentReferralCode = () => user?.referralCode || user?.agentReferralCode || "";
+
+  const getDisplayReferralCode = () => {
+    if (isAgent()) return getAgentReferralCode() || "Agent code missing";
+    return user?.franchiseCode || "LIMBU01";
+  };
+
+  const getCodeLabel = () => (isAgent() ? "Agent Refer Code" : "Franchise Code");
 
   const clearFilters = () => {
     setFilterDate("All");
@@ -219,8 +238,8 @@ export default function FranchiseDashboard() {
             </span>
           </div>
 
-          <h1 className="text-3xl font-bold">
-            Welcome, {user?.ownerName || "Partner"}
+          <h1 className="text-3xl font-bold text-white">
+            Welcome, {user?.fullName || user?.ownerName || "Partner"}
           </h1>
 
           <p className="text-gray-300 mt-1">
@@ -231,11 +250,11 @@ export default function FranchiseDashboard() {
         {/* 🔑 Refer Code - Compact Display */}
         <div className="mt-6 md:mt-0 bg-white/10 backdrop-blur px-6 py-4 rounded-xl">
           <p className="text-xs text-gray-300 mb-1">
-            Your Franchise Code
+            Your {getCodeLabel()}
           </p>
           <div className="flex items-center gap-3">
             <p className="text-2xl font-bold tracking-widest">
-              {user?.franchiseCode || "LIMBU01"}
+              {getDisplayReferralCode()}
             </p>
           </div>
         </div>
@@ -296,7 +315,7 @@ export default function FranchiseDashboard() {
                 <Copy className="text-indigo-600" size={20} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">
-                Franchise Code
+                {getCodeLabel()}
               </h3>
             </div>
 
@@ -307,10 +326,10 @@ export default function FranchiseDashboard() {
             {/* Code Display */}
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 mb-4 border border-indigo-200">
               <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">
-                Your Franchise Code
+                Your {getCodeLabel()}
               </p>
               <p className="text-3xl font-bold text-indigo-600 tracking-widest text-center py-2">
-                {user?.franchiseCode || "LIMBU01"}
+                {getDisplayReferralCode()}
               </p>
             </div>
 

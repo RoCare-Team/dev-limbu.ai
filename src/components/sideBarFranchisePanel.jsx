@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -31,6 +32,25 @@ const menu = [
 export default function SidebarFranchisePanel() {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("franchise_user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    }
+  }, []);
+
+  const visibleMenu =
+    user?.role === "agent"
+      ? menu.filter((item) =>
+          ["/franchise-panel/dashboard", "/franchise-panel/leads"].includes(item.href),
+        )
+      : menu;
 
   const logout = () => {
     localStorage.removeItem("franchise_token");
@@ -39,13 +59,13 @@ export default function SidebarFranchisePanel() {
   };
 
   return (
-    <aside className="w-64 bg-black text-white flex flex-col">
-      <div className="p-6 text-xl font-bold border-b border-gray-800">
+    <aside className="flex h-screen w-64 shrink-0 flex-col overflow-hidden bg-black text-white">
+      <div className="border-b border-gray-800 p-6 text-xl font-bold">
         Franchise Panel
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
-        {menu.map((item) => {
+      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
+        {visibleMenu.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
 
@@ -63,6 +83,11 @@ export default function SidebarFranchisePanel() {
           );
         })}
       </nav>
+
+      <div className="mx-4 mb-2 rounded-lg border border-gray-800 px-4 py-3">
+        <p className="truncate text-sm font-semibold">{user?.fullName || user?.ownerName || "Franchise User"}</p>
+        <p className="truncate text-xs text-gray-400">{user?.email || ""}</p>
+      </div>
 
       <button
         onClick={logout}

@@ -118,6 +118,8 @@ export async function POST(req) {
           email: teamMember.email,
           mobile: teamMember.mobile,
           role: teamMember.role,
+          referralCode: teamMember.referralCode,
+          agentReferralCode: teamMember.referralCode,
           permissions: teamMember.permissions,
           franchiseId: teamMember.franchiseId,
           franchiseCode: teamMember.franchiseId,

@@ -15,6 +15,8 @@ import {
   Loader2,
   Phone,
   Mail,
+  Copy,
+  Link2,
   Calendar,
   CheckCircle,
   XCircle,
@@ -269,6 +271,26 @@ export default function TeamManagement() {
 
   const filteredTeam = team;
 
+  const getMemberReferralLink = (member) => {
+    const storedUser = localStorage.getItem("franchise_user");
+    const franchiseUser = storedUser ? JSON.parse(storedUser) : null;
+    const franchiseCode =
+      franchiseUser?.franchiseCode ||
+      localStorage.getItem("franchise_code") ||
+      member.franchiseId;
+    const baseUrl =
+      typeof window !== "undefined" ? window.location.origin : "https://limbu.ai";
+    const params = new URLSearchParams({ refer: franchiseCode });
+    if (member.referralCode) params.set("agent", member.referralCode);
+    return `${baseUrl}/login?${params.toString()}`;
+  };
+
+  const copyMemberReferralLink = async (member) => {
+    if (!member.referralCode) return;
+    await navigator.clipboard.writeText(getMemberReferralLink(member));
+    showToast("Agent referral link copied!", "success");
+  };
+
   return (
     <div className="space-y-8">
       {/* Toast Notification */}
@@ -304,7 +326,7 @@ export default function TeamManagement() {
             </span>
           </div>
 
-          <h1 className="text-3xl font-bold">Manage Your Team</h1>
+          <h1 className="text-3xl font-bold text-white">Manage Your Team</h1>
 
           <p className="text-gray-400 mt-1">
             View & control franchise and agent network
@@ -400,6 +422,7 @@ export default function TeamManagement() {
               <th className="px-6 py-3 text-left">Member Details</th>
               <th className="px-6 py-3 text-left">Contact</th>
               <th className="px-6 py-3 text-left">Role</th>
+              <th className="px-6 py-3 text-left">Agent Refer</th>
               <th className="px-6 py-3 text-left">Status</th>
               <th className="px-6 py-3 text-left">Joined</th>
               <th className="px-6 py-3 text-left">Actions</th>
@@ -409,7 +432,7 @@ export default function TeamManagement() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center">
+                <td colSpan="7" className="px-6 py-8 text-center">
                   <div className="flex justify-center items-center gap-2">
                     <Loader2 className="animate-spin" />
                     Loading...
@@ -419,7 +442,7 @@ export default function TeamManagement() {
             ) : filteredTeam.length === 0 ? (
               <tr>
                 <td
-                  colSpan="6"
+                  colSpan="7"
                   className="px-6 py-8 text-center text-gray-500"
                 >
                   No team members found
@@ -446,6 +469,32 @@ export default function TeamManagement() {
 
                   <td className="px-6 py-4">
                     <RoleBadge role={member.role} />
+                  </td>
+
+                  <td className="px-6 py-4">
+                    {member.referralCode ? (
+                      <div className="flex max-w-56 items-center gap-2">
+                        <Link2 size={14} className="shrink-0 text-indigo-600" />
+                        <div className="min-w-0">
+                          <p className="font-mono text-xs font-semibold text-indigo-700">
+                            {member.referralCode}
+                          </p>
+                          <p className="truncate text-[11px] text-gray-500">
+                            {getMemberReferralLink(member)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyMemberReferralLink(member)}
+                          className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100"
+                          title="Copy agent referral link"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </td>
 
                   <td className="px-6 py-4">
@@ -518,19 +567,21 @@ export default function TeamManagement() {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Add Team Member</h2>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+              <h2 className="text-lg font-bold text-gray-800 sm:text-xl">Add Team Member</h2>
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-full"
+                className="rounded-full p-2 hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleAddMember} className="space-y-4">
+            <form onSubmit={handleAddMember} className="flex min-h-0 flex-1 flex-col">
+              <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-4 sm:grid-cols-2 sm:px-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name *
@@ -612,7 +663,7 @@ export default function TeamManagement() {
                 </select>
               </div>
 
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Address
                 </label>
@@ -626,19 +677,20 @@ export default function TeamManagement() {
                   rows={2}
                 />
               </div>
+              </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:px-6">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition"
+                  className="flex-1 rounded-xl bg-gray-100 px-4 py-3 text-gray-700 transition hover:bg-gray-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-black text-white rounded-xl hover:bg-gray-800 transition disabled:opacity-50 flex justify-center items-center gap-2"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-white transition hover:bg-gray-800 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

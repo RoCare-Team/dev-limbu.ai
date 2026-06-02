@@ -32,12 +32,12 @@ export async function verifyOtpAction(phone, otp) {
   }
 }
 
-export async function completeRegistrationAction(phone, otp, name, email,referCode) {
+export async function completeRegistrationAction(phone, otp, name, email, referCode, agentCode) {
   try {
     const res = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, otp, name, email,referCode }),
+      body: JSON.stringify({ phone, otp, name, email, referCode, agentCode }),
     });
     const data = await res.json();
     return { ok: res.ok, data };

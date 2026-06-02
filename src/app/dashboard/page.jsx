@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { useSession, signIn } from "next-auth/react";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -40,7 +39,6 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 
 // --- API Helpers (Kept here for component specific fetch) ---
 export async function fetchLocationInsights(
-  accessToken,
   locationId,
   startDate,
   endDate,
@@ -124,7 +122,6 @@ export async function fetchLocationInsights(
 }
 
 export async function fetchSearchKeywords(
-  accessToken,
   locationId,
   startMonth,
   endMonth,
@@ -164,7 +161,6 @@ export async function fetchSearchKeywords(
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
 
   const [filterStatus, setFilterStatus] = useState("all");
   const [activeTab, setActiveTab] = useState("gmb");
@@ -187,7 +183,7 @@ export default function DashboardPage() {
     fetchInitialData,
     handleManualRefresh,
     handleDisconnectGMB,
-  } = useGMB(session, status, setUiState);
+  } = useGMB(setUiState);
 
   const { facebookPages, setFacebookPages, handleDisconnectFacebook } =
     useFacebook(router, searchParams);
@@ -231,11 +227,19 @@ export default function DashboardPage() {
       getSessionStorage("userName") ||
       getLocalStorage("fullName") ||
       getSessionStorage("fullName") ||
-      session?.user?.name ||
       "User"
-    : session?.user?.name || "User";
+    : getLocalStorage("userName") ||
+      getSessionStorage("userName") ||
+      getLocalStorage("fullName") ||
+      getSessionStorage("fullName") ||
+      "User";
 
-  const userPlan = session?.user?.plan || "";
+  const userPlan =
+    getLocalStorage("plan") ||
+    getSessionStorage("plan") ||
+    getLocalStorage("userPlan") ||
+    getSessionStorage("userPlan") ||
+    "";
   const maxAccounts = userPlan === "" ? 1 : 0;
 
   // Flexible Logout Handler (Revoke Meta Permissions)
@@ -311,16 +315,6 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Show connect modal for unauthenticated users after a delay
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      const timer = setTimeout(() => {
-        setUiState((prev) => ({ ...prev, isConnectModalOpen: true }));
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [status]);
-
   const showToast = (message, type) => {
     if (type === "error") toast.error(message);
     else if (type === "success") toast.success(message);
@@ -365,7 +359,6 @@ export default function DashboardPage() {
 
       try {
         const insights = await fetchLocationInsights(
-          session.accessToken,
           locationId,
           fetchStart,
           insightSeriesEnd,
@@ -386,7 +379,6 @@ export default function DashboardPage() {
         };
 
         const keywords = await fetchSearchKeywords(
-          session.accessToken,
           locationId,
           startMonth,
           endMonth,
@@ -406,7 +398,7 @@ export default function DashboardPage() {
         setPerformanceState((prevData) => ({ ...prevData, loading: false }));
       }
     },
-    [session?.accessToken, performanceState.dateRange],
+    [performanceState.dateRange],
   );
 
   const handleLocationSelect = useCallback(
@@ -513,19 +505,6 @@ export default function DashboardPage() {
     [filterStatus],
   );
 
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-white">
-        <div className="text-center">
-          <CircularProgress size={60} thickness={4} sx={{ color: "#eab308" }} />
-          <p className="text-slate-400 font-bold uppercase tracking-widest mt-8 text-sm">
-            Initializing Dashboard...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const tabData = [
     {
       id: "gmb",
@@ -587,7 +566,7 @@ export default function DashboardPage() {
 
       <SessionExpiredModal
         isOpen={uiState.isSessionExpired}
-        onLogin={() => signIn("google", { callbackUrl: "/dashboard" })}
+        onLogin={() => router.push("/login")}
       />
 
       <ConnectModal
@@ -626,7 +605,7 @@ export default function DashboardPage() {
 
       <div className=" border-b border-black/5">
         <div className="w-full ">
-          <NavLinks isAuthenticated={status === "authenticated"} />
+          <NavLinks isAuthenticated={Boolean(getLocalStorage("userId"))} />
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mt-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">

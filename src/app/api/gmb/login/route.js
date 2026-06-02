@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveDashboardUserIdByPhone } from "@/lib/metaChatbotResolveUser";
 import { buildGmbOAuthState } from "@/lib/gmbOAuthState";
-import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 export async function GET(req) {
   try {
@@ -25,7 +24,7 @@ export async function GET(req) {
       );
     }
 
-    const baseUrl = "https://limbu.ai"
+    const baseUrl = "http://localhost:3000";
     const redirectUri = `${baseUrl}/api/gmb/callback`;
 
     console.log("redirectUri:", redirectUri);

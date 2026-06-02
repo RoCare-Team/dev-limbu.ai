@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { X, Calendar, CheckCircle, MessageSquare } from "lucide-react";
+import { X } from "lucide-react";
 
 export default function RemarksModal({
   user,
   onClose,
   remarksHistory = [],
   setRemarksHistory,
-  fetchUsers,
   setUsers, // 👈 ADD THIS
   setRemarksUser,
   showToast,
@@ -137,7 +136,7 @@ export default function RemarksModal({
               // console.log("BUTTON CLICKED");
               handleAddRemark();
             }}
-            className="bg-dark text-white px-4 py-2 rounded-md hover:gray-300 cursor-pointer hover:bg-neutral-800"
+            className="bg-dark text-white px-4 py-2 rounded-md bg-gray-800"
           >
             Submit
           </button>

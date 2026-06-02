@@ -1,7 +1,7 @@
 import React from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Building2, Plus, X, Phone, Globe, LayoutDashboard, BarChart3, LogOut } from "lucide-react";
-import { signIn, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import DisconnectProfileModal from "@/components/modals/DisconnectProfileModal";
 
 const GMBColumn = React.memo(({
@@ -214,7 +214,10 @@ const GMBColumn = React.memo(({
                   Link your Google Business Profile to start optimizing your digital presence.
                 </p>
                 <button
-                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                  onClick={() => {
+                    const userId = localStorage.getItem("userId");
+                    window.location.href = `/api/gmb/login?userId=${userId}`;
+                  }}
                   className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]"
                 >
                   Connect Now ↗

@@ -906,17 +906,6 @@ export default function PostManagementPage() {
       if (selectedTargets.ig?.length > 0) sources.push("ig");
 
       if (sources.length > 0) {
-        // Check for GMB Session Expiry before scheduling if GMB is selected
-        if (
-          sources.includes("gmb") &&
-          (!session ||
-            !session.accessToken ||
-            session.error === "RefreshAccessTokenError")
-        ) {
-          handleGmbSessionExpired();
-          return;
-        }
-
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
         );
@@ -993,7 +982,6 @@ export default function PostManagementPage() {
       updateUiState,
       showToast,
       handleUpdateStatus,
-      session,
     ],
   );
 
@@ -1253,20 +1241,10 @@ export default function PostManagementPage() {
     (post) => {
       if (!post.locations?.length) return showToast("No locations", "error");
 
-      // Check for GMB Session Expiry before attempting to delete from GMB
-      if (
-        !session ||
-        !session.accessToken ||
-        session.error === "RefreshAccessTokenError"
-      ) {
-        handleGmbSessionExpired();
-        return;
-      }
-
       setPostToAction(post);
       updateUiState({ showDeleteLocationModal: true });
     },
-    [updateUiState, showToast, session],
+    [updateUiState, showToast],
   );
 
   const handleLocationConfirm = useCallback(
@@ -1373,7 +1351,6 @@ export default function PostManagementPage() {
           output: isVideoSelection ? "" : mediaUrl,
           video_url: isVideoSelection ? mediaUrl : "",
           description: postToAction.description,
-          accessToken: session?.accessToken,
           checkmark: checkmark || "post",
           post_type: isVideoSelection
             ? "standard"
@@ -1524,7 +1501,6 @@ export default function PostManagementPage() {
       availableLocations,
       userId,
       postToAction,
-      session?.accessToken,
       selectedMediaForAction,
       updateUiState,
       showToast,
@@ -1571,23 +1547,13 @@ export default function PostManagementPage() {
       )
         return showToast("Approve first", "error");
 
-      // Check for GMB Session Expiry before showing the location modal
-      if (
-        !session ||
-        !session.accessToken ||
-        session.error === "RefreshAccessTokenError"
-      ) {
-        setShowGmbExpiredModal(true);
-        return;
-      }
-
       const userData = await getUserWalletAction(userId);
       setUserWallet(userData.wallet || 0);
       setPostToAction(post);
       setSelectedMediaForAction(media);
       updateUiState({ showLocationModal: true });
     },
-    [userId, updateUiState, showToast, session],
+    [userId, updateUiState, showToast],
   );
 
   const handleDeleteLocationConfirm = useCallback(

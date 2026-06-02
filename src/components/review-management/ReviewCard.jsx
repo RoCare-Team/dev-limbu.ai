@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import StarRating from "./StarRating";
+import { getLocalStorage } from "@/utils/storage";
+
 
 const normalizeGmbAccountId = (accountId) =>
   String(accountId || "").replace(/^accounts\//, "");
@@ -23,7 +25,6 @@ const ReviewCard = memo(({
   fetchReviews,
   isReplying,
   setReplyingTo,
-  session,
   toastPosition,
   locationAutoReply,        // { [accountId]: boolean }
   onToggleAutoReply,        // (accountId) => void
@@ -67,35 +68,25 @@ const ReviewCard = memo(({
     try {
       setReplyingTo(review.reviewId);
 
-      const { name, reviewId, starRating, reviewer } = review;
-      const starRatingMap = {
-        FIVE: "Five",
-        FOUR: "Four",
-        THREE: "Three",
-        TWO: "Two",
-        ONE: "One",
-      };
+      const userId =
+        getLocalStorage("isImpersonating") === "true"
+          ? getLocalStorage("impersonatedUser")
+          : getLocalStorage("userId");
 
-      const token = session?.accessToken;
-      if (!token) throw new Error("Session expired. Please log in again.");
+      if (!userId) throw new Error("User ID not found. Please log in again.");
 
-      const res = await fetch(
-        "https://n8n.srv968758.hstgr.cloud/webhook/45f3a8db-b8d2-46ec-b692-4ec5fe90acc7",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token: token,
-            acc_id: accountId,
-            locationIds: locationId,
-            Reviewer_Name: reviewer?.displayName || "Anonymous",
-            Star_Rating: starRatingMap[starRating] || "Five",
-            Review_Content: review.comment || "No comment provided",
-            Review_ID: reviewId,
-            reply_review: localReply,
-          }),
-        }
-      );
+      const { reviewId } = review;
+      const res = await fetch("/api/gmb/review-manual-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          accountId,
+          locationId,
+          reviewId,
+          replyText: localReply,
+        }),
+      });
 
       const data = await res.json();
 

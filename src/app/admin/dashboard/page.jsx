@@ -637,6 +637,42 @@ export default function AdminDashboard() {
     }
   }, [isAgent]);
 
+  const totalClients = dashboardKpis.managerPerformance
+  .filter((m) =>
+    ["shivani", "asma", "pinki"].includes(
+      (m.name || "").toLowerCase().trim()
+    )
+  )
+  .reduce((sum, m) => sum + (m.assigned || 0), 0);
+
+  const mergedAgents = Object.values(
+  (followUpStats.byAgent || []).reduce((acc, agent) => {
+    const key = (agent.agentName || "").trim().toLowerCase();
+
+    if (!acc[key]) {
+      acc[key] = { ...agent };
+    } else {
+      acc[key].today =
+        (acc[key].today || 0) + (agent.today || 0);
+
+      acc[key].tomorrow =
+        (acc[key].tomorrow || 0) + (agent.tomorrow || 0);
+
+      acc[key].next7days =
+        (acc[key].next7days || 0) + (agent.next7days || 0);
+
+      acc[key].total =
+        (acc[key].total || 0) + (agent.total || 0);
+    }
+
+    return acc;
+  }, {})
+);
+
+  console.log("FOLLOWUP AGENTS =>", followUpStats.byAgent);
+
+
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -1002,7 +1038,14 @@ export default function AdminDashboard() {
               <div className="max-h-[calc(100%-56px)] overflow-y-auto">
                 <table className="min-w-full border-collapse text-sm text-slate-700">
                   <tbody className="bg-slate-50">
-                    {dashboardKpis.managerPerformance.slice(0, 8).map((m) => {
+
+                    {dashboardKpis.managerPerformance
+  .filter((m) =>
+    ["shivani", "asma", "pinki"].includes(
+      (m.name || "").toLowerCase().trim()
+    )
+  )
+  .map((m) => {
                       const leadCount = agentLeads.find(
                         (a) => a.agentName === m.name,
                       )?.count;
@@ -1032,6 +1075,16 @@ export default function AdminDashboard() {
                     })}
                   </tbody>
                 </table>
+
+                <div className="border-t border-slate-200 bg-slate-100 px-5 py-4 flex justify-between items-center">
+  <span className="font-bold text-slate-900">
+    Total Clients
+  </span>
+
+  <span className="font-bold text-indigo-600 text-lg">
+    {totalClients}
+  </span>
+</div>
 
                 {dashboardKpis.managerPerformance.length === 0 && (
                   <div className="flex h-full items-center justify-center p-6 text-center text-slate-500">
@@ -1069,7 +1122,10 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-slate-50">
-                      {(followUpStats.byAgent || []).map((agent, idx) => (
+                      
+                      
+                      
+                      {mergedAgents.map((agent, idx) => (
                         <tr
                           key={agent._id || agent.agentName || idx}
                           className="border-b border-slate-200 bg-white hover:bg-slate-50"

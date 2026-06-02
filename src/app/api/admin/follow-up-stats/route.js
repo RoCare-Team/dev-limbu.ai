@@ -158,6 +158,34 @@ export async function GET(req) {
       },
     ];
 
+//     const amanLeads = await User.aggregate([
+//   ...latestRemarkBase,
+//   {
+//   $match: {
+//     "latest.agentName": {
+//       $regex: "aman",
+//       $options: "i"
+//     }
+//   }
+// },
+//   {
+//     $project: {
+//       followUpDate: "$latest.followUpDate",
+//       text: "$latest.text",
+//       agentName: "$latest.agentName"
+//     }
+//   }
+// ]);
+
+// console.log(
+//   "AMAN FOLLOWUPS",
+//   amanLeads.slice(0, 20).map(x => ({
+//     agentName: x.agentName,
+//     followUpDate: x.followUpDate,
+//     text: x.text
+//   }))
+// );
+
     const countPipeline = [
       ...latestRemarkBase,
       ...(Object.keys(totalDateMatch).length > 0 ? [{ $match: totalDateMatch }] : []),

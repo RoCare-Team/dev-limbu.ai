@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { CheckCircle, XCircle, RefreshCw, LogOut } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { fetchAllPostsAction } from "../actions/postActions";
@@ -40,13 +39,27 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 
 // --- API Helpers (Kept here for component specific fetch) ---
 export async function fetchLocationInsights(
-  accessToken,
   locationId,
   startDate,
   endDate,
 ) {
   try {
-    const url = `https://businessprofileperformance.googleapis.com/v1/locations/${locationId}:fetchMultiDailyMetricsTimeSeries?dailyRange.startDate.year=${startDate.getFullYear()}&dailyRange.startDate.month=${startDate.getMonth() + 1}&dailyRange.startDate.day=${startDate.getDate()}&dailyRange.endDate.year=${endDate.getFullYear()}&dailyRange.endDate.month=${endDate.getMonth() + 1}&dailyRange.endDate.day=${endDate.getDate()}&dailyMetrics=BUSINESS_DIRECTION_REQUESTS&dailyMetrics=CALL_CLICKS&dailyMetrics=WEBSITE_CLICKS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_MAPS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_SEARCH`;
+    const userId = getLocalStorage("isImpersonating") === "true"
+      ? getLocalStorage("impersonatedUser")
+      : getLocalStorage("userId");
+
+    const params = new URLSearchParams({
+      userId: userId || "",
+      locationId,
+      "startDate.year": String(startDate.getFullYear()),
+      "startDate.month": String(startDate.getMonth() + 1),
+      "startDate.day": String(startDate.getDate()),
+      "endDate.year": String(endDate.getFullYear()),
+      "endDate.month": String(endDate.getMonth() + 1),
+      "endDate.day": String(endDate.getDate()),
+    });
+
+    const url = `/api/gmb/performance-insights?${params.toString()}`;
 
     console.log("📡 GMB API Request ─────────────────────────");
     console.log("📍 Location ID:", locationId);
@@ -57,9 +70,7 @@ export async function fetchLocationInsights(
     console.log("🔗 URL:", url);
     console.log("────────────────────────────────────────────");
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const res = await fetch(url, { cache: "no-store" });
 
     console.log("📶 Response Status:", res.status, res.statusText);
 
@@ -111,17 +122,27 @@ export async function fetchLocationInsights(
 }
 
 export async function fetchSearchKeywords(
-  accessToken,
   locationId,
   startMonth,
   endMonth,
 ) {
   try {
-    const url = `https://businessprofileperformance.googleapis.com/v1/locations/${locationId}/searchkeywords/impressions/monthly?monthlyRange.start_month.year=${startMonth.year}&monthlyRange.start_month.month=${startMonth.month}&monthlyRange.end_month.year=${endMonth.year}&monthlyRange.end_month.month=${endMonth.month}`;
+    const userId = getLocalStorage("isImpersonating") === "true"
+      ? getLocalStorage("impersonatedUser")
+      : getLocalStorage("userId");
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+    const params = new URLSearchParams({
+      userId: userId || "",
+      locationId,
+      startYear: String(startMonth.year),
+      startMonth: String(startMonth.month),
+      endYear: String(endMonth.year),
+      endMonth: String(endMonth.month),
     });
+
+    const url = `/api/gmb/search-keywords?${params.toString()}`;
+
+    const res = await fetch(url, { cache: "no-store" });
 
     if (!res.ok) {
       const errText = await res.text();
@@ -140,7 +161,6 @@ export async function fetchSearchKeywords(
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
 
   const [filterStatus, setFilterStatus] = useState("all");
   const [activeTab, setActiveTab] = useState("gmb");
@@ -163,7 +183,7 @@ export default function DashboardPage() {
     fetchInitialData,
     handleManualRefresh,
     handleDisconnectGMB,
-  } = useGMB(session, status, setUiState);
+  } = useGMB(setUiState);
 
   const { facebookPages, setFacebookPages, handleDisconnectFacebook } =
     useFacebook(router, searchParams);
@@ -207,11 +227,19 @@ export default function DashboardPage() {
       getSessionStorage("userName") ||
       getLocalStorage("fullName") ||
       getSessionStorage("fullName") ||
-      session?.user?.name ||
       "User"
-    : session?.user?.name || "User";
+    : getLocalStorage("userName") ||
+      getSessionStorage("userName") ||
+      getLocalStorage("fullName") ||
+      getSessionStorage("fullName") ||
+      "User";
 
-  const userPlan = session?.user?.plan || "";
+  const userPlan =
+    getLocalStorage("plan") ||
+    getSessionStorage("plan") ||
+    getLocalStorage("userPlan") ||
+    getSessionStorage("userPlan") ||
+    "";
   const maxAccounts = userPlan === "" ? 1 : 0;
 
   // Flexible Logout Handler (Revoke Meta Permissions)
@@ -287,16 +315,6 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Show connect modal for unauthenticated users after a delay
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      const timer = setTimeout(() => {
-        setUiState((prev) => ({ ...prev, isConnectModalOpen: true }));
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [status]);
-
   const showToast = (message, type) => {
     if (type === "error") toast.error(message);
     else if (type === "success") toast.success(message);
@@ -341,7 +359,6 @@ export default function DashboardPage() {
 
       try {
         const insights = await fetchLocationInsights(
-          session.accessToken,
           locationId,
           fetchStart,
           insightSeriesEnd,
@@ -362,7 +379,6 @@ export default function DashboardPage() {
         };
 
         const keywords = await fetchSearchKeywords(
-          session.accessToken,
           locationId,
           startMonth,
           endMonth,
@@ -382,7 +398,7 @@ export default function DashboardPage() {
         setPerformanceState((prevData) => ({ ...prevData, loading: false }));
       }
     },
-    [session?.accessToken, performanceState.dateRange],
+    [performanceState.dateRange],
   );
 
   const handleLocationSelect = useCallback(
@@ -447,16 +463,17 @@ export default function DashboardPage() {
     }
   }, [activeListings]);
   const handleAddProject = useCallback(async () => {
-    if (!session) {
-      await signIn("google", { redirect: false });
+    const userId = getLocalStorage("userId");
+    if (!userId) {
+      toast.error("Login first");
       return;
     }
     if (accounts.length >= maxAccounts) {
       toast.error(`⚠️ ${userPlan} plan allows only ${maxAccounts} profiles.`);
       return;
     }
-    await fetchInitialData(true);
-  }, [session, accounts.length, maxAccounts, userPlan, fetchInitialData]);
+    window.location.href = `/api/gmb/login?userId=${userId}`;
+  }, [accounts.length, maxAccounts, userPlan]);
 
   const getVerificationBadge = useCallback((listing) => {
     const isVerified = listing.hasVoiceOfMerchant === true;
@@ -487,19 +504,6 @@ export default function DashboardPage() {
     },
     [filterStatus],
   );
-
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-white">
-        <div className="text-center">
-          <CircularProgress size={60} thickness={4} sx={{ color: "#eab308" }} />
-          <p className="text-slate-400 font-bold uppercase tracking-widest mt-8 text-sm">
-            Initializing Dashboard...
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const tabData = [
     {
@@ -562,7 +566,7 @@ export default function DashboardPage() {
 
       <SessionExpiredModal
         isOpen={uiState.isSessionExpired}
-        onLogin={() => signIn("google", { callbackUrl: "/dashboard" })}
+        onLogin={() => router.push("/login")}
       />
 
       <ConnectModal
@@ -601,7 +605,7 @@ export default function DashboardPage() {
 
       <div className=" border-b border-black/5">
         <div className="w-full ">
-          <NavLinks isAuthenticated={status === "authenticated"} />
+          <NavLinks isAuthenticated={Boolean(getLocalStorage("userId"))} />
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mt-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">

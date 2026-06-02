@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
+import { getGoogleBusinessAccessToken } from "@/lib/googleBusinessToken";
 
 export const maxDuration = 300;
 
@@ -288,11 +289,30 @@ export async function POST(req) {
       );
     }
 
+    const firstLocation = Array.isArray(payload.locationData)
+      ? payload.locationData[0]
+      : null;
+    const firstLocationId = normalizeLocationId(
+      firstLocation?.city ||
+        firstLocation?.locationId ||
+        firstLocation?.location_id ||
+        firstLocation?.id,
+    );
+    const payloadUserId = getUserIdentifier(payload);
+
+    if (!payload.accessToken && payloadUserId && firstLocationId) {
+      payload.accessToken = await getGoogleBusinessAccessToken({
+        userId: payloadUserId,
+        locationId: firstLocationId,
+      });
+    }
+
     console.log("[gmb/publish] Incoming request:", {
       account: payload.account,
       locationDataCount: Array.isArray(payload.locationData)
         ? payload.locationData.length
         : 0,
+      hasAccessToken: Boolean(payload.accessToken),
       hasOutput: Boolean(payload.output),
       hasVideo: Boolean(payload.video_url),
       checkmark: payload.checkmark,

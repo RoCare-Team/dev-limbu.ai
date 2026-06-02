@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { Trash2 } from "lucide-react";
+
 export default function JobApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [search, setSearch] = useState("");
@@ -24,6 +26,29 @@ export default function JobApplicationsPage() {
       .toLowerCase()
       .includes(search.toLowerCase())
   );
+
+  const handleDelete = async (id) => {
+  const ok = confirm(
+    "Are you sure you want to delete this application?"
+  );
+
+  if (!ok) return;
+
+  const res = await fetch(
+    `/api/admin/job-applications?id=${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  const data = await res.json();
+
+  if (data.success) {
+    setApplications((prev) =>
+      prev.filter((item) => item._id !== id)
+    );
+  }
+};
 
   return (
     <div className="p-6">
@@ -68,6 +93,10 @@ export default function JobApplicationsPage() {
 
           <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
             Applied On
+          </th>
+
+          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+            Action
           </th>
         </tr>
       </thead>
@@ -134,6 +163,15 @@ export default function JobApplicationsPage() {
                 {new Date(item.createdAt).toLocaleDateString()}
               </span>
             </td>
+
+            <td className="px-6 py-4">
+  <button
+  onClick={() => handleDelete(item._id)}
+  className="h-10 w-10 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+>
+  <Trash2 size={18} />
+</button>
+</td>
           </tr>
         ))}
       </tbody>

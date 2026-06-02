@@ -33,6 +33,8 @@ export default function Page() {
 
   const [sendingTemplateId, setSendingTemplateId] = useState("");
 
+  
+
   useEffect(() => {
     fetch("/api/admin/sheets-list")
       .then((res) => res.json())
@@ -107,24 +109,26 @@ setData(uniqueData);
 }, [sheet]);
 
   const toggleRow = (rowIndex) => {
-    setSelectedRows((prev) =>
-      prev.includes(rowIndex)
-        ? prev.filter((i) => i !== rowIndex)
-        : [...prev, rowIndex],
-    );
-  };
-
-  const toggleAll = () => {
-    if (selectedRows.length === paginatedData.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(paginatedData.map((_, i) => i));
-    }
-  };
-
-  const selectedUsers = paginatedData.filter((_, index) =>
-    selectedRows.includes(index),
+  setSelectedRows((prev) =>
+    prev.includes(rowIndex)
+      ? prev.filter((i) => i !== rowIndex)
+      : [...prev, rowIndex]
   );
+};
+
+  const allRows = data.slice(1);
+
+const toggleAll = () => {
+  if (selectedRows.length === allRows.length) {
+    setSelectedRows([]);
+  } else {
+    setSelectedRows(allRows.map((_, i) => i));
+  }
+};
+
+  const selectedUsers = data
+  .slice(1)
+  .filter((_, index) => selectedRows.includes(index));
 
   const headers = data[0] || [];
 
@@ -222,10 +226,10 @@ const phoneIndex = headers.findIndex((h) =>
                     <input
                       type="checkbox"
                       checked={
-                        selectedRows.length === paginatedData.length &&
-                        paginatedData.length > 0
-                      }
-                      onChange={toggleAll}
+  selectedRows.length === data.slice(1).length &&
+  data.slice(1).length > 0
+}
+onChange={toggleAll}
                       className="h-4 w-4 cursor-pointer"
                     />
                   </th>
@@ -243,7 +247,10 @@ const phoneIndex = headers.findIndex((h) =>
 
               {/* BODY */}
               <tbody className="bg-white">
-                {paginatedData.map((row, rowIndex) => (
+                {paginatedData.map((row, rowIndex) => {
+  const globalIndex = startIndex + rowIndex;
+
+  return (
                   <tr
                     key={rowIndex}
                     className="group transition-all duration-200 hover:bg-gray-50 border-b border-gray-200 shadow-[0_1px_0_0_#e5e7eb]"
@@ -251,8 +258,8 @@ const phoneIndex = headers.findIndex((h) =>
                     <td className="px-6 py-5 border-b border-gray-200">
                       <input
                         type="checkbox"
-                        checked={selectedRows.includes(rowIndex)}
-                        onChange={() => toggleRow(rowIndex)}
+                        checked={selectedRows.includes(globalIndex)}
+onChange={() => toggleRow(globalIndex)}
                         className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
@@ -317,7 +324,8 @@ const phoneIndex = headers.findIndex((h) =>
                       </td>
                     ))}
                   </tr>
-                ))}
+                  );
+})}
               </tbody>
             </table>
           </div>

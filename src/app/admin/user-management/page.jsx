@@ -319,6 +319,8 @@ export default function UserManagement() {
   const [templateWaSendingId, setTemplateWaSendingId] = useState("");
   const [bulkWaResult, setBulkWaResult] = useState(null);
 
+  const [allUserIds, setAllUserIds] = useState([]);
+
   // remark
   const [planRemarks, setplanRemarks] = useState("");
 
@@ -776,6 +778,28 @@ export default function UserManagement() {
     conversationStageTableActive,
     conversationStageUsers,
   ]);
+
+  const fetchAllUserIds = async () => {
+  const adminEmail = localStorage.getItem("email");
+
+  const res = await fetch(
+    `/api/users?email=${adminEmail}&page=1&limit=10000`
+  );
+
+  const data = await res.json();
+
+  if (data.success) {
+    setAllUserIds(
+      data.users
+        .filter((u) => u.phone || u.mobileNumber)
+        .map((u) => String(u.userId))
+    );
+  }
+};
+
+useEffect(() => {
+  fetchAllUserIds();
+}, []);
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
     if (role !== "superAdmin") return [];
@@ -2631,14 +2655,16 @@ export default function UserManagement() {
   };
 
   const selectAllBulkWaOnPage = () => {
-    if (!bulkWaEligibleIdsOnPage.length) return;
-    setBulkWaSelectedUserIds((prev) => {
-      const allSelected = bulkWaEligibleIdsOnPage.every((id) =>
-        prev.includes(id),
-      );
-      return allSelected ? [] : [...bulkWaEligibleIdsOnPage];
-    });
-  };
+  if (!allUserIds.length) return;
+
+  setBulkWaSelectedUserIds((prev) => {
+    const allSelected = allUserIds.every((id) =>
+      prev.includes(id)
+    );
+
+    return allSelected ? [] : [...allUserIds];
+  });
+};
 
   const sendBulkUserManagementWhatsApp = async () => {
     if (role !== "superAdmin") return;
@@ -4515,11 +4541,11 @@ export default function UserManagement() {
                             type="checkbox"
                             title="Select all leads with phone on this page"
                             checked={
-                              bulkWaEligibleIdsOnPage.length > 0 &&
-                              bulkWaEligibleIdsOnPage.every((id) =>
-                                bulkWaSelectedUserIds.includes(id),
-                              )
-                            }
+  allUserIds.length > 0 &&
+  allUserIds.every((id) =>
+    bulkWaSelectedUserIds.includes(id)
+  )
+}
                             onChange={selectAllBulkWaOnPage}
                             className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                           />

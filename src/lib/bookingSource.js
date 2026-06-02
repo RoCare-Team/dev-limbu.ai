@@ -52,6 +52,9 @@ export const USER_SOURCE_OPTIONS = [
   { value: "website", label: "Website" },
   { value: "chatbot", label: "Chatbot" },
   { value: "Meta Lead", label: "Meta Lead" },
+
+    { value: "expolead", label: "Expo Lead" }, 
+
   { value: "manual-upload", label: "Manual Meta import" },
   { value: "bulk-upload", label: "Bulk Meta import" },
   { value: "csv-import", label: "CSV import" },

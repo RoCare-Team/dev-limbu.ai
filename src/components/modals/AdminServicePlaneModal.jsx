@@ -166,6 +166,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
   const [activeCategory, setActiveCategory] =
   useState("service");
 
+  const [bookingLoading, setBookingLoading] = useState(false);
+
   // ✅ Auto fill amount when plan selected
   useEffect(() => {
     if (servicePlan) {
@@ -234,6 +236,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
     let screenshotUrl = "";
 
     try {
+
+        setBookingLoading(true);
       // ✅ Agar screenshot selected hai to pehle S3 par upload karo
       if (paymentScreenshot) {
         const formData = new FormData();
@@ -335,10 +339,14 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
       onClose();
     } catch (err) {
-      console.error(err);
-      alert("Error booking service");
-    }
+  console.error(err);
+  alert("Error booking service");
+} finally {
+  setBookingLoading(false);
+}
   };
+
+
   const handleScreenshotChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -604,16 +612,43 @@ export default function AdminServicepaneModal({ service, onClose }) {
             </button>
 
             <button
-              onClick={handleConfirmService}
-              disabled={!selectedPlan}
-              className={`flex-1 py-3 rounded-xl font-semibold transition ${
-                selectedPlan
-                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              Confirm Booking
-            </button>
+  onClick={handleConfirmService}
+  disabled={!selectedPlan || bookingLoading}
+  className={`flex-1 py-3 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${
+    selectedPlan && !bookingLoading
+      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+  }`}
+>
+  {bookingLoading ? (
+    <>
+      <svg
+        className="animate-spin h-5 w-5"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        />
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+        />
+      </svg>
+
+      Sending Template...
+    </>
+  ) : (
+    "Confirm Booking"
+  )}
+</button>
           </div>
         </div>
       </div>

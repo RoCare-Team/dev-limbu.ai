@@ -20,6 +20,10 @@ import {
   Link2,
   QrCode,
   Map,
+  Building2,
+  Workflow,
+  Wand2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 
@@ -261,20 +265,27 @@ const isAgent = role === "agent";
     title: "Integrations",
     groupIcon: <Link2 size={16} />,
     items: [
+
+       {
+        name: "OnBoarded Franchise",
+        href: "/admin/onboarded-franchise",
+        icon: <Building2 size={16} />,
+      },
+
       {
-        name: "Connected Nodes",
+        name: "Business Connected Nodes",
         href: "/admin/connected-node",
-        icon: <Link2 size={16} />,
+        icon: <Workflow size={16} />,
       },
        {
-        name: "Custom generator",
+        name: "Invoice Generator",
         href: "/admin/customGenereate",
-        icon: <Link2 size={16} />,
+        icon: <Wand2 size={16} />,
       },
       {
-        name: "Data Form Section",
+        name: "Scrapper Data",
         href: "/admin/dataFormSection",
-        icon: <Link2 size={16} />,
+        icon: <FileSpreadsheet size={16} />,
       },
     ],
   },

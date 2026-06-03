@@ -783,31 +783,67 @@ export default function UserManagement() {
   const fetchAllUserIds = async () => {
   const adminEmail = localStorage.getItem("email");
 
-  const res = await fetch(
-    `/api/users?email=${adminEmail}&page=1&limit=10000`
-  );
+  const params = new URLSearchParams({
+    email: adminEmail,
+    page: "1",
+    limit: "10000",
+    search: searchQuery || "",
+  });
 
+  if (assigneeFilter !== "All") {
+    params.append("assignedAgentId", assigneeFilter);
+  }
+
+  if (leadStatusFilter !== "All") {
+    params.append("leadStatus", leadStatusFilter);
+  }
+
+  if (leadStageFilter !== "All") {
+    params.append("leadStage", leadStageFilter);
+  }
+
+  if (leadSourceFilter !== "All") {
+    params.append("source", leadSourceFilter);
+  }
+
+  if (conversationStageFilter !== "All") {
+    params.append("conversationStage", conversationStageFilter);
+  }
+
+  if (remarkCountFilter !== "All") {
+    params.append("remarkCount", remarkCountFilter);
+  }
+
+  const res = await fetch(`/api/users?${params.toString()}`);
   const data = await res.json();
+
+  console.log("ALL IDS API", data.totalUsers);
+console.log("ALL IDS USERS", data.users.length);
 
   if (data.success) {
     setAllUserIds(
-      data.users
-        .filter((u) => u.phone || u.mobileNumber)
-        .map((u) => String(u.userId))
-    );
+  data.users.map((u) => String(u.userId))
+);
   }
 };
 
 useEffect(() => {
   fetchAllUserIds();
-}, []);
+}, [
+  searchQuery,
+  assigneeFilter,
+  leadStatusFilter,
+  leadStageFilter,
+  leadSourceFilter,
+  remarkCountFilter,
+  conversationStageFilter,
+]);
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
-    if (role !== "superAdmin") return [];
-    return filteredUsers
-      .filter((u) => u.phone || u.mobileNumber)
-      .map((u) => String(u.userId));
-  }, [role, filteredUsers]);
+  if (role !== "superAdmin") return [];
+
+  return filteredUsers.map((u) => String(u.userId));
+}, [role, filteredUsers]);
 
   const followUpMetaByUserId = useMemo(() => {
     const m = new Map();
@@ -2659,7 +2695,7 @@ useEffect(() => {
     );
   };
 
-  const selectAllBulkWaOnPage = () => {
+ const selectAllBulkWaOnPage = () => {
   if (!allUserIds.length) return;
 
   setBulkWaSelectedUserIds((prev) => {
@@ -2667,7 +2703,9 @@ useEffect(() => {
       prev.includes(id)
     );
 
-    return allSelected ? [] : [...allUserIds];
+    return allSelected
+      ? []
+      : [...allUserIds];
   });
 };
 
@@ -4547,7 +4585,7 @@ useEffect(() => {
                           <input
                             type="checkbox"
                             title="Select all leads with phone on this page"
-                            checked={
+                          checked={
   allUserIds.length > 0 &&
   allUserIds.every((id) =>
     bulkWaSelectedUserIds.includes(id)

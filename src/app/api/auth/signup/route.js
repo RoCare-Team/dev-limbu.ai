@@ -59,22 +59,29 @@ export async function POST(req) { // Ye Signup API hai.
     // Round-robin Agent Assignment
     let assignedAgentId = null;
     try {
-      const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 }); // Active agents nikaal raha hai.
+      const activeAgents = await Admin.find({ role: "agent", isActive: true })
+        .sort({ createdAt: 1, _id: 1 })
+        .lean();
 
       if (activeAgents.length > 0) {
         const RR_KEY = "agentLeadRR";
-        let rrDoc = await Setting.findOne({ key: RR_KEY });
-        if (!rrDoc) {
-          rrDoc = await Setting.create({ key: RR_KEY, value: 0 });
-        } else {
-          rrDoc.value += 1;
-          await rrDoc.save();
-        } // Counter increment kar raha hai.
+        const rrDoc = await Setting.findOneAndUpdate(
+          { key: RR_KEY },
+          [
+            {
+              $set: {
+                key: RR_KEY,
+                value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
+              },
+            },
+          ],
+          { new: true, upsert: true },
+        );
 
         let rrValue = parseInt(rrDoc.value, 10);
         if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
-        assignedAgentId = activeAgents[rrValue % activeAgents.length]._id; // Equal distribution karta hai.
+        assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
       }
     } catch (error) {
       console.error("Agent assignment error:", error);

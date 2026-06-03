@@ -781,26 +781,26 @@ export default function UserManagement() {
   ]);
 
   const fetchAllUserIds = async () => {
-  const adminEmail = localStorage.getItem("email");
+    const adminEmail = localStorage.getItem("email");
 
-  const res = await fetch(
-    `/api/users?email=${adminEmail}&page=1&limit=10000`
-  );
-
-  const data = await res.json();
-
-  if (data.success) {
-    setAllUserIds(
-      data.users
-        .filter((u) => u.phone || u.mobileNumber)
-        .map((u) => String(u.userId))
+    const res = await fetch(
+      `/api/users?email=${adminEmail}&page=1&limit=10000`
     );
-  }
-};
 
-useEffect(() => {
-  fetchAllUserIds();
-}, []);
+    const data = await res.json();
+
+    if (data.success) {
+      setAllUserIds(
+        data.users
+          .filter((u) => u.phone || u.mobileNumber)
+          .map((u) => String(u.userId))
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchAllUserIds();
+  }, []);
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
     if (role !== "superAdmin") return [];
@@ -1361,15 +1361,15 @@ useEffect(() => {
     const todayMetaLeads = useApiTodayBreakdown
       ? todayUsersMetaLeads
       : users.filter(
-          (u) =>
-            isMetaLeadSource(u.source, u.leadTags) &&
-            isTodayLocalBrowser(u.createdAt),
-        ).length;
+        (u) =>
+          isMetaLeadSource(u.source, u.leadTags) &&
+          isTodayLocalBrowser(u.createdAt),
+      ).length;
     const todaySignups = useApiTodayBreakdown
       ? todayUsersSignups
       : users.filter(
-          (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
-        ).length;
+        (u) => u.source === "signup" && isTodayLocalBrowser(u.createdAt),
+      ).length;
 
     setStats({
       total,
@@ -1917,12 +1917,12 @@ useEffect(() => {
         page: String(page),
         limit: String(limit),
       });
-      
+
       // If user is an agent, only show their own data
       if (role === "agent") {
         params.append("filterByAgent", adminEmail);
       }
-      
+
       const res = await fetch(`/api/admin/chatbot-metric-users?${params}`, {
         cache: "no-store",
       });
@@ -1999,9 +1999,9 @@ useEffect(() => {
         fetchChatbotSummaryMetrics({ showLoader: false }),
         chatbotMetricTableActive && chatbotMetricFilter
           ? fetchChatbotMetricUsers(chatbotMetricFilter, {
-              silent: true,
-              page: currentPage,
-            })
+            silent: true,
+            page: currentPage,
+          })
           : Promise.resolve(),
         fetchAgentStats(),
       ]);
@@ -2027,45 +2027,45 @@ useEffect(() => {
     fetchUsers(true);
   };
 
-const handleChatbotMetricCardClick = async ({
-  metricId,
-  period,
-  title,
-  cardKey,
-}) => {
-  if (chatbotMetricFilter?.cardKey === cardKey) {
-    clearChatbotMetricFilter();
-    return;
-  }
-
-  setCurrentPage(1);
-  setChatbotChatDayFilter(null);
-  setConversationStageTableActive(false);
-  setConversationStageUsers([]);
-  setSelectedConversationStage("All");
-  setConversationStageFilter("All");
-
-  const newFilter = { metricId, period, title, cardKey };
-
-  // Set state first
-  setChatbotMetricUsers([]);
-  setChatbotMetricTableActive(true);
-  setChatbotMetricFilter(newFilter);
-
-  try {
-    await fetchChatbotMetricUsers(newFilter, {
-      page: 1,
-      silent: true,
-    });
+  const handleChatbotMetricCardClick = async ({
+    metricId,
+    period,
+    title,
+    cardKey,
+  }) => {
+    if (chatbotMetricFilter?.cardKey === cardKey) {
+      clearChatbotMetricFilter();
+      return;
+    }
 
     setCurrentPage(1);
-  } catch (err) {
-    console.error(
-      "Error fetching chatbot metric users on card click:",
-      err
-    );
-  }
-};
+    setChatbotChatDayFilter(null);
+    setConversationStageTableActive(false);
+    setConversationStageUsers([]);
+    setSelectedConversationStage("All");
+    setConversationStageFilter("All");
+
+    const newFilter = { metricId, period, title, cardKey };
+
+    // Set state first
+    setChatbotMetricUsers([]);
+    setChatbotMetricTableActive(true);
+    setChatbotMetricFilter(newFilter);
+
+    try {
+      await fetchChatbotMetricUsers(newFilter, {
+        page: 1,
+        silent: true,
+      });
+
+      setCurrentPage(1);
+    } catch (err) {
+      console.error(
+        "Error fetching chatbot metric users on card click:",
+        err
+      );
+    }
+  };
 
   const handleConversationStageCardClick = async (stage) => {
     setCurrentPage(1);
@@ -2688,16 +2688,16 @@ const handleChatbotMetricCardClick = async ({
   };
 
   const selectAllBulkWaOnPage = () => {
-  if (!allUserIds.length) return;
+    if (!allUserIds.length) return;
 
-  setBulkWaSelectedUserIds((prev) => {
-    const allSelected = allUserIds.every((id) =>
-      prev.includes(id)
-    );
+    setBulkWaSelectedUserIds((prev) => {
+      const allSelected = allUserIds.every((id) =>
+        prev.includes(id)
+      );
 
-    return allSelected ? [] : [...allUserIds];
-  });
-};
+      return allSelected ? [] : [...allUserIds];
+    });
+  };
 
   const sendBulkUserManagementWhatsApp = async () => {
     if (role !== "superAdmin") return;
@@ -3230,8 +3230,8 @@ const handleChatbotMetricCardClick = async ({
           agentName: adminName,
           ...(followUpIso &&
             !Number.isNaN(new Date(followUpIso).getTime()) && {
-              followUpDate: followUpIso,
-            }),
+            followUpDate: followUpIso,
+          }),
         }),
       });
       const data = await res.json();
@@ -3266,7 +3266,7 @@ const handleChatbotMetricCardClick = async ({
                   setFollowUpStats((prev) => ({ ...prev, ...d.stats }));
                 }
               })
-              .catch(() => {});
+              .catch(() => { });
           }
         }
       } else {
@@ -3525,11 +3525,10 @@ const handleChatbotMetricCardClick = async ({
         {toast && (
           <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5">
             <div
-              className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
-                toast.type === "success"
+              className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === "success"
                   ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
                   : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
-              }`}
+                }`}
             >
               {toast.type === "success" ? (
                 <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
@@ -3704,11 +3703,10 @@ const handleChatbotMetricCardClick = async ({
                     <button
                       key={key}
                       onClick={() => setFollowUpFilter(key)}
-                      className={`rounded-lg p-2 border-2 text-left transition-all ${
-                        active
+                      className={`rounded-lg p-2 border-2 text-left transition-all ${active
                           ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
                           : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       <p
                         className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}
@@ -3795,21 +3793,21 @@ const handleChatbotMetricCardClick = async ({
             role === "admin" ||
             role === "superfranchiseAdmin" ||
             role === "agent") && (
-            <Box sx={{ mb: 1 }}>
-              <ChatbotSummaryMetrics
-                totals={chatbotSummaryMetrics.totals}
-                today={chatbotSummaryMetrics.today}
-                loading={
-                  chatbotSummaryMetrics.loading ||
-                  chatbotMetricLoading ||
-                  isRefreshingWhatsAppData
-                }
-                activeCardKey={chatbotMetricFilter?.cardKey || ""}
-                onRefresh={handleRefreshWhatsAppData}
-                onSelectCard={handleChatbotMetricCardClick}
-              />
-            </Box>
-          )}
+              <Box sx={{ mb: 1 }}>
+                <ChatbotSummaryMetrics
+                  totals={chatbotSummaryMetrics.totals}
+                  today={chatbotSummaryMetrics.today}
+                  loading={
+                    chatbotSummaryMetrics.loading ||
+                    chatbotMetricLoading ||
+                    isRefreshingWhatsAppData
+                  }
+                  activeCardKey={chatbotMetricFilter?.cardKey || ""}
+                  onRefresh={handleRefreshWhatsAppData}
+                  onSelectCard={handleChatbotMetricCardClick}
+                />
+              </Box>
+            )}
 
           {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
 
@@ -4024,56 +4022,56 @@ const handleChatbotMetricCardClick = async ({
                 {(role === "superAdmin" ||
                   role === "admin" ||
                   role === "superfranchiseAdmin") && (
-                  <>
-                    <FormControl size="small" fullWidth>
-                      <Select
-                        displayEmpty
-                        value={assigneeFilter}
-                        onChange={(e) => setAssigneeFilter(e.target.value)}
-                        renderValue={(selected) => {
-                          if (selected === "All") return "Agent: All";
-                          if (selected === "Unassigned")
-                            return "Agent: Unassigned";
-                          const agent = agents.find((a) => a._id === selected);
-                          return `Agent: ${agent?.fullName || "Selected"}`;
-                        }}
-                        inputProps={{ "aria-label": "Assign To" }}
-                      >
-                        <MenuItem value="All">All Agents</MenuItem>
-                        <MenuItem value="Unassigned">Unassigned</MenuItem>
-                        {agents.map((agent) => (
-                          <MenuItem key={agent._id} value={agent._id}>
-                            {agent.fullName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    {(role === "superAdmin" ||
-                      role === "admin" ||
-                      role === "superfranchiseAdmin") && (
+                    <>
                       <FormControl size="small" fullWidth>
                         <Select
                           displayEmpty
-                          value={leadStatusFilter}
-                          onChange={(e) => setLeadStatusFilter(e.target.value)}
-                          renderValue={(selected) =>
-                            selected === "All"
-                              ? "Status: All"
-                              : `Status: ${selected}`
-                          }
-                          inputProps={{ "aria-label": "Lead Status" }}
+                          value={assigneeFilter}
+                          onChange={(e) => setAssigneeFilter(e.target.value)}
+                          renderValue={(selected) => {
+                            if (selected === "All") return "Agent: All";
+                            if (selected === "Unassigned")
+                              return "Agent: Unassigned";
+                            const agent = agents.find((a) => a._id === selected);
+                            return `Agent: ${agent?.fullName || "Selected"}`;
+                          }}
+                          inputProps={{ "aria-label": "Assign To" }}
                         >
-                          <MenuItem value="All">All Lead Status</MenuItem>
-                          <MenuItem value="Hot">Hot Leads</MenuItem>
-                          <MenuItem value="Warm">Warm Leads</MenuItem>
-                          <MenuItem value="Cold">Cold Leads</MenuItem>
-                          <MenuItem value="Untagged">None</MenuItem>
+                          <MenuItem value="All">All Agents</MenuItem>
+                          <MenuItem value="Unassigned">Unassigned</MenuItem>
+                          {agents.map((agent) => (
+                            <MenuItem key={agent._id} value={agent._id}>
+                              {agent.fullName}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
-                    )}
-                  </>
-                )}
+
+                      {(role === "superAdmin" ||
+                        role === "admin" ||
+                        role === "superfranchiseAdmin") && (
+                          <FormControl size="small" fullWidth>
+                            <Select
+                              displayEmpty
+                              value={leadStatusFilter}
+                              onChange={(e) => setLeadStatusFilter(e.target.value)}
+                              renderValue={(selected) =>
+                                selected === "All"
+                                  ? "Status: All"
+                                  : `Status: ${selected}`
+                              }
+                              inputProps={{ "aria-label": "Lead Status" }}
+                            >
+                              <MenuItem value="All">All Lead Status</MenuItem>
+                              <MenuItem value="Hot">Hot Leads</MenuItem>
+                              <MenuItem value="Warm">Warm Leads</MenuItem>
+                              <MenuItem value="Cold">Cold Leads</MenuItem>
+                              <MenuItem value="Untagged">None</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                    </>
+                  )}
 
                 <FormControl size="small" fullWidth>
                   <Select
@@ -4194,22 +4192,22 @@ const handleChatbotMetricCardClick = async ({
                   leadSourceFilter !== "All" ||
                   conversationStageFilter !== "All" ||
                   remarkCountFilter !== "All") && (
-                  <Button
-                    onClick={clearFilters}
-                    variant="outlined"
-                    color="inherit"
-                    startIcon={<X size={16} />}
-                    sx={{
-                      height: 38,
-                      borderRadius: "10px",
-                      textTransform: "none",
-                      fontWeight: 700,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Clear
-                  </Button>
-                )}
+                    <Button
+                      onClick={clearFilters}
+                      variant="outlined"
+                      color="inherit"
+                      startIcon={<X size={16} />}
+                      sx={{
+                        height: 38,
+                        borderRadius: "10px",
+                        textTransform: "none",
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
               </Box>
             </Box>
           </Paper>
@@ -4227,141 +4225,141 @@ const handleChatbotMetricCardClick = async ({
               role === "admin" ||
               role === "agent" ||
               role === "superfranchiseAdmin") && (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 2,
-                  px: { xs: 2, sm: 2.5 },
-                  py: { xs: 1.75, sm: 2 },
-                  borderBottom: "1px solid",
-                  borderColor: "divider",
-                  background: (theme) =>
-                    `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
-                }}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      gap: 1,
-                      fontWeight: 800,
-                      letterSpacing: "-0.02em",
-                      color: "text.primary",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    <span>Leads</span>
-                    <Box
-                      component="span"
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 2,
+                    px: { xs: 2, sm: 2.5 },
+                    py: { xs: 1.75, sm: 2 },
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    background: (theme) =>
+                      `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.success.main, 0.05)} 50%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="subtitle1"
                       sx={{
-                        display: "inline-flex",
+                        display: "flex",
+                        flexWrap: "wrap",
                         alignItems: "center",
-                        minHeight: 22,
-                        px: 1,
-                        borderRadius: "999px",
-                        bgcolor: (theme) =>
-                          alpha(theme.palette.primary.main, 0.1),
-                        border: "1px solid",
-                        borderColor: (theme) =>
-                          alpha(theme.palette.primary.main, 0.18),
-                        color: "primary.main",
-                        fontSize: 12,
+                        gap: 1,
                         fontWeight: 800,
-                        lineHeight: 1,
+                        letterSpacing: "-0.02em",
+                        color: "text.primary",
+                        lineHeight: 1.3,
                       }}
                     >
-                      Total: {currentLeadTotal.toLocaleString("en-IN")}
-                    </Box>
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: "block", mt: 0.25 }}
+                      <span>Leads</span>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          minHeight: 22,
+                          px: 1,
+                          borderRadius: "999px",
+                          bgcolor: (theme) =>
+                            alpha(theme.palette.primary.main, 0.1),
+                          border: "1px solid",
+                          borderColor: (theme) =>
+                            alpha(theme.palette.primary.main, 0.18),
+                          color: "primary.main",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          lineHeight: 1,
+                        }}
+                      >
+                        Total: {currentLeadTotal.toLocaleString("en-IN")}
+                      </Box>
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 0.25 }}
+                    >
+                      {chatbotChatDayFilter
+                        ? `Chatbot chats · ${chatbotChatDayFilter === "today" ? "Today" : "Yesterday"}`
+                        : "Manage records and sync from Meta"}
+                    </Typography>
+                  </Box>
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    alignItems="center"
+                    flexWrap="wrap"
+                    useFlexGap
                   >
-                    {chatbotChatDayFilter
-                      ? `Chatbot chats · ${chatbotChatDayFilter === "today" ? "Today" : "Yesterday"}`
-                      : "Manage records and sync from Meta"}
-                  </Typography>
-                </Box>
-                <Stack
-                  direction="row"
-                  spacing={1.25}
-                  alignItems="center"
-                  flexWrap="wrap"
-                  useFlexGap
-                >
-                  <button
-                    onClick={() => setShowAddExpoLeadModal(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-700"
-                  >
-                    + Add Expo Lead
-                  </button>
+                    <button
+                      onClick={() => setShowAddExpoLeadModal(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-700"
+                    >
+                      + Add Expo Lead
+                    </button>
 
-                  <Button
-                    variant="contained"
-                    onClick={() => setAddingUser(true)}
-                    startIcon={<Plus size={18} strokeWidth={2.5} />}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 700,
-                      borderRadius: 2,
-                      px: 2.5,
-                      py: 1,
-                      boxShadow: (theme) =>
-                        `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
-                      background: (theme) =>
-                        `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                      "&:hover": {
-                        background: (theme) =>
-                          `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                    <Button
+                      variant="contained"
+                      onClick={() => setAddingUser(true)}
+                      startIcon={<Plus size={18} strokeWidth={2.5} />}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderRadius: 2,
+                        px: 2.5,
+                        py: 1,
                         boxShadow: (theme) =>
-                          `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
-                      },
-                    }}
-                  >
-                    Add Lead
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    disabled={isRefreshingMetaLeads}
-                    onClick={() => handleRefreshMetaLeads({ silent: false })}
-                    startIcon={
-                      <RefreshCw
-                        size={16}
-                        className={isRefreshingMetaLeads ? "animate-spin" : ""}
-                      />
-                    }
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 700,
-                      borderRadius: 2,
-                      px: 2.25,
-                      py: 1,
-                      borderWidth: 2,
-                      borderColor: "primary.main",
-                      color: "primary.main",
-                      "&:hover": {
+                          `0 4px 14px ${alpha(theme.palette.success.main, 0.35)}`,
+                        background: (theme) =>
+                          `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                        "&:hover": {
+                          background: (theme) =>
+                            `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
+                          boxShadow: (theme) =>
+                            `0 6px 20px ${alpha(theme.palette.success.main, 0.4)}`,
+                        },
+                      }}
+                    >
+                      Add Lead
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      disabled={isRefreshingMetaLeads}
+                      onClick={() => handleRefreshMetaLeads({ silent: false })}
+                      startIcon={
+                        <RefreshCw
+                          size={16}
+                          className={isRefreshingMetaLeads ? "animate-spin" : ""}
+                        />
+                      }
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderRadius: 2,
+                        px: 2.25,
+                        py: 1,
                         borderWidth: 2,
-                        bgcolor: (theme) =>
-                          alpha(theme.palette.primary.main, 0.08),
-                        borderColor: "primary.dark",
-                      },
-                      "&.Mui-disabled": {
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    Refresh
-                  </Button>
-                </Stack>
-              </Box>
-            )}
+                        borderColor: "primary.main",
+                        color: "primary.main",
+                        "&:hover": {
+                          borderWidth: 2,
+                          bgcolor: (theme) =>
+                            alpha(theme.palette.primary.main, 0.08),
+                          borderColor: "primary.dark",
+                        },
+                        "&.Mui-disabled": {
+                          borderWidth: 2,
+                        },
+                      }}
+                    >
+                      Refresh
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
             {chatbotMetricTableActive && chatbotMetricFilter && (
               <div className="mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200/80 bg-blue-50/60 px-4 py-2.5">
                 <p className="text-sm font-semibold text-blue-900">
@@ -4529,11 +4527,10 @@ const handleChatbotMetricCardClick = async ({
 
                 {bulkWaResult && (
                   <div
-                    className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
-                      bulkWaResult.success
+                    className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${bulkWaResult.success
                         ? "bg-green-50 text-green-800 border-green-500"
                         : "bg-red-50 text-red-800 border-red-500"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-1">
@@ -4576,11 +4573,11 @@ const handleChatbotMetricCardClick = async ({
                             type="checkbox"
                             title="Select all leads with phone on this page"
                             checked={
-  allUserIds.length > 0 &&
-  allUserIds.every((id) =>
-    bulkWaSelectedUserIds.includes(id)
-  )
-}
+                              allUserIds.length > 0 &&
+                              allUserIds.every((id) =>
+                                bulkWaSelectedUserIds.includes(id)
+                              )
+                            }
                             onChange={selectAllBulkWaOnPage}
                             className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                           />
@@ -4635,10 +4632,10 @@ const handleChatbotMetricCardClick = async ({
 
                   <tbody className="divide-y divide-gray-100">
                     {(loadingFollowUpTable &&
-                    isAgent &&
-                    followUpFilter !== "all") ||
-                    (chatbotMetricLoading &&
-                      chatbotMetricTableActive) ? (
+                      isAgent &&
+                      followUpFilter !== "all") ||
+                      (chatbotMetricLoading &&
+                        chatbotMetricTableActive) ? (
                       <tr>
                         <td
                           colSpan={role === "superAdmin" ? 14 : 13}
@@ -4651,7 +4648,7 @@ const handleChatbotMetricCardClick = async ({
                             />
                             <p className="text-sm font-semibold text-gray-700">
                               {chatbotMetricLoading &&
-                              chatbotMetricTableActive
+                                chatbotMetricTableActive
                                 ? "Loading WhatsApp leads…"
                                 : `Loading follow-ups (${agentFollowUpFilterLabel})…`}
                             </p>
@@ -4765,11 +4762,10 @@ const handleChatbotMetricCardClick = async ({
                                                       <div
                                                         className={`
                             inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
-                            ${
-                              isDone
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
-                                : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
-                            }
+                            ${isDone
+                                                            ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
+                                                            : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
+                                                          }
                           `}
                                                       >
                                                         {step.icon}
@@ -4779,16 +4775,16 @@ const handleChatbotMetricCardClick = async ({
                                                       {/* Arrow Logic */}
                                                       {index !==
                                                         FIXED_JOURNEY_STEPS.length -
-                                                          1 && (
-                                                        <MoveRight
-                                                          size={10}
-                                                          className={
-                                                            isDone
-                                                              ? "text-emerald-400"
-                                                              : "text-slate-300"
-                                                          }
-                                                        />
-                                                      )}
+                                                        1 && (
+                                                          <MoveRight
+                                                            size={10}
+                                                            className={
+                                                              isDone
+                                                                ? "text-emerald-400"
+                                                                : "text-slate-300"
+                                                            }
+                                                          />
+                                                        )}
                                                     </Fragment>
                                                   );
                                                 },
@@ -4802,11 +4798,10 @@ const handleChatbotMetricCardClick = async ({
                                     {/* 2. MAIN DATA ROW (Bottom Row) */}
                                     <tr
                                       onClick={() => handleViewPosts(user)}
-                                      className={`cursor-pointer ${
-                                        rowIndex % 2 === 0
+                                      className={`cursor-pointer ${rowIndex % 2 === 0
                                           ? "bg-white"
                                           : "bg-slate-50/40"
-                                      } ${botUserId ? "border-t-0" : ""}`}
+                                        } ${botUserId ? "border-t-0" : ""}`}
                                     >
                                       {role === "superAdmin" && (
                                         <td
@@ -4879,7 +4874,7 @@ const handleChatbotMetricCardClick = async ({
                                                     e.stopPropagation();
                                                     setFullViewImage(
                                                       paidUsersStatus[
-                                                        user.userId
+                                                      user.userId
                                                       ],
                                                     );
                                                   }}
@@ -4905,15 +4900,14 @@ const handleChatbotMetricCardClick = async ({
                                                   e.target.value,
                                                 )
                                               }
-                                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                                user.leadStatus === "Hot"
+                                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${user.leadStatus === "Hot"
                                                   ? "bg-red-50 text-red-700 border-red-200"
                                                   : user.leadStatus === "Warm"
                                                     ? "bg-orange-50 text-orange-700 border-orange-200"
                                                     : user.leadStatus === "Cold"
                                                       ? "bg-blue-50 text-blue-700 border-blue-200"
                                                       : "bg-gray-50 text-gray-600 border-gray-200"
-                                              }`}
+                                                }`}
                                             >
                                               <option value="">Untagged</option>
                                               <option value="Hot">Hot</option>
@@ -4921,7 +4915,7 @@ const handleChatbotMetricCardClick = async ({
                                               <option value="Cold">Cold</option>
                                             </select>
                                           </div>
-                                          {!user.franchiseId && ( 
+                                          {!user.franchiseId && (
                                             <div
                                               onClick={(e) =>
                                                 e.stopPropagation()
@@ -4959,7 +4953,7 @@ const handleChatbotMetricCardClick = async ({
                                               </select>
                                             </div>
                                           )}{" "}
-                                          
+
                                           <div className="flex flex-wrap gap-1 mt-1">
                                             {user.franchiseId ? (
                                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100 rounded-full">
@@ -5003,8 +4997,8 @@ const handleChatbotMetricCardClick = async ({
                                         onClick={(e) => e.stopPropagation()}
                                       >
                                         {role === "superAdmin" ||
-                                        role === "admin" ||
-                                        role === "superfranchiseAdmin" ? (
+                                          role === "admin" ||
+                                          role === "superfranchiseAdmin" ? (
                                           <div
                                             className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
                                               getAgentName(
@@ -5139,11 +5133,10 @@ const handleChatbotMetricCardClick = async ({
                                             fetchChatHistoryForUser(user);
                                           }}
                                           disabled={!botUserId}
-                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
-                                            hasAnyProgress
+                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${hasAnyProgress
                                               ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                               : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                          }`}
+                                            }`}
                                         >
                                           <MessageCircle size={14} />
                                           <span>Chat</span>
@@ -5400,11 +5393,10 @@ const handleChatbotMetricCardClick = async ({
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        walletUpdate.type === "credit"
+                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "credit"
                           ? "border-green-500 bg-green-50"
                           : "border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -5432,11 +5424,10 @@ const handleChatbotMetricCardClick = async ({
                       </div>
                     </label>
                     <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        walletUpdate.type === "debit"
+                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${walletUpdate.type === "debit"
                           ? "border-red-500 bg-red-50"
                           : "border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -5512,13 +5503,13 @@ const handleChatbotMetricCardClick = async ({
                     <p className="text-lg font-bold text-indigo-600">
                       {walletUpdate.type === "credit"
                         ? (
-                            parseFloat(walletModalUser.wallet || 0) +
-                            parseFloat(walletUpdate.amount || 0)
-                          ).toFixed(2)
+                          parseFloat(walletModalUser.wallet || 0) +
+                          parseFloat(walletUpdate.amount || 0)
+                        ).toFixed(2)
                         : (
-                            parseFloat(walletModalUser.wallet || 0) -
-                            parseFloat(walletUpdate.amount || 0)
-                          ).toFixed(2)}{" "}
+                          parseFloat(walletModalUser.wallet || 0) -
+                          parseFloat(walletUpdate.amount || 0)
+                        ).toFixed(2)}{" "}
                       coins
                     </p>
                   </div>
@@ -5572,11 +5563,10 @@ const handleChatbotMetricCardClick = async ({
                     <button
                       key={cycle.cycle}
                       onClick={() => setSelectedCycle(cycle.cycle)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                        selectedCycle === cycle.cycle
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${selectedCycle === cycle.cycle
                           ? "bg-indigo-600 text-white shadow-md"
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                        }`}
                     >
                       {cycle.label}
                     </button>
@@ -5587,23 +5577,22 @@ const handleChatbotMetricCardClick = async ({
               <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
                 {(subscriptionPlans
                   ? subscriptionPlans.billingCycles.find(
-                      (c) => c.cycle === selectedCycle,
-                    )?.plans
+                    (c) => c.cycle === selectedCycle,
+                  )?.plans
                   : ["Basic Plan", "Professional Plan", "Premium Plan"].map(
-                      (p) => ({
-                        title: p,
-                      }),
-                    )
+                    (p) => ({
+                      title: p,
+                    }),
+                  )
                 ).map((plan) => {
                   const planName = plan.title || plan;
                   return (
                     <label
                       key={planName}
-                      className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        selectedPlan === planName
+                      className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === planName
                           ? "border-indigo-500 bg-indigo-50"
                           : "border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3 w-full">
                         <input
@@ -5884,11 +5873,10 @@ const handleChatbotMetricCardClick = async ({
                           key={label}
                           type="button"
                           onClick={() => setFollowUpDate(isActive ? "" : val)}
-                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                            isActive
+                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${isActive
                               ? "bg-amber-500 text-white border-amber-500 shadow-sm"
                               : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
-                          }`}
+                            }`}
                         >
                           {label}
                         </button>
@@ -5962,11 +5950,10 @@ const handleChatbotMetricCardClick = async ({
                         <div
                           key={idx}
                           className={`p-3 rounded-xl border transition-all shadow-sm
-                      ${
-                        isLatest
-                          ? "bg-green-50 border-green-300"
-                          : "bg-white border-gray-200"
-                      }`}
+                      ${isLatest
+                              ? "bg-green-50 border-green-300"
+                              : "bg-white border-gray-200"
+                            }`}
                         >
                           {/* Top Row */}
                           <div className="flex items-center justify-between mb-1">
@@ -6207,7 +6194,7 @@ const handleChatbotMetricCardClick = async ({
                       {loadingPosts
                         ? "..."
                         : userPosts.filter((p) => p.status === "rejected")
-                            .length}
+                          .length}
                     </p>
                   </div>
                 </div>
@@ -6250,22 +6237,20 @@ const handleChatbotMetricCardClick = async ({
 
                           <div className="absolute top-2 right-2">
                             <span
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                post.status === "posted"
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
                                   ? "bg-green-100 text-green-700 border border-green-300"
                                   : post.status === "rejected"
                                     ? "bg-red-100 text-red-700 border border-red-300"
                                     : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                              }`}
+                                }`}
                             >
                               <div
-                                className={`w-2 h-2 rounded-full ${
-                                  post.status === "posted"
+                                className={`w-2 h-2 rounded-full ${post.status === "posted"
                                     ? "bg-green-500"
                                     : post.status === "rejected"
                                       ? "bg-red-500"
                                       : "bg-yellow-500"
-                                }`}
+                                  }`}
                               ></div>
                               {post.status === "posted"
                                 ? "Posted"
@@ -6406,11 +6391,10 @@ const handleChatbotMetricCardClick = async ({
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              issue.status === "resolved"
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${issue.status === "resolved"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-yellow-100 text-yellow-700"
-                            }`}
+                              }`}
                           >
                             {issue.status || "open"}
                           </span>
@@ -6857,10 +6841,10 @@ const handleChatbotMetricCardClick = async ({
                     {loadingPosts
                       ? "..."
                       : userPostsData?.[viewingUserPosts?.userId]?.total ||
-                        viewingUserPosts?.totalPosts ||
-                        viewingUserPosts?.postsCount ||
-                        userPosts.length ||
-                        0}
+                      viewingUserPosts?.totalPosts ||
+                      viewingUserPosts?.postsCount ||
+                      userPosts.length ||
+                      0}
                   </p>
                 </div>
 
@@ -6871,8 +6855,8 @@ const handleChatbotMetricCardClick = async ({
                     {loadingPosts
                       ? "..."
                       : userPostsData?.[viewingUserPosts?.userId]?.posted ||
-                        userPosts.filter((p) => p.status === "posted").length ||
-                        0}
+                      userPosts.filter((p) => p.status === "posted").length ||
+                      0}
                   </p>
                 </div>
                 {/* Rejected */}
@@ -6882,9 +6866,9 @@ const handleChatbotMetricCardClick = async ({
                     {loadingPosts
                       ? "..."
                       : userPostsData?.[viewingUserPosts?.userId]?.rejected ||
-                        userPosts.filter((p) => p.status === "rejected")
-                          .length ||
-                        0}
+                      userPosts.filter((p) => p.status === "rejected")
+                        .length ||
+                      0}
                   </p>
                 </div>
               </div>
@@ -6924,22 +6908,20 @@ const handleChatbotMetricCardClick = async ({
 
                         <div className="absolute top-2 right-2">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                              post.status === "posted"
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${post.status === "posted"
                                 ? "bg-green-100 text-green-700 border border-green-300"
                                 : post.status === "rejected"
                                   ? "bg-red-100 text-red-700 border border-red-300"
                                   : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                            }`}
+                              }`}
                           >
                             <div
-                              className={`w-2 h-2 rounded-full ${
-                                post.status === "posted"
+                              className={`w-2 h-2 rounded-full ${post.status === "posted"
                                   ? "bg-green-500"
                                   : post.status === "rejected"
                                     ? "bg-red-500"
                                     : "bg-yellow-500"
-                              }`}
+                                }`}
                             ></div>
                             {post.status === "posted"
                               ? "Posted"

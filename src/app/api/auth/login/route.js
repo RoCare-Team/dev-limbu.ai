@@ -194,19 +194,28 @@ export async function POST(req) { // ye API ka post handler he
           const activeAgents = await Admin.find({
             role: "agent",
             isActive: true,
-          }).sort({ createdAt: 1 });
+          })
+            .sort({ createdAt: 1, _id: 1 })
+            .lean();
 
           if (activeAgents.length > 0) {
-            let rrDoc = await Setting.findOne({ key: "agentLeadRR" });
-            if (!rrDoc) {
-              rrDoc = await Setting.create({ key: "agentLeadRR", value: 0 });
-            }
+            const rrDoc = await Setting.findOneAndUpdate(
+              { key: "agentLeadRR" },
+              [
+                {
+                  $set: {
+                    key: "agentLeadRR",
+                    value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
+                  },
+                },
+              ],
+              { new: true, upsert: true },
+            );
 
             let rrValue = parseInt(rrDoc.value, 10);
             if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
 
             assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
-            await Setting.updateOne({ key: "agentLeadRR" }, { $inc: { value: 1 } });
           }
         } catch (err) {
           console.error("Agent assign error:", err);

@@ -16,6 +16,8 @@ import {
 
 import DashboardStats from "../../../../components/FranchiseLeads/DashboardStats";
 import RemarksModal from "../../../../components/FranchiseLeads/RemarksModal";
+import AdminServicepaneModal from "../../../../components/modals/AdminServicePlaneModal";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 
 const STAGES = ["Active", "Follow Up", "Inactive", "Onboard"];
 const STATUSES = ["", "Hot", "Warm", "Cold"];
@@ -52,6 +54,18 @@ export default function UserManagement() {
   const [savingTagId, setSavingTagId] = useState("");
   const [savingAssigneeId, setSavingAssigneeId] = useState("");
   const [teamMembers, setTeamMembers] = useState([]);
+  const [selectedUserForPlan, setSelectedUserForPlan] = useState(null);
+  const [selectedCycle, setSelectedCycle] = useState("monthly");
+  const [selectedPlan, setSelectedPlan] = useState("");
+  const [planStartDate, setPlanStartDate] = useState("");
+  const [planExpiryDate, setPlanExpiryDate] = useState("");
+  const [planScreenshot, setPlanScreenshot] = useState(null);
+  const [planAmount, setPlanAmount] = useState("");
+  const [utrNumber, setUtrNumber] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
+  const [planRemarks, setplanRemarks] = useState("");
+  const [updatingPlanUser, setUpdatingPlanUser] = useState(null);
+  const [serviceModalUser, setServiceModalUser] = useState(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -109,6 +123,46 @@ export default function UserManagement() {
       setTeamMembers([]);
     }
   };
+
+  /* ---------------- UPLOAD TO S3 (client helper) ---------------- */
+  const uploadToS3 = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const result = await uploadToS3Action(formData);
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to upload to S3");
+      }
+
+      return result.url;
+    } catch (error) {
+      console.error("S3 upload error:", error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    if (planStartDate) {
+      const start = new Date(planStartDate);
+      const end = new Date(start);
+
+      if (selectedCycle === "monthly") {
+        end.setMonth(end.getMonth() + 1);
+      } else if (selectedCycle === "quarterly") {
+        end.setMonth(end.getMonth() + 3);
+      } else if (selectedCycle === "half-yearly") {
+        end.setMonth(end.getMonth() + 6);
+      } else if (selectedCycle === "yearly") {
+        end.setFullYear(end.getFullYear() + 1);
+      }
+
+      if (!isNaN(end.getTime())) {
+        setPlanExpiryDate(end.toISOString().split("T")[0]);
+      }
+    }
+  }, [planStartDate, selectedCycle]);
 
   useEffect(() => {
     fetchUsers();
@@ -197,6 +251,12 @@ export default function UserManagement() {
   };
 
   const updateLeadStage = async (user, leadStage) => {
+    // If switching to Onboard, open Upgrade Plan modal (and optionally Service modal)
+    if (leadStage === "Onboard") {
+      handleUpgradePlan(user);
+      return;
+    }
+
     setSavingStageId(user._id);
     try {
       const res = await fetch("/api/franchise-panel/franchise-user", {
@@ -222,6 +282,104 @@ export default function UserManagement() {
       showToast("Failed to update lead stage");
     } finally {
       setSavingStageId("");
+    }
+  };
+
+  const handleUpgradePlan = (user) => {
+    setSelectedUserForPlan(user);
+    setSelectedPlan(user.paidPackage || "Basic Plan");
+    setSelectedCycle(user.planDuration || "monthly");
+    const start = user.packageStartDate
+      ? new Date(user.packageStartDate).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0];
+    setPlanStartDate(start);
+    setUtrNumber("");
+    setGstNumber("");
+    setPlanAmount("");
+    setPlanScreenshot(null);
+  };
+
+  const confirmPlanChange = async () => {
+    const packageStartDate = planStartDate || "";
+    const packageExpiryDate = planExpiryDate || "";
+
+    if (!selectedUserForPlan || !selectedPlan) return;
+
+    if (planAmount && parseFloat(planAmount) > 0 && !planScreenshot) {
+      showToast("Payment screenshot is required when amount is entered.", "error");
+      return;
+    }
+
+    setUpdatingPlanUser(selectedUserForPlan._id);
+
+    try {
+      let screenshotUrl = null;
+      if (planAmount && parseFloat(planAmount) > 0) {
+        screenshotUrl = await uploadToS3(planScreenshot);
+
+        const revenueRes = await fetch("/api/franchise-revenue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({
+            leadId: selectedUserForPlan._id,
+            leadName: selectedUserForPlan.fullName,
+            amount: parseFloat(planAmount),
+            paymentScreenshot: screenshotUrl,
+            userEmail: selectedUserForPlan.email || "",
+            phone: selectedUserForPlan.phone || "",
+            email: localStorage.getItem("email"),
+            plan: selectedPlan,
+            packageStartDate,
+            packageExpiryDate,
+            notes: `Plan upgrade to ${selectedPlan}`,
+            planRemarks,
+            utrNumber,
+            gstNumber,
+          }),
+        });
+
+        const revenueData = await revenueRes.json();
+        if (!revenueData.success) {
+          throw new Error(revenueData.message || "Failed to record revenue.");
+        }
+      } else if (planScreenshot) {
+        screenshotUrl = await uploadToS3(planScreenshot);
+      }
+
+      // Update franchise user with plan details and set stage to Onboard
+      const userUpdateRes = await fetch(`/api/franchise-panel/franchise-user`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          userId: selectedUserForPlan._id,
+          isServiceBooked: true,
+          paidPackage: selectedPlan,
+          planDuration: selectedCycle,
+          packageStartDate,
+          packageExpiryDate,
+          ...(screenshotUrl && { paymentScreenshot: screenshotUrl }),
+          ...(utrNumber && { utrNumber }),
+          ...(gstNumber && { gstNumber }),
+          leadStage: "Onboard",
+        }),
+      });
+
+      const userUpdateData = await userUpdateRes.json();
+      if (userUpdateData.success) {
+        showToast("User plan updated successfully!", "success");
+        // Refresh user in list
+        setUsers((prev) => prev.map((u) => (u._id === userUpdateData.user._id ? userUpdateData.user : u)));
+        setSelectedUserForPlan(null);
+        setPlanScreenshot(null);
+        setPlanAmount("");
+      } else {
+        throw new Error(userUpdateData.error || "Failed to update plan");
+      }
+    } catch (err) {
+      console.error("Error updating plan:", err);
+      showToast(err.message, "error");
+    } finally {
+      setUpdatingPlanUser(null);
     }
   };
 
@@ -577,6 +735,126 @@ export default function UserManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Upgrade Plan Modal (same behavior as admin) */}
+      {selectedUserForPlan && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Upgrade Plan</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setServiceModalUser(selectedUserForPlan)}
+                  className="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 text-sm font-medium"
+                >
+                  Book Service
+                </button>
+                <button
+                  onClick={() => setSelectedUserForPlan(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+              <p className="text-sm text-gray-600 mb-1">User</p>
+              <p className="font-semibold text-gray-800">{selectedUserForPlan.email}</p>
+            </div>
+
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+              {[
+                { cycle: 'monthly', label: 'Monthly' },
+                { cycle: 'quarterly', label: 'Quarterly' },
+                { cycle: 'half-yearly', label: 'Half-Yearly' },
+                { cycle: 'yearly', label: 'Yearly' },
+              ].map((cycle) => (
+                <button
+                  key={cycle.cycle}
+                  onClick={() => setSelectedCycle(cycle.cycle)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                    selectedCycle === cycle.cycle ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {cycle.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+              {['Basic Plan','Professional Plan','Premium Plan'].map((plan) => {
+                const planName = plan;
+                return (
+                  <label key={planName} className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPlan === planName ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div className="flex items-center gap-3 w-full">
+                      <input type="radio" name="plan" value={planName} checked={selectedPlan === planName} onChange={(e) => setSelectedPlan(e.target.value)} className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-800">{planName}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (₹)</label>
+                <input type="number" placeholder="e.g., 5000" value={planAmount} onChange={(e) => setPlanAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Start Date</label>
+                <input type="date" value={planStartDate} onChange={(e) => setPlanStartDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Expiry Date</label>
+                <input type="date" value={planExpiryDate} readOnly className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed" />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Payment Screenshot <span className="text-gray-400">(if amount entered)</span></label>
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
+                <input type="file" accept="image/*" onChange={(e) => { const file = e.target.files[0]; if (file) setPlanScreenshot(file); }} className="hidden" id="franchise-plan-screenshot-upload" />
+                <label htmlFor="franchise-plan-screenshot-upload" className="flex flex-col items-center cursor-pointer">
+                  <span className="text-sm text-gray-600">{planScreenshot ? planScreenshot.name : "Click to upload payment screenshot"}</span>
+                  <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                </label>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">UTR Number</label>
+                <input type="text" value={utrNumber} onChange={(e) => setUtrNumber(e.target.value)} placeholder="Enter UTR / Transaction ID" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Remark</label>
+                <textarea value={planRemarks} onChange={(e) => setplanRemarks(e.target.value)} placeholder="Enter remark..." rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none" />
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">GST Number</label>
+                <input type="text" value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="Enter GST Number" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setSelectedUserForPlan(null)} className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium">Cancel</button>
+              <button onClick={confirmPlanChange} disabled={updatingPlanUser === selectedUserForPlan?._id} className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50">{updatingPlanUser === selectedUserForPlan?._id ? 'Updating...' : 'Confirm'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service Plan Modal (reusable admin component) */}
+      {serviceModalUser && (
+        <AdminServicepaneModal service={{ userId: serviceModalUser._id, phone: serviceModalUser.phone, user: serviceModalUser }} onClose={() => setServiceModalUser(null)} />
       )}
     </div>
   );

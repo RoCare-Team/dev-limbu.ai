@@ -13,6 +13,7 @@ export async function GET(req) {
     const period = (searchParams.get("period") || "total").trim();
     const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
     const limit = Math.max(1, parseInt(searchParams.get("limit")) || 70);
+    const filterByAgent = searchParams.get("filterByAgent");
 
     if (!adminEmail) {
       return NextResponse.json(
@@ -40,6 +41,8 @@ export async function GET(req) {
       period,
       page,
       limit,
+      filterByAgent: filterByAgent || null,
+      role: admin.role,
     });
 
     return NextResponse.json(result);

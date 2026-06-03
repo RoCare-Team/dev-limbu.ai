@@ -43,7 +43,7 @@ export default function FranchisePackageBookingList() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const res = await fetch("/api/service-booking?planType=our-package");
+        const res = await fetch("/api/service-booking?planType=our-packages");
         const json = await res.json();
         if (!json.success) throw new Error("Failed to fetch bookings");
         setData(json.data);

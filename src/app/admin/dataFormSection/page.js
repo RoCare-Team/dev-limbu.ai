@@ -24,16 +24,13 @@ export default function Page() {
 
   const usersPerPage = 20;
 
+  const sheetRows = data.slice(1);
   const startIndex = (currentPage - 1) * usersPerPage;
   const endIndex = startIndex + usersPerPage;
 
-  const paginatedData = data.slice(1).slice(startIndex, endIndex);
+  const paginatedData = sheetRows.slice(startIndex, endIndex);
 
-  const totalPages = Math.ceil(data.slice(1).length / usersPerPage);
-
-  const [sendingTemplateId, setSendingTemplateId] = useState("");
-
-  
+  const totalPages = Math.ceil(sheetRows.length / usersPerPage);
 
   useEffect(() => {
     fetch("/api/admin/sheets-list")
@@ -109,32 +106,25 @@ setData(uniqueData);
 }, [sheet]);
 
   const toggleRow = (rowIndex) => {
-  setSelectedRows((prev) =>
-    prev.includes(rowIndex)
-      ? prev.filter((i) => i !== rowIndex)
-      : [...prev, rowIndex]
-  );
-};
+    setSelectedRows((prev) =>
+      prev.includes(rowIndex)
+        ? prev.filter((i) => i !== rowIndex)
+        : [...prev, rowIndex],
+    );
+  };
 
-  const allRows = data.slice(1);
+  const toggleAll = () => {
+    if (selectedRows.length === sheetRows.length) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(sheetRows.map((_, i) => i));
+    }
+  };
 
-const toggleAll = () => {
-  if (selectedRows.length === allRows.length) {
-    setSelectedRows([]);
-  } else {
-    setSelectedRows(allRows.map((_, i) => i));
-  }
-};
-
-  const selectedUsers = data
-  .slice(1)
-  .filter((_, index) => selectedRows.includes(index));
-
-  const headers = data[0] || [];
-
-const phoneIndex = headers.findIndex((h) =>
-  String(h).toLowerCase().includes("phone")
-);
+  const selectedUsers = [...selectedRows]
+    .sort((a, b) => a - b)
+    .map((rowIndex) => sheetRows[rowIndex])
+    .filter(Boolean);
 
   if (loading) {
     return (
@@ -165,6 +155,7 @@ const phoneIndex = headers.findIndex((h) =>
               onClick={() => {
                 setSheet(sheetName);
                 setCurrentPage(1);
+                setSelectedRows([]);
               }}
               className={`px-4 py-2 rounded ${
                 sheet === sheetName ? "bg-blue-600 text-white" : "bg-gray-200"
@@ -226,10 +217,10 @@ const phoneIndex = headers.findIndex((h) =>
                     <input
                       type="checkbox"
                       checked={
-  selectedRows.length === data.slice(1).length &&
-  data.slice(1).length > 0
-}
-onChange={toggleAll}
+                        selectedRows.length === sheetRows.length &&
+                        sheetRows.length > 0
+                      }
+                      onChange={toggleAll}
                       className="h-4 w-4 cursor-pointer"
                     />
                   </th>
@@ -247,10 +238,7 @@ onChange={toggleAll}
 
               {/* BODY */}
               <tbody className="bg-white">
-                {paginatedData.map((row, rowIndex) => {
-  const globalIndex = startIndex + rowIndex;
-
-  return (
+                {paginatedData.map((row, rowIndex) => (
                   <tr
                     key={rowIndex}
                     className="group transition-all duration-200 hover:bg-gray-50 border-b border-gray-200 shadow-[0_1px_0_0_#e5e7eb]"
@@ -258,8 +246,8 @@ onChange={toggleAll}
                     <td className="px-6 py-5 border-b border-gray-200">
                       <input
                         type="checkbox"
-                        checked={selectedRows.includes(globalIndex)}
-onChange={() => toggleRow(globalIndex)}
+                        checked={selectedRows.includes(startIndex + rowIndex)}
+                        onChange={() => toggleRow(startIndex + rowIndex)}
                         className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
@@ -324,8 +312,7 @@ onChange={() => toggleRow(globalIndex)}
                       </td>
                     ))}
                   </tr>
-                  );
-})}
+                ))}
               </tbody>
             </table>
           </div>
@@ -358,39 +345,46 @@ onChange={() => toggleRow(globalIndex)}
       </div>
 
       <WhatsappModal
-         isOpen={openWhatsappModal}
-  setIsOpen={setOpenWhatsappModal}
-  selectedCount={selectedRows.length}
-  sendingTemplateId={sendingTemplateId}
-  onSendTemplate={async (template) => {
-  try {
-    setSendingTemplateId(template.id);
+        isOpen={openWhatsappModal}
+        setIsOpen={setOpenWhatsappModal}
+        selectedCount={selectedRows.length}
+        onSendTemplate={async (template) => {
+          const numbers = selectedUsers.map(
+            (row) => `91${String(row[2]).replace(/\D/g, "")}`,
+          );
 
-    const response = await fetch(
-      "/api/admin/user-management-template-whatsapp",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      }
-    );
+          try {
+            const response = await fetch(
+              "/api/admin/user-management-template-whatsapp",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  adminEmail: "info@limbu.ai",
 
-    const result = await response.json();
+                  templateId: template.id,
 
-    if (result.success) {
-      alert("WhatsApp Template Sent");
-    } else {
-      alert(result.message || "Failed To Send");
-    }
-  } catch (error) {
-    console.log(error);
-    alert("Failed To Send Template");
-  } finally {
-    setSendingTemplateId("");
-  }
-}}
+                  users: selectedUsers.map((row) => ({
+                    name: row[0],
+                    phone: row[2],
+                  })),
+                }),
+              },
+            );
+
+            const result = await response.json();
+
+            console.log(result);
+
+            alert("WhatsApp Template Sent");
+          } catch (error) {
+            console.log(error);
+
+            alert("Failed To Send Template");
+          }
+        }}
       />
     </>
   );

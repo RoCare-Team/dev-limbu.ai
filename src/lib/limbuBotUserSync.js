@@ -1534,7 +1534,7 @@ function countTodayStageAchievements(botUsers = [], stage, calendarDate) {
 }
 
 /** Total + today counts for WhatsApp chatbot dashboard summary cards. */
-export async function getChatbotDashboardMetrics() {
+export async function getChatbotDashboardMetrics({ filterByAgent = null, role = null } = {}) {
   const todayBounds = getAppDayBounds();
   const calendarDate = todayBounds.calendarDate;
 
@@ -1542,6 +1542,68 @@ export async function getChatbotDashboardMetrics() {
     loadOrBuildConversationStagesSnapshot({ refresh: false }),
     fetchLimbuBotAdminUsers(),
   ]);
+
+  // If agent filter is provided, compute metrics scoped to that agent
+  if (role === "agent" && filterByAgent) {
+    // Map all bot rows to table users once to build agent filter map
+    const allMappedUsers = await mapBotStageRowsToTableUsers(snapshot.allUsers || []);
+    const byAgent = (u) => u.assignedAgentId?.email === filterByAgent;
+    
+    // Get IDs of users assigned to this agent
+    const agentUserIds = new Set(
+      allMappedUsers
+        .filter(byAgent)
+        .map(u => String(u.chatbotUserId || u.whatsappUserId || u.limbuBotUserId || "").trim())
+        .filter(Boolean)
+    );
+
+    // Filter bot users by agent assignment
+    const agentBotUsers = botUsers.filter(bot => 
+      agentUserIds.has(String(bot.user_id || "").trim())
+    );
+
+    // Calculate totals from snapshot (already mapped)
+    const agentMappedUsers = allMappedUsers.filter(byAgent);
+    
+    const chatStartedTotal = agentMappedUsers.filter((user) => (user.conversationStages || []).length > 0).length;
+
+    const totals = {
+      chatsCreated: chatStartedTotal,
+      gmbConnected: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("GMB Connected")).length,
+      gmbHealth: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("GMB Health")).length,
+      magicQr: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("Magic QR")).length,
+      gmbInsights: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("GMB Insight")).length,
+      websitesBuilt: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("Build Website")).length,
+    };
+
+    // For today counts, use filtered botUsers
+    const today = {
+      chatsCreated: countTodayStageAchievements(agentBotUsers, null, calendarDate),
+      gmbConnected: countTodayStageAchievements(agentBotUsers, "GMB Connected", calendarDate),
+      gmbHealth: countTodayStageAchievements(agentBotUsers, "GMB Health", calendarDate),
+      magicQr: countTodayStageAchievements(agentBotUsers, "Magic QR", calendarDate),
+      gmbInsights: countTodayStageAchievements(agentBotUsers, "GMB Insight", calendarDate),
+      websitesBuilt: countTodayStageAchievements(agentBotUsers, "Build Website", calendarDate),
+    };
+
+    const yesterdayBounds = getAppDayBounds(
+      new Date(todayBounds.start.getTime() - 36 * 3600000),
+    );
+    const yesterdayChats = filterBotUsersByInboundCalendarDay(agentBotUsers, yesterdayBounds.calendarDate).length;
+
+    return {
+      timeZone: todayBounds.timeZone,
+      calendarDate,
+      todayLabel: todayBounds.displayLabel,
+      yesterdayLabel: yesterdayBounds.displayLabel,
+      yesterdayChats,
+      todayChats: today.chatsCreated,
+      totals,
+      today,
+      fetchedAt: snapshot.fetchedAt || new Date().toISOString(),
+      cached: Boolean(snapshot.fromCache),
+    };
+  }
 
   const stageCounts = snapshot.stageCounts || {};
   const chatStartedTotal = (snapshot.allUsers || []).filter(
@@ -1649,6 +1711,8 @@ export async function getChatbotMetricUsers({
   period = "total",
   page = 1,
   limit = 70,
+  filterByAgent = null,
+  role = null,
 } = {}) {
   if (!metricId || !(metricId in CHATBOT_METRIC_STAGE_MAP)) {
     throw new Error("Invalid chatbot metric");
@@ -1671,15 +1735,24 @@ export async function getChatbotMetricUsers({
     rows = dedupeBotStageRows(filterSnapshotRowsForMetric(snapshot, metricId));
   }
 
-  const totalUsers = rows.length;
+  let users = await mapBotStageRowsToTableUsers(rows);
+  
+  // Filter by agent if agent is viewing
+  if (role === "agent" && filterByAgent) {
+    users = users.filter(user => 
+      user.assignedAgentId?.email === filterByAgent
+    );
+  }
+
+  const totalUsers = users.length;
   const skip = (page - 1) * limit;
-  const pageRows = rows.slice(skip, skip + limit);
+  const pageUsers = users.slice(skip, skip + limit);
 
   return {
     success: true,
     metricId,
     period,
-    users: await mapBotStageRowsToTableUsers(pageRows),
+    users: pageUsers,
     totalUsers,
     currentPage: page,
     totalPages: Math.max(1, Math.ceil(totalUsers / limit)),

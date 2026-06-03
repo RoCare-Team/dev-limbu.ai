@@ -26,6 +26,7 @@ export default function Page() {
 
   const usersPerPage = 20;
 
+  const sheetRows = data.slice(1);
   const startIndex = (currentPage - 1) * usersPerPage;
   const endIndex = startIndex + usersPerPage;
 
@@ -193,6 +194,7 @@ export default function Page() {
               onClick={() => {
                 setSheet(sheetName);
                 setCurrentPage(1);
+                setSelectedRows([]);
               }}
               className={`px-4 py-2 rounded ${
                 sheet === sheetName ? "bg-blue-600 text-white" : "bg-gray-200"

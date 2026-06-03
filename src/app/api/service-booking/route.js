@@ -38,7 +38,7 @@ export async function POST(req) {
     if (!body || Object.keys(body).length === 0) {
       return NextResponse.json(
         { success: false, message: "Request body is empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -61,7 +61,7 @@ export async function POST(req) {
       if (!applied.ok) {
         const res = NextResponse.json(
           { success: false, error: applied.error },
-          { status: applied.status }
+          { status: applied.status },
         );
         await logApiRequest({
           path: "/api/service-booking",
@@ -75,15 +75,20 @@ export async function POST(req) {
       body.userId = applied.user.userId;
     }
 
-    if (chatbotPhone && body.status === "paid" && body.paymentId && body.userId) {
+    if (
+      chatbotPhone &&
+      body.status === "paid" &&
+      body.paymentId &&
+      body.userId
+    ) {
       try {
         await savePaymentByPhone(chatbotPhone, {
-          paymentId:   body.paymentId,
-          orderId:     body.orderId,
+          paymentId: body.paymentId,
+          orderId: body.orderId,
           totalAmount: body.totalAmount,
-          planTitle:   body.planTitle,
-          userId:      body.userId,
-          email:       body.email,
+          planTitle: body.planTitle,
+          userId: body.userId,
+          email: body.email,
         });
       } catch (gmbErr) {
         console.error("savePaymentByPhone:", gmbErr);
@@ -98,7 +103,7 @@ export async function POST(req) {
         data: booking,
         ...(body.userId && { checkoutUserId: body.userId }),
       },
-      { status: 201 }
+      { status: 201 },
     );
     await logApiRequest({
       path: "/api/service-booking",
@@ -119,7 +124,7 @@ export async function POST(req) {
     });
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -197,20 +202,31 @@ export async function GET(req) {
     const endDateParam = searchParams.get("endDate");
 
     if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
-       const startDate = new Date(startDateParam);
-       startDate.setHours(0, 0, 0, 0);
-       const endDate = new Date(endDateParam);
-       endDate.setHours(23, 59, 59, 999);
-       query.createdAt = { $gte: startDate, $lte: endDate };
+      const startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: startDate, $lte: endDate };
     }
 
-    const bookings = await ServiceBooking
-      .find(query)
-      .sort({ createdAt: -1 }); // latest first
+    // ── Franchise filter ──────────────────────────────────────────────
+    const franchiseId = searchParams.get("frienchieseid");
+    if (franchiseId) {
+      const User = (await import("@/models/User")).default;
+      const franchiseUsers = await User.find(
+        { franchiseId: franchiseId },
+        { userId: 1, _id: 0 },
+      ).lean();
+      const userIds = franchiseUsers.map((u) => u.userId).filter(Boolean);
+      query.userId = { $in: userIds };
+    }
+    // ─────────────────────────────────────────────────────────────────
+
+    const bookings = await ServiceBooking.find(query).sort({ createdAt: -1 }); // latest first
 
     const res = NextResponse.json(
       { success: true, data: bookings },
-      { status: 200 }
+      { status: 200 },
     );
     await logApiRequest({
       path: "/api/service-booking",
@@ -231,7 +247,7 @@ export async function GET(req) {
     });
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

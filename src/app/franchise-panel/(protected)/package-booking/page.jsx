@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BOOKING_SOURCE_VALUES, bookingSourceLabel } from "@/lib/bookingSource";
 
 export default function FranchisePackageBookingList() {
   const [data, setData] = useState([]);
@@ -10,40 +9,25 @@ export default function FranchisePackageBookingList() {
 
   console.log("franchise panel package data:", data);
 
-  const patchBookingSource = async (bookingId, bookingSource) => {
-    try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("franchise_token") ||
-            localStorage.getItem("token")
-          : null;
-      const res = await fetch("/api/service-booking", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ bookingId, bookingSource }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "Update failed");
-      setData((prev) =>
-        prev.map((row) =>
-          row._id === bookingId
-            ? { ...row, bookingSource: json.data.bookingSource }
-            : row,
-        ),
-      );
-    } catch (e) {
-      console.error(e);
-      alert(e.message || "Could not update source");
-    }
-  };
-
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const res = await fetch("/api/service-booking?planType=our-packages");
+        // localStorage se franchise id nikalo
+        const franchiseUserRaw = localStorage.getItem("franchise_user");
+        const franchiseUser = franchiseUserRaw
+          ? JSON.parse(franchiseUserRaw)
+          : null;
+        const franchiseId = franchiseUser?.franchiseCode || "";
+
+        if (!franchiseId) {
+          setError("Franchise ID not found in localStorage");
+          setLoading(false);
+          return;
+        }
+
+        const url = `/api/franchise-revenue?franchiseCode=${encodeURIComponent(franchiseId)}&type=user_onboard`;
+
+        const res = await fetch(url);
         const json = await res.json();
         if (!json.success) throw new Error("Failed to fetch bookings");
         setData(json.data);
@@ -80,7 +64,7 @@ export default function FranchisePackageBookingList() {
 
   return (
     <div className="p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6">Service Bookings</h2>
+      <h2 className="text-2xl font-bold mb-6">Package Bookings</h2>
 
       {/* ── Desktop Table ── */}
       <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-md">
@@ -102,75 +86,91 @@ export default function FranchisePackageBookingList() {
 
             {/* White tbody */}
             <tbody className="bg-white divide-y divide-gray-100">
-              {data.map((item) => (
-                <tr
-                  key={item._id}
-                  className="hover:bg-gray-50 transition duration-150"
-                >
-                  {/* Customer */}
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-gray-600 to-gray-600 text-white font-semibold text-sm shadow-sm flex-shrink-0">
-                        {item.name?.charAt(0)?.toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">
-                          {item.name}
+              {data.length > 0 ? (
+                data.map((item) => (
+                  <tr
+                    key={item._id}
+                    className="hover:bg-gray-50 transition duration-150"
+                  >
+                    {/* Customer */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-gray-600 to-gray-600 text-white font-semibold text-sm shadow-sm flex-shrink-0">
+                          {item.leadName?.charAt(0)?.toUpperCase()}
                         </div>
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          {item.email}
+                        <div>
+                          <div className="font-semibold text-gray-900">
+                            {item.leadName}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {item.email}
+                          </div>
                         </div>
                       </div>
+                    </td>
+
+                    {/* Contact */}
+                    <td className="px-6 py-5 text-gray-600 font-medium">
+                      {item.phone}
+                    </td>
+
+                    {/* Plan */}
+                    <td className="px-6 py-5">
+                      <span className="bg-blue-50 text-gray-900 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border border-blue-100">
+                        {item.plan}
+                      </span>
+                    </td>
+
+                    {/* Amount */}
+                    <td className="px-6 py-5 text-right">
+                      <span className="font-bold text-gray-900 text-base">
+                        {formatAmount(item.amount)}
+                      </span>
+                    </td>
+
+                    {/* GST */}
+                    <td className="px-6 py-5 text-gray-500 text-sm">
+                      {item.gstNumber || "-"}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-6 py-5 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                          item.status !== "inactive"
+                            ? "bg-green-500 text-white"
+                            : "bg-yellow-400 text-white"
+                        }`}
+                      >
+                        {item.status?.toLowerCase()}
+                      </span>
+                    </td>
+
+                    {/* Date */}
+                    <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
+                      {new Date(item.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "numeric",
+                        year: "numeric",
+                      })}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="text-5xl mb-3">📦</div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        No Bookings Available
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        No service bookings found for this franchise.
+                      </p>
                     </div>
                   </td>
-
-                  {/* Contact */}
-                  <td className="px-6 py-5 text-gray-600 font-medium">
-                    {item.phone}
-                  </td>
-
-                  {/* Plan */}
-                  <td className="px-6 py-5">
-                    <span className="bg-blue-50 text-gray-900 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border border-blue-100">
-                      {item.planTitle}
-                    </span>
-                  </td>
-
-                  {/* Amount */}
-                  <td className="px-6 py-5 text-right">
-                    <span className="font-bold text-gray-900 text-base">
-                      {formatAmount(item.totalAmount)}
-                    </span>
-                  </td>
-
-                  {/* GST */}
-                  <td className="px-6 py-5 text-gray-500 text-sm">
-                    {item.gstNumber || "-"}
-                  </td>
-
-                  {/* Status */}
-                  <td className="px-6 py-5 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                        item.status === "paid"
-                          ? "bg-green-500 text-white"
-                          : "bg-yellow-400 text-white"
-                      }`}
-                    >
-                      {item.status?.toLowerCase()}
-                    </span>
-                  </td>
-
-                  {/* Date */}
-                  <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
-                    {new Date(item.createdAt).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "numeric",
-                      year: "numeric",
-                    })}
-                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -178,50 +178,59 @@ export default function FranchisePackageBookingList() {
 
       {/* ── Mobile Cards ── */}
       <div className="grid gap-4 md:hidden">
-        {data.map((item) => (
-          <div
-            key={item._id}
-            className="bg-white rounded-xl shadow p-4 space-y-2 border border-gray-100"
-          >
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
-                  item.status === "paid" ? "bg-green-500" : "bg-yellow-400"
-                }`}
-              >
-                {item.status?.toLowerCase()}
-              </span>
-            </div>
-            <p className="text-sm text-gray-600">📞 {item.phone}</p>
-            <p className="text-sm text-gray-600">📧 {item.email}</p>
-            <p className="text-sm font-semibold text-gray-800">
-              {item.planTitle}
-            </p>
-
-            <label className="text-xs text-gray-500 block">Source</label>
-            <select
-              value={item.bookingSource || "website"}
-              onChange={(e) => patchBookingSource(item._id, e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1"
+        {data.length > 0 ? (
+          data.map((item) => (
+            <div
+              key={item._id}
+              className="bg-white rounded-xl shadow p-4 space-y-2 border border-gray-100"
             >
-              {BOOKING_SOURCE_VALUES.map((v) => (
-                <option key={v} value={v}>
-                  {bookingSourceLabel(v)}
-                </option>
-              ))}
-            </select>
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-lg text-gray-900">
+                  {item.leadName}
+                </h3>
 
-            <div className="flex justify-between text-sm pt-1">
-              <span className="font-bold text-gray-900">
-                {formatAmount(item.totalAmount)}
-              </span>
-              <span className="text-gray-400">
-                {new Date(item.createdAt).toLocaleDateString("en-IN")}
-              </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
+                    item.status !== "inactive" ? "bg-green-500" : "bg-yellow-400"
+                  }`}
+                >
+                  {item.status?.toLowerCase()}
+                </span>
+              </div>
+
+              <p className="text-sm text-gray-600">📞 {item.phone}</p>
+              <p className="text-sm text-gray-600">📧 {item.email}</p>
+
+              <p className="text-sm font-semibold text-gray-800">
+                {item.plan}
+              </p>
+
+              <div className="flex justify-between text-sm pt-1">
+                <span className="font-bold text-gray-900">
+                  {formatAmount(item.amount)}
+                </span>
+
+                <span className="text-gray-400">
+                  {new Date(item.createdAt).toLocaleDateString("en-IN")}
+                </span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="text-5xl mb-3">📦</div>
+
+              <h3 className="text-lg font-semibold text-gray-900">
+                No Bookings Available
+              </h3>
+
+              <p className="text-sm text-gray-500 mt-2">
+                No service bookings found for this franchise.
+              </p>
             </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

@@ -1,33 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  X,
-  RefreshCw,
-  Wallet,
-  Eye,
-  Users,
-  IndianRupee,
-  TrendingUp,
-  Layers,
-  Briefcase,
-  Crown,
-  Headphones,
-  Settings,
-  Search,
-  AlertCircle,
-  Calendar,
-  MessageCircle,
-  Send,
-  Mail,
-  Smartphone,
-} from "lucide-react";
+
 import { useRouter } from "next/navigation";
 
 import RevenueHeader from "./components/RevenueHeader";
 import RevenueStats from "./components/RevenueStats";
 import RevenueFilters from "./components/RevenueFilters";
-import RevenueBulkActionBar from "./components/RevenueBulkActionBar";
 import RevenueTableWrapper from "./components/RevenueTableWrapper";
 import RevenueFooter from "./components/RevenueFooter";
 import DeleteModal from "./components/DeleteModal";
@@ -132,8 +111,11 @@ export default function RevenueUsersPage() {
   // refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // packageRows filter
   const packageRows = revenueUsersList.filter(
-    (item) => item.type === "user_onboard" && item.status === "active",
+    (item) =>
+      (item.type === "user_onboard" || item.type === "plan") && // ✅ "plan" bhi add
+      (item.status === "active" || item.status === "user_onboard"), // ✅ dono status
   );
 
   const serviceRows = revenueUsersList.filter(
@@ -158,11 +140,14 @@ export default function RevenueUsersPage() {
   // ==============================
   // TOTAL USERS
   // ==============================
+  // totalUsers count
   const totalUsers =
     activeView === "package"
       ? revenueUsersList.filter((item) => {
-          // ✅ Sirf package records count karo
-          return item.type === "user_onboard" && item.status === "active";
+          return (
+            (item.type === "user_onboard" || item.type === "plan") && // ✅
+            (item.status === "active" || item.status === "user_onboard") // ✅
+          );
         }).length
       : serviceRows.length;
 
@@ -286,6 +271,9 @@ export default function RevenueUsersPage() {
 
       const res = await fetch(`/api/franchise-revenue?${params}`);
       const data = await res.json();
+
+      console.log("🔥 FRANCHISE REVENUE API RESPONSE:", data);
+      console.log("📦 REVENUE LIST:", data.revenue);
 
       if (data.success) {
         setRevenueUsersList(data.revenue || []);
@@ -684,8 +672,9 @@ export default function RevenueUsersPage() {
     }
   };
 
+  // paginatedPackageRows filter
   const paginatedPackageRows = filteredData.filter(
-    (r) => r.type === "user_onboard",
+    (r) => r.type === "user_onboard" || r.type === "plan", // ✅ "plan" bhi add
   );
 
   const currentPackageRows = paginatedPackageRows.slice(
@@ -840,31 +829,39 @@ export default function RevenueUsersPage() {
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
                         currentPackageRows.map((r, i) => {
-                            return (
-                              <tr
-                                key={i}
-                                className="border-t hover:bg-gray-50 transition"
-                              >
-                                <td className="px-4 py-4">
-                                  <input
-  type="checkbox"
-
-  checked={selectedRows.includes(r.leadId)}
-
-  onChange={() => handleSelectRow(r.leadId)}
-
-  className="w-4 h-4 accent-indigo-600"
-/>
-                                </td>
+                          return (
+                            <tr
+                              key={i}
+                              className="border-t hover:bg-gray-50 transition"
+                            >
+                              <td className="px-4 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.includes(r.leadId)}
+                                  onChange={() => handleSelectRow(r.leadId)}
+                                  className="w-4 h-4 accent-indigo-600"
+                                />
+                              </td>
 
                               <td className="px-6 py-4">
                                 <div className="font-semibold text-gray-900">
                                   {r.leadName}
                                 </div>
-
                                 <div className="text-xs text-gray-500">
                                   ID: {r.leadId}
                                 </div>
+
+                                {/* ✅ franchiseId hai toh hi dikhao */}
+                                {r.franchiseId && (
+                                  <div className="text-xs font-medium text-indigo-600">
+                                    Franchise: {r.franchiseId}
+                                  </div>
+                                )}
+                                {r.franchiseName && (
+                                  <div className="text-xs text-purple-600">
+                                    {r.franchiseName}
+                                  </div>
+                                )}
 
                                 <div className="text-xs text-gray-500">
                                   UTR: {r.utrNumber || "N/A"}
@@ -1045,210 +1042,227 @@ export default function RevenueUsersPage() {
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-                         serviceRows.map((u, i) => {
+                        serviceRows.map((u, i) => {
+                          console.log("FULL SERVICE ROW", u);
 
-    console.log("FULL SERVICE ROW", u);
+                          return (
+                            <tr
+                              key={i}
+                              className="border-t hover:bg-gray-50 transition"
+                            >
+                              <td className="px-6 py-4">
+                                <div className="font-semibold text-gray-900">
+                                  {u.name ||
+                                    u.fullName ||
+                                    u.leadName ||
+                                    "No Name"}
+                                </div>
 
-                            return(
-                              <tr
-                            key={i}
-                            className="border-t hover:bg-gray-50 transition"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="font-semibold text-gray-900">
-                                {u.name ||
-                                  u.fullName ||
-                                  u.leadName ||
-                                  "No Name"}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {u.email}
-                              </div>
-                            </td>
+                                <div className="text-xs text-gray-500">
+                                  {u.email}
+                                </div>
 
-                            <td className="px-6 py-4">
-                              <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-                                {u.paidService || u.plan || "No Service"}
-                              </span>
-                            </td>
-
-                            <td className="px-6 py-4">
-                              {u.planDuration || "monthly"}
-                            </td>
-
-                            <td className="px-6 py-4">{u.amount}</td>
-
-                            {/* START DATE */}
-                            {/* START DATE */}
-                            <td className="px-6 py-4">
-                              {(() => {
-                                // 🔥 Actual field found from console:
-                                // userPackageStartDate = "2026-05-07T00:00:00.000Z"
-
-                                const rawDate =
-                                  u.packageStartDate ||
-                                  u.userPackageStartDate ||
-                                  u.startDate ||
-                                  u.date ||
-                                  u.createdAt;
-
-                                if (!rawDate) return "No Date";
-
-                                // ✅ Convert to Date object
-                                const d = new Date(rawDate);
-
-                                if (isNaN(d.getTime())) return "No Date";
-
-                                // ✅ Use local date parts (NOT split("-"))
-                                // This avoids NaN/5/2026 issue
-                                const day = d.getDate();
-                                const month = d.getMonth() + 1;
-                                const year = d.getFullYear();
-
-                                return `${day}/${month}/${year}`;
-                              })()}
-                            </td>
-
-                            <td className="px-6 py-4">
-                              {u.packageExpiryDate
-                                ? new Date(
-                                    u.packageExpiryDate,
-                                  ).toLocaleDateString("en-IN")
-                                : "No Date"}
-                            </td>
-
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2">
-                                {/* PDF Download */}
-                                <button
-                                  onClick={() => handleDownloadInvoice(u)}
-                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-                                >
-                                  PDF Download
-                                </button>
-
-                                {/* View PDF */}
-                                {invoiceUrls[u._id] && (
-                                  <button
-                                    onClick={() =>
-                                      window.open(invoiceUrls[u._id], "_blank")
-                                    }
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
-                                  >
-                                    View PDF
-                                  </button>
-                                )}
-
-                                {/* Send WhatsApp */}
-                                {invoiceUrls[u._id] && (
-                                  <button
-                                    onClick={() => handleSendInvoiceWhatsApp(u)}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-                                  >
-                                    Send WhatsApp
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* service  */}
-
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={() =>
-                                  setFullViewImage(u.paymentScreenshot)
-                                }
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
-                                 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
-                              >
-                                View Proof
-                              </button>
-                            </td>
-
-                            <td className="px-6 py-4">
-                              {u.notes || u.remarks || u.Remarks || "-"}
-                            </td>
-
-                            <td className="px-6 py-4 align-top text-sm">
-                              {(() => {
-                                const st = u.planApprovalStatus || "pending";
-
-                                if (st === "approved") {
-                                  return (
-                                    <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                      Approved
-                                    </span>
-                                  );
-                                }
-
-                                if (st === "rejected") {
-                                  return (
-                                    <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                      Not approved
-                                    </span>
-                                  );
-                                }
-
-                                const busy = approvalBusyId === String(u._id);
-
-                                return (
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
-                                      disabled={busy}
-                                      onClick={() =>
-                                        handleServiceApproval(u, "approved")
-                                      }
-                                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
-                                    >
-                                      {busy ? "…" : "Approved"}
-                                    </button>
-
-                                    <button
-                                      disabled={busy}
-                                      onClick={() =>
-                                        handleServiceApproval(u, "rejected")
-                                      }
-                                      className="rounded-lg border px-3 py-1.5 text-xs"
-                                    >
-                                      Not approved
-                                    </button>
+                                {/* Franchise Info */}
+                                {u.franchiseId && (
+                                  <div className="text-xs font-medium text-indigo-600">
+                                    Franchise: {u.franchiseId}
                                   </div>
-                                );
-                              })()}
-                            </td>
+                                )}
 
-                            <td className="px-6 py-4 align-middle">
-                              <div className="flex justify-center items-center gap-2">
+                                {u.franchiseName && (
+                                  <div className="text-xs text-purple-600">
+                                    {u.franchiseName}
+                                  </div>
+                                )}
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                                  {u.paidService || u.plan || "No Service"}
+                                </span>
+                              </td>
+
+                              <td className="px-6 py-4">
+                                {u.planDuration || "monthly"}
+                              </td>
+
+                              <td className="px-6 py-4">{u.amount}</td>
+
+                              {/* START DATE */}
+                              {/* START DATE */}
+                              <td className="px-6 py-4">
+                                {(() => {
+                                  // 🔥 Actual field found from console:
+                                  // userPackageStartDate = "2026-05-07T00:00:00.000Z"
+
+                                  const rawDate =
+                                    u.packageStartDate ||
+                                    u.userPackageStartDate ||
+                                    u.startDate ||
+                                    u.date ||
+                                    u.createdAt;
+
+                                  if (!rawDate) return "No Date";
+
+                                  // ✅ Convert to Date object
+                                  const d = new Date(rawDate);
+
+                                  if (isNaN(d.getTime())) return "No Date";
+
+                                  // ✅ Use local date parts (NOT split("-"))
+                                  // This avoids NaN/5/2026 issue
+                                  const day = d.getDate();
+                                  const month = d.getMonth() + 1;
+                                  const year = d.getFullYear();
+
+                                  return `${day}/${month}/${year}`;
+                                })()}
+                              </td>
+
+                              <td className="px-6 py-4">
+                                {u.packageExpiryDate
+                                  ? new Date(
+                                      u.packageExpiryDate,
+                                    ).toLocaleDateString("en-IN")
+                                  : "No Date"}
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                  {/* PDF Download */}
+                                  <button
+                                    onClick={() => handleDownloadInvoice(u)}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    PDF Download
+                                  </button>
+
+                                  {/* View PDF */}
+                                  {invoiceUrls[u._id] && (
+                                    <button
+                                      onClick={() =>
+                                        window.open(
+                                          invoiceUrls[u._id],
+                                          "_blank",
+                                        )
+                                      }
+                                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      View PDF
+                                    </button>
+                                  )}
+
+                                  {/* Send WhatsApp */}
+                                  {invoiceUrls[u._id] && (
+                                    <button
+                                      onClick={() =>
+                                        handleSendInvoiceWhatsApp(u)
+                                      }
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      Send WhatsApp
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* service  */}
+
+                              <td className="px-6 py-4">
                                 <button
-                                  onClick={() => {
-                                    setSelectedService(u);
-                                    setEditAmount(u.amount || "");
-                                    setEditNotes(
-                                      u.notes ?? u.remarks ?? u.Remarks ?? "",
+                                  onClick={() =>
+                                    setFullViewImage(u.paymentScreenshot)
+                                  }
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
+                                 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
+                                >
+                                  View Proof
+                                </button>
+                              </td>
+
+                              <td className="px-6 py-4">
+                                {u.notes || u.remarks || u.Remarks || "-"}
+                              </td>
+
+                              <td className="px-6 py-4 align-top text-sm">
+                                {(() => {
+                                  const st = u.planApprovalStatus || "pending";
+
+                                  if (st === "approved") {
+                                    return (
+                                      <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                        Approved
+                                      </span>
                                     );
-                                    setEditServiceModal(true);
-                                  }}
-                                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                                >
-                                  Edit
-                                </button>
+                                  }
 
-                                <button
-                                  onClick={() => {
-                                    setSelectedId(u._id); // 👈 temporarily
-                                    setDeleteModal(true);
-                                    setDeleteType("service");
-                                  }}
-                                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                            )
-                          
-                         })}
+                                  if (st === "rejected") {
+                                    return (
+                                      <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                        Not approved
+                                      </span>
+                                    );
+                                  }
+
+                                  const busy = approvalBusyId === String(u._id);
+
+                                  return (
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        disabled={busy}
+                                        onClick={() =>
+                                          handleServiceApproval(u, "approved")
+                                        }
+                                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
+                                      >
+                                        {busy ? "…" : "Approved"}
+                                      </button>
+
+                                      <button
+                                        disabled={busy}
+                                        onClick={() =>
+                                          handleServiceApproval(u, "rejected")
+                                        }
+                                        className="rounded-lg border px-3 py-1.5 text-xs"
+                                      >
+                                        Not approved
+                                      </button>
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+
+                              <td className="px-6 py-4 align-middle">
+                                <div className="flex justify-center items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedService(u);
+                                      setEditAmount(u.amount || "");
+                                      setEditNotes(
+                                        u.notes ?? u.remarks ?? u.Remarks ?? "",
+                                      );
+                                      setEditServiceModal(true);
+                                    }}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      setSelectedId(u._id); // 👈 temporarily
+                                      setDeleteModal(true);
+                                      setDeleteType("service");
+                                    }}
+                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -1256,14 +1270,12 @@ export default function RevenueUsersPage() {
 
               {/* Footer Totals */}
               <RevenueFooter
-  activeView={activeView}
-  revenueUsersList={
-    activeView === "service"
-      ? serviceRows
-      : packageRows
-  }
-  users={users}
-/>
+                activeView={activeView}
+                revenueUsersList={
+                  activeView === "service" ? serviceRows : packageRows
+                }
+                users={users}
+              />
             </>
           </RevenueTableWrapper>
         </div>

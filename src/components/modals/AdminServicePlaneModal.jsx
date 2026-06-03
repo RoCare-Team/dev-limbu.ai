@@ -163,8 +163,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
   const [gstNumber, setGstNumber] = useState("");
 
-  const [activeCategory, setActiveCategory] =
-  useState("service");
+  const [activeCategory, setActiveCategory] = useState("service");
 
   const [bookingLoading, setBookingLoading] = useState(false);
 
@@ -227,17 +226,15 @@ export default function AdminServicepaneModal({ service, onClose }) {
     }
 
     const planDuration =
-  activeCategory === "service" ||
-  activeCategory === "seo"
-    ? "monthly"
-    : "one-time";
+      activeCategory === "service" || activeCategory === "seo"
+        ? "monthly"
+        : "one-time";
 
     // ✅ screenshotUrl ko sabse pehle declare karo
     let screenshotUrl = "";
 
     try {
-
-        setBookingLoading(true);
+      setBookingLoading(true);
       // ✅ Agar screenshot selected hai to pehle S3 par upload karo
       if (paymentScreenshot) {
         const formData = new FormData();
@@ -292,7 +289,7 @@ export default function AdminServicepaneModal({ service, onClose }) {
           paidService: selectedPlan.title,
           plan: selectedPlan.title,
           amount: selectedPlan.price,
-           planDuration: planDuration,
+          planDuration: planDuration,
 
           packageStartDate: serviceDate,
           packageExpiryDate: expiryDate,
@@ -339,13 +336,12 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
       onClose();
     } catch (err) {
-  console.error(err);
-  alert("Error booking service");
-} finally {
-  setBookingLoading(false);
-}
+      console.error(err);
+      alert("Error booking service");
+    } finally {
+      setBookingLoading(false);
+    }
   };
-
 
   const handleScreenshotChange = (e) => {
     const file = e.target.files[0];
@@ -386,81 +382,80 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
             {/* SERVICE PLANS */}
             <div>
-            <div className="flex flex-wrap gap-2 mb-4">
-  <button
-    type="button"
-    onClick={() => {
-      setActiveCategory("service");
-      setSelectedPlan(null);
-    }}
-    className={`px-4 py-2 rounded-xl text-sm font-medium ${
-      activeCategory === "service"
-        ? "bg-indigo-600 text-white"
-        : "bg-gray-100"
-    }`}
-  >
-    Service Plans
-  </button>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory("service");
+                    setSelectedPlan(null);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    activeCategory === "service"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  Service Plans
+                </button>
 
-  <button
-    type="button"
-    onClick={() => {
-      setActiveCategory("seo");
-      setSelectedPlan(null);
-    }}
-    className={`px-4 py-2 rounded-xl text-sm font-medium ${
-      activeCategory === "seo"
-        ? "bg-indigo-600 text-white"
-        : "bg-gray-100"
-    }`}
-  >
-    SEO Plans
-  </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory("seo");
+                    setSelectedPlan(null);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    activeCategory === "seo"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  SEO Plans
+                </button>
 
-  <button
-    type="button"
-    onClick={() => {
-      setActiveCategory("web");
-      setSelectedPlan(null);
-    }}
-    className={`px-4 py-2 rounded-xl text-sm font-medium ${
-      activeCategory === "web"
-        ? "bg-indigo-600 text-white"
-        : "bg-gray-100"
-    }`}
-  >
-    Web Development
-  </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory("web");
+                    setSelectedPlan(null);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    activeCategory === "web"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  Web Development
+                </button>
 
-  <button
-    type="button"
-    onClick={() => {
-      setActiveCategory("account");
-      setSelectedPlan(null);
-    }}
-    className={`px-4 py-2 rounded-xl text-sm font-medium ${
-      activeCategory === "account"
-        ? "bg-indigo-600 text-white"
-        : "bg-gray-100"
-    }`}
-  >
-    Account Setup
-  </button>
-</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory("account");
+                    setSelectedPlan(null);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    activeCategory === "account"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  Account Setup
+                </button>
+              </div>
               <label className="text-sm font-semibold text-blue-500">
                 Select Plan
               </label>
 
               <div className="grid gap-4 mt-3">
-                {(
-  activeCategory === "service"
-    ? servicePlans
-    : activeCategory === "seo"
-    ? seoPlans
-    : activeCategory === "web"
-    ? webPlans
-    : accountPlans
-).map((plan) => (
+                {(activeCategory === "service"
+                  ? servicePlans
+                  : activeCategory === "seo"
+                    ? seoPlans
+                    : activeCategory === "web"
+                      ? webPlans
+                      : accountPlans
+                ).map((plan) => (
                   <div
                     key={plan.title}
                     onClick={() => setSelectedPlan(plan)}
@@ -491,11 +486,11 @@ export default function AdminServicepaneModal({ service, onClose }) {
                           {plan.title}
                         </h3>
                         <p className="text-sm text-gray-500">
-  ₹{plan.price}
-  {(activeCategory === "service" ||
-    activeCategory === "seo") &&
-    " / month"}
-</p>
+                          ₹{plan.price}
+                          {(activeCategory === "service" ||
+                            activeCategory === "seo") &&
+                            " / month"}
+                        </p>
                       </div>
                     </div>
 
@@ -508,37 +503,35 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
             {/* DATE ROW */}
 
-                {(activeCategory === "service" ||
-  activeCategory === "seo") && (
-          <div className="grid grid-cols-2 gap-4">
-              {/* Service Date */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700">
-                  Service Date
-                </label>
-                <input
-                  type="date"
-                  value={serviceDate}
-                  onChange={(e) => setServiceDate(e.target.value)}
-                  className="w-full mt-2 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
+            {(activeCategory === "service" || activeCategory === "seo") && (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Service Date */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Service Date
+                  </label>
+                  <input
+                    type="date"
+                    value={serviceDate}
+                    onChange={(e) => setServiceDate(e.target.value)}
+                    className="w-full mt-2 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
 
-              {/* Expiry Date */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700">
-                  Expiry Date
-                </label>
-                <input
-                  type="date"
-                  value={expiryDate}
-                  readOnly
-                  className="w-full mt-2 p-3 border rounded-xl bg-gray-100 text-gray-600"
-                />
+                {/* Expiry Date */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Expiry Date
+                  </label>
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    readOnly
+                    className="w-full mt-2 p-3 border rounded-xl bg-gray-100 text-gray-600"
+                  />
+                </div>
               </div>
-            </div>
-    )}
-          
+            )}
 
             <div>
               <label className="text-sm font-semibold text-gray-700">
@@ -612,43 +605,42 @@ export default function AdminServicepaneModal({ service, onClose }) {
             </button>
 
             <button
-  onClick={handleConfirmService}
-  disabled={!selectedPlan || bookingLoading}
-  className={`flex-1 py-3 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${
-    selectedPlan && !bookingLoading
-      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
-      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-  }`}
->
-  {bookingLoading ? (
-    <>
-      <svg
-        className="animate-spin h-5 w-5"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-        />
-      </svg>
-
-      Sending Template...
-    </>
-  ) : (
-    "Confirm Booking"
-  )}
-</button>
+              onClick={handleConfirmService}
+              disabled={!selectedPlan || bookingLoading}
+              className={`flex-1 py-3 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${
+                selectedPlan && !bookingLoading
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {bookingLoading ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                  Sending Template...
+                </>
+              ) : (
+                "Confirm Booking"
+              )}
+            </button>
           </div>
         </div>
       </div>

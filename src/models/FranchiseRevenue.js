@@ -2,45 +2,49 @@ import mongoose from "mongoose";
 
 const FranchiseRevenueSchema = new mongoose.Schema(
   {
-    leadId: { 
-      type: String, 
-      required: true,
-      ref: "MetaLeadFranchises"
-    },
-    leadName: { type: String, required: true },
+    leadId: { type: String, default: "" },
+    leadName: { type: String, default: "" },
     amount: { type: Number, required: true },
-    paymentScreenshot: { type: String, required: true }, // Cloudinary URL
-    
-    utrNumber: { type: String, default: "" },
-    gstNumber: { type: String },
+    paymentScreenshot: { type: String, default: "" },
+    screenshot: { type: String, default: "" },
 
-    // Who onboarded this franchise
-    onboardedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
-      required: true,
-    },
-    onboardedByName: { type: String },
-    onboardedByRole: { type: String }, // "superAdmin", "franchiseAdmin"
-    
-    // For tracking which franchise this belongs to
+    utrNumber: { type: String, default: "" },
+    gstNumber: { type: String, default: "" },
+
+    email: { type: String, default: "" },
+    phone: { type: String, default: "" },
+
+    // ✅ Mixed type — String ya ObjectId dono accept karega
+    onboardedBy: { type: mongoose.Schema.Types.Mixed, default: null },
+
+    onboardedByName: { type: String, default: "" },
+    onboardedByRole: { type: String, default: "" },
+
     franchisePanelId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "FranchisePanel",
       default: null,
     },
-    
+
+    franchiseId: { type: String, default: null },
+    franchiseName: { type: String, default: null },
+    bookingSource: {
+      type: String,
+      enum: ["website", "chatbot", "manual-upload"],
+      default: "website",
+    },
+
     status: {
       type: String,
-      enum: ["active", "inactive"],
+      enum: ["active", "inactive", "user_onboard"],
       default: "active",
     },
-    
+
     notes: { type: String, default: "" },
     planRemarks: { type: String, default: "" },
-    packageExpiryDate :{type: String, default: ""},
+    packageStartDate: { type: Date, default: null },
+    packageExpiryDate: { type: String, default: "" },
     plan: { type: String, default: "" },
-    /** user_onboard: superAdmin approves before subscription is activated on the user */
     planApprovalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
@@ -50,10 +54,11 @@ const FranchiseRevenueSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for faster queries
-FranchiseRevenueSchema.index({ onboardedBy: 1 });
 FranchiseRevenueSchema.index({ leadId: 1 });
 FranchiseRevenueSchema.index({ status: 1 });
+FranchiseRevenueSchema.index({ franchiseId: 1 });
 
-export default mongoose.models.FranchiseRevenue ||
-  mongoose.model("FranchiseRevenue", FranchiseRevenueSchema);
+// ✅ Purana cached model force delete
+delete mongoose.models.FranchiseRevenue;
+
+export default mongoose.model("FranchiseRevenue", FranchiseRevenueSchema);

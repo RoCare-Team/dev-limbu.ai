@@ -229,7 +229,7 @@ export default function FrienchieseServiceBookingModel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "service",
-          status: "active",
+          status: "user_onboard",
           leadId: customerLeadId,
           userId: customerLeadId,
           leadName: customerName,

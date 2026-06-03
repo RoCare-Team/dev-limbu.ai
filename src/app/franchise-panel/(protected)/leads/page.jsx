@@ -156,6 +156,46 @@ export default function UserManagement() {
     }
   };
 
+  /* ---------------- UPLOAD TO S3 (client helper) ---------------- */
+  const uploadToS3 = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const result = await uploadToS3Action(formData);
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to upload to S3");
+      }
+
+      return result.url;
+    } catch (error) {
+      console.error("S3 upload error:", error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    if (planStartDate) {
+      const start = new Date(planStartDate);
+      const end = new Date(start);
+
+      if (selectedCycle === "monthly") {
+        end.setMonth(end.getMonth() + 1);
+      } else if (selectedCycle === "quarterly") {
+        end.setMonth(end.getMonth() + 3);
+      } else if (selectedCycle === "half-yearly") {
+        end.setMonth(end.getMonth() + 6);
+      } else if (selectedCycle === "yearly") {
+        end.setFullYear(end.getFullYear() + 1);
+      }
+
+      if (!isNaN(end.getTime())) {
+        setPlanExpiryDate(end.toISOString().split("T")[0]);
+      }
+    }
+  }, [planStartDate, selectedCycle]);
+
   useEffect(() => {
     fetchUsers();
     fetchTeamMembers();

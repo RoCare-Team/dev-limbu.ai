@@ -783,31 +783,102 @@ export default function UserManagement() {
   const fetchAllUserIds = async () => {
   const adminEmail = localStorage.getItem("email");
 
-  const res = await fetch(
-    `/api/users?email=${adminEmail}&page=1&limit=10000`
-  );
+  const params = new URLSearchParams({
+    email: adminEmail,
+    page: "1",
+    limit: "10000",
+    search: searchQuery || "",
+  });
 
+    if (filterDate !== "All") {
+    if (filterDate === "Custom Range") {
+      params.append("dateFilter", "Custom Range");
+
+      if (customStartDate) {
+        params.append("startDate", customStartDate);
+      }
+
+      if (customEndDate) {
+        params.append("endDate", customEndDate);
+      }
+    } else {
+      const ranges = getCalculatedDateRange(filterDate);
+
+      if (ranges) {
+        params.append("dateFilter", filterDate);
+        params.append("startDate", ranges.startDate);
+        params.append("endDate", ranges.endDate);
+      }
+    }
+  }
+
+  if (assigneeFilter !== "All") {
+    params.append("assignedAgentId", assigneeFilter);
+  }
+
+  if (assigneeFilter !== "All") {
+    params.append("assignedAgentId", assigneeFilter);
+  }
+
+  if (leadStatusFilter !== "All") {
+    params.append("leadStatus", leadStatusFilter);
+  }
+
+  if (leadStageFilter !== "All") {
+    params.append("leadStage", leadStageFilter);
+  }
+
+  if (leadSourceFilter !== "All") {
+    params.append("source", leadSourceFilter);
+  }
+
+  if (conversationStageFilter !== "All") {
+    params.append("conversationStage", conversationStageFilter);
+  }
+
+  if (remarkCountFilter !== "All") {
+    params.append("remarkCount", remarkCountFilter);
+  }
+
+  const res = await fetch(`/api/users?${params.toString()}`);
   const data = await res.json();
 
-  if (data.success) {
-    setAllUserIds(
-      data.users
-        .filter((u) => u.phone || u.mobileNumber)
-        .map((u) => String(u.userId))
-    );
-  }
+  console.log("ALL IDS API", data.totalUsers);
+console.log("ALL IDS USERS", data.users.length);
+
+if (data.success) {
+  const ids = data.users.map((u) => String(u.userId));
+
+  setAllUserIds(ids);
+
+  // filter change hone par purani selection hatao
+  setBulkWaSelectedUserIds([]);
+}
 };
 
 useEffect(() => {
+  setAllUserIds([]);
+  setBulkWaSelectedUserIds([]);
+
   fetchAllUserIds();
-}, []);
+}, [
+  searchQuery,
+  assigneeFilter,
+  leadStatusFilter,
+  leadStageFilter,
+  leadSourceFilter,
+  remarkCountFilter,
+  conversationStageFilter,
+  filterDate,
+  customStartDate,
+  customEndDate,
+])
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
-    if (role !== "superAdmin") return [];
-    return filteredUsers
-      .filter((u) => u.phone || u.mobileNumber)
-      .map((u) => String(u.userId));
-  }, [role, filteredUsers]);
+  if (role !== "superAdmin") return [];
+
+  return filteredUsers.map((u) => String(u.userId));
+}, [role, filteredUsers]);
 
   const followUpMetaByUserId = useMemo(() => {
     const m = new Map();
@@ -975,7 +1046,6 @@ useEffect(() => {
         loading: false,
         error: "",
       });
-      updateConversationStageCache(user, user.chatbotHistory);
       return;
     }
 
@@ -996,8 +1066,6 @@ useEffect(() => {
     try {
       const { historyUserId: resolvedUserId, history } =
         await fetchWhatsAppHistoryForUser(user);
-
-      updateConversationStageCache(user, history);
       setChatHistoryModal({
         open: true,
         user,
@@ -1630,8 +1698,13 @@ useEffect(() => {
     fetchIssues();
     fetchTodayUsersCount();
     fetchRevenue();
-    fetchChatbotSummaryMetrics();
   }, []);
+
+  // Fetch chatbot summary metrics after role is known so agent filter can apply
+  useEffect(() => {
+    if (!role) return;
+    fetchChatbotSummaryMetrics();
+  }, [role]);
 
   /* ---------------- UPLOAD TO S3 ---------------- */
   const uploadToS3 = async (file) => {
@@ -1827,10 +1900,13 @@ useEffect(() => {
       setChatbotSummaryMetrics((prev) => ({ ...prev, loading: true }));
     }
     try {
-      const res = await fetch(
-        `/api/admin/chatbot-summary-metrics?email=${encodeURIComponent(adminEmail)}`,
-        { cache: "no-store" },
-      );
+      // include agent filter when role is agent
+      const filterByAgent = role === "agent" ? encodeURIComponent(adminEmail) : null;
+      const url = filterByAgent
+        ? `/api/admin/chatbot-summary-metrics?email=${encodeURIComponent(adminEmail)}&filterByAgent=${filterByAgent}`
+        : `/api/admin/chatbot-summary-metrics?email=${encodeURIComponent(adminEmail)}`;
+
+      const res = await fetch(url, { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         setChatbotSummaryMetrics({
@@ -1912,6 +1988,12 @@ useEffect(() => {
         page: String(page),
         limit: String(limit),
       });
+      
+      // If user is an agent, only show their own data
+      if (role === "agent") {
+        params.append("filterByAgent", adminEmail);
+      }
+      
       const res = await fetch(`/api/admin/chatbot-metric-users?${params}`, {
         cache: "no-store",
       });
@@ -2016,28 +2098,45 @@ useEffect(() => {
     fetchUsers(true);
   };
 
-  const handleChatbotMetricCardClick = ({
-    metricId,
-    period,
-    title,
-    cardKey,
-  }) => {
-    if (chatbotMetricFilter?.cardKey === cardKey) {
-      clearChatbotMetricFilter();
-      return;
-    }
+const handleChatbotMetricCardClick = async ({
+  metricId,
+  period,
+  title,
+  cardKey,
+}) => {
+  if (chatbotMetricFilter?.cardKey === cardKey) {
+    clearChatbotMetricFilter();
+    return;
+  }
+
+  setCurrentPage(1);
+  setChatbotChatDayFilter(null);
+  setConversationStageTableActive(false);
+  setConversationStageUsers([]);
+  setSelectedConversationStage("All");
+  setConversationStageFilter("All");
+
+  const newFilter = { metricId, period, title, cardKey };
+
+  // Set state first
+  setChatbotMetricUsers([]);
+  setChatbotMetricTableActive(true);
+  setChatbotMetricFilter(newFilter);
+
+  try {
+    await fetchChatbotMetricUsers(newFilter, {
+      page: 1,
+      silent: true,
+    });
 
     setCurrentPage(1);
-    setChatbotChatDayFilter(null);
-    setConversationStageTableActive(false);
-    setConversationStageUsers([]);
-    setSelectedConversationStage("All");
-    setConversationStageFilter("All");
-
-    setChatbotMetricUsers([]);
-    setChatbotMetricTableActive(true);
-    setChatbotMetricFilter({ metricId, period, title, cardKey });
-  };
+  } catch (err) {
+    console.error(
+      "Error fetching chatbot metric users on card click:",
+      err
+    );
+  }
+};
 
   const handleConversationStageCardClick = async (stage) => {
     setCurrentPage(1);
@@ -2659,7 +2758,8 @@ useEffect(() => {
     );
   };
 
-  const selectAllBulkWaOnPage = () => {
+ const selectAllBulkWaOnPage = () => {
+    console.log("allUserIds", allUserIds.length);
   if (!allUserIds.length) return;
 
   setBulkWaSelectedUserIds((prev) => {
@@ -2667,7 +2767,9 @@ useEffect(() => {
       prev.includes(id)
     );
 
-    return allSelected ? [] : [...allUserIds];
+    return allSelected
+      ? []
+      : [...allUserIds];
   });
 };
 
@@ -4335,8 +4437,8 @@ useEffect(() => {
               </Box>
             )}
             {chatbotMetricTableActive && chatbotMetricFilter && (
-              <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/80 bg-blue-50/60 px-2.5 py-1">
-                <p className="text-[11px] font-semibold text-blue-900">
+              <div className="mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200/80 bg-blue-50/60 px-4 py-2.5">
+                <p className="text-sm font-semibold text-blue-900">
                   Showing:{" "}
                   <span className="font-black">
                     {chatbotMetricFilter.title}
@@ -4351,15 +4453,15 @@ useEffect(() => {
                 <button
                   type="button"
                   onClick={clearChatbotMetricFilter}
-                  className="text-[10px] font-bold text-blue-800 hover:text-blue-950 underline"
+                  className="text-xs font-bold text-blue-800 hover:text-blue-950 underline"
                 >
                   Clear
                 </button>
               </div>
             )}
             {chatbotChatDayFilter && (
-              <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1">
-                <p className="text-[11px] font-semibold text-emerald-900">
+              <div className="mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-4 py-2.5">
+                <p className="text-sm font-semibold text-emerald-900">
                   Filter:{" "}
                   <span className="font-black">
                     {chatbotChatDayFilter === "today" ? "Today" : "Yesterday"}
@@ -4374,15 +4476,15 @@ useEffect(() => {
                 <button
                   type="button"
                   onClick={() => setChatbotChatDayFilter(null)}
-                  className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 underline"
+                  className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline"
                 >
                   Clear
                 </button>
               </div>
             )}
             {conversationStageTableActive && (
-              <div className="mx-3 mt-1.5 mb-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-fuchsia-200/80 bg-fuchsia-50/60 px-2.5 py-1">
-                <p className="text-[11px] font-semibold text-fuchsia-900">
+              <div className="mx-3 mt-2 mb-0 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-fuchsia-200/80 bg-fuchsia-50/60 px-4 py-2.5">
+                <p className="text-sm font-semibold text-fuchsia-900">
                   Stage filter:{" "}
                   <span className="font-black">
                     {selectedConversationStage}
@@ -4401,7 +4503,7 @@ useEffect(() => {
                     setConversationStageUsers([]);
                     setSelectedConversationStage("All");
                   }}
-                  className="text-[10px] font-bold text-fuchsia-800 hover:text-fuchsia-950 underline"
+                  className="text-xs font-bold text-fuchsia-800 hover:text-fuchsia-950 underline"
                 >
                   Clear
                 </button>
@@ -4547,7 +4649,7 @@ useEffect(() => {
                           <input
                             type="checkbox"
                             title="Select all leads with phone on this page"
-                            checked={
+                          checked={
   allUserIds.length > 0 &&
   allUserIds.every((id) =>
     bulkWaSelectedUserIds.includes(id)
@@ -4606,9 +4708,11 @@ useEffect(() => {
                   </thead>
 
                   <tbody className="divide-y divide-gray-100">
-                    {loadingFollowUpTable &&
+                    {(loadingFollowUpTable &&
                     isAgent &&
-                    followUpFilter !== "all" ? (
+                    followUpFilter !== "all") ||
+                    (chatbotMetricLoading &&
+                      chatbotMetricTableActive) ? (
                       <tr>
                         <td
                           colSpan={role === "superAdmin" ? 14 : 13}
@@ -4620,7 +4724,10 @@ useEffect(() => {
                               className="animate-spin opacity-80"
                             />
                             <p className="text-sm font-semibold text-gray-700">
-                              Loading follow-ups ({agentFollowUpFilterLabel})…
+                              {chatbotMetricLoading &&
+                              chatbotMetricTableActive
+                                ? "Loading WhatsApp leads…"
+                                : `Loading follow-ups (${agentFollowUpFilterLabel})…`}
                             </p>
                           </div>
                         </td>

@@ -31,7 +31,8 @@ export async function GET(req) {
       );
     }
 
-    const metrics = await getChatbotDashboardMetrics();
+    const filterByAgent = searchParams.get("filterByAgent");
+    const metrics = await getChatbotDashboardMetrics({ filterByAgent: filterByAgent || null, role: admin.role });
 
     return NextResponse.json({
       success: true,

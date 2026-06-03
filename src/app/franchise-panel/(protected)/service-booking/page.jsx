@@ -223,6 +223,10 @@ export default function ServiceBookingList() {
                 No service bookings found for this franchise.
               </p>
             </div>
+          ))
+        ) : (
+          <div className="text-center text-gray-500 py-10">
+            No booking data found
           </div>
         )}
       </div>

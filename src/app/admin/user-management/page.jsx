@@ -790,6 +790,32 @@ export default function UserManagement() {
     search: searchQuery || "",
   });
 
+    if (filterDate !== "All") {
+    if (filterDate === "Custom Range") {
+      params.append("dateFilter", "Custom Range");
+
+      if (customStartDate) {
+        params.append("startDate", customStartDate);
+      }
+
+      if (customEndDate) {
+        params.append("endDate", customEndDate);
+      }
+    } else {
+      const ranges = getCalculatedDateRange(filterDate);
+
+      if (ranges) {
+        params.append("dateFilter", filterDate);
+        params.append("startDate", ranges.startDate);
+        params.append("endDate", ranges.endDate);
+      }
+    }
+  }
+
+  if (assigneeFilter !== "All") {
+    params.append("assignedAgentId", assigneeFilter);
+  }
+
   if (assigneeFilter !== "All") {
     params.append("assignedAgentId", assigneeFilter);
   }
@@ -820,14 +846,20 @@ export default function UserManagement() {
   console.log("ALL IDS API", data.totalUsers);
 console.log("ALL IDS USERS", data.users.length);
 
-  if (data.success) {
-    setAllUserIds(
-  data.users.map((u) => String(u.userId))
-);
-  }
+if (data.success) {
+  const ids = data.users.map((u) => String(u.userId));
+
+  setAllUserIds(ids);
+
+  // filter change hone par purani selection hatao
+  setBulkWaSelectedUserIds([]);
+}
 };
 
 useEffect(() => {
+  setAllUserIds([]);
+  setBulkWaSelectedUserIds([]);
+
   fetchAllUserIds();
 }, [
   searchQuery,
@@ -837,7 +869,10 @@ useEffect(() => {
   leadSourceFilter,
   remarkCountFilter,
   conversationStageFilter,
-]);
+  filterDate,
+  customStartDate,
+  customEndDate,
+])
 
   const bulkWaEligibleIdsOnPage = useMemo(() => {
   if (role !== "superAdmin") return [];
@@ -2724,6 +2759,7 @@ const handleChatbotMetricCardClick = async ({
   };
 
  const selectAllBulkWaOnPage = () => {
+    console.log("allUserIds", allUserIds.length);
   if (!allUserIds.length) return;
 
   setBulkWaSelectedUserIds((prev) => {

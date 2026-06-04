@@ -175,26 +175,7 @@ export default function UserManagement() {
     }
   };
 
-  useEffect(() => {
-    if (planStartDate) {
-      const start = new Date(planStartDate);
-      const end = new Date(start);
-
-      if (selectedCycle === "monthly") {
-        end.setMonth(end.getMonth() + 1);
-      } else if (selectedCycle === "quarterly") {
-        end.setMonth(end.getMonth() + 3);
-      } else if (selectedCycle === "half-yearly") {
-        end.setMonth(end.getMonth() + 6);
-      } else if (selectedCycle === "yearly") {
-        end.setFullYear(end.getFullYear() + 1);
-      }
-
-      if (!isNaN(end.getTime())) {
-        setPlanExpiryDate(end.toISOString().split("T")[0]);
-      }
-    }
-  }, [planStartDate, selectedCycle]);
+  
 
   useEffect(() => {
     fetchUsers();

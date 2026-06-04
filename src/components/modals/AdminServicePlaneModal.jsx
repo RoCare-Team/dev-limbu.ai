@@ -314,6 +314,29 @@ export default function AdminServicepaneModal({ service, onClose }) {
         return;
       }
 
+      // console.log("SERVICE DATA", service);
+// console.log("EMAIL", service?.email);
+
+     const emailRes = await fetch("/api/admin/send-onboarding-email", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email: service?.email,
+    customerName:
+      service?.name ||
+      service?.fullName ||
+      "Customer",
+    planName: selectedPlan.title,
+    amount: selectedPlan.price,
+  }),
+});
+
+const emailData = await emailRes.json();
+
+// console.log("📧 Email Response:", emailData);
+
       // ✅ WhatsApp template
       const whatsappRes = await fetch("/api/admin/service-booking-template", {
         method: "POST",
@@ -328,11 +351,23 @@ export default function AdminServicepaneModal({ service, onClose }) {
       const whatsappData = await whatsappRes.json();
       console.log("📲 WhatsApp Response:", whatsappData);
 
-      if (whatsappData.success) {
-        alert("Service booked successfully and WhatsApp message sent ✅");
-      } else {
-        alert("Service booked successfully, but WhatsApp message failed ❌");
-      }
+      if (whatsappData.success && emailData.success) {
+  alert(
+    "✅ Service booked successfully\n\n📲 WhatsApp message sent\n📧 Email sent"
+  );
+} else if (whatsappData.success && !emailData.success) {
+  alert(
+    "⚠️ Service booked successfully\n\n📲 WhatsApp sent\n❌ Email failed"
+  );
+} else if (!whatsappData.success && emailData.success) {
+  alert(
+    "⚠️ Service booked successfully\n\n❌ WhatsApp failed\n📧 Email sent"
+  );
+} else {
+  alert(
+    "⚠️ Service booked successfully\n\n❌ WhatsApp failed\n❌ Email failed"
+  );
+}
 
       onClose();
     } catch (err) {

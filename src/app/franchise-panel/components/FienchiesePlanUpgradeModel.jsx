@@ -101,7 +101,7 @@ export default function FienchiesePlanUpgradeModel({
             planRemarks,
             utrNumber,
             gstNumber,
-            type: "user_onboard",
+            type: "plan",
             status:"user_onboard",
             franchiseId,
             franchiseName,

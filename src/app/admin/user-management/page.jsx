@@ -8,7 +8,7 @@ import { Fragment } from "react";
 /* user-management */
 import {
   Search,
-  Filter,
+
   X,
   Crown,
   Zap,
@@ -31,13 +31,8 @@ import {
   MessageSquare,
   AlertTriangle,
   ChevronDown,
-  UserX,
-  Rocket,
-  Clock,
   CheckCircle,
   UserCheck,
-  Globe,
-  Bell,
   Upload,
   Send,
   Smartphone,
@@ -52,15 +47,11 @@ import {
 } from "lucide-react";
 import {
   USER_SOURCE_OPTIONS,
-  userAcquisitionLabel,
-  userAcquisitionTagClassName,
-  formatLeadTagLabel,
-  leadTagPillClassName,
+  userAcquisitionLabel
 } from "@/lib/bookingSource";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
-import AddAddUserActivity from "@/components/admin-add-activity";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 
@@ -165,8 +156,6 @@ export default function UserManagement() {
     resolved: 0,
     data: [],
   });
-  const [showChatStatsModal, setShowChatStatsModal] = useState(false);
-  const [chatModalFilter, setChatModalFilter] = useState("all");
   const [chatbotDayStats, setChatbotDayStats] = useState({
     loading: true,
     timeZone: "Asia/Kolkata",
@@ -195,7 +184,6 @@ export default function UserManagement() {
   const [totalPostsCount, setTotalPostsCount] = useState(0);
   const [agentStats, setAgentStats] = useState({ Unassigned: 0 });
   const [detailedStats, setDetailedStats] = useState([]);
-  const [stageModal, setStageModal] = useState(null); // { stage: "Follow Up" }
   const [stageStats, setStageStats] = useState({});
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({
@@ -235,10 +223,7 @@ export default function UserManagement() {
     useState(false);
   const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] =
     useState(false);
-  const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
   const [callStats, setCallStats] = useState(null);
-  const [showAgentCallModal, setShowAgentCallModal] = useState(false);
-  const [agentCallHistory, setAgentCallHistory] = useState([]);
   const [callingUserId, setCallingUserId] = useState(null);
   const [followUpDate, setFollowUpDate] = useState("");
   /** HH:mm — combined with followUpDate when saving follow-up */
@@ -262,13 +247,10 @@ export default function UserManagement() {
   const [loadingFollowUpTable, setLoadingFollowUpTable] = useState(false);
   const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
   const [byAgentOpen, setByAgentOpen] = useState(false);
-  const [adminFollowUpLeadsOpen, setAdminFollowUpLeadsOpen] = useState(false);
 
   // Revenue tracking state
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
-  const [userOnboardCount, setUserOnboardCount] = useState(0);
-  const [franchiseLeadCount, setFranchiseLeadCount] = useState(0);
 
   // Revenue Users Modal state ✅ NEW
 
@@ -284,14 +266,7 @@ export default function UserManagement() {
   const [uploadingOnboard, setUploadingOnboard] = useState(false);
 
   // Payment Screenshot Upload state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentModalUser, setPaymentModalUser] = useState(null);
-  const [paymentData, setPaymentData] = useState({
-    amount: "",
-    screenshot: null,
-    notes: "",
-    plan: "",
-  });
+  
   const [uploadingPayment, setUploadingPayment] = useState(false);
   const [paidUsersStatus, setPaidUsersStatus] = useState({});
 
@@ -300,6 +275,7 @@ export default function UserManagement() {
   const [filterDate, setFilterDate] = useState("All");
   const [leadSourceFilter, setLeadSourceFilter] = useState("All");
   const [remarkCountFilter, setRemarkCountFilter] = useState("All");
+  const [franchiseLeadsFilter, setFranchiseLeadsFilter] = useState(false);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -325,7 +301,8 @@ export default function UserManagement() {
   // remark
   const [planRemarks, setplanRemarks] = useState("");
 
-  const isServiceModalOpen = activeModal === "service";
+  console.log("uses data in user-management:", users);
+
 
   const tableRef = useRef(null);
   const bottomRef = useRef(null);
@@ -457,126 +434,9 @@ export default function UserManagement() {
       ),
     )[0] || null;
 
-  const mapWhatsAppContactToUser = (contact = {}) => {
-    const phoneE164 = normalizeWhatsAppPhone(contact.phone);
-    const phone = phoneToLocalMobile(phoneE164);
-    const messages = Array.isArray(contact.messages) ? contact.messages : [];
-    const history = mapWhatsAppMessagesToHistory(messages);
-    const stage = getConversationStageFromHistory(history, {});
-    const latestMessage = getLatestWhatsAppMessage(messages);
+ 
 
-    return {
-      userId: `CHATBOT-wa_${phoneE164 || contact.id || ""}`,
-      _id: `whatsapp-${contact.id || phoneE164}`,
-      fullName: contact.name || `WhatsApp User ${phone ? phone.slice(-4) : ""}`,
-      phone,
-      email: contact.email || "",
-      chatbotUserId: phoneE164 ? `wa_${phoneE164}` : "",
-      chatbotLastActive:
-        latestMessage?.sent_at ||
-        latestMessage?.created_at ||
-        contact.updated_at ||
-        contact.created_at ||
-        "",
-      chatbotMessageCount:
-        Number(contact.total_messages || contact.message_count) ||
-        messages.length,
-      chatbotLastMessage: latestMessage?.content || "",
-      source: "chatbot",
-      leadStage: "Active",
-      leadStatus: "",
-      wallet: 0,
-      freeUsedCount: 0,
-      remarksHistory: [],
-      assignedAgentId: null,
-      subscription: { status: "inactive", plan: "Free" },
-      createdAt: contact.created_at || new Date().toISOString(),
-      isChatbotOnly: true,
-      whatsappContactId: contact.id || null,
-      whatsappChatStatus: contact.chat_status || "",
-      chatbotHistory: history,
-      conversationStages: stage.steps.length > 0 ? stage.steps : [],
-    };
-  };
-
-  const fetchWhatsAppStageContacts = async () => {
-    const fetchPage = async (page) => {
-      const url = new URL(WHATSAPP_STAGE_CONTACTS_URL);
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("limit", String(WHATSAPP_STAGE_PAGE_LIMIT));
-
-      const res = await fetch(url.toString(), {
-        headers: {
-          Accept: "application/json",
-          "X-API-Key": WHATSAPP_STAGE_API_KEY,
-        },
-        cache: "no-store",
-      });
-
-      if (!res.ok) {
-        throw new Error(`WhatsApp contacts API failed: ${res.status}`);
-      }
-
-      return res.json();
-    };
-
-    const firstData = await fetchPage(1);
-    const contacts = Array.isArray(firstData?.contacts)
-      ? [...firstData.contacts]
-      : [];
-    const pagination = firstData?.pagination || {};
-    const totalPages = Math.max(1, Number(pagination.total_pages) || 1);
-
-    for (let page = 2; page <= totalPages; page += 1) {
-      const pageData = await fetchPage(page);
-      if (Array.isArray(pageData?.contacts)) {
-        contacts.push(...pageData.contacts);
-      }
-    }
-
-    return {
-      contacts,
-      total: Number(pagination.total) || contacts.length,
-    };
-  };
-
-  const buildConversationStageDataFromContacts = (contacts = [], total = 0) => {
-    const stageOrder = [
-      "Initial Conversation",
-      "GMB Connected",
-      "GMB Health",
-      "Magic QR",
-      "GMB Insight",
-      "Build Website",
-    ];
-    const stageCounts = Object.fromEntries(
-      stageOrder.map((stage) => [stage, 0]),
-    );
-    const stageUsers = Object.fromEntries(
-      stageOrder.map((stage) => [stage, []]),
-    );
-    const allUsers = contacts.map(mapWhatsAppContactToUser);
-
-    allUsers.forEach((user) => {
-      const stages = Array.isArray(user.conversationStages)
-        ? user.conversationStages.filter((stage) => stage !== "No Activity")
-        : [];
-
-      stages.forEach((stage) => {
-        if (!stageCounts.hasOwnProperty(stage)) return;
-        stageCounts[stage] += 1;
-        stageUsers[stage].push(user);
-      });
-    });
-
-    return {
-      total: total || allUsers.length,
-      stageOrder,
-      stageCounts,
-      stageUsers,
-      allUsers,
-    };
-  };
+  
 
   const hasGmbConnected = (user = {}) =>
     Boolean(
@@ -691,42 +551,7 @@ export default function UserManagement() {
   const isAgent = role === "agent";
   const isManager = role === "manager";
 
-  const displayTodayUsersCount = useMemo(() => {
-    // For agents the API now returns todayLeads scoped to that agent directly
-    if (isAgent) return agentTodayLeads;
-    if (isManager && currentAgentId) {
-      const assignment = todayStats.assignments.find(
-        (a) => String(a._id) === String(currentAgentId),
-      );
-      return assignment ? assignment.count : 0;
-    }
-    return todayUsersCount;
-  }, [
-    isAgent,
-    isManager,
-    currentAgentId,
-    agentTodayLeads,
-    todayStats,
-    todayUsersCount,
-  ]);
-
-  const displayTotalChatsCount = useMemo(() => {
-    if (isAgent || isManager) {
-      const scopeUsers =
-        isAgent && followUpFilter !== "all" ? followUpTableUsers : users;
-      return chatStats.data.filter((chat) =>
-        scopeUsers.some((u) => u.userId === chat.userId),
-      ).length;
-    }
-    return chatStats.total;
-  }, [
-    isAgent,
-    isManager,
-    chatStats,
-    users,
-    followUpFilter,
-    followUpTableUsers,
-  ]);
+  
 
   /** Agent: table rows loaded via byUserIds (paginated `users` often omits follow-up leads) */
   const preConversationFilteredUsers = useMemo(() => {
@@ -872,23 +697,12 @@ useEffect(() => {
   filterDate,
   customStartDate,
   customEndDate,
+  franchiseLeadsFilter,
 ])
 
-  const bulkWaEligibleIdsOnPage = useMemo(() => {
-  if (role !== "superAdmin") return [];
+ 
 
-  return filteredUsers.map((u) => String(u.userId));
-}, [role, filteredUsers]);
-
-  const followUpMetaByUserId = useMemo(() => {
-    const m = new Map();
-    for (const l of followUpLeads) {
-      if (!l?.userId) continue;
-      const k = String(l.userId);
-      if (!m.has(k)) m.set(k, l.followUpDate);
-    }
-    return m;
-  }, [followUpLeads]);
+  
 
   const agentFollowUpFilterLabel = useMemo(() => {
     const labels = {
@@ -1013,27 +827,7 @@ useEffect(() => {
     "Build Website",
   ];
 
-  // Logic to count leads per stage
-  const getStageCounts = () => {
-    const counts = { All: leads.length };
-
-    // Initialize counts for all stages to 0
-    stageOptions.forEach((stage) => (counts[stage] = 0));
-
-    leads.forEach((lead) => {
-      const stageData = getConversationStageFromHistory(
-        lead.chatHistory || [],
-        lead.user || {},
-      );
-
-      stageData.steps.forEach((step) => {
-        if (counts.hasOwnProperty(step)) {
-          counts[step] += 1;
-        }
-      });
-    });
-    return counts;
-  };
+  
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
@@ -1551,6 +1345,7 @@ useEffect(() => {
     leadSourceFilter,
     conversationStageFilter,
     remarkCountFilter,
+    franchiseLeadsFilter,
   ]);
 
   const fetchUsers = async (silent = false, overrides = {}) => {
@@ -1572,6 +1367,8 @@ useEffect(() => {
       overrides.remarkCountFilter ?? remarkCountFilter;
     const nextChatbotChatDayFilter =
       overrides.chatbotChatDayFilter ?? chatbotChatDayFilter;
+    const nextFranchiseLeadsFilter =
+      overrides.franchiseLeadsFilter ?? franchiseLeadsFilter;
 
     try {
       const params = new URLSearchParams({
@@ -1629,6 +1426,10 @@ useEffect(() => {
         params.append("chatbotChatDay", nextChatbotChatDayFilter);
       }
 
+      if (nextFranchiseLeadsFilter) {
+        params.append("franchiseLeads", "true");
+      }
+
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
 
@@ -1674,6 +1475,7 @@ useEffect(() => {
     conversationStageFilter,
     remarkCountFilter,
     chatbotChatDayFilter,
+    franchiseLeadsFilter,
   ]);
 
   useEffect(() => {
@@ -1866,32 +1668,7 @@ useEffect(() => {
     return data.stats;
   };
 
-  const fetchChatbotDayStats = async ({ showLoader = true } = {}) => {
-    const adminEmail = localStorage.getItem("email");
-    if (!adminEmail) return;
-    if (showLoader) setChatbotDayStats((prev) => ({ ...prev, loading: true }));
-    try {
-      const res = await fetch(
-        `/api/admin/chatbot-chat-stats?email=${encodeURIComponent(adminEmail)}`,
-        { cache: "no-store" },
-      );
-      const data = await res.json();
-      if (data.success) {
-        setChatbotDayStats({
-          loading: false,
-          timeZone: data.timeZone,
-          today: data.today,
-          yesterday: data.yesterday,
-        });
-      } else {
-        setChatbotDayStats((prev) => ({ ...prev, loading: false }));
-        console.error("chatbot-chat-stats:", data.error);
-      }
-    } catch (error) {
-      console.error("Error fetching chatbot day stats:", error);
-      setChatbotDayStats((prev) => ({ ...prev, loading: false }));
-    }
-  };
+  
 
   const fetchChatbotSummaryMetrics = async ({ showLoader = true } = {}) => {
     const adminEmail = localStorage.getItem("email");
@@ -1937,37 +1714,7 @@ useEffect(() => {
     }
   };
 
-  const fetchConversationStageCards = async ({ refresh = false } = {}) => {
-    setConversationStageCardsLoading(true);
-    try {
-      const url = refresh
-        ? "/api/conversation-stages?refresh=1"
-        : "/api/conversation-stages";
-      const res = await fetch(url, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || "Failed to load conversation stages");
-      }
-
-      setConversationStageCounts(data.stageCounts || {});
-      setConversationStageOrder(
-        data.stageOrder || Object.keys(data.stageCounts || {}),
-      );
-      setConversationStageTotal(data.total || 0);
-
-      if (conversationStageTableActive) {
-        await fetchConversationStageUsers(selectedConversationStage || "All", {
-          silent: true,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching conversation stage cards:", error);
-    } finally {
-      setConversationStageCardsLoading(false);
-    }
-  };
+  
 
   const fetchChatbotMetricUsers = async (filter, options = {}) => {
     if (!filter?.metricId || !filter?.period) {
@@ -2138,16 +1885,7 @@ const handleChatbotMetricCardClick = async ({
   }
 };
 
-  const handleConversationStageCardClick = async (stage) => {
-    setCurrentPage(1);
-    setChatbotChatDayFilter(null);
-    setChatbotMetricFilter(null);
-    setChatbotMetricTableActive(false);
-    setChatbotMetricUsers([]);
-    setConversationStageTableActive(true);
-    setConversationStageUsers([]);
-    setSelectedConversationStage(stage);
-  };
+ 
 
   const handleConversationStageFilterChange = (stage) => {
     setCurrentPage(1);
@@ -2215,22 +1953,7 @@ const handleChatbotMetricCardClick = async ({
     }
   };
 
-  const handleResolveIssue = async (id) => {
-    try {
-      const res = await fetch("/api/issue-check", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "resolved" }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchChatStats();
-        fetchIssues();
-      }
-    } catch (error) {
-      console.error("Error resolving issue:", error);
-    }
-  };
+
 
   const handleAssignChange = async (userId, newAgentId) => {
     try {
@@ -2481,12 +2204,7 @@ const handleChatbotMetricCardClick = async ({
     remarkCountFilter,
   ]);
 
-  const isUserConnected = (email) => {
-    return connectedBusinessUsers.some(
-      (connectedUser) =>
-        connectedUser.email?.toLowerCase() === email?.toLowerCase(),
-    );
-  };
+ 
 
   useEffect(() => {
     if (planStartDate) {
@@ -2695,55 +2413,7 @@ const handleChatbotMetricCardClick = async ({
     }
   };
 
-  // Function to send subscription expired notification via WhatsApp
-  const sendSubscriptionExpiredNotification = async (user) => {
-    try {
-      // Normalize phone number
-      let phone = user.phone || user.mobileNumber;
-      if (phone) {
-        phone = String(phone).replace(/\D/g, "");
-        if (phone.length === 10) phone = "91" + phone;
-      }
-
-      if (!phone) {
-        showToast("Phone number not found for user", "error");
-        return;
-      }
-
-      const payload = {
-        destination: phone,
-        userName: user.fullName || "User",
-        enquiryId: user.userId,
-        expiryDate: user.packageExpiryDate
-          ? new Date(user.packageExpiryDate).toLocaleDateString()
-          : "N/A",
-        plan: user.paidPackage || user.subscription?.plan || "N/A",
-      };
-
-      const res = await fetch("/api/admin/whatsapp-send-remarks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          remark: "subscription_expired_new",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        showToast(
-          "Subscription expiry notification sent via WhatsApp!",
-          "success",
-        );
-      } else {
-        showToast(`Failed: ${data.message}`, "error");
-      }
-    } catch (error) {
-      console.error("Error sending WhatsApp:", error);
-      showToast("Failed to send notification", "error");
-    }
-  };
+  
 
   const getBulkWaCampaignByDate = (dateStr) => {
     const day = new Date(dateStr).getDay();
@@ -3484,37 +3154,7 @@ const handleChatbotMetricCardClick = async ({
     }
   };
 
-  const handleUpdateRemarks = async () => {
-    if (!remarksModalUser) return;
-
-    try {
-      const res = await fetch(`/api/users`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: remarksModalUser.userId,
-          remarks: remarksInput,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (data.user) {
-          setUsers((prev) =>
-            prev.map((u) =>
-              u.userId === data.user.userId ? { ...u, ...data.user } : u,
-            ),
-          );
-        }
-        showToast("Remarks updated successfully", "success");
-        setRemarksModalUser(null);
-      } else {
-        showToast(data.error || "Failed to update remarks", "error");
-      }
-    } catch (err) {
-      console.error("Error updating remarks:", err);
-      showToast("Error updating remarks", "error");
-    }
-  };
+  
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -3532,27 +3172,11 @@ const handleChatbotMetricCardClick = async ({
     setConversationStageUsers([]);
     setRemarkCountFilter("All");
     setChatbotChatDayFilter(null);
+    setFranchiseLeadsFilter(false);
     clearChatbotMetricFilter();
   };
 
-  const handleSelectChatbotDay = (day) => {
-    const nextDay = chatbotChatDayFilter === day ? null : day;
-
-    setConversationStageTableActive(false);
-    setConversationStageUsers([]);
-    setSelectedConversationStage("All");
-    setConversationStageFilter("All");
-    setChatbotMetricFilter(null);
-    setChatbotMetricTableActive(false);
-    setChatbotMetricUsers([]);
-    setChatbotChatDayFilter(nextDay);
-    setCurrentPage(1);
-    fetchUsers(false, {
-      chatbotChatDayFilter: nextDay,
-      conversationStageFilter: "All",
-      currentPage: 1,
-    });
-  };
+  
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && pagination && newPage <= pagination.totalPages) {
@@ -4232,6 +3856,35 @@ const handleChatbotMetricCardClick = async ({
                   </Select>
                 </FormControl>
 
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    height: 38,
+                    padding: "0 8px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    backgroundColor: franchiseLeadsFilter ? "#e3f2fd" : "transparent",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: "#f5f5f5",
+                    },
+                  }}
+                  onClick={() => setFranchiseLeadsFilter(!franchiseLeadsFilter)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={franchiseLeadsFilter}
+                    onChange={(e) => setFranchiseLeadsFilter(e.target.checked)}
+                    style={{ cursor: "pointer", width: 18, height: 18 }}
+                  />
+                  <label style={{ cursor: "pointer", fontSize: "14px", margin: 0 }}>
+                    Franchise Leads
+                  </label>
+                </Box>
+
                 {filterDate === "Custom Range" && (
                   <Box
                     sx={{
@@ -4267,7 +3920,8 @@ const handleChatbotMetricCardClick = async ({
                   leadStageFilter !== "All" ||
                   leadSourceFilter !== "All" ||
                   conversationStageFilter !== "All" ||
-                  remarkCountFilter !== "All") && (
+                  remarkCountFilter !== "All" ||
+                  franchiseLeadsFilter) && (
                   <Button
                     onClick={clearFilters}
                     variant="outlined"

@@ -24,7 +24,7 @@ export async function GET(req) {
       );
     }
 
-    const baseUrl = "https://limbu.ai";
+    const baseUrl = "http://localhost:3000"; // Default fallback
     const redirectUri = `${baseUrl}/api/gmb/callback`;
 
     console.log("redirectUri:", redirectUri);

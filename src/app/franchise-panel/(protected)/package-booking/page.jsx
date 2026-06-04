@@ -25,7 +25,7 @@ export default function FranchisePackageBookingList() {
           return;
         }
 
-        const url = `/api/franchise-revenue?franchiseCode=${encodeURIComponent(franchiseId)}&type=user_onboard`;
+        const url = `/api/franchise-revenue?franchiseCode=${encodeURIComponent(franchiseId)}&type=plan`;
 
         const res = await fetch(url);
         const json = await res.json();
@@ -191,7 +191,9 @@ export default function FranchisePackageBookingList() {
 
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
-                    item.status !== "inactive" ? "bg-green-500" : "bg-yellow-400"
+                    item.status !== "inactive"
+                      ? "bg-green-500"
+                      : "bg-yellow-400"
                   }`}
                 >
                   {item.status?.toLowerCase()}
@@ -201,9 +203,7 @@ export default function FranchisePackageBookingList() {
               <p className="text-sm text-gray-600">📞 {item.phone}</p>
               <p className="text-sm text-gray-600">📧 {item.email}</p>
 
-              <p className="text-sm font-semibold text-gray-800">
-                {item.plan}
-              </p>
+              <p className="text-sm font-semibold text-gray-800">{item.plan}</p>
 
               <div className="flex justify-between text-sm pt-1">
                 <span className="font-bold text-gray-900">

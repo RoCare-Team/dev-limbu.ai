@@ -119,7 +119,7 @@ export default function RevenueUsersPage() {
   );
 
   const serviceRows = revenueUsersList.filter(
-    (item) => item.type === "service" && item.status === "active",
+    (item) => item.type === "service",
   );
 
   const today = new Date().toDateString();

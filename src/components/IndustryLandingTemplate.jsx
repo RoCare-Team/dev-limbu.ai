@@ -26,7 +26,7 @@ export default function IndustryLandingTemplate({
   heroImage,
   heroimage2,
   benefitsList,
-  whatsappLink = "https://wa.me/919289344726",
+  whatsappLink = "https://wa.me/917065178662",
   howItWorks,
   oldWayList,
   limbuWayList,

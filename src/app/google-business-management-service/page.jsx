@@ -692,7 +692,7 @@ export default function GMBManagementServicePage() {
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link
-                  href="https://wa.me/919289344726"
+                  href="https://wa.me/917065178662"
                   className="bg-lemon-hover text-slate-900 px-10 py-4 rounded-xl font-black text-base hover:scale-105 transition-transform shadow-lg shadow-lemon-hover/20"
                 >
                   Book a Free Call
@@ -761,7 +761,7 @@ export default function GMBManagementServicePage() {
 
                 const message = `Hello, my name is ${name}. My number is ${phone}. I want service.`;
 
-                const url = `https://wa.me/919289344726?text=${encodeURIComponent(message)}`;
+                const url = `https://wa.me/917065178662?text=${encodeURIComponent(message)}`;
 
                 window.open(url, "_blank");
 

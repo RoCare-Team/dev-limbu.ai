@@ -123,7 +123,7 @@ export default function TourTravelMarketingPage() {
         howItWorks={howItWorksSteps}
         postImages={tourPostImages}
         videoExamples={videoExamples}
-        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Travel%20Agency."
+        whatsappLink="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Travel%20Agency."
       />
     </>
   );

@@ -143,7 +143,7 @@ export default function PestControlMarketingPage() {
         howItWorks={howItWorksSteps}
         postImages={pestPostImages}
         videoExamples={videoExamples}
-        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Pest%20Control%20business."
+        whatsappLink="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Pest%20Control%20business."
       />
     </>
   );

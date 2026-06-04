@@ -142,7 +142,7 @@ export default function GymMarketingPage() {
         howItWorks={howItWorksSteps}
         postImages={gymPostImages}
         videoExamples={videoExamples}
-        whatsappLink="https://wa.me/919289344726?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Gym%20business."
+        whatsappLink="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20want%20to%20grow%20my%20Gym%20business."
       />
     </>
   );

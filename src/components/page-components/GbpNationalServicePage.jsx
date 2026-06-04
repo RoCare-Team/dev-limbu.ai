@@ -47,7 +47,7 @@ export default function GbpNationalServicePage() {
                 Get 500 Coins for Free <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
-                href="https://wa.me/919289344726"
+                href="https://wa.me/917065178662"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex justify-center items-center px-8 py-4 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50"

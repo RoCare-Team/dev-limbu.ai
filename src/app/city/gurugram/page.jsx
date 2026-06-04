@@ -23,7 +23,7 @@ const IMAGES = {
 };
 
 /* ─── WHATSAPP CTA URL ────────────────────────────────────────── */
-const WA = "https://wa.me/919289344726";
+const WA = "https://wa.me/917065178662";
 
 /* ─── COUNTER HOOK ────────────────────────────────────────────── */
 function useCountUp(target, duration = 1800, start = false) {
@@ -895,7 +895,7 @@ export default function GurugramCityPage() {
               <a href={WA} className="inline-flex justify-center items-center gap-2 bg-yellow-400 text-slate-900 px-10 py-5 rounded-full font-extrabold text-lg hover:bg-yellow-500 transition-all transform hover:scale-105 shadow-[0_0_30px_rgba(250,204,21,0.4)]">
                 Claim Your Free Audit <ArrowRight className="w-6 h-6" />
               </a>
-              <a href="tel:+919289344726" className="inline-flex justify-center items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-5 rounded-full font-bold text-lg hover:bg-white/20 transition-all">
+              <a href="tel:+917065178662" className="inline-flex justify-center items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-5 rounded-full font-bold text-lg hover:bg-white/20 transition-all">
                 <Phone className="w-5 h-5" /> Call Us Now
               </a>
             </div>

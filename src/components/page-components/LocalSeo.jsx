@@ -61,7 +61,7 @@ export default function LocalSEOPage({ city, slug }) {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
-                  href="https://wa.me/919289344726"
+                  href="https://wa.me/917065178662"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-6 py-3 bg-yellow-400 text-slate-900 rounded-lg font-bold text-base hover:bg-yellow-500 transition-colors shadow-sm"

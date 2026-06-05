@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
+import { getFranchiseAuthHeaders } from "@/lib/franchiseAuth";
 
 // Service Plans
 const servicePlans = [
@@ -226,7 +227,10 @@ export default function FrienchieseServiceBookingModel({
 
       const res = await fetch("/api/franchise-revenue", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getFranchiseAuthHeaders(),
+        },
         body: JSON.stringify({
           type: "service",
           status: "user_onboard",

@@ -155,6 +155,9 @@ export default function TeamManagement() {
           role: formData.role,
           isActive: formData.isActive,
           address: formData.address,
+          ...(formData.password?.trim()
+            ? { password: formData.password.trim() }
+            : {}),
         }),
       });
 

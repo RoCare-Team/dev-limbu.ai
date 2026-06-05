@@ -1,25 +1,32 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  canAccessBookings,
+  getFranchiseUserFromStorage,
+} from "@/lib/franchiseAuth";
 
 export default function ServiceBookingList() {
+  const router = useRouter();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  console.log("franchise panel service data:", data);
-
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const franchiseUserRaw = localStorage.getItem("franchise_user");
-        const franchiseUser = franchiseUserRaw
-          ? JSON.parse(franchiseUserRaw)
-          : null;
+        const franchiseUser = getFranchiseUserFromStorage();
+        const token = localStorage.getItem("franchise_token");
+
+        if (!canAccessBookings(franchiseUser?.role)) {
+          router.replace("/franchise-panel/dashboard");
+          return;
+        }
 
         const franchiseCode = franchiseUser?.franchiseCode || "";
 
-        if (!franchiseCode) {
-          setError("Franchise code not found in localStorage");
+        if (!franchiseCode || !token) {
+          setError("Franchise session not found");
           setLoading(false);
           return;
         }
@@ -28,7 +35,9 @@ export default function ServiceBookingList() {
           franchiseCode
         )}&type=service`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const json = await res.json();
 
         if (!json.success)
@@ -43,7 +52,7 @@ export default function ServiceBookingList() {
     };
 
     fetchBookings();
-  }, []);
+  }, [router]);
 
   if (loading)
     return (

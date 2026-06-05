@@ -12,7 +12,12 @@ import {
   Server,
   ArrowUpIcon,
   IndianRupee,
+  KeyRound,
 } from "lucide-react";
+import {
+  filterMenuForRole,
+  getFranchiseUserFromStorage,
+} from "@/lib/franchiseAuth";
 
 const menu = [
   { name: "Dashboard", href: "/franchise-panel/dashboard", icon: LayoutDashboard },
@@ -33,22 +38,10 @@ export default function SidebarFranchisePanel() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("franchise_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
-    }
+    setUser(getFranchiseUserFromStorage());
   }, []);
 
-  const visibleMenu =
-    user?.role === "agent"
-      ? menu.filter((item) =>
-          ["/franchise-panel/dashboard", "/franchise-panel/leads"].includes(item.href),
-        )
-      : menu;
+  const visibleMenu = filterMenuForRole(menu, user?.role);
 
   const logout = () => {
     localStorage.removeItem("franchise_token");
@@ -86,6 +79,18 @@ export default function SidebarFranchisePanel() {
         <p className="truncate text-sm font-semibold">{user?.fullName || user?.ownerName || "Franchise User"}</p>
         <p className="truncate text-xs text-gray-400">{user?.email || ""}</p>
       </div>
+
+      <Link
+        href="/franchise-panel/change-password"
+        className={`mx-4 mb-2 flex items-center gap-3 rounded-lg px-4 py-3 transition ${
+          pathname === "/franchise-panel/change-password"
+            ? "bg-white text-black"
+            : "text-gray-300 hover:bg-gray-800"
+        }`}
+      >
+        <KeyRound size={18} />
+        Change Password
+      </Link>
 
       <button
         onClick={logout}

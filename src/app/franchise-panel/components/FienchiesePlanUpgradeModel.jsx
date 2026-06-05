@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { X, Crown, Zap, Shield, Upload } from "lucide-react";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
+import { getFranchiseAuthHeaders } from "@/lib/franchiseAuth";
 
 const uploadToS3 = async (file) => {
   const formData = new FormData();
@@ -86,7 +87,10 @@ export default function FienchiesePlanUpgradeModel({
 
         const revenueRes = await fetch("/api/franchise-revenue", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...getFranchiseAuthHeaders(),
+          },
           body: JSON.stringify({
             leadId: selectedUser.userId,
             leadName: selectedUser.fullName,

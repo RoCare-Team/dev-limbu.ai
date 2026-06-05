@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
+import {
+  assertFranchiseBookingAccess,
+  assertFranchiseBookingWriteAccess,
+} from "@/lib/franchiseAuthServer";
 
 import FranchiseRevenue from "@/models/FranchiseRevenue";
 import Admin from "@/models/Admin";
@@ -20,6 +24,14 @@ export async function GET(req) {
     const franchiseCode = searchParams.get("franchiseCode");
 
     if (franchiseCode) {
+      const access = assertFranchiseBookingAccess(req);
+      if (!access.ok) {
+        return NextResponse.json(
+          { success: false, message: access.message },
+          { status: access.status },
+        );
+      }
+
       const type = searchParams.get("type");
       const dateFilter = searchParams.get("dateFilter");
       const startDateParam = searchParams.get("startDate");
@@ -249,6 +261,14 @@ export async function POST(req) {
 
     const body = await req.json();
     console.log("API RECEIVED:", body);
+
+    const writeAccess = assertFranchiseBookingWriteAccess(req, body);
+    if (!writeAccess.ok) {
+      return NextResponse.json(
+        { success: false, message: writeAccess.message },
+        { status: writeAccess.status },
+      );
+    }
 
     const {
       leadId,

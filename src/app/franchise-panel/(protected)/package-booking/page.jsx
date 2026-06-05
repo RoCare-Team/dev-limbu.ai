@@ -1,33 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  canAccessBookings,
+  getFranchiseUserFromStorage,
+} from "@/lib/franchiseAuth";
 
 export default function FranchisePackageBookingList() {
+  const router = useRouter();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  console.log("franchise panel package data:", data);
-
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        // localStorage se franchise id nikalo
-        const franchiseUserRaw = localStorage.getItem("franchise_user");
-        const franchiseUser = franchiseUserRaw
-          ? JSON.parse(franchiseUserRaw)
-          : null;
+        const franchiseUser = getFranchiseUserFromStorage();
+        const token = localStorage.getItem("franchise_token");
+
+        if (!canAccessBookings(franchiseUser?.role)) {
+          router.replace("/franchise-panel/dashboard");
+          return;
+        }
+
         const franchiseId = franchiseUser?.franchiseCode || "";
 
-        if (!franchiseId) {
-          setError("Franchise ID not found in localStorage");
+        if (!franchiseId || !token) {
+          setError("Franchise session not found");
           setLoading(false);
           return;
         }
 
         const url = `/api/franchise-revenue?franchiseCode=${encodeURIComponent(franchiseId)}&type=plan`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const json = await res.json();
         if (!json.success) throw new Error("Failed to fetch bookings");
         setData(json.data);
@@ -39,7 +48,7 @@ export default function FranchisePackageBookingList() {
     };
 
     fetchBookings();
-  }, []);
+  }, [router]);
 
   if (loading)
     return (

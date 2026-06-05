@@ -152,6 +152,10 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, message: "Invalid token" }, { status: 401 });
     }
     
+    if (decoded.role !== "franchise" && decoded.role !== "superFranchiseAdmin") {
+      return NextResponse.json({ success: false, message: "Permission denied" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { id, fullName, mobile, role, isActive, address, password } = body;
     
@@ -164,13 +168,25 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, message: "Team member not found" }, { status: 404 });
     }
 
+    if (existingMember.franchiseId !== decoded.franchiseCode) {
+      return NextResponse.json({ success: false, message: "Permission denied" }, { status: 403 });
+    }
+
     const updateData = {};
     if (fullName) updateData.fullName = fullName;
     if (mobile) updateData.mobile = mobile;
     if (role) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
-    if (address) updateData.address = address;
-    if (password) updateData.password = await bcrypt.hash(password, 10);
+    if (address !== undefined) updateData.address = address;
+    if (password?.trim()) {
+      if (password.trim().length < 6) {
+        return NextResponse.json(
+          { success: false, message: "Password must be at least 6 characters" },
+          { status: 400 },
+        );
+      }
+      updateData.password = await bcrypt.hash(password.trim(), 10);
+    }
     if (role === "agent" && !existingMember.referralCode) {
       updateData.referralCode = await FranchiseTeam.generateUniqueReferralCode(fullName || existingMember.fullName);
     }

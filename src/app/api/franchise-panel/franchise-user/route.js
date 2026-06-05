@@ -3,8 +3,10 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import FranchisePanel from "@/models/franchisePanel";
 import FranchiseTeam from "@/models/FranchiseTeam";
+import Transaction from "@/models/Transaction";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
+import { isFranchiseAgent } from "@/lib/franchiseAuth";
 import {
   buildFranchiseLeadsFilter,
   escapeRegex,
@@ -408,5 +410,159 @@ export async function PUT(req) {
   } catch (error) {
     console.log("API ERROR:", error);
     return NextResponse.json({ success: false });
+  }
+}
+
+export async function PATCH(req) {
+  try {
+    await dbConnect();
+
+    const decoded = decodeFranchiseToken(req);
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
+    if (isFranchiseAgent(decoded.role)) {
+      return NextResponse.json(
+        { success: false, message: "Agents cannot update wallet" },
+        { status: 403 },
+      );
+    }
+
+    const { userId, amount, type, reason } = await req.json();
+
+    if (!userId || amount == null || !type) {
+      return NextResponse.json(
+        { success: false, message: "userId, amount and type are required" },
+        { status: 400 },
+      );
+    }
+
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return NextResponse.json(
+        { success: false, message: "Please enter a valid amount" },
+        { status: 400 },
+      );
+    }
+
+    if (!reason?.trim()) {
+      return NextResponse.json(
+        { success: false, message: "Reason is required" },
+        { status: 400 },
+      );
+    }
+
+    const user = mongoose.Types.ObjectId.isValid(userId)
+      ? await User.findById(userId)
+      : await User.findOne({ userId });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 },
+      );
+    }
+
+    const franchiseCode = decoded.franchiseCode;
+    if (!userBelongsToFranchise(user, franchiseCode)) {
+      return NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 },
+      );
+    }
+
+    if (
+      decoded.type === "franchiseTeam" &&
+      String(user.referredByAgentId || user.assignedAgentId || "") !==
+        String(decoded.id)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Permission denied" },
+        { status: 403 },
+      );
+    }
+
+    const isAdd = type === "add" || type === "credit";
+    const isDeduct = type === "deduct" || type === "debit";
+
+    if (!isAdd && !isDeduct) {
+      return NextResponse.json(
+        { success: false, message: "Invalid transaction type" },
+        { status: 400 },
+      );
+    }
+
+    let updatedUser;
+
+    if (isAdd) {
+      updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        { $inc: { wallet: parsedAmount } },
+        { new: true, runValidators: false },
+      );
+
+      await Transaction.create({
+        userId: user.userId,
+        type: "credit",
+        amount: parsedAmount,
+        balanceAfter: updatedUser.wallet,
+        reason: reason.trim(),
+        metadata: {
+          source: "franchise-panel",
+          franchiseCode,
+          updatedBy: decoded.email || decoded.id,
+        },
+      });
+    } else {
+      if ((user.wallet || 0) < parsedAmount) {
+        return NextResponse.json(
+          { success: false, message: "Insufficient balance" },
+          { status: 400 },
+        );
+      }
+
+      updatedUser = await User.findOneAndUpdate(
+        { _id: user._id, wallet: { $gte: parsedAmount } },
+        { $inc: { wallet: -parsedAmount } },
+        { new: true, runValidators: false },
+      );
+
+      if (!updatedUser) {
+        return NextResponse.json(
+          { success: false, message: "Insufficient balance" },
+          { status: 400 },
+        );
+      }
+
+      await Transaction.create({
+        userId: user.userId,
+        type: "debit",
+        amount: parsedAmount,
+        balanceAfter: updatedUser.wallet,
+        reason: reason.trim(),
+        metadata: {
+          source: "franchise-panel",
+          franchiseCode,
+          updatedBy: decoded.email || decoded.id,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Wallet updated",
+      wallet: updatedUser.wallet,
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Franchise wallet update error:", error);
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 },
+    );
   }
 }

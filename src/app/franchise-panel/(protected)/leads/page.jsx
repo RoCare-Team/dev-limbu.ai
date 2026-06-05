@@ -18,6 +18,12 @@ import DashboardStats from "../../../../components/FranchiseLeads/DashboardStats
 import RemarksModal from "../../../../components/FranchiseLeads/RemarksModal";
 import FienchiesePlanUpgradeModel from "../../components/FienchiesePlanUpgradeModel";
 import FrienchieseServiceBookingModel from "../../components/FrienchieseServiceBookingModel";
+import UpdateWalletModal from "../../components/UpdateWalletModal";
+import {
+  canAccessBookings,
+  canManageWallet,
+  getFranchiseUserFromStorage,
+} from "@/lib/franchiseAuth";
 
 const STAGES = ["Active", "Follow Up", "Inactive", "Onboard"];
 const STATUSES = ["", "Hot", "Warm", "Cold"];
@@ -64,10 +70,13 @@ export default function UserManagement() {
   });
 
   const [upgradeModalUser, setUpgradeModalUser] = useState(null);
-
-
+  const [walletModalUser, setWalletModalUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const canManageBookings = canAccessBookings(currentUser?.role);
+  const canUpdateWallet = canManageWallet(currentUser?.role);
 
   useEffect(() => {
+    setCurrentUser(getFranchiseUserFromStorage());
     fetchUsers();
     fetchTeamMembers();
   }, []);
@@ -91,8 +100,7 @@ export default function UserManagement() {
         );
         showToast("Lead stage updated");
 
-        // ✅ Onboard select karne par modal open karo
-        if (leadStage === "Onboard") {
+        if (leadStage === "Onboard" && canAccessBookings(currentUser?.role)) {
           setUpgradeModalUser(user);
         }
       } else {
@@ -396,7 +404,9 @@ export default function UserManagement() {
                 <th className="px-5 py-4 text-left">Assigned To</th>
                 <th className="px-5 py-4 text-left">Remarks</th>
                 <th className="px-5 py-4 text-left">Stage</th>
-                <th className="px-5 py-4 text-left">Service</th>
+                {canManageBookings && (
+                  <th className="px-5 py-4 text-left">Service</th>
+                )}
                 {/* <th className="px-5 py-4 text-left">Chat</th> */}
                 <th className="px-5 py-4 text-left">Wallet</th>
               </tr>
@@ -516,20 +526,34 @@ export default function UserManagement() {
                         ))}
                       </select>
                     </td>
+                    {canManageBookings && (
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          onClick={() => setServiceModalUser(user)}
+                          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+                        >
+                          Add Service
+                        </button>
+                      </td>
+                    )}
                     <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => setServiceModalUser(user)}
-                        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
-                      >
-                        Add Service
-                      </button>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-bold text-emerald-700">
-                        <Wallet size={15} />
-                        {user.wallet || 0}
-                      </span>
+                      {canUpdateWallet ? (
+                        <button
+                          type="button"
+                          onClick={() => setWalletModalUser(user)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-bold text-emerald-700 transition hover:bg-emerald-100"
+                          title="Update wallet"
+                        >
+                          <Wallet size={15} />
+                          {user.wallet || 0}
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-bold text-emerald-700">
+                          <Wallet size={15} />
+                          {user.wallet || 0}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -625,7 +649,7 @@ export default function UserManagement() {
           </div>
         )}
       </div>
-      {upgradeModalUser && (
+      {canManageBookings && upgradeModalUser && (
         <FienchiesePlanUpgradeModel
           selectedUser={upgradeModalUser}
           onClose={() => setUpgradeModalUser(null)}
@@ -633,11 +657,30 @@ export default function UserManagement() {
         />
       )}
 
-      {serviceModalUser && (
+      {canManageBookings && serviceModalUser && (
         <FrienchieseServiceBookingModel
           selectedUser={serviceModalUser}
           onClose={() => setServiceModalUser(null)}
           fetchUsers={fetchUsers}
+        />
+      )}
+
+      {canUpdateWallet && walletModalUser && (
+        <UpdateWalletModal
+          user={walletModalUser}
+          onClose={() => setWalletModalUser(null)}
+          onSuccess={(updatedUser) => {
+            if (updatedUser?._id) {
+              setUsers((prev) =>
+                prev.map((item) =>
+                  item._id === updatedUser._id ? updatedUser : item,
+                ),
+              );
+            } else {
+              fetchUsers();
+            }
+          }}
+          showToast={showToast}
         />
       )}
     </>

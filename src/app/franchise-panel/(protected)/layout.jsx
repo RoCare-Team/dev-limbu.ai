@@ -1,18 +1,40 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import SidebarFranchisePanel from "@/components/sideBarFranchisePanel";
+import {
+  getFranchiseUserFromStorage,
+  isRouteAllowedForRole,
+} from "@/lib/franchiseAuth";
 
 export default function FranchiseLayout({ children }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("franchise_token");
     if (!token) {
-      router.push("/franchise-panel/login");
+      router.replace("/franchise-panel/login");
+      return;
     }
-  }, [router]);
+
+    const user = getFranchiseUserFromStorage();
+    if (!user?.role) {
+      router.replace("/franchise-panel/login");
+      return;
+    }
+
+    if (!isRouteAllowedForRole(pathname, user.role)) {
+      router.replace("/franchise-panel/dashboard");
+      return;
+    }
+
+    setIsAuthorized(true);
+  }, [pathname, router]);
+
+  if (!isAuthorized) return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">

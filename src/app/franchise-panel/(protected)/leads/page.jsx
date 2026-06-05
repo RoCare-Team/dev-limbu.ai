@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Crown,
+  Edit2,
+  Loader2,
   Mail,
   MessageCircle,
   Phone,
@@ -48,11 +52,22 @@ const stageClass = {
   Onboard: "bg-green-50 text-green-700 border-green-200",
 };
 
+const PAGE_SIZE = 25;
+
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [leadStats, setLeadStats] = useState(null);
   const [openModal, setOpenModal] = useState(false);
+  const [editModalUser, setEditModalUser] = useState(null);
+  const [deleteModalUser, setDeleteModalUser] = useState(null);
+  const [savingLead, setSavingLead] = useState(false);
+  const [deletingLeadId, setDeletingLeadId] = useState("");
   const [toast, setToast] = useState("");
   const [remarksUser, setRemarksUser] = useState(null);
   const [remarksHistory, setRemarksHistory] = useState([]);
@@ -77,9 +92,16 @@ export default function UserManagement() {
 
   useEffect(() => {
     setCurrentUser(getFranchiseUserFromStorage());
-    fetchUsers();
     fetchTeamMembers();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const updateLeadStage = async (user, leadStage) => {
     setSavingStageId(user._id);
@@ -124,31 +146,57 @@ export default function UserManagement() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = useCallback(
+    async (page = currentPage) => {
+      setLoading(true);
 
-    try {
-      const franchiseCode = localStorage.getItem("franchise_code");
-      if (!franchiseCode) {
+      try {
+        const franchiseCode = localStorage.getItem("franchise_code");
+        if (!franchiseCode) {
+          setUsers([]);
+          setTotalLeads(0);
+          setTotalPages(1);
+          setLeadStats(null);
+          return;
+        }
+
+        const params = new URLSearchParams({
+          referCode: franchiseCode,
+          page: String(page),
+          limit: String(PAGE_SIZE),
+        });
+        if (debouncedSearch) params.set("search", debouncedSearch);
+
+        const res = await fetch(
+          `/api/franchise-panel/franchise-user?${params.toString()}`,
+          { headers: getAuthHeaders() },
+        );
+        const data = await res.json();
+
+        if (data.success) {
+          setUsers(data.users || []);
+          setTotalLeads(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+          setLeadStats(data.stats || null);
+          setCurrentPage(data.page || page);
+        } else {
+          setUsers([]);
+          setTotalLeads(0);
+          setTotalPages(1);
+          setLeadStats(null);
+        }
+      } catch (error) {
+        console.error("Fetch error:", error);
         setUsers([]);
-        return;
+        setTotalLeads(0);
+        setTotalPages(1);
+        setLeadStats(null);
+      } finally {
+        setLoading(false);
       }
-
-      const res = await fetch(
-        `/api/franchise-panel/franchise-user?referCode=${encodeURIComponent(
-          franchiseCode,
-        )}`,
-        { headers: getAuthHeaders() },
-      );
-      const data = await res.json();
-      setUsers(data.success ? data.users || [] : []);
-    } catch (error) {
-      console.error("Fetch error:", error);
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [currentPage, debouncedSearch],
+  );
 
   const fetchTeamMembers = async () => {
     try {
@@ -183,31 +231,122 @@ export default function UserManagement() {
     }
   };
 
-  
-
   useEffect(() => {
-    fetchUsers();
-    fetchTeamMembers();
-  }, []);
+    fetchUsers(currentPage);
+  }, [fetchUsers, currentPage]);
 
-  const filteredUsers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return users;
+  const goToPage = (page) => {
+    const nextPage = Math.min(Math.max(1, page), totalPages);
+    setCurrentPage(nextPage);
+  };
 
-    return users.filter((user) =>
-      [
-        user.fullName,
-        user.email,
-        user.phone,
-        user.referCode,
-        user.referredByAgentName,
-        user.leadStatus,
-        user.source,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term)),
-    );
-  }, [search, users]);
+  const pageStart = totalLeads === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * PAGE_SIZE, totalLeads);
+
+  const openEditModal = (user) => {
+    setEditModalUser(user);
+    setFormData({
+      fullName: user.fullName || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      leadStatus: user.leadStatus || "",
+      source: user.source || "manual-upload",
+    });
+  };
+
+  const handleEditLead = async () => {
+    if (!editModalUser) return;
+
+    if (!formData.fullName.trim() || !formData.email.trim()) {
+      showToast("Please enter full name and email");
+      return;
+    }
+
+    setSavingLead(true);
+
+    try {
+      const res = await fetch("/api/franchise-panel/franchise-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          userId: editModalUser._id,
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          leadStatus: formData.leadStatus,
+          source: formData.source,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        showToast(data.message || "Failed to update lead");
+        return;
+      }
+
+      showToast("Lead updated successfully");
+      setEditModalUser(null);
+      resetForm();
+      setUsers((prev) =>
+        prev.map((item) => (item._id === data.user._id ? data.user : item)),
+      );
+    } catch (error) {
+      console.error("Edit lead error:", error);
+      showToast("Failed to update lead");
+    } finally {
+      setSavingLead(false);
+    }
+  };
+
+  const handleDeleteLead = async () => {
+    if (!deleteModalUser) return;
+
+    setDeletingLeadId(deleteModalUser._id);
+
+    try {
+      const res = await fetch(
+        `/api/franchise-panel/franchise-user?userId=${deleteModalUser._id}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        },
+      );
+      const data = await res.json();
+
+      if (!data.success) {
+        showToast(data.message || "Failed to delete lead");
+        return;
+      }
+
+      showToast("Lead deleted successfully");
+      setDeleteModalUser(null);
+      const nextPage =
+        users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      if (nextPage !== currentPage) {
+        setCurrentPage(nextPage);
+      } else {
+        fetchUsers(currentPage);
+      }
+    } catch (error) {
+      console.error("Delete lead error:", error);
+      showToast("Failed to delete lead");
+    } finally {
+      setDeletingLeadId("");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      fullName: "",
+      email: "",
+      phone: "",
+      leadStatus: "",
+      source: "manual-upload",
+    });
+  };
 
   const handleAddLead = async () => {
     const referCode = localStorage.getItem("franchise_code") || "";
@@ -237,15 +376,10 @@ export default function UserManagement() {
       }
 
       showToast("Lead added and assigned successfully");
-      setFormData({
-        fullName: "",
-        email: "",
-        phone: "",
-        leadStatus: "",
-        source: "manual-upload",
-      });
+      resetForm();
       setOpenModal(false);
-      fetchUsers();
+      setCurrentPage(1);
+      fetchUsers(1);
     } catch (error) {
       console.error("Add lead error:", error);
       showToast("Failed to add lead");
@@ -379,7 +513,7 @@ export default function UserManagement() {
           </div>
         </div>
 
-        <DashboardStats users={filteredUsers} />
+        <DashboardStats stats={leadStats} />
 
         <RemarksModal
           user={remarksUser}
@@ -409,29 +543,30 @@ export default function UserManagement() {
                 )}
                 {/* <th className="px-5 py-4 text-left">Chat</th> */}
                 <th className="px-5 py-4 text-left">Wallet</th>
+                <th className="px-5 py-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td
-                    colSpan="12"
+                    colSpan="13"
                     className="px-5 py-10 text-center text-gray-500"
                   >
                     Loading...
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="12"
+                    colSpan="13"
                     className="px-5 py-10 text-center text-gray-500"
                   >
                     No users found
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
+                users.map((user) => (
                   <tr
                     key={user._id}
                     className="border-t border-gray-200 hover:bg-gray-50"
@@ -555,12 +690,74 @@ export default function UserManagement() {
                         </span>
                       )}
                     </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(user)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                          title="Edit lead"
+                        >
+                          <Edit2 size={14} />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteModalUser(user)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                          title="Delete lead"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        {!loading && totalLeads > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-sm text-gray-600">
+              Showing{" "}
+              <span className="font-semibold text-gray-900">
+                {pageStart}-{pageEnd}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-gray-900">{totalLeads}</span>{" "}
+              leads
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronLeft size={16} />
+                Prev
+              </button>
+
+              <span className="min-w-24 text-center text-sm font-semibold text-gray-800">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {openModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -643,6 +840,143 @@ export default function UserManagement() {
                   className="flex-1 rounded-xl bg-gray-950 px-6 py-3 font-medium text-white hover:bg-gray-800"
                 >
                   Save Lead
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {editModalUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-2xl bg-white p-8 shadow-2xl">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-950">Edit Lead</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditModalUser(null);
+                    resetForm();
+                  }}
+                  className="rounded-full p-2 hover:bg-gray-100"
+                >
+                  <X size={20} className="text-gray-700" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormInput
+                  label="Full Name"
+                  value={formData.fullName}
+                  onChange={(value) =>
+                    setFormData({ ...formData, fullName: value })
+                  }
+                  placeholder="Enter full name"
+                />
+                <FormInput
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(value) =>
+                    setFormData({ ...formData, email: value })
+                  }
+                  placeholder="user@example.com"
+                />
+                <FormInput
+                  label="Phone"
+                  value={formData.phone}
+                  onChange={(value) =>
+                    setFormData({ ...formData, phone: value })
+                  }
+                  placeholder="+91 9876543210"
+                />
+                <FormSelect
+                  label="Lead Tag"
+                  value={formData.leadStatus}
+                  onChange={(value) =>
+                    setFormData({ ...formData, leadStatus: value })
+                  }
+                  options={STATUSES}
+                  emptyLabel="Untagged"
+                />
+                <FormSelect
+                  label="Source"
+                  value={formData.source}
+                  onChange={(value) =>
+                    setFormData({ ...formData, source: value })
+                  }
+                  options={SOURCES}
+                />
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditModalUser(null);
+                    resetForm();
+                  }}
+                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditLead}
+                  disabled={savingLead}
+                  className="flex-1 rounded-xl bg-gray-950 px-6 py-3 font-medium text-white hover:bg-gray-800 disabled:opacity-60"
+                >
+                  {savingLead ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      Saving...
+                    </span>
+                  ) : (
+                    "Update Lead"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteModalUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="rounded-full bg-red-100 p-3">
+                  <Trash2 className="text-red-600" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-950">Delete Lead</h2>
+                  <p className="text-sm text-gray-500">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <p className="mb-6 text-sm text-gray-700">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-gray-950">
+                  {deleteModalUser.fullName || deleteModalUser.email}
+                </span>
+                ?
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalUser(null)}
+                  className="flex-1 rounded-xl bg-gray-100 px-4 py-3 font-medium text-gray-700 hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteLead}
+                  disabled={deletingLeadId === deleteModalUser._id}
+                  className="flex-1 rounded-xl bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {deletingLeadId === deleteModalUser._id ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>

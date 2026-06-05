@@ -27,7 +27,7 @@ export function assertFranchiseBookingAccess(req) {
     return {
       ok: false,
       status: 403,
-      message: "Agents cannot access booking data",
+      message: "Agents cannot access this data",
     };
   }
 

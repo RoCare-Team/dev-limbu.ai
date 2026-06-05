@@ -10,20 +10,31 @@ import {
   Users,
 } from "lucide-react";
 
-export default function DashboardStats({ users = [] }) {
+export default function DashboardStats({ users = [], stats: statsProp }) {
   const today = new Date().toDateString();
-  const totalUsers = users.length;
-  const activeUsers = users.filter((u) => u.leadStage === "Active").length;
-  const followUpUsers = users.filter((u) => u.leadStage === "Follow Up").length;
-  const inactiveUsers = users.filter((u) => u.leadStage === "Inactive").length;
-  const onboardUsers = users.filter((u) => u.leadStage === "Onboard").length;
-  const usersToday = users.filter(
-    (u) => new Date(u.createdAt).toDateString() === today,
-  ).length;
-  const totalPosts = users.reduce(
-    (sum, user) => sum + (Array.isArray(user.posts) ? user.posts.length : 0),
-    0,
-  );
+
+  const totalUsers = statsProp?.totalUsers ?? users.length;
+  const activeUsers =
+    statsProp?.activeUsers ??
+    users.filter((u) => u.leadStage === "Active").length;
+  const followUpUsers =
+    statsProp?.followUpUsers ??
+    users.filter((u) => u.leadStage === "Follow Up").length;
+  const inactiveUsers =
+    statsProp?.inactiveUsers ??
+    users.filter((u) => u.leadStage === "Inactive").length;
+  const onboardUsers =
+    statsProp?.onboardUsers ??
+    users.filter((u) => u.leadStage === "Onboard").length;
+  const usersToday =
+    statsProp?.usersToday ??
+    users.filter((u) => new Date(u.createdAt).toDateString() === today).length;
+  const totalPosts =
+    statsProp?.totalPosts ??
+    users.reduce(
+      (sum, user) => sum + (Array.isArray(user.posts) ? user.posts.length : 0),
+      0,
+    );
 
   const cards = [
     {

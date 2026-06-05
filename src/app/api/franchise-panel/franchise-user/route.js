@@ -24,6 +24,24 @@ function decodeFranchiseToken(req) {
   }
 }
 
+function canAccessLead(decoded, user) {
+  if (!decoded || !user) return false;
+
+  const franchiseCode = decoded.franchiseCode;
+  if (!franchiseCode || !userBelongsToFranchise(user, franchiseCode)) {
+    return false;
+  }
+
+  if (decoded.type === "franchiseTeam") {
+    return (
+      String(user.referredByAgentId || user.assignedAgentId || "") ===
+      String(decoded.id)
+    );
+  }
+
+  return true;
+}
+
 async function getRoundRobinTeamMember(franchiseCode) {
   const teamMembers = await FranchiseTeam.find({
     franchiseId: franchiseCode,
@@ -141,29 +159,106 @@ export async function GET(req) {
           }
         : franchiseFilter;
 
-    const total = await User.countDocuments(scopedFilter);
+    const search = (searchParams.get("search") || "").trim();
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "25", 10) || 25),
+    );
+    const skip = (page - 1) * limit;
 
-    const users = await User.find(scopedFilter)
-      .select(
-        "fullName email phone referCode franchiseId createdAt leadStage leadStatus wallet remarksHistory userId source leadTags referredByAgentId referredByAgentName assignedAgentId subscription isBusinessConnected selectedBusiness chatbotMessageCount",
-      )
-      .sort({ createdAt: -1 });
+    let finalFilter = scopedFilter;
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), "i");
+      finalFilter = {
+        $and: [
+          scopedFilter,
+          {
+            $or: [
+              { fullName: searchRegex },
+              { email: searchRegex },
+              { phone: searchRegex },
+              { referCode: searchRegex },
+              { referredByAgentName: searchRegex },
+              { leadStatus: searchRegex },
+              { source: searchRegex },
+            ],
+          },
+        ],
+      };
+    }
 
-    const totalCoinsData = await User.aggregate([
-      { $match: scopedFilter },
+    const total = await User.countDocuments(finalFilter);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const statsAgg = await User.aggregate([
+      { $match: finalFilter },
       {
         $group: {
           _id: null,
-          total: { $sum: "$wallet" }
-        }
-      }
+          totalUsers: { $sum: 1 },
+          activeUsers: {
+            $sum: { $cond: [{ $eq: ["$leadStage", "Active"] }, 1, 0] },
+          },
+          followUpUsers: {
+            $sum: { $cond: [{ $eq: ["$leadStage", "Follow Up"] }, 1, 0] },
+          },
+          inactiveUsers: {
+            $sum: { $cond: [{ $eq: ["$leadStage", "Inactive"] }, 1, 0] },
+          },
+          onboardUsers: {
+            $sum: { $cond: [{ $eq: ["$leadStage", "Onboard"] }, 1, 0] },
+          },
+          usersToday: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gte: ["$createdAt", todayStart] },
+                    { $lte: ["$createdAt", todayEnd] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          totalCoins: { $sum: "$wallet" },
+        },
+      },
     ]);
+
+    const statsRow = statsAgg[0] || {};
+
+    const users = await User.find(finalFilter)
+      .select(
+        "fullName email phone referCode franchiseId createdAt leadStage leadStatus wallet remarksHistory userId source leadTags referredByAgentId referredByAgentName assignedAgentId subscription isBusinessConnected selectedBusiness chatbotMessageCount",
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     return NextResponse.json({
       success: true,
       total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       users,
-      totalCoins: totalCoinsData[0]?.total || 0
+      totalCoins: statsRow.totalCoins || 0,
+      stats: {
+        totalUsers: statsRow.totalUsers || 0,
+        activeUsers: statsRow.activeUsers || 0,
+        followUpUsers: statsRow.followUpUsers || 0,
+        inactiveUsers: statsRow.inactiveUsers || 0,
+        onboardUsers: statsRow.onboardUsers || 0,
+        usersToday: statsRow.usersToday || 0,
+        totalPosts: 0,
+      },
     });
 
   } catch (error) {
@@ -285,26 +380,62 @@ export async function PUT(req) {
       leadStage,
       leadStatus,
       assignedAgentId,
+      fullName,
+      email,
+      phone,
+      source,
     } = body;
 
     await dbConnect();
     const decoded = decodeFranchiseToken(req);
 
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
     const user = await User.findById(userId);
 
     if (!user) {
-      return NextResponse.json({ success: false });
+      return NextResponse.json({ success: false, message: "User not found" });
     }
 
-    if (
-      decoded?.type === "franchiseTeam" &&
-      String(user.referredByAgentId || user.assignedAgentId || "") !==
-        String(decoded.id)
-    ) {
+    if (!canAccessLead(decoded, user)) {
       return NextResponse.json(
         { success: false, message: "Permission denied" },
         { status: 403 },
       );
+    }
+
+    if (fullName?.trim()) {
+      user.fullName = fullName.trim();
+    }
+
+    if (email?.trim()) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailTaken = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: user._id },
+      }).lean();
+
+      if (emailTaken) {
+        return NextResponse.json(
+          { success: false, message: "Email already in use" },
+          { status: 409 },
+        );
+      }
+
+      user.email = normalizedEmail;
+    }
+
+    if (phone !== undefined) {
+      user.phone = phone?.trim() || undefined;
+    }
+
+    if (source) {
+      user.source = source;
     }
 
     if (leadStage) {
@@ -392,6 +523,10 @@ export async function PUT(req) {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        source: user.source,
         remarksHistory: user.remarksHistory,
         leadStage: user.leadStage,
         leadStatus: user.leadStatus,
@@ -399,7 +534,7 @@ export async function PUT(req) {
         referredByAgentId: user.referredByAgentId,
         referredByAgentName: user.referredByAgentName,
       },
-      { new: true }
+      { new: true },
     );
 
     return NextResponse.json({
@@ -410,6 +545,77 @@ export async function PUT(req) {
   } catch (error) {
     console.log("API ERROR:", error);
     return NextResponse.json({ success: false });
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await dbConnect();
+
+    const decoded = decodeFranchiseToken(req);
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const queryUserId = searchParams.get("userId");
+    let bodyUserId = null;
+
+    try {
+      const body = await req.json();
+      bodyUserId = body?.userId;
+    } catch {
+      bodyUserId = null;
+    }
+
+    const userId = queryUserId || bodyUserId;
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: "userId is required" },
+        { status: 400 },
+      );
+    }
+
+    const user = mongoose.Types.ObjectId.isValid(userId)
+      ? await User.findById(userId)
+      : await User.findOne({ userId });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 },
+      );
+    }
+
+    if (!canAccessLead(decoded, user)) {
+      return NextResponse.json(
+        { success: false, message: "Permission denied" },
+        { status: 403 },
+      );
+    }
+
+    const assigneeId = user.referredByAgentId || user.assignedAgentId;
+    if (assigneeId) {
+      await FranchiseTeam.findByIdAndUpdate(assigneeId, {
+        $pull: { assignedLeads: user._id },
+      });
+    }
+
+    await User.findByIdAndDelete(user._id);
+
+    return NextResponse.json({
+      success: true,
+      message: "Lead deleted successfully",
+    });
+  } catch (error) {
+    console.error("Franchise delete lead error:", error);
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 },
+    );
   }
 }
 

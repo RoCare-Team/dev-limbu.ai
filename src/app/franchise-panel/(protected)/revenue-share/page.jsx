@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  canAccessBookings,
+  getFranchiseAuthHeaders,
+  getFranchiseUserFromStorage,
+} from "@/lib/franchiseAuth";
 
 export default function RevenueShare() {
+  const router = useRouter();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -10,16 +17,18 @@ export default function RevenueShare() {
   useEffect(() => {
   const fetchRevenue = async () => {
     try {
-      const franchiseUserRaw = localStorage.getItem("franchise_user");
+      const franchiseUser = getFranchiseUserFromStorage();
+      const token = localStorage.getItem("franchise_token");
 
-      const franchiseUser = franchiseUserRaw
-        ? JSON.parse(franchiseUserRaw)
-        : null;
+      if (!canAccessBookings(franchiseUser?.role)) {
+        router.replace("/franchise-panel/dashboard");
+        return;
+      }
 
       const franchiseCode = franchiseUser?.franchiseCode || "";
 
-      if (!franchiseCode) {
-        setError("Franchise code not found in localStorage");
+      if (!franchiseCode || !token) {
+        setError("Franchise session not found");
         return;
       }
 
@@ -27,6 +36,7 @@ export default function RevenueShare() {
         `/api/franchise-revenue?franchiseCode=${encodeURIComponent(
           franchiseCode,
         )}`,
+        { headers: getFranchiseAuthHeaders() },
       );
 
       if (!res.ok) {
@@ -49,7 +59,7 @@ export default function RevenueShare() {
   };
 
   fetchRevenue();
-}, []);
+}, [router]);
 
   const summary = useMemo(() => {
     const total = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);

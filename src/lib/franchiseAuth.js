@@ -12,6 +12,13 @@ export const BOOKING_ROUTES = [
   "/franchise-panel/package-booking",
 ];
 
+export const ADMIN_ONLY_ROUTES = [
+  ...BOOKING_ROUTES,
+  "/franchise-panel/revenue-share",
+  "/franchise-panel/team-management",
+  "/franchise-panel/user-management/recharge",
+];
+
 export function normalizeFranchiseRole(role) {
   return String(role || "").trim().toLowerCase();
 }

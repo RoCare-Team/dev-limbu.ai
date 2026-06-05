@@ -52,7 +52,7 @@ export default function HeroSection() {
           <div className="flex flex-col justify-center max-w-2xl mx-auto lg:mx-0 text-center lg:text-left pt-6 lg:pt-0">
 
             {/* Rating */}
-            <div className="mb-6 flex justify-center lg:justify-start">
+            {/* <div className="mb-6 flex justify-center lg:justify-start">
               <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-yellow-50 border border-yellow-200 shadow-sm">
                 <span className="text-yellow-500 text-sm">★</span>
 
@@ -64,7 +64,7 @@ export default function HeroSection() {
                   · 706 reviews
                 </span>
               </div>
-            </div>
+            </div> */}
 
             {/* Heading */}
             <div>

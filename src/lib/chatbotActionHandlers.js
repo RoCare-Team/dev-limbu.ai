@@ -123,11 +123,6 @@ async function handleWebsite({ location, email, locationId, accessToken, phone: 
     phone: sessionPhone,
     userId: sessionPhone ? waUserIdFromPhone(sessionPhone) : undefined,
   });
-  if (!rawPhone) {
-    throw new Error(
-      "A primary phone number is missing from your Google Business Profile. A phone number is required to generate and publish a website."
-    );
-  }
 
   const userId = resolveSiteUserId({
     userId: sessionPhone ? waUserIdFromPhone(sessionPhone) : undefined,
@@ -158,8 +153,9 @@ async function handleWebsite({ location, email, locationId, accessToken, phone: 
     additionalCategories,
     websiteUri: location.websiteUri || null,
     accountId: location.accountId || null,
-    phoneNumbers: { primaryPhone: rawPhone },
-    primaryPhone: rawPhone,
+    ...(rawPhone
+      ? { phoneNumbers: { primaryPhone: rawPhone }, primaryPhone: rawPhone }
+      : {}),
     storefrontAddress: {
       addressLines: location.addressLine ? [location.addressLine] : [],
       locality: locality || undefined,

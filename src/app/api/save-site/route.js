@@ -53,15 +53,6 @@ export async function PUT(req) {
     }
 
     if (business) {
-      if (!business?.phoneNumbers?.primaryPhone && !business?.primaryPhone) {
-        return NextResponse.json(
-          {
-            error:
-              "A primary phone number is required in your Google Business Profile to publish a website.",
-          },
-          { status: 400 }
-        );
-      }
       site.business = business;
     }
 

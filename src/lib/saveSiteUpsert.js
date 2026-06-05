@@ -57,14 +57,6 @@ export async function upsertPublishSite(body) {
         };
       }
     }
-    if (!businessForSave?.phoneNumbers?.primaryPhone && !businessForSave?.primaryPhone) {
-      return {
-        ok: false,
-        error:
-          "A primary phone number is required in your Google Business Profile to publish a website.",
-        status: 400,
-      };
-    }
   }
 
   const effectiveUserId = resolveSiteUserId({

@@ -344,16 +344,6 @@ export default function BuildWebsitePage() {
         throw new Error(businessData?.error || "Business fetch failed");
       }
 
-      // 🔴 Strict Phone Number Validation
-      if (
-        !businessData.phoneNumbers?.primaryPhone &&
-        !businessData.primaryPhone
-      ) {
-        throw new Error(
-          "A primary phone number is missing from your Google Business Profile. A phone number is required to generate and publish a website.",
-        );
-      }
-
       setBusiness(businessData);
 
       // 2️⃣ Generate AI Website Content

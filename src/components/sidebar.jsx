@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -16,7 +22,7 @@ import {
   LogOut,
   Wand,
   BarChart3,
-  X
+  X,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 
@@ -36,7 +42,7 @@ export default function Sidebar({ children }) {
     userData,
     pathname,
     toggleSidebar,
-    navigate
+    navigate,
   } = useSidebar();
 
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -51,7 +57,7 @@ export default function Sidebar({ children }) {
       }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);  
   }, []);
 
   const handleSignOut = useCallback(() => {
@@ -60,28 +66,54 @@ export default function Sidebar({ children }) {
     router.push("/login");
   }, [router]);
 
-  const menuItems = useMemo(() => [
-    { text: "Overview", icon: <LayoutDashboard size={18} />, path: "/dashboard" },
-    { text: "Post Management", icon: <FileText size={18} />, path: "/post-management" },
-    { text: "Review Management", icon: <Star size={18} />, path: "/review-management" },
-    {
-      text: "Magic QR",
-      icon: <Wand size={18} />,
-      children: [
-        { text: "Get Magic QR", path: "/get-magic-qr" },
-        { text: "Customer Reviews", path: "/reviews/get-customer-review" },
-      ],
-    },
-    { text: "Assets Management", icon: <LucideImage size={18} />, path: "/assets-management" },
-    { text: "Keyword Planner", icon: <KeyRound size={18} />, path: "/keyword-planner" },
-    { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
-    { text: "GMB Insights", icon: <BarChart3 size={18} />, path: "/gmb-insights" },
-    { text: "My Profile", icon: <User size={18} />, path: "/profile" },
-  ], []);
+  const menuItems = useMemo(
+    () => [
+      {
+        text: "Overview",
+        icon: <LayoutDashboard size={18} />,
+        path: "/dashboard",
+      },
+      {
+        text: "Post Management",
+        icon: <FileText size={18} />,
+        path: "/post-management",
+      },
+      {
+        text: "Review Management",
+        icon: <Star size={18} />,
+        path: "/review-management",
+      },
+      {
+        text: "Magic QR",
+        icon: <Wand size={18} />,
+        children: [
+          { text: "Get Magic QR", path: "/get-magic-qr" },
+          { text: "Customer Reviews", path: "/reviews/get-customer-review" },
+        ],
+      },
+      {
+        text: "Assets Management",
+        icon: <LucideImage size={18} />,
+        path: "/assets-management",
+      },
+      {
+        text: "Keyword Planner",
+        icon: <KeyRound size={18} />,
+        path: "/keyword-planner",
+      },
+      { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
+      {
+        text: "GMB Insights",
+        icon: <BarChart3 size={18} />,
+        path: "/gmb-insights",
+      },
+      { text: "My Profile", icon: <User size={18} />, path: "/profile" },
+    ],
+    [],
+  );
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50">
-
       {/* Mobile Backdrop Overlay */}
       {isMobile && isOpen && (
         <div
@@ -92,8 +124,9 @@ export default function Sidebar({ children }) {
 
       {/* ── SIDEBAR ── */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out bg-white border-r border-slate-100 flex flex-col h-full ${isMobile && !isOpen ? "-translate-x-full" : "translate-x-0"
-          }`}
+        className={`fixed lg:static inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out bg-white border-r border-slate-100 flex flex-col h-full ${
+          isMobile && !isOpen ? "-translate-x-full" : "translate-x-0"
+        }`}
         style={{ width: isOpen ? `${drawerWidth}px` : "80px" }}
       >
         {/* Logo Section */}
@@ -121,7 +154,9 @@ export default function Sidebar({ children }) {
         {/* Navigation Section */}
         <nav className="flex-1 overflow-y-auto pt-4 pb-6 custom-scroll-sidebar">
           {menuItems.map((item, idx) => {
-            const isActive = pathname === item.path || (item.children && item.children.some(c => c.path === pathname));
+            const isActive =
+              pathname === item.path ||
+              (item.children && item.children.some((c) => c.path === pathname));
             return (
               <SidebarNavItem
                 key={idx}
@@ -129,7 +164,9 @@ export default function Sidebar({ children }) {
                 collapsed={!isOpen}
                 isActive={isActive}
                 isDropdownOpen={openDropdown === idx}
-                onToggleDropdown={() => setOpenDropdown(openDropdown === idx ? null : idx)}
+                onToggleDropdown={() =>
+                  setOpenDropdown(openDropdown === idx ? null : idx)
+                }
                 onNavigate={navigate}
                 pathname={pathname}
               />
@@ -137,83 +174,77 @@ export default function Sidebar({ children }) {
           })}
         </nav>
 
-
-
         {/* User Strip */}
         <div className="p-4 shrink-0 border-t border-slate-50 bg-slate-50/30">
-
           {isOpen && (
-  <div className="mb-3 px-1">
+            <div className="mb-3 px-1">
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2">
+                {userData?.paidPackage && (
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                        Package Plan
+                      </p>
 
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2">
+                      {/* YELLOW BG ADDED */}
+                      <p className="inline-block mt-1 px-2 py-1  rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
+                        {userData.paidPackage}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-     {userData?.paidPackage && (
-  <div className="flex items-center justify-between mb-2">
-    
-    <div>
-      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-        Package Plan
-      </p>
+                {/* SERVICE */}
+                {userData?.paidService && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                        Service pLan
+                      </p>
 
-      {/* YELLOW BG ADDED */}
-      <p className="inline-block mt-1 px-2 py-1  rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
-        {userData.paidPackage}
-      </p>
-    </div>
+                      {/* YELLOW BG ADDED */}
+                      <p className="inline-block mt-1 px-2 py-1 rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
+                        {userData.paidService}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-  </div>
-)}
+                {/* FREE USER */}
+                {!userData?.paidPackage && !userData?.paidService && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-black text-slate-500">
+                      Free Plan
+                    </p>
 
-{/* SERVICE */}
-{userData?.paidService && (
-  <div className="flex items-center justify-between">
-    
-    <div>
-      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-        Service pLane
-      </p>
-
-      {/* YELLOW BG ADDED */}
-      <p className="inline-block mt-1 px-2 py-1 rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
-        {userData.paidService}
-      </p>
-    </div>
-
-    
-  </div>
-)}
-
-      {/* FREE USER */}
-      {!userData?.paidPackage && !userData?.paidService && (
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-black text-slate-500">
-            Free Plan
-          </p>
-
-          <span className="px-2 py-1 rounded-lg bg-slate-400 text-white text-[8px] font-black uppercase">
-            FREE
-          </span>
-        </div>
-      )}
-
-    </div>
-  </div>
-)}
-            <div className={`relative flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm ${!isOpen ? 'justify-center' : ''}`}>
+                    <span className="px-2 py-1 rounded-lg bg-slate-400 text-white text-[8px] font-black uppercase">
+                      FREE
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div
+            className={`relative flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm ${!isOpen ? "justify-center" : ""}`}
+          >
             <UserAvatar name={userData.name} size="sm" />
             {isOpen && (
-
-              
-
               <div className="flex-1 min-w-0">
-
-
-                <p className="text-[11px] font-bold text-slate-900 truncate">{userData.name}</p>
-                <p className="text-[10px] font-medium text-slate-400 truncate">{userData.email}</p>
+                <p className="text-[11px] font-bold text-slate-900 truncate">
+                  {userData.name}
+                </p>
+                <p className="text-[10px] font-medium text-slate-400 truncate">
+                  {userData.email}
+                </p>
               </div>
             )}
             {isOpen && (
-              <button onClick={handleSignOut} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Sign Out">
+              <button
+                onClick={handleSignOut}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                title="Sign Out"
+              >
                 <LogOut size={14} />
               </button>
             )}
@@ -223,7 +254,6 @@ export default function Sidebar({ children }) {
 
       {/* ── MAIN CONTENT AREA ── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-
         <TopAppBar
           isOpen={isOpen}
           toggleSidebar={toggleSidebar}

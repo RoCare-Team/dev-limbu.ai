@@ -143,7 +143,7 @@ export async function GET(req) {
 
     const users = await User.find(scopedFilter)
       .select(
-        "fullName email phone referCode franchiseId createdAt leadStage leadStatus wallet remarksHistory source leadTags referredByAgentId referredByAgentName assignedAgentId subscription isBusinessConnected selectedBusiness chatbotMessageCount",
+        "fullName email phone referCode franchiseId createdAt leadStage leadStatus wallet remarksHistory userId source leadTags referredByAgentId referredByAgentName assignedAgentId subscription isBusinessConnected selectedBusiness chatbotMessageCount",
       )
       .sort({ createdAt: -1 });
 

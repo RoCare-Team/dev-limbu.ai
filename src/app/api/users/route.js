@@ -532,6 +532,7 @@ export async function GET(req) {
     ).trim();
     const remarkCount = searchParams.get("remarkCount");
     const chatbotChatDay = searchParams.get("chatbotChatDay");
+    const franchiseLeads = searchParams.get("franchiseLeads");
 
     if (!email) {
       return NextResponse.json(
@@ -942,6 +943,11 @@ export async function GET(req) {
     const remarkCountMatch = getRemarkCountMatch(remarkCount);
     if (remarkCountMatch) {
       query = { ...query, ...remarkCountMatch };
+    }
+
+    // Franchise Leads filter
+    if (franchiseLeads === "true") {
+      query.franchiseId = { $ne: null };
     }
 
     if (search) {

@@ -13,6 +13,8 @@ export default function Page() {
 
   const [loading, setLoading] = useState(true);
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [sheets, setSheets] = useState([]);
 
   const [selectedRows, setSelectedRows] = useState([]);
@@ -28,9 +30,19 @@ export default function Page() {
   const startIndex = (currentPage - 1) * usersPerPage;
   const endIndex = startIndex + usersPerPage;
 
-  const paginatedData = sheetRows.slice(startIndex, endIndex);
+  const filteredRows = data.slice(1).filter((row) =>
+    row.some((cell) =>
+      String(cell || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
+    ),
+  );
 
-  const totalPages = Math.ceil(sheetRows.length / usersPerPage);
+  const paginatedData = filteredRows.slice(startIndex, endIndex);
+
+  const totalPages = Math.ceil(filteredRows.length / usersPerPage);
+
+  const [sendingTemplateId, setSendingTemplateId] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/sheets-list")
@@ -53,57 +65,53 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-  setLoading(true);
+    setLoading(true);
 
-  fetch(`/api/admin/sheets?sheet=${sheet}`)
-    .then((res) => res.json())
-    .then((result) => {
+    fetch(`/api/admin/sheets?sheet=${sheet}`)
+      .then((res) => res.json())
+      .then((result) => {
+        const uniqueData = [];
 
-      const uniqueData = [];
+        const seen = new Set();
 
-const seen = new Set();
+        (result.data || []).forEach((row, index) => {
+          // HEADER
+          if (index === 0) {
+            uniqueData.push(row);
+            return;
+          }
 
-(result.data || []).forEach((row, index) => {
+          const businessName = String(row[0] || "")
+            .trim()
+            .toLowerCase();
 
-  // HEADER
-  if (index === 0) {
-    uniqueData.push(row);
-    return;
-  }
+          const phone = String(row[2] || "")
+            .replace(/\D/g, "")
+            .replace(/^91/, "");
 
-  const businessName =
-    String(row[0] || "").trim().toLowerCase();
+          // IF PHONE EMPTY → KEEP ROW
+          if (!phone) {
+            uniqueData.push(row);
+            return;
+          }
 
-  const phone =
-    String(row[2] || "")
-      .replace(/\D/g, "")
-      .replace(/^91/, "");
+          const key = `${businessName}-${phone}`;
 
-  // IF PHONE EMPTY → KEEP ROW
-  if (!phone) {
-    uniqueData.push(row);
-    return;
-  }
+          if (!seen.has(key)) {
+            seen.add(key);
 
-  const key = `${businessName}-${phone}`;
+            uniqueData.push(row);
+          }
+        });
 
-  if (!seen.has(key)) {
+        setData(uniqueData);
 
-    seen.add(key);
-
-    uniqueData.push(row);
-  }
-});
-
-setData(uniqueData);
-
-      setData(uniqueData);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-
-}, [sheet]);
+        setData(uniqueData);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [sheet]);
 
   const toggleRow = (rowIndex) => {
     setSelectedRows((prev) =>
@@ -113,18 +121,25 @@ setData(uniqueData);
     );
   };
 
+  const allRows = filteredRows;
+
   const toggleAll = () => {
-    if (selectedRows.length === sheetRows.length) {
+    if (selectedRows.length === allRows.length) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(sheetRows.map((_, i) => i));
+      setSelectedRows(allRows.map((_, i) => i));
     }
   };
 
-  const selectedUsers = [...selectedRows]
-    .sort((a, b) => a - b)
-    .map((rowIndex) => sheetRows[rowIndex])
-    .filter(Boolean);
+  const selectedUsers = data
+    .slice(1)
+    .filter((_, index) => selectedRows.includes(index));
+
+  const headers = data[0] || [];
+
+  const phoneIndex = headers.findIndex((h) =>
+    String(h).toLowerCase().includes("phone"),
+  );
 
   if (loading) {
     return (
@@ -146,6 +161,30 @@ setData(uniqueData);
     <>
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-4">Google Sheet Data</h1>
+
+        <div className="mb-4 flex justify-end">
+          <div className="flex gap-2 w-full max-w-md">
+            <input
+              type="text"
+              placeholder="Search business, phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setCurrentPage(1);
+                }
+              }}
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            <button
+              onClick={() => setCurrentPage(1)}
+              className="rounded-xl bg-blue-600 px-5 py-3 text-white font-semibold hover:bg-blue-700"
+            >
+              Search
+            </button>
+          </div>
+        </div>
 
         {/* SHEETS */}
         <div className="flex gap-4 mb-4 flex-wrap">
@@ -217,8 +256,8 @@ setData(uniqueData);
                     <input
                       type="checkbox"
                       checked={
-                        selectedRows.length === sheetRows.length &&
-                        sheetRows.length > 0
+                        selectedRows.length === data.slice(1).length &&
+                        data.slice(1).length > 0
                       }
                       onChange={toggleAll}
                       className="h-4 w-4 cursor-pointer"
@@ -238,81 +277,85 @@ setData(uniqueData);
 
               {/* BODY */}
               <tbody className="bg-white">
-                {paginatedData.map((row, rowIndex) => (
-                  <tr
-                    key={rowIndex}
-                    className="group transition-all duration-200 hover:bg-gray-50 border-b border-gray-200 shadow-[0_1px_0_0_#e5e7eb]"
-                  >
-                    <td className="px-6 py-5 border-b border-gray-200">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.includes(startIndex + rowIndex)}
-                        onChange={() => toggleRow(startIndex + rowIndex)}
-                        className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
+                {paginatedData.map((row, rowIndex) => {
+                  const globalIndex = startIndex + rowIndex;
 
-                    {row.map((cell, cellIndex) => (
-                      <td
-                        key={cellIndex}
-                        className="px-6 py-5 border-b border-gray-200 align-top"
-                      >
-                        {cellIndex === 1 ? (
-                          <details className="max-w-[240px] group/details">
-                            <summary className="list-none cursor-pointer">
-                              <div className="text-gray-700 text-sm leading-6 line-clamp-2">
+                  return (
+                    <tr
+                      key={rowIndex}
+                      className="group transition-all duration-200 hover:bg-gray-50 border-b border-gray-200 shadow-[0_1px_0_0_#e5e7eb]"
+                    >
+                      <td className="px-6 py-5 border-b border-gray-200">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(globalIndex)}
+                          onChange={() => toggleRow(globalIndex)}
+                          className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={cellIndex}
+                          className="px-6 py-5 border-b border-gray-200 align-top"
+                        >
+                          {cellIndex === 1 ? (
+                            <details className="max-w-[240px] group/details">
+                              <summary className="list-none cursor-pointer">
+                                <div className="text-gray-700 text-sm leading-6 line-clamp-2">
+                                  {cell}
+                                </div>
+
+                                <span className="mt-1 inline-block text-xs font-medium text-blue-600 hover:underline">
+                                  See more
+                                </span>
+                              </summary>
+
+                              <div className="mt-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-600 leading-6 border border-gray-200">
                                 {cell}
                               </div>
-
-                              <span className="mt-1 inline-block text-xs font-medium text-blue-600 hover:underline">
-                                See more
-                              </span>
-                            </summary>
-
-                            <div className="mt-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-600 leading-6 border border-gray-200">
-                              {cell}
+                            </details>
+                          ) : (
+                            <div
+                              className={`${
+                                cellIndex === 2 ||
+                                cellIndex === 4 ||
+                                cellIndex === 5
+                                  ? "whitespace-nowrap"
+                                  : "break-words max-w-[260px]"
+                              }`}
+                            >
+                              {cellIndex === 3 && cell ? (
+                                <a
+                                  href={cell}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition"
+                                >
+                                  Visit
+                                </a>
+                              ) : cellIndex === 4 ? (
+                                <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                                  ⭐ {cell}
+                                </span>
+                              ) : cellIndex === 5 ? (
+                                <span className="inline-flex rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
+                                  {cell} Reviews
+                                </span>
+                              ) : (
+                                <span className="text-sm text-gray-700 leading-6">
+                                  {cellIndex === 2 && cell
+                                    ? `+91 ${cell.replace(/^0+/, "")}`
+                                    : cell}
+                                </span>
+                              )}
                             </div>
-                          </details>
-                        ) : (
-                          <div
-                            className={`${
-                              cellIndex === 2 ||
-                              cellIndex === 4 ||
-                              cellIndex === 5
-                                ? "whitespace-nowrap"
-                                : "break-words max-w-[260px]"
-                            }`}
-                          >
-                            {cellIndex === 3 && cell ? (
-                              <a
-                                href={cell}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition"
-                              >
-                                Visit
-                              </a>
-                            ) : cellIndex === 4 ? (
-                              <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                ⭐ {cell}
-                              </span>
-                            ) : cellIndex === 5 ? (
-                              <span className="inline-flex rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
-                                {cell} Reviews
-                              </span>
-                            ) : (
-                              <span className="text-sm text-gray-700 leading-6">
-                                {cellIndex === 2 && cell
-                                  ? `+91 ${cell.replace(/^0+/, "")}`
-                                  : cell}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -348,12 +391,18 @@ setData(uniqueData);
         isOpen={openWhatsappModal}
         setIsOpen={setOpenWhatsappModal}
         selectedCount={selectedRows.length}
+        sendingTemplateId={sendingTemplateId}
         onSendTemplate={async (template) => {
-          const numbers = selectedUsers.map(
-            (row) => `91${String(row[2]).replace(/\D/g, "")}`,
-          );
-
           try {
+            setSendingTemplateId(template.id);
+
+            const adminEmail = localStorage.getItem("email");
+
+            const usersPayload = selectedUsers.map((row) => ({
+              name: row[0] || "User",
+              phone: row[2] || "",
+            }));
+
             const response = await fetch(
               "/api/admin/user-management-template-whatsapp",
               {
@@ -362,27 +411,25 @@ setData(uniqueData);
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  adminEmail: "info@limbu.ai",
-
+                  adminEmail,
+                  users: usersPayload,
                   templateId: template.id,
-
-                  users: selectedUsers.map((row) => ({
-                    name: row[0],
-                    phone: row[2],
-                  })),
                 }),
               },
             );
 
             const result = await response.json();
 
-            console.log(result);
-
-            alert("WhatsApp Template Sent");
+            if (result.success) {
+              alert("WhatsApp Template Sent");
+            } else {
+              alert(result.message || "Failed To Send");
+            }
           } catch (error) {
             console.log(error);
-
             alert("Failed To Send Template");
+          } finally {
+            setSendingTemplateId("");
           }
         }}
       />

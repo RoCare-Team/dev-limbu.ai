@@ -3,9 +3,17 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import PinterestProfile from "@/models/PinterestProfile";
 
-const PINTEREST_API = "https://api-sandbox.pinterest.com/v5";
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-function getPinterestPublishErrorMessage(error) {
+const PINTEREST_API = "https://api-sandbox.pinterest.com/v5";
+// Switch to production: const PINTEREST_API = "https://api.pinterest.com/v5";
+
+const POLL_INTERVAL_MS = 5000;
+const POLL_MAX_ATTEMPTS = 20;
+
+// ─── Error helper ─────────────────────────────────────────────────────────────
+
+function getPinterestErrorMessage(error) {
   const status = error.response?.status;
   const data = error.response?.data;
   const message =
@@ -19,14 +27,15 @@ function getPinterestPublishErrorMessage(error) {
   console.error("Full Response:", JSON.stringify(data, null, 2));
   console.error("=========================================");
 
-  if (status === 401)
-    return "Pinterest session expired. Please reconnect your account.";
-  if (status === 403 || /scope|permission|unauthorized/i.test(message)) {
+  if (status === 401) return "Pinterest session expired. Please reconnect your account.";
+  if (status === 403 || /scope|permission|unauthorized/i.test(message))
     return "Pinterest pin create permission is missing. Please reconnect Pinterest and allow pin create access.";
-  }
+  if (status === 429) return "Pinterest rate limit hit. Please try again in a few minutes.";
 
   return message || `Pinterest API Error (${status || "unknown"})`;
 }
+
+// ─── Step 1: Register video upload ───────────────────────────────────────────
 
 async function registerVideoUpload(accessToken) {
   const response = await axios.post(
@@ -37,24 +46,39 @@ async function registerVideoUpload(accessToken) {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-    },
+    }
   );
-  console.log(
-    "📋 Register video upload response:",
-    JSON.stringify(response.data, null, 2),
-  );
-  return response.data;
+
+  const { media_id, upload_url, upload_parameters } = response.data;
+
+  if (!media_id || !upload_url || !upload_parameters) {
+    throw new Error(
+      `Pinterest register video response missing fields: ${JSON.stringify(response.data)}`
+    );
+  }
+
+  // media_id MUST be a string of digits per Pinterest schema: { type: "string", pattern: "^\d+$" }
+  const mediaIdStr = String(media_id);
+  console.log("📋 Registered video. media_id:", mediaIdStr, "| upload_url:", upload_url);
+  return { media_id: mediaIdStr, upload_url, upload_parameters };
 }
 
+// ─── Step 2: Upload video binary to S3 presigned URL ─────────────────────────
+
 async function uploadVideoToS3(uploadUrl, uploadParameters, videoUrl) {
+  console.log("⬇️  Fetching video from:", videoUrl);
+
   const videoResponse = await axios.get(videoUrl, {
     responseType: "arraybuffer",
+    timeout: 60000,
   });
   const videoBuffer = Buffer.from(videoResponse.data);
+  console.log("📦 Video buffer size:", videoBuffer.length, "bytes");
 
   const FormData = (await import("form-data")).default;
   const form = new FormData();
 
+  // Upload parameters MUST come before "file"
   for (const [key, value] of Object.entries(uploadParameters)) {
     form.append(key, value);
   }
@@ -63,219 +87,193 @@ async function uploadVideoToS3(uploadUrl, uploadParameters, videoUrl) {
     contentType: "video/mp4",
   });
 
-  await axios.post(uploadUrl, form, {
+  const s3Res = await axios.post(uploadUrl, form, {
     headers: { ...form.getHeaders() },
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
+    timeout: 120000,
   });
+
+  console.log("✅ S3 upload complete. HTTP status:", s3Res.status);
 }
 
-async function waitForVideoProcessing(accessToken, mediaId, maxAttempts = 20) {
+// ─── Step 3: Poll until Pinterest processes the video ─────────────────────────
+
+async function waitForVideoProcessing(accessToken, mediaId, maxAttempts = POLL_MAX_ATTEMPTS) {
   for (let i = 0; i < maxAttempts; i++) {
     const response = await axios.get(`${PINTEREST_API}/media/${mediaId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const status = response.data.status;
-    console.log(
-      `⏳ Video processing attempt ${i + 1}/${maxAttempts}, status: ${status}`,
-    );
+    console.log(`⏳ Video processing attempt ${i + 1}/${maxAttempts}, status: ${status}`);
 
     if (status === "succeeded") return true;
-    if (status === "failed")
-      throw new Error("Pinterest video processing failed.");
+    if (status === "failed") throw new Error("Pinterest video processing failed.");
 
-    await new Promise((res) => setTimeout(res, 5000));
+    await new Promise((res) => setTimeout(res, POLL_INTERVAL_MS));
   }
   throw new Error("Pinterest video processing timed out.");
 }
 
-// ✅ Cover image ko base64 mein convert karna
+// ─── Cover image → base64 ─────────────────────────────────────────────────────
+
 async function getCoverImageBase64(coverImageUrl) {
   const imageResponse = await axios.get(coverImageUrl, {
     responseType: "arraybuffer",
+    timeout: 30000,
   });
   const base64Data = Buffer.from(imageResponse.data).toString("base64");
 
   const ext = (
-    coverImageUrl.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)?.[1] || "jpeg"
+    coverImageUrl.match(/\.(jpg|jpeg|png)(\?|$)/i)?.[1] || "jpeg"
   ).toLowerCase();
-  const contentTypeMap = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-  };
-  const contentType = contentTypeMap[ext] || "image/jpeg";
+
+  // Pinterest only accepts image/jpeg or image/png for cover_image_content_type
+  const contentType = ext === "png" ? "image/png" : "image/jpeg";
 
   return { base64Data, contentType };
 }
 
-// ✅ Pin create karna with fallback chain
-async function createPinWithFallback(accessToken, basePayload, coverImageUrl) {
-  const isValidImageCover =
-    !!coverImageUrl && /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(coverImageUrl);
+// ─── Single pin POST ──────────────────────────────────────────────────────────
 
-  // ── Attempt 1: base64 cover image ──
-  if (isValidImageCover) {
+async function postPin(accessToken, payload) {
+  return axios.post(`${PINTEREST_API}/pins`, payload, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+// ─── Video pin fallback chain (Corrected Nesting) ─────────────────────────────
+
+async function createVideoPinWithFallback(accessToken, basePayload, coverImageUrl) {
+  const isValidCover =
+    !!coverImageUrl &&
+    /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(coverImageUrl);
+
+  // ── Attempt 0: cover_image_url as plain string inside media_source ──
+  if (isValidCover) {
     try {
-      console.log("🖼️ Attempt 1: Trying base64 cover image...");
-      const { base64Data, contentType } =
-        await getCoverImageBase64(coverImageUrl);
-
+      console.log("🔗 Attempt 0: cover_image_url as plain string...");
       const payload = {
         ...basePayload,
-        cover_image_content_type: contentType,
-        cover_image_data: base64Data,
-      };
-
-      console.log(
-        "📤 Payload (Attempt 1 - base64):",
-        JSON.stringify(
-          {
-            ...payload,
-            cover_image_data: "[BASE64]",
-          },
-          null,
-          2,
-        ),
-      );
-
-      const response = await axios.post(`${PINTEREST_API}/pins`, payload, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+        media_source: {
+          ...basePayload.media_source,
+          cover_image_url: coverImageUrl,
         },
-      });
-
-      console.log("✅ Attempt 1 succeeded (base64 cover)");
-      return response.data;
+      };
+      console.log("📤 Payload (Attempt 0):", JSON.stringify(payload, null, 2));
+      const res = await postPin(accessToken, payload);
+      console.log("✅ Attempt 0 succeeded");
+      return res.data;
     } catch (err) {
-      console.warn(
-        "⚠️ Attempt 1 failed (base64):",
-        JSON.stringify(err.response?.data || err.message),
-      );
+      console.warn("⚠️ Attempt 0 failed:", JSON.stringify(err.response?.data || err.message));
     }
   }
 
-  // ── Attempt 2: cover_image_key_frame_time as float ──
-  try {
-    console.log("🎞️ Attempt 2: Trying cover_image_key_frame_time: 1.0...");
-    const payload = {
-      ...basePayload,
-      cover_image_key_frame_time: 1.0,
-    };
-
-    console.log(
-      "📤 Payload (Attempt 2 - keyframe 1.0):",
-      JSON.stringify(payload, null, 2),
-    );
-
-    const response = await axios.post(`${PINTEREST_API}/pins`, payload, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    console.log("✅ Attempt 2 succeeded (keyframe 1.0)");
-    return response.data;
-  } catch (err) {
-    console.warn(
-      "⚠️ Attempt 2 failed (keyframe 1.0):",
-      JSON.stringify(err.response?.data || err.message),
-    );
+  // ── Attempt 1: base64 cover inside media_source ──
+  if (isValidCover) {
+    try {
+      console.log("🖼️  Attempt 1: base64 cover image...");
+      const { base64Data, contentType } = await getCoverImageBase64(coverImageUrl);
+      const payload = {
+        ...basePayload,
+        media_source: {
+          ...basePayload.media_source,
+          cover_image_content_type: contentType,
+          cover_image_data: base64Data,
+        },
+      };
+      console.log(
+        "📤 Payload (Attempt 1):",
+        JSON.stringify(
+          {
+            ...payload,
+            media_source: {
+              ...payload.media_source,
+              cover_image_data: "[BASE64_REDACTED]",
+            },
+          },
+          null,
+          2
+        )
+      );
+      const res = await postPin(accessToken, payload);
+      console.log("✅ Attempt 1 succeeded");
+      return res.data;
+    } catch (err) {
+      console.warn("⚠️ Attempt 1 failed:", JSON.stringify(err.response?.data || err.message));
+    }
   }
 
-  // ── Attempt 3: cover_image_key_frame_time: 0 as number ──
+  // ── Attempt 2: keyframe integer 1 inside media_source ──
   try {
-    console.log("🎞️ Attempt 3: Trying cover_image_key_frame_time: 0...");
+    console.log("🎞️  Attempt 2: cover_image_key_frame_time: 1 (integer)...");
     const payload = {
       ...basePayload,
-      cover_image_key_frame_time: 0,
-    };
-
-    console.log(
-      "📤 Payload (Attempt 3 - keyframe 0):",
-      JSON.stringify(payload, null, 2),
-    );
-
-    const response = await axios.post(`${PINTEREST_API}/pins`, payload, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+      media_source: {
+        ...basePayload.media_source,
+        cover_image_key_frame_time: 1,
       },
-    });
-
-    console.log("✅ Attempt 3 succeeded (keyframe 0)");
-    return response.data;
+    };
+    console.log("📤 Payload (Attempt 2):", JSON.stringify(payload, null, 2));
+    const res = await postPin(accessToken, payload);
+    console.log("✅ Attempt 2 succeeded");
+    return res.data;
   } catch (err) {
-    console.warn(
-      "⚠️ Attempt 3 failed (keyframe 0):",
-      JSON.stringify(err.response?.data || err.message),
-    );
+    console.warn("⚠️ Attempt 2 failed:", JSON.stringify(err.response?.data || err.message));
   }
 
-  // ── Attempt 4: cover fields bilkul nahi bhejna ──
+  // ── Attempt 3: keyframe integer 0 inside media_source ──
   try {
-    console.log("🚫 Attempt 4: Trying without any cover image field...");
-    console.log(
-      "📤 Payload (Attempt 4 - no cover):",
-      JSON.stringify(basePayload, null, 2),
-    );
-
-    const response = await axios.post(`${PINTEREST_API}/pins`, basePayload, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+    console.log("🎞️  Attempt 3: cover_image_key_frame_time: 0 (integer)...");
+    const payload = {
+      ...basePayload,
+      media_source: {
+        ...basePayload.media_source,
+        cover_image_key_frame_time: 0,
       },
-    });
-
-    console.log("✅ Attempt 4 succeeded (no cover)");
-    return response.data;
+    };
+    console.log("📤 Payload (Attempt 3):", JSON.stringify(payload, null, 2));
+    const res = await postPin(accessToken, payload);
+    console.log("✅ Attempt 3 succeeded");
+    return res.data;
   } catch (err) {
-    console.error(
-      "❌ Attempt 4 also failed:",
-      JSON.stringify(err.response?.data || err.message),
-    );
-    // Last attempt ka error throw karo
+    console.warn("⚠️ Attempt 3 failed:", JSON.stringify(err.response?.data || err.message));
+  }
+
+  // ── Attempt 4: no cover fields at all ──
+  try {
+    console.log("🚫 Attempt 4: no cover fields...");
+    console.log("📤 Payload (Attempt 4):", JSON.stringify(basePayload, null, 2));
+    const res = await postPin(accessToken, basePayload);
+    console.log("✅ Attempt 4 succeeded");
+    return res.data;
+  } catch (err) {
+    console.error("❌ All attempts failed. Last error:", JSON.stringify(err.response?.data || err.message));
     throw err;
   }
 }
+
+// ─── Main POST handler ────────────────────────────────────────────────────────
 
 export async function POST(req) {
   try {
     await dbConnect();
 
     const body = await req.json();
-    const {
-      userId,
-      title,
-      description,
-      board_id,
-      media_url,
-      link,
-      cover_image_url,
-    } = body;
+    const { userId, title, description, board_id, media_url, link, cover_image_url } = body;
 
     console.log("========== INCOMING REQUEST ==========");
-    console.log(
-      JSON.stringify(
-        { userId, title, board_id, media_url, link, cover_image_url },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify({ userId, title, board_id, media_url, link, cover_image_url }, null, 2));
     console.log("======================================");
 
     if (!userId || !board_id || !media_url) {
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Missing required fields: userId, board_id, and media_url are required.",
-        },
-        { status: 400 },
+        { success: false, error: "Missing required fields: userId, board_id, and media_url are required." },
+        { status: 400 }
       );
     }
 
@@ -284,77 +282,74 @@ export async function POST(req) {
       "boards.boardId": board_id,
     });
 
-    if (!profile || !profile.accessToken) {
+    if (!profile?.accessToken) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Pinterest account not connected or board not found.",
-        },
-        { status: 404 },
+        { success: false, error: "Pinterest account not connected or board not found." },
+        { status: 404 }
       );
     }
 
     const isVideo = /\.(mp4|mov|avi|webm|mkv)(\?.*)?$/i.test(media_url);
 
-    console.log("========== PINTEREST MEDIA ==========");
+    console.log("========== MEDIA INFO ==========");
     console.log("Media URL:", media_url);
     console.log("Is Video:", isVideo);
-    console.log("Cover Image URL:", cover_image_url);
-    console.log("====================================");
-
-    let mediaSource;
-
-    if (isVideo) {
-      console.log("🎬 Starting Pinterest video upload flow...");
-
-      const { media_id, upload_url, upload_parameters } =
-        await registerVideoUpload(profile.accessToken);
-      console.log("✅ media_id:", media_id);
-
-      await uploadVideoToS3(upload_url, upload_parameters, media_url);
-      console.log("✅ Video uploaded to S3");
-
-      await waitForVideoProcessing(profile.accessToken, media_id);
-      console.log("✅ Video processing complete");
-
-      mediaSource = {
-        source_type: "video_id",
-        media_id: String(media_id),
-      };
-    } else {
-      mediaSource = {
-        source_type: "image_url",
-        url: media_url,
-      };
-    }
-
-    // ✅ Base payload — cover fields nahi hain abhi
-    const basePayload = {
-      board_id,
-      media_source: mediaSource,
-      title: title || "",
-      description: description || "",
-    };
-
-    if (link) basePayload.link = link;
+    console.log("Cover Image URL:", cover_image_url || "(none)");
+    console.log("================================");
 
     let pinData;
 
     if (isVideo) {
-      // ✅ Fallback chain se try karo
-      pinData = await createPinWithFallback(
+      console.log("🎬 Starting video pin flow...");
+
+      // Step 1: Register
+      const { media_id, upload_url, upload_parameters } =
+        await registerVideoUpload(profile.accessToken);
+
+      // Step 2: Upload
+      await uploadVideoToS3(upload_url, upload_parameters, media_url);
+      console.log("✅ Video uploaded to S3");
+
+      // Step 3: Wait for processing
+      await waitForVideoProcessing(profile.accessToken, media_id);
+      console.log("✅ Video processing complete");
+
+      // Step 4: Build base payload
+      const basePayload = {
+        board_id,
+        title: title || "",
+        description: description || "",
+        ...(link ? { link } : {}),
+        media_source: {
+          source_type: "video_id",
+          media_id: media_id,
+        },
+      };
+
+      console.log("🔍 media_source:", JSON.stringify(basePayload.media_source));
+
+      // Step 5: Try creating pin with cover fallback chain
+      pinData = await createVideoPinWithFallback(
         profile.accessToken,
         basePayload,
-        cover_image_url,
+        cover_image_url
       );
     } else {
-      // Image pin — seedha post karo
-      const response = await axios.post(`${PINTEREST_API}/pins`, basePayload, {
-        headers: {
-          Authorization: `Bearer ${profile.accessToken}`,
-          "Content-Type": "application/json",
+      console.log("🖼️  Creating image pin...");
+
+      const imagePayload = {
+        board_id,
+        title: title || "",
+        description: description || "",
+        ...(link ? { link } : {}),
+        media_source: {
+          source_type: "image_url",
+          url: media_url,
         },
-      });
+      };
+
+      console.log("📤 Image pin payload:", JSON.stringify(imagePayload, null, 2));
+      const response = await postPin(profile.accessToken, imagePayload);
       pinData = response.data;
     }
 
@@ -366,17 +361,12 @@ export async function POST(req) {
       pin: pinData,
     });
   } catch (error) {
-    console.error(
-      "Pinterest Publish Error:",
-      error.response?.data || error.message,
-    );
-    const message = getPinterestPublishErrorMessage(error);
+    console.error("Pinterest Publish Error:", error.response?.data || error.message);
+    const message = getPinterestErrorMessage(error);
     const status =
-      error.response?.status === 401
-        ? 401
-        : error.response?.status === 403
-          ? 403
-          : 500;
+      error.response?.status === 401 ? 401
+      : error.response?.status === 403 ? 403
+      : 500;
 
     return NextResponse.json({ success: false, error: message }, { status });
   }

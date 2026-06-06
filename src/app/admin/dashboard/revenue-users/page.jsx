@@ -29,6 +29,7 @@ export default function RevenueUsersPage() {
   const [expiryFilter, setExpiryFilter] = useState("");
 
   const [invoiceUrls, setInvoiceUrls] = useState({});
+  const [sendingEmailId, setSendingEmailId] = useState(null);
 
   //service
 
@@ -438,6 +439,34 @@ export default function RevenueUsersPage() {
     }
   };
 
+  const handleSendInvoiceEmail = async (r) => {
+    try {
+      setSendingEmailId(r._id);
+
+      const res = await fetch("/api/admin/send-invoice-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          revenueId: r._id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("✅ Invoice sent successfully");
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Failed to send invoice");
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
   // filter and search ===============
   const filteredData = (
     activeView === "package" ? revenueUsersList : users
@@ -917,7 +946,21 @@ export default function RevenueUsersPage() {
                                     </button>
                                   )}
 
+                                  {/* Send Email */}
+                                  {invoiceUrls[r._id] && (
+                                    <button
+                                      onClick={() => handleSendInvoiceEmail(r)}
+                                      disabled={sendingEmailId === r._id}
+                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
+                                    >
+                                      {sendingEmailId === r._id
+                                        ? "Sending..."
+                                        : "Send Email"}
+                                    </button>
+                                  )}
+
                                   {/* Send WhatsApp - ONLY after download */}
+
                                   {invoiceUrls[r._id] && (
                                     <button
                                       onClick={() =>
@@ -1152,11 +1195,22 @@ export default function RevenueUsersPage() {
                                     </button>
                                   )}
 
-                                  {/* Send WhatsApp */}
+                                  {invoiceUrls[u._id] && (
+                                    <button
+                                      onClick={() => handleSendInvoiceEmail(u)}
+                                      disabled={sendingEmailId === u._id}
+                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
+                                    >
+                                      {sendingEmailId === u._id
+                                        ? "Sending..."
+                                        : "Send Email"}
+                                    </button>
+                                  )}
+
                                   {invoiceUrls[u._id] && (
                                     <button
                                       onClick={() =>
-                                        handleSendInvoiceWhatsApp(u)
+                                        handleSendInvoiceWhatsApp(r)
                                       }
                                       className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
                                     >

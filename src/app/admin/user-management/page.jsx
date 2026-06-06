@@ -301,7 +301,7 @@ export default function UserManagement() {
   // remark
   const [planRemarks, setplanRemarks] = useState("");
 
-  console.log("uses data in user-management:", users);
+  // console.log("uses data in user-management:", users);
 
 
   const tableRef = useRef(null);
@@ -668,8 +668,8 @@ export default function UserManagement() {
   const res = await fetch(`/api/users?${params.toString()}`);
   const data = await res.json();
 
-  console.log("ALL IDS API", data.totalUsers);
-console.log("ALL IDS USERS", data.users.length);
+  // console.log("ALL IDS API", data.totalUsers);
+// console.log("ALL IDS USERS", data.users.length);
 
 if (data.success) {
   const ids = data.users.map((u) => String(u.userId));

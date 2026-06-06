@@ -12,8 +12,8 @@ export async function POST(req) {
 
     const revenue = await FranchiseRevenue.findById(revenueId);
 
-    console.log("Revenue Type:", revenue.type);
-    console.log("Revenue Plan:", revenue.plan);
+    // console.log("Revenue Type:", revenue.type);
+    // console.log("Revenue Plan:", revenue.plan);
 
     if (!revenue) {
       return NextResponse.json(
@@ -50,7 +50,7 @@ export async function POST(req) {
 
     const itemType = revenue.type === "service" ? "service" : "package";
 
-    console.log("ITEM TYPE:", itemType);
+    
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,

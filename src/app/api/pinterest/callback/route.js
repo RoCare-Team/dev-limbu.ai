@@ -9,8 +9,8 @@ export async function GET(req) {
     await dbConnect();
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const stateParam = url.searchParams.get("state"); 
-    
+    const stateParam = url.searchParams.get("state");
+
     let userId = stateParam;
     let isMobile = false;
 
@@ -29,8 +29,13 @@ export async function GET(req) {
     const baseUrl = getBaseUrl(req);
 
     if (!code || !userId) {
-      if (isMobile) return NextResponse.redirect(`limbuai://pinterest-error?error=missing_params`);
-      return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=missing_params`);
+      if (isMobile)
+        return NextResponse.redirect(
+          `limbuai://pinterest-error?error=missing_params`,
+        );
+      return NextResponse.redirect(
+        `${baseUrl}/dashboard?pinterest=missing_params`,
+      );
     }
 
     const clientId = process.env.PINTEREST_CLIENT_ID;
@@ -38,22 +43,24 @@ export async function GET(req) {
     const redirectUri = `${baseUrl}/api/pinterest/callback`;
 
     // Pinterest requires Basic Auth header for token exchange
-    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString(
+      "base64",
+    );
 
     // 1️⃣ Exchange Authorization Code for Access Token
     const tokenRes = await axios.post(
-      "https://api.pinterest.com/v5/oauth/token",
+      "https://api-sandbox.pinterest.com/v5/oauth/token",
       new URLSearchParams({
         grant_type: "authorization_code",
         code,
         redirect_uri: redirectUri,
       }),
-      { 
-        headers: { 
+      {
+        headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization": `Basic ${authHeader}`
-        } 
-      }
+          Authorization: `Basic ${authHeader}`,
+        },
+      },
     );
 
     const { access_token, refresh_token, expires_in } = tokenRes.data;
@@ -62,25 +69,39 @@ export async function GET(req) {
     // 2️⃣ Fetch User Profile Data
     let profileData = {};
     try {
-      const profileRes = await axios.get("https://api.pinterest.com/v5/user_account", {
-        headers: { Authorization: `Bearer ${access_token}` },
-      });
+      const profileRes = await axios.get(
+        "https://api-sandbox.pinterest.com/v5/user_account",
+        {
+          headers: { Authorization: `Bearer ${access_token}` },
+        },
+      );
       profileData = profileRes.data || {};
     } catch (error) {
-      console.error("Failed to fetch Pinterest profile:", error.response?.data || error.message);
-      if (isMobile) return NextResponse.redirect(`limbuai://pinterest-error?error=profile_error`);
-      return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=profile_error`);
+      console.error(
+        "Failed to fetch Pinterest profile:",
+        error.response?.data || error.message,
+      );
+      if (isMobile)
+        return NextResponse.redirect(
+          `limbuai://pinterest-error?error=profile_error`,
+        );
+      return NextResponse.redirect(
+        `${baseUrl}/dashboard?pinterest=profile_error`,
+      );
     }
 
     // 3️⃣ Fetch User Boards
     let boardsList = [];
     try {
-      const boardsRes = await axios.get("https://api.pinterest.com/v5/boards", {
+      const boardsRes = await axios.get("https://api-sandbox.pinterest.com/v5/boards", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
       boardsList = boardsRes.data.items || [];
     } catch (error) {
-      console.error("Failed to fetch Pinterest boards:", error.response?.data || error.message);
+      console.error(
+        "Failed to fetch Pinterest boards:",
+        error.response?.data || error.message,
+      );
     }
 
     // 4️⃣ Fetch Pins per Board & format the boards array
@@ -88,12 +109,18 @@ export async function GET(req) {
     for (const board of boardsList) {
       let boardPins = [];
       try {
-        const pinsRes = await axios.get(`https://api.pinterest.com/v5/boards/${board.id}/pins`, {
-          headers: { Authorization: `Bearer ${access_token}` },
-        });
+        const pinsRes = await axios.get(
+          `https://api-sandbox.pinterest.com/v5/boards/${board.id}/pins`,
+          {
+            headers: { Authorization: `Bearer ${access_token}` },
+          },
+        );
         boardPins = pinsRes.data.items || [];
       } catch (error) {
-        console.error(`Failed to fetch pins for board ${board.id}:`, error.response?.data || error.message);
+        console.error(
+          `Failed to fetch pins for board ${board.id}:`,
+          error.response?.data || error.message,
+        );
       }
 
       boardsWithPins.push({
@@ -101,14 +128,14 @@ export async function GET(req) {
         boardName: board.name,
         boardUrl: board.url,
         description: board.description,
-        pins: boardPins
+        pins: boardPins,
       });
     }
 
     // 5️⃣ Save/Update the entire Profile Document
     // Use consistent ID assignment to prevent duplicates on reconnect
     const resolvedPinterestId = profileData.id;
-    
+
     await PinterestProfile.findOneAndUpdate(
       { userId, pinterestUserId: resolvedPinterestId },
       {
@@ -124,18 +151,24 @@ export async function GET(req) {
         tokenExpiresAt: expiresAt,
         platform: "pinterest",
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     if (isMobile) {
-      return NextResponse.redirect(`limbuai://pinterest-success?status=connected`);
+      return NextResponse.redirect(
+        `limbuai://pinterest-success?status=connected`,
+      );
     }
 
     return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=connected`);
   } catch (err) {
-    console.error("PINTEREST CALLBACK ERROR:", err.response?.data || err.message);
+    console.error("========== PINTEREST ERROR ==========");
+    console.error("Status:", err.response?.status);
+    console.error("Data:", err.response?.data);
+    console.error("Message:", err.message);
+    console.error("====================================");
     const baseUrl = getBaseUrl(req);
-    // Note: isMobile might not be defined here if it failed very early, 
+    // Note: isMobile might not be defined here if it failed very early,
     // but try-catch block for stateParam is above this.
     // However, to be safe:
     const stateParam = new URL(req.url).searchParams.get("state");
@@ -143,9 +176,10 @@ export async function GET(req) {
     try {
       const decodedState = JSON.parse(decodeURIComponent(stateParam));
       isMobile = decodedState.mobile === true;
-    } catch(e) {}
+    } catch (e) {}
 
-    if (isMobile) return NextResponse.redirect(`limbuai://pinterest-error?error=unknown`);
+    if (isMobile)
+      return NextResponse.redirect(`limbuai://pinterest-error?error=unknown`);
     return NextResponse.redirect(`${baseUrl}/dashboard?pinterest=error`);
   }
 }

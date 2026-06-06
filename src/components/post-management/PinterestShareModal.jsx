@@ -9,6 +9,7 @@ export default function PinterestShareModal({
   pinterestProfiles,
   onPost,
   onCreateBoard,
+  coverImageUrl,
 }) {
   const [selectedBoardId, setSelectedBoardId] = useState(null);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
@@ -27,7 +28,7 @@ export default function PinterestShareModal({
     setIsPublishing(true);
     setPublishError("");
 
-    const result = await onPost(post, selectedBoardId);
+    const result = await onPost(post, selectedBoardId, coverImageUrl);
 
     if (result && !result.success) {
       setPublishError(result.error || "An unknown error occurred while publishing to Pinterest.");

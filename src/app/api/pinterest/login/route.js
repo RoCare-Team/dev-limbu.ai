@@ -7,27 +7,42 @@ export async function GET(req) {
     const userId = url.searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "userId is required" },
+        { status: 400 },
+      );
     }
 
     const clientId = process.env.PINTEREST_CLIENT_ID;
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/pinterest/callback`;
-    
+
     // Check if the request is from a mobile app
     const mobile = url.searchParams.get("mobile") === "true";
-    
+
     // Encode userId and mobile flag into state
-    const state = encodeURIComponent(JSON.stringify({ userId, mobile })); 
-    
+    const state = encodeURIComponent(JSON.stringify({ userId, mobile }));
+
     // Scopes needed for fetching boards and creating pins
-    const scope = "user_accounts:read,boards:read,boards:write,pins:read,pins:write";
-    
+    const scope =
+      "user_accounts:read,boards:read,boards:write,pins:read,pins:write";
+
     const pinterestAuthUrl = `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
 
     return NextResponse.redirect(pinterestAuthUrl);
   } catch (error) {
-    console.error("Pinterest Login Route Error:", error);
-    return NextResponse.json({ error: "Failed to generate login URL" }, { status: 500 });
+    console.error("========== PINTEREST LOGIN ERROR ==========");
+    console.error("Message:", error?.message);
+    console.error("Stack:", error?.stack);
+    console.error("Full Error:", error);
+    console.error("==========================================");
+
+    return NextResponse.json(
+      {
+        error: "Failed to generate login URL",
+        message: error?.message,
+      },
+      { status: 500 },
+    );
   }
 }

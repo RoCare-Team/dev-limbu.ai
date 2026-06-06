@@ -23,10 +23,7 @@ const DemoSchema = new mongoose.Schema(
     phone: { type: String, required: true },
     seminarTime: { type: String, required: true },
     selectedDate: { type: String, required: true },
-    userCreated: {
-      type: Boolean,
-      default: false,
-    },
+    userCreated: { type: Boolean, default: false },
     status: { type: String, default: "Not Attended" },
   },
   { timestamps: true, collection: "demoBookings" },
@@ -37,14 +34,14 @@ const DemoBooking =
 
 // -------------------------
 // AGENT PHONE MAPPING
-// Admin model mein phone/mobile field nahi hai.
-// Agent ka fullName (lowercase) se number lookup hoga.
-// Sirf in agents ko WhatsApp template bheja jayega.
-// Naya agent add karne pe yahan ek line aur daalo.
+// DB se fullName aayega — exactly yahi keys rakho (case-insensitive match hoga)
+// "Imran Ahmed"  → key: "imran ahmed"
+// "Jahan singh"  → key: "jahan singh"
+// Naya agent aaye toh bas ek line add karo.
 // -------------------------
 const AGENT_PHONE_MAP = {
-  "jahan singh": "919311587741",
   "imran ahmed": "917065021272",
+  "jahan singh": "919311587741",
 };
 
 function getAgentPhoneByName(fullName) {
@@ -55,8 +52,8 @@ function getAgentPhoneByName(fullName) {
 
 // -------------------------
 // ROUND ROBIN — NEXT AGENT
-// Active agents ko createdAt se sort karke last assigned
-// User ke agent ke baad wala agent return karta hai.
+// Active agents ko createdAt ASC se sort karo,
+// phir last assigned user ke agent ke baad wala do.
 // -------------------------
 async function getNextAgent() {
   const agents = await Admin.find({
@@ -66,13 +63,16 @@ async function getNextAgent() {
 
   if (!agents.length) return null;
 
+  // Sabse recent assigned user dhundo
   const lastAssignedUser = await User.findOne({
     assignedAgentId: { $ne: null },
   })
     .sort({ createdAt: -1 })
     .select("assignedAgentId");
 
+  // Koi user assign nahi hua abhi tak → pehla agent do
   if (!lastAssignedUser) {
+    console.log(`Round Robin → First agent: ${agents[0].fullName}`);
     return agents[0];
   }
 
@@ -81,18 +81,20 @@ async function getNextAgent() {
   );
 
   if (currentIndex === -1) {
-    console.warn(
-      "Last assigned agent active agents mein nahi mila. agents[0] pe reset kar raha hoon.",
-    );
+    console.warn("Last agent active list mein nahi mila → agents[0] pe reset");
     return agents[0];
   }
 
   const nextIndex = (currentIndex + 1) % agents.length;
+  console.log(`Round Robin → Next agent: ${agents[nextIndex].fullName}`);
   return agents[nextIndex];
 }
 
 // -------------------------
 // WHATSAPP TEMPLATE SENDER
+// Agent ko lead assign hone ka template bhejta hai.
+// Template name: agent_demo_alert
+// Params order: [agentName, customerName, selectedDate, seminarTime, customerPhone]
 // -------------------------
 async function sendAgentLeadAssignedTemplate({
   agentName,
@@ -102,140 +104,63 @@ async function sendAgentLeadAssignedTemplate({
   selectedDate,
   seminarTime,
 }) {
-  try {
-    const whatsappNumber = agentPhone.replace(/\D/g, "");
-    const finalNumber = whatsappNumber.startsWith("91")
-      ? whatsappNumber
-      : `91${whatsappNumber}`;
+  // Number clean karo — sirf digits, aur 91 prefix ensure karo
+  const digits = agentPhone.replace(/\D/g, "");
+  const finalNumber = digits.startsWith("91") ? digits : `91${digits}`;
 
-    await fetch("https://whatsapp.limbu.ai/api/campaigns/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        apiKey: process.env.LIMBU_AI_WHATSAPP_KEY,
-        campaignName: "agent_demo_alert",
-        destination: finalNumber,
-        userName: "Limbu AI",
-        templateParams: [
-          agentName,
-          customerName,
-          selectedDate,
-          seminarTime,
-          customerPhone,
-        ],
-        source: "api",
-        media: {},
-        buttons: [],
-        carouselCards: [],
-        location: {},
-        attributes: {},
-        paramsFallbackValue: {},
-      }),
-    });
-  } catch (error) {
-    console.error("Agent Template Error:", error);
+  console.log(`📲 WhatsApp bhej raha hoon → ${agentName} (${finalNumber})`);
+
+  const payload = {
+    apiKey: process.env.LIMBU_AI_WHATSAPP_KEY,
+    campaignName: "agent_demo_alert",
+    destination: finalNumber,
+    userName: "Limbu AI",
+    templateParams: [
+      agentName, // {{1}} Agent ka naam
+      customerName, // {{2}} Customer ka naam
+      selectedDate, // {{3}} Demo date
+      seminarTime, // {{4}} Seminar time
+      customerPhone, // {{5}} Customer phone
+    ],
+    source: "api",
+    media: {},
+    buttons: [],
+    carouselCards: [],
+    location: {},
+    attributes: {},
+    paramsFallbackValue: {},
+  };
+
+  const res = await fetch("https://whatsapp.limbu.ai/api/campaigns/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const resText = await res.text();
+
+  if (!res.ok) {
+    console.error(`❌ WhatsApp API Error [${res.status}]:`, resText);
+    throw new Error(`WhatsApp API failed: ${res.status} — ${resText}`);
   }
+
+  console.log(
+    `✅ WhatsApp sent → ${agentName} (${finalNumber}) | Response: ${resText}`,
+  );
 }
 
 // -------------------------
-// SYNC → USER CREATE + AGENT ASSIGN + TEMPLATE SEND
-// GET se alag rakha hai taaki dashboard refresh pe sync na chale.
-// Is route ko cron job ya webhook se call karo.
-// Example: POST /api/demo-bookings/sync
-// -------------------------
-export async function SYNC() {
-  try {
-    await dbConnect();
-
-    // Sirf wo bookings lo jinke liye user abhi tak create nahi hua.
-    // Date filter nahi hai — timezone issue se bachne ke liye.
-    const pendingBookings = await DemoBooking.find({ userCreated: false });
-
-    const results = { success: 0, skipped: 0, errors: 0 };
-
-    for (const booking of pendingBookings) {
-      try {
-        const existingUser = await User.findOne({ phone: booking.phone });
-
-        if (!existingUser) {
-          const assignedAgent = await getNextAgent();
-          const totalUsers = await User.countDocuments();
-
-          await User.create({
-            userId: `USR${Date.now()}${totalUsers + 1}`,
-            fullName: booking.name,
-            phone: booking.phone,
-            email: `${booking.phone}@demo.local`,
-            source: "chatbot",
-            leadStage: "Active",
-            leadStatus: "",
-            assignedAgentId: assignedAgent?._id || null,
-            accountManager: assignedAgent?._id || null,
-            accountManagerName: assignedAgent?.fullName || null,
-            isServiceBooked: true,
-          });
-
-          // Agent ka phone AGENT_PHONE_MAP se lo — name ke basis pe.
-          // Agar agent map mein nahi hai toh template skip hoga (silently).
-          const agentPhone = getAgentPhoneByName(assignedAgent?.fullName);
-
-          if (agentPhone) {
-            await sendAgentLeadAssignedTemplate({
-              agentName: assignedAgent.fullName,
-              agentPhone,
-              customerName: booking.name,
-              customerPhone: booking.phone,
-              selectedDate: booking.selectedDate,
-              seminarTime: booking.seminarTime,
-            });
-            console.log(
-              `Template sent → Agent: ${assignedAgent.fullName} (${agentPhone})`,
-            );
-          } else {
-            console.warn(
-              `Agent "${assignedAgent?.fullName}" AGENT_PHONE_MAP mein nahi hai. Template skip kiya.`,
-            );
-          }
-
-          results.success++;
-        } else {
-          // Phone already registered hai — user create skip, sirf flag update karo
-          results.skipped++;
-        }
-
-        // Flag lagao taaki dobara process na ho
-        booking.userCreated = true;
-        await booking.save();
-      } catch (err) {
-        results.errors++;
-        console.error("Sync Error for booking:", booking._id, err);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Sync complete",
-      results,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 },
-    );
-  }
-}
-
-// -------------------------
-// POST → CREATE BOOKING
+// POST → BOOKING CREATE + USER CREATE + AGENT ASSIGN + WHATSAPP SEND
+// Sab kuch ek hi request mein hota hai.
 // -------------------------
 export async function POST(request) {
   try {
     await dbConnect();
+
     const { name, phone, seminarTime, selectedDate, status } =
       await request.json();
 
+    // Validation
     if (!name || !phone || !seminarTime || !selectedDate) {
       return NextResponse.json(
         { success: false, message: "All fields are required." },
@@ -243,6 +168,7 @@ export async function POST(request) {
       );
     }
 
+    // ── Step 1: Booking save karo ──────────────────────────────────
     const saved = await DemoBooking.create({
       name,
       phone,
@@ -252,6 +178,83 @@ export async function POST(request) {
       userCreated: false,
     });
 
+    console.log(`📝 Booking saved → ${name} (${phone})`);
+
+    // ── Step 2: User create + Agent assign + WhatsApp ──────────────
+    // Sync error se booking fail nahi hogi — alag try/catch hai.
+    try {
+      const existingUser = await User.findOne({ phone });
+
+      if (existingUser) {
+        // Phone already registered — user create skip
+        console.log(`ℹ️ Phone ${phone} already exists. User create skip.`);
+        saved.userCreated = true;
+        await saved.save();
+      } else {
+        // Agent round robin se lo
+        const assignedAgent = await getNextAgent();
+
+        if (!assignedAgent) {
+          console.warn(
+            "⚠️ Koi active agent nahi mila. User bina agent ke create hoga.",
+          );
+        }
+
+        // User create karo
+        const totalUsers = await User.countDocuments();
+        await User.create({
+          userId: `USR${Date.now()}${totalUsers + 1}`,
+          fullName: name,
+          phone,
+          email: `${phone}@demo.com`,
+          source: "chatbot",
+          leadStage: "Active",
+          leadStatus: "",
+          assignedAgentId: assignedAgent?._id || null,
+          accountManager: assignedAgent?._id || null,
+          accountManagerName: assignedAgent?.fullName || null,
+          isServiceBooked: true,
+        });
+
+        console.log(
+          `✅ User created → ${name} | Agent: ${assignedAgent?.fullName || "None"}`,
+        );
+
+        // WhatsApp template bhejo — sirf tab jab agent mila ho
+        if (assignedAgent) {
+          const agentPhone = getAgentPhoneByName(assignedAgent.fullName);
+
+          if (agentPhone) {
+            await sendAgentLeadAssignedTemplate({
+              agentName: assignedAgent.fullName,
+              agentPhone,
+              customerName: name,
+              customerPhone: phone,
+              selectedDate,
+              seminarTime,
+            });
+          } else {
+            // Agent DB mein hai lekin AGENT_PHONE_MAP mein nahi
+            console.warn(
+              `⚠️ Agent "${assignedAgent.fullName}" AGENT_PHONE_MAP mein nahi hai.\n` +
+                `   Fix: AGENT_PHONE_MAP mein "${assignedAgent.fullName.trim().toLowerCase()}" key add karo.`,
+            );
+          }
+        }
+
+        // Booking flag update karo
+        saved.userCreated = true;
+        await saved.save();
+      }
+    } catch (syncErr) {
+      // Sync fail — booking toh saved hai, sirf log karo
+      console.error(
+        "⚠️ Sync/WhatsApp error (booking saved hai):",
+        syncErr.message,
+      );
+    }
+
+    // ── Response ───────────────────────────────────────────────────
     return NextResponse.json({
       success: true,
       message: "Demo booked successfully!",
@@ -266,6 +269,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
+    console.error("POST /demo-bookings error:", error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 },
@@ -274,7 +278,7 @@ export async function POST(request) {
 }
 
 // -------------------------
-// GET → FETCH ALL BOOKINGS (sync logic bilkul nahi)
+// GET → FETCH ALL BOOKINGS
 // -------------------------
 export async function GET() {
   try {

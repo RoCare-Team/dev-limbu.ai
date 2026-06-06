@@ -2,21 +2,62 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Video, Users, Gift, ShieldCheck, ChevronLeft, ChevronRight, CalendarDays, X, Loader2, User, Smartphone, Building2 } from "lucide-react";
+import {
+  Clock,
+  Video,
+  Users,
+  Gift,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  X,
+  Loader2,
+  User,
+  Smartphone,
+  Building2,
+} from "lucide-react";
 import Navbar from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 
 const names = [
-  "Rajiv Kumar", "Sanjay Gupta", "Amit Sharma", "Pooja Verma",
-  "Rohit Singh", "Neha Patel", "Ankit Jain", "Priya Singh",
-  "Rahul Mehta", "Karan Malhotra", "Ayaan Khan", "Faizan Ali",
-  "Zaid Ahmed", "Imran Sheikh", "Sahil Ansari", "Arman Khan",
-  "Rehan Malik", "Asif Khan", "Nusrat Ali", "Saba Khan",
+  "Rajiv Kumar",
+  "Sanjay Gupta",
+  "Amit Sharma",
+  "Pooja Verma",
+  "Rohit Singh",
+  "Neha Patel",
+  "Ankit Jain",
+  "Priya Singh",
+  "Rahul Mehta",
+  "Karan Malhotra",
+  "Ayaan Khan",
+  "Faizan Ali",
+  "Zaid Ahmed",
+  "Imran Sheikh",
+  "Sahil Ansari",
+  "Arman Khan",
+  "Rehan Malik",
+  "Asif Khan",
+  "Nusrat Ali",
+  "Saba Khan",
 ];
 const cities = [
-  "Delhi", "Mumbai", "Jaipur", "Noida", "Lucknow", "Ahmedabad",
-  "Pune", "Indore", "Bhopal", "Surat", "Chandigarh", "Patna",
-  "Nagpur", "Gurgaon", "Hyderabad",
+  "Delhi",
+  "Mumbai",
+  "Jaipur",
+  "Noida",
+  "Lucknow",
+  "Ahmedabad",
+  "Pune",
+  "Indore",
+  "Bhopal",
+  "Surat",
+  "Chandigarh",
+  "Patna",
+  "Nagpur",
+  "Gurgaon",
+  "Hyderabad",
 ];
 
 function rand(arr) {
@@ -33,7 +74,20 @@ function CalendarDropdown({ value, onChange, onClose }) {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
   const year = viewDate.getFullYear();
@@ -53,11 +107,17 @@ function CalendarDropdown({ value, onChange, onClose }) {
   const isSelected = (d) => {
     if (!value || !d) return false;
     const sel = new Date(value);
-    return sel.getFullYear() === year && sel.getMonth() === month && sel.getDate() === d;
+    return (
+      sel.getFullYear() === year &&
+      sel.getMonth() === month &&
+      sel.getDate() === d
+    );
   };
 
   const isToday = (d) =>
-    today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+    today.getFullYear() === year &&
+    today.getMonth() === month &&
+    today.getDate() === d;
 
   const handleSelect = (d) => {
     if (!d || isPast(d)) return;
@@ -68,20 +128,33 @@ function CalendarDropdown({ value, onChange, onClose }) {
   return (
     <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-[260px] mb-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-        <button type="button" onClick={prevMonth}
-          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all"
+        >
           <ChevronLeft size={14} />
         </button>
-        <span className="text-xs font-bold text-slate-800 tracking-wide">{MONTHS[month]} {year}</span>
-        <button type="button" onClick={nextMonth}
-          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all">
+        <span className="text-xs font-bold text-slate-800 tracking-wide">
+          {MONTHS[month]} {year}
+        </span>
+        <button
+          type="button"
+          onClick={nextMonth}
+          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all"
+        >
           <ChevronRight size={14} />
         </button>
       </div>
       <div className="p-2">
         <div className="grid grid-cols-7 mb-1">
           {DAYS.map((d) => (
-            <div key={d} className="text-center text-[10px] font-semibold text-slate-400 py-0.5">{d}</div>
+            <div
+              key={d}
+              className="text-center text-[10px] font-semibold text-slate-400 py-0.5"
+            >
+              {d}
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -90,13 +163,22 @@ function CalendarDropdown({ value, onChange, onClose }) {
             const selected = isSelected(d);
             const todayCell = isToday(d);
             return (
-              <button key={i} type="button" disabled={!d || past} onClick={() => handleSelect(d)}
+              <button
+                key={i}
+                type="button"
+                disabled={!d || past}
+                onClick={() => handleSelect(d)}
                 className={`relative w-full aspect-square flex items-center justify-center rounded-md text-xs font-medium transition-all
                   ${!d ? "invisible" : ""}
                   ${past ? "text-slate-300 cursor-not-allowed" : "cursor-pointer"}
-                  ${selected
-                    ? "bg-gradient-to-br from-yellow-400 to-amber-400 text-black font-black shadow-md shadow-yellow-400/20"
-                    : !past && d ? "hover:bg-slate-100 text-slate-700 hover:text-slate-900" : ""}`}>
+                  ${
+                    selected
+                      ? "bg-gradient-to-br from-yellow-400 to-amber-400 text-black font-black shadow-md shadow-yellow-400/20"
+                      : !past && d
+                        ? "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                        : ""
+                  }`}
+              >
                 {d}
                 {todayCell && !selected && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-yellow-500" />
@@ -128,13 +210,16 @@ function DatePickerField({ value, onChange }) {
       return;
     }
     const d = new Date(value);
-    setTextVal(`${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`);
+    setTextVal(
+      `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`,
+    );
   }, [value]);
 
   /* outside click closes calendar */
   useEffect(() => {
     const handler = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setCalOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target))
+        setCalOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -147,7 +232,8 @@ function DatePickerField({ value, onChange }) {
 
     let formatted = raw;
     if (raw.length >= 3) formatted = raw.slice(0, 2) + "/" + raw.slice(2);
-    if (raw.length >= 5) formatted = raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
+    if (raw.length >= 5)
+      formatted = raw.slice(0, 2) + "/" + raw.slice(2, 4) + "/" + raw.slice(4);
 
     setTextVal(formatted);
     setInputError("");
@@ -157,9 +243,14 @@ function DatePickerField({ value, onChange }) {
       const mm = parseInt(raw.slice(2, 4), 10) - 1;
       const yyyy = parseInt(raw.slice(4, 8), 10);
       const parsed = new Date(yyyy, mm, dd);
-      const todayCheck = new Date(); todayCheck.setHours(0, 0, 0, 0);
+      const todayCheck = new Date();
+      todayCheck.setHours(0, 0, 0, 0);
 
-      if (parsed.getFullYear() !== yyyy || parsed.getMonth() !== mm || parsed.getDate() !== dd) {
+      if (
+        parsed.getFullYear() !== yyyy ||
+        parsed.getMonth() !== mm ||
+        parsed.getDate() !== dd
+      ) {
         setInputError("Invalid date — use DD/MM/YYYY");
         onChange(null);
         return;
@@ -182,23 +273,36 @@ function DatePickerField({ value, onChange }) {
   };
 
   const formatDisplay = (d) =>
-    d ? d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : null;
+    d
+      ? d.toLocaleDateString("en-IN", {
+          weekday: "short",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : null;
 
   const hasError = !!inputError;
 
   return (
     <div className="relative" ref={wrapRef}>
-
       {/* Input row */}
-      <div className={`flex items-center rounded-xl border overflow-hidden transition-all
+      <div
+        className={`flex items-center rounded-xl border overflow-hidden transition-all
         ${hasError ? "border-red-300 bg-red-50" : value ? "border-yellow-300 bg-yellow-50" : "border-slate-200 bg-slate-50"}
-        focus-within:border-yellow-400 focus-within:bg-white`}>
-
+        focus-within:border-yellow-400 focus-within:bg-white`}
+      >
         {/* Calendar icon — opens/closes dropdown */}
-        <button type="button" onClick={() => setCalOpen((v) => !v)}
+        <button
+          type="button"
+          onClick={() => setCalOpen((v) => !v)}
           className="flex items-center justify-center w-10 h-11 flex-shrink-0 transition-colors"
-          title="Pick from calendar">
-          <CalendarDays size={15} className={value ? "text-yellow-600" : "text-slate-400"} />
+          title="Pick from calendar"
+        >
+          <CalendarDays
+            size={15}
+            className={value ? "text-yellow-600" : "text-slate-400"}
+          />
         </button>
 
         {/* Manual text input */}
@@ -215,17 +319,26 @@ function DatePickerField({ value, onChange }) {
 
         {/* Clear X */}
         {(value || textVal) && (
-          <button type="button" onClick={handleClear}
-            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleClear}
+            className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0"
+          >
             <X size={13} />
           </button>
         )}
 
         {/* Chevron hint when empty */}
         {!value && !textVal && (
-          <button type="button" onClick={() => setCalOpen((v) => !v)}
-            className="w-9 h-11 flex items-center justify-center text-slate-400 flex-shrink-0">
-            <ChevronRight size={13} className={`transition-transform duration-200 ${calOpen ? "rotate-90" : ""}`} />
+          <button
+            type="button"
+            onClick={() => setCalOpen((v) => !v)}
+            className="w-9 h-11 flex items-center justify-center text-slate-400 flex-shrink-0"
+          >
+            <ChevronRight
+              size={13}
+              className={`transition-transform duration-200 ${calOpen ? "rotate-90" : ""}`}
+            />
           </button>
         )}
       </div>
@@ -239,14 +352,19 @@ function DatePickerField({ value, onChange }) {
 
       {/* Inline validation error */}
       {hasError && (
-        <p className="text-[11px] text-red-500 mt-1.5 px-1 font-semibold">{inputError}</p>
+        <p className="text-[11px] text-red-500 mt-1.5 px-1 font-semibold">
+          {inputError}
+        </p>
       )}
 
       {/* Calendar dropdown */}
       {calOpen && (
         <CalendarDropdown
           value={value}
-          onChange={(d) => { onChange(d); setCalOpen(false); }}
+          onChange={(d) => {
+            onChange(d);
+            setCalOpen(false);
+          }}
           onClose={() => setCalOpen(false)}
         />
       )}
@@ -258,7 +376,12 @@ function DatePickerField({ value, onChange }) {
 function FormCard() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({ name: "", contact: "", business: "", selectedDate: null });
+  const [formData, setFormData] = useState({
+    name: "",
+    contact: "",
+    business: "",
+    selectedDate: null,
+  });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -269,11 +392,19 @@ function FormCard() {
 
   const formatDate = (d) => {
     if (!d) return null;
-    return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "long" });
+    return d.toLocaleDateString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "long",
+    });
   };
 
-  const isSunday = formData.selectedDate ? new Date(formData.selectedDate).getDay() === 0 : false;
-  const day = formData.selectedDate ? new Date(formData.selectedDate).getDay() : null;
+  const isSunday = formData.selectedDate
+    ? new Date(formData.selectedDate).getDay() === 0
+    : false;
+  const day = formData.selectedDate
+    ? new Date(formData.selectedDate).getDay()
+    : null;
   const webinarTime = day === 5 ? "5:30 PM IST" : "4:00 PM IST";
 
   const handleInputChange = (e) => {
@@ -285,10 +416,16 @@ function FormCard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return setError("Please enter your full name.");
-    if (!formData.contact.trim()) return setError("Please enter your WhatsApp number.");
-    if (!/^\d{10}$/.test(formData.contact.trim())) return setError("Enter a valid 10-digit WhatsApp number.");
-    if (!formData.selectedDate) return setError("Please select a date for the webinar.");
-    if (isSunday) return setError("We don't host webinars on Sundays. Please pick another day.");
+    if (!formData.contact.trim())
+      return setError("Please enter your WhatsApp number.");
+    if (!/^\d{10}$/.test(formData.contact.trim()))
+      return setError("Enter a valid 10-digit WhatsApp number.");
+    if (!formData.selectedDate)
+      return setError("Please select a date for the webinar.");
+    if (isSunday)
+      return setError(
+        "We don't host webinars on Sundays. Please pick another day.",
+      );
 
     setIsSubmitting(true);
     setError("");
@@ -308,12 +445,37 @@ function FormCard() {
       });
       const result = await response.json();
       if (result.success) {
-        const query = new URLSearchParams({
+        const booking = {
           name: formData.name.trim(),
           phone: formData.contact.trim(),
-          date: formatDateISO(formData.selectedDate),
-          time: webinarTime,
+          selectedDate: formatDateISO(formData.selectedDate),
+          seminarTime: webinarTime,
+        };
+
+        try {
+          await fetch("/api/demo-whatsapp-template", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: booking.name,
+              phone: booking.phone,
+              selectedDate: booking.selectedDate,
+              seminarTime: booking.seminarTime,
+            }),
+          });
+        } catch (err) {
+          console.error("WhatsApp template error:", err);
+        }
+
+        const query = new URLSearchParams({
+          name: booking.name,
+          phone: booking.phone,
+          date: booking.selectedDate,
+          time: booking.seminarTime,
         }).toString();
+
         router.push(`/thank-you?${query}`);
       } else {
         setError(result.message || "Something went wrong. Please try again.");
@@ -332,35 +494,49 @@ function FormCard() {
       <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-3">
         <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
         <p className="text-xs text-red-600 font-semibold">
-          ⚡ Hurry! Only <span className="text-red-800 font-black">1 Hour Left</span> —{" "}
-          <span className="text-slate-900 font-black">Limited Seats Available</span>
+          ⚡ Hurry! Only{" "}
+          <span className="text-red-800 font-black">1 Hour Left</span> —{" "}
+          <span className="text-slate-900 font-black">
+            Limited Seats Available
+          </span>
         </p>
       </div>
 
       <div className="p-5 sm:p-6">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="font-black text-lg text-slate-900">Book Your Free Seat</h2>
+            <h2 className="font-black text-lg text-slate-900">
+              Book Your Free Seat
+            </h2>
             <p className="text-slate-500 text-xs mt-0.5">
-              {formData.selectedDate ? `${formatDate(formData.selectedDate)} · ${webinarTime}` : "4:00 PM IST · Online · Today"}
+              {formData.selectedDate
+                ? `${formatDate(formData.selectedDate)} · ${webinarTime}`
+                : "4:00 PM IST · Online · Today"}
             </p>
           </div>
           <div className="bg-green-100 border border-green-200 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
-            <p className="text-green-700 text-base font-black leading-none">FREE</p>
+            <p className="text-green-700 text-base font-black leading-none">
+              FREE
+            </p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-3">
-
             {/* Name */}
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 select-none">
                 <User size={15} />
               </span>
-              <input type="text" name="name" value={formData.name} onChange={handleInputChange}
-                placeholder="Your full name" autoComplete="name"
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all" />
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="Your full name"
+                autoComplete="name"
+                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+              />
             </div>
 
             {/* WhatsApp */}
@@ -368,9 +544,16 @@ function FormCard() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 select-none">
                 <Smartphone size={15} />
               </span>
-              <input type="tel" name="contact" value={formData.contact} onChange={handleInputChange}
-                placeholder="WhatsApp number (10 digits)" maxLength={10} autoComplete="tel"
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all" />
+              <input
+                type="tel"
+                name="contact"
+                value={formData.contact}
+                onChange={handleInputChange}
+                placeholder="WhatsApp number (10 digits)"
+                maxLength={10}
+                autoComplete="tel"
+                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+              />
             </div>
 
             {/* Business */}
@@ -378,9 +561,14 @@ function FormCard() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 select-none">
                 <Building2 size={15} />
               </span>
-              <input type="text" name="business" value={formData.business} onChange={handleInputChange}
+              <input
+                type="text"
+                name="business"
+                value={formData.business}
+                onChange={handleInputChange}
                 placeholder="Business name (optional)"
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all" />
+                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+              />
             </div>
 
             {/* ── NEW Date Picker ── */}
@@ -396,7 +584,9 @@ function FormCard() {
             {isSunday && (
               <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 animate-fadeIn">
                 <span className="text-orange-500 text-sm">⚠️</span>
-                <span className="text-orange-800 text-xs font-semibold">No webinars on Sundays — please pick another day.</span>
+                <span className="text-orange-800 text-xs font-semibold">
+                  No webinars on Sundays — please pick another day.
+                </span>
               </div>
             )}
 
@@ -405,7 +595,8 @@ function FormCard() {
               <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5 animate-fadeIn">
                 <Clock size={13} className="text-yellow-600 flex-shrink-0" />
                 <span className="text-yellow-800 text-xs font-semibold">
-                  {formatDate(formData.selectedDate)} · {webinarTime} · 60 min · Zoom
+                  {formatDate(formData.selectedDate)} · {webinarTime} · 60 min ·
+                  Zoom
                 </span>
               </div>
             )}
@@ -414,36 +605,53 @@ function FormCard() {
             {!formData.selectedDate && (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
                 <Clock size={13} className="text-slate-400 flex-shrink-0" />
-                <span className="text-slate-500 text-xs font-medium">Pick a date to confirm your slot · 4:00 PM IST</span>
+                <span className="text-slate-500 text-xs font-medium">
+                  Pick a date to confirm your slot · 4:00 PM IST
+                </span>
               </div>
             )}
 
             {/* Error */}
             {error && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 animate-fadeIn">
-                <span className="text-red-500 text-sm mt-0.5 flex-shrink-0">⚠</span>
-                <p className="text-red-700 text-xs font-semibold leading-relaxed">{error}</p>
+                <span className="text-red-500 text-sm mt-0.5 flex-shrink-0">
+                  ⚠
+                </span>
+                <p className="text-red-700 text-xs font-semibold leading-relaxed">
+                  {error}
+                </p>
               </div>
             )}
 
             {/* CTA */}
-            <button type="submit" disabled={isSubmitting}
-              className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 disabled:opacity-60 disabled:cursor-not-allowed text-black font-black rounded-xl text-sm sm:text-base transition-all active:scale-[0.98] shadow-lg shadow-yellow-400/20 mt-1 flex items-center justify-center gap-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 disabled:opacity-60 disabled:cursor-not-allowed text-black font-black rounded-xl text-sm sm:text-base transition-all active:scale-[0.98] shadow-lg shadow-yellow-400/20 mt-1 flex items-center justify-center gap-2"
+            >
               {isSubmitting ? (
-                <><Loader2 size={16} className="animate-spin" /><span>Booking your seat…</span></>
-              ) : "🚀 Reserve My FREE Seat Now"}
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Booking your seat…</span>
+                </>
+              ) : (
+                "🚀 Reserve My FREE Seat Now"
+              )}
             </button>
 
             <div className="flex items-center justify-center gap-1.5 pt-1">
               <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-              <p className="text-[11px] text-red-600 font-semibold text-center">Limited seats — register before it fills up</p>
+              <p className="text-[11px] text-red-600 font-semibold text-center">
+                Limited seats — register before it fills up
+              </p>
             </div>
-
           </div>
         </form>
 
         <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
-          <span className="flex items-center gap-1"><ShieldCheck size={10} /> No spam</span>
+          <span className="flex items-center gap-1">
+            <ShieldCheck size={10} /> No spam
+          </span>
           <span>·</span>
           <span>Cancel anytime</span>
           <span>·</span>
@@ -465,25 +673,41 @@ function UrgencyBanner() {
     <div className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-yellow-400 to-amber-500 shadow-lg">
       <div className="flex items-stretch justify-center flex-wrap divide-x divide-black/10">
         <div className="flex flex-col items-start justify-center px-4 sm:px-6 py-2">
-          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-black/50">Hurry Up! Time Left</span>
+          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-black/50">
+            Hurry Up! Time Left
+          </span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-base sm:text-xl font-black text-black font-mono tracking-wider">1 Hour</span>
-            <span className="text-[10px] font-bold text-red-700 animate-pulse bg-red-100 px-1.5 py-0.5 rounded-full">LIVE</span>
+            <span className="text-base sm:text-xl font-black text-black font-mono tracking-wider">
+              1 Hour
+            </span>
+            <span className="text-[10px] font-bold text-red-700 animate-pulse bg-red-100 px-1.5 py-0.5 rounded-full">
+              LIVE
+            </span>
           </div>
         </div>
         <div className="flex flex-col items-start justify-center px-4 sm:px-6 py-2">
-          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-black/50">Seats Available</span>
+          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-black/50">
+            Seats Available
+          </span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs sm:text-sm font-black text-red-800">⚡ Limited Seats</span>
+            <span className="text-xs sm:text-sm font-black text-red-800">
+              ⚡ Limited Seats
+            </span>
           </div>
         </div>
         <div className="flex items-center px-4 sm:px-6 py-2">
-          <span className="text-xs sm:text-sm font-black text-black">🚀 Join FREE — Before It&apos;s Full!</span>
+          <span className="text-xs sm:text-sm font-black text-black">
+            🚀 Join FREE — Before It&apos;s Full!
+          </span>
         </div>
         <div className="hidden sm:flex flex-col justify-center px-4 sm:px-6 py-2">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-black/50">Price</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-black/50">
+            Price
+          </span>
           <div className="flex items-baseline gap-1.5 mt-0.5">
-            <span className="text-sm line-through text-black/30 font-bold">₹999</span>
+            <span className="text-sm line-through text-black/30 font-bold">
+              ₹999
+            </span>
             <span className="text-sm font-black text-green-800">FREE</span>
           </div>
         </div>
@@ -504,7 +728,8 @@ function LeftSection() {
         <span className="text-yellow-500">Limbu AI</span>
       </h1>
       <p className="text-slate-600 text-sm leading-relaxed font-medium">
-        Learn how to automate your Google Business profile and social media — save 10+ hours a week and get more customers on autopilot.
+        Learn how to automate your Google Business profile and social media —
+        save 10+ hours a week and get more customers on autopilot.
       </p>
       <div className="flex gap-3 flex-wrap">
         {[
@@ -512,16 +737,35 @@ function LeftSection() {
           { num: "4.9★", lbl: "Average Rating" },
           { num: "60 Min", lbl: "Session Length" },
         ].map((s) => (
-          <div key={s.lbl} className="bg-white border border-slate-200 shadow-sm rounded-xl px-4 py-3 flex flex-col gap-0.5">
-            <span className="text-yellow-600 font-bold text-lg leading-none">{s.num}</span>
-            <span className="text-slate-500 text-[11px] font-medium">{s.lbl}</span>
+          <div
+            key={s.lbl}
+            className="bg-white border border-slate-200 shadow-sm rounded-xl px-4 py-3 flex flex-col gap-0.5"
+          >
+            <span className="text-yellow-600 font-bold text-lg leading-none">
+              {s.num}
+            </span>
+            <span className="text-slate-500 text-[11px] font-medium">
+              {s.lbl}
+            </span>
           </div>
         ))}
       </div>
       <div className="space-y-2">
-        <FeatureRow icon={<Video size={15} />} title="Live Demo" desc="Watch us create a week of posts in under 5 minutes" />
-        <FeatureRow icon={<Users size={15} />} title="Live Q&A" desc="Ask anything — get answers specific to your business" />
-        <FeatureRow icon={<Gift size={15} />} title="Free Bonus" desc="All attendees get our AI prompt pack (worth ₹1,499)" />
+        <FeatureRow
+          icon={<Video size={15} />}
+          title="Live Demo"
+          desc="Watch us create a week of posts in under 5 minutes"
+        />
+        <FeatureRow
+          icon={<Users size={15} />}
+          title="Live Q&A"
+          desc="Ask anything — get answers specific to your business"
+        />
+        <FeatureRow
+          icon={<Gift size={15} />}
+          title="Free Bonus"
+          desc="All attendees get our AI prompt pack (worth ₹1,499)"
+        />
       </div>
     </div>
   );
@@ -545,7 +789,9 @@ function LiveToast({ user }) {
   return (
     <div className="fixed bottom-4 left-4 z-50 bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2.5 max-w-[260px] shadow-xl">
       <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
-      <p className="text-[12px] text-slate-700 font-medium leading-tight">{user}</p>
+      <p className="text-[12px] text-slate-700 font-medium leading-tight">
+        {user}
+      </p>
     </div>
   );
 }
@@ -555,7 +801,10 @@ function AutoModal({ onClose }) {
   return (
     <div
       className="fixed inset-0 z-[999] flex items-center justify-center p-4"
-      style={{ background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)" }}
+      style={{
+        background: "rgba(15, 23, 42, 0.6)",
+        backdropFilter: "blur(4px)",
+      }}
     >
       <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
         {/* Close button - inside the relative container of the card */}
@@ -574,7 +823,9 @@ function AutoModal({ onClose }) {
 
 /* ─── PAGE ─── */
 export default function WebinarPage() {
-  const [liveUser, setLiveUser] = useState(rand(names) + " from " + rand(cities) + " just joined");
+  const [liveUser, setLiveUser] = useState(
+    rand(names) + " from " + rand(cities) + " just joined",
+  );
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
@@ -598,15 +849,17 @@ export default function WebinarPage() {
         <div
           className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
           style={{
-            backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.3) 1px, transparent 1px)",
-            backgroundSize: "40px 40px"
+            backgroundImage:
+              "linear-gradient(rgba(15, 23, 42, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.3) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         />
         {/* Ambient glow */}
         <div
           className="pointer-events-none absolute top-0 left-0 w-[600px] h-[500px] z-0 opacity-10"
           style={{
-            background: "radial-gradient(circle at top left, rgba(250, 204, 21, 0.5) 0%, transparent 60%)",
+            background:
+              "radial-gradient(circle at top left, rgba(250, 204, 21, 0.5) 0%, transparent 60%)",
           }}
         />
 

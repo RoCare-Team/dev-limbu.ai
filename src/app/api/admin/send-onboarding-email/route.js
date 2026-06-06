@@ -8,6 +8,9 @@ export async function POST(req) {
       customerName,
       planName,
       amount,
+      type,
+      startDate,
+      expiryDate,
     } = await req.json();
 
     // console.log("EMAIL_USER =", process.env.EMAIL_USER);
@@ -21,28 +24,95 @@ export async function POST(req) {
       },
     });
 
+    const bookingMessage =
+      type === "package"
+        ? "Your package has been successfully activated."
+        : "Your service has been successfully booked.";
+
     const info = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Limbu AI - Service Booking Confirmation",
+      subject: `Limbu AI - ${bookingMessage}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>Welcome to Limbu AI!</h2>
+         <h style="   color:#4f46e5;  margin-bottom:20px;">
+   Welcome to Limbu AI
+</h2>
 
           <p>Dear ${customerName},</p>
 
-          <p>Your service has been successfully booked.</p>
+          <p  style="font-size:16px; color:#374151; line-height:1.7; ">
+  ${bookingMessage}
+</p>
 
-          <table border="1" cellpadding="10" cellspacing="0">
-            <tr>
-              <td><b>Plan</b></td>
-              <td>${planName}</td>
-            </tr>
-            <tr>
-              <td><b>Amount</b></td>
-              <td>₹${amount}</td>
-            </tr>
-          </table>
+        <table
+  style="
+    width:100%;
+    max-width:500px;
+    border-collapse:collapse;
+    margin-top:15px;
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+  "
+>
+  <tr style="background:#4f46e5;color:white;">
+    <th
+      style="
+        padding:12px;
+        text-align:left;
+        font-size:14px;
+      "
+    >
+      Details
+    </th>
+    <th
+      style="
+        padding:12px;
+        text-align:left;
+        font-size:14px;
+      "
+    >
+      Information
+    </th>
+  </tr>
+
+  <tr style="background:#f9fafb;">
+    <td style="padding:12px;font-weight:600;">
+       Plan
+    </td>
+    <td style="padding:12px;">
+      ${planName}
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:12px;font-weight:600;">
+       Amount
+    </td>
+    <td style="padding:12px;">
+      ₹${amount}
+    </td>
+  </tr>
+
+  <tr style="background:#f9fafb;">
+    <td style="padding:12px;font-weight:600;">
+       Start Date
+    </td>
+    <td style="padding:12px;">
+      ${startDate || "-"}
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:12px;font-weight:600;">
+       Expiry Date
+    </td>
+    <td style="padding:12px;">
+      ${expiryDate || "-"}
+    </td>
+  </tr>
+</table>
 
           <br />
 
@@ -72,7 +142,7 @@ export async function POST(req) {
         success: false,
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

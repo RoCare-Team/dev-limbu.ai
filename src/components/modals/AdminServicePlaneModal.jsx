@@ -323,14 +323,21 @@ export default function AdminServicepaneModal({ service, onClose }) {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    email: service?.email,
-    customerName:
-      service?.name ||
-      service?.fullName ||
-      "Customer",
-    planName: selectedPlan.title,
-    amount: selectedPlan.price,
-  }),
+  email: service?.email,
+
+  customerName:
+    service?.fullName ||
+    service?.name ||
+    "Customer",
+
+  planName: selectedPlan?.title,
+  amount: selectedPlan?.price || 0,
+
+  startDate: serviceDate,
+  expiryDate: expiryDate,
+
+  type: "service",
+}),
 });
 
 const emailData = await emailRes.json();

@@ -2331,8 +2331,53 @@ useEffect(() => {
           ...(gstNumber && { gstNumber: gstNumber }),
         }),
       });
+
+
+
       const userUpdateData = await userUpdateRes.json();
       if (userUpdateData.success) {
+
+
+        
+      // ==============================
+// Send Email
+// ==============================
+try {
+  const emailRes = await fetch(
+    "/api/admin/send-onboarding-email",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+  email: selectedUser.email,
+
+  customerName:
+    selectedUser.fullName ||
+    selectedUser.name ||
+    "Customer",
+
+  planName: selectedPlan,
+  amount: planAmount || 0,
+
+  startDate: planStartDate,
+  expiryDate: planExpiryDate,
+
+  type: "package",
+}),
+    }
+  );
+
+  const emailData = await emailRes.json();
+  console.log("📧 Email Response:", emailData);
+} catch (emailErr) {
+  console.error(
+    "Email send failed:",
+    emailErr
+  );
+}
+
         // ==============================
         // Send WhatsApp Template
         // ==============================

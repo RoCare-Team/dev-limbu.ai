@@ -137,7 +137,9 @@ const userSchema = new mongoose.Schema(
         "Meta Lead",
         "Meta Leads",
         "Meta",
-        "expolead"
+        "Real estate leads",
+        "expolead",
+        "gmb-scraper",
       ],
       default: "signup",
     },
@@ -231,6 +233,17 @@ const userSchema = new mongoose.Schema(
         Saturday: { open: Boolean, from: String, to: String },
         Sunday: { open: Boolean, from: String, to: String }
       }
+    },
+
+    gmbScraperData: {
+      address: { type: String, default: "" },
+      website: { type: String, default: "" },
+      rating: { type: Number, default: null },
+      reviews: { type: Number, default: null },
+      mapsUrl: { type: String, default: "" },
+      placeId: { type: String, default: "", sparse: true },
+      city: { type: String, default: "" },
+      category: { type: String, default: "" },
     },
   },
   { timestamps: true }

@@ -107,6 +107,7 @@ export async function runNewUserOnboarding(userId) {
   if (
     source !== "signup" &&
     source !== "Meta Lead" &&
+    source !== "Real estate leads" &&
     source !== "bulk-upload"
   ) {
     return { ok: false, reason: "source_skipped" };

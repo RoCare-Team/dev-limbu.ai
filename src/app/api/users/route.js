@@ -10,10 +10,12 @@ import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 import { listUsersForChatbotChatDay } from "@/lib/limbuBotUserSync";
+import { META_LEAD_TAG_KEYS } from "@/lib/metaFormLeadsConfig";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = [
   "Meta Lead",
+  "Real estate leads",
   "bulk-upload",
   "manual-upload",
   "csv-import",
@@ -44,7 +46,7 @@ function getSourceMatch(source) {
 
   if (isMetaLeadSourceFilter(source)) {
     return {
-      $or: [{ source: { $in: META_LEAD_SOURCES } }, { leadTags: "metaleads" }],
+      $or: [{ source: { $in: META_LEAD_SOURCES } }, { leadTags: { $in: META_LEAD_TAG_KEYS } }],
     };
   }
 
@@ -754,7 +756,7 @@ export async function GET(req) {
           User.countDocuments({
             $or: [
               { source: { $in: META_LEAD_SOURCES } },
-              { leadTags: "metaleads" },
+              { leadTags: { $in: META_LEAD_TAG_KEYS } },
             ],
           }),
           User.countDocuments(todayCreated),
@@ -857,7 +859,7 @@ export async function GET(req) {
         ...todayMatch,
         $or: [
           { source: { $in: META_LEAD_SOURCES } },
-          { leadTags: "metaleads" },
+          { leadTags: { $in: META_LEAD_TAG_KEYS } },
         ],
       });
 
@@ -1035,7 +1037,7 @@ export async function GET(req) {
           addMatchCondition(query, {
             $or: [
               { source: { $in: META_LEAD_SOURCES } },
-              { leadTags: "metaleads" },
+              { leadTags: { $in: META_LEAD_TAG_KEYS } },
             ],
           }),
         ),
@@ -1346,32 +1348,54 @@ export async function PUT(req) {
   }
 }
 
-/* ------------------ DELETE USER ------------------ */
+/* ------------------ DELETE USER (single or bulk) ------------------ */
 export async function DELETE(req) {
   try {
     await dbConnect();
 
-    const { userId } = await req.json();
+    const body = await req.json();
+    const ids = Array.isArray(body?.userIds) && body.userIds.length
+      ? body.userIds.map((id) => String(id).trim()).filter(Boolean)
+      : body?.userId
+        ? [String(body.userId).trim()]
+        : [];
 
-    if (!userId) {
+    if (!ids.length) {
       return NextResponse.json(
-        { success: false, error: "Missing userId" },
+        { success: false, error: "Missing userId or userIds" },
         { status: 400 },
       );
     }
 
-    const deletedUser = await User.findOneAndDelete({ userId });
+    if (ids.length === 1) {
+      const deletedUser = await User.findOneAndDelete({ userId: ids[0] });
+      if (!deletedUser) {
+        return NextResponse.json(
+          { success: false, error: "User not found" },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: `User with ID ${ids[0]} deleted successfully`,
+        deletedCount: 1,
+        userIds: ids,
+      });
+    }
 
-    if (!deletedUser) {
+    const deleteResult = await User.deleteMany({ userId: { $in: ids } });
+    if (!deleteResult.deletedCount) {
       return NextResponse.json(
-        { success: false, error: "User not found" },
+        { success: false, error: "No users found to delete" },
         { status: 404 },
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: `User with ID ${userId} deleted successfully`,
+      message: `${deleteResult.deletedCount} user(s) deleted successfully`,
+      deletedCount: deleteResult.deletedCount,
+      userIds: ids,
     });
   } catch (error) {
     console.error("DELETE error:", error);

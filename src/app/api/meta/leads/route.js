@@ -18,7 +18,13 @@ export async function GET(req) {
       );
     }
 
-    const accessToken = "EAAWOiqBorGUBQQD5h0FAtsmhyrdTCG0JiO6YqenXR1IInaUh6Wa7WqfvGc6D6bcqSHUcyRLcUa22JZAs4oKcAxJHqSfwXAqsMVSptToi8oIRmzZAXMAIWDQWuaR3rReSifeGDGLaiorT28OMiF2t54CbEqBdwpBSjJfcCVBZBIJ9qyq7Ht8d3sZCXVw0";
+    const accessToken = process.env.META_ACCESS_TOKEN;
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: "META_ACCESS_TOKEN not configured" },
+        { status: 500 },
+      );
+    }
 
     let url = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${limit}&access_token=${accessToken}`;
 

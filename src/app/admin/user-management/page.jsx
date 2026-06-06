@@ -47,8 +47,11 @@ import {
 } from "lucide-react";
 import {
   USER_SOURCE_OPTIONS,
-  userAcquisitionLabel
+  userAcquisitionLabel,
+  formatLeadTagLabel,
+  leadTagPillClassName,
 } from "@/lib/bookingSource";
+import { META_FORM_SYNC_IDS } from "@/lib/metaFormLeadsConfig";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { fetchFollowUpTableUsersByIds } from "@/lib/fetchFollowUpTableUsers";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
@@ -178,6 +181,7 @@ export default function UserManagement() {
   const [showIssuesModal, setShowIssuesModal] = useState(false);
   const [role, setRole] = useState("");
   const [deleteUserModal, setDeleteUserModal] = useState(null);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [agents, setAgents] = useState([]);
   const [assigneeFilter, setAssigneeFilter] = useState("All");
@@ -939,40 +943,52 @@ useEffect(() => {
 
   const handleRefreshMetaLeads = async ({ silent = false } = {}) => {
     const adminRole = localStorage.getItem("role");
-    if (!["superAdmin", "admin"].includes(adminRole)) return;
-
     const email = localStorage.getItem("email");
     if (!email) return;
+
+    const canSyncMeta = ["superAdmin", "admin"].includes(adminRole);
 
     if (!silent) setIsRefreshingMetaLeads(true);
 
     try {
-      const res = await fetch(
-        `/api/meta-leads-import?formId=1393275835835157&email=${encodeURIComponent(email)}`,
-      );
+      if (canSyncMeta) {
+        const formIds = META_FORM_SYNC_IDS.join(",");
+        const res = await fetch(
+          `/api/meta-leads-import?formIds=${encodeURIComponent(formIds)}&email=${encodeURIComponent(email)}`,
+        );
 
-      const data = await res.json();
-      console.log("[Meta Leads Fetch]", {
-        success: data.success,
-        stats: data.stats,
-        error: data.error,
-      });
+        const data = await res.json();
+        console.log("[Meta Leads Fetch]", {
+          success: data.success,
+          forms: data.forms,
+          stats: data.stats,
+          formErrors: data.formErrors,
+          error: data.error,
+        });
 
-      if (data.success) {
-        if (!silent) {
-          showToast("Meta Leads refreshed successfully!", "success");
-        }
-        fetchUsers();
-      } else {
-        if (!silent) {
+        if (data.success) {
+          if (!silent) {
+            const inserted = data.stats?.inserted ?? 0;
+            const msg =
+              inserted > 0
+                ? `Meta Leads refreshed — ${inserted} new lead(s) added`
+                : data.formErrors?.length
+                  ? "Leads refreshed (some Meta forms had errors)"
+                  : "Meta Leads refreshed successfully!";
+            showToast(msg, data.formErrors?.length ? "warning" : "success");
+          }
+        } else if (!silent) {
           showToast(data.error || "Failed to refresh Meta Leads", "error");
         } else {
           console.warn("Meta leads sync:", data.error || data);
         }
       }
+
+      await fetchUsers(true);
     } catch (error) {
       console.error("Error refreshing Meta Leads:", error);
-      if (!silent) showToast("Error refreshing Meta Leads", "error");
+      if (!silent) showToast("Error refreshing leads", "error");
+      await fetchUsers(true);
     } finally {
       if (!silent) setIsRefreshingMetaLeads(false);
     }
@@ -1207,13 +1223,15 @@ useEffect(() => {
         "Meta Lead",
         "Meta Leads",
         "Meta",
+        "Real estate leads",
       ].includes(String(src || "").trim()) ||
       (Array.isArray(leadTags) &&
-        leadTags.some(
-          (tag) =>
+        leadTags.some((tag) =>
+          ["metaleads", "real-estate-lead"].includes(
             String(tag || "")
               .trim()
-              .toLowerCase() === "metaleads",
+              .toLowerCase(),
+          ),
         ));
     const isTodayLocalBrowser = (createdAt) =>
       new Date(createdAt).toDateString() === new Date().toDateString();
@@ -2400,6 +2418,9 @@ useEffect(() => {
       const data = await res.json();
       if (data.success) {
         showToast("User deleted successfully");
+        setBulkWaSelectedUserIds((prev) =>
+          prev.filter((id) => id !== String(deleteUserModal.userId)),
+        );
         fetchUsers();
         setDeleteUserModal(null);
       } else {
@@ -2408,6 +2429,36 @@ useEffect(() => {
     } catch (err) {
       console.error("Error deleting user:", err);
       showToast("Error deleting user", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmBulkDeleteUsers = async () => {
+    const userIds = bulkWaSelectedUserIds.map(String).filter(Boolean);
+    if (!userIds.length) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/users`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(
+          `${data.deletedCount ?? userIds.length} user(s) deleted successfully`,
+        );
+        setBulkWaSelectedUserIds([]);
+        setBulkDeleteModalOpen(false);
+        fetchUsers();
+      } else {
+        showToast(data.error || "Failed to delete users", "error");
+      }
+    } catch (err) {
+      console.error("Error bulk deleting users:", err);
+      showToast("Error deleting users", "error");
     } finally {
       setIsDeleting(false);
     }
@@ -4181,6 +4232,22 @@ useEffect(() => {
                       <div className="flex-1 flex flex-wrap gap-3">
                         <button
                           type="button"
+                          onClick={() => setBulkDeleteModalOpen(true)}
+                          className="group bg-white px-6 py-3 rounded-2xl
+                            flex items-center gap-2 text-red-600 font-semibold
+                            shadow-md hover:shadow-xl hover:-translate-y-1
+                            hover:scale-105 active:scale-95
+                            transition-all duration-300"
+                        >
+                          <Trash2
+                            size={20}
+                            className="group-hover:scale-110 transition"
+                          />
+                          Delete Selected
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => setIsOpen(true)}
                           className="group bg-white px-6 py-3 rounded-2xl
                             flex items-center gap-2 text-green-600 font-semibold
@@ -4299,7 +4366,7 @@ useEffect(() => {
                         <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
                           <input
                             type="checkbox"
-                            title="Select all leads with phone on this page"
+                            title="Select all leads on this page"
                           checked={
   allUserIds.length > 0 &&
   allUserIds.every((id) =>
@@ -4538,16 +4605,13 @@ useEffect(() => {
                                         >
                                           <input
                                             type="checkbox"
-                                            disabled={
-                                              !(user.phone || user.mobileNumber)
-                                            }
                                             checked={bulkWaSelectedUserIds.includes(
                                               String(user.userId),
                                             )}
                                             onChange={() =>
                                               toggleBulkWaUserId(user.userId)
                                             }
-                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-30"
+                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                                           />
                                         </td>
                                       )}
@@ -4700,6 +4764,16 @@ useEffect(() => {
                                                 {user.paidPackage}
                                               </span>
                                             )}
+
+                                            {Array.isArray(user.leadTags) &&
+                                              user.leadTags.map((tag) => (
+                                                <span
+                                                  key={`${user.userId || user._id}-${tag}`}
+                                                  className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${leadTagPillClassName(tag)}`}
+                                                >
+                                                  {formatLeadTagLabel(tag)}
+                                                </span>
+                                              ))}
                                           </div>
                                         </div>
                                       </td>
@@ -6141,6 +6215,42 @@ useEffect(() => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Delete Confirmation Modal */}
+        {bulkDeleteModalOpen && bulkWaSelectedUserIds.length > 0 && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle className="text-red-600" size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  Delete {bulkWaSelectedUserIds.length} lead
+                  {bulkWaSelectedUserIds.length > 1 ? "s" : ""}?
+                </h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  Selected leads will be permanently removed from user management.
+                  This action cannot be undone.
+                </p>
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => setBulkDeleteModalOpen(false)}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBulkDeleteUsers}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete All"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

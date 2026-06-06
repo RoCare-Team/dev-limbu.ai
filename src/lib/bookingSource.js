@@ -44,6 +44,7 @@ export function userAcquisitionLabel(source) {
   }
   if (s === "signup") return "Signup"
   if (s === "Meta Leads" || s === "Meta") return "Meta lead"
+  if (s === "Real estate leads") return "Real estate leads"
   return s.replace(/-/g, " ")
 }
 
@@ -52,6 +53,7 @@ export const USER_SOURCE_OPTIONS = [
   { value: "website", label: "Website" },
   { value: "chatbot", label: "Chatbot" },
   { value: "Meta Lead", label: "Meta Lead" },
+  { value: "Real estate leads", label: "Real estate leads" },
 
     { value: "expolead", label: "Expo Lead" }, 
 
@@ -114,6 +116,9 @@ export function userAcquisitionTagClassName(source) {
   if (s === "chatbot") {
     return `${TAG_BASE} bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300/70`
   }
+  if (s === "Real estate leads") {
+    return `${TAG_BASE} bg-amber-100 text-amber-900 border-amber-300/70`
+  }
   if (s === "signup") {
     return `${TAG_BASE} bg-emerald-100 text-emerald-900 border-emerald-300/70`
   }
@@ -127,6 +132,7 @@ export function formatLeadTagLabel(tag) {
   if (!t) return ""
 
   if (t.toLowerCase() === "metaleads") return "Meta leads"
+  if (t.toLowerCase() === "real-estate-lead") return "Real Estate Leads"
 
   return t
     .replace(/[-_]+/g, " ")
@@ -144,6 +150,10 @@ export function leadTagPillClassName(tag) {
 
   if (t === "metaleads") {
     return "bg-indigo-50 text-indigo-900 border-indigo-300/70";
+  }
+
+  if (t === "real-estate-lead") {
+    return "bg-amber-50 text-amber-900 border-amber-300/70";
   }
 
   if (t === "website" || t === "web") {

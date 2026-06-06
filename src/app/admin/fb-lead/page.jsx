@@ -16,11 +16,19 @@ import {
 /* ---------------- FORM IDS ---------------- */
 const FORMS = [
   {
-    id: "1393275835835157", // 🔴 replace with real form id
+    id: "1393275835835157",
     label: "Service Leads",
   },
   {
-    id: "1213106820766164", // 🔴 replace with real form id
+    id: "2376363326181673",
+    label: "Real Estate Leads",
+  },
+  {
+    id: "37110369011883462",
+    label: "Real Estate Leads (Survey)",
+  },
+  {
+    id: "1213106820766164",
     label: "Franchise Leads",
   },
 ];
@@ -179,7 +187,9 @@ export default function MetaLeadsPage() {
                         {lead.city || "-"}
                       </td>
                       <td className="p-4">
-                        {lead["what_type_of_business_do_you_run?"] || "-"}
+                        {lead["what_type_of_real_estate_business_do_you_run?"] ||
+                          lead["what_type_of_business_do_you_run?"] ||
+                          "-"}
                       </td>
                       <td className="p-4 text-sm">
                         {lead.phone_number && (

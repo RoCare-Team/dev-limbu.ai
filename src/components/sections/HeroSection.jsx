@@ -7,13 +7,18 @@ const clientLogos = [
   { name: "Ro-Care India", src: "/images/clients/ro-care-india.webp" },
   { name: "unnamedd-1", src: "/images/clients/unnamedd-1.png" },
   { name: "Mannubhai", src: "/images/clients/mannubhai-12.png" },
-  { name: "Banjara Salon", src: "/images/clients/banjara_salon-3.png" },
-  { name: "Mazz", src: "/images/clients/mazz-4.png" },
-  { name: "Gudiya Collection", src: "/images/clients/gudiya_collection-2.png" },
-  { name: "dynamic_drapry", src: "/images/clients/dynamic_drapry-24.png" },
-  { name: "unnamed", src: "/images/clients/unnamed-2.png" },
-  { name: "Lucky Dry", src: "/images/clients/bpc-1-2.png" },
-  { name: "ssd logo", src: "/images/clients/srinus-2.png" },
+  // { name: "Banjara Salon", src: "/images/clients/banjara_salon-3.png" },
+  // { name: "Mazz", src: "/images/clients/mazz-4.png" },
+  // { name: "Gudiya Collection", src: "/images/clients/gudiya_collection-2.png" },
+  // { name: "dynamic_drapry", src: "/images/clients/dynamic_drapry-24.png" },
+  // { name: "unnamed", src: "/images/clients/unnamed-2.png" },
+  // { name: "Lucky Dry", src: "/images/clients/bpc-1-2.png" },
+  // { name: "ssd logo", src: "/images/clients/srinus-2.png" },
+   { name: "Deit-detox", src: "/images/clients/deit1.jpeg" },
+  { name: "Indo-motive", src: "/images/clients/Indo1.jpeg" },
+  { name: "Solution", src: "/images/clients/solution1.jpeg" },
+  { name: "Inpect", src: "/images/clients/inect1.jpeg" },
+  { name: "zion1", src: "/images/clients/zion1.jpeg" },
 ];
 
 export default function HeroSection() {
@@ -51,20 +56,7 @@ export default function HeroSection() {
           {/* Left */}
           <div className="flex flex-col justify-center max-w-2xl mx-auto lg:mx-0 text-center lg:text-left pt-6 lg:pt-0">
 
-            {/* Rating */}
-            {/* <div className="mb-6 flex justify-center lg:justify-start">
-              <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-yellow-50 border border-yellow-200 shadow-sm">
-                <span className="text-yellow-500 text-sm">★</span>
-
-                <span className="text-xs font-bold text-yellow-800">
-                  4.8 on Capterra
-                </span>
-
-                <span className="text-xs font-medium text-yellow-600">
-                  · 706 reviews
-                </span>
-              </div>
-            </div> */}
+            
 
             {/* Heading */}
             <div>
@@ -117,27 +109,29 @@ export default function HeroSection() {
       </div>
 
       {/* Logo Slider */}
-      <div className="relative z-10 w-full py-6 mt-auto overflow-hidden shrink-0 border-t border-slate-100 bg-slate-50">
+      <div className="relative z-10 w-full py-4 mt-auto overflow-hidden shrink-0 border-t border-slate-50 bg-slate-50">
         <div className="overflow-hidden">
           <div className="animate-scroll flex items-center w-max">
             {[...clientLogos, ...clientLogos].map((client, i) => (
               <div
-                key={i}
-                className="shrink-0 flex items-center px-6 sm:px-8"
-              >
-                <div className="relative h-10 sm:h-12 w-28 sm:w-36">
-                  <Image
-                    src={client.src}
-                    alt={client.name}
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-
-                <span className="ml-6 sm:ml-8 text-lg text-slate-200">
-                  ·
-                </span>
-              </div>
+  key={i}
+  className="shrink-0 px-3"
+>
+  <div className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 h-24 w-52 flex items-center justify-center p-4">
+    <div className="relative w-full h-full">
+      <Image
+  src={client.src}
+  alt={client.name}
+  fill
+  className={`object-contain ${
+    ["Inpect", "Solution", "Deit-detox", "Indo-motive", "zion1"].includes(client.name)
+      ? "scale-150"
+      : ""
+  }`}
+/>
+    </div>
+  </div>
+</div>
             ))}
           </div>
         </div>

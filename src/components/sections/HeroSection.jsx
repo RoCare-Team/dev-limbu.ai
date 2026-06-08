@@ -14,11 +14,11 @@ const clientLogos = [
   // { name: "unnamed", src: "/images/clients/unnamed-2.png" },
   // { name: "Lucky Dry", src: "/images/clients/bpc-1-2.png" },
   // { name: "ssd logo", src: "/images/clients/srinus-2.png" },
-   { name: "Deit-detox", src: "/images/clients/deit1.jpeg" },
-  { name: "Indo-motive", src: "/images/clients/Indo1.jpeg" },
+   { name: "Deit-detox", src: "/images/clients/deit2.jpeg" },
+  { name: "Indo-motive", src: "/images/clients/indom1.jpeg" },
   { name: "Solution", src: "/images/clients/solution1.jpeg" },
-  { name: "Inpect", src: "/images/clients/inect1.jpeg" },
-  { name: "zion1", src: "/images/clients/zion1.jpeg" },
+  { name: "Inpect", src: "/images/clients/ispect1.jpeg" },
+  { name: "zion1", src: "/images/clients/zoin2.jpeg" },
 ];
 
 export default function HeroSection() {

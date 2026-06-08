@@ -4390,12 +4390,12 @@ export default function UserManagement() {
                           <input
                             type="checkbox"
                             title="Select all leads on this page"
-                            checked={
-                              allUserIds.length > 0 &&
-                              allUserIds.every((id) =>
-                                bulkWaSelectedUserIds.includes(id),
-                              )
-                            }
+                          checked={
+  allUserIds.length > 0 &&
+  allUserIds.every((id) =>
+    bulkWaSelectedUserIds.includes(id)
+  )
+}
                             onChange={selectAllBulkWaOnPage}
                             className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                           />

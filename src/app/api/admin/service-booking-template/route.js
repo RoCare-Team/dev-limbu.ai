@@ -1,6 +1,4 @@
 // src/app/api/admin/send-invoice-whatsapp/route.js
-// ✅ Is file ko poora replace kar do
-// ✅ Ye aapke working service-booking-template API ke same format me hai
 
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/dbConnect";
@@ -10,26 +8,22 @@ import User from "@/models/User";
 const AISENSY_URL =
   "https://whatsapp.limbu.ai/api/campaigns/send";
 
-const API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
-
-
-// Normalize Indian number
+// =====================================================
+// Normalize Indian Number
+// =====================================================
 function normalizeNumber(num) {
   if (!num) return null;
 
   let n = String(num).replace(/\D/g, "");
 
-  // Remove leading 0
   if (n.startsWith("0")) {
     n = n.slice(1);
   }
 
-  // Add India country code
   if (n.length === 10) {
     n = "91" + n;
   }
 
-  // Validate final number
   if (n.length !== 12 || !n.startsWith("91")) {
     return null;
   }
@@ -54,7 +48,7 @@ export async function POST(req) {
     }
 
     // =====================================================
-    // 1. Revenue Record Fetch
+    // Revenue Record
     // =====================================================
     const revenue = await FranchiseRevenue.findById(userId).lean();
 
@@ -69,14 +63,14 @@ export async function POST(req) {
     }
 
     // =====================================================
-    // 2. User Details Fetch
+    // User Details
     // =====================================================
     const userDetails = await User.findOne({
       userId: revenue.leadId,
     }).lean();
 
     // =====================================================
-    // 3. Mobile Number
+    // Phone Number
     // =====================================================
     const rawPhone =
       userDetails?.phone ||
@@ -100,60 +94,87 @@ export async function POST(req) {
     }
 
     // =====================================================
-    // 4. Customer Name
+    // Template Variables
+    // {{1}} = Name
+    // {{2}} = Service Name
+    // {{3}} = Amount
     // =====================================================
+
     const customerName =
       revenue.leadName ||
       revenue.name ||
-      userDetails?.name ||
       userDetails?.fullName ||
+      userDetails?.name ||
       "Customer";
 
+    const serviceName =
+      revenue.planName ||
+      revenue.serviceName ||
+      revenue.service ||
+      revenue.plan ||
+      revenue.packageName ||
+      revenue.package ||
+      "Service";
+
+    const amountPaid =
+      revenue.amountPaid ||
+      revenue.totalAmount ||
+      revenue.amount ||
+      revenue.paidAmount ||
+      revenue.paymentAmount ||
+      0;
+
+    console.log("===== TEMPLATE VARIABLES =====");
+    console.log("Customer Name:", customerName);
+    console.log("Service Name:", serviceName);
+    console.log("Amount Paid:", amountPaid);
+    console.log("Destination:", destination);
+
     // =====================================================
-    // 5. Public Invoice PDF URL
+    // WhatsApp Payload
     // =====================================================
-    const origin = new URL(req.url).origin;
 
+    const payload = {
+      apiKey: process.env.LIMBU_AI_WHATSAPP_KEY,
 
-    // =====================================================
-   // =====================================================
-// 5. WhatsApp Payload
-// =====================================================
+      campaignName: "service_booking_new",
 
-const payload = {
-  apiKey: process.env.LIMBU_AI_WHATSAPP_KEY,
+      destination,
 
-  campaignName: "service_booking_request",
+      userName: "Limbu AI",
 
-  destination: destination,
+      templateParams: [
+        customerName, // {{1}}
+        serviceName, // {{2}}
+        String(amountPaid), // {{3}}
+      ],
 
-  userName: "Limbu AI",
+      source: "api",
 
-  templateParams: [customerName],
+      media: {},
 
-  source: "api",
+      buttons: [],
 
-  media: {},
+      carouselCards: [],
 
-  buttons: [],
+      location: {},
 
-  carouselCards: [],
+      attributes: {},
 
-  location: {},
+      paramsFallbackValue: {
+        FirstName: customerName,
+        ServiceName: serviceName,
+        Amount: String(amountPaid),
+      },
+    };
 
-  attributes: {},
-
-  paramsFallbackValue: {
-    FirstName: customerName,
-  },
-};
-
-    console.log("===== INVOICE WHATSAPP PAYLOAD =====");
+    console.log("===== WHATSAPP PAYLOAD =====");
     console.log(JSON.stringify(payload, null, 2));
 
     // =====================================================
-    // 7. Send to WhatsApp API
+    // Send Template
     // =====================================================
+
     const response = await fetch(AISENSY_URL, {
       method: "POST",
       headers: {
@@ -164,12 +185,13 @@ const payload = {
 
     const data = await response.json();
 
-    console.log("===== INVOICE WHATSAPP RESPONSE =====");
+    console.log("===== WHATSAPP RESPONSE =====");
     console.log(JSON.stringify(data, null, 2));
 
     // =====================================================
-    // 8. Success Check
+    // Success Check
     // =====================================================
+
     const isSuccess =
       response.ok &&
       (
@@ -180,39 +202,44 @@ const payload = {
 
     if (isSuccess) {
       return NextResponse.json({
-  success: true,
-  message: "WhatsApp template sent successfully",
-  submitted_message_id:
-    data.submitted_message_id || null,
-  destination,
-  response: data,
-});
+        success: true,
+        message: "WhatsApp template sent successfully",
+        destination,
+        submitted_message_id:
+          data?.submitted_message_id || null,
+        response: data,
+      });
     }
 
     // =====================================================
-    // 9. API Failure
+    // API Failure
     // =====================================================
-    return NextResponse.json(
-  {
-    success: false,
-    message:
-      data?.message ||
-      data?.error ||
-      "No messages were sent",
-
-    destination,
-    response: data,
-  },
-  { status: 400 }
-);
-  } catch (error) {
-    console.error("SEND INVOICE WHATSAPP ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
         message:
-          error.message || "Failed to send invoice",
+          data?.message ||
+          data?.error ||
+          "No messages were sent",
+
+        destination,
+        response: data,
+      },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error(
+      "SEND WHATSAPP TEMPLATE ERROR:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error?.message ||
+          "Failed to send WhatsApp template",
       },
       { status: 500 }
     );

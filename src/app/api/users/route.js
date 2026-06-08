@@ -46,7 +46,10 @@ function getSourceMatch(source) {
 
   if (isMetaLeadSourceFilter(source)) {
     return {
-      $or: [{ source: { $in: META_LEAD_SOURCES } }, { leadTags: { $in: META_LEAD_TAG_KEYS } }],
+      $or: [
+        { source: { $in: META_LEAD_SOURCES } },
+        { leadTags: { $in: META_LEAD_TAG_KEYS } },
+      ],
     };
   }
 
@@ -1009,6 +1012,15 @@ export async function GET(req) {
     const totalUsers = await User.countDocuments(query);
     const skip = (page - 1) * limit;
 
+    query = {
+      ...query,
+      $or: [
+        { franchiseId: "" },
+        { franchiseId: null },
+        { franchiseId: { $exists: false } },
+      ],
+    };
+
     /* 3️⃣ Fetch users */
     const users = await User.find(query)
       .populate("assignedAgentId", "fullName email role mobileNumber")
@@ -1354,11 +1366,12 @@ export async function DELETE(req) {
     await dbConnect();
 
     const body = await req.json();
-    const ids = Array.isArray(body?.userIds) && body.userIds.length
-      ? body.userIds.map((id) => String(id).trim()).filter(Boolean)
-      : body?.userId
-        ? [String(body.userId).trim()]
-        : [];
+    const ids =
+      Array.isArray(body?.userIds) && body.userIds.length
+        ? body.userIds.map((id) => String(id).trim()).filter(Boolean)
+        : body?.userId
+          ? [String(body.userId).trim()]
+          : [];
 
     if (!ids.length) {
       return NextResponse.json(

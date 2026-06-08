@@ -4809,9 +4809,10 @@ export default function UserManagement() {
                                               </span>
                                             ) : (
                                               <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
-                                                {userAcquisitionLabel(
+                                                {/* {userAcquisitionLabel(
                                                   user.source,
-                                                )}
+                                                )} */}
+                                                {""}
                                               </span>
                                             )}
 

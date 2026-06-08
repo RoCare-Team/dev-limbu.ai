@@ -71,3 +71,25 @@ export function assertFranchiseBookingWriteAccess(req, body = {}) {
 
   return access;
 }
+
+export function assertFranchiseAdminAccess(req) {
+  const decoded = decodeFranchiseToken(req);
+
+  if (!decoded) {
+    return {
+      ok: false,
+      status: 401,
+      message: "Authentication required",
+    };
+  }
+
+  if (!canAccessBookings(decoded.role)) {
+    return {
+      ok: false,
+      status: 403,
+      message: "Only franchise admin can access this feature",
+    };
+  }
+
+  return { ok: true, decoded };
+}

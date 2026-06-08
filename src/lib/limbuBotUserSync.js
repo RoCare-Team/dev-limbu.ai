@@ -5,6 +5,11 @@ import ChatbotStageSnapshot from "@/models/ChatbotStageSnapshot";
 import dbConnect from "@/lib/dbConnect";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
+import {
+  fetchAllDemoBookings,
+  getDemoBookingMetricUsers,
+  normalizeBookingPhone,
+} from "@/lib/demoBookings";
 
 const LIMBUBOT_ADMIN_USERS_URL =
   process.env.LIMBUBOT_ADMIN_USERS_URL ||
@@ -38,6 +43,29 @@ let _limbuBotCacheAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 let _stageSnapshotBuildPromise = null;
+const DEMO_BOOKED_STAGE = "Demo Booked";
+
+async function loadChatbotDemoBookingsByPhone() {
+  const map = new Map();
+  try {
+    const bookings = await fetchAllDemoBookings();
+    for (const booking of bookings) {
+      const phone = normalizeBookingPhone(booking.phone);
+      if (!phone) continue;
+      const existing = map.get(phone);
+      if (
+        !existing ||
+        new Date(booking.createdAt).getTime() <
+          new Date(existing.createdAt).getTime()
+      ) {
+        map.set(phone, booking);
+      }
+    }
+  } catch (err) {
+    console.error("[limbuBotUserSync] demo bookings load failed:", err.message);
+  }
+  return map;
+}
 
 const SettingSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
@@ -340,9 +368,6 @@ export async function ensureChatbotRowsSaved(botRows = []) {
     ).length;
 
     if (inboundCount < 1) {
-      // console.log(
-      //   `[ensureChatbotRowsSaved] ⏭️ Skip (no inbound message): ${bot.phone || bot.user_id}`,
-      // );
       skipped++;
       continue;
     }
@@ -1077,9 +1102,10 @@ async function writeConversationStagesSnapshot(payload) {
 }
 
 export async function buildConversationStagesFromApi({ bypassCache = false } = {}) {
-  const { total, users: botUsers } = await fetchLimbuBotAdminUsers({
-    bypassCache,
-  });
+  const [{ total, users: botUsers }, demoByPhone] = await Promise.all([
+    fetchLimbuBotAdminUsers({ bypassCache }),
+    loadChatbotDemoBookingsByPhone(),
+  ]);
 
   const allUsers = [];
 
@@ -1092,6 +1118,10 @@ export async function buildConversationStagesFromApi({ bypassCache = false } = {
         const history = Array.isArray(bot.history) ? bot.history : [];
         const matched = detectConversationStages(history);
         const stages = [...matched];
+        const phone = waIdToPhone(waId);
+        if (phone && demoByPhone.has(phone) && !stages.includes(DEMO_BOOKED_STAGE)) {
+          stages.push(DEMO_BOOKED_STAGE);
+        }
 
         allUsers.push(
           toCompactStageRow({
@@ -1178,20 +1208,11 @@ async function loadOrBuildConversationStagesSnapshot({
 export async function syncChatbotUsersToApp(options = {}) {
   const { minMessageCount = 1, maxToInsert = 500 } = options;
 
-  // console.log(`\n[syncChatbotUsersToApp] ═══════════════════════════════`);
-  // console.log(
-  //   `[syncChatbotUsersToApp] 🚀 Sync shuru | minMessages=${minMessageCount} | maxInsert=${maxToInsert}`,
- // );
-
   await dbConnect();
 
   const { users: botUsers } = await fetchLimbuBotAdminUsers({
     bypassCache: true,
   });
-
-  // console.log(
-  //   `[syncChatbotUsersToApp] 📦 WhatsApp se total users: ${botUsers.length}`,
-  // );
 
   const takenEmailRows = await User.find({
     email: { $regex: /^chatbot\d+@gmail\.com$/i },
@@ -1211,10 +1232,6 @@ export async function syncChatbotUsersToApp(options = {}) {
     emailCounter = max + 1;
   }
 
-  // console.log(
-  //   `[syncChatbotUsersToApp] 📧 Existing chatbot emails: ${takenEmails.size} | Next email index: ${emailCounter}`,
-  // );
-
   let inserted = 0;
   let skipped = 0;
   let linked = 0;
@@ -1223,9 +1240,6 @@ export async function syncChatbotUsersToApp(options = {}) {
 
   for (const bot of botUsers) {
     if (inserted >= maxToInsert) {
-      // console.log(
-      //   `[syncChatbotUsersToApp] 🛑 maxToInsert (${maxToInsert}) limit hit — baaki users skip`,
-      // );
       break;
     }
 
@@ -1237,18 +1251,12 @@ export async function syncChatbotUsersToApp(options = {}) {
       const cc = getNonIndianCountryCode(waId);
       if (cc) {
         nonIndian.push({ waId, countryCode: cc });
-        // console.log(
-        //   `[syncChatbotUsersToApp] 🌍 Non-Indian number skip: ${waId} (country code: ${cc})`,
-        // );
       }
       skipped++;
       continue;
     }
 
     if (messageCount < minMessageCount) {
-      // console.log(
-      //   `[syncChatbotUsersToApp] ⏭️ Skip (kam messages): ${phone} | messages=${messageCount}`,
-      // );
       skipped++;
       continue;
     }
@@ -1284,9 +1292,6 @@ export async function syncChatbotUsersToApp(options = {}) {
             },
           },
         );
-        // console.log(
-        //   `[syncChatbotUsersToApp] 🔗 Linked (already exists): ${phone} | waId=${waId}`,
-        // );
         linked++;
         continue;
       }
@@ -1329,9 +1334,6 @@ export async function syncChatbotUsersToApp(options = {}) {
           : null,
       });
 
-        // console.log(
-        //   `[syncChatbotUsersToApp] ✅ NEW user inserted: ${phone} | name=${created.fullName} | email=${email} | agent=${assignedAgentId}`,
-        // );
       inserted++;
 
       void runWelcomeBonusForUserId(created.userId).catch((err) =>
@@ -1339,9 +1341,6 @@ export async function syncChatbotUsersToApp(options = {}) {
       );
     } catch (err) {
       if (err.code === 11000) {
-        // console.log(
-        //   `[syncChatbotUsersToApp] ⚡ Race condition (11000) — linked: ${phone}`,
-        // );
         linked++;
       } else {
         console.error(
@@ -1364,12 +1363,6 @@ export async function syncChatbotUsersToApp(options = {}) {
     console.error("[syncChatbotUsersToApp] stage snapshot refresh failed:", err);
   }
 
-  // console.log(`\n[syncChatbotUsersToApp] ══ SYNC COMPLETE ══`);
-  // console.log(
-  //   `[syncChatbotUsersToApp] 📊 fetched=${botUsers.length} | inserted=${inserted} | linked=${linked} | skipped=${skipped} | nonIndian=${nonIndian.length} | errors=${errors.length}`,
-  // );
-  // console.log(`[syncChatbotUsersToApp] ═══════════════════════════════\n`);
-
   return {
     fetched: botUsers.length,
     inserted,
@@ -1387,6 +1380,7 @@ export const CONVERSATION_STAGE_KEYS = [
   "Magic QR",
   "GMB Insight",
   "Build Website",
+  "Demo Booked",
 ];
 
 export const CHATBOT_SUMMARY_METRIC_DEFS = [
@@ -1396,6 +1390,7 @@ export const CHATBOT_SUMMARY_METRIC_DEFS = [
   { id: "magicQr", label: "Magic QR Created", stage: "Magic QR" },
   { id: "gmbInsights", label: "GMB Insights Generated", stage: "GMB Insight" },
   { id: "websitesBuilt", label: "Websites Built", stage: "Build Website" },
+  { id: "demoBooked", label: "Demo Booked", stage: "Demo Booked" },
 ];
 
 const _STAGE_KEYWORDS = {
@@ -1408,6 +1403,16 @@ const _STAGE_KEYWORDS = {
   "Magic QR": ["Magic QR ready hai!"],
   "GMB Insight": ["Full Report (PDF)"],
   "Build Website": ["Website URL"],
+  "Demo Booked": [
+    "demo book",
+    "demo booked",
+    "demo session",
+    "webinar",
+    "seminar",
+    "zoom meeting",
+    "meeting id",
+    "demo confirm",
+  ],
 };
 
 export async function fetchLimbuBotHistory(userId) {
@@ -1673,6 +1678,7 @@ const CHATBOT_METRIC_STAGE_MAP = {
   magicQr: "Magic QR",
   gmbInsights: "GMB Insight",
   websitesBuilt: "Build Website",
+  demoBooked: DEMO_BOOKED_STAGE,
 };
 
 function filterBotRowsForMetric(botUsers = [], metricId, period, calendarDate) {
@@ -1721,13 +1727,26 @@ export async function getChatbotMetricUsers({
     throw new Error("Invalid period");
   }
 
+  if (metricId === "demoBooked") {
+    return getDemoBookingMetricUsers({
+      period,
+      page,
+      limit,
+      filterByAgent,
+      role,
+      autoSync: true,
+    });
+  }
+
   const todayBounds = getAppDayBounds();
   const calendarDate = todayBounds.calendarDate;
   let rows = [];
 
   if (period === "today") {
     const { users: botUsers } = await fetchLimbuBotAdminUsers();
-    rows = dedupeBotStageRows(filterBotRowsForMetric(botUsers, metricId, period, calendarDate));
+    rows = dedupeBotStageRows(
+      filterBotRowsForMetric(botUsers, metricId, period, calendarDate),
+    );
   } else {
     const snapshot = await loadOrBuildConversationStagesSnapshot({
       refresh: false,

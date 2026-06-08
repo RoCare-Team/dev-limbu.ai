@@ -229,6 +229,34 @@ localStorage.setItem("paidService", data.user.paidService || "")
       if (ok && data.token) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
+
+        try {
+  const emailRes = await fetch(
+    "/api/admin/send-registration-email",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: data.user.email,
+        customerName: data.user.fullName,
+      }),
+    }
+  );
+
+  const emailData = await emailRes.json();
+
+  console.log(
+    "📧 Registration Email:",
+    emailData
+  );
+} catch (emailErr) {
+  console.error(
+    "Registration email failed:",
+    emailErr
+  );
+}
         msg("Registration complete!", "success");
         setTimeout(() => router.push("/dashboard"), 800);
       } else msg(data.error || "Registration failed", "error");

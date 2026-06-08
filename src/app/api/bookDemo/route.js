@@ -11,6 +11,8 @@ import {
   isDemoSlotBooked,
   normalizeBookingPhone,
   normalizeBookingSelectedDate,
+  normalizeSeminarTime,
+  formatDemoSelectedDate,
 } from "@/lib/demoBookings";
 
 // -------------------------
@@ -241,6 +243,21 @@ export async function POST(request) {
     }
 
     const normalizedDate = normalizeBookingSelectedDate(selectedDate);
+    const availability = await getDemoSlotAvailability(normalizedDate);
+    const slotMatch = availability.slots.find(
+      (slot) =>
+        normalizeSeminarTime(slot.label) === normalizeSeminarTime(seminarTime),
+    );
+    if (!slotMatch) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "This time slot is not available. Please pick another date or time.",
+        },
+        { status: 400 },
+      );
+    }
     if (await isDemoSlotBooked(normalizedDate, seminarTime)) {
       const availability = await getDemoSlotAvailability(normalizedDate);
       const alternatives = availability.slots
@@ -387,6 +404,36 @@ export async function GET(request) {
     if (searchParams.get("admin") === "1") {
       const payload = await getDemoBookingsAdminPayload();
       return NextResponse.json(payload);
+    }
+
+    const phoneQuery = searchParams.get("phone");
+    if (phoneQuery) {
+      const normalizedPhone = normalizeBookingPhone(phoneQuery);
+      if (!normalizedPhone) {
+        return NextResponse.json(
+          { success: false, message: "Valid 10-digit phone required." },
+          { status: 400 },
+        );
+      }
+      const allBookings = await fetchAllDemoBookings({ bypassCache: true });
+      const data = allBookings
+        .filter((b) => normalizeBookingPhone(b.phone) === normalizedPhone)
+        .map((b) => ({
+          id: String(b._id),
+          name: b.name,
+          phone: b.phone,
+          seminarTime: b.seminarTime,
+          selectedDate: normalizeBookingSelectedDate(b.selectedDate),
+          selectedDateLabel: formatDemoSelectedDate(b.selectedDate),
+          status: b.status || "Not Attended",
+          bookedAt: b.createdAt,
+        }))
+        .sort((a, b) => new Date(b.bookedAt || 0) - new Date(a.bookedAt || 0));
+      return NextResponse.json({
+        success: true,
+        count: data.length,
+        data,
+      });
     }
 
     const allBookings = await fetchAllDemoBookings({ bypassCache: true });

@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   Card,
-  CardActionArea,
-  Chip,
   Stack,
   Typography,
   CircularProgress,
@@ -13,117 +11,205 @@ import {
 import { BarChart, Refresh } from "@mui/icons-material";
 
 const METRIC_STYLES = {
-  chatsCreated: { color: "#2563eb", bg: "#dbeafe" },
-  gmbConnected: { color: "#059669", bg: "#d1fae5" },
-  gmbHealth: { color: "#8b5cf6", bg: "#ede9fe" },
-  magicQr: { color: "#d946ef", bg: "#f5d0fe" },
-  gmbInsights: { color: "#0ea5e9", bg: "#d0f2fe" },
-  websitesBuilt: { color: "#f59e0b", bg: "#fef3c7" },
-  demoBooked: { color: "#e11d48", bg: "#ffe4e6" },
+  chatsCreated: { color: "#2563eb", bg: "#eff6ff" },
+  gmbConnected: { color: "#059669", bg: "#ecfdf5" },
+  gmbHealth: { color: "#7c3aed", bg: "#f5f3ff" },
+  magicQr: { color: "#c026d3", bg: "#fdf4ff" },
+  gmbInsights: { color: "#0284c7", bg: "#f0f9ff" },
+  websitesBuilt: { color: "#d97706", bg: "#fffbeb" },
+  demoBooked: { color: "#e11d48", bg: "#fff1f2" },
 };
 
 export const CHATBOT_METRIC_CARD_DEFS = [
-  { id: "chatsCreated", totalTitle: "Total Chats Created", todayTitle: "Today Chats Created" },
-  { id: "gmbConnected", totalTitle: "Total GMB Connected", todayTitle: "Today GMB Connected" },
-  {
-    id: "gmbHealth",
-    totalTitle: "Total GMB Health Generated",
-    todayTitle: "Today GMB Health Generated",
-  },
-  {
-    id: "magicQr",
-    totalTitle: "Total Magic QR Created",
-    todayTitle: "Today Magic QR Created",
-  },
-  {
-    id: "gmbInsights",
-    totalTitle: "Total GMB Insights Generated",
-    todayTitle: "Today GMB Insights Generated",
-  },
-  {
-    id: "websitesBuilt",
-    totalTitle: "Total Websites Built",
-    todayTitle: "Today Websites Built",
-  },
-  {
-    id: "demoBooked",
-    totalTitle: "Total Demo Booked",
-    todayTitle: "Today Demo Booked",
-  },
+  { id: "chatsCreated", label: "Chats Created", shortLabel: "Chats Created" },
+  { id: "gmbConnected", label: "GMB Connected", shortLabel: "GMB Connected" },
+  { id: "gmbHealth", label: "GMB Health Generated", shortLabel: "GMB Health" },
+  { id: "magicQr", label: "Magic QR Created", shortLabel: "Magic QR" },
+  { id: "gmbInsights", label: "GMB Insights Generated", shortLabel: "GMB Insights" },
+  { id: "websitesBuilt", label: "Websites Built", shortLabel: "Websites Built" },
+  { id: "demoBooked", label: "Demo Booked", shortLabel: "Demo Booked" },
 ];
 
-function MetricCard({
-  title,
+function formatCount(count) {
+  return Number(count || 0).toLocaleString("en-IN");
+}
+
+function PeriodCell({
+  period,
+  label,
   count,
   loading,
-  variant = "total",
   metricId,
   cardKey,
   active,
   onSelect,
+  style,
+}) {
+  const isToday = period === "today";
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      disabled={loading}
+      onClick={() =>
+        onSelect?.({
+          metricId,
+          period,
+          title: `${isToday ? "Today" : "Total"} ${label}`,
+          cardKey,
+        })
+      }
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        width: "50%",
+        border: "none",
+        cursor: loading ? "default" : "pointer",
+        py: 1.25,
+        px: 0.75,
+        textAlign: "center",
+        transition: "background 0.15s ease",
+        background: active
+          ? style.color
+          : isToday
+            ? style.bg
+            : "transparent",
+        fontFamily: "var(--font-inter)",
+        "&:hover:not(:disabled)": {
+          background: active
+            ? style.color
+            : isToday
+              ? style.bg
+              : "rgba(0,0,0,0.03)",
+        },
+        "&:disabled": { opacity: 0.7 },
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: "9px",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          color: active ? "rgba(255,255,255,0.9)" : "#9ca3af",
+          lineHeight: 1,
+        }}
+      >
+        {isToday ? "Today" : "Total"}
+      </Typography>
+      <Typography
+        component="p"
+        sx={{
+          mt: 0.6,
+          fontSize: "clamp(15px, 2.2vw, 20px)",
+          fontWeight: 800,
+          lineHeight: 1.1,
+          color: active ? "#fff" : isToday ? style.color : "#111827",
+          fontVariantNumeric: "tabular-nums",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          width: "100%",
+        }}
+        title={loading ? "" : formatCount(count)}
+      >
+        {loading ? "…" : formatCount(count)}
+      </Typography>
+    </Box>
+  );
+}
+
+function MetricBlock({
+  metricId,
+  label,
+  shortLabel,
+  total,
+  today,
+  loading,
+  activeCardKey,
+  onSelect,
 }) {
   const style = METRIC_STYLES[metricId] || METRIC_STYLES.chatsCreated;
-  const isToday = variant === "today";
-  const highlighted = active;
+  const totalKey = `${metricId}:total`;
+  const todayKey = `${metricId}:today`;
+  const isActive = activeCardKey === totalKey || activeCardKey === todayKey;
 
   return (
     <Card
       elevation={0}
       sx={{
         borderRadius: "12px",
-        border: highlighted
-          ? `2px solid ${style.color}`
-          : isToday
-            ? `1.5px solid ${style.color}`
-            : "1px solid #e5e7eb",
-        background: highlighted ? style.color : isToday ? style.bg : "#fff",
+        border: isActive ? `2px solid ${style.color}` : "1px solid #e5e7eb",
+        background: "#fff",
         overflow: "hidden",
+        minWidth: 0,
         fontFamily: "var(--font-inter)",
         "& *": { fontFamily: "var(--font-inter)" },
       }}
     >
-      <CardActionArea
-        disabled={loading}
-        onClick={() => onSelect?.({ metricId, period: variant, title, cardKey })}
-        sx={{ p: 1.25, minHeight: 96 }}
+      <Box
+        sx={{
+          px: 1.25,
+          py: 0.9,
+          borderBottom: "1px solid #f3f4f6",
+          background: "#fafafa",
+        }}
       >
         <Typography
           sx={{
-            fontSize: "9px",
-            fontWeight: 800,
-            textTransform: "uppercase",
-            letterSpacing: 0.4,
-            color: highlighted ? "rgba(255,255,255,0.9)" : "#6b7280",
-            lineHeight: 1.3,
-          }}
-        >
-          {title}
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.75,
-            fontSize: "26px",
-            fontWeight: 900,
-            lineHeight: 1,
-            color: highlighted ? "#fff" : isToday ? style.color : "#111827",
-          }}
-        >
-          {loading ? "…" : Number(count || 0).toLocaleString("en-IN")}
-        </Typography>
-        <Chip
-          label={highlighted ? "Showing in table" : "Click to view"}
-          size="small"
-          sx={{
-            mt: 1,
-            height: 20,
-            fontSize: "9px",
+            fontSize: "11px",
             fontWeight: 700,
-            background: highlighted ? "rgba(255,255,255,0.2)" : style.bg,
-            color: highlighted ? "#fff" : style.color,
-            borderRadius: "6px",
+            color: "#374151",
+            textAlign: "center",
+            lineHeight: 1.25,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
+          title={label}
+        >
+          {shortLabel || label}
+        </Typography>
+      </Box>
+
+      <Stack
+        direction="row"
+        divider={
+          <Box
+            sx={{
+              width: "1px",
+              alignSelf: "stretch",
+              background: "#e5e7eb",
+              my: 0.75,
+            }}
+          />
+        }
+        sx={{ minWidth: 0 }}
+      >
+        <PeriodCell
+          period="total"
+          label={label}
+          count={total}
+          loading={loading}
+          metricId={metricId}
+          cardKey={totalKey}
+          active={activeCardKey === totalKey}
+          onSelect={onSelect}
+          style={style}
         />
-      </CardActionArea>
+        <PeriodCell
+          period="today"
+          label={label}
+          count={today}
+          loading={loading}
+          metricId={metricId}
+          cardKey={todayKey}
+          active={activeCardKey === todayKey}
+          onSelect={onSelect}
+          style={style}
+        />
+      </Stack>
     </Card>
   );
 }
@@ -164,6 +250,7 @@ export default function ChatbotSummaryMetrics({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
           >
             <BarChart sx={{ fontSize: 18, color: "#2563eb" }} />
@@ -180,7 +267,7 @@ export default function ChatbotSummaryMetrics({
               WhatsApp Chatbot Overview
             </Typography>
             <Typography sx={{ fontSize: "10px", color: "#6b7280", mt: 0.2 }}>
-              Click any card to view leads in the table below
+              Total left · Today right — click to filter leads below
             </Typography>
           </Box>
         </Stack>
@@ -198,6 +285,7 @@ export default function ChatbotSummaryMetrics({
           }
           sx={{
             minWidth: "auto",
+            flexShrink: 0,
             px: 1.2,
             py: 0.4,
             borderRadius: "8px",
@@ -216,37 +304,28 @@ export default function ChatbotSummaryMetrics({
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "repeat(2, minmax(0, 1fr))",
-            md: "repeat(4, minmax(0, 1fr))",
-            xl: "repeat(7, minmax(0, 1fr))",
+            xs: "repeat(1, minmax(0, 1fr))",
+            sm: "repeat(2, minmax(140px, 1fr))",
+            md: "repeat(3, minmax(160px, 1fr))",
+            lg: "repeat(4, minmax(170px, 1fr))",
+            xl: "repeat(4, minmax(180px, 1fr))",
           },
-          gap: 1,
+          gap: 1.25,
         }}
       >
-        {CHATBOT_METRIC_CARD_DEFS.flatMap((row) => [
-          <MetricCard
-            key={`${row.id}-total`}
-            cardKey={`${row.id}:total`}
+        {CHATBOT_METRIC_CARD_DEFS.map((row) => (
+          <MetricBlock
+            key={row.id}
             metricId={row.id}
-            title={row.totalTitle}
-            count={totals[row.id]}
+            label={row.label}
+            shortLabel={row.shortLabel}
+            total={totals[row.id]}
+            today={today[row.id]}
             loading={loading}
-            variant="total"
-            active={activeCardKey === `${row.id}:total`}
+            activeCardKey={activeCardKey}
             onSelect={onSelectCard}
-          />,
-          <MetricCard
-            key={`${row.id}-today`}
-            cardKey={`${row.id}:today`}
-            metricId={row.id}
-            title={row.todayTitle}
-            count={today[row.id]}
-            loading={loading}
-            variant="today"
-            active={activeCardKey === `${row.id}:today`}
-            onSelect={onSelectCard}
-          />,
-        ])}
+          />
+        ))}
       </Box>
     </Card>
   );

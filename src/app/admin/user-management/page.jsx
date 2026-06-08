@@ -1892,11 +1892,12 @@ export default function UserManagement() {
     setChatbotMetricFilter(null);
     setChatbotMetricTableActive(false);
     setChatbotMetricUsers([]);
+    setChatbotMetricLoading(false);
     setCurrentPage(1);
     fetchUsers(true);
   };
 
-  const handleChatbotMetricCardClick = async ({
+  const handleChatbotMetricCardClick = ({
     metricId,
     period,
     title,
@@ -1916,21 +1917,10 @@ export default function UserManagement() {
 
     const newFilter = { metricId, period, title, cardKey };
 
-    // Set state first
     setChatbotMetricUsers([]);
+    setChatbotMetricLoading(true);
     setChatbotMetricTableActive(true);
     setChatbotMetricFilter(newFilter);
-
-    try {
-      await fetchChatbotMetricUsers(newFilter, {
-        page: 1,
-        silent: true,
-      });
-
-      setCurrentPage(1);
-    } catch (err) {
-      console.error("Error fetching chatbot metric users on card click:", err);
-    }
   };
 
   const handleConversationStageFilterChange = (stage) => {
@@ -1961,7 +1951,6 @@ export default function UserManagement() {
       return;
     }
     fetchChatbotMetricUsers(chatbotMetricFilter, {
-      silent: true,
       page: currentPage,
     });
   }, [chatbotMetricTableActive, chatbotMetricFilter, currentPage]);
@@ -5119,6 +5108,9 @@ export default function UserManagement() {
                         })}
 
                         {!loadingFollowUpTable &&
+                          !(
+                            chatbotMetricLoading && chatbotMetricTableActive
+                          ) &&
                           filteredUsers.length === 0 && (
                             <tr>
                               <td

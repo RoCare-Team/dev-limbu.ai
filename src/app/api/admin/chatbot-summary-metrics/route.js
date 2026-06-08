@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
 import { getChatbotDashboardMetrics } from "@/lib/limbuBotUserSync";
+import {
+  getDemoBookingMetrics,
+  syncPendingDemoBookings,
+} from "@/lib/demoBookings";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +36,29 @@ export async function GET(req) {
     }
 
     const filterByAgent = searchParams.get("filterByAgent");
-    const metrics = await getChatbotDashboardMetrics({ filterByAgent: filterByAgent || null, role: admin.role });
+    const agentScopedEmail =
+      admin.role === "agent" ? adminEmail : filterByAgent || null;
+    const [metrics, demoMetrics, syncResults] = await Promise.all([
+      getChatbotDashboardMetrics({
+        filterByAgent: filterByAgent || null,
+        role: admin.role,
+      }),
+      getDemoBookingMetrics({ filterByAgent: agentScopedEmail }),
+      syncPendingDemoBookings(),
+    ]);
 
     return NextResponse.json({
       success: true,
       ...metrics,
+      totals: {
+        ...metrics.totals,
+        demoBooked: demoMetrics.totals.demoBooked,
+      },
+      today: {
+        ...metrics.today,
+        demoBooked: demoMetrics.today.demoBooked,
+      },
+      demoSync: syncResults,
     });
   } catch (err) {
     console.error("[chatbot-summary-metrics]", err);

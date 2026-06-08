@@ -174,6 +174,12 @@ export default function UserManagement() {
   const [chatbotMetricTableActive, setChatbotMetricTableActive] =
     useState(false);
   const [chatbotMetricLoading, setChatbotMetricLoading] = useState(false);
+  const [agentTodayDemos, setAgentTodayDemos] = useState({
+    loading: false,
+    count: 0,
+    demos: [],
+    calendarDate: "",
+  });
   /** null | "today" | "yesterday" — filters main leads table */
   const [chatbotChatDayFilter, setChatbotChatDayFilter] = useState(null);
   const [issues, setIssues] = useState([]);
@@ -820,6 +826,7 @@ export default function UserManagement() {
     "Magic QR",
     "GMB Insight",
     "Build Website",
+    "Demo Booked",
   ];
 
   const fetchChatHistoryForUser = async (user) => {
@@ -1513,6 +1520,9 @@ export default function UserManagement() {
   useEffect(() => {
     if (!role) return;
     fetchChatbotSummaryMetrics();
+    if (role === "agent") {
+      fetchAgentTodayDemos();
+    }
   }, [role]);
 
   /* ---------------- UPLOAD TO S3 ---------------- */
@@ -1675,6 +1685,35 @@ export default function UserManagement() {
     return data.stats;
   };
 
+  
+
+  const fetchAgentTodayDemos = async () => {
+    const adminEmail = localStorage.getItem("email");
+    if (!adminEmail || role !== "agent") return;
+
+    setAgentTodayDemos((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch(
+        `/api/admin/today-demo-bookings?email=${encodeURIComponent(adminEmail)}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setAgentTodayDemos({
+          loading: false,
+          count: data.count || 0,
+          demos: data.demos || [],
+          calendarDate: data.calendarDate || "",
+        });
+      } else {
+        setAgentTodayDemos((prev) => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error("Error fetching agent today demos:", error);
+      setAgentTodayDemos((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
   const fetchChatbotSummaryMetrics = async ({ showLoader = true } = {}) => {
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail) return;
@@ -1754,6 +1793,13 @@ export default function UserManagement() {
       }
 
       setChatbotMetricUsers(data.users || []);
+      if (filter.metricId === "demoBooked" && data.calendarDate) {
+        setChatbotMetricFilter((prev) =>
+          prev?.cardKey === filter.cardKey
+            ? { ...prev, calendarDate: data.calendarDate }
+            : prev,
+        );
+      }
       setPagination({
         totalUsers: data.totalUsers || 0,
         currentPage: data.currentPage || currentPage,
@@ -1826,6 +1872,7 @@ export default function UserManagement() {
             })
           : Promise.resolve(),
         fetchAgentStats(),
+        role === "agent" ? fetchAgentTodayDemos() : Promise.resolve(),
       ]);
       showToast(
         `WhatsApp data refreshed. ${syncStats?.inserted || 0} new, ${syncStats?.assigned || 0} assigned.`,
@@ -3279,13 +3326,15 @@ export default function UserManagement() {
 
   const groupByDate = (data) => {
     return data.reduce((acc, item) => {
-      const date = new Date(item.createdAt).toLocaleDateString("en-IN");
+      const dateLabel = item.demoBooking?.selectedDate
+        ? `Demo: ${item.demoBooking.selectedDateLabel || item.demoBooking.selectedDate}`
+        : new Date(item.createdAt).toLocaleDateString("en-IN");
 
-      if (!acc[date]) {
-        acc[date] = [];
+      if (!acc[dateLabel]) {
+        acc[dateLabel] = [];
       }
 
-      acc[date].push(item);
+      acc[dateLabel].push(item);
       return acc;
     }, {});
   };
@@ -3449,6 +3498,68 @@ export default function UserManagement() {
                     </p>
                   </div>
                 ))}
+              </div>
+
+              {/* ── Today's demo bookings (from /api/bookDemo) ── */}
+              <div>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Today Demo Booked
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleChatbotMetricCardClick({
+                      metricId: "demoBooked",
+                      period: "today",
+                      title: "Today Demo Booked",
+                      cardKey: "demoBooked:today-agent",
+                    })
+                  }
+                  className={`w-full rounded-lg p-3 border-2 text-left transition-all ${
+                    chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                      ? "bg-rose-500 text-white border-transparent ring-2 ring-rose-400 shadow-md"
+                      : "bg-rose-50 text-rose-900 border-rose-200 hover:border-rose-300 hover:bg-rose-100"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p
+                        className={`text-[9px] font-bold uppercase tracking-wide ${
+                          chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                            ? "text-white/80"
+                            : "text-rose-600"
+                        }`}
+                      >
+                        Scheduled for today
+                      </p>
+                      <p className="text-2xl font-black mt-0.5">
+                        {agentTodayDemos.loading
+                          ? "…"
+                          : agentTodayDemos.count}
+                      </p>
+                      <p
+                        className={`text-[10px] mt-0.5 ${
+                          chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                            ? "text-white/70"
+                            : "text-rose-500"
+                        }`}
+                      >
+                        {agentTodayDemos.calendarDate
+                          ? `Scheduled ${agentTodayDemos.calendarDate}`
+                          : "Click to view demo leads below"}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-[10px] font-bold ${
+                        chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                          ? "bg-white/20 text-white"
+                          : "bg-white text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      Demo tab
+                    </div>
+                  </div>
+                </button>
               </div>
 
               {/* ── Row 2: Follow-up quick stats (clickable → filter leads below) ── */}
@@ -4200,6 +4311,14 @@ export default function UserManagement() {
                       · {pagination.totalUsers} leads
                     </span>
                   )}
+                  {chatbotMetricFilter?.metricId === "demoBooked" &&
+                    chatbotMetricFilter?.period === "today" &&
+                    chatbotMetricFilter?.calendarDate && (
+                      <span className="text-rose-700 font-semibold">
+                        {" "}
+                        · scheduled {chatbotMetricFilter.calendarDate}
+                      </span>
+                    )}
                 </p>
                 <button
                   type="button"
@@ -4261,146 +4380,6 @@ export default function UserManagement() {
               </div>
             )}
 
-            {role === "superAdmin" && (
-              <>
-                {bulkWaSelectedUserIds.length > 0 && (
-                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                      <div className="flex items-center gap-3 text-white">
-                        <div className="bg-white/20 rounded-full p-3">
-                          <MessageSquare className="text-white" size={24} />
-                        </div>
-                        <div>
-                          <p className="text-sm opacity-90">Selected leads</p>
-                          <p className="text-2xl font-bold">
-                            {bulkWaSelectedUserIds.length}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex-1 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setBulkDeleteModalOpen(true)}
-                          className="group bg-white px-6 py-3 rounded-2xl
-                            flex items-center gap-2 text-red-600 font-semibold
-                            shadow-md hover:shadow-xl hover:-translate-y-1
-                            hover:scale-105 active:scale-95
-                            transition-all duration-300"
-                        >
-                          <Trash2
-                            size={20}
-                            className="group-hover:scale-110 transition"
-                          />
-                          Delete Selected
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setIsOpen(true)}
-                          className="group bg-white px-6 py-3 rounded-2xl
-                            flex items-center gap-2 text-green-600 font-semibold
-                            shadow-md hover:shadow-xl hover:-translate-y-1
-                            hover:scale-105 active:scale-95
-                            transition-all duration-300"
-                        >
-                          <MessageCircle
-                            size={20}
-                            className="group-hover:rotate-12 transition"
-                          />
-                          WhatsApp
-                        </button>
-
-                        <button
-                          className="group bg-white px-6 py-3 rounded-2xl
-                                        flex items-center gap-2 text-blue-600 font-semibold
-                                        shadow-md hover:shadow-xl hover:-translate-y-1
-                                        hover:scale-105 active:scale-95
-                                        transition-all duration-300"
-                        >
-                          <Send
-                            size={20}
-                            className="group-hover:-rotate-12 transition"
-                          />
-                          RCS
-                        </button>
-
-                        <button
-                          className="group bg-white px-6 py-3 rounded-2xl
-                                        flex items-center gap-2 text-purple-600 font-semibold
-                                        shadow-md hover:shadow-xl hover:-translate-y-1
-                                        hover:scale-105 active:scale-95
-                                        transition-all duration-300"
-                        >
-                          <Mail
-                            size={20}
-                            className="group-hover:scale-110 transition"
-                          />
-                          Email
-                        </button>
-
-                        <button
-                          className="group bg-white px-6 py-3 rounded-2xl
-                                        flex items-center gap-2 text-orange-600 font-semibold
-                                        shadow-md hover:shadow-xl hover:-translate-y-1
-                                        hover:scale-105 active:scale-95
-                                        transition-all duration-300"
-                        >
-                          <Smartphone
-                            size={20}
-                            className="group-hover:rotate-6 transition"
-                          />
-                          SMS
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <WhatsappModal
-                  isOpen={isOpen}
-                  setIsOpen={setIsOpen}
-                  selectedCount={bulkWaSelectedUserIds.length}
-                  bulkWaSendDate={bulkWaSendDate}
-                  setBulkWaSendDate={setBulkWaSendDate}
-                  onBulkSend={sendBulkUserManagementWhatsApp}
-                  bulkWaSending={bulkWaSending}
-                  onSendTemplate={sendTemplateWhatsApp}
-                  sendingTemplateId={templateWaSendingId}
-                />
-
-                {bulkWaResult && (
-                  <div
-                    className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
-                      bulkWaResult.success
-                        ? "bg-green-50 text-green-800 border-green-500"
-                        : "bg-red-50 text-red-800 border-red-500"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1">
-                        <p className="font-bold text-lg mb-1">
-                          {bulkWaResult.success ? "✓ Success" : "✗ Error"}
-                        </p>
-                        <p>{bulkWaResult.message}</p>
-                        {bulkWaResult.sent !== undefined && (
-                          <p className="mt-2 font-semibold">
-                            . Messages sent: {bulkWaResult.sent}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setBulkWaResult(null)}
-                        className="text-gray-500 hover:text-gray-700 p-1"
-                        aria-label="Dismiss"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
             <TableContainer
               sx={{
                 maxHeight: { xs: "60vh", md: "72vh" },
@@ -4705,6 +4684,16 @@ export default function UserManagement() {
                                                 {user.fullName}
                                               </div>
                                             )}
+                                            {chatbotMetricFilter?.metricId ===
+                                              "demoBooked" &&
+                                              user.demoBooking && (
+                                              <span
+                                                className="inline-block px-2 py-0.5 text-[10px] font-semibold text-rose-800 bg-rose-100 rounded-full border border-rose-200"
+                                                title={`Demo: ${user.demoBooking.selectedDateLabel || user.demoBooking.selectedDate} · ${user.demoBooking.seminarTime} · ${user.demoBooking.status}`}
+                                              >
+                                                Demo {user.demoBooking.seminarTime}
+                                              </span>
+                                            )}
                                             {paidUsersStatus[user.userId] && ( // A URL exists for this user
                                               <>
                                                 <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
@@ -4730,6 +4719,24 @@ export default function UserManagement() {
                                               </>
                                             )}
                                           </div>
+                                          {chatbotMetricFilter?.metricId ===
+                                            "demoBooked" &&
+                                            user.demoBooking && (
+                                            <div className="text-[10px] text-rose-700 font-medium space-y-0.5">
+                                              <div>
+                                                Demo Date:{" "}
+                                                {user.demoBooking.selectedDateLabel ||
+                                                  user.demoBooking.selectedDate ||
+                                                  "—"}{" "}
+                                                · {user.demoBooking.seminarTime} ·{" "}
+                                                {user.demoBooking.status}
+                                              </div>
+                                              <div className="text-indigo-700">
+                                                Agent:{" "}
+                                                {getAgentName(user.assignedAgentId)}
+                                              </div>
+                                            </div>
+                                          )}
                                           <div
                                             onClick={(e) => e.stopPropagation()}
                                           >
@@ -4968,6 +4975,9 @@ export default function UserManagement() {
                                           <option value="Active">Active</option>
                                           <option value="Follow Up">
                                             Follow Up
+                                          </option>
+                                          <option value="Inactive">
+                                            Inactive
                                           </option>
                                           <option value="Onboard">
                                             Onboard

@@ -241,7 +241,6 @@ export default function UserManagement() {
     leads: [],
   });
 
-
   const [allSelectedUsers, setAllSelectedUsers] = useState([]);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -2474,8 +2473,6 @@ export default function UserManagement() {
     }
   };
 
-  
-
   const getBulkWaCampaignByDate = (dateStr) => {
     const day = new Date(dateStr).getDay();
     if (day === 0) return null;
@@ -2589,33 +2586,31 @@ export default function UserManagement() {
     }
   };
 
- const getSelectedWhatsAppUsersPayload = () =>
-  allSelectedUsers
-    .filter((u) =>
-      bulkWaSelectedUserIds.includes(String(u.userId))
-    )
-    .map((u) => {
-      let num = u.phone || u.mobileNumber;
+  const getSelectedWhatsAppUsersPayload = () =>
+    allSelectedUsers
+      .filter((u) => bulkWaSelectedUserIds.includes(String(u.userId)))
+      .map((u) => {
+        let num = u.phone || u.mobileNumber;
 
-      if (!num) return null;
+        if (!num) return null;
 
-      num = String(num).replace(/\D/g, "");
+        num = String(num).replace(/\D/g, "");
 
-      if (num.length === 10) {
-        num = `91${num}`;
-      }
+        if (num.length === 10) {
+          num = `91${num}`;
+        }
 
-      if (num.length !== 12) {
-        return null;
-      }
+        if (num.length !== 12) {
+          return null;
+        }
 
-      return {
-        userId: u.userId,
-        customer_no_with_prefix: num,
-        name: u.fullName || u.name || "User",
-      };
-    })
-    .filter(Boolean);
+        return {
+          userId: u.userId,
+          customer_no_with_prefix: num,
+          name: u.fullName || u.name || "User",
+        };
+      })
+      .filter(Boolean);
   const sendTemplateWhatsApp = async (template) => {
     if (role !== "superAdmin") return;
 
@@ -2623,13 +2618,11 @@ export default function UserManagement() {
 
     const usersPayload = getSelectedWhatsAppUsersPayload();
 
-  //    console.log("Selected IDs", bulkWaSelectedUserIds.length);
-  // console.log("All Users", allSelectedUsers.length);
-  // console.log("Payload", usersPayload.length);
+    //    console.log("Selected IDs", bulkWaSelectedUserIds.length);
+    // console.log("All Users", allSelectedUsers.length);
+    // console.log("Payload", usersPayload.length);
 
-  // console.log("FIRST 10 USERS", usersPayload.slice(0, 10));
-
-  
+    // console.log("FIRST 10 USERS", usersPayload.slice(0, 10));
 
     if (!usersPayload.length) {
       setBulkWaResult({
@@ -4396,23 +4389,13 @@ export default function UserManagement() {
                         <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
                           <input
                             type="checkbox"
-<<<<<<< HEAD
-                            title="Select all leads with phone on this page"
+                            title="Select all leads on this page"
                             checked={
                               allUserIds.length > 0 &&
                               allUserIds.every((id) =>
                                 bulkWaSelectedUserIds.includes(id),
                               )
                             }
-=======
-                            title="Select all leads on this page"
-                          checked={
-  allUserIds.length > 0 &&
-  allUserIds.every((id) =>
-    bulkWaSelectedUserIds.includes(id)
-  )
-}
->>>>>>> da516865d0b86ccd04ea079b2455a48fff1df3c3
                             onChange={selectAllBulkWaOnPage}
                             className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                           />
@@ -6283,8 +6266,8 @@ export default function UserManagement() {
                   {bulkWaSelectedUserIds.length > 1 ? "s" : ""}?
                 </h3>
                 <p className="text-gray-500 text-sm mb-6">
-                  Selected leads will be permanently removed from user management.
-                  This action cannot be undone.
+                  Selected leads will be permanently removed from user
+                  management. This action cannot be undone.
                 </p>
                 <div className="flex gap-3 w-full">
                   <button

@@ -241,7 +241,6 @@ export default function UserManagement() {
     leads: [],
   });
 
-
   const [allSelectedUsers, setAllSelectedUsers] = useState([]);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -2474,8 +2473,6 @@ export default function UserManagement() {
     }
   };
 
-  
-
   const getBulkWaCampaignByDate = (dateStr) => {
     const day = new Date(dateStr).getDay();
     if (day === 0) return null;
@@ -2589,33 +2586,31 @@ export default function UserManagement() {
     }
   };
 
- const getSelectedWhatsAppUsersPayload = () =>
-  allSelectedUsers
-    .filter((u) =>
-      bulkWaSelectedUserIds.includes(String(u.userId))
-    )
-    .map((u) => {
-      let num = u.phone || u.mobileNumber;
+  const getSelectedWhatsAppUsersPayload = () =>
+    allSelectedUsers
+      .filter((u) => bulkWaSelectedUserIds.includes(String(u.userId)))
+      .map((u) => {
+        let num = u.phone || u.mobileNumber;
 
-      if (!num) return null;
+        if (!num) return null;
 
-      num = String(num).replace(/\D/g, "");
+        num = String(num).replace(/\D/g, "");
 
-      if (num.length === 10) {
-        num = `91${num}`;
-      }
+        if (num.length === 10) {
+          num = `91${num}`;
+        }
 
-      if (num.length !== 12) {
-        return null;
-      }
+        if (num.length !== 12) {
+          return null;
+        }
 
-      return {
-        userId: u.userId,
-        customer_no_with_prefix: num,
-        name: u.fullName || u.name || "User",
-      };
-    })
-    .filter(Boolean);
+        return {
+          userId: u.userId,
+          customer_no_with_prefix: num,
+          name: u.fullName || u.name || "User",
+        };
+      })
+      .filter(Boolean);
   const sendTemplateWhatsApp = async (template) => {
     if (role !== "superAdmin") return;
 
@@ -2623,13 +2618,11 @@ export default function UserManagement() {
 
     const usersPayload = getSelectedWhatsAppUsersPayload();
 
-  //    console.log("Selected IDs", bulkWaSelectedUserIds.length);
-  // console.log("All Users", allSelectedUsers.length);
-  // console.log("Payload", usersPayload.length);
+    //    console.log("Selected IDs", bulkWaSelectedUserIds.length);
+    // console.log("All Users", allSelectedUsers.length);
+    // console.log("Payload", usersPayload.length);
 
-  // console.log("FIRST 10 USERS", usersPayload.slice(0, 10));
-
-  
+    // console.log("FIRST 10 USERS", usersPayload.slice(0, 10));
 
     if (!usersPayload.length) {
       setBulkWaResult({
@@ -6273,8 +6266,8 @@ export default function UserManagement() {
                   {bulkWaSelectedUserIds.length > 1 ? "s" : ""}?
                 </h3>
                 <p className="text-gray-500 text-sm mb-6">
-                  Selected leads will be permanently removed from user management.
-                  This action cannot be undone.
+                  Selected leads will be permanently removed from user
+                  management. This action cannot be undone.
                 </p>
                 <div className="flex gap-3 w-full">
                   <button

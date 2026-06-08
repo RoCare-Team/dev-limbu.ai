@@ -7,11 +7,13 @@ import {
   MessageCircle,
   ArrowLeft,
   ChevronLeft,
+  ChevronRight,
   Search,
   Filter,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
-import {  Toaster } from "react-hot-toast";
+import { toast, Toaster } from "react-hot-toast";
 import ReviewCard from "@/components/review-management/ReviewCard";
 import { useReviews } from "@/hooks/useReviews";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -24,13 +26,13 @@ const ALL_ACCOUNTS = "all";
 const normalizeGmbAccountId = (accountId) =>
   String(accountId || "").replace(/^accounts\//, "");
 
-const reviewAccountId = (review) =>
-  normalizeGmbAccountId(review?.name?.split("/")?.[1]);
+const reviewAccountId = (review) => normalizeGmbAccountId(review?.name?.split("/")?.[1]);
 
 const isUnrepliedReview = (review) =>
   !review?.reviewReply?.comment || review.reviewReply.comment.trim() === "";
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession();
 
   const {
     reviews,
@@ -41,7 +43,7 @@ export default function DashboardPage() {
     fetchReviews,
     handleAIReply,
     handleLocationAutoReplyToggle,
-  } = useReviews();
+  } = useReviews(session, status);
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,8 +82,8 @@ export default function DashboardPage() {
   const selectedAccountLabel = useMemo(() => {
     if (selectedAccountId === ALL_ACCOUNTS) return "All GMB Accounts";
     return (
-      accountOptions.find((account) => account.accountId === selectedAccountId)
-        ?.label || `GMB ${selectedAccountId}`
+      accountOptions.find((account) => account.accountId === selectedAccountId)?.label ||
+      `GMB ${selectedAccountId}`
     );
   }, [accountOptions, selectedAccountId]);
 
@@ -89,20 +91,18 @@ export default function DashboardPage() {
     const query = accountSearch.trim().toLowerCase();
     if (!query) return accountOptions;
     return accountOptions.filter((account) =>
-      `${account.label} ${account.accountId}`.toLowerCase().includes(query),
+      `${account.label} ${account.accountId}`.toLowerCase().includes(query)
     );
   }, [accountOptions, accountSearch]);
 
   const accountFilteredReviews = useMemo(() => {
     if (selectedAccountId === ALL_ACCOUNTS) return reviews;
-    return reviews.filter(
-      (review) => reviewAccountId(review) === selectedAccountId,
-    );
+    return reviews.filter((review) => reviewAccountId(review) === selectedAccountId);
   }, [reviews, selectedAccountId]);
 
   const unrepliedCount = useMemo(
     () => accountFilteredReviews.filter(isUnrepliedReview).length,
-    [accountFilteredReviews],
+    [accountFilteredReviews]
   );
 
   const displayedReviews = useMemo(() => {
@@ -112,9 +112,7 @@ export default function DashboardPage() {
 
   // Memoized pagination
   const { totalPages, currentReviews, visiblePageNumbers } = useMemo(() => {
-    const validReviews = Array.isArray(displayedReviews)
-      ? displayedReviews
-      : [];
+    const validReviews = Array.isArray(displayedReviews) ? displayedReviews : [];
     const total = Math.ceil(validReviews.length / REVIEWS_PER_PAGE);
     const start = (currentPage - 1) * REVIEWS_PER_PAGE;
     const visibleCount = Math.min(total, MAX_VISIBLE_PAGE_BUTTONS);
@@ -128,7 +126,7 @@ export default function DashboardPage() {
       currentReviews: validReviews.slice(start, start + REVIEWS_PER_PAGE),
       visiblePageNumbers: Array.from(
         { length: visibleCount },
-        (_, idx) => firstVisiblePage + idx,
+        (_, idx) => firstVisiblePage + idx
       ),
     };
   }, [displayedReviews, currentPage]);
@@ -137,11 +135,7 @@ export default function DashboardPage() {
   const handleFetchReviews = useCallback(() => {
     localStorage.removeItem("cachedReviews");
     localStorage.removeItem("reviewsFetchedAt");
-    fetchReviews(
-      false,
-      true,
-      selectedAccountId === ALL_ACCOUNTS ? null : selectedAccountId,
-    );
+    fetchReviews(false, true, selectedAccountId === ALL_ACCOUNTS ? null : selectedAccountId);
   }, [fetchReviews, selectedAccountId]);
 
   const handleSelectAccount = useCallback(
@@ -154,12 +148,33 @@ export default function DashboardPage() {
       localStorage.removeItem("reviewsFetchedAt");
       fetchReviews(false, true, accountId === ALL_ACCOUNTS ? null : accountId);
     },
-    [fetchReviews],
+    [fetchReviews]
   );
 
   useEffect(() => {
     setCurrentPage(1);
   }, [reviewStatusFilter, displayedReviews.length]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+        <div className="text-center relative z-10">
+          <Loader2 className="w-10 h-10 text-lemon-hover animate-spin mx-auto mb-6" />
+          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px]">
+            Loading Reviews...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -213,9 +228,7 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                   <input
-                    value={
-                      showAccountOptions ? accountSearch : selectedAccountLabel
-                    }
+                    value={showAccountOptions ? accountSearch : selectedAccountLabel}
                     onChange={(event) => {
                       setAccountSearch(event.target.value);
                       setShowAccountOptions(true);
@@ -224,9 +237,7 @@ export default function DashboardPage() {
                       setAccountSearch("");
                       setShowAccountOptions(true);
                     }}
-                    onBlur={() =>
-                      setTimeout(() => setShowAccountOptions(false), 120)
-                    }
+                    onBlur={() => setTimeout(() => setShowAccountOptions(false), 120)}
                     placeholder="Search GMB account"
                     className="h-10 w-full rounded-xl border border-black/10 bg-white pl-9 pr-3 text-[10px] font-black uppercase tracking-wider text-slate-700 outline-none transition focus:border-lemon-hover"
                   />
@@ -248,8 +259,7 @@ export default function DashboardPage() {
                     </button>
                     {filteredAccountOptions.map((account) => {
                       const accountReviewCount = reviews.filter(
-                        (review) =>
-                          reviewAccountId(review) === account.accountId,
+                        (review) => reviewAccountId(review) === account.accountId
                       ).length;
                       return (
                         <button
@@ -283,13 +293,11 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() =>
                   setReviewStatusFilter((current) =>
-                    current === "unreplied" ? "all" : "unreplied",
+                    current === "unreplied" ? "all" : "unreplied"
                   )
                 }
                 className={`btn-ghost px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest gap-1.5 ${
-                  reviewStatusFilter === "unreplied"
-                    ? "bg-black text-lemon-glow"
-                    : ""
+                  reviewStatusFilter === "unreplied" ? "bg-black text-lemon-glow" : ""
                 }`}
               >
                 <Filter className="w-3 h-3" />
@@ -300,9 +308,7 @@ export default function DashboardPage() {
                 disabled={loading}
                 className="btn-ghost px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest gap-1.5"
               >
-                <RefreshCw
-                  className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
-                />
+                <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </button>
             </div>
@@ -381,8 +387,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                  Showing {displayedReviews.length} of{" "}
-                  {accountFilteredReviews.length} reviews
+                  Showing {displayedReviews.length} of {accountFilteredReviews.length} reviews
                 </p>
               </div>
               <p className="text-[8px] font-black text-black uppercase tracking-widest">
@@ -399,6 +404,7 @@ export default function DashboardPage() {
                   fetchReviews={handleFetchReviews}
                   isReplying={replyingTo === review.reviewId}
                   setReplyingTo={setReplyingTo}
+                  session={session}
                   toastPosition={TOAST_POSITION}
                   locationAutoReply={locationAutoReply}
                   onToggleAutoReply={handleLocationAutoReplyToggle}
@@ -431,9 +437,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
                 <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(p + 1, totalPages))
-                  }
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className="btn-ghost p-2.5 rounded-xl disabled:opacity-20"
                 >

@@ -60,7 +60,7 @@ export async function POST(req) {
     };
 
     const response = await axios.post(
-      "https://api.pinterest.com/v5/boards",
+      "https://api-sandbox.pinterest.com/v5/boards",
       payload,
       {
         headers: {

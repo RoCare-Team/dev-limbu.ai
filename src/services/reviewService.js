@@ -1,3 +1,5 @@
+const BASE_URL = "https://review.limbutech.in";
+
 /**
  * Helper to get locationDetails from localStorage and extract business info.
  */
@@ -54,7 +56,7 @@ export const reviewService = {
   /**
    * Fetches all paginated reviews for given location IDs.
    */
-  async fetchAllReviews(userId, accId, locationIds) {
+  async fetchAllReviews(accId, locationIds, accessToken) {
     const allReviews = [];
     let pageToken = null;
     let pageCount = 0;
@@ -63,13 +65,13 @@ export const reviewService = {
     do {
       pageCount++;
       const requestBody = {
-        userId,
-        accountId: accId,
+        acc_id: accId,
         locationIds,
+        access_token: accessToken,
         ...(pageToken && { pageToken }),
       };
 
-      const res = await fetch("/api/gmb/reviews", {
+      const res = await fetch(`${BASE_URL}/fetch-reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
@@ -77,8 +79,13 @@ export const reviewService = {
 
       if (!res.ok) throw new Error(`API_ERROR_${res.status}`);
 
-      const data = await res.json();
-      if (data.success === false) throw new Error(data.error || "API_ERROR");
+      let data;
+      const responseText = await res.text();
+      if (!responseText || responseText.trim() === "") {
+        data = { reviews: [] };
+      } else {
+        data = JSON.parse(responseText);
+      }
 
       if (data.reviews && Array.isArray(data.reviews)) {
         allReviews.push(...data.reviews);
@@ -96,22 +103,23 @@ export const reviewService = {
   /**
    * Generates and sends an AI reply to a specific review.
    */
-  async sendAIReply(userId, accId, locationId, reviewerName, starRatingMapVal, comment, reviewId) {
+  async sendAIReply(accessToken, accId, locationId, reviewerName, starRatingMapVal, comment, reviewId) {
     const { businessName, businessCategory } = getBusinessInfo(locationId);
 
     const payload = {
-      userId,
-      accountId: accId,
-      locationId,
-      reviewId,
-      reviewerName,
-      starRating: starRatingMapVal,
-      comment,
-      businessCategory,
-      businessName,
+      acc_id: accId,
+      access_token: accessToken,
+      locationIds: locationId,
+      Review_ID: reviewId,
+      Reviewer_Name: reviewerName,
+      Star_Rating: starRatingMapVal,
+      Review_Content: comment,
+      Business_Language: "English",
+      ...(businessCategory && { Business_Category: businessCategory }),
+      ...(businessName && { Business_Name: businessName }),
     };
 
-    const res = await fetch("/api/gmb/review-ai-reply", {
+    const res = await fetch(`${BASE_URL}/reply-review`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -125,16 +133,16 @@ export const reviewService = {
   /**
    * Sends a manual reply to a specific review.
    */
-  async sendManualReply(userId, accId, locationId, reviewId, replyText) {
-    const res = await fetch("/api/gmb/review-manual-reply", {
+  async sendManualReply(accessToken, accId, locationId, reviewId, replyText) {
+    const res = await fetch(`${BASE_URL}/manual-reply`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId,
-        accountId: accId,
-        locationId,
-        reviewId,
-        replyText,
+        acc_id: accId,
+        access_token: accessToken,
+        locationIds: locationId,
+        Review_ID: reviewId,
+        reply: replyText,
       }),
     });
 

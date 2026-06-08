@@ -35,8 +35,8 @@ export async function POST(req) {
 
     // SAME PDF API KO HIT KARO
     const pdfResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/invoice-tax?id=${revenueId}`,
-    );
+  `${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/invoice-tax?id=${revenueId}`
+);
 
     const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
 

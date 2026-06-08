@@ -14,7 +14,7 @@ import { loadAssetsFromServerAction } from "@/app/actions/assetActions";
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 import { resolveBusinessNameForGeneration } from "@/lib/businessNameFromPayload";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
-import { metaPublishMedia } from "@/lib/postMediaUrls";
+import { metaPublishMedia, postVideoUrl } from "@/lib/postMediaUrls";
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import {
   CheckCircle,
@@ -199,7 +199,10 @@ export default function PostManagementPage() {
     fetchYouTubeChannels,
   } = useYouTube(router, searchParams);
 
-  const { pinterestProfiles, publishPin, createPinterestBoard } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
+  const { pinterestProfiles, publishPin, createPinterestBoard } = usePinterest(
+    null,
+    null,
+  ); // We don't need router/searchparams here for just fetching/publishing
 
   const [socialState, setSocialState] = useState({
     facebookPages: [],
@@ -466,6 +469,13 @@ export default function PostManagementPage() {
           userId,
           aiOutput: s3Result.url,
           description,
+          // ✅ Add platform-specific descriptions for manual uploads (same as description)
+          gmbDescription: description,
+          fbDescription: description,
+          igDescription: description,
+          liDescription: description,
+          piDescription: description,
+          ytDescription: description,
           status: "pending",
           promat: "Manual Upload",
         });
@@ -655,17 +665,11 @@ export default function PostManagementPage() {
         const data = res.success ? res.data : res;
 
         // ✅ FIX: console.log AFTER destructure, pi_des bhi add
-        const {
-          gmb_des,
-          fb_des,
-          ig_des,
-          li_des,
-          pin_des,
-          yt_des,
-        } = normalizePlatformDescriptions({
-          ...res,
-          ...data,
-        });
+        const { gmb_des, fb_des, ig_des, li_des, pin_des, yt_des } =
+          normalizePlatformDescriptions({
+            ...res,
+            ...data,
+          });
         console.log("Normalized descriptions:", {
           gmb_des,
           fb_des,
@@ -906,6 +910,17 @@ export default function PostManagementPage() {
       if (selectedTargets.ig?.length > 0) sources.push("ig");
 
       if (sources.length > 0) {
+        // Check for GMB Session Expiry before scheduling if GMB is selected
+        if (
+          sources.includes("gmb") &&
+          (!session ||
+            !session.accessToken ||
+            session.error === "RefreshAccessTokenError")
+        ) {
+          handleGmbSessionExpired();
+          return;
+        }
+
         const gmbLocs = availableLocations.filter((loc) =>
           selectedTargets.gmb.includes(loc.id),
         );
@@ -982,6 +997,7 @@ export default function PostManagementPage() {
       updateUiState,
       showToast,
       handleUpdateStatus,
+      session,
     ],
   );
 
@@ -1068,7 +1084,26 @@ export default function PostManagementPage() {
 
   const handlePinterestPost = useCallback(
     (post, media = null) => {
-      setSelectedMediaForAction(media);
+      // Automatically use generated image as cover image for videos
+      let mediaWithCover = media;
+      if (!mediaWithCover && post) {
+        const vidUrl = postVideoUrl(post);
+
+        // If it's a video, use aiOutput as cover image
+        if (vidUrl) {
+          mediaWithCover = {
+            type: "video",
+            url: vidUrl,
+            coverImageUrl: post.aiOutput, // Automatically use generated image as cover
+          };
+          console.log("🎥 Video Post - Cover Image Set:", {
+            videoUrl: vidUrl,
+            coverImageUrl: post.aiOutput,
+          });
+        }
+      }
+
+      setSelectedMediaForAction(mediaWithCover);
       updateSocialState({ postToPinterest: post });
       updateUiState({ showPinterestModal: true });
     },
@@ -1241,10 +1276,20 @@ export default function PostManagementPage() {
     (post) => {
       if (!post.locations?.length) return showToast("No locations", "error");
 
+      // Check for GMB Session Expiry before attempting to delete from GMB
+      if (
+        !session ||
+        !session.accessToken ||
+        session.error === "RefreshAccessTokenError"
+      ) {
+        handleGmbSessionExpired();
+        return;
+      }
+
       setPostToAction(post);
       updateUiState({ showDeleteLocationModal: true });
     },
-    [updateUiState, showToast],
+    [updateUiState, showToast, session],
   );
 
   const handleLocationConfirm = useCallback(
@@ -1351,6 +1396,7 @@ export default function PostManagementPage() {
           output: isVideoSelection ? "" : mediaUrl,
           video_url: isVideoSelection ? mediaUrl : "",
           description: postToAction.description,
+          accessToken: session?.accessToken,
           checkmark: checkmark || "post",
           post_type: isVideoSelection
             ? "standard"
@@ -1501,6 +1547,7 @@ export default function PostManagementPage() {
       availableLocations,
       userId,
       postToAction,
+      session?.accessToken,
       selectedMediaForAction,
       updateUiState,
       showToast,
@@ -1547,13 +1594,23 @@ export default function PostManagementPage() {
       )
         return showToast("Approve first", "error");
 
+      // Check for GMB Session Expiry before showing the location modal
+      if (
+        !session ||
+        !session.accessToken ||
+        session.error === "RefreshAccessTokenError"
+      ) {
+        setShowGmbExpiredModal(true);
+        return;
+      }
+
       const userData = await getUserWalletAction(userId);
       setUserWallet(userData.wallet || 0);
       setPostToAction(post);
       setSelectedMediaForAction(media);
       updateUiState({ showLocationModal: true });
     },
-    [userId, updateUiState, showToast],
+    [userId, updateUiState, showToast, session],
   );
 
   const handleDeleteLocationConfirm = useCallback(
@@ -1853,9 +1910,13 @@ export default function PostManagementPage() {
             post={socialState.postToPinterest}
             pinterestProfiles={pinterestProfiles}
             onCreateBoard={createPinterestBoard}
-            onPost={async (post, boardId) => {
+            coverImageUrl={
+              selectedMediaForAction?.coverImageUrl ||
+              socialState.postToPinterest?.aiOutput
+            }
+            onPost={async (post, boardId, coverImageUrl) => {
               const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
-              // ✅ FIX: piDescription pehle check karo
+
               let description =
                 post.piDescription ||
                 post.pinterestDescription ||
@@ -1867,12 +1928,16 @@ export default function PostManagementPage() {
                 description = description.substring(0, 797) + "...";
               }
 
+              // ✅ aiOutput is always an image (png/jpg), safe to use as cover for video pins
+              const finalCoverImageUrl = post.aiOutput || coverImageUrl;
+
               const result = await publishPin({
                 title: bussinessTitle || "Pinterest Post",
                 description,
                 boardId,
                 mediaUrl,
                 link: availableLocations[0]?.websiteUrl || "",
+                coverImageUrl: finalCoverImageUrl,
               });
 
               if (result && result.success) {

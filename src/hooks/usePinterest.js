@@ -68,7 +68,7 @@ export function usePinterest(router, searchParams) {
     }
   }, [pinterestProfiles]);
 
-  const publishPin = useCallback(async ({ title, description, boardId, mediaUrl, link }) => {
+  const publishPin = useCallback(async ({ title, description, boardId, mediaUrl, link, coverImageUrl }) => {
     const activeId = getActiveUserId();
     if (!activeId) {
       toast.error("User not found");
@@ -76,17 +76,22 @@ export function usePinterest(router, searchParams) {
     }
 
     try {
+      const payload = {
+        userId: activeId,
+        title,
+        description,
+        board_id: boardId,
+        media_url: mediaUrl,
+        link,
+        cover_image_url: coverImageUrl
+      };
+
+      console.log("📤 Publishing to Pinterest with payload:", payload);
+
       const res = await fetch("/api/pinterest/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: activeId,
-          title,
-          description,
-          board_id: boardId,
-          media_url: mediaUrl,
-          link
-        })
+        body: JSON.stringify(payload)
       });
       
       const data = await res.json();

@@ -6,7 +6,10 @@ export function decodeFranchiseToken(req) {
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   try {
-    return jwt.verify(authHeader.replace("Bearer ", ""), process.env.JWT_SECRET);
+    return jwt.verify(
+      authHeader.replace("Bearer ", ""),
+      process.env.JWT_SECRET,
+    );
   } catch {
     return null;
   }
@@ -46,20 +49,25 @@ export function assertFranchiseBookingAccess(req) {
 }
 
 export function assertFranchiseBookingWriteAccess(req, body = {}) {
-  const isFranchiseBooking =
-    body.franchiseId ||
-    body.type === "service" ||
-    body.type === "plan";
-
-  if (!isFranchiseBooking) {
+  // ✅ Service aur Plan bookings ko direct allow karo
+  if (body.type === "service" || body.type === "plan") {
     return { ok: true, decoded: null };
   }
 
+  // Franchise booking nahi hai to allow
+  if (!body.franchiseId) {
+    return { ok: true, decoded: null };
+  }
+
+  // Franchise-specific booking ke liye auth check
   const access = assertFranchiseBookingAccess(req);
-  if (!access.ok) return access;
+
+  if (!access.ok) {
+    return access;
+  }
 
   const requestedCode = body.franchiseId;
-  const tokenCode = access.decoded.franchiseCode;
+  const tokenCode = access.decoded?.franchiseCode;
 
   if (requestedCode && tokenCode && requestedCode !== tokenCode) {
     return {

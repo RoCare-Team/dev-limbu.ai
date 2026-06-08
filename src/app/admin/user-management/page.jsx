@@ -2258,6 +2258,7 @@ export default function UserManagement() {
 
     try {
       let screenshotUrl = null;
+      let revenueData = null;
       // 1. Handle revenue recording if amount is provided
       if (planAmount && parseFloat(planAmount) > 0) {
         screenshotUrl = await uploadToS3(planScreenshot);
@@ -2299,7 +2300,7 @@ export default function UserManagement() {
           }),
         });
 
-        const revenueData = await revenueRes.json();
+        revenueData = await revenueRes.json();
         if (!revenueData.success) {
           throw new Error(revenueData.message || "Failed to record revenue.");
         }
@@ -2356,6 +2357,31 @@ export default function UserManagement() {
 
           const emailData = await emailRes.json();
           console.log("📧 Email Response:", emailData);
+
+          // ==============================
+          // Auto Send Invoice PDF Email
+          // ==============================
+          try {
+            if (!revenueData) {
+              console.log("Revenue data not found");
+            } else {
+              const invoiceRes = await fetch("/api/admin/send-invoice-email", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  revenueId: revenueData?.revenue?._id || revenueData?._id,
+                }),
+              });
+
+              const invoiceData = await invoiceRes.json();
+
+              console.log("📄 Invoice Email Response:", invoiceData);
+            }
+          } catch (invoiceErr) {
+            console.error("Invoice email failed:", invoiceErr);
+          }
         } catch (emailErr) {
           console.error("Email send failed:", emailErr);
         }
@@ -4390,12 +4416,12 @@ export default function UserManagement() {
                           <input
                             type="checkbox"
                             title="Select all leads on this page"
-                          checked={
-  allUserIds.length > 0 &&
-  allUserIds.every((id) =>
-    bulkWaSelectedUserIds.includes(id)
-  )
-}
+                            checked={
+                              allUserIds.length > 0 &&
+                              allUserIds.every((id) =>
+                                bulkWaSelectedUserIds.includes(id),
+                              )
+                            }
                             onChange={selectAllBulkWaOnPage}
                             className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                           />

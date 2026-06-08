@@ -342,6 +342,38 @@ export default function AdminServicepaneModal({ service, onClose }) {
 
 const emailData = await emailRes.json();
 
+// ==============================
+// Auto Send Invoice PDF Email
+// ==============================
+try {
+  if (data?.revenue?._id) {
+    const invoiceRes = await fetch(
+      "/api/admin/send-invoice-email",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          revenueId: data.revenue._id,
+        }),
+      }
+    );
+
+    const invoiceData = await invoiceRes.json();
+
+    console.log(
+      "📄 Invoice Email:",
+      invoiceData
+    );
+  }
+} catch (invoiceErr) {
+  console.error(
+    "Invoice email failed:",
+    invoiceErr
+  );
+}
+
 // console.log("📧 Email Response:", emailData);
 
       // ✅ WhatsApp template

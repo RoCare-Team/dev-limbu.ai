@@ -1,39 +1,17 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
-
-// -------------------------
-// DB CONNECT
-// -------------------------
-async function dbConnect() {
-  if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(mongooseConnectionUri(process.env.MONGODB_URI), {
-    dbName: "demoBookingDB",
-  });
-}
-
-// -------------------------
-// SCHEMA + MODEL
-// -------------------------
-const DemoSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    phone: { type: String, required: true },
-    seminarTime: { type: String, required: true },
-    selectedDate: { type: String, required: true },
-    userCreated: {
-      type: Boolean,
-      default: false,
-    },
-    status: { type: String, default: "Not Attended" },
-  },
-  { timestamps: true, collection: "demoBookings" },
-);
-
-const DemoBooking =
-  mongoose.models.demoBookings || mongoose.model("demoBookings", DemoSchema);
+import dbConnect from "@/lib/dbConnect";
+import {
+  fetchAllDemoBookings,
+  getDemoBookingModel,
+  getDemoBookingsAdminPayload,
+  getDemoSlotAvailability,
+  invalidateDemoBookingsCache,
+  isDemoSlotBooked,
+  normalizeBookingPhone,
+  normalizeBookingSelectedDate,
+} from "@/lib/demoBookings";
 
 // -------------------------
 // AGENT PHONE MAPPING
@@ -148,6 +126,7 @@ async function sendAgentLeadAssignedTemplate({
 export async function SYNC() {
   try {
     await dbConnect();
+    const DemoBooking = await getDemoBookingModel();
 
     // Sirf wo bookings lo jinke liye user abhi tak create nahi hua.
     // Date filter nahi hai — timezone issue se bachne ke liye.
@@ -157,7 +136,10 @@ export async function SYNC() {
 
     for (const booking of pendingBookings) {
       try {
-        const existingUser = await User.findOne({ phone: booking.phone });
+        const phone = normalizeBookingPhone(booking.phone);
+        const existingUser = phone
+          ? await User.findOne({ phone })
+          : await User.findOne({ phone: booking.phone });
 
         if (!existingUser) {
           const assignedAgent = await getNextAgent();
@@ -233,6 +215,7 @@ export async function SYNC() {
 export async function POST(request) {
   try {
     await dbConnect();
+    const DemoBooking = await getDemoBookingModel();
     const { name, phone, seminarTime, selectedDate, status } =
       await request.json();
 
@@ -243,14 +226,32 @@ export async function POST(request) {
       );
     }
 
+    const normalizedDate = normalizeBookingSelectedDate(selectedDate);
+    if (await isDemoSlotBooked(normalizedDate, seminarTime)) {
+      const availability = await getDemoSlotAvailability(normalizedDate);
+      const alternatives = availability.slots
+        .filter((slot) => !slot.booked)
+        .map((slot) => slot.label);
+      return NextResponse.json(
+        {
+          success: false,
+          message: `This time slot is already booked. Please choose another time.`,
+          slotBooked: true,
+          availableSlots: alternatives,
+        },
+        { status: 409 },
+      );
+    }
+
     const saved = await DemoBooking.create({
       name,
       phone,
       seminarTime,
-      selectedDate,
+      selectedDate: normalizedDate || selectedDate,
       status: status || "Not Attended",
       userCreated: false,
     });
+    invalidateDemoBookingsCache();
 
     return NextResponse.json({
       success: true,
@@ -276,10 +277,40 @@ export async function POST(request) {
 // -------------------------
 // GET → FETCH ALL BOOKINGS (sync logic bilkul nahi)
 // -------------------------
-export async function GET() {
+export async function GET(request) {
   try {
     await dbConnect();
-    const allBookings = await DemoBooking.find().sort({ createdAt: -1 });
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get("date");
+    const slotsOnly = searchParams.get("slots") === "1";
+
+    if (slotsOnly && date) {
+      const availability = await getDemoSlotAvailability(date);
+      return NextResponse.json({
+        success: true,
+        ...availability,
+      });
+    }
+
+    if (searchParams.get("admin") === "1") {
+      const payload = await getDemoBookingsAdminPayload();
+      return NextResponse.json(payload);
+    }
+
+    const allBookings = await fetchAllDemoBookings({ bypassCache: true });
+
+    if (date) {
+      const normalized = normalizeBookingSelectedDate(date);
+      const filtered = allBookings.filter(
+        (booking) => normalizeBookingSelectedDate(booking.selectedDate) === normalized,
+      );
+      return NextResponse.json({
+        success: true,
+        count: filtered.length,
+        date: normalized,
+        data: filtered,
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -300,6 +331,7 @@ export async function GET() {
 export async function DELETE(request) {
   try {
     await dbConnect();
+    const DemoBooking = await getDemoBookingModel();
     const { id } = await request.json();
 
     if (!id) {
@@ -337,6 +369,7 @@ export async function DELETE(request) {
 export async function PUT(request) {
   try {
     await dbConnect();
+    const DemoBooking = await getDemoBookingModel();
     const { id, status } = await request.json();
 
     if (!id || !status) {

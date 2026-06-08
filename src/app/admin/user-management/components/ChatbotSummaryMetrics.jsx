@@ -19,6 +19,7 @@ const METRIC_STYLES = {
   magicQr: { color: "#d946ef", bg: "#f5d0fe" },
   gmbInsights: { color: "#0ea5e9", bg: "#d0f2fe" },
   websitesBuilt: { color: "#f59e0b", bg: "#fef3c7" },
+  demoBooked: { color: "#e11d48", bg: "#ffe4e6" },
 };
 
 export const CHATBOT_METRIC_CARD_DEFS = [
@@ -43,6 +44,11 @@ export const CHATBOT_METRIC_CARD_DEFS = [
     id: "websitesBuilt",
     totalTitle: "Total Websites Built",
     todayTitle: "Today Websites Built",
+  },
+  {
+    id: "demoBooked",
+    totalTitle: "Total Demo Booked",
+    todayTitle: "Today Demo Booked",
   },
 ];
 
@@ -212,7 +218,7 @@ export default function ChatbotSummaryMetrics({
           gridTemplateColumns: {
             xs: "repeat(2, minmax(0, 1fr))",
             md: "repeat(4, minmax(0, 1fr))",
-            xl: "repeat(6, minmax(0, 1fr))",
+            xl: "repeat(7, minmax(0, 1fr))",
           },
           gap: 1,
         }}

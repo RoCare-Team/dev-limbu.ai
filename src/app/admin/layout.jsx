@@ -120,7 +120,7 @@ const isAgent = role === "agent";
         icon: <Users size={16} />,
       },
       {
-        name: "Demo Leads",
+        name: "Demo Booked",
         href: "/admin/demoBook",
         icon: <Users size={16} />,
       },
@@ -186,7 +186,7 @@ const isAgent = role === "agent";
         icon: <Users size={16} />,
       },
       {
-        name: "Demo Leads",
+        name: "Demo Booked",
         href: "/admin/demoBook",
         icon: <Users size={16} />,
       },

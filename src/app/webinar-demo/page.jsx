@@ -259,6 +259,9 @@ function FormCard() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({ name: "", contact: "", business: "", selectedDate: null });
+  const [selectedTime, setSelectedTime] = useState("");
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -273,8 +276,32 @@ function FormCard() {
   };
 
   const isSunday = formData.selectedDate ? new Date(formData.selectedDate).getDay() === 0 : false;
-  const day = formData.selectedDate ? new Date(formData.selectedDate).getDay() : null;
-  const webinarTime = day === 5 ? "5:30 PM IST" : "4:00 PM IST";
+
+  useEffect(() => {
+    if (!formData.selectedDate || isSunday) {
+      setTimeSlots([]);
+      setSelectedTime("");
+      return;
+    }
+
+    const dateIso = formatDateISO(formData.selectedDate);
+    setSlotsLoading(true);
+    fetch(`/api/bookDemo?slots=1&date=${encodeURIComponent(dateIso)}`, {
+      cache: "no-store",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) return;
+        const slots = Array.isArray(data.slots) ? data.slots : [];
+        setTimeSlots(slots);
+        const firstOpen = slots.find((slot) => !slot.booked);
+        setSelectedTime(firstOpen?.label || "");
+      })
+      .catch(() => setTimeSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [formData.selectedDate, isSunday]);
+
+  const webinarTime = selectedTime;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -289,6 +316,13 @@ function FormCard() {
     if (!/^\d{10}$/.test(formData.contact.trim())) return setError("Enter a valid 10-digit WhatsApp number.");
     if (!formData.selectedDate) return setError("Please select a date for the webinar.");
     if (isSunday) return setError("We don't host webinars on Sundays. Please pick another day.");
+    if (!webinarTime) {
+      return setError("Please choose an available time slot.");
+    }
+    const chosenSlot = timeSlots.find((slot) => slot.label === webinarTime);
+    if (chosenSlot?.booked) {
+      return setError("This time slot is already booked. Please pick another time.");
+    }
 
     setIsSubmitting(true);
     setError("");
@@ -315,6 +349,12 @@ function FormCard() {
           time: webinarTime,
         }).toString();
         router.push(`/thank-you?${query}`);
+      } else if (result.slotBooked && Array.isArray(result.availableSlots)) {
+        setError(
+          result.availableSlots.length
+            ? `${result.message} Available: ${result.availableSlots.join(", ")}`
+            : result.message || "This slot is booked. Please pick another date.",
+        );
       } else {
         setError(result.message || "Something went wrong. Please try again.");
       }
@@ -400,8 +440,54 @@ function FormCard() {
               </div>
             )}
 
-            {/* Confirmed slot */}
+            {/* Time slots */}
             {formData.selectedDate && !isSunday && (
+              <div className="space-y-2 animate-fadeIn">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Choose time slot
+                </p>
+                {slotsLoading ? (
+                  <div className="text-xs text-slate-500 py-2">Loading slots…</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {timeSlots.map((slot) => (
+                      <button
+                        key={slot.key}
+                        type="button"
+                        disabled={slot.booked}
+                        onClick={() => {
+                          if (!slot.booked) {
+                            setSelectedTime(slot.label);
+                            if (error) setError("");
+                          }
+                        }}
+                        className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition ${
+                          slot.booked
+                            ? "border-red-200 bg-red-50 text-red-500 cursor-not-allowed line-through"
+                            : selectedTime === slot.label
+                              ? "border-yellow-400 bg-yellow-50 text-yellow-900 ring-2 ring-yellow-300"
+                              : "border-slate-200 bg-slate-50 text-slate-700 hover:border-yellow-300"
+                        }`}
+                      >
+                        {slot.label}
+                        {slot.booked ? (
+                          <span className="block text-[10px] font-bold text-red-600 mt-0.5">
+                            Booked
+                          </span>
+                        ) : (
+                          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
+                            Available
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Confirmed slot */}
+            {formData.selectedDate && !isSunday && webinarTime && (
               <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5 animate-fadeIn">
                 <Clock size={13} className="text-yellow-600 flex-shrink-0" />
                 <span className="text-yellow-800 text-xs font-semibold">

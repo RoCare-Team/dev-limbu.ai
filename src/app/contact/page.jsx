@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  HiPhone,
-  HiMail,
-  HiLocationMarker,
-  HiClock,
-  HiArrowLeft,
-  HiCheckCircle,
-  HiExclamationCircle,
-} from "react-icons/hi";
+  Mail,
+  MapPin,
+  Phone,
+  Clock,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 
 import { useState } from "react";
 import Navbar from "@/components/sections/HeaderSection";
@@ -131,7 +131,7 @@ export default function ContactUs() {
             onClick={() => window.history.back()}
             className="flex items-center gap-2 mb-10 text-xs font-bold tracking-widest uppercase transition-colors hover:text-[var(--lemon-hover)] text-slate-400 cursor-pointer"
           >
-            <HiArrowLeft /> Back to Home
+            <ArrowLeft /> Back to Home
           </button>
 
           {/* ── Section Header ── */}
@@ -180,7 +180,7 @@ export default function ContactUs() {
           {/* Alerts */}
           {submitStatus === "success" && (
             <div className="mb-8 p-5 bg-green-50 border border-green-100 rounded-2xl flex gap-4 animate-in fade-in slide-in-from-top-4">
-              <HiCheckCircle className="text-green-500 text-2xl shrink-0" />
+              <CheckCircle className="text-green-500 text-2xl shrink-0" />
               <div>
                 <p className="text-green-800 font-bold text-sm uppercase tracking-tight">
                   Message sent successfully!
@@ -195,7 +195,7 @@ export default function ContactUs() {
 
           {submitStatus === "error" && (
             <div className="mb-8 p-5 bg-red-50 border border-red-100 rounded-2xl flex gap-4 animate-in fade-in slide-in-from-top-4">
-              <HiExclamationCircle className="text-red-500 text-2xl shrink-0" />
+              <AlertCircle className="text-red-500 text-2xl shrink-0" />
               <div>
                 <p className="text-red-800 font-bold text-sm uppercase tracking-tight">
                   Submission Failed
@@ -340,25 +340,25 @@ export default function ContactUs() {
             <div className="space-y-6">
               {[
                 {
-                  icon: <HiPhone />,
+                  icon: <Phone />,
                   title: "Call Us Directly",
                   value: "+91 9289344726",
                   desc: "Available Mon-Sat, 9AM-7PM",
                 },
                 {
-                  icon: <HiMail />,
+                  icon: <Mail />,
                   title: "Email Inquiry",
                   value: "info@limbu.ai",
                   desc: "Response within 12 hours",
                 },
                 {
-                  icon: <HiLocationMarker />,
+                  icon: < MapPin />,
                   title: "Our Studio",
                   value: "Gurugram, Haryana",
                   desc: "India's Tech Hub",
                 },
                 {
-                  icon: <HiClock />,
+                  icon: <Clock />,
                   title: "Working Hours",
                   value: "9:00 AM – 7:00 PM",
                   desc: "Monday through Saturday",

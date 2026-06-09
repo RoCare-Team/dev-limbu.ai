@@ -83,8 +83,32 @@ export function useAuditHealth() {
         audit = audit[""];
       }
 
-      setAuditData(audit);
-      toast.success("Report generated successfully!");
+      console.log("SESSION");
+console.log(session);
+
+console.log("USER EMAIL");
+console.log(session?.user?.email);
+
+console.log("SELECTED LOCATION");
+console.log(selectedLoc);
+
+
+await fetch("/api/audit-tracking", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email: session?.user?.email,
+    locationId: selectedLoc.locationId,
+    accountId: selectedLoc.accountId,
+    businessName: selectedLoc.title,
+  }),
+});
+
+setAuditData(audit);
+toast.success("Report generated successfully!");
+
     } catch (error) {
       console.error("Audit Error:", error);
       toast.error("Failed to generate report. Please try again.");

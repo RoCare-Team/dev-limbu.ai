@@ -57,27 +57,176 @@ export async function POST(req) {
       to: user.email,
       subject: `${revenue.plan} Invoice #${revenueId}`,
 
-      html: `
-<div style="font-family:Arial,sans-serif;padding:20px;color:#333;">
-  <h3 style="margin:0 0 15px 0;">
-    Limbu AI Tax Invoice  
-  </h3>
+    
+html: `
 
-  <p>Hello ${user.fullName || user.name},</p>
+<div style="
+background:#f5f5f5;
+padding:40px 20px;
+font-family:Arial,sans-serif;
+">
 
-  <p>
-   Your invoice for the <b>${revenue.plan}</b> ${itemType} is ready.
-  </p>
+<div style="
+max-width:650px;
+margin:auto;
+background:#ffffff;
+border-radius:16px;
+padding:40px;
+">
 
-  <p>
-    Please find the attached PDF invoice. <br>
+<a href="https://limbu.ai">
+<img
+src="https://limbu.ai/images/bg-logo.png"
+alt="Limbu AI"
+style="
+width:80px;
+display:block;
+margin-bottom:20px;
+"
+/>
+</a>
 
-    Thank you for choosing Limbu AI.
+<h1 style="
+margin:0;
+font-size:27  px;
+line-height:1.2;
+font-weight:800;
+color:#111827;
+">
+Your Invoice Is Ready
+</h1>
 
-  </p>
+<p style="
+margin-top:30px;
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Hello <strong>${user.fullName || user.name}</strong>,
+</p>
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Thank you for choosing <strong>Limbu AI</strong>.
+</p>
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Your tax invoice for the
+<strong>${revenue.plan}</strong>
+${itemType}
+has been generated successfully.
+</p>
+
+<div style="
+background:#f9fafb;
+border:1px solid #e5e7eb;
+border-radius:12px;
+padding:20px;
+margin:30px 0;
+">
+
+<p style="margin:0 0 10px 0;">
+<strong>Plan:</strong> ${revenue.plan}
+</p>
+
+<p style="margin:0 0 10px 0;">
+<strong>Type:</strong> ${itemType}
+</p>
+
+<p style="margin:0;">
+<strong>Status:</strong>
+<span >
+Invoice Generated
+</span>
+</p>
 
 </div>
+
+<div style="
+background:#eff6ff;
+border-left:4px solid #2563eb;
+padding:16px;
+border-radius:10px;
+margin-bottom:25px;
+">
+
+<p style="
+margin:0;
+color:#1e40af;
+font-weight:600;
+">
+📄 Your PDF invoice is attached with this email.
+</p>
+
+</div>
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Please keep this invoice for your records. If you have any billing questions, simply reply to this email and our support team will assist you.
+</p>
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+We appreciate your trust in Limbu AI and look forward to serving you again.
+</p>
+
+<div style="
+margin-top:35px;
+padding-top:25px;
+border-top:1px solid #e5e7eb;
+">
+
+<p style="
+margin:0;
+color:#374151;
+">
+Best Regards,
+</p>
+
+<p style="
+margin:8px 0 0;
+font-size:18px;
+font-weight:700;
+color:#111827;
+">
+Limbu AI Team
+</p>
+
+<p style="
+margin:8px 0 0;
+color:#2563eb;
+">
+info@limbu.ai
+</p>
+
+<p style="
+margin:5px 0 0;
+color:#2563eb;
+">
+https://limbu.ai
+</p>
+
+</div>
+
+</div>
+
+</div>
+
 `,
+
 
       attachments: [
         {

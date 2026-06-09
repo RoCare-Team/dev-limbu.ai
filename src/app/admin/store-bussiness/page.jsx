@@ -77,6 +77,16 @@ export default function AdminDashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  useEffect(() => {
+  console.log("ALL USER LISTINGS");
+  console.log(allUserListings);
+
+  allUserListings.forEach((user, index) => {
+    console.log(`USER ${index + 1}`);
+    console.log(user);
+  });
+}, [allUserListings]);
+
   const fetchGeneratedQrStatus = async () => {
     try {
       const res = await fetch("/api/magic-qr/status");
@@ -107,6 +117,19 @@ export default function AdminDashboard() {
         `/api/admin/saveBussiness?page=${pageNumber}&limit=10`,
       );
       const data = await response.json();
+
+
+      console.log("========== API RESPONSE ==========");
+console.log(data);
+
+console.log("========== LISTINGS ==========");
+console.log(data.listings);
+
+console.log("========== FIRST USER ==========");
+console.log(data.listings?.[0]);
+
+console.log("========== FIRST USER LISTINGS ==========");
+console.log(data.listings?.[0]?.listings);
 
       if (data.success) {
         if (pageNumber === 1) {

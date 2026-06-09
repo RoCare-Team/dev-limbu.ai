@@ -29,102 +29,197 @@ export async function POST(req) {
         ? "Your package has been successfully activated."
         : "Your service has been successfully booked.";
 
+    const titleText =
+      type === "service"
+        ? "Your Service Has Been Booked."
+        : "Your Package Has Been Activated.";
+
     const info = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: `Limbu AI - ${bookingMessage}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-         <h style="   color:#4f46e5;  margin-bottom:20px;">
-   Welcome to Limbu AI
-</h2>
 
-          <p>Dear ${customerName},</p>
+     html: `
 
-          <p  style="font-size:16px; color:#374151; line-height:1.7; ">
-  ${bookingMessage}
+<div style="
+background:#f5f5f5;
+padding:40px 20px;
+font-family:Arial,sans-serif;
+">
+
+<div style="
+max-width:650px;
+margin:auto;
+background:#ffffff;
+border-radius:16px;
+padding:40px;
+">
+
+<a href="https://limbu.ai">
+<img
+src="https://limbu.ai/images/bg-logo.png"
+alt="Limbu AI"
+style="
+width:80px;
+display:block;
+margin-bottom:20px;
+"
+/>
+</a>
+
+<h1 style="
+margin:0;
+font-size:30px;
+line-height:1.2;
+font-weight:800;
+color:#111827;
+">
+${
+  type === "service"
+    ? "Your Service Has Been Booked."
+    : "Your Package Has Been Activated."
+}
+</h1>
+
+<p style="
+margin-top:30px;
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Dear <strong>${customerName}</strong>,
 </p>
 
-        <table
-  style="
-    width:100%;
-    max-width:500px;
-    border-collapse:collapse;
-    margin-top:15px;
-    border-radius:10px;
-    overflow:hidden;
-    box-shadow:0 2px 10px rgba(0,0,0,0.08);
-  "
->
-  <tr style="background:#4f46e5;color:white;">
-    <th
-      style="
-        padding:12px;
-        text-align:left;
-        font-size:14px;
-      "
-    >
-      Details
-    </th>
-    <th
-      style="
-        padding:12px;
-        text-align:left;
-        font-size:14px;
-      "
-    >
-      Information
-    </th>
-  </tr>
-
-  <tr style="background:#f9fafb;">
-    <td style="padding:12px;font-weight:600;">
-       Plan
-    </td>
-    <td style="padding:12px;">
-      ${planName}
-    </td>
-  </tr>
-
-  <tr>
-    <td style="padding:12px;font-weight:600;">
-       Amount
-    </td>
-    <td style="padding:12px;">
-      ₹${amount}
-    </td>
-  </tr>
-
-  <tr style="background:#f9fafb;">
-    <td style="padding:12px;font-weight:600;">
-       Start Date
-    </td>
-    <td style="padding:12px;">
-      ${startDate || "-"}
-    </td>
-  </tr>
-
-  <tr>
-    <td style="padding:12px;font-weight:600;">
-       Expiry Date
-    </td>
-    <td style="padding:12px;">
-      ${expiryDate || "-"}
-    </td>
-  </tr>
-</table>
-
-          <br />
-
-          <p>Thank you for choosing us.</p>
-
-         <p>
-  Best Regards,<br />
-  Team Limbu AI<br />
-  info@limbu.ai
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Thank you for choosing <strong>Limbu AI</strong>.
 </p>
-        </div>
-      `,
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+We are pleased to confirm your booking. Our team has successfully received your request and will begin processing it shortly.
+</p>
+
+<div style="
+background:#f9fafb;
+border:1px solid #e5e7eb;
+border-radius:12px;
+padding:20px;
+margin:30px 0;
+">
+
+<p><strong>Plan:</strong> ${planName}</p>
+
+<p><strong>Amount:</strong> ₹${amount}</p>
+
+<p><strong>Start Date:</strong> ${startDate || "-"}</p>
+
+<p><strong>Expiry Date:</strong> ${expiryDate || "-"}</p>
+
+</div>
+
+<h3 style="
+margin-bottom:15px;
+color:#111827;
+">
+What Happens Next?
+</h3>
+
+<p style="
+margin:8px 0;
+color:#374151;
+">
+✔ Our team will review your booking.
+</p>
+
+<p style="
+margin:8px 0;
+color:#374151;
+">
+✔ You will receive further updates regarding the progress of your request.
+</p>
+
+<p style="
+margin:8px 0;
+color:#374151;
+">
+✔ If additional information is required, we will contact you using the details provided.
+</p>
+
+<h3 style="
+margin-top:35px;
+margin-bottom:15px;
+color:#111827;
+">
+Need Assistance?
+</h3>
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+If you have any questions or need support, simply reply to this email and our team will be happy to help.
+</p>
+
+<p style="
+font-size:16px;
+line-height:1.8;
+color:#374151;
+">
+Thank you for trusting Limbu AI.
+</p>
+
+<div style="
+margin-top:35px;
+padding-top:25px;
+border-top:1px solid #e5e7eb;
+">
+
+<p style="
+margin:0;
+color:#374151;
+">
+Best Regards,
+</p>
+
+<p style="
+margin:8px 0 0;
+font-size:18px;
+font-weight:700;
+color:#111827;
+">
+Limbu AI Team
+</p>
+
+<p style="
+margin:8px 0 0;
+color:#2563eb;
+">
+info@limbu.ai
+</p>
+
+<p style="
+margin:5px 0 0;
+color:#2563eb;
+">
+https://limbu.ai
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+`
+
     });
 
     console.log("Email sent:", info.messageId);

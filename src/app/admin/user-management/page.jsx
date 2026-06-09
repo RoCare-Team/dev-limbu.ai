@@ -1685,8 +1685,6 @@ export default function UserManagement() {
     return data.stats;
   };
 
-  
-
   const fetchAgentTodayDemos = async () => {
     const adminEmail = localStorage.getItem("email");
     if (!adminEmail || role !== "agent") return;
@@ -2680,7 +2678,7 @@ export default function UserManagement() {
 
     const usersPayload = getSelectedWhatsAppUsersPayload();
 
-    //    console.log("Selected IDs", bulkWaSelectedUserIds.length);
+       console.log("Selected IDs", bulkWaSelectedUserIds.length);
     // console.log("All Users", allSelectedUsers.length);
     // console.log("Payload", usersPayload.length);
 
@@ -2984,7 +2982,6 @@ export default function UserManagement() {
         executiveMobile = "917065021272";
       }
     }
-    
 
     const payload = {
       destination: phone,
@@ -3515,7 +3512,8 @@ export default function UserManagement() {
                     <div>
                       <p
                         className={`text-[9px] font-bold uppercase tracking-wide ${
-                          chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                          chatbotMetricFilter?.cardKey ===
+                          "demoBooked:today-agent"
                             ? "text-white/80"
                             : "text-rose-600"
                         }`}
@@ -3523,13 +3521,12 @@ export default function UserManagement() {
                         Scheduled for today
                       </p>
                       <p className="text-2xl font-black mt-0.5">
-                        {agentTodayDemos.loading
-                          ? "…"
-                          : agentTodayDemos.count}
+                        {agentTodayDemos.loading ? "…" : agentTodayDemos.count}
                       </p>
                       <p
                         className={`text-[10px] mt-0.5 ${
-                          chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                          chatbotMetricFilter?.cardKey ===
+                          "demoBooked:today-agent"
                             ? "text-white/70"
                             : "text-rose-500"
                         }`}
@@ -3541,7 +3538,8 @@ export default function UserManagement() {
                     </div>
                     <div
                       className={`rounded-full px-3 py-1 text-[10px] font-bold ${
-                        chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
+                        chatbotMetricFilter?.cardKey ===
+                        "demoBooked:today-agent"
                           ? "bg-white/20 text-white"
                           : "bg-white text-rose-700 border border-rose-200"
                       }`}
@@ -4369,6 +4367,130 @@ export default function UserManagement() {
                 </button>
               </div>
             )}
+            {role === "superAdmin" && (
+              <>
+                {bulkWaSelectedUserIds.length > 0 && (
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                      <div className="flex items-center gap-3 text-white">
+                        <div className="bg-white/20 rounded-full p-3">
+                          <MessageSquare className="text-white" size={24} />
+                        </div>
+                        <div>
+                          <p className="text-sm opacity-90">Selected leads</p>
+                          <p className="text-2xl font-bold">
+                            {bulkWaSelectedUserIds.length}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setIsOpen(true)}
+                          className="group bg-white px-6 py-3 rounded-2xl
+                            flex items-center gap-2 text-green-600 font-semibold
+                            shadow-md hover:shadow-xl hover:-translate-y-1
+                            hover:scale-105 active:scale-95
+                            transition-all duration-300"
+                        >
+                          <MessageCircle
+                            size={20}
+                            className="group-hover:rotate-12 transition"
+                          />
+                          WhatsApp
+                        </button>
+
+                        <button
+                          className="group bg-white px-6 py-3 rounded-2xl
+                                        flex items-center gap-2 text-blue-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
+                        >
+                          <Send
+                            size={20}
+                            className="group-hover:-rotate-12 transition"
+                          />
+                          RCS
+                        </button>
+
+                        <button
+                          className="group bg-white px-6 py-3 rounded-2xl
+                                        flex items-center gap-2 text-purple-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
+                        >
+                          <Mail
+                            size={20}
+                            className="group-hover:scale-110 transition"
+                          />
+                          Email
+                        </button>
+
+                        <button
+                          className="group bg-white px-6 py-3 rounded-2xl
+                                        flex items-center gap-2 text-orange-600 font-semibold
+                                        shadow-md hover:shadow-xl hover:-translate-y-1
+                                        hover:scale-105 active:scale-95
+                                        transition-all duration-300"
+                        >
+                          <Smartphone
+                            size={20}
+                            className="group-hover:rotate-6 transition"
+                          />
+                          SMS
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <WhatsappModal
+                  isOpen={isOpen}
+                  setIsOpen={setIsOpen}
+                  selectedCount={bulkWaSelectedUserIds.length}
+                  bulkWaSendDate={bulkWaSendDate}
+                  setBulkWaSendDate={setBulkWaSendDate}
+                  onBulkSend={sendBulkUserManagementWhatsApp}
+                  bulkWaSending={bulkWaSending}
+                  onSendTemplate={sendTemplateWhatsApp}
+                  sendingTemplateId={templateWaSendingId}
+                />
+
+                {bulkWaResult && (
+                  <div
+                    className={`mx-4 md:mx-8 mb-4 p-5 rounded-2xl shadow-lg border-l-4 ${
+                      bulkWaResult.success
+                        ? "bg-green-50 text-green-800 border-green-500"
+                        : "bg-red-50 text-red-800 border-red-500"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <p className="font-bold text-lg mb-1">
+                          {bulkWaResult.success ? "✓ Success" : "✗ Error"}
+                        </p>
+                        <p>{bulkWaResult.message}</p>
+                        {bulkWaResult.sent !== undefined && (
+                          <p className="mt-2 font-semibold">
+                            . Messages sent: {bulkWaResult.sent}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setBulkWaResult(null)}
+                        className="text-gray-500 hover:text-gray-700 p-1"
+                        aria-label="Dismiss"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             <TableContainer
               sx={{
@@ -4677,13 +4799,14 @@ export default function UserManagement() {
                                             {chatbotMetricFilter?.metricId ===
                                               "demoBooked" &&
                                               user.demoBooking && (
-                                              <span
-                                                className="inline-block px-2 py-0.5 text-[10px] font-semibold text-rose-800 bg-rose-100 rounded-full border border-rose-200"
-                                                title={`Demo: ${user.demoBooking.selectedDateLabel || user.demoBooking.selectedDate} · ${user.demoBooking.seminarTime} · ${user.demoBooking.status}`}
-                                              >
-                                                Demo {user.demoBooking.seminarTime}
-                                              </span>
-                                            )}
+                                                <span
+                                                  className="inline-block px-2 py-0.5 text-[10px] font-semibold text-rose-800 bg-rose-100 rounded-full border border-rose-200"
+                                                  title={`Demo: ${user.demoBooking.selectedDateLabel || user.demoBooking.selectedDate} · ${user.demoBooking.seminarTime} · ${user.demoBooking.status}`}
+                                                >
+                                                  Demo{" "}
+                                                  {user.demoBooking.seminarTime}
+                                                </span>
+                                              )}
                                             {paidUsersStatus[user.userId] && ( // A URL exists for this user
                                               <>
                                                 <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
@@ -4712,21 +4835,26 @@ export default function UserManagement() {
                                           {chatbotMetricFilter?.metricId ===
                                             "demoBooked" &&
                                             user.demoBooking && (
-                                            <div className="text-[10px] text-rose-700 font-medium space-y-0.5">
-                                              <div>
-                                                Demo Date:{" "}
-                                                {user.demoBooking.selectedDateLabel ||
-                                                  user.demoBooking.selectedDate ||
-                                                  "—"}{" "}
-                                                · {user.demoBooking.seminarTime} ·{" "}
-                                                {user.demoBooking.status}
+                                              <div className="text-[10px] text-rose-700 font-medium space-y-0.5">
+                                                <div>
+                                                  Demo Date:{" "}
+                                                  {user.demoBooking
+                                                    .selectedDateLabel ||
+                                                    user.demoBooking
+                                                      .selectedDate ||
+                                                    "—"}{" "}
+                                                  ·{" "}
+                                                  {user.demoBooking.seminarTime}{" "}
+                                                  · {user.demoBooking.status}
+                                                </div>
+                                                <div className="text-indigo-700">
+                                                  Agent:{" "}
+                                                  {getAgentName(
+                                                    user.assignedAgentId,
+                                                  )}
+                                                </div>
                                               </div>
-                                              <div className="text-indigo-700">
-                                                Agent:{" "}
-                                                {getAgentName(user.assignedAgentId)}
-                                              </div>
-                                            </div>
-                                          )}
+                                            )}
                                           <div
                                             onClick={(e) => e.stopPropagation()}
                                           >
@@ -5136,9 +5264,7 @@ export default function UserManagement() {
                         })}
 
                         {!loadingFollowUpTable &&
-                          !(
-                            chatbotMetricLoading && chatbotMetricTableActive
-                          ) &&
+                          !(chatbotMetricLoading && chatbotMetricTableActive) &&
                           filteredUsers.length === 0 && (
                             <tr>
                               <td

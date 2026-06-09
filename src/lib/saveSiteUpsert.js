@@ -25,18 +25,29 @@ export function slugifyFromBusiness(business) {
     .replace(/^-|-$/g, "");
 }
 
-/**
- * @param {object} body — same shape as POST /api/save-site (optional `type`, e.g. "chatbot")
- * @returns {{ ok: true, site: object } | { ok: false, error: string, status: number }}
- */
+// ✅ Yahan apne unlimited users ke IDs daalo
+const UNLIMITED_USER_IDS = ["USR1763361446609", "USR1761994068831"];
+
 export async function upsertPublishSite(body) {
   await dbConnect();
 
-  const { business, aiContent, mediaImages, userId, locationId, type, phone, email } =
-    body ?? {};
+  const {
+    business,
+    aiContent,
+    mediaImages,
+    userId,
+    locationId,
+    type,
+    phone,
+    email,
+  } = body ?? {};
 
   if (!business || !aiContent) {
-    return { ok: false, error: "Business and AI content are required", status: 400 };
+    return {
+      ok: false,
+      error: "Business and AI content are required",
+      status: 400,
+    };
   }
 
   const isChatbotPublish =
@@ -45,10 +56,7 @@ export async function upsertPublishSite(body) {
   let businessForSave = business;
   if (!business?.phoneNumbers?.primaryPhone && !business?.primaryPhone) {
     if (isChatbotPublish) {
-      const fallbackPhone = resolvePrimaryPhoneForSite({
-        phone,
-        userId,
-      });
+      const fallbackPhone = resolvePrimaryPhoneForSite({ phone, userId });
       if (fallbackPhone) {
         businessForSave = {
           ...business,
@@ -90,7 +98,10 @@ export async function upsertPublishSite(body) {
     existingSite = await Site.findOne({ userId: effectiveUserId, locationId });
   }
   if (!existingSite) {
-    existingSite = await Site.findOne({ userId: effectiveUserId, slug: baseSlug });
+    existingSite = await Site.findOne({
+      userId: effectiveUserId,
+      slug: baseSlug,
+    });
   }
 
   const applyTypeIfPresent = (siteDoc) => {
@@ -102,31 +113,41 @@ export async function upsertPublishSite(body) {
   if (existingSite) {
     existingSite.business = businessForSave;
     existingSite.aiContent = aiContent;
-    existingSite.mediaImages = mediaImages || [];
+    existingSite.mediaImages =
+      Array.isArray(mediaImages) && mediaImages.length > 0
+        ? mediaImages.filter(Boolean).slice(0, 13)
+        : (existingSite.mediaImages || []).filter(Boolean).slice(0, 13);
     existingSite.isPublished = true;
     existingSite.updatedAt = new Date();
-    if (locationId) {
-      existingSite.locationId = locationId;
-    }
+    if (locationId) existingSite.locationId = locationId;
     applyTypeIfPresent(existingSite);
     await existingSite.save();
-
     return { ok: true, site: existingSite };
   }
 
-  // New site: WhatsApp/chatbot publishes have no multi-site quota (manual dashboard still limited).
-  if (!isChatbotPublish) {
+  // ✅ Unlimited exception check — pehle hi skip kar do quota check
+  const isUnlimitedUser = UNLIMITED_USER_IDS.includes(effectiveUserId);
+
+  // New site quota check — chatbot aur unlimited users dono skip karte hain
+  if (!isChatbotPublish && !isUnlimitedUser) {
     const user = await User.findOne({ userId: effectiveUserId }).select(
-      "paidPackage packageExpiryDate"
+      "paidPackage packageExpiryDate",
     );
 
     if (!user) {
-      return { ok: false, error: "User not found. Please log in again.", status: 404 };
+      return {
+        ok: false,
+        error: "User not found. Please log in again.",
+        status: 404,
+      };
     }
+
     const hasPaidPackage = !!user.paidPackage;
     const maxWebsites = hasPaidPackage ? 5 : 2;
 
-    const currentSiteCount = await Site.countDocuments({ userId: effectiveUserId });
+    const currentSiteCount = await Site.countDocuments({
+      userId: effectiveUserId,
+    });
     if (currentSiteCount >= maxWebsites) {
       const message = hasPaidPackage
         ? "You have reached your website limit for this plan (maximum 5 sites). Please upgrade your plan to create more websites."
@@ -137,7 +158,6 @@ export async function upsertPublishSite(body) {
 
   let finalSlug = baseSlug;
   let suffix = 1;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const conflict = await Site.findOne({ slug: finalSlug });
     if (!conflict) break;
@@ -149,7 +169,10 @@ export async function upsertPublishSite(body) {
     slug: finalSlug,
     business: businessForSave,
     aiContent,
-    mediaImages: mediaImages || [],
+    mediaImages:
+      Array.isArray(mediaImages) && mediaImages.length > 0
+        ? mediaImages.filter(Boolean).slice(0, 13)
+        : [],
     userId: effectiveUserId,
     locationId,
     isPublished: true,
@@ -161,6 +184,5 @@ export async function upsertPublishSite(body) {
   }
 
   const site = await Site.create(createPayload);
-
   return { ok: true, site };
 }

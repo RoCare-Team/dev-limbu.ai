@@ -77,6 +77,7 @@ export async function POST(request) {
       totalWebsiteClicks: metrics?.totalWebsiteClicks || 0,
       totalMapsImpressions: metrics?.totalMapsImpressions || 0,
       totalSearchImpressions: metrics?.totalSearchImpressions || 0,
+      totalImpressions: (metrics?.totalMapsImpressions || 0) + (metrics?.totalSearchImpressions || 0), // ← yeh line add karo
     };
 
     console.log("📊 metricsToSave:", metricsToSave);

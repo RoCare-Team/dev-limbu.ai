@@ -505,6 +505,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
+    /* ── Single user by userId ── */
     if (userId) {
       const user = await User.findOne({ userId }).populate(
         "assignedAgentId",
@@ -519,25 +520,21 @@ export async function GET(req) {
       return NextResponse.json({ success: true, user });
     }
 
-    const email = searchParams.get("email");
-    const search = searchParams.get("search");
-    const assignedAgentId = searchParams.get("assignedAgentId");
-    const page = parseInt(searchParams.get("page")) || 1;
-    const limit = parseInt(searchParams.get("limit")) || 70;
-
-    // Date filter parameters
-    const dateFilter = searchParams.get("dateFilter");
-    const startDateParam = searchParams.get("startDate");
-    const endDateParam = searchParams.get("endDate");
-    const leadStatus = searchParams.get("leadStatus");
-    const leadStage = searchParams.get("leadStage");
-    const source = searchParams.get("source");
-    const conversationStage = (
-      searchParams.get("conversationStage") || ""
-    ).trim();
-    const remarkCount = searchParams.get("remarkCount");
-    const chatbotChatDay = searchParams.get("chatbotChatDay");
-    const franchiseLeads = searchParams.get("franchiseLeads");
+    const email               = searchParams.get("email");
+    const search              = searchParams.get("search");
+    const assignedAgentId     = searchParams.get("assignedAgentId");
+    const page                = parseInt(searchParams.get("page"))  || 1;
+    const limit               = parseInt(searchParams.get("limit")) || 70;
+    const dateFilter          = searchParams.get("dateFilter");
+    const startDateParam      = searchParams.get("startDate");
+    const endDateParam        = searchParams.get("endDate");
+    const leadStatus          = searchParams.get("leadStatus");
+    const leadStage           = searchParams.get("leadStage");
+    const source              = searchParams.get("source");
+    const conversationStage   = (searchParams.get("conversationStage") || "").trim();
+    const remarkCount         = searchParams.get("remarkCount");
+    const chatbotChatDay      = searchParams.get("chatbotChatDay");
+    const franchiseLeads      = searchParams.get("franchiseLeads");
 
     if (!email) {
       return NextResponse.json(
@@ -545,9 +542,9 @@ export async function GET(req) {
         { status: 400 },
       );
     }
-    /* 1️⃣ Find logged-in admin */
-    const admin = await Admin.findOne({ email });
 
+    /* ── Find logged-in admin ── */
+    const admin = await Admin.findOne({ email });
     if (!admin) {
       return NextResponse.json(
         { success: false, error: "Admin not found" },
@@ -555,13 +552,14 @@ export async function GET(req) {
       );
     }
 
-    /* Batch fetch by userId list (follow-up table / avoids paginated page missing leads) */
+    /* ── Batch fetch by userId list ── */
     const byUserIdsParam = searchParams.get("byUserIds");
     if (byUserIdsParam && byUserIdsParam.trim()) {
       const idList = byUserIdsParam
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
+
       if (idList.length === 0) {
         return NextResponse.json({
           success: true,
@@ -572,27 +570,28 @@ export async function GET(req) {
           limit: 0,
         });
       }
+
       let idQuery = { userId: { $in: idList } };
       if (admin.role === "agent") {
-        idQuery = {
-          $and: [{ userId: { $in: idList } }, { assignedAgentId: admin._id }],
-        };
+        idQuery = addMatchCondition(idQuery, { assignedAgentId: admin._id });
       } else if (admin.role === "manager") {
-        idQuery = {
-          $and: [{ userId: { $in: idList } }, { accountManager: admin._id }],
-        };
+        idQuery = addMatchCondition(idQuery, { accountManager: admin._id });
       }
+
       idQuery = await addConversationStageFilter(idQuery, conversationStage);
+
       const fetched = await User.find(idQuery)
         .populate("assignedAgentId", "fullName email role mobileNumber")
-        .populate("accountManager", "fullName email role mobileNumber")
+        .populate("accountManager",  "fullName email role mobileNumber")
         .sort({ createdAt: -1 });
+
       const order = new Map(idList.map((id, i) => [String(id), i]));
       const usersOrdered = [...fetched].sort(
         (a, b) =>
           (order.get(String(a.userId)) ?? 9999) -
           (order.get(String(b.userId)) ?? 9999),
       );
+
       return NextResponse.json({
         success: true,
         users: usersOrdered,
@@ -603,31 +602,23 @@ export async function GET(req) {
       });
     }
 
-    /* 🔍 Fetch Agent Stats (Total Counts) */
+    /* ── Agent Stats ── */
     if (searchParams.get("getAgentStats") === "true") {
-      const matchStage = {};
+      let matchStage = {};
 
       if (admin.role === "agent") {
         matchStage.assignedAgentId = admin._id;
       } else if (admin.role === "manager") {
-        // Manager → only users where accountManager matches this manager's ID
         matchStage.accountManager = admin._id;
       } else if (assignedAgentId) {
         if (assignedAgentId === "Unassigned") {
           matchStage.assignedAgentId = null;
         } else {
-          matchStage.assignedAgentId = new mongoose.Types.ObjectId(
-            assignedAgentId,
-          );
+          matchStage.assignedAgentId = new mongoose.Types.ObjectId(assignedAgentId);
         }
       }
 
-      if (
-        dateFilter &&
-        startDateParam &&
-        endDateParam &&
-        dateFilter !== "all"
-      ) {
+      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
         const startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(endDateParam);
@@ -653,48 +644,35 @@ export async function GET(req) {
 
       const sourceMatch = getSourceMatch(source);
       if (sourceMatch) {
-        Object.assign(matchStage, sourceMatch);
+        matchStage = addMatchCondition(matchStage, sourceMatch);
       }
 
       const remarkCountMatch = getRemarkCountMatch(remarkCount);
       if (remarkCountMatch) {
-        Object.assign(matchStage, remarkCountMatch);
+        matchStage = addMatchCondition(matchStage, remarkCountMatch);
       }
 
-      const statsMatchStage = await addConversationStageFilter(
-        matchStage,
-        conversationStage,
-      );
+      const statsMatchStage = await addConversationStageFilter(matchStage, conversationStage);
 
       const stats = await User.aggregate([
-        {
-          $match: statsMatchStage,
-        },
+        { $match: statsMatchStage },
         {
           $group: {
             _id: {
-              agent: "$assignedAgentId",
-              stage: { $ifNull: ["$leadStage", "Active"] },
-              leadStatus: { $ifNull: ["$leadStatus", "Cold"] },
+              agent:      "$assignedAgentId",
+              stage:      { $ifNull: ["$leadStage",  "Active"] },
+              leadStatus: { $ifNull: ["$leadStatus", "Cold"]   },
             },
             count: { $sum: 1 },
           },
         },
       ]);
 
-      const agentStats = { Unassigned: 0 };
-      const stageStats = {
-        Active: 0,
-        "Follow Up": 0,
-        Inactive: 0,
-        Onboard: 0,
-      };
-      const leadStatusStats = {
-        Hot: 0,
-        Warm: 0,
-        Cold: 0,
-      };
-      const detailedStats = [];
+      const agentStats      = { Unassigned: 0 };
+      const stageStats      = { Active: 0, "Follow Up": 0, Inactive: 0, Onboard: 0 };
+      const leadStatusStats = { Hot: 0, Warm: 0, Cold: 0 };
+      const detailedStats   = [];
+
       const agentIds = [
         ...new Set(
           stats.map((item) => item?._id?.agent?.toString()).filter(Boolean),
@@ -706,46 +684,29 @@ export async function GET(req) {
         const agents = await Admin.find({ _id: { $in: agentIds } })
           .select("_id fullName name")
           .lean();
-
         agents.forEach((agent) => {
-          agentNameMap[agent._id.toString()] =
-            agent.fullName || agent.name || "Unknown";
+          agentNameMap[agent._id.toString()] = agent.fullName || agent.name || "Unknown";
         });
       }
 
       stats.forEach((item) => {
-        const agentId = item._id.agent
-          ? item._id.agent.toString()
-          : "Unassigned";
-        const agentName =
-          agentId === "Unassigned"
-            ? "Unassigned"
-            : agentNameMap[agentId] || "Unknown";
-        const stage = item._id.stage;
-        const leadStatus = item._id.leadStatus || "Cold";
-        const count = item.count;
+        const agentId   = item._id.agent ? item._id.agent.toString() : "Unassigned";
+        const agentName = agentId === "Unassigned" ? "Unassigned" : agentNameMap[agentId] || "Unknown";
+        const stage      = item._id.stage;
+        const ls         = item._id.leadStatus || "Cold";
+        const count      = item.count;
 
-        // Agent Totals
-        agentStats[agentId] = (agentStats[agentId] || 0) + count;
-
-        // Stage Totals
-        stageStats[stage] = (stageStats[stage] || 0) + count;
-
-        // Lead Status Totals
-        leadStatusStats[leadStatus] =
-          (leadStatusStats[leadStatus] || 0) + count;
-
-        // Detailed Breakdown
-        detailedStats.push({ stage, agentId, agentName, leadStatus, count });
+        agentStats[agentId]  = (agentStats[agentId]  || 0) + count;
+        stageStats[stage]    = (stageStats[stage]    || 0) + count;
+        leadStatusStats[ls]  = (leadStatusStats[ls]  || 0) + count;
+        detailedStats.push({ stage, agentId, agentName, leadStatus: ls, count });
       });
 
       let extraStats = {};
 
       if (admin.role === "superAdmin") {
         const { start: startOfDay, end: endOfDay } = getAppDayBounds();
-        const todayCreated = {
-          createdAt: { $gte: startOfDay, $lte: endOfDay },
-        };
+        const todayCreated = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
 
         const [
           totalUsers,
@@ -764,41 +725,24 @@ export async function GET(req) {
           }),
           User.countDocuments(todayCreated),
           User.aggregate([
-            {
-              $match: {
-                ...todayCreated,
-                assignedAgentId: { $ne: null },
-              },
-            },
+            { $match: { ...todayCreated, assignedAgentId: { $ne: null } } },
             { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
             {
               $lookup: {
-                from: "admins",
-                localField: "_id",
-                foreignField: "_id",
-                as: "agent",
+                from: "admins", localField: "_id",
+                foreignField: "_id", as: "agent",
               },
             },
             { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
-            {
-              $project: {
-                agentName: { $ifNull: ["$agent.fullName", "Unknown"] },
-                count: 1,
-              },
-            },
+            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
           ]),
         ]);
 
         extraStats = {
-          totalUsers,
-          totalSignupUsers,
-          totalMetaLeadUsers,
-          totalSignups: totalSignupUsers,
-          totalMetaLeads: totalMetaLeadUsers,
-          metaLeadsCount: totalMetaLeadUsers,
-          signupLeadsCount: totalSignupUsers,
-          todayLeads,
-          todayAgentAssignments,
+          totalUsers, totalSignupUsers, totalMetaLeadUsers,
+          totalSignups: totalSignupUsers, totalMetaLeads: totalMetaLeadUsers,
+          metaLeadsCount: totalMetaLeadUsers, signupLeadsCount: totalSignupUsers,
+          todayLeads, todayAgentAssignments,
         };
       } else if (admin.role === "agent") {
         const { start: startOfDay, end: endOfDay } = getAppDayBounds();
@@ -819,7 +763,7 @@ export async function GET(req) {
       });
     }
 
-    /* 🔍 Fetch Today's Users Count (calendar day in APP_TIMEZONE, default Asia/Kolkata) */
+    /* ── Today's Users Count ── */
     if (searchParams.get("getTodayUsersCount") === "true") {
       const {
         start: startOfDay,
@@ -830,14 +774,9 @@ export async function GET(req) {
       } = getAppDayBounds();
 
       let startDate = startOfDay;
-      let endDate = endOfDay;
+      let endDate   = endOfDay;
 
-      if (
-        dateFilter &&
-        startDateParam &&
-        endDateParam &&
-        dateFilter !== "all"
-      ) {
+      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
         startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(endDateParam);
@@ -846,34 +785,26 @@ export async function GET(req) {
 
       const todayMatch = { createdAt: { $gte: startDate, $lte: endDate } };
 
-      const todayUsersCount = await User.countDocuments(todayMatch);
-
-      const todayBySource = await User.aggregate([
-        { $match: todayMatch },
-        { $group: { _id: "$source", count: { $sum: 1 } } },
-      ]);
+      const [todayUsersCount, todayBySource, todayMetaLeads, todaySignups] =
+        await Promise.all([
+          User.countDocuments(todayMatch),
+          User.aggregate([
+            { $match: todayMatch },
+            { $group: { _id: "$source", count: { $sum: 1 } } },
+          ]),
+          User.countDocuments({
+            ...todayMatch,
+            $or: [
+              { source: { $in: META_LEAD_SOURCES } },
+              { leadTags: { $in: META_LEAD_TAG_KEYS } },
+            ],
+          }),
+          User.countDocuments({ ...todayMatch, source: "signup" }),
+        ]);
 
       const sourceBreakdown = {};
       todayBySource.forEach((item) => {
         sourceBreakdown[item._id || "unknown"] = item.count;
-      });
-
-      const todayMetaLeads = await User.countDocuments({
-        ...todayMatch,
-        $or: [
-          { source: { $in: META_LEAD_SOURCES } },
-          { leadTags: { $in: META_LEAD_TAG_KEYS } },
-        ],
-      });
-
-      console.log("Todays Meta Leads Count Debug:", {
-        todayMetaLeads,
-        todayMatch,
-      });
-
-      const todaySignups = await User.countDocuments({
-        ...todayMatch,
-        source: "signup",
       });
 
       return NextResponse.json({
@@ -882,100 +813,96 @@ export async function GET(req) {
         todayMetaLeads,
         todaySignups,
         sourceBreakdown,
-        todayWindow: {
-          calendarDate,
-          timeZone,
-          displayLabel,
-        },
+        todayWindow: { calendarDate, timeZone, displayLabel },
       });
     }
 
-    /* 2️⃣ Role-based query */
+    /* ══════════════════════════════════════════
+       MAIN USER LIST — build query step by step
+       ══════════════════════════════════════════ */
     let query = {};
 
+    /* 1. Role-based base filter */
     if (admin.role === "agent") {
-      // Agent → only assigned users
-      query.assignedAgentId = admin._id;
+      query = addMatchCondition(query, { assignedAgentId: admin._id });
     } else if (admin.role === "manager") {
-      // Manager → only users where accountManager matches this manager's ID
-      query.accountManager = admin._id;
+      query = addMatchCondition(query, { accountManager: admin._id });
     } else if (assignedAgentId) {
-      // Admin filtering by agent
       if (assignedAgentId === "Unassigned") {
-        query.assignedAgentId = null;
+        query = addMatchCondition(query, { assignedAgentId: null });
       } else {
-        query.assignedAgentId = assignedAgentId;
+        query = addMatchCondition(query, { assignedAgentId });
       }
     }
 
-    // Date filtering logic
+    /* 2. Date filter */
     if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
       const startDate = new Date(startDateParam);
       startDate.setHours(0, 0, 0, 0);
-
       const endDate = new Date(endDateParam);
       endDate.setHours(23, 59, 59, 999);
-
-      query.createdAt = {
-        $gte: startDate,
-        $lte: endDate,
-      };
+      query = addMatchCondition(query, { createdAt: { $gte: startDate, $lte: endDate } });
     }
 
-    // Lead Status filtering
+    /* 3. Lead Status */
     if (leadStatus && leadStatus !== "All") {
       if (leadStatus === "Untagged") {
-        query.leadStatus = { $in: ["", null, undefined] };
+        query = addMatchCondition(query, { leadStatus: { $in: ["", null, undefined] } });
       } else {
-        query.leadStatus = leadStatus;
+        query = addMatchCondition(query, { leadStatus });
       }
     }
 
-    // Lead Stage filtering
+    /* 4. Lead Stage */
     if (leadStage && leadStage !== "All") {
       if (leadStage === "Active") {
-        query.leadStage = { $in: ["Active", "", null] };
+        query = addMatchCondition(query, { leadStage: { $in: ["Active", "", null] } });
       } else {
-        query.leadStage = leadStage;
+        query = addMatchCondition(query, { leadStage });
       }
     }
 
+    /* 5. Source */
     const sourceMatch = getSourceMatch(source);
     if (sourceMatch) {
       query = addMatchCondition(query, sourceMatch);
     }
 
+    /* 6. Remark Count */
     const remarkCountMatch = getRemarkCountMatch(remarkCount);
     if (remarkCountMatch) {
-      query = { ...query, ...remarkCountMatch };
+      query = addMatchCondition(query, remarkCountMatch);
     }
 
-    // Franchise Leads filter
+    /* 7. Franchise filter */
     if (franchiseLeads === "true") {
-      query.franchiseId = { $ne: null };
+      query = addMatchCondition(query, { franchiseId: { $ne: null } });
+    } else {
+      // Exclude franchise leads by default
+      query = addMatchCondition(query, {
+        $or: [
+          { franchiseId: "" },
+          { franchiseId: null },
+          { franchiseId: { $exists: false } },
+        ],
+      });
     }
 
+    /* 8. Search */
     if (search) {
       const searchRegex = { $regex: search, $options: "i" };
-      const searchConditions = [
-        { fullName: searchRegex },
-        { email: searchRegex },
-        { phone: searchRegex },
-        { userId: searchRegex },
-      ];
-
-      if (Object.keys(query).length > 0) {
-        query = { $and: [query, { $or: searchConditions }] };
-      } else {
-        query = { $or: searchConditions };
-      }
+      query = addMatchCondition(query, {
+        $or: [
+          { fullName:  searchRegex },
+          { email:     searchRegex },
+          { phone:     searchRegex },
+          { userId:    searchRegex },
+        ],
+      });
     }
 
-    const isChatbotDayFilter =
-      chatbotChatDay === "today" || chatbotChatDay === "yesterday";
-    if (!isChatbotDayFilter) {
-      query = await addConversationStageFilter(query, conversationStage);
-    }
+    /* 9. Chatbot chat day filter (short-circuits normal pagination) */
+    const isChatbotDayFilter = chatbotChatDay === "today" || chatbotChatDay === "yesterday";
 
     if (isChatbotDayFilter) {
       try {
@@ -988,11 +915,11 @@ export async function GET(req) {
         });
         return NextResponse.json({
           success: true,
-          users: chatbotList.users,
-          totalUsers: chatbotList.totalUsers,
-          currentPage: chatbotList.currentPage,
-          totalPages: chatbotList.totalPages,
-          limit: chatbotList.limit,
+          users:          chatbotList.users,
+          totalUsers:     chatbotList.totalUsers,
+          currentPage:    chatbotList.currentPage,
+          totalPages:     chatbotList.totalPages,
+          limit:          chatbotList.limit,
           chatbotChatDay,
           chatbotDayLabel: chatbotList.chatbotDayLabel,
           chatbotDayCount: chatbotList.chatbotDayCount,
@@ -1000,74 +927,58 @@ export async function GET(req) {
       } catch (chatbotErr) {
         console.error("chatbotChatDay filter:", chatbotErr);
         return NextResponse.json(
-          {
-            success: false,
-            error: chatbotErr.message || "Failed to load chatbot chat users",
-          },
+          { success: false, error: chatbotErr.message || "Failed to load chatbot chat users" },
           { status: 502 },
         );
       }
     }
 
+    /* 10. Conversation stage filter (async — must come after all sync filters) */
+    query = await addConversationStageFilter(query, conversationStage);
+
+    /* 11. Count + paginate — AFTER all filters are applied */
     const totalUsers = await User.countDocuments(query);
-    const skip = (page - 1) * limit;
+    const skip       = (page - 1) * limit;
 
-    query = {
-      ...query,
-      $or: [
-        { franchiseId: "" },
-        { franchiseId: null },
-        { franchiseId: { $exists: false } },
-      ],
-    };
-
-    /* 3️⃣ Fetch users */
+    /* 12. Fetch users */
     const users = await User.find(query)
       .populate("assignedAgentId", "fullName email role mobileNumber")
-      .populate("accountManager", "fullName email role mobileNumber")
+      .populate("accountManager",  "fullName email role mobileNumber")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
+    /* 13. superAdmin extra stats */
     let superAdminData = {};
     if (admin.role === "superAdmin") {
       const { start: startOfDay, end: endOfDay } = getAppDayBounds();
-      const todayCreated = {
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      const todayCreated = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
+
+      const metaLeadCondition = {
+        $or: [
+          { source: { $in: META_LEAD_SOURCES } },
+          { leadTags: { $in: META_LEAD_TAG_KEYS } },
+        ],
       };
 
       const [
-        totalGlobalUsers, // renamed to prevent overwriting local totalUsers
+        totalGlobalUsers,
         totalSignupUsers,
         totalMetaLeadUsers,
         todayLeads,
         todayAgentAssignments,
       ] = await Promise.all([
-        User.countDocuments(query), // use the filtered query
-        User.countDocuments({ ...query, source: "signup" }),
-        User.countDocuments(
-          addMatchCondition(query, {
-            $or: [
-              { source: { $in: META_LEAD_SOURCES } },
-              { leadTags: { $in: META_LEAD_TAG_KEYS } },
-            ],
-          }),
-        ),
+        User.countDocuments(query),
+        User.countDocuments(addMatchCondition(query, { source: "signup" })),
+        User.countDocuments(addMatchCondition(query, metaLeadCondition)),
         User.countDocuments(todayCreated),
         User.aggregate([
-          {
-            $match: {
-              ...todayCreated,
-              assignedAgentId: { $ne: null },
-            },
-          },
+          { $match: { ...todayCreated, assignedAgentId: { $ne: null } } },
           { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
           {
             $lookup: {
-              from: "admins",
-              localField: "_id",
-              foreignField: "_id",
-              as: "agent",
+              from: "admins", localField: "_id",
+              foreignField: "_id", as: "agent",
             },
           },
           { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
@@ -1084,10 +995,10 @@ export async function GET(req) {
         totalGlobalUsers,
         totalSignupUsers,
         totalMetaLeadUsers,
-        totalSignups: totalSignupUsers,
-        totalMetaLeads: totalMetaLeadUsers,
-        metaLeadsCount: totalMetaLeadUsers,
-        signupLeadsCount: totalSignupUsers,
+        totalSignups:      totalSignupUsers,
+        totalMetaLeads:    totalMetaLeadUsers,
+        metaLeadsCount:    totalMetaLeadUsers,
+        signupLeadsCount:  totalSignupUsers,
         todayLeads,
         todayAgentAssignments,
       };
@@ -1097,11 +1008,12 @@ export async function GET(req) {
       success: true,
       loggedInRole: admin.role,
       totalUsers,
-      totalPages: Math.ceil(totalUsers / limit),
+      totalPages:  Math.ceil(totalUsers / limit),
       currentPage: page,
       users,
       ...superAdminData,
     });
+
   } catch (error) {
     console.error("GET USERS ERROR:", error);
     return NextResponse.json(

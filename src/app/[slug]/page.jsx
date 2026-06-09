@@ -1,10 +1,18 @@
 import dbConnect from "@/lib/dbConnect";
 import Site from "@/models/Site";
-import { Phone, MapPin, MessageCircle } from "lucide-react";
+import {
+  Phone,
+  MapPin,
+  MessageCircle,
+  Star,
+  ChevronDown,
+  CheckCircle,
+} from "lucide-react";
 import { SiteAnimations } from "@/components/Siteclientcomponents";
 import NavBar from "@/components/websiteNavbar";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
+import WebsiteFooter from "@/components/WebsiteFooter";
 
 /* ================================
    Helper: WhatsApp link
@@ -16,7 +24,7 @@ function getWhatsAppLink(phone) {
 }
 
 /* ================================
-   Fetch site data from DB
+   Fetch site data
 ================================ */
 async function getSiteData(slug) {
   if (!slug) return null;
@@ -24,31 +32,7 @@ async function getSiteData(slug) {
     await dbConnect();
     const site = await Site.findOne({ slug }).lean();
     if (!site) return null;
-
-    let googleImages = [];
-    const business = site.business || {};
-
-    // Try fetching Google Business media if token exists
-    if (business?.accountId && business?.locationId && site?.googleAccessToken) {
-      try {
-        const mediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${business.accountId}/locations/${business.locationId}/media`;
-        const res = await fetch(mediaUrl, {
-          headers: { Authorization: `Bearer ${site.googleAccessToken}` },
-          cache: "no-store",
-        });
-        const data = await res.json();
-        if (res.ok) {
-          googleImages =
-            data.mediaItems
-              ?.filter((i) => i.mediaFormat === "PHOTO")
-              ?.map((i) => i.sourceUrl) || [];
-        }
-      } catch (e) {
-        console.warn("Google media fetch error:", e?.message);
-      }
-    }
-
-    return JSON.parse(JSON.stringify({ ...site, googleImages }));
+    return JSON.parse(JSON.stringify(site));
   } catch (e) {
     console.error("getSiteData error:", e?.message);
     return null;
@@ -61,710 +45,368 @@ async function getSiteData(slug) {
 export async function generateMetadata({ params }) {
   const p = await params;
   const site = await getSiteData(p?.slug);
-  if (!site)
-    return { title: "Business Website", description: "Professional business website" };
+  if (!site) return { title: "Business Website" };
 
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
   return {
     title: site?.aiContent?.meta?.title || site?.business?.title,
-    description: site?.aiContent?.meta?.description || "Professional business website",
-    alternates: {
-      canonical: `https://${p?.slug}.${rootDomain}`,
-    },
+    description: site?.aiContent?.meta?.description,
+    alternates: { canonical: `https://${p?.slug}.${rootDomain}` },
   };
 }
 
-
-/* ================================
-   PAGE COMPONENT
-================================ */
 export default async function SitePage({ params }) {
   const p = await params;
   const slug = p?.slug;
-
   if (!slug) return notFound();
 
-  // ── Read request headers ──
-  const headerStore = await headers();
-
-  // ✅ KEY FIX: Middleware sets this header ONLY when request comes via subdomain
-  // e.g. doctorfresh.limbu.ai → middleware rewrites + sets x-is-subdomain-site: 1
-  const isSubdomainRequest = headerStore.get("x-is-subdomain-site") === "1";
-  const tenantSlugFromHeader = headerStore.get("x-tenant-slug");
-
-  // Get clean host
-  const forwardedHost = headerStore.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const rawHost = (forwardedHost || headerStore.get("host") || "").split(":")[0].toLowerCase();
-
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
-  const isLocalhost = rawHost === "localhost" || rawHost === "127.0.0.1";
-
-  // ✅ Detect if this is the main domain (not a tenant subdomain)
-  const isMainDomain =
-    rawHost === rootDomain ||
-    rawHost === `www.${rootDomain}` ||
-    rawHost === "crm.limbu.ai";
-
-  // ✅ REDIRECT LOGIC:
-  // If request came directly to limbu.ai/slug (main domain, not via subdomain rewrite),
-  // redirect to the correct subdomain — but ONLY in production, not localhost
-  if (isMainDomain && !isSubdomainRequest && !isLocalhost) {
-    // Safe protocol detection
-    const forwardedProto = headerStore
-      .get("x-forwarded-proto")
-      ?.split(",")[0]
-      ?.trim()
-      ?.toLowerCase();
-    const protocol = forwardedProto === "http" ? "http" : "https";
-
-    redirect(`${protocol}://${slug}.${rootDomain}`);
-  }
-
-  // ── Fetch site data ──
   const siteData = await getSiteData(slug);
+  if (!siteData) return notFound();
 
-  // ✅ Show 404 if site doesn't exist in DB
-  if (!siteData) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-6">🔍</div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Site Not Found</h1>
-          <p className="text-gray-600 mb-8">
-            The website <span className="font-mono font-semibold text-blue-600">{slug}.{rootDomain}</span> doesn't exist yet or hasn't been published.
-          </p>
-          <a
-            href={`https://${rootDomain}`}
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition"
-          >
-            ← Go to Limbu AI
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-    const business = siteData.business || {};
-
-  console.log("business in page.jsx in slug", business);
+  const business = siteData.business || {};
   const aiContent = siteData.aiContent || {};
+  
+  // ✅ DYNAMIC THEME EXTRACTION
+  const theme = aiContent.theme || { primaryColor: "#3E4E50", secondaryColor: "#F0A500" };
+  const primary = theme.primaryColor;
+  const secondary = theme.secondaryColor;
 
-  // ── Images: prefer Google Business photos, fallback to saved mediaImages ──
-  const mediaImages =
-    siteData.googleImages?.length > 0
-      ? siteData.googleImages
-      : siteData.mediaImages || [];
+  const mediaImages = (siteData.mediaImages || []).filter(Boolean).slice(0, 13);
+  const heroImage = mediaImages[0] || null;
+  const galleryImages = mediaImages.filter(Boolean);
 
-  const heroImage =
-    mediaImages[0] ||
-    "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
+  const primaryPhone = business?.phoneNumbers?.primaryPhone || business?.primaryPhone;
+  const address = business?.storefrontAddress?.addressLines?.[0] || business?.address || "";
+  const locality = business?.locality || business?.storefrontAddress?.locality || "";
 
-  // ── Nav items — only show sections with real data ──
   const navItems = [
     { label: "Home", href: "#home" },
     ...(aiContent?.about?.content ? [{ label: "About", href: "#about" }] : []),
     ...(aiContent?.services?.length > 0 ? [{ label: "Services", href: "#services" }] : []),
-    ...(mediaImages.length >= 1 ? [{ label: "Gallery", href: "#gallery" }] : []),
+    ...(galleryImages.length >= 1 ? [{ label: "Gallery", href: "#gallery" }] : []),
+    ...(aiContent?.testimonials?.length > 0 ? [{ label: "Reviews", href: "#reviews" }] : []),
     { label: "Contact", href: "#contact" },
   ];
 
-  // Gallery: max 12 images
-  const galleryImages = mediaImages.slice(0, 12);
-
   return (
-    <div className="font-sans text-gray-800 min-h-screen bg-white">
-
+    <div className="font-sans text-gray-800 min-h-screen bg-white" style={{ '--primary': primary, '--secondary': secondary }}>
+      
       {/* ── NavBar ── */}
       <NavBar
-        logo={business?.logoUrl}
         title={business?.title}
+        logo={business?.logoUrl}
         navItems={navItems}
-        phone={business?.phoneNumbers?.primaryPhone}
-        whatsappLink={getWhatsAppLink(business?.phoneNumbers?.primaryPhone)}
+        phone={primaryPhone}
+        theme={{ primary: primary, secondary: secondary }}
+        darkHero={false}
       />
 
-      {/* ── Floating WhatsApp Button ── */}
-      {business?.phoneNumbers?.primaryPhone && (
+      {/* ── Floating WhatsApp ── */}
+      {primaryPhone && (
         <a
-          href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
+          href={getWhatsAppLink(primaryPhone)}
           target="_blank"
-          rel="noopener noreferrer"
-          className="fixed right-6 bottom-28 z-50 bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-full shadow-2xl hover:opacity-90 transition-all transform hover:scale-110 group"
-          title="Chat on WhatsApp"
+          className="fixed right-6 bottom-10 z-50 text-white p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 group"
+          style={{ backgroundColor: '#25D366' }}
         >
-          <MessageCircle className="w-7 h-7" />
-          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-xl">
-            Chat with us on WhatsApp
-          </span>
+          <MessageCircle className="w-6 h-6" />
         </a>
       )}
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          HERO SECTION
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section
-        id="home"
-        className="relative text-white min-h-screen flex items-center justify-center text-center overflow-hidden"
-        style={{
-          backgroundImage: `url(${heroImage})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/85 via-indigo-900/75 to-purple-900/85" />
-
-        {/* Animated Blobs */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
-          <div className="absolute top-40 right-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
-          <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000" />
+      {/* ━━━━━━━━ HERO SECTION ━━━━━━━━ */}
+      <section id="home" className="relative bg-white text-slate-900 min-h-[95vh] flex items-center overflow-hidden">
+        {/* Dynamic Blobs */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full filter blur-3xl -mr-48 -mt-24" style={{ backgroundColor: primary }} />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full filter blur-3xl -ml-24 -mb-24" style={{ backgroundColor: secondary }} />
         </div>
 
-        {/* Logo — Top Left (desktop only, navbar handles mobile) */}
-        {business?.logoUrl && (
-          <div className="absolute top-6 left-6 z-20 hidden md:block">
-            <div className="bg-white p-4 rounded-2xl shadow-2xl">
-              <img
-                src={business.logoUrl}
-                alt={`${business.title} Logo`}
-                className="h-16 w-auto max-w-[200px] object-contain"
-              />
-            </div>
-          </div>
-        )}
+        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full py-20">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+            <div className="flex-1 text-left space-y-8 animate-fadeIn">
+              {business?.primaryCategory && (
+                <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full text-sm font-semibold border" 
+                     style={{ backgroundColor: `${primary}10`, color: primary, borderColor: `${primary}20` }}>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: secondary }} />
+                  {business.primaryCategory} {locality && `• ${locality}`}
+                </div>
+              )}
 
-        <div className="relative z-10 px-6 max-w-6xl mx-auto w-full py-20 space-y-8 mt-16">
-          <h1 className="text-5xl md:text-7xl lg:text-6xl font-extrabold tracking-tight drop-shadow-2xl leading-tight">
-            {aiContent.hero?.headline || business?.title}
-          </h1>
-          <p className="text-xl md:text-3xl text-gray-100 leading-relaxed drop-shadow-lg font-light">
-            {aiContent.hero?.subheadline}
-          </p>
-          <div className="pt-4 flex flex-wrap justify-center gap-4">
-            <a
-              href={`tel:${business.phoneNumbers?.primaryPhone}`}
-              className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white px-10 py-5 rounded-full font-bold text-xl transition-all transform hover:scale-105 shadow-2xl"
-            >
-              <Phone className="w-6 h-6" />
-              {aiContent.hero?.ctaPrimary || "Call Now"} - {business.phoneNumbers?.primaryPhone}
-            </a>
-            <a
-              href={getWhatsAppLink(business.phoneNumbers?.primaryPhone)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:opacity-90 text-white px-10 py-5 rounded-full font-bold text-xl transition-all transform hover:scale-105 shadow-2xl"
-            >
-              <MessageCircle className="w-6 h-6" />
-              WhatsApp Us
-            </a>
-          </div>
-        </div>
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 leading-[1.1]">
+                {aiContent.hero?.headline || business?.title}
+              </h1>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <div className="w-8 h-12 border-2 border-white/50 rounded-full flex items-start justify-center p-2">
-            <div className="w-1 h-3 bg-white rounded-full animate-pulse" />
-          </div>
-        </div>
-      </section>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          ABOUT SECTION
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {aiContent?.about?.content && (
-        <section id="about" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <span
-                className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-                style={{ color: "#2563eb" }}
-              >
-                About Us
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                {aiContent.about?.title || "About Us"}
-              </h2>
-            </div>
-            <div className="bg-white p-12 rounded-3xl shadow-xl border border-gray-100">
-              <p className="text-lg md:text-xl text-gray-700 leading-relaxed whitespace-pre-wrap text-center">
-                {aiContent.about.content}
+              <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-2xl font-normal">
+                {aiContent.hero?.subheadline}
               </p>
-            </div>
-          </div>
-        </section>
-      )}
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          SERVICES SECTION
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {aiContent.services?.length > 0 && (
-        <section id="services" className="py-32 px-6 bg-gradient-to-br from-gray-50 to-blue-50">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-20">
-              <span
-                className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-                style={{ color: "#2563eb" }}
-              >
-                What We Offer
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Our Services
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Discover our comprehensive range of professional services designed to meet your needs
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {aiContent.services.map((service, i) => {
-                const accentHexList = ["#2563eb", "#4f46e5", "#0d9488"];
-                const accent = accentHexList[i % accentHexList.length];
-                return (
-                  <div
-                    key={i}
-                    className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden group transform hover:-translate-y-2 flex flex-col"
-                  >
-                    <div
-                      className="h-1.5 w-full"
-                      style={{ background: `linear-gradient(to right, ${accent}, #818cf8)` }}
-                    />
-                    <div className="p-7 flex-1 flex flex-col">
-                      <h3 className="font-bold text-xl mb-3 text-gray-900 group-hover:text-blue-600 transition-colors">
-                        {service.title}
-                      </h3>
-                      <p className="text-gray-500 leading-relaxed text-sm flex-1">
-                        {service.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          GALLERY SECTION
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {galleryImages.length >= 1 && (
-        <section id="gallery" className="py-32 px-6 bg-gradient-to-b from-gray-50 to-white">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <span
-                className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-                style={{ color: "#2563eb" }}
-              >
-                Our Work
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Gallery</h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Take a look at our projects and the quality of work we deliver
-              </p>
-              <div className="mt-6 inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-2 shadow-sm">
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-600">
-                  {galleryImages.length} Photo{galleryImages.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-            </div>
-
-            {galleryImages.length === 1 ? (
-              <div className="max-w-3xl mx-auto">
-                <div className="relative overflow-hidden rounded-3xl group cursor-pointer shadow-2xl">
-                  <img
-                    src={galleryImages[0]}
-                    alt="Gallery 1"
-                    className="w-full h-96 object-cover transform group-hover:scale-105 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8">
-                    <span className="text-white font-semibold text-lg">View Image</span>
-                  </div>
-                </div>
-              </div>
-            ) : galleryImages.length === 2 ? (
-              <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
-                {galleryImages.map((image, index) => (
-                  <div key={index} className="relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl hover:shadow-2xl transition-all duration-300">
-                    <img
-                      src={image}
-                      alt={`Gallery ${index + 1}`}
-                      className="w-full h-72 object-cover transform group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-blue-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-6">
-                      <span className="text-white font-semibold">View Image</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[200px]">
-                {galleryImages.map((image, index) => (
-                  <div
-                    key={index}
-                    className={`relative overflow-hidden rounded-2xl group cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 ${
-                      index === 0 ? "col-span-2 row-span-2" : ""
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`Gallery ${index + 1}`}
-                      className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-blue-900/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-5">
-                      <span className="text-white font-semibold text-sm transform translate-y-3 group-hover:translate-y-0 transition-transform duration-300">
-                        View Image
-                      </span>
-                    </div>
-                    {index === 0 && (
-                      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow">
-                        Featured
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CUSTOM SECTIONS
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {aiContent.customSections?.map((section, i) => (
-        <section
-          key={i}
-          className="py-32 px-6 border-t border-gray-100 bg-gradient-to-b from-white to-gray-50"
-        >
-          <div className="max-w-5xl mx-auto text-center">
-            <div className="mb-12">
-              <span
-                className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-                style={{ color: "#2563eb" }}
-              >
-                Additional Info
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                {section.title}
-              </h2>
-            </div>
-            <div className="bg-white p-12 rounded-3xl shadow-xl border border-gray-100">
-              <p className="text-lg md:text-xl text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {section.content}
-              </p>
-            </div>
-          </div>
-        </section>
-      ))}
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CONTACT FORM SECTION
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section id="contact" className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span
-              className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-              style={{ color: "#2563eb" }}
-            >
-              Get In Touch
-            </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Request a Free Quote
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Fill out the form below and we'll get back to you as soon as possible
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Contact Information Card */}
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-10 rounded-3xl text-white shadow-2xl">
-              <h3 className="text-3xl font-bold mb-6">Contact Information</h3>
-              <p className="text-blue-100 mb-8 text-lg">
-                Feel free to reach out to us through any of these channels
-              </p>
-              <div className="space-y-6">
-                {business?.phoneNumbers?.primaryPhone && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                      <Phone className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-semibold mb-1">Phone</p>
-                      <a
-                        href={`tel:${business.phoneNumbers.primaryPhone}`}
-                        className="text-blue-100 hover:text-white transition"
-                      >
-                        {business.phoneNumbers.primaryPhone}
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {(business?.storefrontAddress?.addressLines?.[0] || business?.address) && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                      <MapPin className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-semibold mb-1">Address</p>
-                      <p className="text-blue-100">
-                        {business.storefrontAddress?.addressLines?.[0] || business.address}
-                        {business.locality && `, ${business.locality}`}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {business?.phoneNumbers?.primaryPhone && (
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                      <MessageCircle className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-semibold mb-1">WhatsApp</p>
-                      <a
-                        href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-100 hover:text-white transition"
-                      >
-                        Chat with us instantly
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-10 pt-8 border-t border-white/20">
-                <p className="text-blue-100 text-sm mb-4">Connect with us</p>
-                <div className="flex gap-4">
-                  {business?.phoneNumbers?.primaryPhone && (
-                    <a
-                      href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white/20 hover:bg-white/30 p-3 rounded-xl backdrop-blur-sm transition"
-                    >
-                      <MessageCircle className="w-6 h-6" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Form — WhatsApp based */}
-            <div className="bg-white p-10 rounded-3xl shadow-2xl border border-gray-100">
-              <form
-                className="space-y-6"
-                action={`https://wa.me/${business?.phoneNumbers?.primaryPhone?.replace(/\D/g, "")}`}
-                method="GET"
-                target="_blank"
-              >
-                <div>
-                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
-                    placeholder="Enter your name"
-                  />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      required
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
-                      placeholder="Your phone number"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="service" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Service Required
-                  </label>
-                  <select
-                    id="service"
-                    name="service"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition appearance-none bg-white"
-                  >
-                    <option value="">Select a service</option>
-                    {aiContent.services?.map((service, i) => (
-                      <option key={i} value={service.title}>
-                        {service.title}
-                      </option>
-                    ))}
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Message
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={4}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition resize-none"
-                    placeholder="Tell us about your requirements..."
-                  />
-                </div>
-
-                <a
-                  href={getWhatsAppLink(business?.phoneNumbers?.primaryPhone)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white font-bold py-4 px-8 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Send via WhatsApp
+              <div className="pt-4 flex flex-wrap gap-4">
+                <a href={`tel:${primaryPhone}`} className="inline-flex items-center gap-3 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all transform hover:-translate-y-1 shadow-xl shadow-gray-200"
+                   style={{ backgroundColor: primary }}>
+                  <Phone className="w-5 h-5" /> {aiContent.hero?.ctaPrimary || "Call Now"}
                 </a>
+                <a href={getWhatsAppLink(primaryPhone)} target="_blank" className="inline-flex items-center gap-3 bg-white border-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all transform hover:-translate-y-1"
+                   style={{ borderColor: secondary, color: secondary }}>
+                  <MessageCircle className="w-5 h-5" /> WhatsApp
+                </a>
+              </div>
+            </div>
 
-                <p className="text-sm text-gray-500 text-center">
-                  Your message will be sent via WhatsApp
-                </p>
-              </form>
+            <div className="lg:w-5/12 w-full flex justify-center lg:justify-end">
+              <div className="relative w-full max-w-md">
+                {heroImage ? (
+                  <div className="relative z-10 w-full aspect-square rounded-3xl overflow-hidden shadow-2xl border-[12px] border-white">
+                    <img src={heroImage} alt="Hero" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-full aspect-square rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center">
+                    <img src={business?.logoUrl} className="w-32 grayscale opacity-20" alt="Logo" />
+                  </div>
+                )}
+                <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-2xl -z-10" style={{ backgroundColor: `${secondary}20` }} />
+                <div className="absolute -right-4 top-1/2 bg-white p-4 rounded-2xl shadow-lg z-20 hidden md:block border border-slate-50">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="w-6 h-6" style={{ color: secondary }} />
+                    <div className="text-left"><p className="text-xs text-slate-500 font-medium">Verified</p><p className="text-sm font-bold text-slate-800">Business</p></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          DARK CONTACT SECTION
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="py-32 px-6 bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-            backgroundSize: "40px 40px",
-          }}
-        />
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="text-center mb-16">
-            <span
-              className="font-semibold text-sm uppercase tracking-wider mb-4 block"
-              style={{ color: "#818cf8" }}
-            >
-              Get In Touch
-            </span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Contact Us</h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              We're here to help and answer any question you might have
-            </p>
+      {/* ━━━━━━━━ FEATURES STRIP ━━━━━━━━ */}
+      {aiContent?.features?.length > 0 && (
+        <section className="py-5 px-6" style={{ backgroundColor: primary }}>
+          <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-x-10 gap-y-3">
+            {aiContent.features.map((feature, i) => (
+              <div key={i} className="flex items-center gap-2 text-white font-bold text-sm uppercase tracking-wide">
+                <CheckCircle className="w-4 h-4 shrink-0" style={{ color: secondary }} /> {feature}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━ ABOUT SECTION ━━━━━━━━ */}
+      {aiContent?.about?.content && (
+        <section id="about" className="py-24 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-16 items-center">
+              <div>
+                <span className="font-bold text-sm uppercase tracking-[0.2em] block mb-3" style={{ color: primary }}>About Our Company</span>
+                <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
+                  {aiContent.about?.title || "Providing Quality Materials"}
+                </h2>
+                <div className="w-20 h-1.5 rounded-full mb-8" style={{ backgroundColor: secondary }} />
+                <p className="text-lg text-gray-600 leading-relaxed mb-10">{aiContent.about.content}</p>
+                <a href={`tel:${primaryPhone}`} className="inline-flex items-center gap-2 text-white px-10 py-4 rounded-xl font-bold transition-all shadow-lg"
+                   style={{ backgroundColor: primary }}>
+                  <Phone className="w-4 h-4" /> Contact Us Today
+                </a>
+              </div>
+
+              <div className="p-10 rounded-[2.5rem] border-2 shadow-sm" style={{ backgroundColor: `${primary}05`, borderColor: `${primary}10` }}>
+                <h3 className="text-2xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+                  <span className="w-2 h-8 rounded-full" style={{ backgroundColor: secondary }} />
+                  Why Choose Us
+                </h3>
+                <ul className="space-y-6">
+                  {aiContent.whyChooseUs?.map((item, i) => (
+                    <li key={i} className="flex items-start gap-4">
+                      <div className="p-1.5 rounded-full mt-1" style={{ backgroundColor: `${secondary}20` }}>
+                        <CheckCircle className="w-5 h-5" style={{ color: secondary }} />
+                      </div>
+                      <span className="text-gray-800 font-semibold text-lg">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━ SERVICES SECTION ━━━━━━━━ */}
+      {aiContent.services?.length > 0 && (
+        <section id="services" className="py-24 px-6 bg-slate-50">
+          <div className="max-w-7xl mx-auto text-center mb-20">
+            <span className="font-bold text-sm uppercase tracking-widest block mb-3" style={{ color: primary }}>What We Do</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Our Premium Services</h2>
+            <div className="w-20 h-1.5 mx-auto rounded-full" style={{ backgroundColor: secondary }} />
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {(business?.storefrontAddress?.addressLines?.[0] || business?.address) && (
-              <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl border border-white/20 hover:bg-white/15 transition-all shadow-xl">
-                <div className="flex items-start gap-4">
-                  <div className="bg-blue-500 p-4 rounded-xl">
-                    <MapPin className="w-6 h-6 text-white" />
+          <div className="grid md:grid-cols-3 gap-8">
+            {aiContent.services.map((service, i) => (
+              <div key={i} className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden group flex flex-col border border-gray-100">
+                <div className="h-2 w-full" style={{ backgroundColor: i % 2 === 0 ? primary : secondary }} />
+                <div className="p-10 flex-1 flex flex-col">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 text-white font-black text-xl shadow-lg"
+                       style={{ backgroundColor: primary }}>
+                    {String(i + 1).padStart(2, "0")}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-2">Visit Us</h3>
-                    <p className="text-gray-300 leading-relaxed">
-                      {business.storefrontAddress?.addressLines?.[0] || business.address}
-                      {business.locality && `, ${business.locality}`}
-                    </p>
-                  </div>
+                  <h3 className="font-black text-2xl mb-4 text-gray-900">{service.title}</h3>
+                  <p className="text-gray-500 leading-relaxed text-base flex-1">{service.description}</p>
                 </div>
               </div>
-            )}
+            ))}
+          </div>
+        </section>
+      )}
 
-            {business?.phoneNumbers?.primaryPhone && (
-              <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl border border-white/20 hover:bg-white/15 transition-all shadow-xl">
-                <div className="flex items-start gap-4">
-                  <div className="bg-indigo-500 p-4 rounded-xl">
-                    <Phone className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-2">Call Us</h3>
-                    <a
-                      href={`tel:${business.phoneNumbers.primaryPhone}`}
-                      className="text-gray-300 hover:text-white transition-colors text-lg"
-                    >
-                      {business.phoneNumbers.primaryPhone}
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* ━━━━━━━━ GALLERY SECTION ━━━━━━━━ */}
+      {galleryImages.length >= 1 && (
+        <section id="gallery" className="py-24 px-6 bg-white">
+          <div className="max-w-7xl mx-auto text-center mb-16">
+            <span className="font-bold text-sm uppercase tracking-widest block mb-3" style={{ color: primary }}>Portfolio</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">Our Gallery</h2>
+            <div className="w-20 h-1.5 bg-gray-200 rounded-full mx-auto relative overflow-hidden">
+               <div className="absolute inset-y-0 left-0 w-1/2" style={{ backgroundColor: secondary }} />
+            </div>
           </div>
 
-          {business?.phoneNumbers?.primaryPhone && (
-            <div className="text-center mt-12 flex flex-wrap justify-center gap-4">
-              <a
-                href={`tel:${business.phoneNumbers.primaryPhone}`}
-                className="inline-flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-2xl"
-              >
-                <Phone className="w-5 h-5" />
-                Call Now - {business.phoneNumbers.primaryPhone}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[250px]">
+            {galleryImages.map((image, index) => (
+              <div key={index} className={`relative overflow-hidden rounded-[2rem] shadow-md group ${index === 0 ? "col-span-2 row-span-2" : ""}`}>
+                <img src={image} alt="Gallery" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                   <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: secondary }}>
+                      <Star className="text-white fill-white w-6 h-6" />
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━ TESTIMONIALS ━━━━━━━━ */}
+      {aiContent?.testimonials?.length > 0 && (
+        <section id="reviews" className="py-24 px-6" style={{ backgroundColor: `${primary}05` }}>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-black text-gray-900">Trusted by Contractors</h2>
+              <div className="flex justify-center gap-1 mt-4">
+                 {[...Array(5)].map((_, i) => <Star key={i} className="w-6 h-6 fill-current" style={{ color: secondary }} />)}
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-8">
+              {aiContent.testimonials.map((t, i) => (
+                <div key={i} className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 relative">
+                  <p className="text-gray-700 text-lg leading-relaxed mb-8 italic">"{t.review}"</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black" style={{ backgroundColor: primary }}>
+                      {t.name?.[0]}
+                    </div>
+                    <span className="font-bold text-xl text-gray-900">{t.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━ FAQ SECTION ━━━━━━━━ */}
+      {aiContent?.faq?.length > 0 && (
+        <section className="py-24 px-6 bg-white">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-black text-gray-900 mb-4">Frequently Asked</h2>
+              <div className="w-16 h-1 rounded-full mx-auto" style={{ backgroundColor: secondary }} />
+            </div>
+            <div className="space-y-4">
+              {aiContent.faq.map((item, i) => (
+                <div key={i} className="bg-slate-50 rounded-2xl p-8 border border-slate-100 group transition-all hover:bg-white hover:shadow-xl">
+                  <h3 className="font-black text-xl text-gray-900 mb-3 flex items-start gap-4">
+                    <span className="text-2xl" style={{ color: primary }}>Q.</span>
+                    {item.question}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed pl-10 text-lg">{item.answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━ CTA BANNER ━━━━━━━━ */}
+      {aiContent?.ctaSection && primaryPhone && (
+        <section className="py-24 px-6 text-white overflow-hidden relative" style={{ background: `linear-gradient(135deg, ${primary} 0%, #111 100%)` }}>
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full blur-[120px] opacity-20" style={{ backgroundColor: secondary }} />
+          <div className="max-w-2xl mx-auto text-center relative z-10">
+            <h2 className="text-4xl text-white md:text-6xl font-black mb-6 leading-tight">{aiContent.ctaSection.headline}</h2>
+            <p className="text-white/80 text-xl mb-12 max-w-2xl mx-auto">{aiContent.ctaSection.subheadline}</p>
+            <div className="flex flex-wrap justify-center gap-6">
+              <a href={`tel:${primaryPhone}`} className="bg-white px-10 py-5 rounded-2xl font-black text-xl hover:scale-105 transition-all shadow-2xl"
+                 style={{ color: primary }}>
+                {aiContent.ctaSection.buttonText || "Call Now"}
               </a>
-              <a
-                href={getWhatsAppLink(business.phoneNumbers.primaryPhone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 text-white px-10 py-5 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-2xl"
-              >
-                <MessageCircle className="w-5 h-5" />
+              <a href={getWhatsAppLink(primaryPhone)} target="_blank" className="bg-green-500 px-10 py-5 rounded-2xl font-black text-xl hover:scale-105 transition-all shadow-2xl">
                 WhatsApp
               </a>
             </div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          FOOTER
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <footer className="py-12 bg-gray-950 border-t border-gray-800">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-gray-400 text-center md:text-left">
-              © {new Date().getFullYear()}{" "}
-              <span className="text-white font-semibold">{business.title}</span>. All rights reserved.
-            </p>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-500 text-sm">Powered by Limbu AI</span>
-              <div className="h-4 w-px bg-gray-700" />
-              <span className="text-gray-500 text-sm">Professional Website</span>
+      {/* ━━━━━━━━ CONTACT SECTION ━━━━━━━━ */}
+      <section id="contact" className="py-24 px-6 bg-slate-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-stretch">
+            {/* Left: Info */}
+            <div className="p-12 md:p-16 rounded-[3rem] text-white shadow-2xl relative overflow-hidden flex flex-col justify-between"
+                 style={{ backgroundColor: primary }}>
+              <div className="relative z-10">
+                <h3 className="text-3xl text-white font-black mb-4">{business?.title}</h3>
+                <p className="text-white/70 text-xl mb-12">Visit our warehouse or call us for bulk order pricing.</p>
+
+                <div className="space-y-10">
+                  <div className="flex items-center gap-6">
+                    <div className="bg-white/10 p-5 rounded-2xl"><Phone className="w-8 h-8" /></div>
+                    <div><p className="text-xs font-black uppercase tracking-widest opacity-50">Contact</p><p className="text-2xl font-bold">{primaryPhone}</p></div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="bg-white/10 p-5 rounded-2xl"><MapPin className="w-8 h-8" /></div>
+                    <div><p className="text-xs font-black uppercase tracking-widest opacity-50">Location</p><p className="text-2xl font-bold">{address}, {locality}</p></div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-16 flex gap-4 relative z-10">
+                 <a href={`tel:${primaryPhone}`} className="flex-1 text-center bg-white py-5 rounded-2xl font-black text-lg shadow-xl" style={{ color: primary }}>Call Now</a>
+                 <a href={getWhatsAppLink(primaryPhone)} target="_blank" className="flex-1 text-center bg-green-500 py-5 rounded-2xl font-black text-lg shadow-xl">WhatsApp</a>
+              </div>
+            </div>
+
+            {/* Right: Form */}
+            <div className="bg-white p-12 md:p-16 rounded-[3rem] shadow-xl border border-gray-100">
+              <h3 className="text-3xl font-black text-gray-900 mb-10">Inquiry Form</h3>
+              <div className="space-y-6">
+                <input type="text" placeholder="Full Name" className="w-full px-6 py-5 bg-gray-50  border-1 rounded-2xl focus:bg-white transition-all outline-none" 
+                       style={{ '--tw-ring-color': primary }} />
+                <div className="grid md:grid-cols-2 gap-6">
+                   <input type="tel" placeholder="Phone" className="w-full px-6 py-5 bg-gray-50  border-1 rounded-2xl focus:bg-white outline-none" />
+                   <input type="email" placeholder="Email" className="w-full px-6 py-5 bg-gray-50  border-1 rounded-2xl focus:bg-white outline-none" />
+                </div>
+                <select className="w-full px-6 py-5 bg-gray-50 border-2  rounded-2xl focus:bg-white outline-none appearance-none">
+                  <option>Select Service</option>
+                  {aiContent.services?.map((s,i) => <option key={i} value={s.title}>{s.title}</option>)}
+                </select>
+                <textarea rows={4} placeholder="Your Requirements..." className="w-full px-6 py-5 bg-gray-50 border-2 rounded-2xl focus:bg-white outline-none resize-none" />
+                <button className="w-full py-6 rounded-2xl text-white font-black text-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-xl"
+                        style={{ backgroundColor: primary }}>
+                  Submit Requirement
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </footer>
+      </section>
 
-      {/* Global Animation Styles */}
+      {/* ── Footer ── */}
+      <WebsiteFooter data={siteData} />
+      
       <SiteAnimations />
     </div>
   );

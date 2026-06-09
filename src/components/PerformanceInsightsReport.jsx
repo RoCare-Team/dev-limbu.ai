@@ -19,14 +19,14 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { 
-  Activity, 
-  Map as MapIcon, 
-  Search, 
-  Phone, 
-  Globe, 
+import {
+  Activity,
+  Map as MapIcon,
+  Search,
+  Phone,
+  Globe,
   Loader2,
-  MapPin
+  MapPin,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════
@@ -264,16 +264,17 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
     const raw = Array.isArray(searchKeywords)
       ? searchKeywords
       : searchKeywords?.searchKeywordsCounts || [];
-    return raw.slice(0, 10);
+    return raw.slice(0, 6); // ← 10 se 6 kar do
   }, [searchKeywords]);
 
-  const metrics = periodBreakdown?.cur || {
-    totalImpressions: 0,
-    totalMapsImpressions: 0,
-    totalSearchImpressions: 0,
-    totalCalls: 0,
-    totalWebsiteClicks: 0,
-  };
+  const metrics = props.storedMetrics ||
+    periodBreakdown?.cur || {
+      totalImpressions: 0,
+      totalMapsImpressions: 0,
+      totalSearchImpressions: 0,
+      totalCalls: 0,
+      totalWebsiteClicks: 0,
+    };
   const prev = periodBreakdown?.prv || {
     totalImpressions: 0,
     totalMapsImpressions: 0,
@@ -289,7 +290,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
   return (
     <div
       ref={ref}
-      className="font-sans bg-deep-charcoal min-h-screen p-6 relative custom-scroll overflow-y-auto"
+      className="font-sans bg-deep-charcoal p-4 relative custom-scroll overflow-y-auto"
     >
       {/* LOADING OVERLAY - Prevents style flickering during data swap */}
       {loading && (
@@ -326,14 +327,12 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
           <p className="text-[10px] text-tech-gray font-bold uppercase tracking-widest mb-1">
             Report window
           </p>
-          <p className="font-mono text-white  font-bold text-sm">
-            {drLabel}
-          </p>
+          <p className="font-mono text-white  font-bold text-sm">{drLabel}</p>
         </div>
       </header>
 
       {/* KPI GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
         <MetricCard
           label="Impressions"
           value={metrics.totalImpressions}
@@ -387,7 +386,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
       </div>
 
       {/* CHARTS SECTION */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
         {/* Chart 1: Visibility */}
         <div className="bg-pure-white border border-slate-200 rounded-3xl p-6 shadow-sm">
           <SectionHead
@@ -395,7 +394,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
             sub="Organic impressions on Search & Maps"
             accentColor="bg-blue-600"
           />
-          <div className="h-80 w-full">
+          <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyVis} barGap={8}>
                 <CartesianGrid
@@ -457,7 +456,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
             sub="Direct actions taken by potential customers"
             accentColor="bg-violet-600"
           />
-          <div className="h-80 w-full">
+          <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyEng} barGap={6}>
                 <CartesianGrid
@@ -518,7 +517,7 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
       </div>
 
       {/* KEYWORDS INSIGHTS */}
-      <div className="bg-pure-white border border-slate-200 rounded-3xl p-8 shadow-sm mb-8">
+      <div className="bg-pure-white border border-slate-200 rounded-3xl p-4 shadow-sm mb-4">
         <SectionHead
           title="Search Queries"
           sub="Top keywords leading customers to your business"
@@ -543,8 +542,8 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
                   {kw.insightsValue?.value
                     ? Number(kw.insightsValue.value).toLocaleString()
                     : kw.insightsValue?.threshold
-                    ? `< ${kw.insightsValue.threshold}`
-                    : "0"}
+                      ? `< ${kw.insightsValue.threshold}`
+                      : "0"}
                 </span>
                 <span className="text-[9px] text-tech-gray font-bold uppercase">
                   Searches
@@ -563,11 +562,11 @@ const PerformanceInsightsReport = React.forwardRef((props, ref) => {
       </div>
 
       {/* FOOTER */}
-      <footer className="mt-12 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+      <footer className="mt-4 pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-3">
-          <img 
-            src="/images/bg-logo.png" 
-            alt="Limbu AI Logo" 
+          <img
+            src="/images/bg-logo.png"
+            alt="Limbu AI Logo"
             className="w-8 h-8 object-contain rounded-lg"
           />
           <div>

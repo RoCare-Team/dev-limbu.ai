@@ -52,12 +52,12 @@ export async function POST(req) {
     // Exact WhatsApp payload
     const payload = {
       apiKey: API_KEY,
-      campaignName: "plan_template",
+      campaignName: "plan_upgrade_new",
       destination,
       userName: "YOUR_BRAND_NAME",
 
       templateParams: [
-        "$FirstName",
+        "$CustomerName",
         "$PlanName",
         "$Amount",
         "$StartDate",
@@ -72,7 +72,7 @@ export async function POST(req) {
       attributes: {},
 
       paramsFallbackValue: {
-        FirstName: firstName || "Customer",
+        CustomerName: firstName || "Customer",
         PlanName: planName || "Package",
         Amount: String(amount || "0"),
         StartDate: startDate || "-",

@@ -51,7 +51,10 @@ const PerformanceInsightsModal = ({
   const [isManualMode, setIsManualMode] = useState(false);
 
   const getActiveRange = useCallback(
-    (start = dateRange?.startDate || localStartDate, end = dateRange?.endDate || localEndDate) => {
+    (
+      start = dateRange?.startDate || localStartDate,
+      end = dateRange?.endDate || localEndDate,
+    ) => {
       const startDate = start instanceof Date ? start : new Date(start);
       const endDate = end instanceof Date ? end : new Date(end);
       return { startDate, endDate };
@@ -60,7 +63,10 @@ const PerformanceInsightsModal = ({
   );
 
   const buildReportKey = useCallback(
-    (start = dateRange?.startDate || localStartDate, end = dateRange?.endDate || localEndDate) => {
+    (
+      start = dateRange?.startDate || localStartDate,
+      end = dateRange?.endDate || localEndDate,
+    ) => {
       const { startDate, endDate } = getActiveRange(start, end);
       const reportPeriod = getReportPeriod(startDate, endDate);
       return {
@@ -70,7 +76,13 @@ const PerformanceInsightsModal = ({
         endDate: endDate.toISOString(),
       };
     },
-    [dateRange?.startDate, dateRange?.endDate, getActiveRange, localStartDate, localEndDate],
+    [
+      dateRange?.startDate,
+      dateRange?.endDate,
+      getActiveRange,
+      localStartDate,
+      localEndDate,
+    ],
   );
 
   const fetchSavedInsight = useCallback(
@@ -87,19 +99,24 @@ const PerformanceInsightsModal = ({
         _t: String(Date.now()),
       });
 
-      const fetchResponse = await fetch(`/api/performance-insights?${queryParams.toString()}`, {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
+      const fetchResponse = await fetch(
+        `/api/performance-insights?${queryParams.toString()}`,
+        {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
         },
-      });
+      );
 
       if (!fetchResponse.ok) {
         throw new Error(`Fetch failed: ${fetchResponse.status}`);
       }
 
       const fetchedData = await fetchResponse.json();
-      return fetchedData.success && fetchedData.data && fetchedData.data.length > 0
+      return fetchedData.success &&
+        fetchedData.data &&
+        fetchedData.data.length > 0
         ? fetchedData.data[0]
         : null;
     },
@@ -150,11 +167,18 @@ const PerformanceInsightsModal = ({
     if (isOpen) {
       setHasAutoSavedThisSession(false);
     }
-  }, [isOpen, locationId, city, locality, dateRange?.startDate, dateRange?.endDate]);
+  }, [
+    isOpen,
+    locationId,
+    city,
+    locality,
+    dateRange?.startDate,
+    dateRange?.endDate,
+  ]);
 
   // Update display data when fresh insights data comes from parent
   useEffect(() => {
-    if (insightsData && isOpen) {
+    if (insightsData && isOpen && !isManualMode) {
       // ← !isManualMode add किया
       console.log("Fresh data received from parent, updating display...");
 
@@ -195,7 +219,14 @@ const PerformanceInsightsModal = ({
 
   // Auto-save insights to DB when component mounts with data, then fetch from DB
   useEffect(() => {
-    if (!isOpen || !insightsData || loading || hasAutoSavedThisSession) return;
+    if (
+      !isOpen ||
+      !insightsData ||
+      loading ||
+      hasAutoSavedThisSession ||
+      isManualMode
+    )
+      return;
 
     const autoSaveAndFetchInsights = async () => {
       try {
@@ -281,6 +312,7 @@ const PerformanceInsightsModal = ({
     buildReportKey,
     fetchSavedInsight,
     getActiveRange,
+    isManualMode, // ← sirf yeh line add karein
   ]);
 
   const handleDownloadPDF = async () => {
@@ -300,13 +332,17 @@ const PerformanceInsightsModal = ({
       }
 
       const metadata = {
-        businessName: displayData.businessName,
-        locationName: displayData.locationName,
-        reportMonth: displayData.reportMonth,
-        reportYear: displayData.reportYear,
-        startDate: new Date(displayData.dateRange.startDate),
-        endDate: new Date(displayData.dateRange.endDate),
-      };
+  businessName: displayData.businessName,
+  locationName: displayData.locationName,
+  reportMonth: displayData.reportMonth,
+  reportYear: displayData.reportYear,
+  startDate: displayData.dateRange?.startDate 
+    ? new Date(displayData.dateRange.startDate) 
+    : localStartDate,
+  endDate: displayData.dateRange?.endDate 
+    ? new Date(displayData.dateRange.endDate) 
+    : localEndDate,
+};
 
       // The generator now handles its own toasts for success/error
       await generatePerformanceInsightsPDF(reportRef.current, metadata);
@@ -327,24 +363,31 @@ const PerformanceInsightsModal = ({
     const endDate =
       localEndDate instanceof Date ? localEndDate : new Date(localEndDate);
 
+    setReportMode("custom");
+    setIsManualMode(false); // ← false rakho taaki parent data aane pe update ho sake
+    setShowDatePicker(false);
+    setHasAutoSavedThisSession(false); // ← false rakho taaki auto-save fresh data ke saath chale
+    setDisplayData(null); // ← loading state dikhao
+
+    // Parent ko call karo fresh GMB API data ke liye
     if (onDateChange) {
       onDateChange({
         startDate: startDate,
         endDate: endDate,
       });
     }
-    setReportMode("custom"); // ← यह line add करें
-    setIsManualMode(true);
-    setShowDatePicker(false);
-    setHasAutoSavedThisSession(false);
 
+    // DB se bhi try karo
     try {
       const latestRecord = await fetchSavedInsight(startDate, endDate);
       if (latestRecord) {
         setDisplayData(latestRecord);
         setLastUpdated(new Date());
+        setIsManualMode(true); // ← data mil gaya toh ab manual mode ON
+        setHasAutoSavedThisSession(true);
         toast.success("✓ Loaded custom range data!", { id: "custom-range" });
       }
+      // Agar DB mein nahi hai toh parent se aane wala data handle karega
     } catch (error) {
       console.error("Error loading custom range data:", error);
     }
@@ -744,19 +787,23 @@ const PerformanceInsightsModal = ({
           ) : (
             <div className="bg-white rounded-4xl shadow-2xl overflow-hidden border border-black/5">
               <PerformanceInsightsReport
-                ref={reportRef}
-                insightsData={displayData.insightsData}
-                businessName={displayData.businessName}
-                locationName={displayData.locationName}
-                city={displayData.city || ""}
-                locality={displayData.locality || ""}
-                dateRange={{
-                  startDate: new Date(displayData.dateRange.startDate),
-                  endDate: new Date(displayData.dateRange.endDate),
-                }}
-                storedMetrics={displayData.metrics}
-                searchKeywords={displayData.searchKeywords || searchKeywords}
-              />
+  ref={reportRef}
+  insightsData={displayData.insightsData}
+  businessName={displayData.businessName}
+  locationName={displayData.locationName}
+  city={displayData.city || ""}
+  locality={displayData.locality || ""}
+  dateRange={{
+    startDate: displayData.dateRange?.startDate 
+      ? new Date(displayData.dateRange.startDate) 
+      : localStartDate,
+    endDate: displayData.dateRange?.endDate 
+      ? new Date(displayData.dateRange.endDate) 
+      : localEndDate,
+  }}
+  storedMetrics={displayData.metrics}
+  searchKeywords={displayData.searchKeywords || searchKeywords}
+/>
             </div>
           )}
         </div>

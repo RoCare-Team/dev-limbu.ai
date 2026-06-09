@@ -423,7 +423,7 @@ function FormCard() {
       .finally(() => setSlotsLoading(false));
   }, [formData.selectedDate, isSunday]);
 
-  const webinarTime = selectedTime;
+  const demoTime = selectedTime;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -436,12 +436,12 @@ function FormCard() {
     if (!formData.name.trim()) return setError("Please enter your full name.");
     if (!formData.contact.trim()) return setError("Please enter your WhatsApp number.");
     if (!/^\d{10}$/.test(formData.contact.trim())) return setError("Enter a valid 10-digit WhatsApp number.");
-    if (!formData.selectedDate) return setError("Please select a date for the webinar.");
-    if (isSunday) return setError("We don't host webinars on Sundays. Please pick another day.");
-    if (!webinarTime) {
+    if (!formData.selectedDate) return setError("Please select a date for your demo.");
+    if (isSunday) return setError("Demos are not available on Sundays. Please pick another day.");
+    if (!demoTime) {
       return setError("Please choose an available time slot.");
     }
-    const chosenSlot = timeSlots.find((slot) => slot.label === webinarTime);
+    const chosenSlot = timeSlots.find((slot) => slot.label === demoTime);
     if (chosenSlot?.booked) {
       return setError("This time slot is already booked. Please pick another time.");
     }
@@ -457,7 +457,7 @@ function FormCard() {
           name: formData.name.trim(),
           phone: formData.contact.trim(),
           business: formData.business.trim(),
-          seminarTime: webinarTime,
+          seminarTime: demoTime,
           selectedDate: formatDateISO(formData.selectedDate),
           status: "Not Attended",
         }),
@@ -468,7 +468,7 @@ function FormCard() {
           name: formData.name.trim(),
           phone: formData.contact.trim(),
           selectedDate: formatDateISO(formData.selectedDate),
-          seminarTime: webinarTime,
+          seminarTime: demoTime,
         };
 
         try {
@@ -531,12 +531,12 @@ function FormCard() {
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="font-black text-lg text-slate-900">
-              Book Your Free Seat
+              Book Your Free Demo
             </h2>
             <p className="text-slate-500 text-xs mt-0.5">
               {formData.selectedDate
-                ? `${formatDate(formData.selectedDate)} · ${webinarTime}`
-                : "4:00 PM IST · Online · Today"}
+                ? `${formatDate(formData.selectedDate)} · ${demoTime || "Pick a time"}`
+                : "9 AM – 9 PM IST · Online · Mon – Sat"}
             </p>
           </div>
           <div className="bg-green-100 border border-green-200 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
@@ -610,7 +610,7 @@ function FormCard() {
               <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 animate-fadeIn">
                 <span className="text-orange-500 text-sm">⚠️</span>
                 <span className="text-orange-800 text-xs font-semibold">
-                  No webinars on Sundays — please pick another day.
+                  No demos on Sundays — please pick another day.
                 </span>
               </div>
             )}
@@ -622,9 +622,16 @@ function FormCard() {
                   Choose time slot
                 </p>
                 {slotsLoading ? (
-                  <div className="text-xs text-slate-500 py-2">Loading slots…</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 py-3">
+                    <Loader2 size={14} className="animate-spin" />
+                    Loading available slots…
+                  </div>
+                ) : timeSlots.length === 0 ? (
+                  <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 font-semibold">
+                    No slots left for this date. Please pick another day.
+                  </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1">
                     {timeSlots.map((slot) => (
                       <button
                         key={slot.key}
@@ -662,22 +669,21 @@ function FormCard() {
             )}
 
             {/* Confirmed slot */}
-            {formData.selectedDate && !isSunday && webinarTime && (
+            {formData.selectedDate && !isSunday && demoTime && (
               <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5 animate-fadeIn">
                 <Clock size={13} className="text-yellow-600 flex-shrink-0" />
                 <span className="text-yellow-800 text-xs font-semibold">
-                  {formatDate(formData.selectedDate)} · {webinarTime} · 60 min ·
-                  Zoom
+                  {formatDate(formData.selectedDate)} · {demoTime} · 45 min ·
+                  Online
                 </span>
               </div>
             )}
 
-            {/* Default time strip */}
             {!formData.selectedDate && (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
                 <Clock size={13} className="text-slate-400 flex-shrink-0" />
                 <span className="text-slate-500 text-xs font-medium">
-                  Pick a date to confirm your slot · 4:00 PM IST
+                  Pick a date · hourly slots 9 AM – 9 PM IST
                 </span>
               </div>
             )}
@@ -703,10 +709,10 @@ function FormCard() {
               {isSubmitting ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Booking your seat…</span>
+                  <span>Booking your demo…</span>
                 </>
               ) : (
-                "🚀 Reserve My FREE Seat Now"
+                "🚀 Book My FREE Demo Now"
               )}
             </button>
 
@@ -768,7 +774,7 @@ function UrgencyBanner() {
         </div>
         <div className="flex items-center px-4 sm:px-6 py-2">
           <span className="text-xs sm:text-sm font-black text-black">
-            🚀 Join FREE — Before It&apos;s Full!
+            🚀 Book FREE Demo — Limited Slots!
           </span>
         </div>
         <div className="hidden sm:flex flex-col justify-center px-4 sm:px-6 py-2">
@@ -792,21 +798,21 @@ function LeftSection() {
   return (
     <div className="space-y-6">
       <div className="inline-flex items-center gap-2 bg-yellow-100 border border-yellow-200 rounded-full px-3 py-1.5 text-yellow-700 text-xs font-semibold shadow-sm">
-        🎯 Free Business Growth Demo
+        🎯 Free Limbu AI Demo
       </div>
       <h1 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight text-slate-900">
         Grow Your Business With{" "}
         <span className="text-yellow-500">Limbu AI</span>
       </h1>
       <p className="text-slate-600 text-sm leading-relaxed font-medium">
-        Learn how to automate your Google Business profile and social media —
-        save 10+ hours a week and get more customers on autopilot.
+        Book a free 1-on-1 demo — see how to automate Google Business & social
+        media, save 10+ hours a week, and get more customers.
       </p>
       <div className="flex gap-3 flex-wrap">
         {[
           { num: "1,200+", lbl: "Businesses Joined" },
           { num: "4.9★", lbl: "Average Rating" },
-          { num: "60 Min", lbl: "Session Length" },
+          { num: "45 Min", lbl: "Demo Length" },
         ].map((s) => (
           <div
             key={s.lbl}
@@ -824,18 +830,18 @@ function LeftSection() {
       <div className="space-y-2">
         <FeatureRow
           icon={<Video size={15} />}
-          title="Live Demo"
-          desc="Watch us create a week of posts in under 5 minutes"
+          title="Personalized Demo"
+          desc="We show Limbu AI live for your business type"
         />
         <FeatureRow
           icon={<Users size={15} />}
-          title="Live Q&A"
-          desc="Ask anything — get answers specific to your business"
+          title="Expert Walkthrough"
+          desc="Ask anything — get answers for your business"
         />
         <FeatureRow
           icon={<Gift size={15} />}
-          title="Free Bonus"
-          desc="All attendees get our AI prompt pack (worth ₹1,499)"
+          title="No Commitment"
+          desc="100% free demo · book in under 2 minutes"
         />
       </div>
     </div>
@@ -895,7 +901,7 @@ function AutoModal({ onClose }) {
 /* ─── PAGE ─── */
 export default function WebinarPage() {
   const [liveUser, setLiveUser] = useState(
-    rand(names) + " from " + rand(cities) + " just joined",
+    rand(names) + " from " + rand(cities) + " just booked a demo",
   );
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -906,7 +912,7 @@ export default function WebinarPage() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setLiveUser(rand(names) + " from " + rand(cities) + " just joined");
+      setLiveUser(rand(names) + " from " + rand(cities) + " just booked a demo");
     }, 3000);
     return () => clearInterval(id);
   }, []);

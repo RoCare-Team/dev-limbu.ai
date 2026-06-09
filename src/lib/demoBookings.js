@@ -158,10 +158,25 @@ export function demoSlotKey(selectedDate, seminarTime) {
   return date && time ? `${date}|${time}` : "";
 }
 
+const DEMO_SLOT_TZ = process.env.APP_TIMEZONE || "Asia/Kolkata";
+const DEMO_SLOT_START_HOUR = 9;
+const DEMO_SLOT_END_HOUR = 21;
+
+function formatDemoSlotLabel(hour24) {
+  const period = hour24 >= 12 ? "PM" : "AM";
+  let h = hour24 % 12;
+  if (h === 0) h = 12;
+  return `${h}:00 ${period} IST`;
+}
+
+/** Hourly demo slots: 9:00 AM – 9:00 PM IST (Mon–Sat; Sunday closed). */
 export function getDemoSlotsForWeekday(weekday) {
-  const base = ["10:00 AM", "2:00 PM", "4:00 PM IST"];
-  if (weekday === 5) return [...base, "5:30 PM IST"];
-  return base;
+  if (weekday === 0) return [];
+  const slots = [];
+  for (let hour = DEMO_SLOT_START_HOUR; hour <= DEMO_SLOT_END_HOUR; hour++) {
+    slots.push(formatDemoSlotLabel(hour));
+  }
+  return slots;
 }
 
 export function getDemoSlotsForDate(selectedDate) {
@@ -170,6 +185,48 @@ export function getDemoSlotsForDate(selectedDate) {
   const [y, m, d] = normalized.split("-").map(Number);
   const weekday = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay();
   return getDemoSlotsForWeekday(weekday);
+}
+
+function getISTCalendarDate(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: DEMO_SLOT_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function getISTClockMinutes(date = new Date()) {
+  const timeStr = date.toLocaleTimeString("en-GB", {
+    timeZone: DEMO_SLOT_TZ,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const [h, mi] = timeStr.split(":").map(Number);
+  return h * 60 + mi;
+}
+
+export function parseSeminarTimeToMinutes(label) {
+  const s = normalizeSeminarTime(label);
+  const match = s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const mi = parseInt(match[2], 10);
+  const ap = match[3];
+  if (ap === "pm" && h !== 12) h += 12;
+  if (ap === "am" && h === 12) h = 0;
+  return h * 60 + mi;
+}
+
+/** Hide slots that already passed for today's date (IST). */
+export function isDemoSlotPastForDate(selectedDate, slotLabel, now = new Date()) {
+  const date = normalizeBookingSelectedDate(selectedDate);
+  if (!date) return false;
+  if (date !== getISTCalendarDate(now)) return false;
+  const slotMin = parseSeminarTimeToMinutes(slotLabel);
+  if (slotMin == null) return false;
+  return slotMin <= getISTClockMinutes(now);
 }
 
 export function getBookedSlotKeysForDate(bookings = [], selectedDate) {
@@ -188,14 +245,17 @@ export async function getDemoSlotAvailability(selectedDate) {
   const date = normalizeBookingSelectedDate(selectedDate);
   const bookings = await fetchAllDemoBookings();
   const bookedKeys = getBookedSlotKeysForDate(bookings, date);
-  const slots = getDemoSlotsForDate(date).map((label) => {
-    const key = demoSlotKey(date, label);
-    return {
-      label,
-      key,
-      booked: bookedKeys.has(key),
-    };
-  });
+  const now = new Date();
+  const slots = getDemoSlotsForDate(date)
+    .filter((label) => !isDemoSlotPastForDate(date, label, now))
+    .map((label) => {
+      const key = demoSlotKey(date, label);
+      return {
+        label,
+        key,
+        booked: bookedKeys.has(key),
+      };
+    });
 
   return {
     date,
